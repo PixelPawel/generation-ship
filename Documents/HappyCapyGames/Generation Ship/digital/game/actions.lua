@@ -2,6 +2,7 @@ local C       = require("game.constants")
 local supply  = require("game.supply")
 local state_m = require("game.state")
 local effects = require("game.effects")
+local deck_m  = require("game.deck")
 
 local M = {}
 
@@ -55,7 +56,7 @@ local function guard_active(state, player_id)
 	local p = state_m.get_player(state, player_id)
 	if not p then return nil, "player not found" end
 	if state_m.active_player(state).id ~= player_id then return nil, "not your turn" end
-	if p.passed or p.researched then return nil, "already passed or researched" end
+	if p.passed then return nil, "you have already passed" end
 	return p
 end
 
@@ -242,18 +243,19 @@ end
 -- ─── pass / research ─────────────────────────────────────────────────────────
 
 function M.pass(state, player_id)
-	local player = state_m.get_player(state, player_id)
-	if not player then return false, "player not found" end
-	if player.passed then return false, "already passed" end
+	local player, err = guard_active(state, player_id)
+	if not player then return false, err end
+	if player.pending_effect    then return false, "resolve pending effect first" end
+	if player.pending_expedition then return false, "place your expedition first" end
 	player.passed = true
 	M._advance_turn(state)
 	return true
 end
 
 function M.research(state, player_id, discard_card_id)
-	local player = state_m.get_player(state, player_id)
-	if not player then return false, "player not found" end
-	if player.passed or player.researched then return false, "already passed or researched" end
+	local player, err = guard_active(state, player_id)
+	if not player then return false, err end
+	if player.researched then return false, "already researched this generation" end
 
 	local hand_idx = find_in_hand(player, discard_card_id)
 	if not hand_idx then return false, "card not in hand" end
@@ -261,12 +263,8 @@ function M.research(state, player_id, discard_card_id)
 	table.remove(player.hand, hand_idx)
 	table.insert(state.market.tech_discard, discard_card_id)
 
-	local drawn = {}
-	if #state.market.tech_deck > 0 then
-		local card_id = table.remove(state.market.tech_deck)
-		table.insert(player.hand, card_id)
-		drawn[1] = card_id
-	end
+	local drawn = deck_m.draw_with_reshuffle(state.market.tech_deck, state.market.tech_discard, 1)
+	for _, id in ipairs(drawn) do table.insert(player.hand, id) end
 
 	player.researched = true
 	M._advance_turn(state)
@@ -304,18 +302,13 @@ end
 
 -- ─── end-of-round ────────────────────────────────────────────────────────────
 
+-- Each sector generates 1 supply of its color. Tech cards do not generate passively.
 function M.gain_supplies(state)
 	for _, player in ipairs(state.players) do
 		for _, sector in ipairs(player.ship.sectors) do
 			local sc = state.card_db[sector.sector_card]
 			if sc then
 				player.supplies[sc.color] = (player.supplies[sc.color] or 0) + 1
-			end
-			for _, cid in ipairs(sector.cards) do
-				local card = state.card_db[cid]
-				if card then
-					player.supplies[card.color] = (player.supplies[card.color] or 0) + 1
-				end
 			end
 		end
 	end
@@ -386,6 +379,16 @@ function M._resolve_bid(state)
 	end
 
 	state.bid = nil
+	M._advance_turn(state)  -- bid initiator used their action; move to next player
+
+	-- Immediately refill expedition market up to the standard cap
+	local needed = C.EXPEDITIONS_REVEALED - #state.market.expeditions
+	for _ = 1, needed do
+		if #state.market.expedition_deck > 0 then
+			table.insert(state.market.expeditions, table.remove(state.market.expedition_deck))
+		end
+	end
+
 	return true
 end
 
@@ -435,11 +438,8 @@ function M.resolve_effect(state, player_id, data)
 				if c then player.supplies[c.color] = (player.supplies[c.color] or 0) + 1 end
 			end
 		end
-		local drawn = {}
-		if #state.market.tech_deck > 0 then
-			drawn = require("game.deck").draw(state.market.tech_deck, count)
-			for _, id in ipairs(drawn) do table.insert(player.hand, id) end
-		end
+		local drawn = deck_m.draw_with_reshuffle(state.market.tech_deck, state.market.tech_discard, count)
+		for _, id in ipairs(drawn) do table.insert(player.hand, id) end
 
 	elseif t == "recycle" then
 		local choices = data.card_ids or {}
@@ -523,8 +523,7 @@ function M.resolve_effect(state, player_id, data)
 				reshuffled = reshuffled + 1
 			end
 		end
-		require("game.deck").shuffle(state.market.expedition_deck)
-		require("game.deck").draw(state.market.expedition_deck, 0)  -- reveal reshuffled count
+		deck_m.shuffle(state.market.expedition_deck)
 		for _ = 1, reshuffled do
 			if #state.market.expedition_deck > 0 then
 				table.insert(state.market.expeditions, table.remove(state.market.expedition_deck))

@@ -37,4 +37,16 @@ function M.make_piles(cards, pile_count, pile_size)
 	return piles
 end
 
+-- Draw n cards, reshuffling the discard pile into the deck if it runs dry.
+-- discard is modified in-place (cleared after shuffle).
+function M.draw_with_reshuffle(deck, discard, n)
+	n = n or 1
+	if #deck < n and discard and #discard > 0 then
+		for _, cid in ipairs(discard) do table.insert(deck, cid) end
+		for i = #discard, 1, -1 do table.remove(discard, i) end
+		M.shuffle(deck)
+	end
+	return M.draw(deck, n)
+end
+
 return M

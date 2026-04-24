@@ -99,6 +99,8 @@ function M._handle_action(player_id, data)
 	if ok then
 		if _state.phase == C.PHASE.SCORING then
 			M._broadcast_game_over()
+		elseif _state.phase == C.PHASE.DRAW then
+			M._do_generation_setup()   -- auto-advance through the draw phase
 		else
 			M._broadcast_state_delta()
 		end
@@ -109,29 +111,41 @@ end
 
 -- ─── generation flow ─────────────────────────────────────────────────────────
 
-function M._start_generation()
-	-- Each player draws 6 tech cards
+-- Called at the very start of each generation (including gen 1).
+-- Draws cards, refills expedition market to 3, keeps sector market as-is.
+function M._do_generation_setup()
+	-- Each player draws C.CARDS_PER_GENERATION new tech cards
 	for _, player in ipairs(_state.players) do
-		local drawn = deck_m.draw(_state.market.tech_deck, C.CARDS_PER_GENERATION)
+		local drawn = deck_m.draw_with_reshuffle(
+			_state.market.tech_deck, _state.market.tech_discard, C.CARDS_PER_GENERATION)
 		for _, c in ipairs(drawn) do table.insert(player.hand, c) end
 	end
 
-	-- Reveal 3 expeditions
-	for _ = 1, C.EXPEDITIONS_REVEALED do
-		local drawn = deck_m.draw(_state.market.expedition_deck, 1)
-		if drawn[1] then table.insert(_state.market.expeditions, drawn[1]) end
+	-- Refill expedition market up to C.EXPEDITIONS_REVEALED
+	local needed = C.EXPEDITIONS_REVEALED - #_state.market.expeditions
+	for _ = 1, needed do
+		if #_state.market.expedition_deck > 0 then
+			table.insert(_state.market.expeditions, table.remove(_state.market.expedition_deck))
+		end
 	end
 
-	-- Reveal sectors: top (basic) + second from top (advanced) of each pile
-	_state.market.sector_revealed = {}
-	for i = 1, 3 do
-		local pile = _state.market.sector_piles[i]
-		if pile[#pile]     then table.insert(_state.market.sector_revealed, pile[#pile])     end
-		if pile[#pile - 1] then table.insert(_state.market.sector_revealed, pile[#pile - 1]) end
+	-- On generation 1 only: expose the initial sector market (top + second of each pile)
+	if _state.generation == 1 then
+		_state.market.sector_revealed = {}
+		for i = 1, 3 do
+			local pile = _state.market.sector_piles[i]
+			if pile[#pile]     then table.insert(_state.market.sector_revealed, pile[#pile])     end
+			if pile[#pile - 1] then table.insert(_state.market.sector_revealed, pile[#pile - 1]) end
+		end
 	end
 
 	_state.phase = C.PHASE.ACTIONS
 	M._broadcast_state_full()
+end
+
+-- Kept for compatibility; calls _do_generation_setup on first gen.
+function M._start_generation()
+	M._do_generation_setup()
 end
 
 -- ─── broadcasts ──────────────────────────────────────────────────────────────
@@ -166,24 +180,49 @@ function M._send_error(player_id, err_msg)
 	end
 end
 
--- Returns a state view for a specific player: own hand is visible, others are masked.
+-- Returns a serialisable state view for a specific player.
+-- card_db is excluded (clients load it locally from card_data.lua).
+-- Other players' hand contents are hidden; only hand_size is sent.
 function M._public_state(for_player_id)
-	local view = {}
-	for k, v in pairs(_state) do view[k] = v end
+	local view = {
+		generation          = _state.generation,
+		phase               = _state.phase,
+		active_player_index = _state.active_player_index,
+		first_player_index  = _state.first_player_index,
+		bid                 = _state.bid,
+		market = {
+			tech_deck_size       = #_state.market.tech_deck,
+			tech_discard_size    = #_state.market.tech_discard,
+			expedition_deck_size = #_state.market.expedition_deck,
+			expeditions          = _state.market.expeditions,
+			sector_piles_sizes   = {
+				#_state.market.sector_piles[1],
+				#_state.market.sector_piles[2],
+				#_state.market.sector_piles[3],
+			},
+			sector_revealed      = _state.market.sector_revealed,
+		},
+	}
 
-	local masked = {}
+	local masked_players = {}
 	for _, p in ipairs(_state.players) do
 		if p.id == for_player_id then
-			table.insert(masked, p)
+			table.insert(masked_players, p)
 		else
-			local mp = {}
-			for k, v in pairs(p) do mp[k] = v end
-			mp.hand      = nil
-			mp.hand_size = #p.hand
-			table.insert(masked, mp)
+			local mp = {
+				id               = p.id,
+				name             = p.name,
+				hand_size        = #p.hand,
+				ship             = p.ship,
+				supplies         = p.supplies,
+				passed           = p.passed,
+				researched       = p.researched,
+				has_taken_action = p.has_taken_action,
+			}
+			table.insert(masked_players, mp)
 		end
 	end
-	view.players = masked
+	view.players = masked_players
 	return view
 end
 

@@ -13,7 +13,8 @@ local function gain(player, supply, n)
 end
 
 local function draw(state, player, n)
-	local drawn = deck_m.draw(state.market.tech_deck, n or 1)
+	if (n or 1) <= 0 then return {} end
+	local drawn = deck_m.draw_with_reshuffle(state.market.tech_deck, state.market.tech_discard, n or 1)
 	for _, id in ipairs(drawn) do table.insert(player.hand, id) end
 	return drawn
 end

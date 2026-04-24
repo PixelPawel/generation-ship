@@ -2,8 +2,9 @@
 -- The local player's UI calls the send_* helpers; on_message() is called
 -- whenever a raw Steam message arrives from the host.
 
-local C        = require("game.constants")
-local protocol = require("net.protocol")
+local C         = require("game.constants")
+local protocol  = require("net.protocol")
+local card_data = require("game.card_data")
 
 local M = {}
 
@@ -30,6 +31,7 @@ function M.on_message(raw)
 
 	if msg_type == protocol.MSG.STATE_FULL or msg_type == protocol.MSG.STATE_DELTA then
 		_state = data
+		_state.card_db = card_data.db  -- inject local card DB so UI can look up card info
 		if _on_state_cb then _on_state_cb(_state) end
 
 	elseif msg_type == protocol.MSG.GAME_OVER then
