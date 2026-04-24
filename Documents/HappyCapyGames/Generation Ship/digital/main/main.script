@@ -1,70 +1,227 @@
--- Boot script. Determines host vs client role and wires up Steam networking.
--- Steam P2P send/receive calls are marked with -- STEAM: comments.
+-- Boot / lobby / game orchestrator.
+-- Owns the Steam networking layer; routes messages between lobby UI, game UI,
+-- and the host/client game-logic modules.
+--
+-- All Steam API calls are marked -- STEAM: and must be wired to the
+-- britzl/steamworks-defold extension once it is available.
 
 local C        = require("game.constants")
 local host     = require("net.host")
 local client   = require("net.client")
 local protocol = require("net.protocol")
 
-local IS_HOST = false  -- set during lobby
+-- ─── state ───────────────────────────────────────────────────────────────────
+
+local IS_HOST       = false
+local MY_STEAM_ID   = nil   -- set after Steam init
+local HOST_STEAM_ID = nil
+local _lobby_members = {}   -- { steam_id -> name }
+
+-- GUI URLs (adjust to match your collection/GO hierarchy in Defold editor)
+local URL_LOBBY_GUI = msg.url("main:/lobby_go#lobby_gui")
+local URL_GAME_GUI  = msg.url("main:/game_go#game_gui")
 
 -- ─── Defold lifecycle ────────────────────────────────────────────────────────
 
 function init(self)
 	math.randomseed(os.time())
-	-- STEAM: initialise steamworks, create or join lobby
+	msg.post(".", "acquire_input_focus")
+
+	-- STEAM: steamworks.init()
+	-- STEAM: MY_STEAM_ID = tostring(steamworks.get_steam_id())
+	-- STEAM: steamworks.set_callback(function(event, data) _on_steam_event(event, data) end)
+
+	-- Fallback for local testing without Steam
+	MY_STEAM_ID = "local_" .. math.random(1000, 9999)
 end
 
 function update(self, dt)
-	-- STEAM: poll for incoming P2P messages
-	-- while steam.network.read_packet() do
-	--     local data, sender = steam.network.read_packet()
-	--     if IS_HOST then
-	--         host.on_message(tostring(sender), data)
-	--     else
-	--         client.on_message(data)
+	-- STEAM: Poll incoming P2P packets and dispatch them.
+	-- while steamworks.network_is_packet_available() do
+	--     local data, size, sender = steamworks.network_read_packet()
+	--     if data then
+	--         if IS_HOST then
+	--             host.on_message(tostring(sender), data)
+	--         else
+	--             client.on_message(data)
+	--         end
 	--     end
 	-- end
 end
 
+-- ─── Message routing ─────────────────────────────────────────────────────────
+
 function on_message(self, message_id, message, sender)
-	-- Internal Defold messages (e.g. from GUI scripts) are routed here.
-	-- Forward player actions from the UI to the appropriate net module.
-	if message_id == hash("player_action") then
-		if IS_HOST then
-			-- Host handles its own actions by pretending they came from itself
-			local raw = protocol.encode(protocol.MSG.ACTION, message)
-			host.on_message("local", raw)
-		else
-			client_send(protocol.encode(protocol.MSG.ACTION, message))
+
+	-- ── Lobby UI messages ────────────────────────────────────────────────────
+
+	if message_id == hash("create_lobby") then
+		-- STEAM: steamworks.matchmaking_create_lobby(steamworks.LOBBY_TYPE_FRIENDS_ONLY, message.max_players or 4)
+		-- On success, Steam fires a LobbyCreated callback → _on_steam_event("lobby_created", data)
+		-- For local testing without Steam, simulate immediately:
+		HOST_STEAM_ID = MY_STEAM_ID
+		IS_HOST       = true
+		_lobby_members[MY_STEAM_ID] = _local_player_name()
+		local fake_lobby_id = "lobby_" .. MY_STEAM_ID
+		msg.post(URL_LOBBY_GUI, "lobby_created", {
+			lobby_id    = fake_lobby_id,
+			my_steam_id = MY_STEAM_ID,
+		})
+		msg.post(URL_LOBBY_GUI, "player_joined", {
+			steam_id = MY_STEAM_ID,
+			name     = _local_player_name(),
+		})
+
+	elseif message_id == hash("join_lobby") then
+		-- STEAM: steamworks.matchmaking_join_lobby(message.lobby_id)
+		-- On success → _on_steam_event("lobby_joined", data)
+		-- The host Steam ID comes from lobby metadata.
+		print("join_lobby stub — wire to Steam")
+
+	elseif message_id == hash("request_start_game") then
+		if not IS_HOST then return end
+		-- Build ordered player list (host first, then others in join order)
+		local ids, names = {}, {}
+		table.insert(ids,   MY_STEAM_ID)
+		table.insert(names, _local_player_name())
+		for sid, name in pairs(_lobby_members) do
+			if sid ~= MY_STEAM_ID then
+				table.insert(ids, sid); table.insert(names, name)
+			end
+		end
+		-- STEAM: broadcast START message to all lobby members
+		-- for _, sid in ipairs(ids) do
+		--     steamworks.network_send_packet(sid, protocol.encode(protocol.MSG.LOBBY_START,
+		--         { player_ids = ids, player_names = names, host_steam_id = MY_STEAM_ID }))
+		-- end
+		_start_game(ids, names, MY_STEAM_ID, MY_STEAM_ID)
+
+	-- ── Steam event callbacks (fired from _on_steam_event) ───────────────────
+
+	elseif message_id == hash("_steam_player_joined") then
+		_lobby_members[message.steam_id] = message.name
+		msg.post(URL_LOBBY_GUI, "player_joined", message)
+
+	elseif message_id == hash("_steam_player_left") then
+		_lobby_members[message.steam_id] = nil
+		msg.post(URL_LOBBY_GUI, "player_left", message)
+
+	elseif message_id == hash("_steam_game_starting") then
+		_start_game(message.player_ids, message.player_names,
+			MY_STEAM_ID, message.host_steam_id)
+	end
+end
+
+-- ─── Steam event handler (call from the Steamworks callback) ─────────────────
+
+function _on_steam_event(event, data)
+	-- STEAM: plug the steamworks callback into this function.
+	if event == "lobby_created" then
+		HOST_STEAM_ID = MY_STEAM_ID
+		IS_HOST       = true
+		msg.post(URL_LOBBY_GUI, "lobby_created", {
+			lobby_id    = data.lobby_id,
+			my_steam_id = MY_STEAM_ID,
+		})
+
+	elseif event == "lobby_joined" then
+		IS_HOST       = false
+		HOST_STEAM_ID = data.owner_steam_id
+		msg.post(URL_LOBBY_GUI, "lobby_joined", {
+			lobby_id    = data.lobby_id,
+			my_steam_id = MY_STEAM_ID,
+		})
+
+	elseif event == "lobby_member_joined" then
+		msg.post(".", "_steam_player_joined", {
+			steam_id = tostring(data.steam_id),
+			name     = data.name or tostring(data.steam_id),
+		})
+
+	elseif event == "lobby_member_left" then
+		msg.post(".", "_steam_player_left", { steam_id = tostring(data.steam_id) })
+
+	elseif event == "game_start" then
+		-- Non-host clients receive LOBBY_START via P2P
+		-- (handled in update() → client.on_message → protocol.MSG.LOBBY_START)
+		local msg_type, payload = protocol.decode(data.raw)
+		if msg_type == protocol.MSG.LOBBY_START then
+			msg.post(".", "_steam_game_starting", payload)
 		end
 	end
 end
 
--- ─── helpers ─────────────────────────────────────────────────────────────────
+-- ─── Game startup ─────────────────────────────────────────────────────────────
 
--- Called once the lobby is ready and roles are assigned.
-function start_game(player_ids, player_names, my_steam_id, host_steam_id)
-	IS_HOST = (my_steam_id == host_steam_id)
+function _start_game(player_ids, player_names, my_steam_id, host_steam_id)
+	IS_HOST       = (my_steam_id == host_steam_id)
+	MY_STEAM_ID   = my_steam_id
+	HOST_STEAM_ID = host_steam_id
 
 	if IS_HOST then
+		-- Host: owns authoritative state and sends state to all peers.
 		host.init(player_ids, player_names, function(steam_id, raw)
-			-- STEAM: steam.network.send_packet(steam_id, raw)
+			if steam_id == "local" then
+				-- Deliver own state update directly through client pipeline
+				client.on_message(raw)
+			else
+				-- STEAM: steamworks.network_send_packet(steam_id, raw)
+				print("STEAM send to " .. steam_id .. ": " .. #raw .. " bytes")
+			end
 		end)
-		for i, pid in ipairs(player_ids) do
-			-- Map steam ids to player ids (passed in lobby order)
-			-- host.register_peer(steam_ids[i], pid)
+
+		-- Register all peers: "local" for the host itself, others by steam_id
+		host.register_peer("local", my_steam_id)
+		for _, pid in ipairs(player_ids) do
+			if pid ~= my_steam_id then
+				host.register_peer(pid, pid)
+			end
 		end
+
+		-- Host's own actions route through the host pipeline directly
+		client.init(my_steam_id,
+			function(raw)
+				-- Host player's outbound actions feed back into host.on_message
+				host.on_message("local", raw)
+			end,
+			function(state)
+				msg.post(URL_GAME_GUI, "state_update", state)
+			end,
+			function(rankings)
+				msg.post(URL_GAME_GUI, "game_over", { rankings = rankings })
+			end)
+
 	else
-		client.init(my_steam_id, function(raw)
-			-- STEAM: steam.network.send_packet(host_steam_id, raw)
-		end,
-		function(state)
-			-- State update callback: notify UI
-			msg.post("ui:/game#game_gui_script", "state_update", state)
-		end,
-		function(rankings)
-			msg.post("ui:/game#game_gui_script", "game_over", { rankings = rankings })
-		end)
+		-- Client: sends actions to host via Steam P2P, receives state snapshots.
+		client.init(my_steam_id,
+			function(raw)
+				-- STEAM: steamworks.network_send_packet(host_steam_id, raw)
+				print("STEAM send to host " .. host_steam_id .. ": " .. #raw .. " bytes")
+			end,
+			function(state)
+				msg.post(URL_GAME_GUI, "state_update", state)
+			end,
+			function(rankings)
+				msg.post(URL_GAME_GUI, "game_over", { rankings = rankings })
+			end)
 	end
+
+	-- Transition UI: hide lobby, show game
+	msg.post(URL_LOBBY_GUI, "disable")
+	msg.post(URL_GAME_GUI,  "enable")
+
+	-- Notify game GUI that the game started (lets it request initial state)
+	msg.post(URL_GAME_GUI, "game_started", {
+		my_steam_id   = my_steam_id,
+		is_host       = IS_HOST,
+		player_ids    = player_ids,
+		player_names  = player_names,
+	})
+end
+
+-- ─── helpers ─────────────────────────────────────────────────────────────────
+
+function _local_player_name()
+	-- STEAM: return steamworks.get_friend_persona_name(MY_STEAM_ID)
+	return "Player_" .. (MY_STEAM_ID or "?")
 end

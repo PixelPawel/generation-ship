@@ -78,7 +78,7 @@ function on_message(self, message_id, message, sender)
 
 	elseif message_id == hash("game_starting") then
 		-- Transition to the game scene
-		msg.post("main:/main#main_script", "start_game", {
+		msg.post("main:/go_main#script", "start_game", {
 			player_ids   = message.player_ids,
 			player_names = message.player_names,
 			my_steam_id  = _my_steam_id,
@@ -92,7 +92,7 @@ end
 function _on_create_pressed()
 	_set_status("Creating lobby…")
 	-- STEAM: msg.post to main.script to create a Steam lobby
-	msg.post("main:/main#main_script", "create_lobby", { max_players = C.MAX_PLAYERS or 4 })
+	msg.post("main:/go_main#script", "create_lobby", { max_players = C.MAX_PLAYERS or 4 })
 end
 
 function _on_join_pressed()
@@ -103,7 +103,7 @@ function _on_join_pressed()
 		return
 	end
 	_set_status("Joining lobby " .. lobby_id .. "…")
-	msg.post("main:/main#main_script", "join_lobby", { lobby_id = lobby_id })
+	msg.post("main:/go_main#script", "join_lobby", { lobby_id = lobby_id })
 end
 
 function _on_start_pressed()
@@ -113,7 +113,7 @@ function _on_start_pressed()
 		table.insert(ids, p.steam_id)
 		table.insert(names, p.name)
 	end
-	msg.post("main:/main#main_script", "request_start_game", {
+	msg.post("main:/go_main#script", "request_start_game", {
 		player_ids   = ids,
 		player_names = names,
 	})
