@@ -5,12 +5,14 @@
 -- Steam send/receive calls are marked with -- STEAM: comments.
 -- Wire these up to the steamworks extension in main.script.
 
-local C        = require("game.constants")
-local actions  = require("game.actions")
-local state_m  = require("game.state")
-local deck_m   = require("game.deck")
-local scoring  = require("game.scoring")
-local protocol = require("net.protocol")
+local C         = require("game.constants")
+local actions   = require("game.actions")
+local state_m   = require("game.state")
+local deck_m    = require("game.deck")
+local scoring   = require("game.scoring")
+local card_data = require("game.card_data")
+local protocol  = require("net.protocol")
+require("game.card_effects")  -- register all card effects as a side effect
 
 local M = {}
 
@@ -20,28 +22,18 @@ local _send_fn = nil  -- function(steam_id, raw_string) set by main
 
 -- ─── init ────────────────────────────────────────────────────────────────────
 
-function M.init(player_ids, player_names, card_db, send_fn)
+function M.init(player_ids, player_names, send_fn)
 	_send_fn = send_fn
-	_state = state_m.new(player_ids, player_names, card_db)
+	_state = state_m.new(player_ids, player_names, card_data.db)
 
-	-- Build and shuffle decks from card_db
-	for id, card in pairs(card_db) do
-		if card.type == C.CARD_TYPE.TECH then
-			table.insert(_state.market.tech_deck, id)
-		elseif card.type == C.CARD_TYPE.EXPEDITION then
-			table.insert(_state.market.expedition_deck, id)
-		elseif card.type == C.CARD_TYPE.SECTOR then
-			-- Distribute evenly across 3 piles
-			local pile_idx = (#_state.market.sector_piles[1] <= #_state.market.sector_piles[2]
-				and #_state.market.sector_piles[1] <= #_state.market.sector_piles[3]) and 1
-				or (#_state.market.sector_piles[2] <= #_state.market.sector_piles[3] and 2 or 3)
-			table.insert(_state.market.sector_piles[pile_idx], id)
-		end
-	end
+	-- Build shuffled decks using declared copy counts
+	_state.market.tech_deck       = deck_m.shuffle(card_data.build_deck(C.CARD_TYPE.TECH))
+	_state.market.expedition_deck = deck_m.shuffle(card_data.build_deck(C.CARD_TYPE.EXPEDITION))
 
-	deck_m.shuffle(_state.market.tech_deck)
-	deck_m.shuffle(_state.market.expedition_deck)
-	for i = 1, 3 do deck_m.shuffle(_state.market.sector_piles[i]) end
+	-- Split sector cards into 3 shuffled piles
+	local sector_ids = card_data.list(C.CARD_TYPE.SECTOR)
+	deck_m.shuffle(sector_ids)
+	_state.market.sector_piles = deck_m.make_piles(sector_ids, 3, C.SECTORS_PER_PILE)
 
 	M._start_generation()
 end
@@ -99,6 +91,9 @@ function M._handle_action(player_id, data)
 
 	elseif t == C.ACTION.FUSE then
 		ok, err = actions.fuse(_state, player_id, data.supply_type, data.target_type)
+
+	elseif t == C.ACTION.RESOLVE_EFFECT then
+		ok, err = actions.resolve_effect(_state, player_id, data)
 	end
 
 	if ok then
@@ -115,7 +110,7 @@ end
 -- ─── generation flow ─────────────────────────────────────────────────────────
 
 function M._start_generation()
-	-- Draw 6 tech cards per player
+	-- Each player draws 6 tech cards
 	for _, player in ipairs(_state.players) do
 		local drawn = deck_m.draw(_state.market.tech_deck, C.CARDS_PER_GENERATION)
 		for _, c in ipairs(drawn) do table.insert(player.hand, c) end
@@ -127,7 +122,7 @@ function M._start_generation()
 		if drawn[1] then table.insert(_state.market.expeditions, drawn[1]) end
 	end
 
-	-- Reveal sectors: top of each pile (basic) + second from top (advanced)
+	-- Reveal sectors: top (basic) + second from top (advanced) of each pile
 	_state.market.sector_revealed = {}
 	for i = 1, 3 do
 		local pile = _state.market.sector_piles[i]
@@ -142,42 +137,54 @@ end
 -- ─── broadcasts ──────────────────────────────────────────────────────────────
 
 function M._broadcast_state_full()
-	local msg = protocol.encode(protocol.MSG.STATE_FULL, M._public_state())
-	M._send_all(msg)
+	if not _send_fn then return end
+	for steam_id, player_id in pairs(_peers) do
+		_send_fn(steam_id, protocol.encode(protocol.MSG.STATE_FULL, M._public_state(player_id)))
+	end
 end
 
 function M._broadcast_state_delta()
-	local msg = protocol.encode(protocol.MSG.STATE_DELTA, M._public_state())
-	M._send_all(msg)
+	if not _send_fn then return end
+	for steam_id, player_id in pairs(_peers) do
+		_send_fn(steam_id, protocol.encode(protocol.MSG.STATE_DELTA, M._public_state(player_id)))
+	end
 end
 
 function M._broadcast_game_over()
 	local rankings = scoring.rankings(_state)
 	local msg = protocol.encode(protocol.MSG.GAME_OVER, rankings)
-	M._send_all(msg)
+	for steam_id, _ in pairs(_peers) do
+		if _send_fn then _send_fn(steam_id, msg) end
+	end
 end
 
 function M._send_error(player_id, err_msg)
 	for steam_id, pid in pairs(_peers) do
-		if pid == player_id then
-			if _send_fn then
-				_send_fn(steam_id, protocol.encode("error", { message = err_msg }))
-			end
+		if pid == player_id and _send_fn then
+			_send_fn(steam_id, protocol.encode("error", { message = err_msg }))
 		end
 	end
 end
 
-function M._send_all(raw)
-	if not _send_fn then return end
-	for steam_id, _ in pairs(_peers) do
-		_send_fn(steam_id, raw)
-	end
-end
+-- Returns a state view for a specific player: own hand is visible, others are masked.
+function M._public_state(for_player_id)
+	local view = {}
+	for k, v in pairs(_state) do view[k] = v end
 
--- Strip server-only data before broadcasting (e.g. other players' hands).
--- Each player only sees their own hand.
-function M._public_state()
-	return _state
+	local masked = {}
+	for _, p in ipairs(_state.players) do
+		if p.id == for_player_id then
+			table.insert(masked, p)
+		else
+			local mp = {}
+			for k, v in pairs(p) do mp[k] = v end
+			mp.hand      = nil
+			mp.hand_size = #p.hand
+			table.insert(masked, mp)
+		end
+	end
+	view.players = masked
+	return view
 end
 
 function M.get_state()

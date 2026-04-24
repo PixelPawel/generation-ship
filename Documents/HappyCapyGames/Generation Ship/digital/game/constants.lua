@@ -59,14 +59,15 @@ M.PHASE = {
 }
 
 M.ACTION = {
-	BUY_TECH    = "buy_tech",
-	BUY_SECTOR  = "buy_sector",
-	BID         = "bid",
-	PASS        = "pass",
-	RESEARCH    = "research",
-	RECYCLE     = "recycle",
-	FUSE        = "fuse",
+	BUY_TECH         = "buy_tech",
+	BUY_SECTOR       = "buy_sector",
+	BID              = "bid",
+	PASS             = "pass",
+	RESEARCH         = "research",
+	RECYCLE          = "recycle",
+	FUSE             = "fuse",
 	PLACE_EXPEDITION = "place_expedition",
+	RESOLVE_EFFECT   = "resolve_effect",   -- follow-up to a pending_effect choice
 }
 
 return M

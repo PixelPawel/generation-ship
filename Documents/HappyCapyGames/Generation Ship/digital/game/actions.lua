@@ -43,16 +43,22 @@ local function on_card_placed(state, player, sector, card_id)
 
 	effects.trigger(effects.TRIGGER.ON_PLACE, state, player, sector, card)
 
-	if effects.is_complete(sector) then
+	if #sector.cards == 5 then
 		effects.trigger(effects.TRIGGER.IF_COMPLETE, state, player, sector, card)
+		effects.trigger_all(effects.TRIGGER.ALWAYS_COMPLETE, state, player, card, sector)
 	end
 
-	for _ = prev_tier + 1, new_tier do
+	for tier = prev_tier + 1, new_tier do
 		effects.trigger(effects.TRIGGER.ON_OPTIMIZE, state, player, sector, card)
-		if new_tier == #state.card_db[sector.sector_card].optimize_groups then
+		local sc = state.card_db[sector.sector_card]
+		if sc and sc.optimize_groups and tier == #sc.optimize_groups then
 			effects.trigger(effects.TRIGGER.IF_FULLY_OPTIMIZED, state, player, sector, card)
 		end
 	end
+
+	-- ALWAYS_PLACE fires on every card on the player's ship whenever a card is placed.
+	-- Extra args: (placed_card, placed_sector)
+	effects.trigger_all(effects.TRIGGER.ALWAYS_PLACE, state, player, card, sector)
 end
 
 -- ─── main actions ────────────────────────────────────────────────────────────
@@ -103,6 +109,8 @@ function M.buy_sector(state, player_id, sector_card_id, payment_type)
 	player.has_taken_action = true
 
 	effects.trigger(effects.TRIGGER.ON_PLACE, state, player, slot, card)
+	-- Notify ALWAYS_PLACE cards that a sector was placed (e.g. einstein_rosen_portal)
+	effects.trigger_all(effects.TRIGGER.ALWAYS_PLACE, state, player, card, slot)
 	M._advance_turn(state)
 	return true
 end
@@ -306,9 +314,9 @@ function M._start_next_generation(state)
 end
 
 function M._resolve_bid(state)
-	local bid     = state.bid
-	local card    = state.card_db[bid.card_id]
-	local winner  = state_m.get_player(state, bid.current_high_id)
+	local bid    = state.bid
+	local card   = state.card_db[bid.card_id]
+	local winner = state_m.get_player(state, bid.current_high_id)
 
 	remove_from_market(state.market.expeditions, bid.card_id)
 
@@ -319,13 +327,180 @@ function M._resolve_bid(state)
 			local second = state_m.get_player(state, bid.second_high_id)
 			supply.spend(second.supplies, card.cost_type)
 			second.pending_expedition = bid.card_id
+			effects.trigger_all(effects.TRIGGER.ALWAYS_BUY_EXP, state, second)
 		end
 	else
 		winner.pending_expedition = bid.card_id
+		effects.trigger_all(effects.TRIGGER.ALWAYS_BUY_EXP, state, winner)
 	end
 
 	state.bid = nil
 	return true
+end
+
+-- ─── resolve pending effects ─────────────────────────────────────────────────
+
+function M.resolve_effect(state, player_id, data)
+	local player = state_m.get_player(state, player_id)
+	if not player then return false, "player not found" end
+	local pe = player.pending_effect
+	if not pe then return false, "no pending effect" end
+
+	local t = pe.type
+
+	if t == "choose_supply_gain" then
+		local choice = data.supply
+		local valid = false
+		for _, opt in ipairs(pe.options) do if opt == choice then valid = true; break end end
+		if not valid then return false, "invalid supply choice" end
+		player.supplies[choice] = (player.supplies[choice] or 0) + (pe.amount or 1)
+
+	elseif t == "gain_supply" then
+		player.supplies[pe.supply] = (player.supplies[pe.supply] or 0) + (pe.amount or 1)
+
+	elseif t == "fuse" then
+		local ok, err = supply.apply_fuse(player.supplies, data.supply_type, data.target_type)
+		if not ok then return false, err end
+		pe.count = pe.count - 1
+		if pe.count > 0 then return true end  -- keep pending for remaining fuses
+
+	elseif t == "fuse_all" then
+		local from = pe.supply
+		while (player.supplies[from] or 0) >= 2 do
+			local ok = supply.apply_fuse(player.supplies, from, data.target_type)
+			if not ok then break end
+		end
+
+	elseif t == "recycle_then_draw" then
+		local choices = data.card_ids or {}
+		local count = math.min(#choices, pe.count or 1)
+		for i = 1, count do
+			local cid = choices[i]
+			local hand_idx = find_in_hand(player, cid)
+			if hand_idx then
+				local c = state.card_db[cid]
+				table.remove(player.hand, hand_idx)
+				table.insert(state.market.tech_discard, cid)
+				if c then player.supplies[c.color] = (player.supplies[c.color] or 0) + 1 end
+			end
+		end
+		local drawn = {}
+		if #state.market.tech_deck > 0 then
+			drawn = require("game.deck").draw(state.market.tech_deck, count)
+			for _, id in ipairs(drawn) do table.insert(player.hand, id) end
+		end
+
+	elseif t == "recycle" then
+		local choices = data.card_ids or {}
+		for _, cid in ipairs(choices) do
+			local hand_idx = find_in_hand(player, cid)
+			if hand_idx then
+				local c = state.card_db[cid]
+				table.remove(player.hand, hand_idx)
+				table.insert(state.market.tech_discard, cid)
+				if c then player.supplies[c.color] = (player.supplies[c.color] or 0) + 1 end
+			end
+		end
+
+	elseif t == "recycle_double" then
+		local cid = data.card_id
+		local hand_idx = find_in_hand(player, cid)
+		if not hand_idx then return false, "card not in hand" end
+		local c = state.card_db[cid]
+		table.remove(player.hand, hand_idx)
+		table.insert(state.market.tech_discard, cid)
+		if c then player.supplies[c.color] = (player.supplies[c.color] or 0) + 2 end
+
+	elseif t == "tuck" or t == "tuck_from_hand" then
+		local sector = M._find_sector_by_card(player, pe.sector_card)
+		if not sector then return false, "sector not found" end
+		local choices = data.card_ids or {}
+		local count = math.min(#choices, pe.count or 1)
+		for i = 1, count do
+			local cid = choices[i]
+			local hand_idx = find_in_hand(player, cid)
+			if hand_idx then
+				table.remove(player.hand, hand_idx)
+				table.insert(sector.tucked_cards, { card_id = cid, facedown = pe.facedown ~= false })
+			end
+		end
+
+	elseif t == "tuck_multi" then
+		local choices = data.tucks or {}  -- [{card_id, sector_card, facedown}]
+		for _, entry in ipairs(choices) do
+			local sector = M._find_sector_by_card(player, entry.sector_card)
+			if sector then
+				local hand_idx = find_in_hand(player, entry.card_id)
+				if hand_idx then
+					table.remove(player.hand, hand_idx)
+					table.insert(sector.tucked_cards, { card_id = entry.card_id, facedown = pe.facedown ~= false })
+				end
+			end
+		end
+
+	elseif t == "store_supply" then
+		local sector = M._find_sector_by_card(player, pe.sector_card)
+		if not sector then return false, "sector not found" end
+		local supply_type = data.supply or pe.supply
+		if not supply_type then return false, "no supply specified" end
+		table.insert(sector.stored_supplies, supply_type)
+
+	elseif t == "store_supply_multi" then
+		local entries = data.stores or {}  -- [{supply, sector_card}]
+		for _, entry in ipairs(entries) do
+			local s = M._find_sector_by_card(player, entry.sector_card)
+			if s then table.insert(s.stored_supplies, entry.supply) end
+		end
+
+	elseif t == "buy_sector_discount" then
+		player.next_sector_discount = (player.next_sector_discount or 0) + (pe.discount or 1)
+		player.pending_effect = nil
+		return true  -- discount stored, no further resolution
+
+	elseif t == "buy_sector_free" then
+		player.next_sector_free_colors = pe.color_filter
+		player.pending_effect = nil
+		return true
+
+	elseif t == "reshuffle_expeditions" then
+		local choices = data.card_ids or {}
+		local count = math.min(#choices, pe.max or 3)
+		local reshuffled = 0
+		for i = 1, count do
+			if remove_from_market(state.market.expeditions, choices[i]) then
+				table.insert(state.market.expedition_deck, choices[i])
+				reshuffled = reshuffled + 1
+			end
+		end
+		require("game.deck").shuffle(state.market.expedition_deck)
+		require("game.deck").draw(state.market.expedition_deck, 0)  -- reveal reshuffled count
+		for _ = 1, reshuffled do
+			if #state.market.expedition_deck > 0 then
+				table.insert(state.market.expeditions, table.remove(state.market.expedition_deck))
+			end
+		end
+
+	elseif t == "choose_effect" then
+		local idx = data.choice_index or 1
+		local chosen = (pe.options or {})[idx]
+		if not chosen then return false, "invalid choice" end
+		-- Re-queue the chosen sub-effect
+		player.pending_effect = chosen
+		return true
+
+	else
+		return false, "unknown pending effect type: " .. tostring(t)
+	end
+
+	player.pending_effect = nil
+	return true
+end
+
+-- Find a sector slot by its sector_card id.
+function M._find_sector_by_card(player, sector_card_id)
+	for _, s in ipairs(player.ship.sectors) do
+		if s.sector_card == sector_card_id then return s end
+	end
 end
 
 return M

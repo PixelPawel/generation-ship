@@ -6,11 +6,14 @@ local M = {}
 
 M.TRIGGER = {
 	ON_PLACE           = "on_place",
-	ALWAYS             = "always",
-	ON_OPTIMIZE        = "on_optimize",
 	IF_NEW             = "if_new",
 	IF_COMPLETE        = "if_complete",
 	IF_FULLY_OPTIMIZED = "if_fully_optimized",
+	ON_OPTIMIZE        = "on_optimize",
+	ON_SCORE           = "on_score",           -- called during end-game scoring; return VP integer
+	ALWAYS_PLACE       = "always_place",        -- fires on all ship cards when any card is placed
+	ALWAYS_BUY_EXP     = "always_buy_exp",      -- fires on all ship cards when player buys expedition
+	ALWAYS_COMPLETE    = "always_complete",     -- fires on all ship cards when a sector completes
 }
 
 local _registry = {}
@@ -25,7 +28,20 @@ function M.trigger(trigger_type, state, player, sector, card, ...)
 	local handlers = _registry[card.id]
 	if not handlers then return end
 	local fn = handlers[trigger_type]
-	if fn then fn(state, player, sector, card, ...) end
+	if fn then return fn(state, player, sector, card, ...) end
+end
+
+-- Fire a trigger on every card on the player's ship (for ALWAYS_* events).
+-- Extra args (...) are forwarded to each handler after the standard (state, player, sector, card) params.
+function M.trigger_all(trigger_type, state, player, ...)
+	for _, sector in ipairs(player.ship.sectors) do
+		local sc = state.card_db[sector.sector_card]
+		if sc then M.trigger(trigger_type, state, player, sector, sc, ...) end
+		for _, cid in ipairs(sector.cards) do
+			local card = state.card_db[cid]
+			if card then M.trigger(trigger_type, state, player, sector, card, ...) end
+		end
+	end
 end
 
 -- Sector state helpers used by action resolution.
@@ -35,8 +51,7 @@ function M.is_new(sector)
 end
 
 function M.is_complete(sector)
-	-- A sector is complete when the 5th card is placed (checked before placement).
-	return #sector.cards == 4
+	return #sector.cards == 5
 end
 
 -- Returns true if placing card_id onto sector would fully optimize it.

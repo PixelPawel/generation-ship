@@ -1,0 +1,135 @@
+-- Lobby GUI script.
+-- Handles create/join lobby flow before the game starts.
+-- Communicates with main.script via Defold messages.
+--
+-- Expected GUI nodes (create in Defold editor):
+--   "btn_create"    -- create a Steam lobby
+--   "btn_join"      -- join an existing lobby by ID
+--   "btn_start"     -- start game (host only, shown when lobby is full)
+--   "label_status"  -- status text
+--   "label_players" -- player list
+--   "input_lobby_id"-- text input for lobby ID (join flow)
+
+local C = require("game.constants")
+
+local _is_host      = false
+local _lobby_id     = nil
+local _players      = {}   -- { steam_id, name }
+local _my_steam_id  = nil
+
+-- ─── init ────────────────────────────────────────────────────────────────────
+
+function init(self)
+	msg.post(".", "acquire_input_focus")
+	gui.set_text(gui.get_node("label_status"), "Welcome to Generation Ship")
+	gui.set_enabled(gui.get_node("btn_start"), false)
+	_refresh_player_list()
+end
+
+-- ─── Defold input ────────────────────────────────────────────────────────────
+
+function on_input(self, action_id, action)
+	if action_id == hash("touch") and action.pressed then
+		if gui.pick_node(gui.get_node("btn_create"), action.x, action.y) then
+			_on_create_pressed()
+		elseif gui.pick_node(gui.get_node("btn_join"), action.x, action.y) then
+			_on_join_pressed()
+		elseif gui.pick_node(gui.get_node("btn_start"), action.x, action.y) then
+			_on_start_pressed()
+		end
+	end
+end
+
+-- ─── Defold messages ────────────────────────────────────────────────────────
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("lobby_created") then
+		_lobby_id   = message.lobby_id
+		_is_host    = true
+		_my_steam_id = message.my_steam_id
+		_set_status("Lobby created. ID: " .. tostring(_lobby_id) .. "\nWaiting for players…")
+
+	elseif message_id == hash("lobby_joined") then
+		_lobby_id    = message.lobby_id
+		_is_host     = false
+		_my_steam_id = message.my_steam_id
+		_set_status("Joined lobby " .. tostring(_lobby_id))
+
+	elseif message_id == hash("lobby_error") then
+		_set_status("Error: " .. (message.reason or "unknown"))
+
+	elseif message_id == hash("player_joined") then
+		table.insert(_players, { steam_id = message.steam_id, name = message.name })
+		_refresh_player_list()
+		if _is_host then
+			local ready = #_players >= 2
+			gui.set_enabled(gui.get_node("btn_start"), ready)
+			if ready then _set_status("Ready! Press Start when all players are here.") end
+		end
+
+	elseif message_id == hash("player_left") then
+		for i, p in ipairs(_players) do
+			if p.steam_id == message.steam_id then
+				table.remove(_players, i); break
+			end
+		end
+		_refresh_player_list()
+		gui.set_enabled(gui.get_node("btn_start"), false)
+
+	elseif message_id == hash("game_starting") then
+		-- Transition to the game scene
+		msg.post("main:/main#main_script", "start_game", {
+			player_ids   = message.player_ids,
+			player_names = message.player_names,
+			my_steam_id  = _my_steam_id,
+			host_steam_id = message.host_steam_id,
+		})
+	end
+end
+
+-- ─── button handlers ─────────────────────────────────────────────────────────
+
+function _on_create_pressed()
+	_set_status("Creating lobby…")
+	-- STEAM: msg.post to main.script to create a Steam lobby
+	msg.post("main:/main#main_script", "create_lobby", { max_players = C.MAX_PLAYERS or 4 })
+end
+
+function _on_join_pressed()
+	local id_node = gui.get_node("input_lobby_id")
+	local lobby_id = gui.get_text(id_node)
+	if lobby_id == "" then
+		_set_status("Enter a lobby ID first.")
+		return
+	end
+	_set_status("Joining lobby " .. lobby_id .. "…")
+	msg.post("main:/main#main_script", "join_lobby", { lobby_id = lobby_id })
+end
+
+function _on_start_pressed()
+	if not _is_host then return end
+	local ids, names = {}, {}
+	for _, p in ipairs(_players) do
+		table.insert(ids, p.steam_id)
+		table.insert(names, p.name)
+	end
+	msg.post("main:/main#main_script", "request_start_game", {
+		player_ids   = ids,
+		player_names = names,
+	})
+end
+
+-- ─── helpers ─────────────────────────────────────────────────────────────────
+
+function _set_status(text)
+	gui.set_text(gui.get_node("label_status"), text)
+end
+
+function _refresh_player_list()
+	local lines = {}
+	for i, p in ipairs(_players) do
+		table.insert(lines, i .. ". " .. (p.name or p.steam_id))
+	end
+	local text = #lines > 0 and table.concat(lines, "\n") or "No players yet"
+	gui.set_text(gui.get_node("label_players"), text)
+end

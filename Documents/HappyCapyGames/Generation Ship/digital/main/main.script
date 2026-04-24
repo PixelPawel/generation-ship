@@ -44,11 +44,11 @@ end
 -- ─── helpers ─────────────────────────────────────────────────────────────────
 
 -- Called once the lobby is ready and roles are assigned.
-function start_game(player_ids, player_names, card_db, my_steam_id, host_steam_id)
+function start_game(player_ids, player_names, my_steam_id, host_steam_id)
 	IS_HOST = (my_steam_id == host_steam_id)
 
 	if IS_HOST then
-		host.init(player_ids, player_names, card_db, function(steam_id, raw)
+		host.init(player_ids, player_names, function(steam_id, raw)
 			-- STEAM: steam.network.send_packet(steam_id, raw)
 		end)
 		for i, pid in ipairs(player_ids) do

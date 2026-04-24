@@ -85,6 +85,10 @@ function M.fuse(supply_type, target_type)
 	send(C.ACTION.FUSE, { supply_type = supply_type, target_type = target_type })
 end
 
+function M.resolve_effect(data)
+	send(C.ACTION.RESOLVE_EFFECT, data or {})
+end
+
 -- ─── accessors ───────────────────────────────────────────────────────────────
 
 function M.get_state()
