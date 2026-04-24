@@ -7,6 +7,37 @@ local M = {}
 
 -- ─── helpers ────────────────────────────────────────────────────────────────
 
+-- Compute effective cost after discounts from ALWAYS cards and temporary bonuses.
+-- sector is nil when buying a sector card (player's ship has no target sector yet).
+local function effective_cost(player, card, sector)
+	local discount = 0
+
+	-- Sector one-time discounts (day_night_cycle, seasons)
+	if sector then
+		discount = discount + (sector.cost_discount or 0)
+		sector.cost_discount = nil
+	end
+
+	-- Permanent ALWAYS discounts from cards on the player's ship
+	for _, s in ipairs(player.ship.sectors) do
+		for _, cid in ipairs(s.cards) do
+			if cid == "waste_management"   and card.color == "liquids"  then discount = discount + 1 end
+			if cid == "industrial_academy" and card.color == "metals"   then discount = discount + 1 end
+			if cid == "cloning_lab"        and card.color == "organix"  then discount = discount + 1 end
+			if cid == "physics_academy"    and card.color == "electrix" then discount = discount + 1 end
+			if cid == "skyhook"            and (card.stars or 0) > 0    then discount = discount + 1 end
+		end
+	end
+
+	-- Temporary player-level discount (from sector-buy effects like ancient_airlock)
+	if card.type == "sector" then
+		discount = discount + (player.next_sector_discount or 0)
+		player.next_sector_discount = nil
+	end
+
+	return math.max(0, card.cost - discount)
+end
+
 local function find_in_hand(player, card_id)
 	for i, c in ipairs(player.hand) do
 		if c == card_id then return i end
@@ -77,7 +108,8 @@ function M.buy_tech(state, player_id, card_id, sector_index, payment_type)
 	if not sector then return false, "sector not found" end
 	if #sector.cards >= C.MAX_CARDS_PER_SECTOR then return false, "sector is full" end
 
-	local ok, serr = supply.spend(player.supplies, card.cost_type, payment_type)
+	local cost = effective_cost(player, card, sector)
+	local ok, serr = supply.spend(player.supplies, card.color, cost, payment_type)
 	if not ok then return false, serr end
 
 	table.remove(player.hand, hand_idx)
@@ -98,9 +130,21 @@ function M.buy_sector(state, player_id, sector_card_id, payment_type)
 		return false, "sector not in market"
 	end
 
-	local ok, serr = supply.spend(player.supplies, card.cost_type, payment_type)
+	-- Check free-sector grant (from inflatable_hull etc.)
+	local free_colors = player.next_sector_free_colors
+	player.next_sector_free_colors = nil
+	local is_free = false
+	if free_colors then
+		for _, fc in ipairs(free_colors) do
+			if fc == card.color then is_free = true; break end
+		end
+	end
+
+	local cost = is_free and 0 or effective_cost(player, card, nil)
+	local ok, serr = supply.spend(player.supplies, card.color, cost, payment_type)
 	if not ok then
 		table.insert(state.market.sector_revealed, sector_card_id)
+		player.next_sector_free_colors = free_colors  -- restore
 		return false, serr
 	end
 
@@ -241,7 +285,14 @@ function M.recycle(state, player_id, card_id)
 	local card = state.card_db[card_id]
 	table.remove(player.hand, hand_idx)
 	table.insert(state.market.tech_discard, card_id)
-	player.supplies[card.color] = (player.supplies[card.color] or 0) + 1
+	local gain = 1
+	-- trash_compactor: gain 1 extra supply when recycling
+	for _, s in ipairs(player.ship.sectors) do
+		for _, cid in ipairs(s.cards) do
+			if cid == "trash_compactor" then gain = gain + 1 end
+		end
+	end
+	player.supplies[card.color] = (player.supplies[card.color] or 0) + gain
 	return true
 end
 
@@ -320,12 +371,12 @@ function M._resolve_bid(state)
 
 	remove_from_market(state.market.expeditions, bid.card_id)
 
-	local ok = supply.spend(winner.supplies, card.cost_type)
+	-- Winner pays their full bid amount; if they can't, second bidder pays printed cost.
+	local ok = supply.spend(winner.supplies, card.color, bid.current_high)
 	if not ok then
-		-- Winner can't pay; second-highest bidder pays printed cost instead
 		if bid.second_high_id then
 			local second = state_m.get_player(state, bid.second_high_id)
-			supply.spend(second.supplies, card.cost_type)
+			supply.spend(second.supplies, card.color, card.cost)
 			second.pending_expedition = bid.card_id
 			effects.trigger_all(effects.TRIGGER.ALWAYS_BUY_EXP, state, second)
 		end

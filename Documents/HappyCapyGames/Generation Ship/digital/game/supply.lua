@@ -49,16 +49,22 @@ function M.apply_fuse(supplies, supply_type, target_type)
 	return true
 end
 
--- Validates and spends one payment_type to cover a card costing cost_type.
-function M.spend(supplies, cost_type, payment_type)
+-- Validates and spends `amount` of payment_type to cover a card costing cost_type.
+-- amount defaults to 1. payment_type defaults to cost_type.
+function M.spend(supplies, cost_type, amount, payment_type)
+	if type(amount) ~= "number" then
+		-- backward-compat: called as spend(supplies, cost_type, payment_type)
+		payment_type, amount = amount, 1
+	end
+	amount       = amount or 1
 	payment_type = payment_type or cost_type
 	if not M.can_pay_with(cost_type, payment_type) then
 		return false, "cannot use " .. payment_type .. " to pay for " .. cost_type
 	end
-	if (supplies[payment_type] or 0) < 1 then
-		return false, "insufficient " .. payment_type
+	if (supplies[payment_type] or 0) < amount then
+		return false, "need " .. amount .. " " .. payment_type .. " (have " .. (supplies[payment_type] or 0) .. ")"
 	end
-	supplies[payment_type] = supplies[payment_type] - 1
+	supplies[payment_type] = supplies[payment_type] - amount
 	return true
 end
 

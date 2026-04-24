@@ -209,17 +209,14 @@ effects.register("black_hole_encounter", E.ON_PLACE, function(state, player, sec
 	pending(player, { type = "reshuffle_expeditions", max = 3 })
 end)
 
--- "The next tech card placed here costs -1/2" — applied as a sector-level discount
--- (buy_tech action checks sector.cost_discount)
-effects.register("day_night_cycle", E.ALWAYS_PLACE, function(state, player, sector, this_card, placed_card, placed_sector)
-	if placed_sector == sector and placed_card and placed_card.type == "tech" and placed_card.id ~= "day_night_cycle" then
-		sector.cost_discount = nil  -- consumed
-	end
+-- "The next tech card placed here costs -1" — stored on the sector until consumed by buy_tech.
+effects.register("day_night_cycle", E.ON_PLACE, function(state, player, sector, card)
+	sector.cost_discount = (sector.cost_discount or 0) + 1
 end)
-effects.register("seasons", E.ALWAYS_PLACE, function(state, player, sector, this_card, placed_card, placed_sector)
-	if placed_sector == sector and placed_card and placed_card.type == "tech" and placed_card.id ~= "seasons" then
-		sector.cost_discount_2 = nil
-	end
+
+-- "The next tech card placed here costs -2"
+effects.register("seasons", E.ON_PLACE, function(state, player, sector, card)
+	sector.cost_discount = (sector.cost_discount or 0) + 2
 end)
 
 effects.register("reflectors", E.ON_PLACE, function(state, player, sector, card)
