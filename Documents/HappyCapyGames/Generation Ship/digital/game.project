@@ -1,0 +1,22 @@
+[project]
+title = Generation Ship
+version = 0.1
+write_log = 0
+compress_archive = 1
+
+[display]
+width = 1920
+height = 1080
+variable_dt = 0
+
+[bootstrap]
+main_collection = /main/main.collectionc
+
+[script]
+shared_state = 1
+
+[library]
+include_dirs =
+
+[dependencies]
+url1 = https://github.com/britzl/steamworks-defold/archive/refs/heads/master.zip

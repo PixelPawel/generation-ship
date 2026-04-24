@@ -1,0 +1,11 @@
+# Ignore everything at the user root level except the game project
+*
+!.gitignore
+!Documents/
+Documents/*
+!Documents/HappyCapyGames/
+Documents/HappyCapyGames/*
+!Documents/HappyCapyGames/Generation Ship/
+Documents/HappyCapyGames/Generation Ship/*
+!Documents/HappyCapyGames/Generation Ship/digital/
+!Documents/HappyCapyGames/Generation Ship/digital/**

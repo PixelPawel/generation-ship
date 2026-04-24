@@ -1,0 +1,9 @@
+*.bob
+build/
+.internal/
+builtins/
+*.manifest
+*.arcd
+*.arci
+*.dmanifest
+*.public.der

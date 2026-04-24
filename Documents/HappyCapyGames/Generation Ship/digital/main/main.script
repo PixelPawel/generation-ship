@@ -1,0 +1,70 @@
+-- Boot script. Determines host vs client role and wires up Steam networking.
+-- Steam P2P send/receive calls are marked with -- STEAM: comments.
+
+local C        = require("game.constants")
+local host     = require("net.host")
+local client   = require("net.client")
+local protocol = require("net.protocol")
+
+local IS_HOST = false  -- set during lobby
+
+-- ─── Defold lifecycle ────────────────────────────────────────────────────────
+
+function init(self)
+	math.randomseed(os.time())
+	-- STEAM: initialise steamworks, create or join lobby
+end
+
+function update(self, dt)
+	-- STEAM: poll for incoming P2P messages
+	-- while steam.network.read_packet() do
+	--     local data, sender = steam.network.read_packet()
+	--     if IS_HOST then
+	--         host.on_message(tostring(sender), data)
+	--     else
+	--         client.on_message(data)
+	--     end
+	-- end
+end
+
+function on_message(self, message_id, message, sender)
+	-- Internal Defold messages (e.g. from GUI scripts) are routed here.
+	-- Forward player actions from the UI to the appropriate net module.
+	if message_id == hash("player_action") then
+		if IS_HOST then
+			-- Host handles its own actions by pretending they came from itself
+			local raw = protocol.encode(protocol.MSG.ACTION, message)
+			host.on_message("local", raw)
+		else
+			client_send(protocol.encode(protocol.MSG.ACTION, message))
+		end
+	end
+end
+
+-- ─── helpers ─────────────────────────────────────────────────────────────────
+
+-- Called once the lobby is ready and roles are assigned.
+function start_game(player_ids, player_names, card_db, my_steam_id, host_steam_id)
+	IS_HOST = (my_steam_id == host_steam_id)
+
+	if IS_HOST then
+		host.init(player_ids, player_names, card_db, function(steam_id, raw)
+			-- STEAM: steam.network.send_packet(steam_id, raw)
+		end)
+		for i, pid in ipairs(player_ids) do
+			-- Map steam ids to player ids (passed in lobby order)
+			-- host.register_peer(steam_ids[i], pid)
+		end
+	else
+		client.init(my_steam_id, function(raw)
+			-- STEAM: steam.network.send_packet(host_steam_id, raw)
+		end,
+		function(state)
+			-- State update callback: notify UI
+			msg.post("ui:/game#game_gui_script", "state_update", state)
+		end,
+		function(rankings)
+			msg.post("ui:/game#game_gui_script", "game_over", { rankings = rankings })
+		end)
+	end
+end
