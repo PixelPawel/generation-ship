@@ -18,5 +18,8 @@ shared_state = 1
 [library]
 include_dirs =
 
+[input]
+game_binding = /input/game.input_binding
+
 [dependencies]
 url1 = https://github.com/britzl/steamworks-defold/archive/refs/heads/master.zip
