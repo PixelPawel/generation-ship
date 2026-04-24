@@ -35,6 +35,11 @@ function M.init(player_ids, player_names, send_fn)
 	deck_m.shuffle(sector_ids)
 	_state.market.sector_piles = deck_m.make_piles(sector_ids, 3, C.SECTORS_PER_PILE)
 
+	-- Peers must be registered and client must be ready before starting.
+	-- Call M.start() after all setup is complete.
+end
+
+function M.start()
 	M._start_generation()
 end
 

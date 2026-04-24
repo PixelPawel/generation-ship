@@ -5,8 +5,8 @@ write_log = 0
 compress_archive = 1
 
 [display]
-width = 1920
-height = 1080
+width = 1280
+height = 720
 variable_dt = 0
 
 [bootstrap]

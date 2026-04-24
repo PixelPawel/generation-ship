@@ -33,6 +33,9 @@ function init(self)
 
 	-- Fallback for local testing without Steam
 	MY_STEAM_ID = "local_" .. math.random(1000, 9999)
+
+	-- Hide game UI until a game actually starts
+	msg.post(URL_GAME_GUI, "disable")
 end
 
 function update(self, dt)
@@ -190,6 +193,9 @@ function _start_game(player_ids, player_names, my_steam_id, host_steam_id)
 			function(rankings)
 				msg.post(URL_GAME_GUI, "game_over", { rankings = rankings })
 			end)
+
+		-- Start generation now that peers are registered and client is ready
+		host.start()
 
 	else
 		-- Client: sends actions to host via Steam P2P, receives state snapshots.

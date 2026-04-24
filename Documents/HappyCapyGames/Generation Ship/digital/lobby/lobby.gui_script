@@ -62,9 +62,9 @@ function on_message(self, message_id, message, sender)
 		table.insert(_players, { steam_id = message.steam_id, name = message.name })
 		_refresh_player_list()
 		if _is_host then
-			local ready = #_players >= 2
+			local ready = #_players >= 1
 			gui.set_enabled(gui.get_node("btn_start"), ready)
-			if ready then _set_status("Ready! Press Start when all players are here.") end
+			if ready then _set_status("Ready! Press Start (or wait for more players).") end
 		end
 
 	elseif message_id == hash("player_left") then
