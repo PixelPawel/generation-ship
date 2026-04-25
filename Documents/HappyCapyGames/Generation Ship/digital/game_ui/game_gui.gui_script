@@ -41,11 +41,11 @@ end
 
 function on_message(self, message_id, message, sender)
 	if message_id == hash("state_update") then
-		_state = message
+		_state = client.get_state()
 		_render_state()
 
 	elseif message_id == hash("game_over") then
-		_show_rankings(message.rankings)
+		_show_rankings(client.get_rankings())
 	end
 end
 

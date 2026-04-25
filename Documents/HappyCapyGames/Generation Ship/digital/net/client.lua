@@ -8,11 +8,12 @@ local card_data = require("game.card_data")
 
 local M = {}
 
-local _state          = nil
+local _state           = nil
+local _rankings        = nil
 local _local_player_id = nil
-local _send_fn        = nil  -- function(raw_string) sends to host
-local _on_state_cb    = nil  -- function(state) called on every state update
-local _on_game_over_cb = nil -- function(rankings)
+local _send_fn         = nil
+local _on_state_cb     = nil  -- function() called on every state update (no arg — read via get_state())
+local _on_game_over_cb = nil  -- function() called on game over (no arg — read via get_rankings())
 
 -- ─── init ────────────────────────────────────────────────────────────────────
 
@@ -31,11 +32,12 @@ function M.on_message(raw)
 
 	if msg_type == protocol.MSG.STATE_FULL or msg_type == protocol.MSG.STATE_DELTA then
 		_state = data
-		_state.card_db = card_data.db  -- inject local card DB so UI can look up card info
-		if _on_state_cb then _on_state_cb(_state) end
+		_state.card_db = card_data.db
+		if _on_state_cb then _on_state_cb() end
 
 	elseif msg_type == protocol.MSG.GAME_OVER then
-		if _on_game_over_cb then _on_game_over_cb(data) end
+		_rankings = data
+		if _on_game_over_cb then _on_game_over_cb() end
 	end
 end
 
@@ -95,6 +97,10 @@ end
 
 function M.get_state()
 	return _state
+end
+
+function M.get_rankings()
+	return _rankings
 end
 
 function M.local_player()

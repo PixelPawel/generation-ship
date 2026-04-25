@@ -187,11 +187,11 @@ function _start_game(player_ids, player_names, my_steam_id, host_steam_id)
 				-- Host player's outbound actions feed back into host.on_message
 				host.on_message("local", raw)
 			end,
-			function(state)
-				msg.post(URL_GAME_GUI, "state_update", state)
+			function()
+				msg.post(URL_GAME_GUI, "state_update", {})
 			end,
-			function(rankings)
-				msg.post(URL_GAME_GUI, "game_over", { rankings = rankings })
+			function()
+				msg.post(URL_GAME_GUI, "game_over", {})
 			end)
 
 		-- Start generation now that peers are registered and client is ready
@@ -204,11 +204,11 @@ function _start_game(player_ids, player_names, my_steam_id, host_steam_id)
 				-- STEAM: steamworks.network_send_packet(host_steam_id, raw)
 				print("STEAM send to host " .. host_steam_id .. ": " .. #raw .. " bytes")
 			end,
-			function(state)
-				msg.post(URL_GAME_GUI, "state_update", state)
+			function()
+				msg.post(URL_GAME_GUI, "state_update", {})
 			end,
-			function(rankings)
-				msg.post(URL_GAME_GUI, "game_over", { rankings = rankings })
+			function()
+				msg.post(URL_GAME_GUI, "game_over", {})
 			end)
 	end
 
