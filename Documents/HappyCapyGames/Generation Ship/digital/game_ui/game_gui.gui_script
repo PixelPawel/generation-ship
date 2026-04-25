@@ -59,7 +59,7 @@ function on_input(self, action_id, action)
 	if not player then return end
 
 	-- Bid panel
-	if gui.get_enabled(gui.get_node("panel_bid")) then
+	if gui.is_enabled(gui.get_node("panel_bid")) then
 		if gui.pick_node(gui.get_node("btn_bid_pass"),  action.x, action.y) then
 			client.pass_bid()
 		elseif gui.pick_node(gui.get_node("btn_bid_raise"), action.x, action.y) then
@@ -71,7 +71,7 @@ function on_input(self, action_id, action)
 	end
 
 	-- Pending effect panel
-	if gui.get_enabled(gui.get_node("panel_effect")) then
+	if gui.is_enabled(gui.get_node("panel_effect")) then
 		if gui.pick_node(gui.get_node("btn_effect_confirm"), action.x, action.y) then
 			_resolve_pending_effect(player)
 		end
