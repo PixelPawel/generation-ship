@@ -20,11 +20,9 @@ var _hovered_index := -1
 func add_card(card: Node3D, animate: bool = false) -> void:
 	if _cards.has(card):
 		return
-	if card.get_parent() == self:
-		pass
-	elif card.get_parent():
+	if card.get_parent() and card.get_parent() != self:
 		card.reparent(self, true)
-	else:
+	elif not card.get_parent():
 		add_child(card)
 	_cards.append(card)
 	card.managed_by_hand = true
@@ -48,9 +46,7 @@ func animate_draw_cards(cards: Array[Node3D]) -> void:
 		t.tween_property(card, "position", target_pos, 0.38)
 		t.parallel().tween_property(card, "scale", target_scale, 0.32)
 
-func remove_card(card: Node3D) -> void:
-	_hovered_index = -1
-	card.managed_by_hand = false
+func _disconnect_card_signals(card: Node3D) -> void:
 	if card.hovered.is_connected(_on_card_hovered):
 		card.hovered.disconnect(_on_card_hovered)
 	if card.unhovered.is_connected(_on_card_unhovered):
@@ -59,6 +55,22 @@ func remove_card(card: Node3D) -> void:
 		card.drag_started.disconnect(_on_card_drag_started)
 	if card.right_clicked.is_connected(_on_card_right_clicked):
 		card.right_clicked.disconnect(_on_card_right_clicked)
+
+func _fly_out_card(card: Node3D, on_done: Callable = Callable()) -> void:
+	var t: Tween = card.create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
+	t.tween_property(card, "scale", Vector3.ZERO, 0.28)
+	t.tween_callback(func() -> void:
+		if is_instance_valid(card):
+			remove_child(card)
+			card.queue_free()
+		if on_done.is_valid():
+			on_done.call()
+	)
+
+func remove_card(card: Node3D) -> void:
+	_hovered_index = -1
+	card.managed_by_hand = false
+	_disconnect_card_signals(card)
 	remove_child(card)
 	_cards.erase(card)
 	_layout(false)
@@ -66,35 +78,15 @@ func remove_card(card: Node3D) -> void:
 func remove_card_fly_out(card: Node3D) -> void:
 	_hovered_index = -1
 	card.managed_by_hand = false
-	if card.hovered.is_connected(_on_card_hovered):
-		card.hovered.disconnect(_on_card_hovered)
-	if card.unhovered.is_connected(_on_card_unhovered):
-		card.unhovered.disconnect(_on_card_unhovered)
-	if card.drag_started.is_connected(_on_card_drag_started):
-		card.drag_started.disconnect(_on_card_drag_started)
-	if card.right_clicked.is_connected(_on_card_right_clicked):
-		card.right_clicked.disconnect(_on_card_right_clicked)
+	_disconnect_card_signals(card)
 	_cards.erase(card)
 	_layout(true)
-	var t: Tween = card.create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
-	t.tween_property(card, "scale", Vector3.ZERO, 0.28)
-	t.tween_callback(func() -> void:
-		if is_instance_valid(card):
-			remove_child(card)
-			card.queue_free()
-	)
+	_fly_out_card(card)
 
 func detach_card(card: Node3D) -> void:
 	_hovered_index = -1
 	card.managed_by_hand = false
-	if card.hovered.is_connected(_on_card_hovered):
-		card.hovered.disconnect(_on_card_hovered)
-	if card.unhovered.is_connected(_on_card_unhovered):
-		card.unhovered.disconnect(_on_card_unhovered)
-	if card.drag_started.is_connected(_on_card_drag_started):
-		card.drag_started.disconnect(_on_card_drag_started)
-	if card.right_clicked.is_connected(_on_card_right_clicked):
-		card.right_clicked.disconnect(_on_card_right_clicked)
+	_disconnect_card_signals(card)
 	_cards.erase(card)
 	_layout(true)
 
@@ -127,23 +119,10 @@ func _on_card_clicked_for_discard(card: Node3D) -> void:
 	set_discard_mode(false)
 	_hovered_index = -1
 	card.managed_by_hand = false
-	if card.hovered.is_connected(_on_card_hovered):
-		card.hovered.disconnect(_on_card_hovered)
-	if card.unhovered.is_connected(_on_card_unhovered):
-		card.unhovered.disconnect(_on_card_unhovered)
-	if card.drag_started.is_connected(_on_card_drag_started):
-		card.drag_started.disconnect(_on_card_drag_started)
-	if card.right_clicked.is_connected(_on_card_right_clicked):
-		card.right_clicked.disconnect(_on_card_right_clicked)
+	_disconnect_card_signals(card)
 	_cards.erase(card)
 	_layout(true)
-	var t: Tween = card.create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
-	t.tween_property(card, "scale", Vector3.ZERO, 0.28)
-	t.tween_callback(func() -> void:
-		if is_instance_valid(card):
-			remove_child(card)
-			card.queue_free()
-	)
+	_fly_out_card(card)
 	card_selected_for_discard.emit(card)
 
 func _on_card_right_clicked(card: Node3D) -> void:
