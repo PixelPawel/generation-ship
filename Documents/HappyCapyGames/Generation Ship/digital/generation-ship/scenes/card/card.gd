@@ -99,20 +99,22 @@ func _on_input_event(_camera: Node, event: InputEvent, _pos: Vector3, _normal: V
 		else:
 			_drag_armed = false
 			if is_placed:
-				if can_elevate and not _any_dragging:
-					var g: Vector3 = global_position
-					var elev_global := Vector3(
-						lerpf(g.x, 0.0, PLACED_LIFT_CENTER_PULL),
-						PLACED_LIFT_HEIGHT,
-						lerpf(g.z, 0.0, PLACED_LIFT_CENTER_PULL)
-					)
-					var local_target: Vector3 = (get_parent() as Node3D).to_local(elev_global)
-					toggle_elevation(local_target, Vector3.ONE * PLACED_LIFT_SCALE, 0.0)
 				return
 			if (not can_drag or not is_dragging) and not _any_dragging:
 				clicked.emit(self)
 	elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
-		right_clicked.emit(self)
+		if is_placed:
+			if can_elevate and not _any_dragging:
+				var g: Vector3 = global_position
+				var elev_global := Vector3(
+					lerpf(g.x, 0.0, PLACED_LIFT_CENTER_PULL),
+					PLACED_LIFT_HEIGHT,
+					lerpf(g.z, 0.0, PLACED_LIFT_CENTER_PULL)
+				)
+				var local_target: Vector3 = (get_parent() as Node3D).to_local(elev_global)
+				toggle_elevation(local_target, Vector3.ONE * PLACED_LIFT_SCALE, 0.0)
+		else:
+			right_clicked.emit(self)
 
 func _input(event: InputEvent) -> void:
 	if not _drag_armed:

@@ -58,7 +58,7 @@ func _make_card(card_scene: PackedScene, is_advanced: bool) -> Node3D:
 	return card
 
 func _connect_card_click(card: Node3D, is_exp: bool, on_buy: Callable) -> void:
-	card.clicked.connect(func(_c: Node3D) -> void:
+	card.right_clicked.connect(func(_c: Node3D) -> void:
 		var was_elevated: bool = card.get("_placed_elevated") as bool
 		_do_market_toggle(card, is_exp)
 		if was_elevated:
