@@ -76,10 +76,7 @@ func setup_expedition_deck(cards: Array[CardData]) -> void:
 
 func setup_market_ordered(sector_order: Array) -> void:
 	_market.setup_ordered(_card_scene, CardDatabase.sectors, sector_order)
-	if not _market.card_drag_started.is_connected(_on_market_card_drag_started):
-		_market.card_drag_started.connect(_on_market_card_drag_started)
-	if not _market.sector_revealed.is_connected(_on_market_sector_revealed):
-		_market.sector_revealed.connect(_on_market_sector_revealed)
+	_connect_market_signals()
 
 func setup_expedition_deck_ordered(exp_order: Array) -> void:
 	_expedition_deck.setup_ordered(CardDatabase.expeditions, exp_order, EXPEDITION_BACK_URL)
@@ -89,6 +86,9 @@ func setup_sector_deck(cards: Array[CardData]) -> void:
 
 func setup_market() -> void:
 	_market.setup(_card_scene, CardDatabase.sectors)
+	_connect_market_signals()
+
+func _connect_market_signals() -> void:
 	if not _market.card_drag_started.is_connected(_on_market_card_drag_started):
 		_market.card_drag_started.connect(_on_market_card_drag_started)
 	if not _market.sector_revealed.is_connected(_on_market_sector_revealed):
@@ -792,6 +792,12 @@ func begin_auction_win_drag(cd: CardData) -> bool:
 	return true
 
 func cancel_purchase() -> void:
+	_end_pending_purchase(true)
+
+func forfeit_purchase() -> void:
+	_end_pending_purchase(false)
+
+func _end_pending_purchase(return_to_market: bool) -> void:
 	if not _pending_card:
 		return
 	var card: Node3D = _pending_card
@@ -800,22 +806,13 @@ func cancel_purchase() -> void:
 	_pending_is_tech = false
 	_pending_drag_origin = DragOrigin.NONE
 	card.end_drag()
-	if card.card_data and card.card_data.card_type == CardData.CardType.EXPEDITION:
-		_expedition_market.return_card(card)
+	if return_to_market:
+		if card.card_data and card.card_data.card_type == CardData.CardType.EXPEDITION:
+			_expedition_market.return_card(card)
+		else:
+			_market.return_card(card)
 	else:
-		_market.return_card(card)
-	_refresh_slot_availability()
-	market_drag_resolved.emit()
-
-func forfeit_purchase() -> void:
-	if not _pending_card:
-		return
-	var card: Node3D = _pending_card
-	_pending_card = null
-	_pending_slot = null
-	_pending_is_tech = false
-	_pending_drag_origin = DragOrigin.NONE
-	card.queue_free()
+		card.queue_free()
 	_refresh_slot_availability()
 	market_drag_resolved.emit()
 
