@@ -146,6 +146,19 @@ func refresh() -> void:
 				(_avail_labels[col_key] as Label).text = "(have %d)" % avail
 			if _count_labels.has(col_key):
 				(_count_labels[col_key] as Label).text = str(_allocations[col_key])
+		# Auto-fill any shortfall when supply increased (e.g. after a fuse).
+		var remaining: int = _needed - _get_total()
+		for color: CardData.SupplyColor in _colors:
+			if remaining <= 0:
+				break
+			var col_key: int = int(color)
+			var can_add: int = _available.get(col_key, 0) - int(_allocations.get(col_key, 0))
+			var take: int = mini(can_add, remaining)
+			if take > 0:
+				_allocations[col_key] = int(_allocations.get(col_key, 0)) + take
+				remaining -= take
+				if _count_labels.has(col_key):
+					(_count_labels[col_key] as Label).text = str(_allocations[col_key])
 	_update_total()
 
 func _rebuild_rows() -> void:
