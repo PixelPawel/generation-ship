@@ -137,7 +137,7 @@ func _build_ui() -> void:
 	_undo_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_undo_btn.add_theme_font_size_override("font_size", 14)
 	_undo_btn.add_theme_color_override("font_color", Color(1.0, 0.75, 0.35))
-	_undo_btn.visible = false
+	_undo_btn.disabled = true
 	_undo_btn.pressed.connect(_on_undo_fuse_pressed)
 	vbox.add_child(_undo_btn)
 
@@ -222,7 +222,7 @@ func _on_undo_fuse_pressed() -> void:
 
 func _update_undo_btn() -> void:
 	if _undo_btn:
-		_undo_btn.visible = not _fuse_history.is_empty()
+		_undo_btn.disabled = _fuse_history.is_empty()
 
 func _get_fuse_threshold(src: int) -> int:
 	if src == CardData.SupplyColor.DUST and _fuse_dust_1to1:
