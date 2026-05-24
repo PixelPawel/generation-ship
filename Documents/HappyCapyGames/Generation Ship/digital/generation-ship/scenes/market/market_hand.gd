@@ -58,17 +58,27 @@ func _make_card(card_scene: PackedScene, is_advanced: bool) -> Node3D:
 	card.unhovered.connect(func(_c: Node3D) -> void: CursorManager.set_default())
 	return card
 
+func _snap_card_to_rest(card: Node3D) -> void:
+	_kill_hover_tween(card)
+	_hover_tweens.erase(card)
+	card.set("_placed_elevated", false)
+	if card.get("_globally_elevated") == card:
+		card.set("_globally_elevated", null)
+	var rest_pos: Vector3 = _rest_positions.get(card, card.position) as Vector3
+	card.position = rest_pos
+	card.scale = Vector3.ONE * CARD_SCALE
+
 func _connect_card_click(card: Node3D, is_exp: bool, on_buy: Callable) -> void:
 	card.right_clicked.connect(func(_c: Node3D) -> void:
 		_do_market_toggle(card, is_exp)
 	)
 	card.clicked.connect(func(_c: Node3D) -> void:
-		card.collapse_if_elevated()
+		_snap_card_to_rest(card)
 		on_buy.call()
 	)
 	card.drag_started.connect(func(c: Node3D) -> void:
 		c.end_drag()
-		card.collapse_if_elevated()
+		_snap_card_to_rest(card)
 		on_buy.call()
 	)
 
