@@ -124,9 +124,11 @@ var _cs_display: SupplyUI = null
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
 func _ready() -> void:
+	var _starfield_layer: CanvasLayer = CanvasLayer.new()
+	_starfield_layer.layer = -1
+	add_child(_starfield_layer)
 	var _starfield: Control = load("res://scenes/ui/starfield.gd").new()
-	$UILayer.add_child(_starfield)
-	$UILayer.move_child(_starfield, 0)
+	_starfield_layer.add_child(_starfield)
 	GameTheme.apply_to_button($UILayer/StartButton)
 	var hand: Node3D = $Camera3D/Hand
 	$Board.set_hand(hand)
