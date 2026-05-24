@@ -1,5 +1,8 @@
 extends Node3D
 
+signal sector_advanced_pressed(slot_idx: int)
+signal sector_dust_pressed(slot_idx: int)
+signal expedition_pressed(slot_idx: int)
 
 const CARD_SCALE        := 0.45
 const HOVER_SCALE       := CARD_SCALE * 1.67
@@ -45,7 +48,8 @@ func setup(sector_market: Node, expedition_market: Node, card_scene: PackedScene
 
 func _make_card(card_scene: PackedScene, is_advanced: bool) -> Node3D:
 	var card: Node3D = card_scene.instantiate()
-	card.can_drag = false
+	card.can_drag = true
+	card.drag_needs_movement = true
 	card.managed_by_hand = true
 	card.is_advanced = is_advanced
 	add_child(card)
@@ -54,23 +58,32 @@ func _make_card(card_scene: PackedScene, is_advanced: bool) -> Node3D:
 	card.unhovered.connect(func(_c: Node3D) -> void: CursorManager.set_default())
 	return card
 
-func _connect_card_click(card: Node3D, is_exp: bool) -> void:
+func _connect_card_click(card: Node3D, is_exp: bool, on_buy: Callable) -> void:
 	card.right_clicked.connect(func(_c: Node3D) -> void:
 		_do_market_toggle(card, is_exp)
+	)
+	card.clicked.connect(func(_c: Node3D) -> void:
+		card.collapse_if_elevated()
+		on_buy.call()
+	)
+	card.drag_started.connect(func(c: Node3D) -> void:
+		c.end_drag()
+		card.collapse_if_elevated()
+		on_buy.call()
 	)
 
 func _build_cards(card_scene: PackedScene) -> void:
 	for i: int in 3:
 		var card: Node3D = _make_card(card_scene, true)
-		_connect_card_click(card, false)
+		_connect_card_click(card, false, func() -> void: sector_advanced_pressed.emit(i))
 		_adv_cards.append(card)
 	for i: int in 3:
 		var card: Node3D = _make_card(card_scene, false)
-		_connect_card_click(card, false)
+		_connect_card_click(card, false, func() -> void: sector_dust_pressed.emit(i))
 		_dust_cards.append(card)
 	for i: int in 3:
 		var card: Node3D = _make_card(card_scene, false)
-		_connect_card_click(card, true)
+		_connect_card_click(card, true, func() -> void: expedition_pressed.emit(i))
 		_exp_cards.append(card)
 	_layout_fans()
 

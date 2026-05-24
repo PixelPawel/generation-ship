@@ -171,6 +171,9 @@ func _ready() -> void:
 
 	$Board.market_drag_started.connect(_market_hand.on_market_drag_started)
 	$Board.market_drag_resolved.connect(_market_hand.on_market_drag_ended)
+	_market_hand.sector_advanced_pressed.connect(_on_market_sector_advanced_pressed)
+	_market_hand.sector_dust_pressed.connect(_on_market_sector_dust_pressed)
+	_market_hand.expedition_pressed.connect(_on_market_expedition_pressed)
 
 
 	_bid_payment_panel = load("res://scenes/ui/bid_payment_panel.gd").new()
