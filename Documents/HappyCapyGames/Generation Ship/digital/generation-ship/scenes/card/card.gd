@@ -51,7 +51,7 @@ func set_card_data(data: CardData) -> void:
 	card_data = data
 	if not data:
 		return
-	var is_landscape := (data.card_type == CardData.CardType.SECTOR and not is_advanced)
+	var is_landscape := (data.card_type == CardData.CardType.SECTOR)
 	var child_scale := _LANDSCAPE_CHILD_SCALE if is_landscape else Vector3.ONE
 	card_mesh.scale = child_scale
 	collider.scale = child_scale
