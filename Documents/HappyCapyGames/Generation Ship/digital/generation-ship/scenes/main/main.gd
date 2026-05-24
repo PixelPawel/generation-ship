@@ -440,7 +440,7 @@ func _setup_control_screen_display() -> void:
 		screen_mesh.set_surface_override_material(0, mat)
 		_setup_screen_input(screen_mesh)
 
-	_cs_display.hide()
+	$UILayer/SupplyUI.hide()
 	$Board.set_supply_ui(_cs_display)
 
 	var anim: AnimationPlayer = $ControlScreen/AnimationPlayer
