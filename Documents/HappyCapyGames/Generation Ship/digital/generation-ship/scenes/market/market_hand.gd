@@ -84,8 +84,8 @@ func _build_cards(card_scene: PackedScene) -> void:
 	_layout_fans()
 
 func _layout_fans() -> void:
-	_layout_fan(_dust_cards, DUST_CENTER, PI / 2.0)
-	_layout_fan(_adv_cards, ADV_CENTER, PI / 2.0)
+	_layout_fan(_dust_cards, DUST_CENTER, 0.0)
+	_layout_fan(_adv_cards, ADV_CENTER, 0.0)
 	_layout_fan(_exp_cards, EXP_CENTER, 0.0)
 
 func _layout_fan(cards: Array[Node3D], center: Vector3, base_rot_z: float) -> void:
