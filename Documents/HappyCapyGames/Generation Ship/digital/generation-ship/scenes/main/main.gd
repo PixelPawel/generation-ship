@@ -2045,6 +2045,7 @@ func _on_bid_payment_forfeited() -> void:
 		_pending_auction_win = false
 		if _auction_win_is_initiator:
 			$Board.cancel_purchase()
+			$Board.reset_turn()
 			if GameNetwork.is_host:
 				_server_offer_to_runner_up()
 			else:
