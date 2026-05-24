@@ -547,7 +547,9 @@ func _on_pass_pressed() -> void:
 
 func _do_pass() -> void:
 	_has_passed_or_researched = true
+	_ending_turn = true
 	_cs_display.clear_fuse_1to1()
+	_ending_turn = false
 	_show_action_buttons(false)
 	_broadcast_my_state()
 	if GameNetwork.is_multiplayer:
