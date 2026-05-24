@@ -133,14 +133,10 @@ func _ready() -> void:
 	var hand: Node3D = $Camera3D/Hand
 	$Board.set_hand(hand)
 	$Board.set_card_scene(card_scene)
-	$Board.set_supply_ui($UILayer/SupplyUI)
 	$Board.card_recycled.connect(_on_card_recycled)
 	$Board.setup_tech_deck(CardDatabase.techs)
 	$Board.setup_sector_deck(CardDatabase.sectors)
 	$UILayer/StartButton.pressed.connect(_on_start_pressed)
-	$UILayer/SupplyUI.research_pressed.connect(_on_research_pressed)
-	$UILayer/SupplyUI.pass_pressed.connect(_on_pass_pressed)
-	$UILayer/SupplyUI.supply_changed.connect(_on_supply_changed)
 	$Camera3D/Hand.card_selected_for_discard.connect(_on_card_discarded)
 	$Camera3D/Hand.card_right_clicked.connect(_on_card_right_clicked_free_recycle)
 	$Board.bid_required.connect(_on_bid_required)
@@ -156,8 +152,6 @@ func _ready() -> void:
 	$Board.expedition_reveal_requested.connect(_execute_expedition_reveal)
 	$Board.market_card_taken.connect(_on_market_card_taken)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
-	$UILayer/SupplyUI.end_turn_pressed.connect(_on_end_turn_pressed)
-	$UILayer/SupplyUI.fuse_1to1_changed.connect(_try_auto_end_turn)
 	$UILayer/PauseMenu.main_menu_pressed.connect(_on_pause_main_menu)
 	$UILayer/BidPopup.bid_confirmed.connect(_on_bid_confirmed)
 	$UILayer/BidPopup.bid_cancelled.connect(_on_bid_cancelled)
@@ -434,6 +428,8 @@ func _setup_control_screen_display() -> void:
 	_cs_display.research_pressed.connect(_on_research_pressed)
 	_cs_display.pass_pressed.connect(_on_pass_pressed)
 	_cs_display.end_turn_pressed.connect(_on_end_turn_pressed)
+	_cs_display.supply_changed.connect(_on_supply_changed)
+	_cs_display.fuse_1to1_changed.connect(_try_auto_end_turn)
 
 	var screen_mesh: MeshInstance3D = $ControlScreen.find_child("cs_screen", true, false) as MeshInstance3D
 	if screen_mesh:
@@ -444,8 +440,8 @@ func _setup_control_screen_display() -> void:
 		screen_mesh.set_surface_override_material(0, mat)
 		_setup_screen_input(screen_mesh)
 
-	$UILayer/SupplyUI.supply_changed.connect(_sync_cs_supply)
-	$UILayer/SupplyUI.hide()
+	_cs_display.hide()
+	$Board.set_supply_ui(_cs_display)
 
 	var anim: AnimationPlayer = $ControlScreen/AnimationPlayer
 	anim.play("cs_close")
@@ -479,12 +475,6 @@ func _forward_to_cs_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshIn
 		mb.pressed = (event as InputEventMouseButton).pressed
 		mb.position = vp_pos
 		_cs_viewport.push_input(mb, true)
-
-func _sync_cs_supply() -> void:
-	if not _cs_display:
-		return
-	for color: CardData.SupplyColor in CardData.SupplyColor.values():
-		_cs_display.set_supply(color, $UILayer/SupplyUI.get_supply(color))
 
 func _on_control_screen_btn_pressed() -> void:
 	var anim: AnimationPlayer = $ControlScreen/AnimationPlayer
@@ -557,7 +547,7 @@ func _on_pass_pressed() -> void:
 
 func _do_pass() -> void:
 	_has_passed_or_researched = true
-	$UILayer/SupplyUI.clear_fuse_1to1()
+	_cs_display.clear_fuse_1to1()
 	_show_action_buttons(false)
 	_broadcast_my_state()
 	if GameNetwork.is_multiplayer:
@@ -574,7 +564,7 @@ func _do_pass() -> void:
 func _apply_supply_generation() -> float:
 	var generators: Array[Dictionary] = $Board.get_supply_generators()
 	var cam: Camera3D = $Camera3D
-	var ui: Control = $UILayer/SupplyUI
+	var ui: SupplyUI = _cs_display
 	var totals: Dictionary = {}
 	for i: int in generators.size():
 		var entry: Dictionary = generators[i]
@@ -628,11 +618,8 @@ func _end_round() -> void:
 	_set_action_buttons_disabled(false)
 
 func _update_round_label() -> void:
-	$UILayer/SupplyUI.set_round(_round, MAX_ROUNDS)
-	$UILayer/SupplyUI.show_game_info(true)
-	if _cs_display:
-		_cs_display.set_round(_round, MAX_ROUNDS)
-		_cs_display.show_game_info(true)
+	_cs_display.set_round(_round, MAX_ROUNDS)
+	_cs_display.show_game_info(true)
 
 # ── Multiplayer turn management ───────────────────────────────────────────────
 
@@ -717,7 +704,7 @@ func _rpc_sync_end_round() -> void:
 func _get_public_snapshot() -> Dictionary:
 	var supply_snap: Dictionary = {}
 	for color: CardData.SupplyColor in CardData.SupplyColor.values():
-		supply_snap[int(color)] = $UILayer/SupplyUI.get_supply(color)
+		supply_snap[int(color)] = _cs_display.get_supply(color)
 	var slot_snaps: Array = []
 	for slot: SectorSlot in $Board.get_all_sector_slots():
 		var slot_info: Dictionary = {
@@ -891,7 +878,7 @@ func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, ca
 		if cd:
 			c_name = cd.adv_name if (_auction_is_adv and not cd.adv_name.is_empty()) else cd.card_name
 		var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(cost_color)
-		_bid_payment_panel.show_bid_payment(c_name, final_bid, valid_colors, $UILayer/SupplyUI)
+		_bid_payment_panel.show_bid_payment(c_name, final_bid, valid_colors, _cs_display)
 	else:
 		if my_id == initiator_id:
 			$Board.forfeit_purchase()
@@ -1023,9 +1010,7 @@ func _show_won_card_popup() -> void:
 func _game_over() -> void:
 	_show_action_buttons(false)
 	_show_end_turn_button(false)
-	$UILayer/SupplyUI.show_game_info(false)
-	if _cs_display:
-		_cs_display.show_game_info(false)
+	_cs_display.show_game_info(false)
 	var lines: Array[Dictionary] = $Board.calculate_score()
 	var total: int = 0
 	for line: Dictionary in lines:
@@ -1047,17 +1032,17 @@ func _on_card_discarded(card: Node3D) -> void:
 			$UILayer/DiscardHint.hide()
 			UIAudio.play_recycle_sfx()
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-			$UILayer/SupplyUI.add_supply(color, 1)
+			_cs_display.add_supply(color, 1)
 			_apply_recycle_bonus(color)
 			$Board.add_to_discard(card.card_data)
 			var screen_pos: Vector2 = $Camera3D.unproject_position(card.global_position)
-			$UILayer/SupplyUI.animate_supply_incoming(screen_pos, color)
+			_cs_display.animate_supply_incoming(screen_pos, color)
 			# card freed by fly-out animation in hand.gd
 
 
 func _recycle_card_to_supply(card: Node3D, color: CardData.SupplyColor) -> void:
 	var screen_pos: Vector2 = $Camera3D.unproject_position(card.global_position)
-	$UILayer/SupplyUI.animate_supply_incoming(screen_pos, color)
+	_cs_display.animate_supply_incoming(screen_pos, color)
 	$Camera3D/Hand.remove_card_fly_out(card)
 
 func _on_card_right_clicked_free_recycle(card: Node3D) -> void:
@@ -1067,7 +1052,7 @@ func _on_card_right_clicked_free_recycle(card: Node3D) -> void:
 		return
 	UIAudio.play_recycle_sfx()
 	var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-	$UILayer/SupplyUI.add_supply(color, 1)
+	_cs_display.add_supply(color, 1)
 	_apply_recycle_bonus(color)
 	$Board.add_to_discard(card.card_data)
 	_recycle_card_to_supply(card, color)
@@ -1114,7 +1099,7 @@ func _process_hand_choice(index: int) -> void:
 	match _effect_mode:
 		EffectMode.EFFECT_RECYCLE:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-			$UILayer/SupplyUI.add_supply(color, 1)
+			_cs_display.add_supply(color, 1)
 			_apply_recycle_bonus(color)
 			$Board.add_to_discard(card.card_data)
 			_recycle_card_to_supply(card, color)
@@ -1126,7 +1111,7 @@ func _process_hand_choice(index: int) -> void:
 
 		EffectMode.EFFECT_RECYCLE_OPTIONAL:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-			$UILayer/SupplyUI.add_supply(color, 1)
+			_cs_display.add_supply(color, 1)
 			_apply_recycle_bonus(color)
 			$Board.add_to_discard(card.card_data)
 			_recycle_card_to_supply(card, color)
@@ -1170,7 +1155,7 @@ func _process_hand_choice(index: int) -> void:
 
 		EffectMode.EFFECT_RECYCLE_TUCK:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-			$UILayer/SupplyUI.add_supply(color, 1)
+			_cs_display.add_supply(color, 1)
 			_apply_recycle_bonus(color)
 			if _effect_slot and card.card_data:
 				_effect_slot.add_tucked_card(card.card_data, false)
@@ -1184,7 +1169,7 @@ func _process_hand_choice(index: int) -> void:
 
 		EffectMode.EFFECT_RECYCLE_DOUBLE:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-			$UILayer/SupplyUI.add_supply(color, 2)
+			_cs_display.add_supply(color, 2)
 			_apply_recycle_bonus(color)
 			$Board.add_to_discard(card.card_data)
 			_recycle_card_to_supply(card, color)
@@ -1285,7 +1270,7 @@ func _apply_recycle_optional_multiselect(indices: Array[int]) -> void:
 			continue
 		var card: Node3D = _pending_recycle_cards[i]
 		var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-		$UILayer/SupplyUI.add_supply(color, 1)
+		_cs_display.add_supply(color, 1)
 		_apply_recycle_bonus(color)
 		$Board.add_to_discard(card.card_data)
 		_recycle_card_to_supply(card, color)
@@ -1317,7 +1302,7 @@ func _apply_recycle_tuck_multiselect(indices: Array[int]) -> void:
 			continue
 		var card: Node3D = _pending_recycle_cards[i]
 		var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-		$UILayer/SupplyUI.add_supply(color, 1)
+		_cs_display.add_supply(color, 1)
 		_apply_recycle_bonus(color)
 		if _effect_slot and card.card_data:
 			_effect_slot.add_tucked_card(card.card_data, false)
@@ -1350,8 +1335,8 @@ func _apply_recycle_tuck_store_decision(store_on_sector: bool) -> void:
 		if store_on_sector and target:
 			target.add_stored_supply(color, 1)
 		else:
-			$UILayer/SupplyUI.animate_supply_incoming(screen_pos, color)
-			$UILayer/SupplyUI.add_supply(color, 1)
+			_cs_display.animate_supply_incoming(screen_pos, color)
+			_cs_display.add_supply(color, 1)
 			_apply_recycle_bonus(color)
 		if target and card.card_data:
 			target.add_tucked_card(card.card_data, false)
@@ -1494,7 +1479,7 @@ func _on_sector_revealed(card_data: CardData, slot_idx: int) -> void:
 	_effect_mode = EffectMode.NONE
 	$Board.set_sector_reveal_mode(false)
 	if _pending_reveal_gain_supply and card_data:
-		$UILayer/SupplyUI.add_supply(card_data.adv_color, 1)
+		_cs_display.add_supply(card_data.adv_color, 1)
 	if _pending_reveal_may_bid and card_data:
 		_reveal_bid_pool.append(card_data)
 	if _pending_reveal_may_free_gain and card_data:
@@ -1575,7 +1560,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_process_next_effect()
 
 		"gain_supply":
-			$UILayer/SupplyUI.add_supply(step["color"] as CardData.SupplyColor, int(step.get("amount", 0)))
+			_cs_display.add_supply(step["color"] as CardData.SupplyColor, int(step.get("amount", 0)))
 			_process_next_effect()
 
 		"store_on_slot":
@@ -1605,7 +1590,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 				var color: CardData.SupplyColor = step["color"] as CardData.SupplyColor
 				var mult: int = int(step.get("multiplier", 1))
 				var stored: int = _effect_slot.get_stored_supply(color)
-				$UILayer/SupplyUI.add_supply(color, stored * mult)
+				_cs_display.add_supply(color, stored * mult)
 			_process_next_effect()
 
 		"gain_supply_per_sector_count":
@@ -1615,16 +1600,16 @@ func _execute_effect_step(step: Dictionary) -> void:
 				count = $Board.get_sector_count_by_color(step["sector_color_filter"] as CardData.SupplyColor)
 			else:
 				count = $Board.get_sector_count()
-			$UILayer/SupplyUI.add_supply(color, count)
+			_cs_display.add_supply(color, count)
 			_process_next_effect()
 
 		"fuse_notice":
 			var count: int = int(step.get("count", 0))
-			$UILayer/SupplyUI.add_fuse_1to1(count)
+			_cs_display.add_fuse_1to1(count)
 			_process_next_effect()
 
 		"fuse_dust_1to1":
-			$UILayer/SupplyUI.set_dust_fuse_1to1(true)
+			_cs_display.set_dust_fuse_1to1(true)
 			_process_next_effect()
 
 		"recycle":
@@ -1705,7 +1690,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 			var exp_slot: int = int(step.get("slot", 0))
 			var revealed: CardData = $Board.reveal_expedition_to_slot(exp_slot)
 			if bool(step.get("gain_supply", false)) and revealed:
-				$UILayer/SupplyUI.add_supply(revealed.color, 1)
+				_cs_display.add_supply(revealed.color, 1)
 			if bool(step.get("may_bid", false)) and revealed:
 				_reveal_bid_pool.append(revealed)
 			if GameNetwork.is_multiplayer:
@@ -1967,7 +1952,7 @@ func _on_runner_up_offer(card_ref: Dictionary, _slot_idx: int, _is_tech: bool, i
 	var c_name: String = cd.adv_name if (is_adv and not cd.adv_name.is_empty()) else cd.card_name
 	var cost_color: CardData.SupplyColor = cost_color_int as CardData.SupplyColor
 	var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(cost_color)
-	_bid_payment_panel.show_bid_payment(c_name, printed_cost, valid_colors, $UILayer/SupplyUI)
+	_bid_payment_panel.show_bid_payment(c_name, printed_cost, valid_colors, _cs_display)
 	_update_turn_ui()
 
 func _on_market_card_taken(cd: CardData) -> void:
@@ -2024,7 +2009,7 @@ func _on_bid_confirmed(amount: int) -> void:
 		return
 	_bid_amount = amount
 	var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(_bid_color)
-	_bid_payment_panel.show_bid_payment(_bid_card_name, amount, valid_colors, $UILayer/SupplyUI)
+	_bid_payment_panel.show_bid_payment(_bid_card_name, amount, valid_colors, _cs_display)
 
 func _on_bid_payment_confirmed(allocations: Dictionary) -> void:
 	if _effect_mode == EffectMode.PAYMENT_CONFIRM:
@@ -2032,7 +2017,7 @@ func _on_bid_payment_confirmed(allocations: Dictionary) -> void:
 		$Board.confirm_payment_with_allocations(allocations)
 		return
 	for color: Variant in allocations:
-		$UILayer/SupplyUI.spend_supply(color as CardData.SupplyColor, int(allocations[color]))
+		_cs_display.spend_supply(color as CardData.SupplyColor, int(allocations[color]))
 	if _pending_auction_win:
 		_pending_auction_win = false
 		if _auction_win_is_initiator:
@@ -2111,7 +2096,7 @@ func _execute_expedition_reveal(slot_idx: int) -> void:
 	$UILayer/DiscardHint.hide()
 	var revealed: CardData = $Board.reveal_expedition_to_slot(slot_idx)
 	if _pending_expedition_reveal_gain_supply and revealed:
-		$UILayer/SupplyUI.add_supply(revealed.color, 1)
+		_cs_display.add_supply(revealed.color, 1)
 	if _pending_expedition_reveal_may_bid and revealed:
 		_reveal_bid_pool.append(revealed)
 	_pending_expedition_reveal_gain_supply = false
@@ -2140,7 +2125,7 @@ func _on_payment_confirm_required(card: Node3D, _slot: SectorSlot, pay_amounts: 
 		$Board.confirm_payment()
 		return
 	var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(cost_color)
-	_bid_payment_panel.show_bid_payment(card_name, total, valid_colors, $UILayer/SupplyUI)
+	_bid_payment_panel.show_bid_payment(card_name, total, valid_colors, _cs_display)
 
 func _on_supply_choice_required(card: Node3D, _slot: SectorSlot, cost: int, options: Array[CardData.SupplyColor], _is_tech: bool) -> void:
 	_effect_mode = EffectMode.SUPPLY_CHOICE
@@ -2215,7 +2200,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.keycode == KEY_ESCAPE:
 		$UILayer/PauseMenu.toggle()
 	elif event.keycode == KEY_SPACE and not $UILayer/PauseMenu.visible:
-		if $UILayer/SupplyUI.can_end_turn():
+		if _cs_display.can_end_turn():
 			_on_end_turn_pressed()
 
 func _on_pause_main_menu() -> void:
@@ -2236,7 +2221,7 @@ func _try_auto_end_turn() -> void:
 		return
 	if _pending_reveal_gain_supply or _pending_reveal_may_bid or _pending_reveal_may_free_gain:
 		return
-	if $UILayer/SupplyUI.has_fuse_1to1_active():
+	if _cs_display.has_fuse_1to1_active():
 		return
 	_on_end_turn_pressed()
 
@@ -2254,12 +2239,12 @@ func _on_end_turn_pressed() -> void:
 		_do_end_turn()
 	else:
 		$Board.reset_turn()
-		$UILayer/SupplyUI.clear_fuse_1to1()
+		_cs_display.clear_fuse_1to1()
 		_show_action_buttons(true)
 	_ending_turn = false
 
 func _do_end_turn() -> void:
-	$UILayer/SupplyUI.clear_fuse_1to1()
+	_cs_display.clear_fuse_1to1()
 	_show_action_buttons(false)
 	_broadcast_my_state()
 	if GameNetwork.is_host:
@@ -2288,9 +2273,7 @@ func _refresh_vp() -> void:
 	var total: int = 0
 	for line: Dictionary in lines:
 		total += int(line.get("vp", 0))
-	$UILayer/SupplyUI.set_vp(total)
-	if _cs_display:
-		_cs_display.set_vp(total)
+	_cs_display.set_vp(total)
 
 # ── Expedition sync RPCs ──────────────────────────────────────────────────────
 
@@ -2490,7 +2473,7 @@ func _crossfade_music() -> void:
 
 func _on_card_recycled(color: CardData.SupplyColor) -> void:
 	UIAudio.play_recycle_sfx()
-	$UILayer/SupplyUI.add_supply(color, 1)
+	_cs_display.add_supply(color, 1)
 	_apply_recycle_bonus(color)
 
 func _apply_recycle_bonus(color: CardData.SupplyColor) -> void:
@@ -2498,10 +2481,10 @@ func _apply_recycle_bonus(color: CardData.SupplyColor) -> void:
 		return
 	var count: int = $Board.count_tech_by_name("Trash Compactor")
 	if count > 0:
-		$UILayer/SupplyUI.add_supply(CardData.SupplyColor.DUST, count)
+		_cs_display.add_supply(CardData.SupplyColor.DUST, count)
 
 func _init_supply() -> void:
-	var ui: Control = $UILayer/SupplyUI
+	var ui: SupplyUI = _cs_display
 	ui.set_supply(CardData.SupplyColor.DUST,     4)
 	ui.set_supply(CardData.SupplyColor.METALS,   2)
 	ui.set_supply(CardData.SupplyColor.LIQUIDS,  2)
@@ -2510,21 +2493,13 @@ func _init_supply() -> void:
 	ui.set_supply(CardData.SupplyColor.THRUST,   0)
 
 func _show_action_buttons(v: bool) -> void:
-	($UILayer/SupplyUI as SupplyUI).show_action_buttons(v)
-	if _cs_display:
-		_cs_display.show_action_buttons(v)
+	_cs_display.show_action_buttons(v)
 
 func _show_end_turn_button(v: bool) -> void:
-	($UILayer/SupplyUI as SupplyUI).show_end_turn_button(v)
-	if _cs_display:
-		_cs_display.show_end_turn_button(v)
+	_cs_display.show_end_turn_button(v)
 
 func _set_action_buttons_disabled(v: bool) -> void:
-	($UILayer/SupplyUI as SupplyUI).set_action_buttons_disabled(v)
-	if _cs_display:
-		_cs_display.set_action_buttons_disabled(v)
+	_cs_display.set_action_buttons_disabled(v)
 
 func _set_end_turn_button_disabled(v: bool) -> void:
-	($UILayer/SupplyUI as SupplyUI).set_end_turn_button_disabled(v)
-	if _cs_display:
-		_cs_display.set_end_turn_button_disabled(v)
+	_cs_display.set_end_turn_button_disabled(v)
