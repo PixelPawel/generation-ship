@@ -1,0 +1,78 @@
+[gd_scene format=3 uid="uid://b8o4r2d6s1c3"]
+
+[ext_resource type="Script" uid="uid://cqwkg152sgkfi" path="res://scenes/board/board.gd" id="1_board_script"]
+[ext_resource type="PackedScene" uid="uid://c4s6l8t0r2e5" path="res://scenes/board/sector_slot.tscn" id="2_slot"]
+[ext_resource type="Script" uid="uid://ch0d5wtvvqr3i" path="res://scenes/board/tech_deck.gd" id="4_deck_script"]
+[ext_resource type="Script" uid="uid://dcktps5nuulpo" path="res://scenes/market/sector_market.gd" id="5_market_script"]
+[ext_resource type="Script" uid="uid://ddko1mng8nav5" path="res://scenes/market/expedition_market.gd" id="6_expedition_market_script"]
+[ext_resource type="Script" uid="uid://ui4w83y4tdo1" path="res://scenes/board/recycle_zone.gd" id="7_recycle_script"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_table"]
+size = Vector2(14, 10)
+
+[sub_resource type="StandardMaterial3D" id="Material_table"]
+albedo_color = Color(0.055, 0.07, 0.11, 1)
+metallic = 0.25
+roughness = 0.72
+emission_enabled = true
+emission = Color(0.04, 0.1, 0.22, 1)
+emission_energy_multiplier = 0.4
+
+[node name="Board" type="Node3D" unique_id=1775149473]
+script = ExtResource("1_board_script")
+
+[node name="Table" type="MeshInstance3D" parent="." unique_id=612677552]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.01, 0)
+mesh = SubResource("PlaneMesh_table")
+surface_material_override/0 = SubResource("Material_table")
+
+[node name="SectorMarket" type="Node3D" parent="." unique_id=1284736590]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -100, 0, 3.6489162)
+visible = false
+script = ExtResource("5_market_script")
+
+[node name="ExpeditionMarket" type="Node3D" parent="." unique_id=1193847265]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -100, 0, 2.1125512)
+visible = false
+script = ExtResource("6_expedition_market_script")
+
+[node name="TechDeck" type="Node3D" parent="." unique_id=632517666]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -100, 0, 0.660445)
+visible = false
+script = ExtResource("4_deck_script")
+
+[node name="ExpeditionDeck" type="Node3D" parent="." unique_id=918721050]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -100, 0, 0.660445)
+visible = false
+script = ExtResource("4_deck_script")
+
+[node name="SectorDeck" type="Node3D" parent="." unique_id=1038472916]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -100, 0, -1.7279592)
+visible = false
+script = ExtResource("4_deck_script")
+
+[node name="DiscardPile" type="Node3D" parent="." unique_id=1038472917]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -100, 0, -0.80039406)
+visible = false
+script = ExtResource("7_recycle_script")
+
+[node name="SectorRow" type="Node3D" parent="." unique_id=810395456]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.54108864, 0, 0)
+
+[node name="Slot0" parent="SectorRow" unique_id=795960939 instance=ExtResource("2_slot")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.425, 0.01, 0.5)
+
+[node name="Slot1" parent="SectorRow" unique_id=1457015639 instance=ExtResource("2_slot")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.455, 0.01, 0.5)
+
+[node name="Slot2" parent="SectorRow" unique_id=546237263 instance=ExtResource("2_slot")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.485, 0.01, 0.5)
+
+[node name="Slot3" parent="SectorRow" unique_id=277592649 instance=ExtResource("2_slot")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.485, 0.01, 0.5)
+
+[node name="Slot4" parent="SectorRow" unique_id=722473491 instance=ExtResource("2_slot")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.455, 0.01, 0.5)
+
+[node name="Slot5" parent="SectorRow" unique_id=1650898782 instance=ExtResource("2_slot")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.425, 0.01, 0.5)

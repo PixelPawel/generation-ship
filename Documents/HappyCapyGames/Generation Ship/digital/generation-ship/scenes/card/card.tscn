@@ -1,0 +1,29 @@
+[gd_scene load_steps=6 format=3 uid="uid://c7k9m3p5r8t2v"]
+
+[ext_resource type="Script" path="res://scenes/card/card.gd" id="1_script"]
+[ext_resource type="Shader" path="res://shaders/card_sheen.gdshader" id="2_shader"]
+
+[sub_resource type="QuadMesh" id="QuadMesh_mesh01"]
+size = Vector2(0.63, 0.88)
+subdivide_width = 8
+subdivide_height = 12
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_mat01"]
+shader = ExtResource("2_shader")
+shader_parameter/tilt = Vector2(0, 0)
+shader_parameter/sheen_strength = 0.0
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_col01"]
+size = Vector3(0.63, 0.88, 0.02)
+
+[node name="Card" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="CardMesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("QuadMesh_mesh01")
+surface_material_override/0 = SubResource("ShaderMaterial_mat01")
+
+[node name="Collider" type="Area3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Collider"]
+shape = SubResource("BoxShape3D_col01")

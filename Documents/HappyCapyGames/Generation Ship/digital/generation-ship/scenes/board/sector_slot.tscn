@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://c4s6l8t0r2e5"]
+
+[ext_resource type="Script" path="res://scenes/board/sector_slot.gd" id="1_slot_script"]
+[ext_resource type="Shader" path="res://shaders/sector_slot.gdshader" id="2_slot_shader"]
+[sub_resource type="BoxMesh" id="BoxMesh_slot"]
+size = Vector3(0.92, 0.01, 0.68)
+
+[sub_resource type="ShaderMaterial" id="Material_slot"]
+shader = ExtResource("2_slot_shader")
+
+[node name="SectorSlot" type="Node3D"]
+script = ExtResource("1_slot_script")
+
+[node name="SlotMesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_slot")
+surface_material_override/0 = SubResource("Material_slot")

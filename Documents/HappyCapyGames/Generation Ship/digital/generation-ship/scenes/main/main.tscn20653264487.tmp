@@ -1,0 +1,116 @@
+[gd_scene format=3 uid="uid://b2n4q6w8x1y30"]
+
+[ext_resource type="Script" uid="uid://caorpx83a0nea" path="res://scenes/main/main.gd" id="1_main_script"]
+[ext_resource type="PackedScene" uid="uid://c7lam3p5r8t2v" path="res://scenes/card/card.tscn" id="2_card"]
+[ext_resource type="PackedScene" uid="uid://b8o4r2d6s1c3" path="res://scenes/board/board.tscn" id="3_board"]
+[ext_resource type="PackedScene" uid="uid://3cx7or3vue0" path="res://scenes/hand/hand.tscn" id="4_hand"]
+[ext_resource type="Script" uid="uid://cmkd8e0vxrdss" path="res://scenes/ui/supply_ui.gd" id="5_supply_ui"]
+[ext_resource type="Script" uid="uid://ci3j3t2v7i38k" path="res://scenes/ui/scoreboard.gd" id="6_scoreboard"]
+[ext_resource type="Script" uid="uid://cskw62jg3e32u" path="res://scenes/ui/bid_popup.gd" id="7_bid_popup"]
+[ext_resource type="Script" uid="uid://dabxlmwrri6bs" path="res://scenes/ui/payment_panel.gd" id="8_payment_panel"]
+
+[node name="Main" type="Node3D" unique_id=35736293]
+script = ExtResource("1_main_script")
+card_scene = ExtResource("2_card")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1072796620]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, -0.19290566, 4.219867, 0.030933112)
+
+[node name="Hand" parent="Camera3D" unique_id=1324524141 instance=ExtResource("4_hand")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.1, -1.8)
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=851628674]
+transform = Transform3D(0.8658247, -0.35365817, 0.3539399, 0, 0.7073882, 0.7068252, -0.50034744, -0.6119867, 0.6124742, 0, 0, 0)
+light_energy = 1.5
+shadow_enabled = true
+
+[node name="UILayer" type="CanvasLayer" parent="." unique_id=2083177684]
+
+[node name="SupplyUI" type="Control" parent="UILayer" unique_id=1813371774]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 16.0
+offset_top = 8.0
+grow_vertical = 2
+script = ExtResource("5_supply_ui")
+
+[node name="StartButton" type="Button" parent="UILayer" unique_id=1049283716]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -160.0
+offset_top = -50.0
+offset_right = 160.0
+offset_bottom = 50.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 36
+text = "Start Game"
+
+[node name="LoadingLabel" type="Label" parent="UILayer" unique_id=1193827461]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -160.0
+offset_top = -20.0
+offset_right = 160.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 28
+text = "Loading..."
+horizontal_alignment = 1
+
+[node name="DiscardHint" type="Label" parent="UILayer" unique_id=1847362514]
+visible = false
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 8.0
+offset_right = 200.0
+offset_bottom = 40.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 20
+text = "Click a card in your hand to discard it"
+horizontal_alignment = 1
+
+[node name="RoundLabel" type="Label" parent="UILayer" unique_id=1847362515]
+visible = false
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -160.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = 40.0
+grow_horizontal = 0
+theme_override_font_sizes/font_size = 20
+text = "Round 0 / 4"
+horizontal_alignment = 2
+
+[node name="Scoreboard" type="Control" parent="UILayer" unique_id=1847362516]
+visible = false
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("6_scoreboard")
+
+[node name="BidPopup" type="Control" parent="UILayer" unique_id=1847362517]
+visible = false
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("7_bid_popup")
+
+[node name="PaymentPanel" type="Control" parent="UILayer" unique_id=1847362518]
+visible = false
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("8_payment_panel")
+
+[node name="Board" parent="." unique_id=208449846 instance=ExtResource("3_board")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5534699, 0)

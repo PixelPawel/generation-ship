@@ -1,0 +1,74 @@
+[gd_scene format=3 uid="uid://bq7k2m4p6v8y1"]
+
+[ext_resource type="Script" uid="uid://b86phomrq56il" path="res://scenes/main_menu/main_menu.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://dbprqc2vk3kwv" path="res://assets/ui/Cover.jpeg" id="2_cover"]
+
+[node name="MainMenu" type="Control" unique_id=174534454]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="TextureRect" parent="." unique_id=1966526599]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_cover")
+stretch_mode = 6
+
+[node name="DarkOverlay" type="ColorRect" parent="." unique_id=6790213]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.5)
+
+[node name="VBox" type="VBoxContainer" parent="." unique_id=847666985]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -400.0
+offset_top = -220.0
+offset_right = 400.0
+offset_bottom = 220.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="Title" type="Label" parent="VBox" unique_id=1040120624]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 72
+text = "Generation Ship"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="VBox" unique_id=879164005]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+
+[node name="MultiplayerBtn" type="Button" parent="VBox" unique_id=758960205]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Start Game"
+
+[node name="QuitBtn" type="Button" parent="VBox" unique_id=145901013]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Quit"
+
+[connection signal="pressed" from="VBox/MultiplayerBtn" to="." method="_on_multiplayer_pressed"]
+[connection signal="pressed" from="VBox/QuitBtn" to="." method="_on_quit_pressed"]

@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://dq4lpg256a5to"
+
+[deps]
+
+files=["res://data/Generation Ship Full Card Details - Advanced Sectors.Name.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Link.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Color.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Cost.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.en.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Flavor.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Printed Star.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Star Card.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Backside.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Optimize 1.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Optimize 2.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Optimize 3.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Effect.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Effect 2.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Done.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Artist.translation"]
+
+source_file="res://data/Generation Ship Full Card Details - Advanced Sectors.csv"
+dest_files=["res://data/Generation Ship Full Card Details - Advanced Sectors.Name.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Link.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Color.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Cost.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.en.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Flavor.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Printed Star.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Star Card.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Backside.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Optimize 1.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Optimize 2.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Optimize 3.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Effect.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Effect 2.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Done.translation", "res://data/Generation Ship Full Card Details - Advanced Sectors.Artist.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

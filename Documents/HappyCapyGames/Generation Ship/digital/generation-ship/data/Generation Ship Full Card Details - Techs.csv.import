@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://m6ry5t2n2rk1"
+
+[deps]
+
+files=["res://data/Generation Ship Full Card Details - Techs.Avg.translation", "res://data/Generation Ship Full Card Details - Techs.No..translation", "res://data/Generation Ship Full Card Details - Techs.Name.translation", "res://data/Generation Ship Full Card Details - Techs.Links.translation", "res://data/Generation Ship Full Card Details - Techs.Color.translation", "res://data/Generation Ship Full Card Details - Techs.Cost.translation", "res://data/Generation Ship Full Card Details - Techs.Flavor.translation", "res://data/Generation Ship Full Card Details - Techs.Printed Star.translation", "res://data/Generation Ship Full Card Details - Techs.Star Card.translation", "res://data/Generation Ship Full Card Details - Techs.Type.translation", "res://data/Generation Ship Full Card Details - Techs.Effect.translation", "res://data/Generation Ship Full Card Details - Techs.Done.translation", "res://data/Generation Ship Full Card Details - Techs.Artist.translation", "res://data/Generation Ship Full Card Details - Techs.en.translation"]
+
+source_file="res://data/Generation Ship Full Card Details - Techs.csv"
+dest_files=["res://data/Generation Ship Full Card Details - Techs.Avg.translation", "res://data/Generation Ship Full Card Details - Techs.No..translation", "res://data/Generation Ship Full Card Details - Techs.Name.translation", "res://data/Generation Ship Full Card Details - Techs.Links.translation", "res://data/Generation Ship Full Card Details - Techs.Color.translation", "res://data/Generation Ship Full Card Details - Techs.Cost.translation", "res://data/Generation Ship Full Card Details - Techs.Flavor.translation", "res://data/Generation Ship Full Card Details - Techs.Printed Star.translation", "res://data/Generation Ship Full Card Details - Techs.Star Card.translation", "res://data/Generation Ship Full Card Details - Techs.Type.translation", "res://data/Generation Ship Full Card Details - Techs.Effect.translation", "res://data/Generation Ship Full Card Details - Techs.Done.translation", "res://data/Generation Ship Full Card Details - Techs.Artist.translation", "res://data/Generation Ship Full Card Details - Techs.en.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

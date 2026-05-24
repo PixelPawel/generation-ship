@@ -1,0 +1,236 @@
+extends Control
+
+signal confirmed(allocations: Dictionary)
+signal forfeited
+
+var _needed: int = 0
+var _allocations: Dictionary = {}   # int(color) -> int amount
+var _available: Dictionary = {}     # int(color) -> int amount
+var _colors: Array[CardData.SupplyColor] = []
+var _valid_colors: Array[CardData.SupplyColor] = []
+var _supply_ui: Control = null
+var _count_labels: Dictionary = {}  # int(color) -> Label
+var _avail_labels: Dictionary = {}  # int(color) -> Label
+var _title_label: Label = null
+var _total_label: Label = null
+var _confirm_btn: Button = null
+var _rows_container: VBoxContainer = null
+
+func _ready() -> void:
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hide()
+
+	var panel: ScifiPanel = load("res://scenes/ui/scifi_panel.gd").new()
+	panel.set_content_margin(20)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 12)
+	vbox.custom_minimum_size = Vector2(380, 0)
+	panel.add_child(vbox)
+
+	_title_label = Label.new()
+	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_title_label.add_theme_font_size_override("font_size", 20)
+	vbox.add_child(_title_label)
+
+	_rows_container = VBoxContainer.new()
+	_rows_container.add_theme_constant_override("separation", 8)
+	vbox.add_child(_rows_container)
+
+	_total_label = Label.new()
+	_total_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_total_label.add_theme_font_size_override("font_size", 16)
+	vbox.add_child(_total_label)
+
+	var btn_row := HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 10)
+	vbox.add_child(btn_row)
+
+	var forfeit_btn := Button.new()
+	forfeit_btn.text = "Forfeit"
+	forfeit_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	forfeit_btn.add_theme_font_size_override("font_size", 16)
+	forfeit_btn.pressed.connect(func() -> void: hide(); forfeited.emit())
+	btn_row.add_child(forfeit_btn)
+
+	_confirm_btn = Button.new()
+	_confirm_btn.text = "Pay & Place"
+	_confirm_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_confirm_btn.add_theme_font_size_override("font_size", 16)
+	_confirm_btn.pressed.connect(_on_confirm)
+	btn_row.add_child(_confirm_btn)
+
+func show_bid_payment(card_name: String, amount: int, valid_colors: Array[CardData.SupplyColor], supply_ui: Control) -> void:
+	_needed = amount
+	_supply_ui = supply_ui
+	_valid_colors = valid_colors
+	_allocations.clear()
+	_available.clear()
+	_count_labels.clear()
+	_avail_labels.clear()
+
+	_colors = []
+	for color: CardData.SupplyColor in valid_colors:
+		var avail: int = supply_ui.get_supply(color)
+		if avail > 0:
+			_colors.append(color)
+			_available[int(color)] = avail
+			_allocations[int(color)] = 0
+
+	var remaining: int = amount
+	for color: CardData.SupplyColor in _colors:
+		var take: int = mini(_available[int(color)], remaining)
+		_allocations[int(color)] = take
+		remaining -= take
+		if remaining <= 0:
+			break
+
+	_title_label.text = "Pay for %s" % card_name
+	_rebuild_rows()
+	_update_total()
+	show()
+
+func refresh() -> void:
+	if not visible or not _supply_ui:
+		return
+	# Re-scan which colors are currently available.
+	var new_colors: Array[CardData.SupplyColor] = []
+	var new_available: Dictionary = {}
+	for color: CardData.SupplyColor in _valid_colors:
+		var avail: int = _supply_ui.get_supply(color)
+		if avail > 0:
+			new_colors.append(color)
+			new_available[int(color)] = avail
+	# Rebuild rows when the set of payable colors changes (added or removed).
+	var colors_changed: bool = new_colors.size() != _colors.size()
+	if not colors_changed:
+		for i: int in new_colors.size():
+			if new_colors[i] != _colors[i]:
+				colors_changed = true
+				break
+	if colors_changed:
+		var old_allocs: Dictionary = _allocations.duplicate()
+		_colors = new_colors
+		_available = new_available
+		_allocations.clear()
+		# Preserve what was already allocated where supply still covers it.
+		for color: CardData.SupplyColor in _colors:
+			var col_key: int = int(color)
+			_allocations[col_key] = mini(old_allocs.get(col_key, 0), _available.get(col_key, 0))
+		# Auto-fill remaining needed amount from available supply.
+		var remaining: int = _needed - _get_total()
+		for color: CardData.SupplyColor in _colors:
+			if remaining <= 0:
+				break
+			var col_key: int = int(color)
+			var can_add: int = _available.get(col_key, 0) - int(_allocations.get(col_key, 0))
+			var take: int = mini(can_add, remaining)
+			_allocations[col_key] = int(_allocations.get(col_key, 0)) + take
+			remaining -= take
+		_count_labels.clear()
+		_avail_labels.clear()
+		_rebuild_rows()
+	else:
+		# Color set unchanged — update amounts and clamp allocations in place.
+		for color: CardData.SupplyColor in _colors:
+			var col_key: int = int(color)
+			var avail: int = new_available[col_key]
+			_available[col_key] = avail
+			_allocations[col_key] = mini(int(_allocations.get(col_key, 0)), avail)
+			if _avail_labels.has(col_key):
+				(_avail_labels[col_key] as Label).text = "(have %d)" % avail
+			if _count_labels.has(col_key):
+				(_count_labels[col_key] as Label).text = str(_allocations[col_key])
+	_update_total()
+
+func _rebuild_rows() -> void:
+	for child: Node in _rows_container.get_children():
+		child.queue_free()
+	for color: CardData.SupplyColor in _colors:
+		_rows_container.add_child(_make_row(color))
+
+func _make_row(color: CardData.SupplyColor) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+
+	var name_lbl := Label.new()
+	name_lbl.text = CardData.color_name(color)
+	name_lbl.add_theme_font_size_override("font_size", 16)
+	name_lbl.add_theme_color_override("font_color", CardData.color_tint(color))
+	name_lbl.custom_minimum_size = Vector2(84, 0)
+	row.add_child(name_lbl)
+
+	var col_key: int = int(color)
+	var avail_lbl := Label.new()
+	avail_lbl.text = "(have %d)" % _available[col_key]
+	avail_lbl.add_theme_font_size_override("font_size", 14)
+	avail_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+	avail_lbl.custom_minimum_size = Vector2(72, 0)
+	_avail_labels[col_key] = avail_lbl
+	row.add_child(avail_lbl)
+
+	var dec_btn := Button.new()
+	dec_btn.text = "−"
+	dec_btn.custom_minimum_size = Vector2(34, 34)
+	dec_btn.add_theme_font_size_override("font_size", 18)
+	dec_btn.pressed.connect(func() -> void: _change_alloc(col_key, -1))
+	row.add_child(dec_btn)
+
+	var count_lbl := Label.new()
+	count_lbl.custom_minimum_size = Vector2(30, 34)
+	count_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	count_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	count_lbl.add_theme_font_size_override("font_size", 20)
+	count_lbl.text = str(_allocations[col_key])
+	_count_labels[col_key] = count_lbl
+	row.add_child(count_lbl)
+
+	var inc_btn := Button.new()
+	inc_btn.text = "+"
+	inc_btn.custom_minimum_size = Vector2(34, 34)
+	inc_btn.add_theme_font_size_override("font_size", 18)
+	inc_btn.pressed.connect(func() -> void: _change_alloc(col_key, 1))
+	row.add_child(inc_btn)
+
+	return row
+
+func _change_alloc(color_key: int, delta: int) -> void:
+	var current: int = _allocations.get(color_key, 0)
+	var new_val: int = current + delta
+	new_val = clampi(new_val, 0, _available.get(color_key, 0))
+	if delta > 0 and _get_total() >= _needed:
+		return
+	_allocations[color_key] = new_val
+	if _count_labels.has(color_key):
+		(_count_labels[color_key] as Label).text = str(new_val)
+	_update_total()
+
+func _get_total() -> int:
+	var total: int = 0
+	for v: Variant in _allocations.values():
+		total += int(v)
+	return total
+
+func _update_total() -> void:
+	var total: int = _get_total()
+	_total_label.text = "Allocated: %d / %d" % [total, _needed]
+	if total == _needed:
+		_total_label.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5))
+	else:
+		_total_label.add_theme_color_override("font_color", Color(1.0, 0.6, 0.3))
+	_confirm_btn.disabled = total != _needed
+
+func _on_confirm() -> void:
+	var result: Dictionary = {}
+	for color_key: Variant in _allocations:
+		var amount: int = int(_allocations[color_key])
+		if amount > 0:
+			result[color_key as CardData.SupplyColor] = amount
+	hide()
+	confirmed.emit(result)

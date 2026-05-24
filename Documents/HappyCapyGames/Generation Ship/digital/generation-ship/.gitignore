@@ -1,0 +1,33 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+
+# Build outputs
+GS.exe
+GS.pck
+
+# Platform export binaries
+/androidarm64/
+/linux32/
+/linux64/
+/linuxarm64/
+/osx/
+/win64/
+/redistributable_bin/
+
+# GodotSteam plugin platform binaries (download from godotsteam.com separately)
+/addons/godotsteam/androidarm64/
+/addons/godotsteam/linux32/
+/addons/godotsteam/linux64/
+/addons/godotsteam/linuxarm64/
+/addons/godotsteam/osx/
+/addons/godotsteam/win32/
+/addons/godotsteam/win64/
+libgodotsteam.windows.template_release.x86_64.dll
+
+# Card art and frames — too large for plain git (card images served from S3 at runtime)
+assets/art/
+assets/frames/
+
+# Runtime HTTP card image cache
+assets/cards/

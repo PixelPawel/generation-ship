@@ -1,0 +1,65 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Generation Ship"
+run/main_scene="res://scenes/main_menu/main_menu.tscn"
+config/features=PackedStringArray("4.6", "Forward Plus")
+config/icon="res://icon.svg"
+
+[audio]
+
+driver/output_latency=100
+driver/mix_rate=48000
+
+[autoload]
+
+SteamManager="*res://scripts/net/steam_manager.gd"
+CardDatabase="*res://scripts/game/card_database.gd"
+CardAssets="*res://scripts/game/card_assets.gd"
+ImageCache="*res://scripts/image_cache.gd"
+CursorManager="*res://scripts/cursor_manager.gd"
+GameNetwork="*res://scripts/net/game_network.gd"
+SceneTransition="*res://scripts/scene_transition.gd"
+UIAudio="*res://scripts/ui_audio.gd"
+
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/mode=2
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/godotsteam/plugin.cfg")
+
+[gui]
+
+theme/custom="res://assets/ui/theme.tres"
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
+[rendering]
+
+textures/default_filters/anisotropic_filtering_level=3
+anti_aliasing/quality/msaa_3d=2
+anti_aliasing/quality/screen_space_aa=1
+
+[steam]
+
+initialization/app_id=0
+initialization/initialize_on_startup=false
+initialization/embed_callbacks=false
+multiplayer_peer/max_channels=4

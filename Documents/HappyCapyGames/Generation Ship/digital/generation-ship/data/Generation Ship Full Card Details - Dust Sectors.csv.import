@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://dqq7gjjqyapsh"
+
+[deps]
+
+files=["res://data/Generation Ship Full Card Details - Dust Sectors.Name.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Link.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Color.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Cost.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.en.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Flavor.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Star Card.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Optimize 1.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Effect.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Done.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Artist.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Effect 2.translation"]
+
+source_file="res://data/Generation Ship Full Card Details - Dust Sectors.csv"
+dest_files=["res://data/Generation Ship Full Card Details - Dust Sectors.Name.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Link.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Color.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Cost.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.en.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Flavor.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Star Card.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Optimize 1.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Effect.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Done.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Artist.translation", "res://data/Generation Ship Full Card Details - Dust Sectors.Effect 2.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true
