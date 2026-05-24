@@ -117,32 +117,23 @@ func _refresh() -> void:
 		_refresh_dust(i)
 		_refresh_exp(i)
 
-func _refresh_adv(i: int) -> void:
-	if _hidden_drag_type == "adv" and _hidden_drag_slot == i:
-		_adv_cards[i].visible = false
+func _refresh_slot(i: int, cards: Array[Node3D], hidden_type: String, get_data: Callable) -> void:
+	if _hidden_drag_type == hidden_type and _hidden_drag_slot == i:
+		cards[i].visible = false
 		return
-	var cd: CardData = _sector_market.get_advanced_card_data(i)
-	_adv_cards[i].visible = cd != null
+	var cd: CardData = get_data.call(i)
+	cards[i].visible = cd != null
 	if cd:
-		_adv_cards[i].set_card_data(cd)
+		cards[i].set_card_data(cd)
+
+func _refresh_adv(i: int) -> void:
+	_refresh_slot(i, _adv_cards, "adv", _sector_market.get_advanced_card_data)
 
 func _refresh_dust(i: int) -> void:
-	if _hidden_drag_type == "dust" and _hidden_drag_slot == i:
-		_dust_cards[i].visible = false
-		return
-	var cd: CardData = _sector_market.get_dust_card_data(i)
-	_dust_cards[i].visible = cd != null
-	if cd:
-		_dust_cards[i].set_card_data(cd)
+	_refresh_slot(i, _dust_cards, "dust", _sector_market.get_dust_card_data)
 
 func _refresh_exp(i: int) -> void:
-	if _hidden_drag_type == "exp" and _hidden_drag_slot == i:
-		_exp_cards[i].visible = false
-		return
-	var cd: CardData = _expedition_market.get_card_data(i)
-	_exp_cards[i].visible = cd != null
-	if cd:
-		_exp_cards[i].set_card_data(cd)
+	_refresh_slot(i, _exp_cards, "exp", _expedition_market.get_card_data)
 
 func on_market_drag_started(card: Node3D) -> void:
 	var slot_idx: int = card.get_meta("market_slot", -1)
