@@ -1,8 +1,5 @@
 extends Node3D
 
-signal sector_advanced_pressed(slot_idx: int)
-signal sector_dust_pressed(slot_idx: int)
-signal expedition_pressed(slot_idx: int)
 
 const CARD_SCALE        := 0.45
 const HOVER_SCALE       := CARD_SCALE * 1.67
@@ -57,29 +54,23 @@ func _make_card(card_scene: PackedScene, is_advanced: bool) -> Node3D:
 	card.unhovered.connect(func(_c: Node3D) -> void: CursorManager.set_default())
 	return card
 
-func _connect_card_click(card: Node3D, is_exp: bool, on_buy: Callable) -> void:
+func _connect_card_click(card: Node3D, is_exp: bool) -> void:
 	card.right_clicked.connect(func(_c: Node3D) -> void:
-		var was_elevated: bool = card.get("_placed_elevated") as bool
 		_do_market_toggle(card, is_exp)
-		if was_elevated:
-			on_buy.call()
 	)
 
 func _build_cards(card_scene: PackedScene) -> void:
 	for i: int in 3:
 		var card: Node3D = _make_card(card_scene, true)
-		var ai: int = i
-		_connect_card_click(card, false, func(): sector_advanced_pressed.emit(ai))
+		_connect_card_click(card, false)
 		_adv_cards.append(card)
 	for i: int in 3:
 		var card: Node3D = _make_card(card_scene, false)
-		var di: int = i
-		_connect_card_click(card, false, func(): sector_dust_pressed.emit(di))
+		_connect_card_click(card, false)
 		_dust_cards.append(card)
 	for i: int in 3:
 		var card: Node3D = _make_card(card_scene, false)
-		var ei: int = i
-		_connect_card_click(card, true, func(): expedition_pressed.emit(ei))
+		_connect_card_click(card, true)
 		_exp_cards.append(card)
 	_layout_fans()
 
