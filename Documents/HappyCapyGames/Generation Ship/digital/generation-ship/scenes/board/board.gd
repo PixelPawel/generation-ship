@@ -476,8 +476,7 @@ func _begin_drag(card: Node3D) -> void:
 	if _drag_origin == DragOrigin.MARKET:
 		market_drag_started.emit(card)
 	var cam_rot_x: float = get_viewport().get_camera_3d().rotation.x
-	var market_sector: bool = _drag_origin == DragOrigin.MARKET and _is_sector_card()
-	var target_rot: Vector3 = Vector3(cam_rot_x, PI / 2.0, 0.0) if market_sector else Vector3(cam_rot_x, 0.0, 0.0)
+	var target_rot: Vector3 = Vector3(cam_rot_x, 0.0, 0.0)
 	var t: Tween = card.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	t.tween_property(card, "rotation", target_rot, 0.15)
 	t.parallel().tween_property(card, "scale", Vector3.ONE * 1.2, 0.15)

@@ -6,7 +6,7 @@ signal market_changed
 signal reveal_mode_changed(active: bool)
 signal card_revealed(slot_idx: int)
 
-const CARD_ROTATION := Vector3(-PI / 2.0, PI / 2.0, 0.0)
+const CARD_ROTATION := Vector3(-PI / 2.0, 0.0, 0.0)
 const STACK_Y_STEP := 0.015
 const STACK_X_STEP := 0.008
 
