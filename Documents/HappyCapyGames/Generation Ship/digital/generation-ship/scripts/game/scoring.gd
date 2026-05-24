@@ -55,6 +55,13 @@ static func _card_color(card: Node3D) -> CardData.SupplyColor:
 		return CardData.SupplyColor.DUST
 	return CardData.effective_color(cd, bool(card.get("is_advanced")))
 
+static func _count_by_color(cards: Array, color: CardData.SupplyColor) -> int:
+	var n: int = 0
+	for card: Node3D in cards:
+		if _card_color(card) == color:
+			n += 1
+	return n
+
 static func _add_line(lines: Array[Dictionary], label: String, vp: int) -> void:
 	if vp > 0:
 		lines.append({"label": label, "vp": vp})
@@ -138,11 +145,7 @@ static func _expedition_vp(name: String, slots: Array, expeditions: Array, all_c
 
 		"Exodus Fleets":
 			# 2 VP per Thrust card (including self)
-			var count: int = 0
-			for card: Node3D in all_cards:
-				if _card_color(card) == CardData.SupplyColor.THRUST:
-					count += 1
-			return 2 * count
+			return 2 * _count_by_color(all_cards, CardData.SupplyColor.THRUST)
 
 		"Equatorial Superloop":
 			# Copy up to 6 VP from the top card in each sector.
@@ -175,11 +178,7 @@ static func _expedition_vp(name: String, slots: Array, expeditions: Array, all_c
 
 		"Bio-Compatible World":
 			# 1 VP per Organix card placed (including self)
-			var count: int = 0
-			for card: Node3D in all_cards:
-				if _card_color(card) == CardData.SupplyColor.ORGANIX:
-					count += 1
-			return count
+			return _count_by_color(all_cards, CardData.SupplyColor.ORGANIX)
 
 		"Astrobio Propagation":
 			# 3 VP per sector with 2+ tucked cards
@@ -207,18 +206,14 @@ static func _expedition_vp(name: String, slots: Array, expeditions: Array, all_c
 
 		"Hive Mind":
 			# 1 VP per Electrix card placed (including self)
-			var count: int = 0
-			for card: Node3D in all_cards:
-				if _card_color(card) == CardData.SupplyColor.ELECTRIX:
-					count += 1
-			return count
+			return _count_by_color(all_cards, CardData.SupplyColor.ELECTRIX)
 
 		"Asteroid Colonies":
 			# 1 VP per facedown tucked card
 			var count: int = 0
 			for slot: SectorSlot in slots:
 				for tuck: Dictionary in slot.tucked_cards:
-					if not tuck.get("face_up", true):
+					if not tuck.get("face_up", false):
 						count += 1
 			return count
 

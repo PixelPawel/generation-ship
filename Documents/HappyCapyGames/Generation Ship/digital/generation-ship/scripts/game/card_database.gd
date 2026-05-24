@@ -62,16 +62,8 @@ func _load_techs() -> void:
 			continue
 		var card := CardData.new()
 		card.id = int(row["No."])
-		card.card_name = row.get("Name", "")
 		card.card_type = CardData.CardType.TECH
-		card.color = _parse_color(row.get("Color", ""))
-		card.cost = int(row.get("Cost", "0")) if row.get("Cost", "").is_valid_int() else 0
-		card.effect_text = row.get("Effect", "").strip_edges()
-		card.flavor_text = row.get("Flavor", "").strip_edges()
-		card.image_url = row.get("Links", "")
-		card.stars = row.get("Printed Star", "").count("⭐")
-		card.is_star_card = _parse_yes_no(row.get("Star Card", row.get("Star card", "No")))
-		card.trigger_type = _parse_trigger(row.get("Type", ""))
+		_populate_base_fields(card, row)
 		techs.append(card)
 
 func _load_expeditions() -> void:
@@ -81,17 +73,20 @@ func _load_expeditions() -> void:
 			continue
 		var card := CardData.new()
 		card.id = int(row["No."])
-		card.card_name = row.get("Name", "")
 		card.card_type = CardData.CardType.EXPEDITION
-		card.color = _parse_color(row.get("Color", ""))
-		card.cost = int(row.get("Cost", "0")) if row.get("Cost", "").is_valid_int() else 0
-		card.effect_text = row.get("Effect", "").strip_edges()
-		card.flavor_text = row.get("Flavor", "").strip_edges()
-		card.image_url = row.get("Link", "")
-		card.stars = row.get("Printed Star", "").count("⭐")
-		card.is_star_card = _parse_yes_no(row.get("Star Card", row.get("Star card", "No")))
-		card.trigger_type = _parse_trigger(row.get("Type", ""))
+		_populate_base_fields(card, row)
 		expeditions.append(card)
+
+func _populate_base_fields(card: CardData, row: Dictionary) -> void:
+	card.card_name    = row.get("Name", "")
+	card.color        = _parse_color(row.get("Color", ""))
+	card.cost         = int(row.get("Cost", "0")) if row.get("Cost", "").is_valid_int() else 0
+	card.effect_text  = row.get("Effect", "").strip_edges()
+	card.flavor_text  = row.get("Flavor", "").strip_edges()
+	card.image_url    = row.get("Link", "")
+	card.stars        = row.get("Printed Star", "").count("⭐")
+	card.is_star_card = _parse_yes_no(row.get("Star Card", row.get("Star card", "No")))
+	card.trigger_type = _parse_trigger(row.get("Type", ""))
 
 func _parse_trigger(s: String) -> CardData.TriggerType:
 	match s.strip_edges().to_lower():

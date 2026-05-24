@@ -232,7 +232,6 @@ func remove_card(cd: CardData) -> void:
 			_update_dust_display(i)
 			market_changed.emit()
 			return
-			return
 
 func detach_advanced_card(card: Node3D) -> void:
 	var slot_idx: int = card.get_meta("market_slot", -1)
