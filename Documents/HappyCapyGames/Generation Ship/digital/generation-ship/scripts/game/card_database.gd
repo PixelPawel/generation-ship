@@ -64,6 +64,7 @@ func _load_techs() -> void:
 		card.id = int(row["No."])
 		card.card_type = CardData.CardType.TECH
 		_populate_base_fields(card, row)
+		card.image_url = row.get("Links", "")
 		techs.append(card)
 
 func _load_expeditions() -> void:
