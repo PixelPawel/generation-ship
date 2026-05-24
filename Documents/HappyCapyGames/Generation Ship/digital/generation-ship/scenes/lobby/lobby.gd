@@ -12,6 +12,10 @@ var _players_ready: Dictionary = {}   # peer_id (int) -> true, tracked on host o
 var _steam_lobby_id: int = 0
 var _lobby_refresh_timer: float = 0.0
 var _is_host: bool = false
+var _spinner_active: bool = false
+var _spinner_time: float = 0.0
+
+const _SPINNER_FRAMES: Array[String] = ["|", "/", "—", "\\"]
 
 @onready var _lobby_panel: VBoxContainer = $LobbyPanel
 @onready var _name_input: LineEdit = $LobbyPanel/NameRow/NameInput
@@ -42,6 +46,10 @@ func _ready() -> void:
 	_request_lobby_list()
 
 func _process(delta: float) -> void:
+	if _spinner_active:
+		_spinner_time += delta
+		var frame: int = int(_spinner_time * 8.0) % _SPINNER_FRAMES.size()
+		_status_label.text = "Creating lobby…  " + _SPINNER_FRAMES[frame]
 	if not _lobby_panel.visible:
 		return
 	_lobby_refresh_timer -= delta
@@ -141,9 +149,12 @@ func _on_lobby_match_list(lobbies: Array) -> void:
 func _on_host_pressed() -> void:
 	_player_name = _read_name()
 	_set_controls_locked(true)
+	_spinner_active = true
+	_spinner_time = 0.0
 	Steam.createLobby(Steam.LOBBY_TYPE_PUBLIC, MAX_PLAYERS)
 
 func _on_lobby_created(connect_result: int, lobby_id: int) -> void:
+	_spinner_active = false
 	if connect_result != 1:
 		_set_status("Failed to create lobby.")
 		_set_controls_locked(false)
