@@ -36,14 +36,7 @@ func setup(cards: Array[CardData], back_url: String = "") -> void:
 	_cards = cards.duplicate()
 	_cards.shuffle()
 	_update_label()
-	if back_url.is_empty():
-		return
-	_back_url = back_url
-	var cached: ImageTexture = ImageCache.get_texture(back_url)
-	if cached:
-		_apply_back_texture(cached)
-	else:
-		ImageCache.all_loaded.connect(_on_cache_loaded, CONNECT_ONE_SHOT)
+	_apply_back_url(back_url)
 
 func _on_cache_loaded() -> void:
 	var tex: ImageTexture = ImageCache.get_texture(_back_url)
@@ -63,10 +56,13 @@ func setup_ordered(cards: Array[CardData], order: Array, back_url: String = "") 
 		if i >= 0 and i < cards.size():
 			_cards.append(cards[i])
 	_update_label()
-	if back_url.is_empty():
+	_apply_back_url(back_url)
+
+func _apply_back_url(url: String) -> void:
+	if url.is_empty():
 		return
-	_back_url = back_url
-	var cached: ImageTexture = ImageCache.get_texture(back_url)
+	_back_url = url
+	var cached: ImageTexture = ImageCache.get_texture(url)
 	if cached:
 		_apply_back_texture(cached)
 	else:
