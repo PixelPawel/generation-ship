@@ -66,9 +66,9 @@ func _fetch(url: String) -> void:
 		var file_path: String = entry.get("file", "")
 		if not file_path.is_empty() and FileAccess.file_exists(file_path):
 			_load_from_disk(url)
+			_active -= 1
 			_loaded += 1
 			progress_updated.emit(_loaded, _total)
-			_active -= 1
 			if _loaded >= _total:
 				all_loaded.emit()
 			else:

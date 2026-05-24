@@ -336,12 +336,6 @@ func _on_invite_pressed() -> void:
 	if _steam_lobby_id > 0:
 		Steam.activateGameOverlayInviteDialog(_steam_lobby_id)
 
-func _on_join_pressed() -> void:
-	pass
-
-func _on_copy_ip_pressed() -> void:
-	pass
-
 func _load_saved_name() -> void:
 	var cfg: ConfigFile = ConfigFile.new()
 	if cfg.load(SETTINGS_PATH) == OK:
