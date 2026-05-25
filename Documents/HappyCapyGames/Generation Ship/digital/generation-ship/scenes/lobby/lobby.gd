@@ -15,7 +15,12 @@ var _is_host: bool = false
 var _spinner_active: bool = false
 var _spinner_time: float = 0.0
 
-const _SPINNER_FRAMES: Array[String] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+const _SPINNER_FRAMES: Array[String] = [
+	"|", "/", "—", "\\", "|", "/", "—", "\\", "|", "/",
+	"—", "\\", "|", "/", "—", "\\", "|", "/", "—", "\\",
+	"|", "/", "—", "\\", "|", "/", "—", "\\", "|", "/",
+	"—", "\\", "|", "/", "—", "\\", "|", "/", "—", "\\",
+]
 
 @onready var _lobby_panel: VBoxContainer = $LobbyPanel
 @onready var _name_input: LineEdit = $LobbyPanel/NameRow/NameInput
