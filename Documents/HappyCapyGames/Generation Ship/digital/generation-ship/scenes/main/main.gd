@@ -738,6 +738,7 @@ func _get_public_snapshot() -> Dictionary:
 		"supply": supply_snap,
 		"hand_size": $Camera3D/Hand.get_cards().size(),
 		"vp": total_vp,
+		"vp_lines": vp_lines,
 		"slots": slot_snaps,
 	}
 
@@ -1017,7 +1018,32 @@ func _game_over() -> void:
 	var total: int = 0
 	for line: Dictionary in lines:
 		total += int(line.get("vp", 0))
-	$UILayer/Scoreboard.show_scores(lines, total)
+	if not GameNetwork.is_multiplayer:
+		$UILayer/Scoreboard.show_scores(lines, total)
+		return
+	var my_id: int = multiplayer.get_unique_id()
+	var players: Array[Dictionary] = []
+	players.append({
+		"name": GameNetwork.player_names.get(my_id, "You"),
+		"total": total,
+		"lines": lines,
+	})
+	for peer_id: int in GameNetwork.player_order:
+		if peer_id == my_id:
+			continue
+		var snap: Dictionary = _opp_snapshots.get(peer_id, {})
+		var peer_lines: Array[Dictionary] = []
+		for entry: Variant in snap.get("vp_lines", []):
+			peer_lines.append(entry as Dictionary)
+		players.append({
+			"name": GameNetwork.player_names.get(peer_id, "Player"),
+			"total": snap.get("vp", 0),
+			"lines": peer_lines,
+		})
+	players.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return int(a.get("total", 0)) > int(b.get("total", 0))
+	)
+	$UILayer/Scoreboard.show_multiplayer_scores(players)
 
 # ── Card discarded (all modes) ────────────────────────────────────────────────
 
