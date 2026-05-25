@@ -75,6 +75,7 @@ func _on_texture_loaded(_result: int, code: int, _headers: PackedStringArray, bo
 	var img := Image.new()
 	if img.load_png_from_buffer(body) != OK:
 		return
+	img.generate_mipmaps()
 	var tex := ImageTexture.create_from_image(img)
 	_apply_texture(tex)
 
