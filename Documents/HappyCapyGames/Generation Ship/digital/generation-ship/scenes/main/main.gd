@@ -85,7 +85,6 @@ var _has_passed_or_researched: bool = false
 var _opp_snapshots: Dictionary = {}      # peer_id (int) -> state Dictionary
 var _opp_widget: Control = null
 var _opp_panels: Dictionary = {}         # peer_id → {hand_lbl, supply_lbls, vp_lbl}
-var _opp_board_overlay: Control = null
 var _opp_ghost_hand: Node3D = null
 var _my_board_snap: Dictionary = {}      # saved while viewing opponent board
 var _ending_turn: bool = false
@@ -2489,42 +2488,10 @@ func _show_opponent_board(peer_id: int) -> void:
 			(_opp_ghost_hand as Node3D).call("add_card", placeholder)
 			placeholder.set_face_down($Board.TECH_BACK_URL)
 	_show_action_buttons(false)
-	if _opp_board_overlay:
-		_opp_board_overlay.queue_free()
-	var banner: PanelContainer = PanelContainer.new()
-	banner.anchor_left = 0.5
-	banner.anchor_right = 0.5
-	banner.anchor_top = 0.0
-	banner.anchor_bottom = 0.0
-	banner.offset_left = -280.0
-	banner.offset_right = 280.0
-	banner.offset_top = 8.0
-	banner.offset_bottom = 56.0
-	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_opp_board_overlay = banner
-	var margin: MarginContainer = MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 10)
-	margin.add_theme_constant_override("margin_right", 10)
-	margin.add_theme_constant_override("margin_top", 6)
-	margin.add_theme_constant_override("margin_bottom", 6)
-	banner.add_child(margin)
-	var hbox: HBoxContainer = HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 12)
-	margin.add_child(hbox)
-	var lbl: Label = Label.new()
-	lbl.text = "Viewing %s's board" % GameNetwork.player_names.get(peer_id, "Opponent")
-	lbl.add_theme_font_size_override("font_size", 16)
-	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	hbox.add_child(lbl)
-	$UILayer.add_child(banner)
 	if _es_back_btn:
 		_es_back_btn.show()
 
 func _close_opponent_board_view() -> void:
-	if _opp_board_overlay:
-		_opp_board_overlay.queue_free()
-		_opp_board_overlay = null
 	if _es_back_btn:
 		_es_back_btn.hide()
 	if _opp_ghost_hand:
