@@ -982,6 +982,7 @@ func _rpc_sync_auction_started(card_ref: Dictionary, slot_idx: int, is_tech: boo
 	var is_active: bool = my_id == active_id
 	var can_pass: bool = is_active and my_id != initiator_id
 	$UILayer/BidPopup.show_auction(cd, is_adv, min_bid, leader_name, _auction_cost_color, is_active, can_pass)
+	_show_action_buttons(false)
 	UIAudio.play_auction_music()
 
 # Host → All: bid state has changed.
