@@ -14,6 +14,9 @@ var _lobby_refresh_timer: float = 0.0
 var _is_host: bool = false
 var _spinner_active: bool = false
 var _spinner_time: float = 0.0
+var _bot_count: int = 0
+var _add_bot_btn: Button = null
+var _remove_bot_btn: Button = null
 
 const _SPINNER_FRAMES: Array[String] = [
 	"|", "/", "—", "\\", "|", "/", "—", "\\", "|", "/",
@@ -72,6 +75,28 @@ func _show_staging() -> void:
 	_players_ready.clear()
 	_refresh_player_list()
 	_start_preload()
+	if multiplayer.is_server() and not _add_bot_btn:
+		var vbox: VBoxContainer = $StagingPanel/VBox
+		var insert_idx: int = _staging_start_btn.get_index()
+		var bot_row: HBoxContainer = HBoxContainer.new()
+		bot_row.add_theme_constant_override("separation", 8)
+		vbox.add_child(bot_row)
+		vbox.move_child(bot_row, insert_idx)
+		_add_bot_btn = Button.new()
+		_add_bot_btn.text = "Add Bot"
+		_add_bot_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_add_bot_btn.custom_minimum_size = Vector2(0, 44)
+		_add_bot_btn.add_theme_font_size_override("font_size", 20)
+		_add_bot_btn.pressed.connect(_on_add_bot_pressed)
+		bot_row.add_child(_add_bot_btn)
+		_remove_bot_btn = Button.new()
+		_remove_bot_btn.text = "Remove Bot"
+		_remove_bot_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_remove_bot_btn.custom_minimum_size = Vector2(0, 44)
+		_remove_bot_btn.add_theme_font_size_override("font_size", 20)
+		_remove_bot_btn.disabled = true
+		_remove_bot_btn.pressed.connect(_on_remove_bot_pressed)
+		bot_row.add_child(_remove_bot_btn)
 
 func _start_preload() -> void:
 	var vbox: VBoxContainer = $StagingPanel/VBox
@@ -227,6 +252,9 @@ func _on_leave_pressed() -> void:
 		multiplayer.multiplayer_peer.close()
 		multiplayer.multiplayer_peer = null
 	_players.clear()
+	_bot_count = 0
+	_add_bot_btn = null
+	_remove_bot_btn = null
 	_show_lobby()
 
 func _on_back_pressed() -> void:
@@ -297,15 +325,43 @@ func _rpc_load_game() -> void:
 	if _steam_lobby_id > 0:
 		Steam.leaveLobby(_steam_lobby_id)
 		_steam_lobby_id = 0
-	var ordered_ids: Array[int] = []
+	var real_ids: Array[int] = []
+	var bot_ids_local: Array[int] = []
 	for k: Variant in _players.keys():
-		ordered_ids.append(int(k))
-	ordered_ids.sort()
-	GameNetwork.setup_multiplayer(multiplayer.is_server(), ordered_ids)
+		var id: int = int(k)
+		if id < 0:
+			bot_ids_local.append(id)
+		else:
+			real_ids.append(id)
+	real_ids.sort()
+	real_ids.append_array(bot_ids_local)
+	GameNetwork.setup_multiplayer(multiplayer.is_server(), real_ids)
 	GameNetwork.player_names = _players.duplicate()
+	GameNetwork.bot_ids = bot_ids_local
 	SceneTransition.change_scene("res://scenes/main/main.tscn")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+func _on_add_bot_pressed() -> void:
+	if _players.size() >= MAX_PLAYERS:
+		return
+	_bot_count += 1
+	var bot_id: int = -_bot_count
+	_players[bot_id] = "Bot %d" % _bot_count
+	_players_ready[bot_id] = true
+	_rpc_sync_players.rpc(_players)
+	_refresh_player_list()
+
+func _on_remove_bot_pressed() -> void:
+	for i: int in range(_bot_count, 0, -1):
+		var bot_id: int = -i
+		if _players.has(bot_id):
+			_players.erase(bot_id)
+			_players_ready.erase(bot_id)
+			_bot_count = i - 1
+			_rpc_sync_players.rpc(_players)
+			_refresh_player_list()
+			return
 
 func _refresh_player_list() -> void:
 	if _players.is_empty():
@@ -313,7 +369,11 @@ func _refresh_player_list() -> void:
 	else:
 		var lines: Array[String] = []
 		for id: int in _players:
-			var tag: String = "  ★ host" if id == 1 else ""
+			var tag: String = ""
+			if id == 1:
+				tag = "  ★ host"
+			elif id < 0:
+				tag = "  [bot]"
 			lines.append("• %s%s" % [_players[id], tag])
 		_staging_player_list.text = "\n".join(lines)
 	var all_ready: bool = not _players.is_empty()
@@ -322,6 +382,15 @@ func _refresh_player_list() -> void:
 			all_ready = false
 			break
 	_staging_start_btn.disabled = not all_ready
+	var has_any_bot: bool = false
+	for pid: Variant in _players:
+		if int(pid) < 0:
+			has_any_bot = true
+			break
+	if _add_bot_btn:
+		_add_bot_btn.disabled = _players.size() >= MAX_PLAYERS
+	if _remove_bot_btn:
+		_remove_bot_btn.disabled = not has_any_bot
 
 func _set_status(msg: String) -> void:
 	_status_label.text = msg

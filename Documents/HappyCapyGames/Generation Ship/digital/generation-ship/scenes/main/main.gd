@@ -597,6 +597,8 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 		_build_opponent_widget()
 	if GameNetwork.is_multiplayer:
 		_broadcast_my_state()
+	if multiplayer.is_server() and GameNetwork.is_bot(GameNetwork.active_peer_id):
+		get_tree().create_timer(0.6).timeout.connect(_server_handle_pass)
 
 # ── Round flow ────────────────────────────────────────────────────────────────
 
@@ -755,6 +757,8 @@ func _rpc_sync_active_player(peer_id: int) -> void:
 		_deferred_effect_queue.clear()
 		_deferred_effect_slot = null
 		_process_next_effect()
+	if multiplayer.is_server() and GameNetwork.is_bot(peer_id):
+		get_tree().create_timer(0.6).timeout.connect(_server_handle_pass)
 
 # Host → All: all players passed — end the round and start the next.
 @rpc("authority", "reliable", "call_local")
@@ -768,6 +772,8 @@ func _rpc_sync_end_round() -> void:
 				var first_idx: int = (_round - 1) % GameNetwork.player_order.size()
 				GameNetwork.active_peer_id = GameNetwork.player_order[first_idx]
 				_update_turn_ui()
+				if multiplayer.is_server() and GameNetwork.is_bot(GameNetwork.active_peer_id):
+					get_tree().create_timer(0.6).timeout.connect(_server_handle_pass)
 			_broadcast_my_state()))
 
 # ── Multiplayer state broadcast ───────────────────────────────────────────────
@@ -817,7 +823,7 @@ func _broadcast_my_state() -> void:
 	var state: Dictionary = _get_public_snapshot()
 	if GameNetwork.is_host:
 		for peer_id: int in GameNetwork.player_order:
-			if peer_id != 1:
+			if peer_id != 1 and not GameNetwork.is_bot(peer_id):
 				_rpc_recv_board_state.rpc_id(peer_id, state)
 	else:
 		_rpc_send_board_state.rpc_id(1, state)
@@ -849,7 +855,7 @@ func _rpc_send_board_state(state: Dictionary) -> void:
 	_apply_opponent_state(state)
 	var sender: int = multiplayer.get_remote_sender_id()
 	for peer_id: int in GameNetwork.player_order:
-		if peer_id != sender and peer_id != 1:
+		if peer_id != sender and peer_id != 1 and not GameNetwork.is_bot(peer_id):
 			_rpc_recv_board_state.rpc_id(peer_id, state)
 
 # Host → Client: an opponent's board state.

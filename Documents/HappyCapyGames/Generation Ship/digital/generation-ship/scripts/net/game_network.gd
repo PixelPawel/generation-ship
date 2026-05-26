@@ -14,6 +14,9 @@ var player_order: Array[int] = []
 # peer_id → player name string, populated from lobby before scene change.
 var player_names: Dictionary = {}
 
+# IDs of bot (dummy) players managed locally by the host.
+var bot_ids: Array[int] = []
+
 # Returns true when the local player is allowed to take an action.
 func is_my_turn() -> bool:
 	if not is_multiplayer:
@@ -34,6 +37,9 @@ func setup_multiplayer(host: bool, ordered_peer_ids: Array[int]) -> void:
 	is_host = host
 	player_order = ordered_peer_ids
 	active_peer_id = ordered_peer_ids[0]
+
+func is_bot(peer_id: int) -> bool:
+	return bot_ids.has(peer_id)
 
 # Advance to the next player in turn order.
 func advance_turn() -> void:
