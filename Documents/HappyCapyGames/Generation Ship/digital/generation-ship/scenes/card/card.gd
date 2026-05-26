@@ -178,9 +178,21 @@ func collapse_if_elevated() -> void:
 	if _placed_elevated:
 		_collapse_elevation()
 
-func set_face_down(_back_url: String) -> void:
+func set_face_down(back_url: String) -> void:
 	can_drag = false
 	collider.input_ray_pickable = false
+	if back_url.is_empty():
+		return
+	var cached: ImageTexture = ImageCache.get_texture(back_url)
+	if cached:
+		_apply_texture(cached)
+		return
+	_pending_url = back_url
+	ImageCache.all_loaded.connect(func() -> void:
+		var tex: ImageTexture = ImageCache.get_texture(back_url)
+		if tex and is_instance_valid(self):
+			_apply_texture(tex)
+	, CONNECT_ONE_SHOT)
 
 func place() -> void:
 	is_dragging = false
