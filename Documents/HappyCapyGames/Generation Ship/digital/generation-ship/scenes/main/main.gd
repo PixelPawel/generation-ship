@@ -122,6 +122,8 @@ var _es_viewport: SubViewport = null
 var _es_anim: AnimationPlayer = null
 var _enemy_screen_open: bool = false
 var _opponents_btn: Button = null
+var _bot_hands: Dictionary = {}      # bot_id → Array[CardData]
+var _bot_supplies: Dictionary = {}   # bot_id → Dictionary (int color → int count)
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -548,6 +550,36 @@ func _on_opponents_btn_pressed() -> void:
 	_enemy_screen_open = not _enemy_screen_open
 	_es_anim.play("cs_open" if _enemy_screen_open else "cs_close")
 
+func _init_bot_state() -> void:
+	for bot_id: int in GameNetwork.bot_ids:
+		var supply: Dictionary = {}
+		for color: CardData.SupplyColor in CardData.SupplyColor.values():
+			supply[int(color)] = 2
+		_bot_supplies[bot_id] = supply
+		_bot_hands[bot_id] = $Board.draw_card_data(6)
+
+func _update_bots_for_new_round() -> void:
+	for bot_id: int in GameNetwork.bot_ids:
+		var old_hand: Array = _bot_hands.get(bot_id, [])
+		for cd: Variant in old_hand:
+			$Board.add_to_discard(cd as CardData)
+		_bot_hands[bot_id] = $Board.draw_card_data(6)
+		var supply: Dictionary = _bot_supplies.get(bot_id, {})
+		for color: CardData.SupplyColor in CardData.SupplyColor.values():
+			supply[int(color)] = supply.get(int(color), 0) + 1
+		_bot_supplies[bot_id] = supply
+
+func _get_bot_snapshot(bot_id: int) -> Dictionary:
+	var hand_arr: Array = _bot_hands.get(bot_id, [])
+	return {
+		"peer_id": bot_id,
+		"supply": _bot_supplies.get(bot_id, {}),
+		"hand_size": hand_arr.size(),
+		"vp": 0,
+		"vp_lines": [],
+		"slots": [],
+	}
+
 func _on_start_pressed() -> void:
 	if not GameNetwork.is_multiplayer:
 		GameNetwork.setup_solo()
@@ -586,6 +618,8 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 		$Board.setup_expedition_deck_ordered(exp_order)
 	$Board.setup_expedition_market()
 	$Board.deal_opening_hand()
+	if multiplayer.is_server() and not GameNetwork.bot_ids.is_empty():
+		_init_bot_state()
 	$Board.refresh_discount_glow()
 	_market_hand.setup($Board.get_market(), $Board.get_expedition_market(), card_scene)
 	_show_action_buttons(true)
@@ -685,6 +719,8 @@ func _end_round() -> void:
 	_round += 1
 	_update_round_label()
 	$Board.draw_cards(6)
+	if multiplayer.is_server() and not GameNetwork.bot_ids.is_empty():
+		_update_bots_for_new_round()
 	$Board.reveal_sector_round_cards()
 	$Board.add_expedition_round_cards()
 	_show_action_buttons(true)
@@ -825,6 +861,12 @@ func _broadcast_my_state() -> void:
 		for peer_id: int in GameNetwork.player_order:
 			if peer_id != 1 and not GameNetwork.is_bot(peer_id):
 				_rpc_recv_board_state.rpc_id(peer_id, state)
+		for bot_id: int in GameNetwork.bot_ids:
+			var bot_state: Dictionary = _get_bot_snapshot(bot_id)
+			_apply_opponent_state(bot_state)
+			for peer_id: int in GameNetwork.player_order:
+				if peer_id != 1 and not GameNetwork.is_bot(peer_id):
+					_rpc_recv_board_state.rpc_id(peer_id, bot_state)
 	else:
 		_rpc_send_board_state.rpc_id(1, state)
 

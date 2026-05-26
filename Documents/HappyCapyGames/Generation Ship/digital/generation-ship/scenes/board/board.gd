@@ -384,6 +384,14 @@ func _draw_from_tech_deck() -> CardData:
 			data = _tech_deck.draw_card()
 	return data
 
+func draw_card_data(count: int) -> Array[CardData]:
+	var result: Array[CardData] = []
+	for _i: int in count:
+		var data: CardData = _draw_from_tech_deck()
+		if data:
+			result.append(data)
+	return result
+
 func draw_and_recycle_top() -> void:
 	var data: CardData = _draw_from_tech_deck()
 	if data:
