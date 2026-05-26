@@ -114,6 +114,7 @@ var _pending_won_is_adv: bool = false
 var _won_popup: Control = null
 var _pending_auction_win: bool = false
 var _auction_win_is_initiator: bool = false
+var _auction_active: bool = false
 var _control_screen_open: bool = false
 var _cs_viewport: SubViewport = null
 var _cs_display: SupplyUI = null
@@ -982,6 +983,7 @@ func _rpc_sync_auction_started(card_ref: Dictionary, slot_idx: int, is_tech: boo
 	var is_active: bool = my_id == active_id
 	var can_pass: bool = is_active and my_id != initiator_id
 	$UILayer/BidPopup.show_auction(cd, is_adv, min_bid, leader_name, _auction_cost_color, is_active, can_pass)
+	_auction_active = true
 	_show_action_buttons(false)
 	UIAudio.play_auction_music()
 	if multiplayer.is_server() and GameNetwork.is_bot(active_id):
@@ -1002,6 +1004,7 @@ func _rpc_sync_auction_state(current_bid: int, leader_id: int, active_id: int, l
 # Host → All: auction resolved — winner places the card.
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, card_ref: Dictionary, slot_idx: int, is_tech: bool, cost_color_int: int) -> void:
+	_auction_active = false
 	$UILayer/BidPopup.hide()
 	UIAudio.stop_auction_music()
 	var cost_color: CardData.SupplyColor = cost_color_int as CardData.SupplyColor
@@ -2382,7 +2385,7 @@ func _try_auto_end_turn() -> void:
 		return
 	if not _effect_queue.is_empty():
 		return
-	if _pending_auction or _pending_auction_win or _pending_won:
+	if _auction_active or _pending_auction or _pending_auction_win or _pending_won:
 		return
 	if _pending_reveal_gain_supply or _pending_reveal_may_bid or _pending_reveal_may_free_gain:
 		return
