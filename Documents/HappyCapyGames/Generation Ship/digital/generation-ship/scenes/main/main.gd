@@ -478,11 +478,9 @@ func _setup_enemy_screen_display() -> void:
 
 	_es_anim = $EnemyScreen.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if _es_anim:
-		print("EnemyScreen animations: ", _es_anim.get_animation_list())
-		if _es_anim.has_animation("es_close"):
-			_es_anim.play("es_close")
-			_es_anim.seek(_es_anim.current_animation_length, true)
-			_es_anim.pause()
+		_es_anim.play("cs_close")
+		_es_anim.seek(_es_anim.current_animation_length, true)
+		_es_anim.pause()
 
 	var screen_mesh: MeshInstance3D = $EnemyScreen.find_child("es_screen", true, false) as MeshInstance3D
 	if screen_mesh:
@@ -551,8 +549,8 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	$UILayer/StartButton.hide()
 	$ControlScreen/AnimationPlayer.play("cs_open")
 	_control_screen_open = true
-	if _es_anim and _es_anim.has_animation("es_open"):
-		_es_anim.play("es_open")
+	if _es_anim:
+		_es_anim.play("cs_open")
 	_round = 1
 	_update_round_label()
 	_init_supply()
