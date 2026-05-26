@@ -475,6 +475,11 @@ func _setup_enemy_screen_display() -> void:
 	_es_viewport.gui_disable_input = false
 	$EnemyScreen.add_child(_es_viewport)
 
+	var es_anim: AnimationPlayer = $EnemyScreen/AnimationPlayer
+	es_anim.play("es_close")
+	es_anim.seek(es_anim.current_animation_length, true)
+	es_anim.pause()
+
 	var screen_mesh: MeshInstance3D = $EnemyScreen.find_child("es_screen", true, false) as MeshInstance3D
 	if screen_mesh:
 		var mat := StandardMaterial3D.new()
@@ -539,6 +544,7 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	$UILayer/StartButton.hide()
 	$ControlScreen/AnimationPlayer.play("cs_open")
 	_control_screen_open = true
+	$EnemyScreen/AnimationPlayer.play("es_open")
 	_round = 1
 	_update_round_label()
 	_init_supply()
