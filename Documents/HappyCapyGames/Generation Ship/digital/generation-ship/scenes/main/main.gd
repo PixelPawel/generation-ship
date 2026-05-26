@@ -124,6 +124,7 @@ var _enemy_screen_open: bool = false
 var _opponents_btn: Button = null
 var _bot_hands: Dictionary = {}      # bot_id → Array[CardData]
 var _bot_supplies: Dictionary = {}   # bot_id → Dictionary (int color → int count)
+var _es_back_btn: Button = null
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -243,6 +244,7 @@ func _build_opponent_widget() -> void:
 	if _opp_widget:
 		_opp_widget.queue_free()
 	_opp_panels.clear()
+	_es_back_btn = null
 
 	var supply_paths: Array = [
 		"res://assets/ui/supply/Dust.png",
@@ -389,6 +391,19 @@ func _build_opponent_widget() -> void:
 			"supply_lbls": supply_lbls,
 			"vp_lbl": vp_lbl,
 		}
+
+	var bottom_sep: HSeparator = HSeparator.new()
+	bottom_sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
+	outer_vbox.add_child(bottom_sep)
+
+	_es_back_btn = Button.new()
+	_es_back_btn.text = "← Back to my board"
+	_es_back_btn.visible = false
+	_es_back_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_es_back_btn.add_theme_font_size_override("font_size", 15)
+	GameTheme.apply_to_button(_es_back_btn)
+	_es_back_btn.pressed.connect(_close_opponent_board_view)
+	outer_vbox.add_child(_es_back_btn)
 
 func _collect_urls() -> Array[String]:
 	var urls: Array[String] = []
@@ -2502,17 +2517,16 @@ func _show_opponent_board(peer_id: int) -> void:
 	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	hbox.add_child(lbl)
-	var back_btn: Button = Button.new()
-	back_btn.text = "← Back to my board"
-	back_btn.add_theme_font_size_override("font_size", 14)
-	back_btn.pressed.connect(_close_opponent_board_view)
-	hbox.add_child(back_btn)
 	$UILayer.add_child(banner)
+	if _es_back_btn:
+		_es_back_btn.show()
 
 func _close_opponent_board_view() -> void:
 	if _opp_board_overlay:
 		_opp_board_overlay.queue_free()
 		_opp_board_overlay = null
+	if _es_back_btn:
+		_es_back_btn.hide()
 	if _opp_ghost_hand:
 		_opp_ghost_hand.queue_free()
 		_opp_ghost_hand = null
