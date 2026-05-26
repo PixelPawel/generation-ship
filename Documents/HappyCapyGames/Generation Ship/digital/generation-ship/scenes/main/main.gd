@@ -984,6 +984,8 @@ func _rpc_sync_auction_started(card_ref: Dictionary, slot_idx: int, is_tech: boo
 	$UILayer/BidPopup.show_auction(cd, is_adv, min_bid, leader_name, _auction_cost_color, is_active, can_pass)
 	_show_action_buttons(false)
 	UIAudio.play_auction_music()
+	if multiplayer.is_server() and GameNetwork.is_bot(active_id):
+		get_tree().create_timer(0.6).timeout.connect(func() -> void: _server_handle_pass_bid(active_id))
 
 # Host → All: bid state has changed.
 @rpc("authority", "reliable", "call_local")
@@ -994,6 +996,8 @@ func _rpc_sync_auction_state(current_bid: int, leader_id: int, active_id: int, l
 	var is_active: bool = my_id == active_id
 	var can_pass: bool = is_active and my_id != leader_id
 	$UILayer/BidPopup.update_auction(current_bid, leader_name, is_active, can_pass)
+	if multiplayer.is_server() and GameNetwork.is_bot(active_id):
+		get_tree().create_timer(0.6).timeout.connect(func() -> void: _server_handle_pass_bid(active_id))
 
 # Host → All: auction resolved — winner places the card.
 @rpc("authority", "reliable", "call_local")
