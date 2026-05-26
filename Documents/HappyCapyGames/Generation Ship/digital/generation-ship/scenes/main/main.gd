@@ -120,6 +120,8 @@ var _cs_viewport: SubViewport = null
 var _cs_display: SupplyUI = null
 var _es_viewport: SubViewport = null
 var _es_anim: AnimationPlayer = null
+var _enemy_screen_open: bool = false
+var _opponents_btn: Button = null
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -221,6 +223,19 @@ func _ready() -> void:
 	_setup_sfx()
 	_setup_control_screen_display()
 	_setup_enemy_screen_display()
+
+	_opponents_btn = Button.new()
+	_opponents_btn.text = "Opponents"
+	_opponents_btn.visible = false
+	_opponents_btn.add_theme_font_size_override("font_size", 16)
+	GameTheme.apply_to_button(_opponents_btn)
+	_opponents_btn.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	_opponents_btn.offset_top = 10.0
+	_opponents_btn.offset_bottom = 50.0
+	_opponents_btn.offset_left = -140.0
+	_opponents_btn.offset_right = -10.0
+	_opponents_btn.pressed.connect(_on_opponents_btn_pressed)
+	$UILayer.add_child(_opponents_btn)
 
 func _build_opponent_widget() -> void:
 	if _opp_widget:
@@ -527,6 +542,12 @@ func _on_control_screen_btn_pressed() -> void:
 	_control_screen_open = not _control_screen_open
 	anim.play("cs_open" if _control_screen_open else "cs_close")
 
+func _on_opponents_btn_pressed() -> void:
+	if not _es_anim:
+		return
+	_enemy_screen_open = not _enemy_screen_open
+	_es_anim.play("cs_open" if _enemy_screen_open else "cs_close")
+
 func _on_start_pressed() -> void:
 	if not GameNetwork.is_multiplayer:
 		GameNetwork.setup_solo()
@@ -549,8 +570,8 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	$UILayer/StartButton.hide()
 	$ControlScreen/AnimationPlayer.play("cs_open")
 	_control_screen_open = true
-	if _es_anim:
-		_es_anim.play("cs_open")
+	if GameNetwork.is_multiplayer:
+		_opponents_btn.show()
 	_round = 1
 	_update_round_label()
 	_init_supply()
