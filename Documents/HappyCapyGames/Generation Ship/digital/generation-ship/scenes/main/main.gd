@@ -85,8 +85,6 @@ var _has_passed_or_researched: bool = false
 var _opp_snapshots: Dictionary = {}      # peer_id (int) -> state Dictionary
 var _opp_widget: Panel = null
 var _opp_panels: Dictionary = {}         # peer_id → {hand_lbl, supply_lbls, vp_lbl}
-var _widget_dragging: bool = false
-var _widget_drag_offset: Vector2 = Vector2.ZERO
 var _opp_board_overlay: Control = null
 var _opp_ghost_hand: Node3D = null
 var _my_board_snap: Dictionary = {}      # saved while viewing opponent board
@@ -120,6 +118,7 @@ var _auction_win_is_initiator: bool = false
 var _control_screen_open: bool = false
 var _cs_viewport: SubViewport = null
 var _cs_display: SupplyUI = null
+var _es_viewport: SubViewport = null
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -220,10 +219,7 @@ func _ready() -> void:
 
 	_setup_sfx()
 	_setup_control_screen_display()
-
-func _process(_delta: float) -> void:
-	if _widget_dragging and _opp_widget:
-		_opp_widget.position = get_viewport().get_mouse_position() + _widget_drag_offset
+	_setup_enemy_screen_display()
 
 func _build_opponent_widget() -> void:
 	if _opp_widget:
@@ -242,7 +238,10 @@ func _build_opponent_widget() -> void:
 	var widget: Panel = Panel.new()
 	_opp_widget = widget
 	widget.mouse_filter = Control.MOUSE_FILTER_STOP
-	$UILayer.add_child(widget)
+	_es_viewport.add_child(widget)
+	widget.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	widget.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	widget.grow_vertical = Control.GROW_DIRECTION_BOTH
 
 	var outer_vbox: VBoxContainer = VBoxContainer.new()
 	outer_vbox.add_theme_constant_override("separation", 4)
@@ -257,15 +256,6 @@ func _build_opponent_widget() -> void:
 	header_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	header_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	header.add_child(header_lbl)
-	header.gui_input.connect(func(event: InputEvent) -> void:
-		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-			if event.pressed:
-				_widget_dragging = true
-				_widget_drag_offset = _opp_widget.position - get_viewport().get_mouse_position()
-			else:
-				_widget_dragging = false
-		header.accept_event()
-	)
 	outer_vbox.add_child(header)
 
 	for peer_id: int in GameNetwork.player_order:
@@ -377,10 +367,6 @@ func _build_opponent_widget() -> void:
 			"vp_lbl": vp_lbl,
 		}
 
-	var vp_size: Vector2 = get_viewport().get_visible_rect().size
-	widget.custom_minimum_size = Vector2(270.0, 0.0)
-	widget.position = Vector2(vp_size.x - 285.0, 60.0)
-
 func _collect_urls() -> Array[String]:
 	var urls: Array[String] = []
 	for card: CardData in CardDatabase.sectors:
@@ -475,6 +461,51 @@ func _forward_to_cs_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshIn
 		mb.pressed = (event as InputEventMouseButton).pressed
 		mb.position = vp_pos
 		_cs_viewport.push_input(mb, true)
+
+func _setup_enemy_screen_display() -> void:
+	_es_viewport = SubViewport.new()
+	_es_viewport.size = Vector2i(360, 460)
+	_es_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_es_viewport.transparent_bg = true
+	_es_viewport.gui_disable_input = false
+	$EnemyScreen.add_child(_es_viewport)
+
+	var screen_mesh: MeshInstance3D = $EnemyScreen.find_child("es_screen", true, false) as MeshInstance3D
+	if screen_mesh:
+		var mat := StandardMaterial3D.new()
+		mat.albedo_texture = _es_viewport.get_texture()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		screen_mesh.set_surface_override_material(0, mat)
+		_setup_enemy_screen_input(screen_mesh)
+
+func _setup_enemy_screen_input(screen_mesh: MeshInstance3D) -> void:
+	var area: Area3D = Area3D.new()
+	area.input_ray_pickable = true
+	screen_mesh.add_child(area)
+	var cshape: CollisionShape3D = CollisionShape3D.new()
+	var box: BoxShape3D = BoxShape3D.new()
+	var aabb: AABB = screen_mesh.mesh.get_aabb()
+	box.size = Vector3(aabb.size.x, aabb.size.y, 0.01)
+	cshape.shape = box
+	cshape.position = aabb.get_center()
+	area.add_child(cshape)
+	area.input_event.connect(func(_cam: Node, event: InputEvent, pos: Vector3, _norm: Vector3, _idx: int) -> void:
+		_forward_to_es_viewport(event, pos, screen_mesh)
+	)
+
+func _forward_to_es_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshInstance3D) -> void:
+	var local_pos: Vector3 = mesh.to_local(world_pos)
+	var aabb: AABB = mesh.mesh.get_aabb()
+	var u: float = (local_pos.x - aabb.position.x) / aabb.size.x
+	var v: float = 1.0 - (local_pos.y - aabb.position.y) / aabb.size.y
+	var vp_pos: Vector2 = Vector2(u * float(_es_viewport.size.x), v * float(_es_viewport.size.y))
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = InputEventMouseButton.new()
+		mb.button_index = (event as InputEventMouseButton).button_index
+		mb.pressed = (event as InputEventMouseButton).pressed
+		mb.position = vp_pos
+		_es_viewport.push_input(mb, true)
 
 func _on_control_screen_btn_pressed() -> void:
 	var anim: AnimationPlayer = $ControlScreen/AnimationPlayer
