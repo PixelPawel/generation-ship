@@ -83,7 +83,7 @@ var _turn_label: Label = null
 var _players_passed_this_round: int = 0
 var _has_passed_or_researched: bool = false
 var _opp_snapshots: Dictionary = {}      # peer_id (int) -> state Dictionary
-var _opp_widget: Panel = null
+var _opp_widget: Control = null
 var _opp_panels: Dictionary = {}         # peer_id → {hand_lbl, supply_lbls, vp_lbl}
 var _opp_board_overlay: Control = null
 var _opp_ghost_hand: Node3D = null
@@ -235,7 +235,9 @@ func _build_opponent_widget() -> void:
 		"res://assets/ui/supply/Thrust.png",
 	]
 
-	var widget: Panel = Panel.new()
+	var widget: ScifiPanel = ScifiPanel.new()
+	widget.set_content_margin(14)
+	widget.theme = GameTheme.get_theme()
 	_opp_widget = widget
 	widget.mouse_filter = Control.MOUSE_FILTER_STOP
 	_es_viewport.add_child(widget)
@@ -244,39 +246,42 @@ func _build_opponent_widget() -> void:
 	widget.grow_vertical = Control.GROW_DIRECTION_BOTH
 
 	var outer_vbox: VBoxContainer = VBoxContainer.new()
-	outer_vbox.add_theme_constant_override("separation", 4)
-	outer_vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	outer_vbox.add_theme_constant_override("separation", 6)
 	widget.add_child(outer_vbox)
 
-	var header: PanelContainer = PanelContainer.new()
-	header.mouse_filter = Control.MOUSE_FILTER_STOP
-	var header_lbl: Label = Label.new()
-	header_lbl.text = "Players"
-	header_lbl.add_theme_font_size_override("font_size", 13)
-	header_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	header_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	header.add_child(header_lbl)
-	outer_vbox.add_child(header)
+	var title_lbl: Label = Label.new()
+	title_lbl.text = "Players"
+	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_lbl.add_theme_font_size_override("font_size", 18)
+	title_lbl.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
+	title_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	outer_vbox.add_child(title_lbl)
+
+	var title_sep: HSeparator = HSeparator.new()
+	title_sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
+	outer_vbox.add_child(title_sep)
 
 	for peer_id: int in GameNetwork.player_order:
 		if peer_id == multiplayer.get_unique_id():
 			continue
 
-		outer_vbox.add_child(HSeparator.new())
+		var entry_sep: HSeparator = HSeparator.new()
+		entry_sep.modulate = Color(0.4, 0.4, 0.5, 0.3)
+		outer_vbox.add_child(entry_sep)
 
 		var pid: int = peer_id
 
 		var entry: PanelContainer = PanelContainer.new()
 		entry.mouse_filter = Control.MOUSE_FILTER_STOP
 		var entry_style: StyleBoxFlat = StyleBoxFlat.new()
-		entry_style.bg_color = Color(0.04, 0.06, 0.12, 0.85)
-		entry_style.border_color = Color(0.22, 0.40, 0.65, 0.40)
+		entry_style.bg_color = Color(0.05, 0.07, 0.15, 0.80)
+		entry_style.border_color = Color(0.22, 0.44, 0.70, 0.38)
 		entry_style.set_border_width_all(1)
-		entry_style.set_corner_radius_all(2)
-		entry_style.content_margin_left = 6.0
-		entry_style.content_margin_right = 6.0
-		entry_style.content_margin_top = 5.0
-		entry_style.content_margin_bottom = 5.0
+		entry_style.set_corner_radius_all(4)
+		entry_style.content_margin_left = 8.0
+		entry_style.content_margin_right = 8.0
+		entry_style.content_margin_top = 7.0
+		entry_style.content_margin_bottom = 7.0
 		entry.add_theme_stylebox_override("panel", entry_style)
 		entry.gui_input.connect(func(event: InputEvent) -> void:
 			if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
