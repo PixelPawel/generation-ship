@@ -213,9 +213,13 @@ func _build_settings_panel() -> void:
 	vbox.add_child(kb_title)
 
 	var binds: Array = [
-		["Drag Card",    "Left Mouse Button"],
-		["Recycle Card", "Right Mouse Button"],
-		["End Turn",     "Spacebar"],
+		["Play Card",          "LMB + Drag"],
+		["Buy Market Card",    "LMB / Drag (market)"],
+		["Open Sector",        "LMB (placed card)"],
+		["Recycle Card",       "RMB (hand card)"],
+		["Inspect Card",       "RMB (market / placed)"],
+		["End Turn",           "Spacebar"],
+		["Pause Menu",         "Escape"],
 	]
 	for bind: Array in binds:
 		var row := HBoxContainer.new()
