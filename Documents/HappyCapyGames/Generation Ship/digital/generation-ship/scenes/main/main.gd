@@ -486,6 +486,7 @@ func _setup_enemy_screen_display() -> void:
 		mat.albedo_texture = _es_viewport.get_texture()
 		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.cull_mode = BaseMaterial3D.CULL_FRONT
 		screen_mesh.set_surface_override_material(0, mat)
 		_setup_enemy_screen_input(screen_mesh)
 
