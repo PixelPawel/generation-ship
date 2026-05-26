@@ -2226,9 +2226,9 @@ func _on_optimize_triggered(slot: SectorSlot, _level: int) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
-	if event.keycode == KEY_ESCAPE:
+	if event.is_action("pause_menu"):
 		$UILayer/PauseMenu.toggle()
-	elif event.keycode == KEY_SPACE and not $UILayer/PauseMenu.visible:
+	elif event.is_action("end_turn") and not $UILayer/PauseMenu.visible:
 		if _cs_display.can_end_turn():
 			_on_end_turn_pressed()
 

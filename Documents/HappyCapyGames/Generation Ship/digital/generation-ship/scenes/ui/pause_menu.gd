@@ -18,6 +18,10 @@ var _resolution_option: OptionButton = null
 var _monitor_option: OptionButton = null
 var _music_slider: HSlider = null
 var _sfx_slider: HSlider = null
+var _rebind_buttons: Dictionary = {}   # action -> [primary_btn, secondary_btn]
+var _listening_action: String = ""
+var _listening_slot: int = -1
+var _listen_btn: Button = null
 
 func _ready() -> void:
 	_build_ui()
@@ -101,7 +105,7 @@ func _build_settings_panel() -> void:
 	style.set_content_margin_all(28)
 	_settings_panel.add_theme_stylebox_override("panel", style)
 	_settings_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	_settings_panel.custom_minimum_size = Vector2(360, 0)
+	_settings_panel.custom_minimum_size = Vector2(480, 0)
 	_settings_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_settings_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_settings_panel.visible = false
@@ -212,31 +216,88 @@ func _build_settings_panel() -> void:
 	kb_title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
 	vbox.add_child(kb_title)
 
-	var binds: Array = [
-		["Play Card",          "LMB + Drag"],
-		["Buy Market Card",    "LMB / Drag (market)"],
-		["Open Sector",        "LMB (placed card)"],
-		["Recycle Card",       "RMB (hand card)"],
-		["Inspect Card",       "RMB (market / placed)"],
-		["End Turn",           "Spacebar"],
-		["Pause Menu",         "Escape"],
+	# Column headers
+	var col_header := HBoxContainer.new()
+	col_header.add_theme_constant_override("separation", 6)
+	vbox.add_child(col_header)
+	var ch_spacer := Label.new()
+	ch_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col_header.add_child(ch_spacer)
+	for col_name: String in ["Primary", "Secondary"]:
+		var ch := Label.new()
+		ch.text = col_name
+		ch.custom_minimum_size = Vector2(110, 0)
+		ch.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		ch.add_theme_font_size_override("font_size", 13)
+		ch.add_theme_color_override("font_color", Color(0.55, 0.6, 0.75))
+		col_header.add_child(ch)
+
+	# Fixed mouse-driven actions (informational, not rebindable)
+	var fixed_binds: Array = [
+		["Play Card",       "LMB + Drag"],
+		["Buy Market Card", "LMB / Drag"],
+		["Open Sector",     "LMB (placed)"],
+		["Recycle Card",    "RMB (hand)"],
+		["Inspect Card",    "RMB (market/placed)"],
 	]
-	for bind: Array in binds:
+	for bind: Array in fixed_binds:
 		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 10)
+		row.add_theme_constant_override("separation", 6)
 		vbox.add_child(row)
-		var action_lbl := Label.new()
-		action_lbl.text = bind[0]
-		action_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		action_lbl.add_theme_font_size_override("font_size", 15)
-		action_lbl.add_theme_color_override("font_color", Color(0.75, 0.8, 1.0))
-		row.add_child(action_lbl)
-		var key_lbl := Label.new()
-		key_lbl.text = bind[1]
-		key_lbl.add_theme_font_size_override("font_size", 15)
-		key_lbl.add_theme_color_override("font_color", Color(0.6, 0.65, 0.8))
-		key_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		row.add_child(key_lbl)
+		var n := Label.new()
+		n.text = bind[0]
+		n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		n.add_theme_font_size_override("font_size", 14)
+		n.add_theme_color_override("font_color", Color(0.75, 0.8, 1.0))
+		row.add_child(n)
+		var v := Label.new()
+		v.text = bind[1]
+		v.custom_minimum_size = Vector2(110, 0)
+		v.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.add_theme_font_size_override("font_size", 13)
+		v.add_theme_color_override("font_color", Color(0.5, 0.55, 0.7))
+		row.add_child(v)
+		var empty := Label.new()
+		empty.text = "—"
+		empty.custom_minimum_size = Vector2(110, 0)
+		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty.add_theme_font_size_override("font_size", 13)
+		empty.add_theme_color_override("font_color", Color(0.35, 0.38, 0.5))
+		row.add_child(empty)
+
+	# Rebindable keyboard actions
+	for action: String in KeybindManager.ACTION_NAMES:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		vbox.add_child(row)
+		var n := Label.new()
+		n.text = str(KeybindManager.ACTION_LABELS.get(action, action))
+		n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		n.add_theme_font_size_override("font_size", 14)
+		n.add_theme_color_override("font_color", Color(0.75, 0.8, 1.0))
+		row.add_child(n)
+		var primary: int = KeybindManager.get_primary(action)
+		var secondary: int = KeybindManager.get_secondary(action)
+		var btns: Array[Button] = []
+		for slot: int in 2:
+			var keycode: int = primary if slot == 0 else secondary
+			var btn := Button.new()
+			btn.text = OS.get_keycode_string(keycode) if keycode != 0 else "—"
+			btn.custom_minimum_size = Vector2(110, 30)
+			btn.add_theme_font_size_override("font_size", 13)
+			row.add_child(btn)
+			btns.append(btn)
+			var captured_slot: int = slot
+			btn.pressed.connect(_start_listen.bind(action, captured_slot, btn))
+			if slot == 1:
+				btn.gui_input.connect(func(event: InputEvent) -> void:
+					if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+						var cur_primary: int = KeybindManager.get_primary(action)
+						KeybindManager.save_binding(action, cur_primary, 0)
+						btn.text = "—"
+						btn.accept_event()
+				)
+		_rebind_buttons[action] = btns
 
 	var close_btn := _make_button("Close")
 	close_btn.pressed.connect(func(): _settings_panel.visible = false)
@@ -245,6 +306,53 @@ func _build_settings_panel() -> void:
 	_load_resolution_setting()
 	_load_monitor_setting()
 	_load_audio_settings()
+
+func _input(event: InputEvent) -> void:
+	if _listening_action.is_empty():
+		return
+	if not (event is InputEventKey and event.pressed and not event.echo):
+		return
+	accept_event()
+	var keycode: int = int((event as InputEventKey).keycode)
+	if keycode == KEY_ESCAPE:
+		_cancel_listen()
+		return
+	var primary: int = KeybindManager.get_primary(_listening_action)
+	var secondary: int = KeybindManager.get_secondary(_listening_action)
+	if _listening_slot == 0:
+		primary = keycode
+	else:
+		secondary = keycode
+	KeybindManager.save_binding(_listening_action, primary, secondary)
+	if _listen_btn:
+		_listen_btn.text = OS.get_keycode_string(keycode)
+	_end_listen()
+
+func _start_listen(action: String, slot: int, btn: Button) -> void:
+	if not _listening_action.is_empty():
+		_cancel_listen()
+	_listening_action = action
+	_listening_slot = slot
+	_listen_btn = btn
+	btn.text = "Press key…"
+	for a: String in _rebind_buttons:
+		for b: Button in (_rebind_buttons[a] as Array[Button]):
+			if b != btn:
+				b.modulate = Color(1.0, 1.0, 1.0, 0.4)
+
+func _cancel_listen() -> void:
+	if not _listening_action.is_empty() and _listen_btn:
+		var cur: int = KeybindManager.get_primary(_listening_action) if _listening_slot == 0 else KeybindManager.get_secondary(_listening_action)
+		_listen_btn.text = OS.get_keycode_string(cur) if cur != 0 else "—"
+	_end_listen()
+
+func _end_listen() -> void:
+	_listening_action = ""
+	_listening_slot = -1
+	_listen_btn = null
+	for a: String in _rebind_buttons:
+		for b: Button in (_rebind_buttons[a] as Array[Button]):
+			b.modulate = Color.WHITE
 
 func _set_bus_volume(bus_name: String, linear: float) -> void:
 	var idx: int = AudioServer.get_bus_index(bus_name)

@@ -13,7 +13,7 @@ config_version=5
 config/name="Generation Ship"
 run/main_scene="res://scenes/main_menu/main_menu.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
-config/icon="res://icon.svg"
+config/icon="uid://byiy34u3x50eb"
 
 [audio]
 
@@ -30,6 +30,7 @@ CursorManager="*res://scripts/cursor_manager.gd"
 GameNetwork="*res://scripts/net/game_network.gd"
 SceneTransition="*res://scripts/scene_transition.gd"
 UIAudio="*res://scripts/ui_audio.gd"
+KeybindManager="*res://scripts/keybind_manager.gd"
 
 [display]
 
