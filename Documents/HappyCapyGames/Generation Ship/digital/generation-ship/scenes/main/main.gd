@@ -115,6 +115,7 @@ var _won_popup: Control = null
 var _pending_auction_win: bool = false
 var _auction_win_is_initiator: bool = false
 var _auction_active: bool = false
+var _bots_passed_this_round: Array[int] = []
 var _control_screen_open: bool = false
 var _cs_viewport: SubViewport = null
 var _cs_display: SupplyUI = null
@@ -647,7 +648,13 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	if GameNetwork.is_multiplayer:
 		_broadcast_my_state()
 	if multiplayer.is_server() and GameNetwork.is_bot(GameNetwork.active_peer_id):
-		get_tree().create_timer(0.6).timeout.connect(_server_handle_pass)
+		var bot: int = GameNetwork.active_peer_id
+		get_tree().create_timer(0.6).timeout.connect(func() -> void:
+			if GameNetwork.active_peer_id != bot:
+				return
+			_bots_passed_this_round.append(bot)
+			_server_handle_pass()
+		)
 
 # ── Round flow ────────────────────────────────────────────────────────────────
 
@@ -727,6 +734,7 @@ func _show_round_transition(then: Callable) -> void:
 
 func _end_round() -> void:
 	_has_passed_or_researched = false
+	_bots_passed_this_round.clear()
 	$Board.reset_turn()
 	if _round >= MAX_ROUNDS:
 		_game_over()
@@ -809,7 +817,16 @@ func _rpc_sync_active_player(peer_id: int) -> void:
 		_deferred_effect_slot = null
 		_process_next_effect()
 	if multiplayer.is_server() and GameNetwork.is_bot(peer_id):
-		get_tree().create_timer(0.6).timeout.connect(_server_handle_pass)
+		var bot: int = peer_id
+		get_tree().create_timer(0.6).timeout.connect(func() -> void:
+			if GameNetwork.active_peer_id != bot:
+				return
+			if _bots_passed_this_round.has(bot):
+				_server_handle_end_turn()
+			else:
+				_bots_passed_this_round.append(bot)
+				_server_handle_pass()
+		)
 
 # Host → All: all players passed — end the round and start the next.
 @rpc("authority", "reliable", "call_local")
@@ -824,7 +841,13 @@ func _rpc_sync_end_round() -> void:
 				GameNetwork.active_peer_id = GameNetwork.player_order[first_idx]
 				_update_turn_ui()
 				if multiplayer.is_server() and GameNetwork.is_bot(GameNetwork.active_peer_id):
-					get_tree().create_timer(0.6).timeout.connect(_server_handle_pass)
+					var bot: int = GameNetwork.active_peer_id
+					get_tree().create_timer(0.6).timeout.connect(func() -> void:
+						if GameNetwork.active_peer_id != bot:
+							return
+						_bots_passed_this_round.append(bot)
+						_server_handle_pass()
+					)
 			_broadcast_my_state()))
 
 # ── Multiplayer state broadcast ───────────────────────────────────────────────
