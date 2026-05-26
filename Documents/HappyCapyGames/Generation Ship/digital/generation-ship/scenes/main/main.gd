@@ -234,8 +234,8 @@ func _ready() -> void:
 	_opponents_btn.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	_opponents_btn.offset_top = 10.0
 	_opponents_btn.offset_bottom = 50.0
-	_opponents_btn.offset_left = -140.0
-	_opponents_btn.offset_right = -10.0
+	_opponents_btn.offset_left = -170.0
+	_opponents_btn.offset_right = -40.0
 	_opponents_btn.pressed.connect(_on_opponents_btn_pressed)
 	$UILayer.add_child(_opponents_btn)
 
