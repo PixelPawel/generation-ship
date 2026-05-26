@@ -119,6 +119,7 @@ var _control_screen_open: bool = false
 var _cs_viewport: SubViewport = null
 var _cs_display: SupplyUI = null
 var _es_viewport: SubViewport = null
+var _es_anim: AnimationPlayer = null
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -475,10 +476,13 @@ func _setup_enemy_screen_display() -> void:
 	_es_viewport.gui_disable_input = false
 	$EnemyScreen.add_child(_es_viewport)
 
-	var es_anim: AnimationPlayer = $EnemyScreen/AnimationPlayer
-	es_anim.play("es_close")
-	es_anim.seek(es_anim.current_animation_length, true)
-	es_anim.pause()
+	_es_anim = $EnemyScreen.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if _es_anim:
+		print("EnemyScreen animations: ", _es_anim.get_animation_list())
+		if _es_anim.has_animation("es_close"):
+			_es_anim.play("es_close")
+			_es_anim.seek(_es_anim.current_animation_length, true)
+			_es_anim.pause()
 
 	var screen_mesh: MeshInstance3D = $EnemyScreen.find_child("es_screen", true, false) as MeshInstance3D
 	if screen_mesh:
@@ -547,7 +551,8 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	$UILayer/StartButton.hide()
 	$ControlScreen/AnimationPlayer.play("cs_open")
 	_control_screen_open = true
-	$EnemyScreen/AnimationPlayer.play("es_open")
+	if _es_anim and _es_anim.has_animation("es_open"):
+		_es_anim.play("es_open")
 	_round = 1
 	_update_round_label()
 	_init_supply()
