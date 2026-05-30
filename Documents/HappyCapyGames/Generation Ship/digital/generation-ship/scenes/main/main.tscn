@@ -10,7 +10,8 @@
 [ext_resource type="Script" uid="uid://dabxlmwrri6bs" path="res://scenes/ui/payment_panel.gd" id="8_payment_panel"]
 [ext_resource type="Script" uid="uid://ct67cx1lxa08t" path="res://scenes/ui/pause_menu.gd" id="9_pause_menu"]
 [ext_resource type="PackedScene" uid="uid://6v2woolbvln4" path="res://assets/3d/gs_controlscreen.glb" id="10_controlscreen"]
-[ext_resource type="PackedScene" uid="uid://dm3kn8p6r2t1v" path="res://assets/3d/gs_enemyscreen.glb" id="11_enemyscreen"]
+[ext_resource type="PackedScene" uid="uid://cp80uw33c77bk" path="res://assets/3d/gs_enemyscreen.glb" id="11_enemyscreen"]
+[ext_resource type="PackedScene" uid="uid://dw3x70a0ab5cd" path="res://assets/3d/gs_card_silver.glb" id="12_card_silver"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 1
@@ -51,8 +52,8 @@ shadow_enabled = true
 [node name="ControlScreen" parent="." unique_id=729384651 instance=ExtResource("10_controlscreen")]
 transform = Transform3D(2.3, 0, 0, 0, -1.0053619e-07, 2.3, 0, -2.3, -1.0053619e-07, -5.529818, 0.5787746, 0.20107874)
 
-[node name="EnemyScreen" parent="." unique_id=390482751 instance=ExtResource("11_enemyscreen")]
-transform = Transform3D(2.3, 0, 0, 0, -1.0053619e-07, 2.3, 0, -2.3, -1.0053619e-07, 5.529818, 0.5787746, 0.20107874)
+[node name="EnemyScreen" parent="." unique_id=632058003 instance=ExtResource("11_enemyscreen")]
+transform = Transform3D(-2.3, -2.0107238e-07, 8.789153e-15, 0, -1.0053619e-07, -2.3, 2.0107238e-07, -2.3, 1.0053619e-07, 2.865721, 0.5787746, -1.949564)
 
 [node name="UILayer" type="CanvasLayer" parent="." unique_id=2083177684]
 
@@ -139,5 +140,8 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("9_pause_menu")
 
+[node name="CardSilver" parent="." unique_id=372918456 instance=ExtResource("12_card_silver")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5534699, 0)
+
 [node name="Board" parent="." unique_id=208449846 instance=ExtResource("3_board")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.00088620186, 0.5534699, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.09578419, 0.5534699, 0)

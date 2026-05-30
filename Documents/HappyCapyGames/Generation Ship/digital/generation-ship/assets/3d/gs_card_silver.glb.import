@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dw3x7y9zab5cd"
-path="res://.godot/imported/gs_card_silver.glb-00000000000000000000000000000000.scn"
+uid="uid://dw3x70a0ab5cd"
+path="res://.godot/imported/gs_card_silver.glb-ef14bc6d0c8a15c91c13d723c69ef8b6.scn"
 
 [deps]
 
 source_file="res://assets/3d/gs_card_silver.glb"
-dest_files=["res://.godot/imported/gs_card_silver.glb-00000000000000000000000000000000.scn"]
+dest_files=["res://.godot/imported/gs_card_silver.glb-ef14bc6d0c8a15c91c13d723c69ef8b6.scn"]
 
 [params]
 
