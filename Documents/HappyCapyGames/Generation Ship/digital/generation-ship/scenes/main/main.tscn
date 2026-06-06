@@ -12,6 +12,7 @@
 [ext_resource type="PackedScene" uid="uid://6v2woolbvln4" path="res://assets/3d/gs_controlscreen.glb" id="10_controlscreen"]
 [ext_resource type="PackedScene" uid="uid://cp80uw33c77bk" path="res://assets/3d/gs_enemyscreen.glb" id="11_enemyscreen"]
 [ext_resource type="PackedScene" uid="uid://dw3x70a0ab5cd" path="res://assets/3d/gs_card_silver.glb" id="12_card_silver"]
+[ext_resource type="PackedScene" uid="uid://blam2n4p7q1rs" path="res://assets/3d/gs_card_sector.glb" id="13_card_sector"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 1
@@ -141,6 +142,9 @@ grow_vertical = 2
 script = ExtResource("9_pause_menu")
 
 [node name="CardSilver" parent="." unique_id=372918456 instance=ExtResource("12_card_silver")]
+transform = Transform3D(10, 0, 0, 0, -4.371139e-07, 10, 0, -10, -4.371139e-07, -1.9176493, 2.130419, -0.18517834)
+
+[node name="CardSector" parent="." unique_id=483029567 instance=ExtResource("13_card_sector")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5534699, 0)
 
 [node name="Board" parent="." unique_id=208449846 instance=ExtResource("3_board")]
