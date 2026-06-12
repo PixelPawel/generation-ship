@@ -13,6 +13,11 @@
 [ext_resource type="PackedScene" uid="uid://cp80uw33c77bk" path="res://assets/3d/gs_enemyscreen.glb" id="11_enemyscreen"]
 [ext_resource type="PackedScene" uid="uid://dw3x70a0ab5cd" path="res://assets/3d/gs_card_silver.glb" id="12_card_silver"]
 [ext_resource type="PackedScene" uid="uid://blam2n4p7q1rs" path="res://assets/3d/gs_card_sector.glb" id="13_card_sector"]
+[ext_resource type="PackedScene" uid="uid://cx4t8v2wb6yde" path="res://assets/3d/gs_card_tech.glb" id="14_card_tech"]
+[ext_resource type="PackedScene" uid="uid://df5vaw3xc70eg" path="res://assets/3d/gs_card_expedition.glb" id="15_card_expedition"]
+[ext_resource type="PackedScene" uid="uid://lr1fv7ps1enp" path="res://assets/3d/gs_ui_control.glb" id="16_ui_control"]
+[ext_resource type="PackedScene" uid="uid://bms2gw8qt2foq" path="res://assets/3d/gs_ui_info.glb" id="17_ui_info"]
+[ext_resource type="PackedScene" uid="uid://cnt3hx80usgpr" path="res://assets/3d/gs_ui_cockpit.glb" id="18_ui_cockpit"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 1
@@ -142,9 +147,24 @@ grow_vertical = 2
 script = ExtResource("9_pause_menu")
 
 [node name="CardSilver" parent="." unique_id=372918456 instance=ExtResource("12_card_silver")]
-transform = Transform3D(10, 0, 0, 0, -4.371139e-07, 10, 0, -10, -4.371139e-07, -1.9176493, 2.130419, -0.18517834)
+transform = Transform3D(10, 0, 0, 0, -4.371139e-07, 10, 0, -10, -4.371139e-07, -1.4962263, 1.0272608, -0.24012253)
 
 [node name="CardSector" parent="." unique_id=483029567 instance=ExtResource("13_card_sector")]
+transform = Transform3D(9.879993, 0, 0, 0, -4.3186824e-07, 9.879993, 0, -9.879993, -4.3186824e-07, -1.515, 0.99794567, 0.096)
+
+[node name="CardTech" parent="." unique_id=594130678 instance=ExtResource("14_card_tech")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5534699, 0)
+
+[node name="CardExpedition" parent="." unique_id=605241789 instance=ExtResource("15_card_expedition")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5534699, 0)
+
+[node name="UiControl" parent="." unique_id=716352890 instance=ExtResource("16_ui_control")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5534699, 0)
+
+[node name="UiInfo" parent="." unique_id=827463901 instance=ExtResource("17_ui_info")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5534699, 0)
+
+[node name="UiCockpit" parent="." unique_id=938574012 instance=ExtResource("18_ui_cockpit")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5534699, 0)
 
 [node name="Board" parent="." unique_id=208449846 instance=ExtResource("3_board")]

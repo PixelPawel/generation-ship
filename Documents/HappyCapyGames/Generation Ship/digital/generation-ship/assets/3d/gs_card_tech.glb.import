@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://cx4t8v2wb6yde"
-path="res://.godot/imported/gs_card_tech.glb-00000000000000000000000000000000.scn"
+path="res://.godot/imported/gs_card_tech.glb-fb97a7f962be7c52e15b8c776c5f8fcc.scn"
 
 [deps]
 
 source_file="res://assets/3d/gs_card_tech.glb"
-dest_files=["res://.godot/imported/gs_card_tech.glb-00000000000000000000000000000000.scn"]
+dest_files=["res://.godot/imported/gs_card_tech.glb-fb97a7f962be7c52e15b8c776c5f8fcc.scn"]
 
 [params]
 
