@@ -3,7 +3,7 @@ render_mode blend_mix, depth_draw_never, depth_test_disabled, cull_back;
 
 uniform sampler2D card_texture : source_color, filter_linear_mipmap, repeat_disable;
 uniform vec2 tilt = vec2(0.0, 0.0);
-uniform float sheen_strength : hint_range(0.0, 1.0) = 0.45;
+uniform float sheen_strength : hint_range(0.0, 1.0) = 0.22;
 uniform vec3 discount_glow_color = vec3(0.0);
 uniform float corner_radius : hint_range(0.0, 0.2) = 0.06;
 
@@ -18,8 +18,8 @@ void fragment() {
 
 	vec3 lit = face.rgb + vec3(sheen * 0.6, sheen * 0.75, sheen);
 	ALBEDO = lit;
-	ROUGHNESS = 0.55;
-	SPECULAR = 0.25;
+	ROUGHNESS = 0.78;
+	SPECULAR = 0.1;
 	float alpha = face.a;
 	if (c.x < corner_radius && c.y < corner_radius) {
 		float d = length(c - vec2(corner_radius));
