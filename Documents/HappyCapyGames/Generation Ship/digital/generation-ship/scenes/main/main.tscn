@@ -140,16 +140,13 @@ grow_vertical = 2
 script = ExtResource("9_pause_menu")
 
 [node name="CardSector" parent="." unique_id=483029567 instance=ExtResource("13_card_sector")]
-transform = Transform3D(2, 0, 0, 0, 1.9318515, -0.258819, 0, 0.517638, 0.96592575, -1.4928343, 2.6420975, 0.031202335)
-
-[node name="CardSector" parent="CardSector" unique_id=1929997322 instance=ExtResource("13_card_sector")]
-transform = Transform3D(2, 0, 0, 0, -1.9263252, 0.26891977, 0, -0.53783953, -0.9631626, -1.6278349, 2.736716, 0.01060957)
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, -0.5, 0.55, 0)
 
 [node name="CardTech" parent="." unique_id=594130678 instance=ExtResource("14_card_tech")]
-transform = Transform3D(2, 0, 0, 0, -1.9266158, 0.26839858, 0, -0.53679717, -0.9633079, -1.4944488, 2.59098, -0.017012566)
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0.55, 0)
 
 [node name="CardExpedition" parent="." unique_id=605241789 instance=ExtResource("15_card_expedition")]
-transform = Transform3D(2, 0, 0, 0, -1.9263252, 0.26891977, 0, -0.53783953, -0.9631626, -1.49646, 2.532048, -0.060088914)
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0.5, 0.55, 0)
 
 [node name="UiControl" parent="." unique_id=716352890 instance=ExtResource("16_ui_control")]
 transform = Transform3D(4.9623356, 0.061291143, 0.19447908, -0.066848546, 3.9990733, -0.02698805, -0.6088986, 0.060461555, 1.5879073, -0.8380707, 1.0018599, 0.016941834)
@@ -166,14 +163,12 @@ light_color = Color(0.85, 0.92, 1, 1)
 light_energy = 0.7
 light_indirect_energy = 0.5
 omni_range = 1.5
-shadow_enabled = false
 
 [node name="CockpitPanelGlow" type="OmniLight3D" parent="." unique_id=210878184]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, -0.3)
 light_color = Color(0.55, 0.78, 1, 1)
 light_energy = 0.35
 omni_range = 0.8
-shadow_enabled = false
 
 [node name="Board" parent="." unique_id=208449846 instance=ExtResource("3_board")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.09578419, 0.5534699, 0)
