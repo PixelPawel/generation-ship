@@ -63,7 +63,7 @@ var _last_drawn_cards: Array[Node3D] = []
 var _restrict_picks_to_drawn: bool = false
 var _sector_info_popup: SectorInfoPopup = null
 var _supply_cost_panel: SupplyCostPanel = null
-var _market_hand: Node3D = null
+var _market_panel: Control = null
 var _bid_payment_panel: Control = null
 var _cargo_source_slot: SectorSlot = null
 var _cargo_pending_supplies: Dictionary = {}
@@ -117,6 +117,7 @@ var _auction_win_is_initiator: bool = false
 var _auction_active: bool = false
 var _bots_passed_this_round: Array[int] = []
 var _cs_viewport: SubViewport = null
+var _info_viewport: SubViewport = null
 var _cs_display: SupplyUI = null
 var _es_viewport: Control = null
 var _enemy_screen_open: bool = false
@@ -161,14 +162,7 @@ func _ready() -> void:
 	ImageCache.all_loaded.connect(_on_cache_ready)
 	ImageCache.preload_urls(_collect_urls())
 
-	_market_hand = load("res://scenes/market/market_hand.gd").new()
-	$Camera3D.add_child(_market_hand)
-
-	$Board.market_drag_started.connect(_market_hand.on_market_drag_started)
-	$Board.market_drag_resolved.connect(_market_hand.on_market_drag_ended)
-	_market_hand.sector_advanced_pressed.connect(_on_market_sector_advanced_pressed)
-	_market_hand.sector_dust_pressed.connect(_on_market_sector_dust_pressed)
-	_market_hand.expedition_pressed.connect(_on_market_expedition_pressed)
+	_setup_info_screen_display()
 
 
 	_bid_payment_panel = load("res://scenes/ui/bid_payment_panel.gd").new()
@@ -489,6 +483,64 @@ func _forward_to_cs_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshIn
 		mb.position = vp_pos
 		_cs_viewport.push_input(mb, true)
 
+func _setup_info_screen_display() -> void:
+	_info_viewport = SubViewport.new()
+	_info_viewport.size = Vector2i(600, 240)
+	_info_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_info_viewport.transparent_bg = true
+	_info_viewport.gui_disable_input = false
+	$UiInfo.add_child(_info_viewport)
+
+	_market_panel = load("res://scenes/ui/market_panel.gd").new()
+	_info_viewport.add_child(_market_panel)
+
+	var inner: Control = _market_panel.get_child(0) as Control
+	if inner:
+		inner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		inner.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		inner.grow_vertical = Control.GROW_DIRECTION_BOTH
+
+	_market_panel.sector_advanced_pressed.connect(_on_market_sector_advanced_pressed)
+	_market_panel.sector_dust_pressed.connect(_on_market_sector_dust_pressed)
+	_market_panel.expedition_pressed.connect(_on_market_expedition_pressed)
+
+	var screen_mesh: MeshInstance3D = $UiInfo.find_child("gs_ui_info_screen", true, false) as MeshInstance3D
+	if screen_mesh:
+		var mat := StandardMaterial3D.new()
+		mat.albedo_texture = _info_viewport.get_texture()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		screen_mesh.set_surface_override_material(0, mat)
+		_setup_info_screen_input(screen_mesh)
+
+func _setup_info_screen_input(screen_mesh: MeshInstance3D) -> void:
+	var area: Area3D = Area3D.new()
+	area.input_ray_pickable = true
+	screen_mesh.add_child(area)
+	var cshape: CollisionShape3D = CollisionShape3D.new()
+	var box: BoxShape3D = BoxShape3D.new()
+	var aabb: AABB = screen_mesh.mesh.get_aabb()
+	box.size = Vector3(aabb.size.x, aabb.size.y, 0.01)
+	cshape.shape = box
+	cshape.position = aabb.get_center()
+	area.add_child(cshape)
+	area.input_event.connect(func(_cam: Node, event: InputEvent, pos: Vector3, _norm: Vector3, _idx: int) -> void:
+		_forward_to_info_viewport(event, pos, screen_mesh)
+	)
+
+func _forward_to_info_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshInstance3D) -> void:
+	var local_pos: Vector3 = mesh.to_local(world_pos)
+	var aabb: AABB = mesh.mesh.get_aabb()
+	var u: float = (local_pos.x - aabb.position.x) / aabb.size.x
+	var v: float = 1.0 - (local_pos.y - aabb.position.y) / aabb.size.y
+	var vp_pos: Vector2 = Vector2(u * float(_info_viewport.size.x), v * float(_info_viewport.size.y))
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = InputEventMouseButton.new()
+		mb.button_index = (event as InputEventMouseButton).button_index
+		mb.pressed = (event as InputEventMouseButton).pressed
+		mb.position = vp_pos
+		_info_viewport.push_input(mb, true)
+
 func _setup_enemy_screen_display() -> void:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -582,7 +634,7 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	if multiplayer.is_server() and not GameNetwork.bot_ids.is_empty():
 		_init_bot_state()
 	$Board.refresh_discount_glow()
-	_market_hand.setup($Board.get_market(), $Board.get_expedition_market(), card_scene)
+	_market_panel.setup($Board.get_market(), $Board.get_expedition_market())
 	_show_action_buttons(true)
 	_show_end_turn_button(true)
 	_set_end_turn_button_disabled(true)
