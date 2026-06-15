@@ -48,10 +48,10 @@ transform = Transform3D(1, 0, 0, 0, 0.9829353, 0.18395133, 0, -0.18395133, 0.982
 fov = 45.0
 
 [node name="Hand" parent="Camera3D" unique_id=1324524141 instance=ExtResource("4_hand")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.47, -1.8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.60, -1.8)
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=851628674]
-transform = Transform3D(0.86582476, -0.35365823, 0.3539399, 0, 0.7073883, 0.7068252, -0.5003475, -0.61198676, 0.6124742, -1.306828, 3.3837154, -0.5348977)
+transform = Transform3D(0.99871933, 0.050592948, 0, -0.05059294, 0.99871945, 0, 0, 0, 0.99999994, 0, 0.865, 0)
 light_energy = 1.4
 shadow_enabled = true
 
