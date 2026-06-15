@@ -152,6 +152,9 @@ func _layout(animate: bool) -> void:
 	if n == 0:
 		return
 
+	var cam: Camera3D = get_viewport().get_camera_3d() if get_viewport() else null
+	var mouse_y: float = get_viewport().get_mouse_position().y if get_viewport() else 0.0
+
 	var spacing := BASE_SPACING
 	if n > 1 and (n - 1) * spacing > MAX_HAND_WIDTH:
 		spacing = MAX_HAND_WIDTH / (n - 1)
@@ -167,7 +170,15 @@ func _layout(animate: bool) -> void:
 
 		var t := float(i) / float(max(n - 1, 1)) * 2.0 - 1.0
 		var y_arc := -(t * t) * 0.08
-		var y_hover := HOVER_LIFT if i == _hovered_index else 0.0
+		var y_hover := 0.0
+		if i == _hovered_index:
+			y_hover = HOVER_LIFT
+			if cam:
+				var base_sy: float = cam.unproject_position(to_global(Vector3(x, y_arc, 0.0))).y
+				var lift_sy: float = cam.unproject_position(to_global(Vector3(x, y_arc + HOVER_LIFT, 0.0))).y
+				var screen_lift: float = base_sy - lift_sy
+				if screen_lift > 0.0:
+					y_hover = HOVER_LIFT * clampf((base_sy - mouse_y) / screen_lift, 0.0, 1.0)
 		var rot_z := t * deg_to_rad(-3.0)
 		var z_depth := 0.05 if i == _hovered_index else 0.0
 
