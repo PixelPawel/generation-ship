@@ -457,9 +457,6 @@ func _setup_control_screen_display() -> void:
 		mat.set_shader_parameter("scanline_depth", 0.08)
 		mat.set_shader_parameter("vignette_strength", 0.35)
 		mat.set_shader_parameter("vignette_falloff", 3.0)
-		mat.set_shader_parameter("border_glow_width", 0.04)
-		mat.set_shader_parameter("border_glow_strength", 0.5)
-		mat.set_shader_parameter("border_glow_color", Vector3(0.18, 0.52, 0.90))
 		screen_mesh.set_surface_override_material(0, mat)
 		_setup_screen_input(screen_mesh)
 
@@ -525,9 +522,6 @@ func _setup_info_screen_display() -> void:
 		mat.set_shader_parameter("scanline_depth", 0.06)
 		mat.set_shader_parameter("vignette_strength", 0.25)
 		mat.set_shader_parameter("vignette_falloff", 2.5)
-		mat.set_shader_parameter("border_glow_width", 0.05)
-		mat.set_shader_parameter("border_glow_strength", 0.6)
-		mat.set_shader_parameter("border_glow_color", Vector3(0.18, 0.52, 0.90))
 		screen_mesh.set_surface_override_material(0, mat)
 		_setup_info_screen_input(screen_mesh)
 

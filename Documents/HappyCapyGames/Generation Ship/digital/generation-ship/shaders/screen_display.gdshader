@@ -10,9 +10,6 @@ uniform float scanline_count       : hint_range(0.0, 300.0) = 120.0;
 uniform float scanline_depth       : hint_range(0.0, 1.0)  = 0.08;
 uniform float vignette_strength    : hint_range(0.0, 1.0)  = 0.35;
 uniform float vignette_falloff     : hint_range(0.5, 8.0)  = 3.0;
-uniform float border_glow_width    : hint_range(0.0, 0.15) = 0.04;
-uniform float border_glow_strength : hint_range(0.0, 2.0)  = 0.5;
-uniform vec3  border_glow_color                             = vec3(0.18, 0.52, 0.90);
 
 varying vec3 m;
 
@@ -36,10 +33,6 @@ void fragment() {
 	vec2 vig_uv = uv * 2.0 - 1.0;
 	float vig = pow(1.0 - dot(vig_uv, vig_uv) * 0.5, vignette_falloff);
 	col *= mix(1.0 - vignette_strength, 1.0, clamp(vig, 0.0, 1.0));
-
-	// Border glow
-	float edge = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
-	col += border_glow_color * (1.0 - smoothstep(0.0, border_glow_width, edge)) * border_glow_strength;
 
 	ALBEDO   = col;
 	ALPHA    = c.a;
