@@ -116,6 +116,7 @@ var _pending_auction_win: bool = false
 var _auction_win_is_initiator: bool = false
 var _auction_active: bool = false
 var _bots_passed_this_round: Array[int] = []
+var _cs_viewport: SubViewport = null
 var _cs_display: SupplyUI = null
 var _es_viewport: Control = null
 var _enemy_screen_open: bool = false
@@ -431,13 +432,67 @@ func _on_cache_ready() -> void:
 		$UILayer/StartButton.show()
 
 func _setup_control_screen_display() -> void:
-	_cs_display = $UILayer/SupplyUI
+	_cs_viewport = SubViewport.new()
+	_cs_viewport.size = Vector2i(360, 460)
+	_cs_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_cs_viewport.transparent_bg = true
+	_cs_viewport.gui_disable_input = false
+	$UiControl.add_child(_cs_viewport)
+
+	_cs_display = SupplyUI.new()
+	_cs_viewport.add_child(_cs_display)
+
+	var panel: Control = _cs_display.get_child(0) as Control
+	if panel:
+		panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+
 	_cs_display.research_pressed.connect(_on_research_pressed)
 	_cs_display.pass_pressed.connect(_on_pass_pressed)
 	_cs_display.end_turn_pressed.connect(_on_end_turn_pressed)
 	_cs_display.supply_changed.connect(_on_supply_changed)
 	_cs_display.fuse_1to1_changed.connect(_try_auto_end_turn)
+
+	var screen_mesh: MeshInstance3D = $UiControl.find_child("gs_ui_control_screen", true, false) as MeshInstance3D
+	if screen_mesh:
+		var mat := StandardMaterial3D.new()
+		mat.albedo_texture = _cs_viewport.get_texture()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		screen_mesh.set_surface_override_material(0, mat)
+		_setup_screen_input(screen_mesh)
+
+	$UILayer/SupplyUI.hide()
 	$Board.set_supply_ui(_cs_display)
+
+func _setup_screen_input(screen_mesh: MeshInstance3D) -> void:
+	var area: Area3D = Area3D.new()
+	area.input_ray_pickable = true
+	screen_mesh.add_child(area)
+	var cshape: CollisionShape3D = CollisionShape3D.new()
+	var box: BoxShape3D = BoxShape3D.new()
+	var aabb: AABB = screen_mesh.mesh.get_aabb()
+	box.size = Vector3(aabb.size.x, aabb.size.y, 0.01)
+	cshape.shape = box
+	cshape.position = aabb.get_center()
+	area.add_child(cshape)
+	area.input_event.connect(func(_cam: Node, event: InputEvent, pos: Vector3, _norm: Vector3, _idx: int) -> void:
+		_forward_to_cs_viewport(event, pos, screen_mesh)
+	)
+
+func _forward_to_cs_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshInstance3D) -> void:
+	var local_pos: Vector3 = mesh.to_local(world_pos)
+	var aabb: AABB = mesh.mesh.get_aabb()
+	var u: float = (local_pos.x - aabb.position.x) / aabb.size.x
+	var v: float = 1.0 - (local_pos.y - aabb.position.y) / aabb.size.y
+	var vp_pos: Vector2 = Vector2(u * float(_cs_viewport.size.x), v * float(_cs_viewport.size.y))
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = InputEventMouseButton.new()
+		mb.button_index = (event as InputEventMouseButton).button_index
+		mb.pressed = (event as InputEventMouseButton).pressed
+		mb.position = vp_pos
+		_cs_viewport.push_input(mb, true)
 
 func _setup_enemy_screen_display() -> void:
 	var panel: PanelContainer = PanelContainer.new()
