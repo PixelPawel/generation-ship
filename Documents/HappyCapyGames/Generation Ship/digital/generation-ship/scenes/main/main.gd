@@ -460,6 +460,12 @@ func _setup_control_screen_display() -> void:
 		screen_mesh.set_surface_override_material(0, mat)
 		_setup_screen_input(screen_mesh)
 
+	var btn_callbacks: Array[Callable] = [_on_research_pressed, _on_pass_pressed, _on_end_turn_pressed]
+	for i: int in 3:
+		var btn_mesh: MeshInstance3D = $UiControl.find_child("gs_ui_control_button%d" % (i + 1), true, false) as MeshInstance3D
+		if btn_mesh:
+			_setup_button_input(btn_mesh, btn_callbacks[i])
+
 	$UILayer/SupplyUI.hide()
 	$Board.set_supply_ui(_cs_display)
 
@@ -476,6 +482,24 @@ func _setup_screen_input(screen_mesh: MeshInstance3D) -> void:
 	area.add_child(cshape)
 	area.input_event.connect(func(_cam: Node, event: InputEvent, pos: Vector3, _norm: Vector3, _idx: int) -> void:
 		_forward_to_cs_viewport(event, pos, screen_mesh)
+	)
+
+func _setup_button_input(btn_mesh: MeshInstance3D, callback: Callable) -> void:
+	var area: Area3D = Area3D.new()
+	area.input_ray_pickable = true
+	btn_mesh.add_child(area)
+	var cshape: CollisionShape3D = CollisionShape3D.new()
+	var box: BoxShape3D = BoxShape3D.new()
+	var aabb: AABB = btn_mesh.mesh.get_aabb()
+	box.size = Vector3(aabb.size.x, aabb.size.y, aabb.size.z + 0.01)
+	cshape.shape = box
+	cshape.position = aabb.get_center()
+	area.add_child(cshape)
+	area.input_event.connect(func(_cam: Node, event: InputEvent, _pos: Vector3, _norm: Vector3, _idx: int) -> void:
+		if event is InputEventMouseButton:
+			var mb: InputEventMouseButton = event as InputEventMouseButton
+			if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+				callback.call()
 	)
 
 func _forward_to_cs_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshInstance3D) -> void:
