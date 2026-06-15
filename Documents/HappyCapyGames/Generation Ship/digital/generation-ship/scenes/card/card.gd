@@ -140,7 +140,7 @@ func toggle_elevation(elev_pos: Vector3, elev_scale: Vector3, grace_sec: float) 
 	_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	_tween.tween_property(self, "position", elev_pos, PLACED_LIFT_DURATION)
 	_tween.parallel().tween_property(self, "scale", elev_scale, PLACED_LIFT_DURATION)
-	_tween.parallel().tween_property(self, "rotation", Vector3(rotation.x, deg_to_rad(-90.0), rotation.z), PLACED_LIFT_DURATION)
+	_tween.parallel().tween_property(self, "rotation", Vector3(deg_to_rad(-90.0), rotation.y, rotation.z), PLACED_LIFT_DURATION)
 	_placed_elevated = true
 	if grace_sec > 0.0:
 		get_tree().create_timer(grace_sec).timeout.connect(func() -> void:
