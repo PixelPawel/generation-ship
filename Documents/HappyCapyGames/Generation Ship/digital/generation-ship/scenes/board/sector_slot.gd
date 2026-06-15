@@ -278,6 +278,8 @@ func _process(_delta: float) -> void:
 	if _slot_mat:
 		_slot_mat.set_shader_parameter("highlight_t", _highlight_value)
 	if placed_card:
+		if placed_card.get("_placed_elevated"):
+			return
 		var card_tween: Tween = placed_card.get("_tween") as Tween
 		if card_tween and card_tween.is_valid():
 			return
