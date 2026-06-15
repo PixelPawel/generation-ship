@@ -16,6 +16,7 @@ const LAYOUT_DURATION := 0.2
 
 var _cards: Array[Node3D] = []
 var _hovered_index := -1
+var _unhover_pending: bool = false
 
 func add_card(card: Node3D, animate: bool = false) -> void:
 	if _cards.has(card):
@@ -133,12 +134,18 @@ func _on_card_drag_started(card: Node3D) -> void:
 	card_drag_started.emit(card)
 
 func _on_card_hovered(card: Node3D) -> void:
+	_unhover_pending = false
 	_hovered_index = _cards.find(card)
 	_layout(true)
 
 func _on_card_unhovered(_card: Node3D) -> void:
-	_hovered_index = -1
-	_layout(true)
+	_unhover_pending = true
+	get_tree().create_timer(0.1).timeout.connect(func() -> void:
+		if _unhover_pending:
+			_unhover_pending = false
+			_hovered_index = -1
+			_layout(true)
+	)
 
 func _layout(animate: bool) -> void:
 	var n := _cards.size()
