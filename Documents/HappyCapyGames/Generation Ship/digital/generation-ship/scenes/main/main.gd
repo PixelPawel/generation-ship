@@ -499,6 +499,12 @@ func _setup_info_screen_display() -> void:
 	_info_viewport.gui_disable_input = false
 	$UiInfo.add_child(_info_viewport)
 
+	var info_bg: ColorRect = ColorRect.new()
+	info_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	info_bg.color = Color(0.03, 0.04, 0.09, 0.93)
+	info_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_info_viewport.add_child(info_bg)
+
 	_market_panel = load("res://scenes/ui/market_panel.gd").new()
 	_info_viewport.add_child(_market_panel)
 	_market_panel.scale = Vector2(1.68, 1.68)
