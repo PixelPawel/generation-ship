@@ -505,7 +505,7 @@ func _setup_button_input(btn_mesh: MeshInstance3D, callback: Callable) -> void:
 		var mat: StandardMaterial3D = StandardMaterial3D.new()
 		mat.emission_enabled = true
 		mat.emission = Color(0.38, 0.80, 1.00)
-		mat.emission_energy_multiplier = 3.0
+		mat.emission_energy_multiplier = 0.6
 		btn_mesh.set_surface_override_material(0, mat)
 	)
 	area.mouse_exited.connect(func() -> void:
