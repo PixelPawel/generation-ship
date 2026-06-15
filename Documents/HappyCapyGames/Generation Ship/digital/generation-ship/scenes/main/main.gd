@@ -496,7 +496,7 @@ func _forward_to_cs_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshIn
 
 func _setup_info_screen_display() -> void:
 	_info_viewport = SubViewport.new()
-	_info_viewport.size = Vector2i(1200, 240)
+	_info_viewport.size = Vector2i(1200, 572)
 	_info_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_info_viewport.transparent_bg = true
 	_info_viewport.gui_disable_input = false
@@ -504,7 +504,7 @@ func _setup_info_screen_display() -> void:
 
 	_market_panel = load("res://scenes/ui/market_panel.gd").new()
 	_info_viewport.add_child(_market_panel)
-	_market_panel.scale = Vector2(1.6, 1.6)
+	_market_panel.scale = Vector2(1.68, 1.68)
 	_market_panel.set_process(false)
 
 	_market_panel.sector_advanced_pressed.connect(_on_market_sector_advanced_pressed)
