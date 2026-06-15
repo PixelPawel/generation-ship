@@ -16,7 +16,7 @@ const DRAG_THRESHOLD_PX: float = 8.0
 # Landscape scale applied to mesh/collider children for sector cards (portrait dims swapped)
 const _LANDSCAPE_CHILD_SCALE := Vector3(0.88 / 0.63, 0.63 / 0.88, 1.0)
 
-static var _globally_elevated: Node3D = null
+static var _elev_counter: int = 0
 static var _any_dragging: bool = false
 
 var managed_by_hand := false
@@ -131,19 +131,14 @@ func toggle_elevation(elev_pos: Vector3, elev_scale: Vector3, grace_sec: float) 
 	if _placed_elevated:
 		_collapse_elevation()
 		return
-	if _globally_elevated != null:
-		if is_instance_valid(_globally_elevated):
-			_globally_elevated._collapse_elevation()
-		_globally_elevated = null
-		return
 	_elev_rest_sort_order = card_mesh.sorting_offset
-	set_sort_order(1.0)
+	_elev_counter += 1
+	set_sort_order(float(_elev_counter))
 	_kill_tween()
 	_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	_tween.tween_property(self, "position", elev_pos, PLACED_LIFT_DURATION)
 	_tween.parallel().tween_property(self, "scale", elev_scale, PLACED_LIFT_DURATION)
 	_placed_elevated = true
-	_globally_elevated = self
 	if grace_sec > 0.0:
 		get_tree().create_timer(grace_sec).timeout.connect(func() -> void:
 			if _placed_elevated:
@@ -152,8 +147,6 @@ func toggle_elevation(elev_pos: Vector3, elev_scale: Vector3, grace_sec: float) 
 
 func _collapse_elevation() -> void:
 	_placed_elevated = false
-	if _globally_elevated == self:
-		_globally_elevated = null
 	set_sort_order(_elev_rest_sort_order)
 	_kill_tween()
 	_tween = create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)

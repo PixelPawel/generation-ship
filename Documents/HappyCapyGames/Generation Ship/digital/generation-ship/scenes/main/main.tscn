@@ -147,10 +147,10 @@ grow_vertical = 2
 script = ExtResource("9_pause_menu")
 
 [node name="CardSilver" parent="." unique_id=372918456 instance=ExtResource("12_card_silver")]
-transform = Transform3D(10, 0, 0, 0, -4.371139e-07, 10, 0, -10, -4.371139e-07, -1.4962263, 1.0272608, -0.24012253)
+transform = Transform3D(10, 0, 0, 0, -4.371139e-07, 10, 0, -10, -4.371139e-07, -2.3268158, 1.0272608, -0.24012253)
 
 [node name="CardSector" parent="." unique_id=483029567 instance=ExtResource("13_card_sector")]
-transform = Transform3D(9.879993, 0, 0, 0, -4.3186824e-07, 9.879993, 0, -9.879993, -4.3186824e-07, -1.515, 0.99794567, 0.096)
+transform = Transform3D(9.879993, 0, 0, 0, -4.3186824e-07, 9.879993, 0, -9.879993, -4.3186824e-07, -0.6006321, 0.99794567, 0.096)
 
 [node name="CardTech" parent="." unique_id=594130678 instance=ExtResource("14_card_tech")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5534699, 0)
@@ -165,7 +165,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5534699, 0)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5534699, 0)
 
 [node name="UiCockpit" parent="." unique_id=938574012 instance=ExtResource("18_ui_cockpit")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5534699, 0)
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, -1.336946, 2.7757294, -0.24260056)
 
 [node name="Board" parent="." unique_id=208449846 instance=ExtResource("3_board")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.09578419, 0.5534699, 0)
