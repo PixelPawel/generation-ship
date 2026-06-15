@@ -4,12 +4,12 @@ const DRAG_Y := 0.55
 const HAND_CARD_SCALE := 0.392
 const TECH_BACK_URL := "https://generationship.s3.eu-central-1.amazonaws.com/TTS/Tech/GS+Techs+44x67mm138.png"
 const EXPEDITION_BACK_URL := "https://generationship.s3.eu-central-1.amazonaws.com/TTS/Expedition/GS+Expeditions++44x67mm27.png"
-const DROP_RADIUS := 0.075
-const TECH_COLUMN_HALF_X := 0.07
+const DROP_RADIUS := 0.4
+const TECH_COLUMN_HALF_X := 0.1
 const DISCARD_RADIUS := 0.65
 const PENDING_HOVER_Y := 0.05
-const TECH_ZONE_Z_FRONT := 0.05
-const TECH_ZONE_Z_BACK := 0.28
+const TECH_ZONE_Z_FRONT := 0.2
+const TECH_ZONE_Z_BACK := 0.3
 const MIN_SLOT_DISTANCE := 0.075
 const _SLOT_SCENE := preload("res://scenes/board/sector_slot.tscn")
 
@@ -621,13 +621,9 @@ func _resolve_card_payment(placed: Node3D, slot: SectorSlot, is_tech: bool) -> b
 
 func _try_drop_sector() -> void:
 	var target_slot: SectorSlot = _find_nearest_empty_sector_slot()
-	var is_new_slot: bool = false
 	if not target_slot:
-		if not _try_capture_drop_pos():
-			_handle_failed_drop()
-			return
-		target_slot = _spawn_slot_at_pos(_pending_drop_pos)
-		is_new_slot = true
+		_handle_failed_drop()
+		return
 	if _is_free_gain:
 		var placed: Node3D = _dragged_card
 		_dragged_card = null
@@ -653,7 +649,7 @@ func _try_drop_sector() -> void:
 			market_card_taken.emit(placed.card_data)
 		market_drag_resolved.emit()
 		return
-	_pending_dynamic_slot = target_slot if is_new_slot else null
+	_pending_dynamic_slot = null
 	if _should_bid(_dragged_card):
 		_start_bid(_dragged_card, target_slot, false)
 		return
@@ -662,7 +658,6 @@ func _try_drop_sector() -> void:
 	var cd: CardData = placed.card_data
 	if not _resolve_card_payment(placed, target_slot, false):
 		return
-	_pending_dynamic_slot = null
 	_dragged_card = null
 	_drag_origin = DragOrigin.NONE
 	target_slot.accept_card(placed)
@@ -1271,22 +1266,14 @@ func _update_slot_highlights() -> void:
 	if _discard_pile:
 		_discard_pile.highlight(_is_near_discard_pile())
 	var is_sector: bool = _is_sector_card()
-	for slot: SectorSlot in _sector_row.get_children():
-		if is_sector:
-			if slot.occupied or not slot.is_available:
-				slot.highlight(false)
-				continue
-			var dx: float = _dragged_card.global_position.x - slot.global_position.x
-			var dz: float = _dragged_card.global_position.z - slot.global_position.z
-			slot.highlight(sqrt(dx * dx + dz * dz) < DROP_RADIUS)
-		else:
-			if not slot.occupied or not slot.has_tech_space():
-				slot.highlight(false)
-				continue
-			var dx: float = abs(_dragged_card.global_position.x - slot.global_position.x)
-			var slot_z: float = slot.global_position.z
-			var card_z: float = _dragged_card.global_position.z
-			slot.highlight(dx < TECH_COLUMN_HALF_X and card_z < slot_z + TECH_ZONE_Z_FRONT and card_z > slot_z - TECH_ZONE_Z_BACK)
+	if is_sector:
+		var snap_slot: SectorSlot = _find_nearest_empty_sector_slot()
+		for slot: SectorSlot in _sector_row.get_children():
+			slot.highlight(slot == snap_slot)
+	else:
+		var best_tech_slot: SectorSlot = _find_nearest_tech_slot()
+		for slot: SectorSlot in _sector_row.get_children():
+			slot.highlight(slot == best_tech_slot)
 
 func _clear_slot_highlights() -> void:
 	if _discard_pile:
