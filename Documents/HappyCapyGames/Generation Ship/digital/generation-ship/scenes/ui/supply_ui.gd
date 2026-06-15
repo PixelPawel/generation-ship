@@ -113,25 +113,6 @@ func _build_ui() -> void:
 	info_sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
 	_game_info_box.add_child(info_sep)
 
-	# ── Action row (Research / Pass) ──────────────────────────────────────────
-	_action_row = HBoxContainer.new()
-	_action_row.add_theme_constant_override("separation", 6)
-	vbox.add_child(_action_row)
-
-	_research_btn = Button.new()
-	_research_btn.text = "Research"
-	_research_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_research_btn.add_theme_font_size_override("font_size", 16)
-	_research_btn.pressed.connect(func(): research_pressed.emit())
-	_action_row.add_child(_research_btn)
-
-	_pass_btn = Button.new()
-	_pass_btn.text = "Pass"
-	_pass_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_pass_btn.add_theme_font_size_override("font_size", 16)
-	_pass_btn.pressed.connect(func(): pass_pressed.emit())
-	_action_row.add_child(_pass_btn)
-
 	_undo_btn = Button.new()
 	_undo_btn.text = "↩ Undo Fuse"
 	_undo_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -140,20 +121,6 @@ func _build_ui() -> void:
 	_undo_btn.disabled = true
 	_undo_btn.pressed.connect(_on_undo_fuse_pressed)
 	vbox.add_child(_undo_btn)
-
-	# ── End Turn ──────────────────────────────────────────────────────────────
-	var end_sep := HSeparator.new()
-	end_sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
-	vbox.add_child(end_sep)
-
-	_end_turn_btn = Button.new()
-	_end_turn_btn.text = "End Turn"
-	_end_turn_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_end_turn_btn.add_theme_font_size_override("font_size", 16)
-	_end_turn_btn.add_theme_color_override("font_color", Color(1.0, 0.55, 0.35))
-	_end_turn_btn.visible = false
-	_end_turn_btn.pressed.connect(func(): end_turn_pressed.emit())
-	vbox.add_child(_end_turn_btn)
 
 	# ── Supply flow ───────────────────────────────────────────────────────────
 	var flow_sep := HSeparator.new()
