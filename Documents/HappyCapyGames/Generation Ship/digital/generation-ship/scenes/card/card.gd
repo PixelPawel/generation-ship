@@ -11,7 +11,7 @@ const HOVER_DURATION := 0.15
 const PLACED_LIFT_HEIGHT: float = 1.3
 const PLACED_LIFT_SCALE: float = 1.0
 const PLACED_LIFT_DURATION: float = 0.35
-const PLACED_LIFT_CENTER_PULL: float = 0.12
+const PLACED_LIFT_CENTER_PULL: float = 0.7
 const DRAG_THRESHOLD_PX: float = 8.0
 # Landscape scale applied to mesh/collider children for sector cards (portrait dims swapped)
 const _LANDSCAPE_CHILD_SCALE := Vector3(0.88 / 0.63, 0.63 / 0.88, 1.0)
