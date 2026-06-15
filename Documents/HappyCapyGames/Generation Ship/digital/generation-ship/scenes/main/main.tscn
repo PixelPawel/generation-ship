@@ -15,6 +15,7 @@
 [ext_resource type="PackedScene" uid="uid://lr1fv7ps1enp" path="res://assets/3d/gs_ui_control.glb" id="16_ui_control"]
 [ext_resource type="PackedScene" uid="uid://bms2gw8qt2foq" path="res://assets/3d/gs_ui_info.glb" id="17_ui_info"]
 [ext_resource type="PackedScene" uid="uid://cnt3hx80usgpr" path="res://assets/3d/gs_ui_cockpit.glb" id="18_ui_cockpit"]
+[ext_resource type="PackedScene" uid="uid://c4s6l8t0r2e5" path="res://scenes/board/sector_slot.tscn" id="19_sector_slot"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 1
@@ -169,6 +170,21 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, -0.3)
 light_color = Color(0.55, 0.78, 1, 1)
 light_energy = 0.35
 omni_range = 0.8
+
+[node name="SectorSlot1" parent="." instance=ExtResource("19_sector_slot")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.0, 0.55, 0)
+
+[node name="SectorSlot2" parent="." instance=ExtResource("19_sector_slot")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.0, 0.55, 0)
+
+[node name="SectorSlot3" parent="." instance=ExtResource("19_sector_slot")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.55, 0)
+
+[node name="SectorSlot4" parent="." instance=ExtResource("19_sector_slot")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.0, 0.55, 0)
+
+[node name="SectorSlot5" parent="." instance=ExtResource("19_sector_slot")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.0, 0.55, 0)
 
 [node name="Board" parent="." unique_id=208449846 instance=ExtResource("3_board")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.09578419, 0.5534699, 0)
