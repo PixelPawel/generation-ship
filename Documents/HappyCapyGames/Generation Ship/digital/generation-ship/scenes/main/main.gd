@@ -501,6 +501,16 @@ func _setup_button_input(btn_mesh: MeshInstance3D, callback: Callable) -> void:
 			if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
 				callback.call()
 	)
+	area.mouse_entered.connect(func() -> void:
+		var mat: StandardMaterial3D = StandardMaterial3D.new()
+		mat.emission_enabled = true
+		mat.emission = Color(0.38, 0.80, 1.00)
+		mat.emission_energy_multiplier = 3.0
+		btn_mesh.set_surface_override_material(0, mat)
+	)
+	area.mouse_exited.connect(func() -> void:
+		btn_mesh.set_surface_override_material(0, null)
+	)
 
 func _forward_to_cs_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshInstance3D) -> void:
 	var local_pos: Vector3 = mesh.to_local(world_pos)
