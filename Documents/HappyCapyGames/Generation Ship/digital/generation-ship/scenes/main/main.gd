@@ -445,10 +445,21 @@ func _setup_control_screen_display() -> void:
 
 	var screen_mesh: MeshInstance3D = $UiControl.find_child("gs_ui_control_screen", true, false) as MeshInstance3D
 	if screen_mesh:
-		var mat := StandardMaterial3D.new()
-		mat.albedo_texture = _cs_viewport.get_texture()
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		var aabb: AABB = screen_mesh.mesh.get_aabb()
+		var shader: Shader = load("res://shaders/screen_display.gdshader") as Shader
+		var mat: ShaderMaterial = ShaderMaterial.new()
+		mat.shader = shader
+		mat.set_shader_parameter("viewport_tex", _cs_viewport.get_texture())
+		mat.set_shader_parameter("aabb_min", aabb.position)
+		mat.set_shader_parameter("aabb_max", aabb.position + aabb.size)
+		mat.set_shader_parameter("emission_strength", 1.3)
+		mat.set_shader_parameter("scanline_count", 120.0)
+		mat.set_shader_parameter("scanline_depth", 0.08)
+		mat.set_shader_parameter("vignette_strength", 0.35)
+		mat.set_shader_parameter("vignette_falloff", 3.0)
+		mat.set_shader_parameter("border_glow_width", 0.04)
+		mat.set_shader_parameter("border_glow_strength", 0.5)
+		mat.set_shader_parameter("border_glow_color", Vector3(0.18, 0.52, 0.90))
 		screen_mesh.set_surface_override_material(0, mat)
 		_setup_screen_input(screen_mesh)
 
@@ -503,28 +514,20 @@ func _setup_info_screen_display() -> void:
 	var screen_mesh: MeshInstance3D = $UiInfo.find_child("gs_ui_info_screen", true, false) as MeshInstance3D
 	if screen_mesh:
 		var aabb: AABB = screen_mesh.mesh.get_aabb()
-		var shader := Shader.new()
-		shader.code = """
-shader_type spatial;
-render_mode unshaded, blend_mix;
-uniform sampler2D viewport_tex : filter_linear;
-uniform vec3 aabb_min;
-uniform vec3 aabb_max;
-varying vec3 m;
-void vertex() { m = VERTEX; }
-void fragment() {
-	float u = (m.x - aabb_min.x) / (aabb_max.x - aabb_min.x);
-	float v = 1.0 - (m.y - aabb_min.y) / (aabb_max.y - aabb_min.y);
-	vec4 c = texture(viewport_tex, vec2(u, v));
-	ALBEDO = c.rgb;
-	ALPHA = c.a;
-}
-"""
-		var mat := ShaderMaterial.new()
+		var shader: Shader = load("res://shaders/screen_display.gdshader") as Shader
+		var mat: ShaderMaterial = ShaderMaterial.new()
 		mat.shader = shader
 		mat.set_shader_parameter("viewport_tex", _info_viewport.get_texture())
 		mat.set_shader_parameter("aabb_min", aabb.position)
 		mat.set_shader_parameter("aabb_max", aabb.position + aabb.size)
+		mat.set_shader_parameter("emission_strength", 1.3)
+		mat.set_shader_parameter("scanline_count", 60.0)
+		mat.set_shader_parameter("scanline_depth", 0.06)
+		mat.set_shader_parameter("vignette_strength", 0.25)
+		mat.set_shader_parameter("vignette_falloff", 2.5)
+		mat.set_shader_parameter("border_glow_width", 0.05)
+		mat.set_shader_parameter("border_glow_strength", 0.6)
+		mat.set_shader_parameter("border_glow_color", Vector3(0.18, 0.52, 0.90))
 		screen_mesh.set_surface_override_material(0, mat)
 		_setup_info_screen_input(screen_mesh)
 
