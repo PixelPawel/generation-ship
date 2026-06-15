@@ -42,10 +42,14 @@ func setup(sector_market: Node, expedition_market: Node) -> void:
 	_refresh()
 
 func _build_ui() -> void:
+	var panel: ScifiPanel = load("res://scenes/ui/scifi_panel.gd").new()
+	panel.set_content_margin(10)
+	add_child(panel)
+
 	var main_hbox := HBoxContainer.new()
 	main_hbox.add_theme_constant_override("separation", 14)
 	main_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	add_child(main_hbox)
+	panel.add_child(main_hbox)
 
 	# ── Sectors group ─────────────────────────────────────────────────────────
 	var sec_vbox := VBoxContainer.new()
