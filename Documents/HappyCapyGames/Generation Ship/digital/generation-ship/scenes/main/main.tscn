@@ -48,7 +48,7 @@ transform = Transform3D(1, 0, 0, 0, 0.9829353, 0.18395133, 0, -0.18395133, 0.982
 fov = 45.0
 
 [node name="Hand" parent="Camera3D" unique_id=1324524141 instance=ExtResource("4_hand")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.21, -1.8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.3, -1.8)
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=851628674]
 transform = Transform3D(0.86582476, -0.35365823, 0.3539399, 0, 0.7073883, 0.7068252, -0.5003475, -0.61198676, 0.6124742, -1.306828, 3.3837154, -0.5348977)
@@ -172,22 +172,22 @@ light_energy = 0.35
 omni_range = 0.8
 
 [node name="SectorSlot1" parent="." unique_id=506460163 instance=ExtResource("19_sector_slot")]
-transform = Transform3D(0.1, 0, 0, 0, 0.09397, 0.03420, 0, -0.03420, 0.09397, -0.375, 0.55, 0)
+transform = Transform3D(0.1, 0, 0, 0, 0.09396927, -0.034202017, 0, 0.034202017, 0.09396927, -0.35287103, 0.3322123, -0.34778282)
 
 [node name="SectorSlot2" parent="." unique_id=1242461016 instance=ExtResource("19_sector_slot")]
-transform = Transform3D(0.1, 0, 0, 0, 0.09397, 0.03420, 0, -0.03420, 0.09397, -0.225, 0.55, 0)
+transform = Transform3D(0.1, 0, 0, 0, 0.09396927, -0.034202017, 0, 0.034202017, 0.09396927, -0.20287102, 0.3322123, -0.34778282)
 
 [node name="SectorSlot3" parent="." unique_id=550041313 instance=ExtResource("19_sector_slot")]
-transform = Transform3D(0.1, 0, 0, 0, 0.09397, 0.03420, 0, -0.03420, 0.09397, -0.075, 0.55, 0)
+transform = Transform3D(0.1, 0, 0, 0, 0.09396927, -0.034202017, 0, 0.034202017, 0.09396927, -0.052871034, 0.3322123, -0.34778282)
 
 [node name="SectorSlot4" parent="." unique_id=97400633 instance=ExtResource("19_sector_slot")]
-transform = Transform3D(0.1, 0, 0, 0, 0.09397, 0.03420, 0, -0.03420, 0.09397, 0.075, 0.55, 0)
+transform = Transform3D(0.1, 0, 0, 0, 0.09396927, -0.034202017, 0, 0.034202017, 0.09396927, 0.09712897, 0.3322123, -0.34778282)
 
 [node name="SectorSlot5" parent="." unique_id=1240046444 instance=ExtResource("19_sector_slot")]
-transform = Transform3D(0.1, 0, 0, 0, 0.09397, 0.03420, 0, -0.03420, 0.09397, 0.225, 0.55, 0)
+transform = Transform3D(0.1, 0, 0, 0, 0.09396927, -0.034202017, 0, 0.034202017, 0.09396927, 0.24712896, 0.3322123, -0.34778282)
 
 [node name="SectorSlot6" parent="." unique_id=1532818503 instance=ExtResource("19_sector_slot")]
-transform = Transform3D(0.1, 0, 0, 0, 0.09397, 0.03420, 0, -0.03420, 0.09397, 0.375, 0.55, 0)
+transform = Transform3D(0.1, 0, 0, 0, 0.09396927, -0.034202017, 0, 0.034202017, 0.09396927, 0.39712897, 0.3322123, -0.34778282)
 
 [node name="Board" parent="." unique_id=208449846 instance=ExtResource("3_board")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.09578419, 0.5534699, 0)
