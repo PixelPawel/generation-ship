@@ -13,8 +13,11 @@ const PLACED_LIFT_SCALE: float = 3.0
 const PLACED_LIFT_DURATION: float = 0.35
 const PLACED_LIFT_CENTER_PULL: float = 0.7
 const DRAG_THRESHOLD_PX: float = 8.0
-# Landscape scale applied to mesh/collider children for sector cards (portrait dims swapped)
 const _LANDSCAPE_CHILD_SCALE := Vector3(0.88 / 0.63, 0.63 / 0.88, 1.0)
+
+const _TECH_GLB := preload("res://assets/3d/gs_card_tech.glb")
+const _SECTOR_GLB := preload("res://assets/3d/gs_card_sector.glb")
+const _EXPEDITION_GLB := preload("res://assets/3d/gs_card_expedition.glb")
 
 static var _elev_counter: int = 0
 static var _any_dragging: bool = false
@@ -36,6 +39,8 @@ var _placed_elevated: bool = false
 var _pending_url: String = ""
 var _drag_armed: bool = false
 var _drag_arm_pos: Vector2 = Vector2.ZERO
+var _card_glb: Node3D = null
+var _face_surface: MeshInstance3D = null
 
 @onready var card_mesh: MeshInstance3D = $CardMesh
 @onready var collider: Area3D = $Collider
@@ -52,6 +57,7 @@ func set_card_data(data: CardData) -> void:
 	card_data = data
 	if not data:
 		return
+	_instantiate_glb(data.card_type)
 	var is_landscape := (data.card_type == CardData.CardType.SECTOR)
 	var child_scale := _LANDSCAPE_CHILD_SCALE if is_landscape else Vector3.ONE
 	card_mesh.scale = child_scale
@@ -69,6 +75,23 @@ func set_card_data(data: CardData) -> void:
 	http.request_completed.connect(_on_texture_loaded.bind(url, http))
 	http.request(url)
 
+func _instantiate_glb(card_type: CardData.CardType) -> void:
+	if _card_glb:
+		_card_glb.queue_free()
+		_card_glb = null
+		_face_surface = null
+	var scene: PackedScene
+	match card_type:
+		CardData.CardType.TECH: scene = _TECH_GLB
+		CardData.CardType.SECTOR: scene = _SECTOR_GLB
+		CardData.CardType.EXPEDITION: scene = _EXPEDITION_GLB
+	if not scene:
+		return
+	_card_glb = scene.instantiate()
+	add_child(_card_glb)
+	card_mesh.visible = false
+	_face_surface = _card_glb.find_child("*screen_image*", true, false) as MeshInstance3D
+
 func _on_texture_loaded(_result: int, code: int, _headers: PackedStringArray, body: PackedByteArray, url: String, http: HTTPRequest) -> void:
 	http.queue_free()
 	if code != 200 or url != _pending_url:
@@ -84,6 +107,11 @@ func _apply_texture(tex: ImageTexture) -> void:
 	var mat := card_mesh.get_surface_override_material(0) as ShaderMaterial
 	if mat:
 		mat.set_shader_parameter("card_texture", tex)
+	if _face_surface:
+		var face_mat := StandardMaterial3D.new()
+		face_mat.albedo_texture = tex
+		face_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_face_surface.set_surface_override_material(0, face_mat)
 
 func _on_input_event(_camera: Node, event: InputEvent, _pos: Vector3, _normal: Vector3, _idx: int) -> void:
 	if not (event is InputEventMouseButton):
