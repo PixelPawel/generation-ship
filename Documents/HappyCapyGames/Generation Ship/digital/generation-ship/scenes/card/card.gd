@@ -88,9 +88,9 @@ func _instantiate_glb(card_type: CardData.CardType) -> void:
 	if not scene:
 		return
 	_card_glb = scene.instantiate()
-	add_child(_card_glb)
 	_card_glb.scale = Vector3(14.0, 14.0, 7.0)
-	card_mesh.visible = false
+	_card_glb.visible = false
+	add_child(_card_glb)
 	_face_surface = _card_glb.find_child("*screen_image*", true, false) as MeshInstance3D
 
 func _on_texture_loaded(_result: int, code: int, _headers: PackedStringArray, body: PackedByteArray, url: String, http: HTTPRequest) -> void:
@@ -224,6 +224,9 @@ func place() -> void:
 	is_dragging = false
 	_any_dragging = false
 	is_placed = true
+	if _card_glb:
+		_card_glb.visible = true
+		card_mesh.visible = false
 	_kill_tween()
 	_tween = create_tween()
 	_tween.tween_property(self, "scale", Vector3(1.12, 1.12, 1.12), 0.08).set_ease(Tween.EASE_OUT)
