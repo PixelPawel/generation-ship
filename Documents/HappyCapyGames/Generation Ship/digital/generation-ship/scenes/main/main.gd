@@ -877,6 +877,7 @@ func _get_public_snapshot() -> Dictionary:
 			if ts.get("occupied") and ts.get("placed_card") and ts.placed_card.card_data:
 				tech_names.append(ts.placed_card.card_data.card_name)
 		slot_info["tech_names"] = tech_names
+		slot_info["position"] = {"x": slot.global_position.x, "z": slot.global_position.z}
 		slot_snaps.append(slot_info)
 	var vp_lines: Array[Dictionary] = $Board.calculate_score()
 	var total_vp: int = 0

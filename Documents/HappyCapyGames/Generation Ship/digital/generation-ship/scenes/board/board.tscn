@@ -57,22 +57,3 @@ visible = false
 script = ExtResource("7_recycle_script")
 
 [node name="SectorRow" type="Node3D" parent="." unique_id=810395456]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.54108864, 0, 0)
-
-[node name="Slot0" parent="SectorRow" unique_id=795960939 instance=ExtResource("2_slot")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.425, 0.01, 0.5)
-
-[node name="Slot1" parent="SectorRow" unique_id=1457015639 instance=ExtResource("2_slot")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.455, 0.01, 0.5)
-
-[node name="Slot2" parent="SectorRow" unique_id=546237263 instance=ExtResource("2_slot")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.485, 0.01, 0.5)
-
-[node name="Slot3" parent="SectorRow" unique_id=277592649 instance=ExtResource("2_slot")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.485, 0.01, 0.5)
-
-[node name="Slot4" parent="SectorRow" unique_id=722473491 instance=ExtResource("2_slot")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.455, 0.01, 0.5)
-
-[node name="Slot5" parent="SectorRow" unique_id=1650898782 instance=ExtResource("2_slot")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.425, 0.01, 0.5)

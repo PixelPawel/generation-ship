@@ -10,6 +10,8 @@ const DISCARD_RADIUS := 0.65
 const PENDING_HOVER_Y := 0.5
 const TECH_ZONE_Z_FRONT := 0.5
 const TECH_ZONE_Z_BACK := 2.8
+const MIN_SLOT_DISTANCE := 0.9
+const _SLOT_SCENE := preload("res://scenes/board/sector_slot.tscn")
 
 signal card_recycled(supply_color: CardData.SupplyColor)
 signal major_action_changed(taken: bool)
@@ -47,6 +49,8 @@ var _pending_drag_origin: DragOrigin = DragOrigin.NONE
 var _pending_cost: int = 0
 var _is_free_gain: bool = false
 var _is_auction_win: bool = false
+var _pending_dynamic_slot: SectorSlot = null
+var _pending_drop_pos: Vector3 = Vector3.ZERO
 @onready var _sector_row: Node3D = $SectorRow
 @onready var _market: Node3D = $SectorMarket
 @onready var _expedition_market: Node3D = $ExpeditionMarket
@@ -531,19 +535,27 @@ func _do_recycle() -> void:
 		_discard_pile.add_discard(card.card_data)
 	card.queue_free()
 
-func _find_nearest_free_slot() -> SectorSlot:
-	var best: SectorSlot = null
-	var best_dist: float = DROP_RADIUS
+func _try_capture_drop_pos() -> bool:
+	var pos: Vector3 = _dragged_card.global_position
 	for slot: SectorSlot in _sector_row.get_children():
-		if slot.occupied or not slot.is_available:
-			continue
-		var dx: float = _dragged_card.global_position.x - slot.global_position.x
-		var dz: float = _dragged_card.global_position.z - slot.global_position.z
-		var d: float = sqrt(dx * dx + dz * dz)
-		if d < best_dist:
-			best_dist = d
-			best = slot
-	return best
+		var dx: float = pos.x - slot.global_position.x
+		var dz: float = pos.z - slot.global_position.z
+		if sqrt(dx * dx + dz * dz) < MIN_SLOT_DISTANCE:
+			return false
+	_pending_drop_pos = pos
+	return true
+
+func _spawn_slot_at_pos(pos: Vector3) -> SectorSlot:
+	var slot: SectorSlot = _SLOT_SCENE.instantiate() as SectorSlot
+	_sector_row.add_child(slot)
+	slot.global_position = Vector3(pos.x, 0.01, pos.z)
+	slot.slot_clicked.connect(_on_sector_slot_clicked)
+	return slot
+
+func _cleanup_pending_dynamic_slot() -> void:
+	if is_instance_valid(_pending_dynamic_slot) and not _pending_dynamic_slot.occupied:
+		_pending_dynamic_slot.queue_free()
+	_pending_dynamic_slot = null
 
 func _find_nearest_tech_slot() -> SectorSlot:
 	var best: SectorSlot = null
@@ -585,51 +597,53 @@ func _resolve_card_payment(placed: Node3D, slot: SectorSlot, is_tech: bool) -> b
 	return true
 
 func _try_drop_sector() -> void:
-	var best_slot: SectorSlot = _find_nearest_free_slot()
-	if not best_slot:
+	if not _try_capture_drop_pos():
 		_handle_failed_drop()
 		return
+	var drop_pos: Vector3 = _pending_drop_pos
 	if _is_free_gain:
+		var slot: SectorSlot = _spawn_slot_at_pos(drop_pos)
 		var placed: Node3D = _dragged_card
 		_dragged_card = null
 		_drag_origin = DragOrigin.NONE
 		_is_free_gain = false
 		action_committed.emit()
-		best_slot.accept_card(placed)
+		slot.accept_card(placed)
 		placed.place()
-		_refresh_slot_availability()
-		card_placed.emit(placed, best_slot)
+		card_placed.emit(placed, slot)
 		if placed.card_data:
 			market_card_taken.emit(placed.card_data)
 		market_drag_resolved.emit()
 		return
 	if _is_auction_win:
+		var slot: SectorSlot = _spawn_slot_at_pos(drop_pos)
 		var placed: Node3D = _dragged_card
 		_dragged_card = null
 		_drag_origin = DragOrigin.NONE
 		_is_auction_win = false
-		best_slot.accept_card(placed)
+		slot.accept_card(placed)
 		placed.place()
-		_refresh_slot_availability()
-		card_placed.emit(placed, best_slot)
+		card_placed.emit(placed, slot)
 		if placed.card_data:
 			market_card_taken.emit(placed.card_data)
 		market_drag_resolved.emit()
 		return
+	var slot: SectorSlot = _spawn_slot_at_pos(drop_pos)
+	_pending_dynamic_slot = slot
 	if _should_bid(_dragged_card):
-		_start_bid(_dragged_card, best_slot, false)
+		_start_bid(_dragged_card, slot, false)
 		return
 	var placed: Node3D = _dragged_card
 	var origin: DragOrigin = _drag_origin
 	var cd: CardData = placed.card_data
-	if not _resolve_card_payment(placed, best_slot, false):
+	if not _resolve_card_payment(placed, slot, false):
 		return
+	_pending_dynamic_slot = null
 	_dragged_card = null
 	_drag_origin = DragOrigin.NONE
-	best_slot.accept_card(placed)
+	slot.accept_card(placed)
 	placed.place()
-	_refresh_slot_availability()
-	card_placed.emit(placed, best_slot)
+	card_placed.emit(placed, slot)
 	if origin == DragOrigin.MARKET and cd:
 		market_card_taken.emit(cd)
 	market_drag_resolved.emit()
@@ -706,6 +720,7 @@ func _start_bid(card: Node3D, slot: Node3D, is_tech: bool) -> void:
 func complete_purchase() -> void:
 	if not _pending_card or not _pending_slot:
 		return
+	_pending_dynamic_slot = null
 	set_major_action_taken()
 	var card: Node3D = _pending_card
 	var slot: Node3D = _pending_slot
@@ -808,6 +823,7 @@ func forfeit_purchase() -> void:
 func _end_pending_purchase(return_to_market: bool) -> void:
 	if not _pending_card:
 		return
+	_cleanup_pending_dynamic_slot()
 	var card: Node3D = _pending_card
 	_pending_card = null
 	_pending_slot = null
@@ -889,6 +905,7 @@ func confirm_payment_with_allocations(allocations: Dictionary) -> void:
 func confirm_payment() -> void:
 	if not _pending_card or not _pending_slot:
 		return
+	_pending_dynamic_slot = null
 	var card: Node3D = _pending_card
 	var slot: SectorSlot = _pending_slot as SectorSlot
 	var is_tech: bool = _pending_is_tech
@@ -924,6 +941,7 @@ func confirm_payment() -> void:
 func cancel_payment_confirm() -> void:
 	if not _pending_card:
 		return
+	_cleanup_pending_dynamic_slot()
 	var card: Node3D = _pending_card
 	var origin: DragOrigin = _pending_drag_origin
 	_pending_card = null
@@ -949,29 +967,15 @@ func restore_visual_from_public_snapshot(snap: Dictionary) -> void:
 	var supply: Dictionary = snap.get("supply", {})
 	for color: CardData.SupplyColor in CardData.SupplyColor.values():
 		_supply_ui.set_supply(color, supply.get(int(color), 0))
-	var slot_nodes: Array = _sector_row.get_children()
+	for old_slot: SectorSlot in _sector_row.get_children().duplicate():
+		_sector_row.remove_child(old_slot)
+		old_slot.queue_free()
 	var slots: Array = snap.get("slots", [])
-	for i: int in slot_nodes.size():
-		var slot: SectorSlot = slot_nodes[i] as SectorSlot
-		for card: Node3D in slot.get_all_placed_cards():
-			card.queue_free()
-		for ts: Node3D in slot._tech_slots:
-			ts.set("occupied", false)
-			ts.set("placed_card", null)
-		slot.occupied = false
-		slot.placed_card = null
-		slot.optimize_count = 0
-		slot.max_optimizations = 1
-		slot.is_optimized = false
-		slot.triggered_levels = []
-		slot.last_placed_tech_cost = 0
-		slot.refresh_display()
-		slot.highlight(false)
-		if i >= slots.size():
-			continue
-		var s: Dictionary = slots[i]
+	for s: Dictionary in slots:
 		if not s.get("occupied", false):
 			continue
+		var pos: Dictionary = s.get("position", {})
+		var slot: SectorSlot = _spawn_slot_at_pos(Vector3(pos.get("x", 0.0), 0.0, pos.get("z", 0.5)))
 		var sector_name: String = s.get("sector_name", "")
 		var is_adv: bool = s.get("sector_advanced", false)
 		var sec_data: CardData = _find_sector_by_name(sector_name, is_adv)
@@ -996,7 +1000,6 @@ func restore_visual_from_public_snapshot(snap: Dictionary) -> void:
 				tech_card.set_card_data(tech_data)
 				slot.accept_tech_card(tech_card)
 				tech_card.place()
-	_refresh_slot_availability()
 
 func _find_sector_by_name(sec_name: String, is_adv: bool) -> CardData:
 	for cd: CardData in CardDatabase.sectors:
@@ -1037,6 +1040,7 @@ func get_snapshot() -> Dictionary:
 				tech_data.append(ts.placed_card.card_data as CardData)
 		slots_snap.append({
 			"occupied": slot.occupied,
+			"position": {"x": slot.global_position.x, "z": slot.global_position.z},
 			"sector_data": slot.placed_card.card_data if slot.placed_card else null,
 			"sector_advanced": bool(slot.placed_card.get("is_advanced")) if slot.placed_card else false,
 			"optimize_count": slot.optimize_count,
@@ -1092,30 +1096,18 @@ func restore_from_snapshot(snap: Dictionary) -> void:
 						_market.return_card(restored)
 				else:
 					restored.queue_free()
-	var slot_nodes: Array = _sector_row.get_children()
-	for i: int in snap["slots"].size():
-		if i >= slot_nodes.size():
-			break
-		var slot: SectorSlot = slot_nodes[i] as SectorSlot
-		var slot_snap: Dictionary = snap["slots"][i]
-		for card: Node3D in slot.get_all_placed_cards():
-			card.queue_free()
-		for ts: Node3D in slot._tech_slots:
-			ts.set("occupied", false)
-			ts.set("placed_card", null)
-		slot.occupied = false
-		slot.placed_card = null
+	for old_slot: SectorSlot in _sector_row.get_children().duplicate():
+		_sector_row.remove_child(old_slot)
+		old_slot.queue_free()
+	for slot_snap: Dictionary in snap["slots"]:
+		if not slot_snap["occupied"]:
+			continue
+		var pos: Dictionary = slot_snap.get("position", {})
+		var slot: SectorSlot = _spawn_slot_at_pos(Vector3(pos.get("x", 0.0), 0.0, pos.get("z", 0.5)))
 		slot.tucked_cards = slot_snap["tucked_cards"]
 		slot.stored_supply = slot_snap["stored_supply"]
 		slot.refresh_display()
 		slot.highlight(false)
-		if not slot_snap["occupied"]:
-			slot.optimize_count = 0
-			slot.max_optimizations = 1
-			slot.is_optimized = false
-			slot.triggered_levels = []
-			slot.last_placed_tech_cost = 0
-			continue
 		var sec_data: CardData = slot_snap["sector_data"] as CardData
 		if sec_data:
 			var sec_card: Node3D = _card_scene.instantiate()
@@ -1148,7 +1140,6 @@ func restore_from_snapshot(snap: Dictionary) -> void:
 			for j: int in slot.optimize_count:
 				if j < slot.triggered_levels.size():
 					slot.triggered_levels[j] = true
-	_refresh_slot_availability()
 
 func _update_optimize_state(slot: SectorSlot) -> Array[int]:
 	var triggered: Array[int] = []
@@ -1221,6 +1212,7 @@ func _satisfies_optimize(placed: Array[int], required: Array[int]) -> bool:
 	return total_remaining >= any_needed
 
 func _handle_failed_drop() -> void:
+	_cleanup_pending_dynamic_slot()
 	var card: Node3D = _dragged_card
 	var origin: DragOrigin = _drag_origin
 	var start_pos: Vector3 = _drag_start_global_pos
@@ -1249,15 +1241,7 @@ func _handle_failed_drop() -> void:
 			)
 
 func _refresh_slot_availability() -> void:
-	var leftmost: SectorSlot = null
-	for slot: SectorSlot in _sector_row.get_children():
-		if slot.occupied:
-			continue
-		if leftmost == null or slot.global_position.x < leftmost.global_position.x:
-			leftmost = slot
-	for slot: SectorSlot in _sector_row.get_children():
-		if not slot.occupied:
-			slot.set_available(slot == leftmost)
+	pass
 
 func _update_slot_highlights() -> void:
 	if _discard_pile:
