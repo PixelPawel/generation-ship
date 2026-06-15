@@ -8,8 +8,8 @@ signal right_clicked(card: Node3D)
 
 const HOVER_HEIGHT := 0.15
 const HOVER_DURATION := 0.15
-const PLACED_LIFT_HEIGHT: float = 0.70
-const PLACED_LIFT_SCALE: float = 1.6
+const PLACED_LIFT_HEIGHT: float = 1.3
+const PLACED_LIFT_SCALE: float = 1.0
 const PLACED_LIFT_DURATION: float = 0.35
 const PLACED_LIFT_CENTER_PULL: float = 0.12
 const DRAG_THRESHOLD_PX: float = 8.0
