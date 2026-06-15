@@ -2,16 +2,15 @@
 
 [ext_resource type="Script" uid="uid://caorpx83a0nea" path="res://scenes/main/main.gd" id="1_main_script"]
 [ext_resource type="PackedScene" uid="uid://c7lam3p5r8t2v" path="res://scenes/card/card.tscn" id="2_card"]
-[ext_resource type="PackedScene" uid="uid://b8o4r2d6s1c3" path="res://scenes/board/board.tscn" id="3_board"]
 [ext_resource type="PackedScene" uid="uid://3cx7or3vue0" path="res://scenes/hand/hand.tscn" id="4_hand"]
 [ext_resource type="Script" uid="uid://cmkd8e0vxrdss" path="res://scenes/ui/supply_ui.gd" id="5_supply_ui"]
 [ext_resource type="Script" uid="uid://ci3j3t2v7i38k" path="res://scenes/ui/scoreboard.gd" id="6_scoreboard"]
 [ext_resource type="Script" uid="uid://cskw62jg3e32u" path="res://scenes/ui/bid_popup.gd" id="7_bid_popup"]
 [ext_resource type="Script" uid="uid://dabxlmwrri6bs" path="res://scenes/ui/payment_panel.gd" id="8_payment_panel"]
 [ext_resource type="Script" uid="uid://ct67cx1lxa08t" path="res://scenes/ui/pause_menu.gd" id="9_pause_menu"]
+[ext_resource type="PackedScene" uid="uid://b8o4r2d6s1c3" path="res://scenes/board/board.tscn" id="3_board"]
 [ext_resource type="PackedScene" uid="uid://6v2woolbvln4" path="res://assets/3d/gs_controlscreen.glb" id="10_controlscreen"]
 [ext_resource type="PackedScene" uid="uid://cp80uw33c77bk" path="res://assets/3d/gs_enemyscreen.glb" id="11_enemyscreen"]
-[ext_resource type="PackedScene" uid="uid://dw3x70a0ab5cd" path="res://assets/3d/gs_card_silver.glb" id="12_card_silver"]
 [ext_resource type="PackedScene" uid="uid://blam2n4p7q1rs" path="res://assets/3d/gs_card_sector.glb" id="13_card_sector"]
 [ext_resource type="PackedScene" uid="uid://cx4t8v2wb6yde" path="res://assets/3d/gs_card_tech.glb" id="14_card_tech"]
 [ext_resource type="PackedScene" uid="uid://df5vaw3xc70eg" path="res://assets/3d/gs_card_expedition.glb" id="15_card_expedition"]
@@ -140,31 +139,29 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("9_pause_menu")
 
+[node name="CardSector" parent="." unique_id=483029567 instance=ExtResource("13_card_sector")]
+transform = Transform3D(5, 0, 0, 0, -2.1855695e-07, 5, 0, -5, -2.1855695e-07, -1.4451779, 1.9, 0.263)
+
+[node name="CardTech" parent="." unique_id=594130678 instance=ExtResource("14_card_tech")]
+transform = Transform3D(5, 0, 0, 0, -2.1855695e-07, 5, 0, -5, -2.1855695e-07, -2.173087, 1.8998078, 0.24963361)
+
+[node name="CardExpedition" parent="." unique_id=605241789 instance=ExtResource("15_card_expedition")]
+transform = Transform3D(5, 0, 0, 0, -2.1855695e-07, 5, 0, -5, -2.1855695e-07, -1.819, 1.9, 0.222)
+
+[node name="UiControl" parent="." unique_id=716352890 instance=ExtResource("16_ui_control")]
+transform = Transform3D(-1.3113416e-07, 3, -5.2453668e-08, 0, -1.3113416e-07, -1.2, -3, -1.3113416e-07, 2.2928227e-15, -1.3187476, 2.943, -0.461)
+
+[node name="UiInfo" parent="." unique_id=827463901 instance=ExtResource("17_ui_info")]
+transform = Transform3D(-1.3113416e-07, -3, 2.6226834e-08, 0, -1.3113416e-07, -0.6, 3, -1.3113416e-07, 1.1464113e-15, -1.142537, 2.9434347, -0.46094725)
+
+[node name="UiCockpit" parent="." unique_id=938574012 instance=ExtResource("18_ui_cockpit")]
+transform = Transform3D(2, 0, 0, 0, -8.742278e-08, 2, 0, -2, -8.742278e-08, -1.33, 3.072432, -0.4407955)
+
 [node name="ControlScreen" parent="." unique_id=729384651 instance=ExtResource("10_controlscreen")]
 transform = Transform3D(2.3, 0, 0, 0, -1.0053619e-07, 2.3, 0, -2.3, -1.0053619e-07, -5.529818, 0.5787746, 0.20107874)
 
 [node name="EnemyScreen" parent="." unique_id=632058003 instance=ExtResource("11_enemyscreen")]
 transform = Transform3D(-2.3, -2.0107238e-07, 8.789153e-15, 0, -1.0053619e-07, -2.3, 2.0107238e-07, -2.3, 1.0053619e-07, 2.865721, 0.5787746, -1.949564)
-
-[node name="CardSilver" parent="." unique_id=372918456 instance=ExtResource("12_card_silver")]
-transform = Transform3D(10, 0, 0, 0, -4.371139e-07, 10, 0, -10, -4.371139e-07, -2.3268158, 1.0272608, -0.24012253)
-
-[node name="CardSector" parent="." unique_id=483029567 instance=ExtResource("13_card_sector")]
-transform = Transform3D(9.879993, 0, 0, 0, -4.3186824e-07, 9.879993, 0, -9.879993, -4.3186824e-07, -0.6006321, 0.99794567, 0.096)
-
-[node name="CardTech" parent="." unique_id=594130678 instance=ExtResource("14_card_tech")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5534699, 0)
-
-[node name="CardExpedition" parent="." unique_id=605241789 instance=ExtResource("15_card_expedition")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5534699, 0)
-
-[node name="UiControl" parent="." unique_id=716352890 instance=ExtResource("16_ui_control")]
-transform = Transform3D(1.1924881e-07, -10, 4.371139e-07, 0, -4.371139e-07, -10, 10, 1.1924881e-07, -5.2125306e-15, -2.0242474, 2.035307, 0.81629825)
-
-[node name="UiInfo" parent="." unique_id=827463901 instance=ExtResource("17_ui_info")]
-
-[node name="UiCockpit" parent="." unique_id=938574012 instance=ExtResource("18_ui_cockpit")]
-transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0.81977475, 2.7757294, 0.43679953)
 
 [node name="Board" parent="." unique_id=208449846 instance=ExtResource("3_board")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.09578419, 0.5534699, 0)
