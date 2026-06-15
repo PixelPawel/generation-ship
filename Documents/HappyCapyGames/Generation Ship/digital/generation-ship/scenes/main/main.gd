@@ -228,6 +228,14 @@ func _ready() -> void:
 	_opponents_btn.pressed.connect(_on_opponents_btn_pressed)
 	$UILayer.add_child(_opponents_btn)
 
+	_wire_sector_slots_to_board()
+
+func _wire_sector_slots_to_board() -> void:
+	for i: int in 6:
+		var slot: SectorSlot = get_node_or_null("SectorSlot" + str(i + 1)) as SectorSlot
+		if slot:
+			$Board.add_sector_slot(slot)
+
 func _build_opponent_widget() -> void:
 	if _opp_widget:
 		_opp_widget.queue_free()

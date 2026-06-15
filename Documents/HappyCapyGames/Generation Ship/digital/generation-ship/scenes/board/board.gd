@@ -1,16 +1,16 @@
 extends Node3D
 
 const DRAG_Y := 0.55
-const HAND_CARD_SCALE := 0.56
+const HAND_CARD_SCALE := 0.392
 const TECH_BACK_URL := "https://generationship.s3.eu-central-1.amazonaws.com/TTS/Tech/GS+Techs+44x67mm138.png"
 const EXPEDITION_BACK_URL := "https://generationship.s3.eu-central-1.amazonaws.com/TTS/Expedition/GS+Expeditions++44x67mm27.png"
-const DROP_RADIUS := 0.5
-const TECH_COLUMN_HALF_X := 0.5
+const DROP_RADIUS := 0.075
+const TECH_COLUMN_HALF_X := 0.07
 const DISCARD_RADIUS := 0.65
-const PENDING_HOVER_Y := 0.5
-const TECH_ZONE_Z_FRONT := 0.5
-const TECH_ZONE_Z_BACK := 2.8
-const MIN_SLOT_DISTANCE := 0.9
+const PENDING_HOVER_Y := 0.05
+const TECH_ZONE_Z_FRONT := 0.05
+const TECH_ZONE_Z_BACK := 0.28
+const MIN_SLOT_DISTANCE := 0.075
 const _SLOT_SCENE := preload("res://scenes/board/sector_slot.tscn")
 
 signal card_recycled(supply_color: CardData.SupplyColor)
@@ -68,6 +68,26 @@ func _ready() -> void:
 
 func _on_sector_slot_clicked(slot: SectorSlot) -> void:
 	sector_info_requested.emit(slot)
+
+func add_sector_slot(slot: SectorSlot) -> void:
+	slot.reparent(_sector_row, true)
+	if not slot.slot_clicked.is_connected(_on_sector_slot_clicked):
+		slot.slot_clicked.connect(_on_sector_slot_clicked)
+
+func _find_nearest_empty_sector_slot() -> SectorSlot:
+	var pos: Vector3 = _dragged_card.global_position
+	var best: SectorSlot = null
+	var best_dist: float = DROP_RADIUS
+	for slot: SectorSlot in _sector_row.get_children():
+		if slot.occupied or not slot.is_available:
+			continue
+		var dx: float = pos.x - slot.global_position.x
+		var dz: float = pos.z - slot.global_position.z
+		var dist: float = sqrt(dx * dx + dz * dz)
+		if dist < best_dist:
+			best_dist = dist
+			best = slot
+	return best
 
 func set_card_scene(scene: PackedScene) -> void:
 	_card_scene = scene
@@ -538,6 +558,8 @@ func _do_recycle() -> void:
 func _try_capture_drop_pos() -> bool:
 	var pos: Vector3 = _dragged_card.global_position
 	for slot: SectorSlot in _sector_row.get_children():
+		if not slot.occupied:
+			continue
 		var dx: float = pos.x - slot.global_position.x
 		var dz: float = pos.z - slot.global_position.z
 		if sqrt(dx * dx + dz * dz) < MIN_SLOT_DISTANCE:
@@ -548,7 +570,8 @@ func _try_capture_drop_pos() -> bool:
 func _spawn_slot_at_pos(pos: Vector3) -> SectorSlot:
 	var slot: SectorSlot = _SLOT_SCENE.instantiate() as SectorSlot
 	_sector_row.add_child(slot)
-	slot.global_position = Vector3(pos.x, 0.01, pos.z)
+	slot.global_position = Vector3(pos.x, DRAG_Y, pos.z)
+	slot.scale = Vector3(0.1, 0.1, 0.1)
 	slot.slot_clicked.connect(_on_sector_slot_clicked)
 	return slot
 
@@ -597,53 +620,54 @@ func _resolve_card_payment(placed: Node3D, slot: SectorSlot, is_tech: bool) -> b
 	return true
 
 func _try_drop_sector() -> void:
-	if not _try_capture_drop_pos():
-		_handle_failed_drop()
-		return
-	var drop_pos: Vector3 = _pending_drop_pos
+	var target_slot: SectorSlot = _find_nearest_empty_sector_slot()
+	var is_new_slot: bool = false
+	if not target_slot:
+		if not _try_capture_drop_pos():
+			_handle_failed_drop()
+			return
+		target_slot = _spawn_slot_at_pos(_pending_drop_pos)
+		is_new_slot = true
 	if _is_free_gain:
-		var slot: SectorSlot = _spawn_slot_at_pos(drop_pos)
 		var placed: Node3D = _dragged_card
 		_dragged_card = null
 		_drag_origin = DragOrigin.NONE
 		_is_free_gain = false
 		action_committed.emit()
-		slot.accept_card(placed)
+		target_slot.accept_card(placed)
 		placed.place()
-		card_placed.emit(placed, slot)
+		card_placed.emit(placed, target_slot)
 		if placed.card_data:
 			market_card_taken.emit(placed.card_data)
 		market_drag_resolved.emit()
 		return
 	if _is_auction_win:
-		var slot: SectorSlot = _spawn_slot_at_pos(drop_pos)
 		var placed: Node3D = _dragged_card
 		_dragged_card = null
 		_drag_origin = DragOrigin.NONE
 		_is_auction_win = false
-		slot.accept_card(placed)
+		target_slot.accept_card(placed)
 		placed.place()
-		card_placed.emit(placed, slot)
+		card_placed.emit(placed, target_slot)
 		if placed.card_data:
 			market_card_taken.emit(placed.card_data)
 		market_drag_resolved.emit()
 		return
-	var slot: SectorSlot = _spawn_slot_at_pos(drop_pos)
-	_pending_dynamic_slot = slot
+	_pending_dynamic_slot = target_slot if is_new_slot else null
 	if _should_bid(_dragged_card):
-		_start_bid(_dragged_card, slot, false)
+		_start_bid(_dragged_card, target_slot, false)
 		return
 	var placed: Node3D = _dragged_card
 	var origin: DragOrigin = _drag_origin
 	var cd: CardData = placed.card_data
-	if not _resolve_card_payment(placed, slot, false):
+	if not _resolve_card_payment(placed, target_slot, false):
 		return
 	_pending_dynamic_slot = null
 	_dragged_card = null
 	_drag_origin = DragOrigin.NONE
-	slot.accept_card(placed)
+	target_slot.accept_card(placed)
 	placed.place()
-	card_placed.emit(placed, slot)
+	card_placed.emit(placed, target_slot)
 	if origin == DragOrigin.MARKET and cd:
 		market_card_taken.emit(cd)
 	market_drag_resolved.emit()
