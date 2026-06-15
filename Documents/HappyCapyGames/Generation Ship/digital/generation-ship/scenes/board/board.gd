@@ -518,7 +518,8 @@ func _begin_drag(card: Node3D) -> void:
 		card.visible = false
 		_is_arrow_drag = true
 		var cam: Camera3D = get_viewport().get_camera_3d()
-		var from_2d: Vector2 = cam.unproject_position(_drag_start_global_pos)
+		var from_3d: Vector3 = _hand.global_position if _hand else _drag_start_global_pos
+		var from_2d: Vector2 = cam.unproject_position(from_3d)
 		_drag_arrow.show_arrow(from_2d, from_2d)
 
 func _process(_delta: float) -> void:
