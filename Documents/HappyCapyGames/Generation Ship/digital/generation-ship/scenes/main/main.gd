@@ -434,6 +434,8 @@ func _on_cache_ready() -> void:
 		$UILayer/StartButton.show()
 
 func _setup_control_screen_display() -> void:
+	if not get_node_or_null("ControlScreen"):
+		return
 	_cs_viewport = SubViewport.new()
 	_cs_viewport.size = Vector2i(360, 460)
 	_cs_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -502,6 +504,8 @@ func _forward_to_cs_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshIn
 		_cs_viewport.push_input(mb, true)
 
 func _setup_enemy_screen_display() -> void:
+	if not get_node_or_null("EnemyScreen"):
+		return
 	_es_viewport = SubViewport.new()
 	_es_viewport.size = Vector2i(360, 460)
 	_es_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
