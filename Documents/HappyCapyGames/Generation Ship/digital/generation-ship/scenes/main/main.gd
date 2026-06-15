@@ -622,6 +622,12 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	$UILayer/StartButton.hide()
 	$ControlScreen/AnimationPlayer.play("cs_open")
 	_control_screen_open = true
+	var ui_control_anim := $UiControl.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if ui_control_anim:
+		ui_control_anim.play("Animation")
+	var ui_info_anim := $UiInfo.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if ui_info_anim:
+		ui_info_anim.play("Animation")
 	if GameNetwork.is_multiplayer:
 		_opponents_btn.show()
 	_round = 1
