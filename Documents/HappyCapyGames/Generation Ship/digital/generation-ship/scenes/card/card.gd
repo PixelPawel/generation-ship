@@ -29,6 +29,7 @@ var is_advanced := false
 var card_data: CardData = null
 var _elev_rest_pos: Vector3 = Vector3.ZERO
 var _elev_rest_scale: Vector3 = Vector3.ONE
+var _elev_rest_rotation: Vector3 = Vector3.ZERO
 var _elev_rest_sort_order: float = 0.0
 var _tween: Tween
 var _placed_elevated: bool = false
@@ -132,12 +133,14 @@ func toggle_elevation(elev_pos: Vector3, elev_scale: Vector3, grace_sec: float) 
 		_collapse_elevation()
 		return
 	_elev_rest_sort_order = card_mesh.sorting_offset
+	_elev_rest_rotation = rotation
 	_elev_counter += 1
 	set_sort_order(float(_elev_counter))
 	_kill_tween()
 	_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	_tween.tween_property(self, "position", elev_pos, PLACED_LIFT_DURATION)
 	_tween.parallel().tween_property(self, "scale", elev_scale, PLACED_LIFT_DURATION)
+	_tween.parallel().tween_property(self, "rotation", Vector3(rotation.x, deg_to_rad(-90.0), rotation.z), PLACED_LIFT_DURATION)
 	_placed_elevated = true
 	if grace_sec > 0.0:
 		get_tree().create_timer(grace_sec).timeout.connect(func() -> void:
@@ -152,6 +155,7 @@ func _collapse_elevation() -> void:
 	_tween = create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
 	_tween.tween_property(self, "position", _elev_rest_pos, PLACED_LIFT_DURATION)
 	_tween.parallel().tween_property(self, "scale", _elev_rest_scale, PLACED_LIFT_DURATION)
+	_tween.parallel().tween_property(self, "rotation", _elev_rest_rotation, PLACED_LIFT_DURATION)
 
 func set_discount_glow(active: bool) -> void:
 	var mat: ShaderMaterial = card_mesh.get_surface_override_material(0) as ShaderMaterial
