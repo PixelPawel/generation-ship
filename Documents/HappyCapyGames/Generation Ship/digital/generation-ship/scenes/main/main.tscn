@@ -50,6 +50,13 @@ fov = 45.0
 [node name="Hand" parent="Camera3D" unique_id=1324524141 instance=ExtResource("4_hand")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.60, -1.8)
 
+[node name="HandLight" type="OmniLight3D" parent="Camera3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2, -1.6)
+light_color = Color(0.9, 0.93, 1.0, 1)
+light_energy = 1.2
+omni_range = 1.0
+shadow_enabled = false
+
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=851628674]
 transform = Transform3D(0.99871933, 0.050592948, 0, -0.05059294, 0.99871945, 0, 0, 0, 0.99999994, 0, 0.865, 0)
 light_energy = 1.4
