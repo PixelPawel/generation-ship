@@ -89,6 +89,7 @@ func _instantiate_glb(card_type: CardData.CardType) -> void:
 		return
 	_card_glb = scene.instantiate()
 	add_child(_card_glb)
+	_card_glb.scale = Vector3(3.0, 3.0, 1.5)
 	card_mesh.visible = false
 	_face_surface = _card_glb.find_child("*screen_image*", true, false) as MeshInstance3D
 
