@@ -51,6 +51,8 @@ var _is_free_gain: bool = false
 var _is_auction_win: bool = false
 var _pending_dynamic_slot: SectorSlot = null
 var _pending_drop_pos: Vector3 = Vector3.ZERO
+var _drag_arrow: DragArrow = null
+var _is_arrow_drag: bool = false
 @onready var _sector_row: Node3D = $SectorRow
 @onready var _market: Node3D = $SectorMarket
 @onready var _expedition_market: Node3D = $ExpeditionMarket
@@ -65,6 +67,11 @@ func _ready() -> void:
 	_market.position.x += 15.0
 	_expedition_market.position.x += 15.0
 	call_deferred("_refresh_slot_availability")
+	var arrow_canvas: CanvasLayer = CanvasLayer.new()
+	arrow_canvas.layer = 10
+	add_child(arrow_canvas)
+	_drag_arrow = DragArrow.new()
+	arrow_canvas.add_child(_drag_arrow)
 
 func _on_sector_slot_clicked(slot: SectorSlot) -> void:
 	sector_info_requested.emit(slot)
@@ -507,6 +514,14 @@ func _begin_drag(card: Node3D) -> void:
 	card.reparent(self, true)
 	if _drag_origin == DragOrigin.MARKET:
 		market_drag_started.emit(card)
+	if _is_sector_card() and _drag_origin == DragOrigin.HAND and _drag_arrow != null:
+		card.visible = false
+		_is_arrow_drag = true
+		var cam: Camera3D = get_viewport().get_camera_3d()
+		var from_2d: Vector2 = cam.unproject_position(_drag_start_global_pos)
+		_drag_arrow.show_arrow(from_2d, from_2d)
+		return
+	_is_arrow_drag = false
 	var cam_rot_x: float = get_viewport().get_camera_3d().rotation.x
 	var target_rot: Vector3 = Vector3(cam_rot_x, 0.0, 0.0)
 	var t: Tween = card.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
@@ -518,6 +533,11 @@ func _process(_delta: float) -> void:
 		return
 	var world_pos: Vector3 = _mouse_to_plane(DRAG_Y)
 	_dragged_card.global_position = world_pos
+	if _is_arrow_drag and _drag_arrow != null:
+		var cam: Camera3D = get_viewport().get_camera_3d()
+		var snap_slot: SectorSlot = _find_nearest_empty_sector_slot()
+		var to_2d: Vector2 = cam.unproject_position(snap_slot.global_position) if snap_slot else get_viewport().get_mouse_position()
+		_drag_arrow.update_to(to_2d)
 	_update_slot_highlights()
 
 func _input(event: InputEvent) -> void:
@@ -529,7 +549,17 @@ func _input(event: InputEvent) -> void:
 func _is_sector_card() -> bool:
 	return _dragged_card.card_data != null and _dragged_card.card_data.card_type == CardData.CardType.SECTOR
 
+func _end_arrow_drag() -> void:
+	if not _is_arrow_drag:
+		return
+	_is_arrow_drag = false
+	if _drag_arrow:
+		_drag_arrow.hide_arrow()
+	if is_instance_valid(_dragged_card):
+		_dragged_card.visible = true
+
 func _try_drop() -> void:
+	_end_arrow_drag()
 	_clear_slot_highlights()
 	if _is_near_discard_pile():
 		_do_recycle()
@@ -1231,6 +1261,7 @@ func _satisfies_optimize(placed: Array[int], required: Array[int]) -> bool:
 	return total_remaining >= any_needed
 
 func _handle_failed_drop() -> void:
+	_end_arrow_drag()
 	_cleanup_pending_dynamic_slot()
 	var card: Node3D = _dragged_card
 	var origin: DragOrigin = _drag_origin
