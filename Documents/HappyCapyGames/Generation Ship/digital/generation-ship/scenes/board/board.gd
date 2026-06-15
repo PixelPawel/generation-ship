@@ -514,19 +514,12 @@ func _begin_drag(card: Node3D) -> void:
 	card.reparent(self, true)
 	if _drag_origin == DragOrigin.MARKET:
 		market_drag_started.emit(card)
-	if _is_sector_card() and _drag_origin == DragOrigin.HAND and _drag_arrow != null:
+	if _drag_arrow != null:
 		card.visible = false
 		_is_arrow_drag = true
 		var cam: Camera3D = get_viewport().get_camera_3d()
 		var from_2d: Vector2 = cam.unproject_position(_drag_start_global_pos)
 		_drag_arrow.show_arrow(from_2d, from_2d)
-		return
-	_is_arrow_drag = false
-	var cam_rot_x: float = get_viewport().get_camera_3d().rotation.x
-	var target_rot: Vector3 = Vector3(cam_rot_x, 0.0, 0.0)
-	var t: Tween = card.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	t.tween_property(card, "rotation", target_rot, 0.15)
-	t.parallel().tween_property(card, "scale", Vector3.ONE * 1.2, 0.15)
 
 func _process(_delta: float) -> void:
 	if not _dragged_card:
@@ -535,7 +528,7 @@ func _process(_delta: float) -> void:
 	_dragged_card.global_position = world_pos
 	if _is_arrow_drag and _drag_arrow != null:
 		var cam: Camera3D = get_viewport().get_camera_3d()
-		var snap_slot: SectorSlot = _find_nearest_empty_sector_slot()
+		var snap_slot: SectorSlot = _find_nearest_empty_sector_slot() if _is_sector_card() else _find_nearest_tech_slot()
 		var to_2d: Vector2 = cam.unproject_position(snap_slot.global_position) if snap_slot else get_viewport().get_mouse_position()
 		_drag_arrow.update_to(to_2d)
 	_update_slot_highlights()
