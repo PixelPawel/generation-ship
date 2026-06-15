@@ -9,8 +9,6 @@
 [ext_resource type="Script" uid="uid://dabxlmwrri6bs" path="res://scenes/ui/payment_panel.gd" id="8_payment_panel"]
 [ext_resource type="Script" uid="uid://ct67cx1lxa08t" path="res://scenes/ui/pause_menu.gd" id="9_pause_menu"]
 [ext_resource type="PackedScene" uid="uid://b8o4r2d6s1c3" path="res://scenes/board/board.tscn" id="3_board"]
-[ext_resource type="PackedScene" uid="uid://6v2woolbvln4" path="res://assets/3d/gs_controlscreen.glb" id="10_controlscreen"]
-[ext_resource type="PackedScene" uid="uid://cp80uw33c77bk" path="res://assets/3d/gs_enemyscreen.glb" id="11_enemyscreen"]
 [ext_resource type="PackedScene" uid="uid://blam2n4p7q1rs" path="res://assets/3d/gs_card_sector.glb" id="13_card_sector"]
 [ext_resource type="PackedScene" uid="uid://cx4t8v2wb6yde" path="res://assets/3d/gs_card_tech.glb" id="14_card_tech"]
 [ext_resource type="PackedScene" uid="uid://df5vaw3xc70eg" path="res://assets/3d/gs_card_expedition.glb" id="15_card_expedition"]
@@ -156,12 +154,6 @@ transform = Transform3D(-1.3113416e-07, -3, 2.6226834e-08, 0, -1.3113416e-07, -0
 
 [node name="UiCockpit" parent="." unique_id=938574012 instance=ExtResource("18_ui_cockpit")]
 transform = Transform3D(2, 0, 0, 0, -8.742278e-08, 2, 0, -2, -8.742278e-08, -1.33, 3.072432, -0.4407955)
-
-[node name="ControlScreen" parent="." unique_id=729384651 instance=ExtResource("10_controlscreen")]
-transform = Transform3D(2.3, 0, 0, 0, -1.0053619e-07, 2.3, 0, -2.3, -1.0053619e-07, -5.529818, 0.5787746, 0.20107874)
-
-[node name="EnemyScreen" parent="." unique_id=632058003 instance=ExtResource("11_enemyscreen")]
-transform = Transform3D(-2.3, -2.0107238e-07, 8.789153e-15, 0, -1.0053619e-07, -2.3, 2.0107238e-07, -2.3, 1.0053619e-07, 2.865721, 0.5787746, -1.949564)
 
 [node name="Board" parent="." unique_id=208449846 instance=ExtResource("3_board")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.09578419, 0.5534699, 0)
