@@ -485,7 +485,7 @@ func _forward_to_cs_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshIn
 
 func _setup_info_screen_display() -> void:
 	_info_viewport = SubViewport.new()
-	_info_viewport.size = Vector2i(600, 240)
+	_info_viewport.size = Vector2i(1200, 240)
 	_info_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_info_viewport.transparent_bg = true
 	_info_viewport.gui_disable_input = false
@@ -493,12 +493,8 @@ func _setup_info_screen_display() -> void:
 
 	_market_panel = load("res://scenes/ui/market_panel.gd").new()
 	_info_viewport.add_child(_market_panel)
-
-	var inner: Control = _market_panel.get_child(0) as Control
-	if inner:
-		inner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		inner.grow_horizontal = Control.GROW_DIRECTION_BOTH
-		inner.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_market_panel.scale = Vector2(1.6, 1.6)
+	_market_panel.set_process(false)
 
 	_market_panel.sector_advanced_pressed.connect(_on_market_sector_advanced_pressed)
 	_market_panel.sector_dust_pressed.connect(_on_market_sector_dust_pressed)
@@ -506,10 +502,29 @@ func _setup_info_screen_display() -> void:
 
 	var screen_mesh: MeshInstance3D = $UiInfo.find_child("gs_ui_info_screen", true, false) as MeshInstance3D
 	if screen_mesh:
-		var mat := StandardMaterial3D.new()
-		mat.albedo_texture = _info_viewport.get_texture()
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		var aabb: AABB = screen_mesh.mesh.get_aabb()
+		var shader := Shader.new()
+		shader.code = """
+shader_type spatial;
+render_mode unshaded, blend_mix;
+uniform sampler2D viewport_tex : filter_linear;
+uniform vec3 aabb_min;
+uniform vec3 aabb_max;
+varying vec3 m;
+void vertex() { m = VERTEX; }
+void fragment() {
+	float u = (m.x - aabb_min.x) / (aabb_max.x - aabb_min.x);
+	float v = 1.0 - (m.y - aabb_min.y) / (aabb_max.y - aabb_min.y);
+	vec4 c = texture(viewport_tex, vec2(u, v));
+	ALBEDO = c.rgb;
+	ALPHA = c.a;
+}
+"""
+		var mat := ShaderMaterial.new()
+		mat.shader = shader
+		mat.set_shader_parameter("viewport_tex", _info_viewport.get_texture())
+		mat.set_shader_parameter("aabb_min", aabb.position)
+		mat.set_shader_parameter("aabb_max", aabb.position + aabb.size)
 		screen_mesh.set_surface_override_material(0, mat)
 		_setup_info_screen_input(screen_mesh)
 
