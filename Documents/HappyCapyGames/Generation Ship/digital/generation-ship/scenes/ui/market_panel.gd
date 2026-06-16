@@ -5,8 +5,8 @@ signal sector_dust_pressed(slot_idx: int)
 signal expedition_pressed(slot_idx: int)
 signal opponent_pressed(peer_id: int)
 
-const CARD_W: int = 70
-const CARD_H: int = 98
+const CARD_W: int = 74
+const CARD_H: int = 104
 
 const _SUPPLY_PATHS: Array[String] = [
 	"res://assets/ui/supply/Dust.png",
@@ -62,6 +62,8 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 
 	var entry: PanelContainer = PanelContainer.new()
 	entry.mouse_filter = Control.MOUSE_FILTER_STOP
+	entry.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	entry.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var entry_style: StyleBoxFlat = StyleBoxFlat.new()
 	entry_style.bg_color = Color(0.05, 0.07, 0.15, 0.80)
 	entry_style.border_color = Color(0.22, 0.44, 0.70, 0.38)
@@ -173,17 +175,19 @@ func update_opponent(peer_id: int, hand_count: int, supply: Dictionary, vp: int)
 func _build_ui() -> void:
 	var panel: ScifiPanel = load("res://scenes/ui/scifi_panel.gd").new()
 	panel.set_content_margin(10)
+	panel.custom_minimum_size = Vector2(714.0, 340.0)
 	add_child(panel)
 
 	var main_hbox := HBoxContainer.new()
 	main_hbox.add_theme_constant_override("separation", 14)
-	main_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	main_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	panel.add_child(main_hbox)
 
 	# ── Column 1: Basic Sectors (stacked vertically) ──────────────────────────
 	var basic_vbox := VBoxContainer.new()
-	basic_vbox.add_theme_constant_override("separation", 5)
+	basic_vbox.add_theme_constant_override("separation", 4)
 	basic_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	basic_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	main_hbox.add_child(basic_vbox)
 
 	for i: int in 3:
@@ -211,8 +215,9 @@ func _build_ui() -> void:
 	main_hbox.add_child(vsep1)
 
 	var adv_vbox := VBoxContainer.new()
-	adv_vbox.add_theme_constant_override("separation", 5)
+	adv_vbox.add_theme_constant_override("separation", 4)
 	adv_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	adv_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	main_hbox.add_child(adv_vbox)
 
 	for i: int in 3:
@@ -238,8 +243,9 @@ func _build_ui() -> void:
 	main_hbox.add_child(vsep2)
 
 	var exp_vbox := VBoxContainer.new()
-	exp_vbox.add_theme_constant_override("separation", 5)
+	exp_vbox.add_theme_constant_override("separation", 4)
 	exp_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	exp_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	main_hbox.add_child(exp_vbox)
 
 	for i: int in 3:
@@ -266,11 +272,13 @@ func _build_ui() -> void:
 
 	var players_vbox := VBoxContainer.new()
 	players_vbox.add_theme_constant_override("separation", 4)
-	players_vbox.custom_minimum_size = Vector2(200.0, 0.0)
+	players_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	players_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	main_hbox.add_child(players_vbox)
 
 	_opp_vbox = VBoxContainer.new()
 	_opp_vbox.add_theme_constant_override("separation", 4)
+	_opp_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	players_vbox.add_child(_opp_vbox)
 
 func _make_slot(size: Vector2, rect: TextureRect, count_lbl: Label, highlight: ColorRect) -> Control:
