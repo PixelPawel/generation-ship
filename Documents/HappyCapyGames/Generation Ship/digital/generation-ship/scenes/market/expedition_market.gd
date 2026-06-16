@@ -25,10 +25,7 @@ var _reveal_active: bool = false
 func setup(card_scene: PackedScene, expedition_deck: Node3D) -> void:
 	_card_scene = card_scene
 	_expedition_deck = expedition_deck
-	for i: int in 3:
-		var slot_idx: int = i
-		get_tree().create_timer(float(i) * 0.45).timeout.connect(
-			func() -> void: _add_card_to_slot(slot_idx))
+	add_round_cards()
 
 func add_round_cards() -> void:
 	for i: int in 3:
@@ -97,21 +94,24 @@ func set_shuffle_mode(active: bool) -> void:
 	_shuffle_active = active
 	_refresh_shuffle_connections()
 
-func _refresh_shuffle_connections() -> void:
+func _refresh_connections(active: bool, callback: Callable) -> void:
 	for stack: Array in _stacks:
 		if stack.is_empty():
 			continue
-		var top: Node3D = stack.back()
+		var top: Node3D = stack.back() as Node3D
 		if top.drag_started.is_connected(_on_card_drag_started):
 			top.drag_started.disconnect(_on_card_drag_started)
-		if top.clicked.is_connected(_on_shuffle_card_clicked):
-			top.clicked.disconnect(_on_shuffle_card_clicked)
-		if _shuffle_active:
+		if top.clicked.is_connected(callback):
+			top.clicked.disconnect(callback)
+		if active:
 			top.set("can_drag", false)
-			top.clicked.connect(_on_shuffle_card_clicked)
+			top.clicked.connect(callback)
 		else:
 			top.set("can_drag", true)
 			top.drag_started.connect(_on_card_drag_started)
+
+func _refresh_shuffle_connections() -> void:
+	_refresh_connections(_shuffle_active, _on_shuffle_card_clicked)
 
 func shuffle_panel_slot(slot_idx: int) -> void:
 	if not _shuffle_active:
@@ -185,20 +185,7 @@ func set_reveal_mode(active: bool) -> void:
 	_refresh_reveal_connections()
 
 func _refresh_reveal_connections() -> void:
-	for stack: Array in _stacks:
-		if stack.is_empty():
-			continue
-		var top: Node3D = stack.back() as Node3D
-		if top.drag_started.is_connected(_on_card_drag_started):
-			top.drag_started.disconnect(_on_card_drag_started)
-		if top.clicked.is_connected(_on_reveal_card_clicked):
-			top.clicked.disconnect(_on_reveal_card_clicked)
-		if _reveal_active:
-			top.set("can_drag", false)
-			top.clicked.connect(_on_reveal_card_clicked)
-		else:
-			top.set("can_drag", true)
-			top.drag_started.connect(_on_card_drag_started)
+	_refresh_connections(_reveal_active, _on_reveal_card_clicked)
 
 func _on_reveal_card_clicked(card: Node3D) -> void:
 	var slot_idx: int = card.get_meta("market_slot", -1)

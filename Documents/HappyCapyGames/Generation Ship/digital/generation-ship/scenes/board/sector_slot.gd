@@ -92,18 +92,18 @@ func _setup_display() -> void:
 		add_child(spr)
 		_supply_sprites.append(spr)
 
-		var lbl := _make_supply_badge(
-			Vector3(X_START + i * X_STEP, DISC_Y + 0.01, DISC_Z))
+		var lbl := _make_badge(
+			Vector3(X_START + i * X_STEP, DISC_Y + 0.01, DISC_Z), Color.WHITE, true)
 		_supply_labels.append(lbl)
 
-	_faceup_vp_label   = _make_tuck_badge(Vector3(-0.23, 0.14, 0.52), Color(1.0, 0.95, 0.3))
-	_facedown_vp_label = _make_tuck_badge(Vector3( 0.23, 0.14, 0.52), Color(1.0, 0.95, 0.3))
+	_faceup_vp_label   = _make_badge(Vector3(-0.23, 0.14, 0.52), Color(1.0, 0.95, 0.3))
+	_facedown_vp_label = _make_badge(Vector3( 0.23, 0.14, 0.52), Color(1.0, 0.95, 0.3))
 	_faceup_count_icon   = _make_card_count_icon(Vector3(-0.29, 0.03, 0.67))
-	_faceup_count_label  = _make_tuck_badge(Vector3(-0.17, 0.14, 0.67), Color(0.85, 0.9, 1.0))
+	_faceup_count_label  = _make_badge(Vector3(-0.17, 0.14, 0.67), Color(0.85, 0.9, 1.0))
 	_facedown_count_icon  = _make_card_count_icon(Vector3( 0.17, 0.03, 0.67))
-	_facedown_count_label = _make_tuck_badge(Vector3( 0.29, 0.14, 0.67), Color(0.85, 0.9, 1.0))
+	_facedown_count_label = _make_badge(Vector3( 0.29, 0.14, 0.67), Color(0.85, 0.9, 1.0))
 
-func _make_tuck_badge(pos: Vector3, color: Color) -> Label3D:
+func _make_badge(pos: Vector3, color: Color, outlined: bool = false) -> Label3D:
 	var lbl := Label3D.new()
 	lbl.font_size = 28
 	lbl.pixel_size = 0.005
@@ -111,21 +111,9 @@ func _make_tuck_badge(pos: Vector3, color: Color) -> Label3D:
 	lbl.no_depth_test = true
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.modulate = color
-	lbl.position = pos
-	lbl.visible = false
-	add_child(lbl)
-	return lbl
-
-func _make_supply_badge(pos: Vector3) -> Label3D:
-	var lbl := Label3D.new()
-	lbl.font_size = 28
-	lbl.pixel_size = 0.005
-	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	lbl.no_depth_test = true
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.modulate = Color.WHITE
-	lbl.outline_size = 30
-	lbl.outline_modulate = Color.BLACK
+	if outlined:
+		lbl.outline_size = 30
+		lbl.outline_modulate = Color.BLACK
 	lbl.position = pos
 	lbl.visible = false
 	add_child(lbl)

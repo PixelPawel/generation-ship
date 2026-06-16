@@ -43,15 +43,17 @@ func _save_meta() -> void:
 	file.close()
 
 func preload_urls(urls: Array[String]) -> void:
+	var added: int = 0
 	for url: String in urls:
 		if url.is_empty() or _memory.has(url):
 			continue
 		_queue.append(url)
 		_memory[url] = null
-	_total = _queue.size()
-	_loaded = 0
-	if _total == 0:
-		all_loaded.emit()
+		added += 1
+	_total += added
+	if added == 0:
+		if _active == 0:
+			all_loaded.emit()
 		return
 	_pump()
 

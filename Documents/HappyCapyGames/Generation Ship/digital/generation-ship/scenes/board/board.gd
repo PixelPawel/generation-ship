@@ -372,18 +372,8 @@ func get_purchase_discount(target: CardData, placement_slot: SectorSlot = null) 
 
 func generate_supply() -> Dictionary:
 	var totals: Dictionary = {}
-	for slot: SectorSlot in _sector_row.get_children():
-		if not slot.occupied:
-			continue
-		for card: Node3D in slot.get_all_placed_cards():
-			if not card.card_data:
-				continue
-			var supply_color: CardData.SupplyColor
-			if card.card_data.card_type == CardData.CardType.SECTOR and card.is_advanced:
-				supply_color = card.card_data.adv_color
-			else:
-				supply_color = card.card_data.color
-			totals[supply_color] = totals.get(supply_color, 0) + 1
+	for entry: Dictionary in get_supply_generators():
+		totals[entry["color"]] = totals.get(entry["color"], 0) + 1
 	return totals
 
 func get_supply_generators() -> Array[Dictionary]:

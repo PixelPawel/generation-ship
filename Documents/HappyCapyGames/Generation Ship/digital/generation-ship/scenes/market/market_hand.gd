@@ -62,8 +62,6 @@ func _snap_card_to_rest(card: Node3D) -> void:
 	_kill_hover_tween(card)
 	_hover_tweens.erase(card)
 	card.set("_placed_elevated", false)
-	if card.get("_globally_elevated") == card:
-		card.set("_globally_elevated", null)
 	var rest_pos: Vector3 = _rest_positions.get(card, card.position) as Vector3
 	card.position = rest_pos
 	card.scale = Vector3.ONE * CARD_SCALE

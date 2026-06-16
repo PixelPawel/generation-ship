@@ -105,6 +105,27 @@ func show_card_choices(prompt: String, cards: Array[CardData], skippable: bool =
 		_vbox.custom_minimum_size.x = 0
 	_prompt_label.text = prompt
 	_clear_options()
+	_build_card_rows(cards, func(idx: int, _btn: Button) -> void: _on_pressed(idx), advanced_flags)
+	_skip_btn.visible = skippable
+	_fit_scroll_width()
+	show()
+
+func show_multiselect_card_choices(prompt: String, cards: Array[CardData]) -> void:
+	_scroll_container.custom_minimum_size.x = 0
+	if _vbox:
+		_vbox.custom_minimum_size.x = 0
+	_prompt_label.text = prompt
+	_clear_options()
+	_selected_flags = []
+	for _i: int in cards.size():
+		_selected_flags.append(false)
+	_build_card_rows(cards, func(idx: int, btn: Button) -> void: _on_multiselect_toggle(idx, btn))
+	_skip_btn.visible = false
+	_multiselect_done_btn.visible = true
+	_fit_scroll_width()
+	show()
+
+func _build_card_rows(cards: Array[CardData], on_click: Callable, advanced_flags: Array[bool] = []) -> void:
 	for i: int in cards.size():
 		var cd: CardData = cards[i]
 		var is_adv: bool = advanced_flags[i] if i < advanced_flags.size() else cd.card_type == CardData.CardType.SECTOR
@@ -124,9 +145,7 @@ func show_card_choices(prompt: String, cards: Array[CardData], skippable: bool =
 			img_btn.text = display
 			img_btn.add_theme_font_size_override("font_size", 13)
 		var idx: int = i
-		img_btn.pressed.connect(func(): _on_pressed(idx))
-		var card_ref: CardData = cd
-		var adv_flag: bool = is_adv
+		img_btn.pressed.connect(func() -> void: on_click.call(idx, img_btn))
 		img_btn.mouse_entered.connect(func() -> void: CursorManager.set_hover())
 		img_btn.mouse_exited.connect(func() -> void: CursorManager.set_default())
 		card_vbox.add_child(img_btn)
@@ -142,59 +161,6 @@ func show_card_choices(prompt: String, cards: Array[CardData], skippable: bool =
 		card_vbox.add_child(name_lbl)
 
 		_buttons_row.add_child(card_vbox)
-	_skip_btn.visible = skippable
-	_fit_scroll_width()
-	show()
-
-func show_multiselect_card_choices(prompt: String, cards: Array[CardData]) -> void:
-	_scroll_container.custom_minimum_size.x = 0
-	if _vbox:
-		_vbox.custom_minimum_size.x = 0
-	_prompt_label.text = prompt
-	_clear_options()
-	_selected_flags = []
-	for i: int in cards.size():
-		var cd: CardData = cards[i]
-		var is_sector: bool = cd.card_type == CardData.CardType.SECTOR
-		var url: String = cd.adv_image_url if (is_sector and not cd.adv_image_url.is_empty()) else cd.image_url
-		var tex: ImageTexture = ImageCache.get_texture(url) if not url.is_empty() else null
-		var display: String = cd.adv_name if is_sector else cd.card_name
-
-		_selected_flags.append(false)
-
-		var card_vbox := VBoxContainer.new()
-		card_vbox.add_theme_constant_override("separation", 4)
-
-		var img_btn := Button.new()
-		img_btn.custom_minimum_size = Vector2(150, 218)
-		if tex:
-			img_btn.icon = tex
-			img_btn.expand_icon = true
-		else:
-			img_btn.text = display
-			img_btn.add_theme_font_size_override("font_size", 13)
-		var idx: int = i
-		img_btn.pressed.connect(func(): _on_multiselect_toggle(idx, img_btn))
-		var card_ref: CardData = cd
-		img_btn.mouse_entered.connect(func() -> void: CursorManager.set_hover())
-		img_btn.mouse_exited.connect(func() -> void: CursorManager.set_default())
-		card_vbox.add_child(img_btn)
-
-		var name_lbl := Label.new()
-		name_lbl.text = display
-		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		name_lbl.add_theme_font_size_override("font_size", 14)
-		name_lbl.add_theme_color_override("font_color", Color.WHITE)
-		name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
-		name_lbl.custom_minimum_size = Vector2(150, 0)
-		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		card_vbox.add_child(name_lbl)
-
-		_buttons_row.add_child(card_vbox)
-	_skip_btn.visible = false
-	_multiselect_done_btn.visible = true
-	_fit_scroll_width()
-	show()
 
 func _on_multiselect_toggle(index: int, btn: Button) -> void:
 	if index >= _selected_flags.size():

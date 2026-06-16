@@ -469,19 +469,7 @@ func _setup_control_screen_display() -> void:
 	$Board.set_supply_ui(_cs_display)
 
 func _setup_screen_input(screen_mesh: MeshInstance3D) -> void:
-	var area: Area3D = Area3D.new()
-	area.input_ray_pickable = true
-	screen_mesh.add_child(area)
-	var cshape: CollisionShape3D = CollisionShape3D.new()
-	var box: BoxShape3D = BoxShape3D.new()
-	var aabb: AABB = screen_mesh.mesh.get_aabb()
-	box.size = Vector3(aabb.size.x, aabb.size.y, 0.01)
-	cshape.shape = box
-	cshape.position = aabb.get_center()
-	area.add_child(cshape)
-	area.input_event.connect(func(_cam: Node, event: InputEvent, pos: Vector3, _norm: Vector3, _idx: int) -> void:
-		_forward_to_cs_viewport(event, pos, screen_mesh)
-	)
+	_setup_viewport_input(screen_mesh, _cs_viewport)
 
 func _setup_button_input(btn_mesh: MeshInstance3D, callback: Callable) -> void:
 	var area: Area3D = Area3D.new()
@@ -512,18 +500,33 @@ func _setup_button_input(btn_mesh: MeshInstance3D, callback: Callable) -> void:
 		btn_mesh.set_surface_override_material(0, null)
 	)
 
-func _forward_to_cs_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshInstance3D) -> void:
+func _setup_viewport_input(screen_mesh: MeshInstance3D, vp: SubViewport) -> void:
+	var area: Area3D = Area3D.new()
+	area.input_ray_pickable = true
+	screen_mesh.add_child(area)
+	var cshape: CollisionShape3D = CollisionShape3D.new()
+	var box: BoxShape3D = BoxShape3D.new()
+	var aabb: AABB = screen_mesh.mesh.get_aabb()
+	box.size = Vector3(aabb.size.x, aabb.size.y, 0.01)
+	cshape.shape = box
+	cshape.position = aabb.get_center()
+	area.add_child(cshape)
+	area.input_event.connect(func(_cam: Node, event: InputEvent, pos: Vector3, _norm: Vector3, _idx: int) -> void:
+		_forward_to_viewport(event, pos, screen_mesh, vp)
+	)
+
+func _forward_to_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshInstance3D, vp: SubViewport) -> void:
 	var local_pos: Vector3 = mesh.to_local(world_pos)
 	var aabb: AABB = mesh.mesh.get_aabb()
 	var u: float = (local_pos.x - aabb.position.x) / aabb.size.x
 	var v: float = 1.0 - (local_pos.y - aabb.position.y) / aabb.size.y
-	var vp_pos: Vector2 = Vector2(u * float(_cs_viewport.size.x), v * float(_cs_viewport.size.y))
+	var vp_pos: Vector2 = Vector2(u * float(vp.size.x), v * float(vp.size.y))
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = InputEventMouseButton.new()
 		mb.button_index = (event as InputEventMouseButton).button_index
 		mb.pressed = (event as InputEventMouseButton).pressed
 		mb.position = vp_pos
-		_cs_viewport.push_input(mb, true)
+		vp.push_input(mb, true)
 
 func _setup_info_screen_display() -> void:
 	_info_viewport = SubViewport.new()
@@ -569,32 +572,8 @@ func _setup_info_screen_display() -> void:
 		_setup_info_screen_input(screen_mesh)
 
 func _setup_info_screen_input(screen_mesh: MeshInstance3D) -> void:
-	var area: Area3D = Area3D.new()
-	area.input_ray_pickable = true
-	screen_mesh.add_child(area)
-	var cshape: CollisionShape3D = CollisionShape3D.new()
-	var box: BoxShape3D = BoxShape3D.new()
-	var aabb: AABB = screen_mesh.mesh.get_aabb()
-	box.size = Vector3(aabb.size.x, aabb.size.y, 0.01)
-	cshape.shape = box
-	cshape.position = aabb.get_center()
-	area.add_child(cshape)
-	area.input_event.connect(func(_cam: Node, event: InputEvent, pos: Vector3, _norm: Vector3, _idx: int) -> void:
-		_forward_to_info_viewport(event, pos, screen_mesh)
-	)
+	_setup_viewport_input(screen_mesh, _info_viewport)
 
-func _forward_to_info_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshInstance3D) -> void:
-	var local_pos: Vector3 = mesh.to_local(world_pos)
-	var aabb: AABB = mesh.mesh.get_aabb()
-	var u: float = (local_pos.x - aabb.position.x) / aabb.size.x
-	var v: float = 1.0 - (local_pos.y - aabb.position.y) / aabb.size.y
-	var vp_pos: Vector2 = Vector2(u * float(_info_viewport.size.x), v * float(_info_viewport.size.y))
-	if event is InputEventMouseButton:
-		var mb: InputEventMouseButton = InputEventMouseButton.new()
-		mb.button_index = (event as InputEventMouseButton).button_index
-		mb.pressed = (event as InputEventMouseButton).pressed
-		mb.position = vp_pos
-		_info_viewport.push_input(mb, true)
 
 func _setup_enemy_screen_display() -> void:
 	var panel: PanelContainer = PanelContainer.new()
