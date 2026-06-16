@@ -233,6 +233,7 @@ func place() -> void:
 	is_dragging = false
 	_any_dragging = false
 	is_placed = true
+	visible = true
 	if _card_glb:
 		_card_glb.visible = true
 		card_mesh.visible = false
