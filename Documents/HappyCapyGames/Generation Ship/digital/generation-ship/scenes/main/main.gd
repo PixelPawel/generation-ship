@@ -542,6 +542,7 @@ func _setup_info_screen_display() -> void:
 	_market_panel = load("res://scenes/ui/market_panel.gd").new()
 	_info_viewport.add_child(_market_panel)
 	_market_panel.scale = Vector2(1.68, 1.68)
+	_market_panel.position = Vector2(0.0, -29.0)
 	_market_panel.set_process(false)
 
 	_market_panel.sector_advanced_pressed.connect(_on_market_sector_advanced_pressed)
