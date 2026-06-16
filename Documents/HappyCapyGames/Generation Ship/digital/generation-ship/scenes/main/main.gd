@@ -281,6 +281,9 @@ func _build_opponent_widget() -> void:
 		if peer_id == multiplayer.get_unique_id():
 			continue
 
+		if _market_panel:
+			_market_panel.add_opponent(peer_id, GameNetwork.player_names.get(peer_id, "Player"))
+
 		var entry_sep: HSeparator = HSeparator.new()
 		entry_sep.modulate = Color(0.4, 0.4, 0.5, 0.3)
 		outer_vbox.add_child(entry_sep)
@@ -556,6 +559,7 @@ func _setup_info_screen_display() -> void:
 	_market_panel.sector_advanced_pressed.connect(_on_market_sector_advanced_pressed)
 	_market_panel.sector_dust_pressed.connect(_on_market_sector_dust_pressed)
 	_market_panel.expedition_pressed.connect(_on_market_expedition_pressed)
+	_market_panel.opponent_pressed.connect(_show_opponent_board)
 
 	var screen_mesh: MeshInstance3D = $UiInfo.find_child("gs_ui_info_screen", true, false) as MeshInstance3D
 	if screen_mesh:
@@ -970,6 +974,8 @@ func _broadcast_my_state() -> void:
 func _apply_opponent_state(state: Dictionary) -> void:
 	var peer_id: int = state.get("peer_id", 0)
 	_opp_snapshots[peer_id] = state
+	if _market_panel:
+		_market_panel.update_opponent(peer_id, state.get("hand_size", 0), state.get("supply", {}), state.get("vp", 0))
 	if not _opp_panels.has(peer_id):
 		return
 	var refs: Dictionary = _opp_panels[peer_id]
