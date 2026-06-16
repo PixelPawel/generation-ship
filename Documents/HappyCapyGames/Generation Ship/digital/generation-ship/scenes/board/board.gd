@@ -740,6 +740,7 @@ func _start_bid(card: Node3D, slot: Node3D, is_tech: bool) -> void:
 	_pending_drag_origin = DragOrigin.MARKET
 	_dragged_card = null
 	_drag_origin = DragOrigin.NONE
+	card.end_drag()
 	var t: Tween = card.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	t.tween_property(card, "global_position", slot.global_position + Vector3(0.0, PENDING_HOVER_Y, 0.0), 0.2)
 	var min_cost: int
@@ -913,6 +914,7 @@ func _start_supply_choice(card: Node3D, slot: SectorSlot, cost: int, options: Ar
 	_pending_drag_origin = _drag_origin
 	_dragged_card = null
 	_drag_origin = DragOrigin.NONE
+	card.end_drag()
 	var t: Tween = card.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	t.tween_property(card, "global_position", slot.global_position + Vector3(0.0, PENDING_HOVER_Y, 0.0), 0.2)
 	supply_choice_required.emit(card, slot, cost, options, is_tech)
@@ -929,6 +931,7 @@ func _start_payment_confirm(card: Node3D, slot: SectorSlot, pay_amounts: Diction
 	_pending_drag_origin = _drag_origin
 	_dragged_card = null
 	_drag_origin = DragOrigin.NONE
+	card.end_drag()
 	var t: Tween = card.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	t.tween_property(card, "global_position", slot.global_position + Vector3(0.0, PENDING_HOVER_Y, 0.0), 0.2)
 	payment_confirm_required.emit(card, slot, pay_amounts, is_tech)
