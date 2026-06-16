@@ -109,36 +109,42 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 	hand_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row1.add_child(hand_lbl)
 
-	var row2: HBoxContainer = HBoxContainer.new()
-	row2.add_theme_constant_override("separation", 2)
-	row2.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	entry_vbox.add_child(row2)
+	var supply_grid: VBoxContainer = VBoxContainer.new()
+	supply_grid.add_theme_constant_override("separation", 1)
+	supply_grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	entry_vbox.add_child(supply_grid)
 
 	var supply_lbls: Array = []
-	for si: int in 6:
-		var col: VBoxContainer = VBoxContainer.new()
-		col.add_theme_constant_override("separation", 0)
-		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row2.add_child(col)
+	for row_i: int in 2:
+		var row2: HBoxContainer = HBoxContainer.new()
+		row2.add_theme_constant_override("separation", 2)
+		row2.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		supply_grid.add_child(row2)
+		for col_i: int in 3:
+			var si: int = row_i * 3 + col_i
+			var col: VBoxContainer = VBoxContainer.new()
+			col.add_theme_constant_override("separation", 0)
+			col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			row2.add_child(col)
 
-		var icon: TextureRect = TextureRect.new()
-		icon.texture = load(_SUPPLY_PATHS[si]) as Texture2D
-		icon.custom_minimum_size = Vector2(18.0, 18.0)
-		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		col.add_child(icon)
+			var icon: TextureRect = TextureRect.new()
+			icon.texture = load(_SUPPLY_PATHS[si]) as Texture2D
+			icon.custom_minimum_size = Vector2(18.0, 18.0)
+			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			col.add_child(icon)
 
-		var s_lbl: Label = Label.new()
-		s_lbl.text = "0"
-		s_lbl.add_theme_font_size_override("font_size", 10)
-		s_lbl.add_theme_color_override("font_color", Color(0.70, 0.78, 0.90))
-		s_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		s_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		col.add_child(s_lbl)
-		supply_lbls.append(s_lbl)
+			var s_lbl: Label = Label.new()
+			s_lbl.text = "0"
+			s_lbl.add_theme_font_size_override("font_size", 10)
+			s_lbl.add_theme_color_override("font_color", Color(0.70, 0.78, 0.90))
+			s_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			s_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			col.add_child(s_lbl)
+			supply_lbls.append(s_lbl)
 
 	var row3: HBoxContainer = HBoxContainer.new()
 	row3.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -272,7 +278,7 @@ func _build_ui() -> void:
 
 	var players_vbox := VBoxContainer.new()
 	players_vbox.add_theme_constant_override("separation", 4)
-	players_vbox.custom_minimum_size = Vector2(268.0, 0.0)
+	players_vbox.custom_minimum_size = Vector2(160.0, 0.0)
 	players_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	main_hbox.add_child(players_vbox)
 
