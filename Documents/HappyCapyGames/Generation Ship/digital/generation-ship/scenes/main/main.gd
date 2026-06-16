@@ -130,15 +130,15 @@ var _es_back_btn: Button = null
 
 func _ready() -> void:
 	GameTheme.apply_to_button($UILayer/StartButton)
-	var hand: Node3D = $Camera3D/Hand
+	var hand: Node3D = $Hand
 	$Board.set_hand(hand)
 	$Board.set_card_scene(card_scene)
 	$Board.card_recycled.connect(_on_card_recycled)
 	$Board.setup_tech_deck(CardDatabase.techs)
 	$Board.setup_sector_deck(CardDatabase.sectors)
 	$UILayer/StartButton.pressed.connect(_on_start_pressed)
-	$Camera3D/Hand.card_selected_for_discard.connect(_on_card_discarded)
-	$Camera3D/Hand.card_right_clicked.connect(_on_card_right_clicked_free_recycle)
+	$Hand.card_selected_for_discard.connect(_on_card_discarded)
+	$Hand.card_right_clicked.connect(_on_card_right_clicked_free_recycle)
 	$Board.bid_required.connect(_on_bid_required)
 	$Board.card_placed.connect(_on_card_placed)
 	$Board.optimize_triggered.connect(_on_optimize_triggered)
@@ -727,7 +727,7 @@ func _on_research_pressed() -> void:
 	_set_action_buttons_disabled(true)
 	$UILayer/DiscardHint.text = "Click a card in your hand to discard it"
 	$UILayer/DiscardHint.show()
-	$Camera3D/Hand.set_discard_mode(true)
+	$Hand.set_discard_mode(true)
 
 func _on_pass_pressed() -> void:
 	if not GameNetwork.is_my_turn():
@@ -948,7 +948,7 @@ func _get_public_snapshot() -> Dictionary:
 	return {
 		"peer_id": multiplayer.get_unique_id(),
 		"supply": supply_snap,
-		"hand_size": $Camera3D/Hand.get_cards().size(),
+		"hand_size": $Hand.get_cards().size(),
 		"vp": total_vp,
 		"vp_lines": vp_lines,
 		"slots": slot_snaps,
@@ -1279,7 +1279,7 @@ func _on_card_discarded(card: Node3D) -> void:
 		EffectMode.RESEARCH:
 			_effect_mode = EffectMode.NONE
 			$UILayer/DiscardHint.hide()
-			$Camera3D/Hand.set_discard_mode(false)
+			$Hand.set_discard_mode(false)
 			$Board.discard_and_draw(card)
 			_do_pass()
 
@@ -1298,7 +1298,7 @@ func _on_card_discarded(card: Node3D) -> void:
 func _recycle_card_to_supply(card: Node3D, color: CardData.SupplyColor) -> void:
 	var screen_pos: Vector2 = $Camera3D.unproject_position(card.global_position)
 	_cs_display.animate_supply_incoming(screen_pos, color)
-	$Camera3D/Hand.remove_card_fly_out(card)
+	$Hand.remove_card_fly_out(card)
 
 func _on_card_right_clicked_free_recycle(card: Node3D) -> void:
 	if _effect_mode != EffectMode.NONE:
@@ -1314,7 +1314,7 @@ func _on_card_right_clicked_free_recycle(card: Node3D) -> void:
 
 
 func _gather_hand_source() -> Array[CardData]:
-	var all_cards: Array[Node3D] = $Camera3D/Hand.get_cards()
+	var all_cards: Array[Node3D] = $Hand.get_cards()
 	var source: Array[Node3D]
 	if _restrict_picks_to_drawn and not _last_drawn_cards.is_empty():
 		source = _last_drawn_cards.filter(func(c: Node3D) -> bool: return all_cards.has(c))
@@ -1380,7 +1380,7 @@ func _process_hand_choice(index: int) -> void:
 		EffectMode.EFFECT_TUCK:
 			if _effect_slot and card.card_data:
 				_effect_slot.add_tucked_card(card.card_data, _effect_face_up)
-			$Camera3D/Hand.remove_card_fly_out(card)
+			$Hand.remove_card_fly_out(card)
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				_finish_interactive_step()
@@ -1391,7 +1391,7 @@ func _process_hand_choice(index: int) -> void:
 		EffectMode.EFFECT_TUCK_OPTIONAL:
 			if _effect_slot and card.card_data:
 				_effect_slot.add_tucked_card(card.card_data, _effect_face_up)
-			$Camera3D/Hand.remove_card_fly_out(card)
+			$Hand.remove_card_fly_out(card)
 			$Board.draw_cards(1)
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
@@ -1402,7 +1402,7 @@ func _process_hand_choice(index: int) -> void:
 
 		EffectMode.EFFECT_TUCK_ANY_SECTOR:
 			_pending_tuck_card_data = card.card_data
-			$Camera3D/Hand.remove_card_fly_out(card)
+			$Hand.remove_card_fly_out(card)
 			_effect_mode = EffectMode.EFFECT_TUCK_ANY_SECTOR_SLOT
 			$Board.set_cargo_click_mode(true)
 			$UILayer/DiscardHint.text = "Click a sector to tuck the card facedown under it"
@@ -1457,7 +1457,7 @@ func _reset_effect_state() -> void:
 	_effect_done_btn.hide()
 	_choice_popup.hide()
 	$UILayer/DiscardHint.hide()
-	$Camera3D/Hand.set_discard_mode(false)
+	$Hand.set_discard_mode(false)
 	$Board.set_sector_reveal_mode(false)
 	$Board.set_expedition_reveal_mode(false)
 	$Board.set_expedition_shuffle_mode(false)
@@ -1514,7 +1514,7 @@ func _apply_seedbanks(indices: Array[int]) -> void:
 		var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
 		if _effect_slot:
 			_effect_slot.add_stored_supply(color, 1)
-		$Camera3D/Hand.remove_card_fly_out(card)
+		$Hand.remove_card_fly_out(card)
 	_pending_recycle_cards = []
 	_finish_interactive_step()
 
@@ -1543,7 +1543,7 @@ func _apply_tuck_optional_multiselect(indices: Array[int]) -> void:
 		var card: Node3D = _pending_recycle_cards[i]
 		if _effect_slot and card.card_data:
 			_effect_slot.add_tucked_card(card.card_data, _effect_face_up)
-		$Camera3D/Hand.remove_card_fly_out(card)
+		$Hand.remove_card_fly_out(card)
 		count += 1
 	_pending_recycle_cards = []
 	if count > 0 and not _restrict_picks_to_drawn:
@@ -1595,7 +1595,7 @@ func _apply_recycle_tuck_store_decision(store_on_sector: bool) -> void:
 			_apply_recycle_bonus(color)
 		if target and card.card_data:
 			target.add_tucked_card(card.card_data, false)
-		$Camera3D/Hand.remove_card_fly_out(card)
+		$Hand.remove_card_fly_out(card)
 	_pending_store_nodes = []
 	_finish_interactive_step()
 
@@ -1804,9 +1804,9 @@ func _execute_effect_step(step: Dictionary) -> void:
 	match step.get("type", ""):
 
 		"draw":
-			var _before: Array[Node3D] = $Camera3D/Hand.get_cards()
+			var _before: Array[Node3D] = $Hand.get_cards()
 			$Board.draw_cards(int(step.get("count", 0)))
-			var _after: Array[Node3D] = $Camera3D/Hand.get_cards()
+			var _after: Array[Node3D] = $Hand.get_cards()
 			_last_drawn_cards = _after.filter(func(c: Node3D) -> bool: return not _before.has(c))
 			_process_next_effect()
 
@@ -2053,7 +2053,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 
 		"seedbanks":
 			_effect_mode = EffectMode.EFFECT_SEEDBANKS
-			var all_cards: Array[Node3D] = $Camera3D/Hand.get_cards()
+			var all_cards: Array[Node3D] = $Hand.get_cards()
 			_pending_recycle_cards = []
 			var card_data: Array[CardData] = []
 			for c: Node3D in all_cards:
@@ -2433,7 +2433,7 @@ func _on_payment_recycle_requested() -> void:
 	_effect_mode = EffectMode.PAYMENT_RECYCLE
 	$UILayer/DiscardHint.text = "Click a card to recycle it for payment"
 	$UILayer/DiscardHint.show()
-	$Camera3D/Hand.set_discard_mode(true)
+	$Hand.set_discard_mode(true)
 
 func _on_major_action_changed(taken: bool) -> void:
 	_set_end_turn_button_disabled(not taken)
@@ -2569,7 +2569,7 @@ func _show_opponent_board(peer_id: int) -> void:
 	_my_board_snap = $Board.get_snapshot()
 	$Board.restore_visual_from_public_snapshot(_opp_snapshots[peer_id])
 	$Board.set_view_only(true)
-	$Camera3D/Hand.visible = false
+	$Hand.visible = false
 	if _opp_ghost_hand:
 		_opp_ghost_hand.queue_free()
 		_opp_ghost_hand = null
@@ -2577,8 +2577,8 @@ func _show_opponent_board(peer_id: int) -> void:
 	if hand_size > 0:
 		_opp_ghost_hand = Node3D.new()
 		_opp_ghost_hand.set_script(load("res://scenes/hand/hand.gd"))
-		_opp_ghost_hand.transform = $Camera3D/Hand.transform
-		$Camera3D.add_child(_opp_ghost_hand)
+		_opp_ghost_hand.transform = $Hand.transform
+		add_child(_opp_ghost_hand)
 		for _i: int in hand_size:
 			var placeholder: Node3D = card_scene.instantiate()
 			(_opp_ghost_hand as Node3D).call("add_card", placeholder)
@@ -2598,7 +2598,7 @@ func _close_opponent_board_view() -> void:
 	$Board.restore_from_snapshot(_my_board_snap)
 	_my_board_snap = {}
 	$Board.set_view_only(false)
-	$Camera3D/Hand.visible = true
+	$Hand.visible = true
 	if GameNetwork.is_my_turn():
 		_show_action_buttons(true)
 
