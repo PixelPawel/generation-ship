@@ -4,10 +4,10 @@ signal card_drag_started(card: Node3D)
 signal card_selected_for_discard(card: Node3D)
 signal card_right_clicked(card: Node3D)
 
-const SPACING: float = 0.052
-const MAX_FAN_WIDTH: float = 0.48
+const SPACING: float = 0.104
+const MAX_FAN_WIDTH: float = 0.96
 const HOVER_LIFT: float = 0.50
-const NEIGHBOR_PUSH: float = 0.036
+const NEIGHBOR_PUSH: float = 0.072
 const HOVER_SCALE: float = 1.1
 const LAYOUT_DURATION: float = 0.2
 const DRAW_STAGGER: float = 0.12
