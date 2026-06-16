@@ -2678,7 +2678,7 @@ func _show_market_card_hologram(cd: CardData, is_advanced: bool) -> void:
 	)
 	var tw: Tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tw.tween_property(card, "global_position", float_pos, 0.45)
-	tw.parallel().tween_property(card, "scale", Vector3(14.0, 14.0, 7.0), 0.45)
+	tw.parallel().tween_property(card, "scale", Vector3(2.0, 2.0, 1.0), 0.45)
 
 	# Click anywhere to dismiss
 	var catcher: Control = Control.new()
