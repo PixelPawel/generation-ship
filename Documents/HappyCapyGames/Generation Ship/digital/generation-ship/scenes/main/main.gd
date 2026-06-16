@@ -87,6 +87,7 @@ var _opp_widget: Control = null
 var _opp_panels: Dictionary = {}         # peer_id → {hand_lbl, supply_lbls, vp_lbl}
 var _opp_ghost_hand: Node3D = null
 var _opp_info_panel: Control = null
+var _market_card_popup: Control = null
 var _my_board_snap: Dictionary = {}      # saved while viewing opponent board
 var _ending_turn: bool = false
 
@@ -546,6 +547,7 @@ func _setup_info_screen_display() -> void:
 	_market_panel.sector_dust_pressed.connect(_on_market_sector_dust_pressed)
 	_market_panel.expedition_pressed.connect(_on_market_expedition_pressed)
 	_market_panel.opponent_pressed.connect(_show_opponent_board)
+	_market_panel.card_preview_requested.connect(_show_market_card_popup)
 
 	var screen_mesh: MeshInstance3D = $UiInfo.find_child("gs_ui_info_screen", true, false) as MeshInstance3D
 	if screen_mesh:
@@ -2613,6 +2615,78 @@ func _close_opponent_board_view() -> void:
 	$Hand.visible = true
 	if GameNetwork.is_my_turn():
 		_show_action_buttons(true)
+
+# ── Market card preview popup ─────────────────────────────────────────────────
+
+func _show_market_card_popup(cd: CardData, is_advanced: bool) -> void:
+	if _market_card_popup:
+		_market_card_popup.queue_free()
+		_market_card_popup = null
+
+	var overlay: Control = Control.new()
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay.gui_input.connect(func(ev: InputEvent) -> void:
+		if ev is InputEventMouseButton and (ev as InputEventMouseButton).pressed:
+			if _market_card_popup:
+				_market_card_popup.queue_free()
+				_market_card_popup = null
+	)
+	$UILayer.add_child(overlay)
+	_market_card_popup = overlay
+
+	var panel: ScifiPanel = load("res://scenes/ui/scifi_panel.gd").new()
+	panel.set_content_margin(20)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay.add_child(panel)
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 12)
+	panel.add_child(vbox)
+
+	var title_lbl: Label = Label.new()
+	title_lbl.text = cd.adv_name if is_advanced else cd.card_name
+	title_lbl.add_theme_font_size_override("font_size", 26)
+	title_lbl.add_theme_color_override("font_color", Color.WHITE)
+	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title_lbl)
+
+	var is_landscape: bool = cd.card_type == CardData.CardType.SECTOR
+	var img_rect: TextureRect = TextureRect.new()
+	img_rect.custom_minimum_size = Vector2(320.0, 230.0) if is_landscape else Vector2(220.0, 308.0)
+	img_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	img_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var url: String = cd.adv_image_url if is_advanced and not cd.adv_image_url.is_empty() else cd.image_url
+	if not url.is_empty():
+		var tex: ImageTexture = ImageCache.get_texture(url)
+		if tex:
+			img_rect.texture = tex
+	vbox.add_child(img_rect)
+
+	var effect: String = cd.adv_effect_text if is_advanced else cd.effect_text
+	if not effect.is_empty():
+		var effect_lbl: Label = Label.new()
+		effect_lbl.text = effect
+		effect_lbl.add_theme_font_size_override("font_size", 15)
+		effect_lbl.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0))
+		effect_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		effect_lbl.custom_minimum_size = Vector2(320.0, 0.0)
+		vbox.add_child(effect_lbl)
+
+	var close_btn: Button = Button.new()
+	close_btn.text = "Close"
+	close_btn.add_theme_font_size_override("font_size", 15)
+	close_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	GameTheme.apply_to_button(close_btn)
+	close_btn.pressed.connect(func() -> void:
+		if _market_card_popup:
+			_market_card_popup.queue_free()
+			_market_card_popup = null
+	)
+	vbox.add_child(close_btn)
 
 # ── Connection loss ───────────────────────────────────────────────────────────
 

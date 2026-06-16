@@ -4,6 +4,7 @@ signal sector_advanced_pressed(slot_idx: int)
 signal sector_dust_pressed(slot_idx: int)
 signal expedition_pressed(slot_idx: int)
 signal opponent_pressed(peer_id: int)
+signal card_preview_requested(cd: CardData, is_advanced: bool)
 
 const CARD_W: int = 112
 const CARD_H: int = 104
@@ -197,6 +198,10 @@ func _build_ui() -> void:
 				var mb: InputEventMouseButton = ev as InputEventMouseButton
 				if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
 					sector_dust_pressed.emit(idx)
+				elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+					var cd: CardData = _sector_market.get_dust_card_data(idx) if _sector_market else null
+					if cd:
+						card_preview_requested.emit(cd, false)
 		)
 		slot.mouse_entered.connect(func() -> void: CursorManager.set_hover())
 		slot.mouse_exited.connect(func() -> void: CursorManager.set_default())
@@ -225,6 +230,10 @@ func _build_ui() -> void:
 				var mb: InputEventMouseButton = ev as InputEventMouseButton
 				if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
 					sector_advanced_pressed.emit(idx)
+				elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+					var cd: CardData = _sector_market.get_advanced_card_data(idx) if _sector_market else null
+					if cd:
+						card_preview_requested.emit(cd, true)
 		)
 		slot.mouse_entered.connect(func() -> void: CursorManager.set_hover())
 		slot.mouse_exited.connect(func() -> void: CursorManager.set_default())
@@ -253,6 +262,10 @@ func _build_ui() -> void:
 				var mb: InputEventMouseButton = ev as InputEventMouseButton
 				if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
 					expedition_pressed.emit(idx)
+				elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+					var cd: CardData = _expedition_market.get_card_data(idx) if _expedition_market else null
+					if cd:
+						card_preview_requested.emit(cd, false)
 		)
 		slot.mouse_entered.connect(func() -> void: CursorManager.set_hover())
 		slot.mouse_exited.connect(func() -> void: CursorManager.set_default())
