@@ -120,8 +120,6 @@ var _cs_viewport: SubViewport = null
 var _info_viewport: SubViewport = null
 var _cs_display: SupplyUI = null
 var _es_viewport: Control = null
-var _enemy_screen_open: bool = false
-var _opponents_btn: Button = null
 var _bot_hands: Dictionary = {}      # bot_id → Array[CardData]
 var _bot_supplies: Dictionary = {}   # bot_id → Dictionary (int color → int count)
 var _es_back_btn: Button = null
@@ -214,19 +212,6 @@ func _ready() -> void:
 	_setup_sfx()
 	_setup_control_screen_display()
 	_setup_enemy_screen_display()
-
-	_opponents_btn = Button.new()
-	_opponents_btn.text = "Opponents"
-	_opponents_btn.visible = false
-	_opponents_btn.add_theme_font_size_override("font_size", 16)
-	GameTheme.apply_to_button(_opponents_btn)
-	_opponents_btn.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	_opponents_btn.offset_top = 10.0
-	_opponents_btn.offset_bottom = 50.0
-	_opponents_btn.offset_left = -170.0
-	_opponents_btn.offset_right = -40.0
-	_opponents_btn.pressed.connect(_on_opponents_btn_pressed)
-	$UILayer.add_child(_opponents_btn)
 
 	_wire_sector_slots_to_board()
 
@@ -618,12 +603,6 @@ func _setup_enemy_screen_display() -> void:
 func _on_control_screen_btn_pressed() -> void:
 	pass
 
-func _on_opponents_btn_pressed() -> void:
-	if not _es_viewport:
-		return
-	_enemy_screen_open = not _enemy_screen_open
-	_es_viewport.visible = _enemy_screen_open
-
 func _init_bot_state() -> void:
 	for bot_id: int in GameNetwork.bot_ids:
 		var supply: Dictionary = {}
@@ -680,8 +659,6 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	var ui_info_anim := $UiInfo.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if ui_info_anim:
 		ui_info_anim.play("Animation")
-	if GameNetwork.is_multiplayer:
-		_opponents_btn.show()
 	_round = 1
 	_update_round_label()
 	_init_supply()
