@@ -69,10 +69,10 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 	entry_style.border_color = Color(0.22, 0.44, 0.70, 0.38)
 	entry_style.set_border_width_all(1)
 	entry_style.set_corner_radius_all(4)
-	entry_style.content_margin_left = 6.0
-	entry_style.content_margin_right = 6.0
-	entry_style.content_margin_top = 5.0
-	entry_style.content_margin_bottom = 5.0
+	entry_style.content_margin_left = 9.0
+	entry_style.content_margin_right = 9.0
+	entry_style.content_margin_top = 7.0
+	entry_style.content_margin_bottom = 7.0
 	entry.add_theme_stylebox_override("panel", entry_style)
 	entry.gui_input.connect(func(event: InputEvent) -> void:
 		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
@@ -90,7 +90,7 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 
 	var name_lbl: Label = Label.new()
 	name_lbl.text = player_name
-	name_lbl.add_theme_font_size_override("font_size", 12)
+	name_lbl.add_theme_font_size_override("font_size", 18)
 	name_lbl.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0))
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_lbl.clip_text = true
@@ -98,7 +98,7 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 	entry_vbox.add_child(name_lbl)
 
 	var supply_grid: VBoxContainer = VBoxContainer.new()
-	supply_grid.add_theme_constant_override("separation", 1)
+	supply_grid.add_theme_constant_override("separation", 2)
 	supply_grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	entry_vbox.add_child(supply_grid)
 
@@ -111,13 +111,13 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 
 	for row_i: int in 2:
 		var row2: HBoxContainer = HBoxContainer.new()
-		row2.add_theme_constant_override("separation", 4)
+		row2.add_theme_constant_override("separation", 8)
 		row2.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		supply_grid.add_child(row2)
 
 		var stat_lbl: Label = stat_lbls[row_i]
 		stat_lbl.text = stat_texts[row_i]
-		stat_lbl.add_theme_font_size_override("font_size", 11)
+		stat_lbl.add_theme_font_size_override("font_size", 16)
 		stat_lbl.add_theme_color_override("font_color", stat_colors[row_i])
 		stat_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		stat_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -133,7 +133,7 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 
 			var icon: TextureRect = TextureRect.new()
 			icon.texture = load(_SUPPLY_PATHS[si]) as Texture2D
-			icon.custom_minimum_size = Vector2(18.0, 18.0)
+			icon.custom_minimum_size = Vector2(27.0, 27.0)
 			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -142,7 +142,7 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 
 			var s_lbl: Label = Label.new()
 			s_lbl.text = "0"
-			s_lbl.add_theme_font_size_override("font_size", 10)
+			s_lbl.add_theme_font_size_override("font_size", 15)
 			s_lbl.add_theme_color_override("font_color", Color(0.70, 0.78, 0.90))
 			s_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			s_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
