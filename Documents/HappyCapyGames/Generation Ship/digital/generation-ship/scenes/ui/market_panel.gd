@@ -186,13 +186,6 @@ func _build_ui() -> void:
 	basic_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	main_hbox.add_child(basic_vbox)
 
-	var basic_hdr := Label.new()
-	basic_hdr.text = "BASIC\nSECTORS"
-	basic_hdr.add_theme_font_size_override("font_size", 13)
-	basic_hdr.add_theme_color_override("font_color", Color(0.75, 0.8, 1.0))
-	basic_hdr.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	basic_vbox.add_child(basic_hdr)
-
 	for i: int in 3:
 		var rect := TextureRect.new()
 		var count_lbl := Label.new()
@@ -222,13 +215,6 @@ func _build_ui() -> void:
 	adv_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	main_hbox.add_child(adv_vbox)
 
-	var adv_hdr := Label.new()
-	adv_hdr.text = "ADVANCED\nSECTORS"
-	adv_hdr.add_theme_font_size_override("font_size", 13)
-	adv_hdr.add_theme_color_override("font_color", Color(0.75, 0.8, 1.0))
-	adv_hdr.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	adv_vbox.add_child(adv_hdr)
-
 	for i: int in 3:
 		var rect := TextureRect.new()
 		var count_lbl := Label.new()
@@ -255,13 +241,6 @@ func _build_ui() -> void:
 	exp_vbox.add_theme_constant_override("separation", 5)
 	exp_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	main_hbox.add_child(exp_vbox)
-
-	var exp_hdr := Label.new()
-	exp_hdr.text = "EXPEDITIONS"
-	exp_hdr.add_theme_font_size_override("font_size", 13)
-	exp_hdr.add_theme_color_override("font_color", Color(0.75, 0.8, 1.0))
-	exp_hdr.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	exp_vbox.add_child(exp_hdr)
 
 	for i: int in 3:
 		var rect := TextureRect.new()
@@ -290,17 +269,6 @@ func _build_ui() -> void:
 	players_vbox.custom_minimum_size = Vector2(200.0, 0.0)
 	main_hbox.add_child(players_vbox)
 
-	var players_hdr := Label.new()
-	players_hdr.text = "PLAYERS"
-	players_hdr.add_theme_font_size_override("font_size", 13)
-	players_hdr.add_theme_color_override("font_color", Color(0.75, 0.8, 1.0))
-	players_hdr.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	players_vbox.add_child(players_hdr)
-
-	var players_title_sep := HSeparator.new()
-	players_title_sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
-	players_vbox.add_child(players_title_sep)
-
 	_opp_vbox = VBoxContainer.new()
 	_opp_vbox.add_theme_constant_override("separation", 4)
 	players_vbox.add_child(_opp_vbox)
@@ -309,12 +277,6 @@ func _make_slot(size: Vector2, rect: TextureRect, count_lbl: Label, highlight: C
 	var root := Control.new()
 	root.custom_minimum_size = size
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
-
-	var bg := ColorRect.new()
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.color = Color(0.08, 0.10, 0.16, 0.85)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(bg)
 
 	rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
