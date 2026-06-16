@@ -512,8 +512,6 @@ func _begin_drag(card: Node3D) -> void:
 	_dragged_card = card
 	card.set("is_dragging", true)
 	card.reparent(self, true)
-	if _drag_origin == DragOrigin.MARKET:
-		market_drag_started.emit(card)
 	if _drag_arrow != null:
 		card.visible = false
 		_is_arrow_drag = true
@@ -521,6 +519,8 @@ func _begin_drag(card: Node3D) -> void:
 		var from_3d: Vector3 = _hand.global_position if _hand else _drag_start_global_pos
 		var from_2d: Vector2 = cam.unproject_position(from_3d)
 		_drag_arrow.show_arrow(from_2d, from_2d)
+	if _drag_origin == DragOrigin.MARKET:
+		market_drag_started.emit(card)
 
 func _process(_delta: float) -> void:
 	if not _dragged_card:
@@ -550,7 +550,9 @@ func _end_arrow_drag() -> void:
 	if _drag_arrow:
 		_drag_arrow.hide_arrow()
 	if is_instance_valid(_dragged_card):
-		_dragged_card.visible = true
+		var ctype: CardData.CardType = _dragged_card.card_data.card_type if _dragged_card.card_data else CardData.CardType.TECH
+		if ctype != CardData.CardType.SECTOR and ctype != CardData.CardType.EXPEDITION:
+			_dragged_card.visible = true
 
 func _try_drop() -> void:
 	_end_arrow_drag()
