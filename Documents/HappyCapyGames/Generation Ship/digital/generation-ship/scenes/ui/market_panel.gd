@@ -180,23 +180,18 @@ func _build_ui() -> void:
 	main_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	panel.add_child(main_hbox)
 
-	# ── Left: Basic + Advanced Sectors ──────────────────────────────────────
-	var left_vbox := VBoxContainer.new()
-	left_vbox.add_theme_constant_override("separation", 6)
-	left_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	main_hbox.add_child(left_vbox)
+	# ── Column 1: Basic Sectors (stacked vertically) ──────────────────────────
+	var basic_vbox := VBoxContainer.new()
+	basic_vbox.add_theme_constant_override("separation", 5)
+	basic_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	main_hbox.add_child(basic_vbox)
 
 	var basic_hdr := Label.new()
-	basic_hdr.text = "BASIC SECTORS"
+	basic_hdr.text = "BASIC\nSECTORS"
 	basic_hdr.add_theme_font_size_override("font_size", 13)
 	basic_hdr.add_theme_color_override("font_color", Color(0.75, 0.8, 1.0))
 	basic_hdr.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	left_vbox.add_child(basic_hdr)
-
-	var dust_row := HBoxContainer.new()
-	dust_row.add_theme_constant_override("separation", 5)
-	dust_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	left_vbox.add_child(dust_row)
+	basic_vbox.add_child(basic_hdr)
 
 	for i: int in 3:
 		var rect := TextureRect.new()
@@ -215,23 +210,24 @@ func _build_ui() -> void:
 		)
 		slot.mouse_entered.connect(func() -> void: CursorManager.set_hover())
 		slot.mouse_exited.connect(func() -> void: CursorManager.set_default())
-		dust_row.add_child(slot)
+		basic_vbox.add_child(slot)
 
-	var mid_sep := HSeparator.new()
-	mid_sep.modulate = Color(0.4, 0.4, 0.5, 0.4)
-	left_vbox.add_child(mid_sep)
+	# ── Column 2: Advanced Sectors (stacked vertically) ───────────────────────
+	var vsep1 := VSeparator.new()
+	vsep1.modulate = Color(0.4, 0.4, 0.5, 0.6)
+	main_hbox.add_child(vsep1)
+
+	var adv_vbox := VBoxContainer.new()
+	adv_vbox.add_theme_constant_override("separation", 5)
+	adv_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	main_hbox.add_child(adv_vbox)
 
 	var adv_hdr := Label.new()
-	adv_hdr.text = "ADVANCED SECTORS"
+	adv_hdr.text = "ADVANCED\nSECTORS"
 	adv_hdr.add_theme_font_size_override("font_size", 13)
 	adv_hdr.add_theme_color_override("font_color", Color(0.75, 0.8, 1.0))
 	adv_hdr.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	left_vbox.add_child(adv_hdr)
-
-	var adv_row := HBoxContainer.new()
-	adv_row.add_theme_constant_override("separation", 5)
-	adv_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	left_vbox.add_child(adv_row)
+	adv_vbox.add_child(adv_hdr)
 
 	for i: int in 3:
 		var rect := TextureRect.new()
@@ -248,15 +244,15 @@ func _build_ui() -> void:
 		)
 		slot.mouse_entered.connect(func() -> void: CursorManager.set_hover())
 		slot.mouse_exited.connect(func() -> void: CursorManager.set_default())
-		adv_row.add_child(slot)
+		adv_vbox.add_child(slot)
 
-	# ── Center separator + Expeditions ────────────────────────────────────────
-	var vsep1 := VSeparator.new()
-	vsep1.modulate = Color(0.4, 0.4, 0.5, 0.6)
-	main_hbox.add_child(vsep1)
+	# ── Column 3: Expeditions (stacked vertically) ────────────────────────────
+	var vsep2 := VSeparator.new()
+	vsep2.modulate = Color(0.4, 0.4, 0.5, 0.6)
+	main_hbox.add_child(vsep2)
 
 	var exp_vbox := VBoxContainer.new()
-	exp_vbox.add_theme_constant_override("separation", 4)
+	exp_vbox.add_theme_constant_override("separation", 5)
 	exp_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	main_hbox.add_child(exp_vbox)
 
@@ -266,11 +262,6 @@ func _build_ui() -> void:
 	exp_hdr.add_theme_color_override("font_color", Color(0.75, 0.8, 1.0))
 	exp_hdr.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	exp_vbox.add_child(exp_hdr)
-
-	var exp_row := HBoxContainer.new()
-	exp_row.add_theme_constant_override("separation", 5)
-	exp_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	exp_vbox.add_child(exp_row)
 
 	for i: int in 3:
 		var rect := TextureRect.new()
@@ -287,12 +278,12 @@ func _build_ui() -> void:
 		)
 		slot.mouse_entered.connect(func() -> void: CursorManager.set_hover())
 		slot.mouse_exited.connect(func() -> void: CursorManager.set_default())
-		exp_row.add_child(slot)
+		exp_vbox.add_child(slot)
 
-	# ── Right separator + Players ──────────────────────────────────────────────
-	var vsep2 := VSeparator.new()
-	vsep2.modulate = Color(0.4, 0.4, 0.5, 0.6)
-	main_hbox.add_child(vsep2)
+	# ── Column 4: Players ──────────────────────────────────────────────────────
+	var vsep3 := VSeparator.new()
+	vsep3.modulate = Color(0.4, 0.4, 0.5, 0.6)
+	main_hbox.add_child(vsep3)
 
 	var players_vbox := VBoxContainer.new()
 	players_vbox.add_theme_constant_override("separation", 4)
