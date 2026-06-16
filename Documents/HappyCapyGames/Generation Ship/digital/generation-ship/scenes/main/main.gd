@@ -2602,59 +2602,22 @@ func _close_opponent_board_view() -> void:
 func _show_market_card_hologram(cd: CardData, is_advanced: bool) -> void:
 	_dismiss_market_card_hologram()
 
-	var glb_scene: PackedScene
-	match cd.card_type:
-		CardData.CardType.SECTOR:     glb_scene = preload("res://assets/3d/gs_card_sector.glb")
-		CardData.CardType.TECH:       glb_scene = preload("res://assets/3d/gs_card_tech.glb")
-		CardData.CardType.EXPEDITION: glb_scene = preload("res://assets/3d/gs_card_expedition.glb")
-	if not glb_scene:
-		return
-
-	var card: Node3D = glb_scene.instantiate()
+	var card: Node3D = card_scene.instantiate()
 	add_child(card)
+	card.set("can_drag", false)
+	card.set("can_elevate", false)
+	card.set("is_advanced", is_advanced)
+	card.call("set_card_data", cd)
 	card.global_position = $UiInfo.global_position
-	card.global_rotation = Vector3(PI / 2.0, 0.0, 0.0)
+	card.global_rotation = Vector3(-PI / 2.0, 0.0, 0.0)
 	card.scale = Vector3.ZERO
 	_market_card_hologram = card
-
-	# Apply card art to face surface
-	var face_mi: MeshInstance3D = card.find_child("*screen_image*", true, false) as MeshInstance3D
-	var url: String = cd.adv_image_url if is_advanced and not cd.adv_image_url.is_empty() else cd.image_url
-	if face_mi and not url.is_empty():
-		var tex: ImageTexture = ImageCache.get_texture(url)
-		if tex:
-			var face_mat: StandardMaterial3D = StandardMaterial3D.new()
-			face_mat.albedo_texture = tex
-			face_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			face_mat.emission_enabled = true
-			face_mat.emission_texture = tex
-			face_mat.emission_energy_multiplier = 0.25
-			face_mat.no_depth_test = true
-			face_mi.set_surface_override_material(0, face_mat)
-
-	# Holographic glow on all other surfaces
-	for child: Node in card.find_children("*", "MeshInstance3D", true, false):
-		var mi: MeshInstance3D = child as MeshInstance3D
-		if mi == face_mi or not mi.mesh:
-			continue
-		for i: int in mi.mesh.get_surface_count():
-			var src: Material = mi.get_active_material(i)
-			var mat: BaseMaterial3D
-			if src is BaseMaterial3D:
-				mat = (src as BaseMaterial3D).duplicate() as BaseMaterial3D
-			else:
-				mat = StandardMaterial3D.new()
-			mat.emission_enabled = true
-			mat.emission_color = Color(0.25, 0.70, 1.0)
-			mat.emission_energy_multiplier = 0.85
-			mat.no_depth_test = true
-			mi.set_surface_override_material(i, mat)
 
 	# Tween from info screen position to floating above the scene
 	var float_pos: Vector3 = Vector3(0.0, 1.38, 0.0)
 	var tw: Tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tw.tween_property(card, "global_position", float_pos, 0.45)
-	tw.parallel().tween_property(card, "scale", Vector3(2.0, 2.0, 1.0), 0.45)
+	tw.parallel().tween_property(card, "scale", Vector3.ONE * 0.25, 0.45)
 
 	# Click anywhere to dismiss
 	var catcher: Control = Control.new()
