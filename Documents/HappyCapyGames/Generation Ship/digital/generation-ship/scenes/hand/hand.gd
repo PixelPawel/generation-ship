@@ -5,12 +5,12 @@ signal card_selected_for_discard(card: Node3D)
 signal card_right_clicked(card: Node3D)
 
 const HAND_SCALE := 1.0
-const BASE_SPACING := 0.13
-const MAX_HAND_WIDTH := 1.2
+const BASE_SPACING := 0.026
+const MAX_HAND_WIDTH := 0.24
 const CARD_WIDTH := 1.26
 const MIN_SPACING := CARD_WIDTH * 0.29
 const HOVER_LIFT := 0.50
-const HOVER_NEIGHBOR_SHIFT := 0.09
+const HOVER_NEIGHBOR_SHIFT := 0.018
 const HOVER_SCALE := 1.1
 const LAYOUT_DURATION := 0.2
 
