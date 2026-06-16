@@ -89,41 +89,47 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 	entry_hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	entry.add_child(entry_hbox)
 
+	var left_vbox: VBoxContainer = VBoxContainer.new()
+	left_vbox.add_theme_constant_override("separation", 2)
+	left_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	entry_hbox.add_child(left_vbox)
+
 	var name_lbl: Label = Label.new()
 	name_lbl.text = player_name
 	name_lbl.add_theme_font_size_override("font_size", 18)
 	name_lbl.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0))
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	name_lbl.clip_text = true
 	name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	entry_hbox.add_child(name_lbl)
+	left_vbox.add_child(name_lbl)
+
+	var hand_lbl: Label = Label.new()
+	hand_lbl.text = "♠ 0"
+	hand_lbl.add_theme_font_size_override("font_size", 16)
+	hand_lbl.add_theme_color_override("font_color", Color(0.70, 0.82, 1.0))
+	hand_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	left_vbox.add_child(hand_lbl)
+
+	var vp_lbl: Label = Label.new()
+	vp_lbl.text = "⭐ 0"
+	vp_lbl.add_theme_font_size_override("font_size", 16)
+	vp_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
+	vp_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	left_vbox.add_child(vp_lbl)
 
 	var supply_grid: VBoxContainer = VBoxContainer.new()
 	supply_grid.add_theme_constant_override("separation", 2)
 	supply_grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	entry_hbox.add_child(supply_grid)
 
-	var hand_lbl: Label = Label.new()
-	var vp_lbl: Label = Label.new()
 	var supply_lbls: Array = []
-	var stat_lbls: Array[Label] = [hand_lbl, vp_lbl]
-	var stat_texts: Array[String] = ["♠ 0", "⭐ 0"]
-	var stat_colors: Array[Color] = [Color(0.70, 0.82, 1.0), Color(1.0, 0.88, 0.35)]
 
 	for row_i: int in 2:
 		var row2: HBoxContainer = HBoxContainer.new()
 		row2.add_theme_constant_override("separation", 8)
 		row2.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		supply_grid.add_child(row2)
-
-		var stat_lbl: Label = stat_lbls[row_i]
-		stat_lbl.text = stat_texts[row_i]
-		stat_lbl.add_theme_font_size_override("font_size", 16)
-		stat_lbl.add_theme_color_override("font_color", stat_colors[row_i])
-		stat_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		stat_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		row2.add_child(stat_lbl)
 
 		for col_i: int in 3:
 			var si: int = row_i * 3 + col_i
