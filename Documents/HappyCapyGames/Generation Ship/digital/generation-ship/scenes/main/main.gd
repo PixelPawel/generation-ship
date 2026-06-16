@@ -2651,11 +2651,7 @@ func _show_market_card_hologram(cd: CardData, is_advanced: bool) -> void:
 			mi.set_surface_override_material(i, mat)
 
 	# Tween from info screen position to floating above the scene
-	var float_pos: Vector3 = Vector3(
-		lerpf($UiInfo.global_position.x, 0.0, 0.6),
-		1.38,
-		lerpf($UiInfo.global_position.z, 0.0, 0.5)
-	)
+	var float_pos: Vector3 = Vector3(0.0, 1.38, 0.0)
 	var tw: Tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tw.tween_property(card, "global_position", float_pos, 0.45)
 	tw.parallel().tween_property(card, "scale", Vector3(2.0, 2.0, 1.0), 0.45)
