@@ -86,6 +86,7 @@ var _opp_snapshots: Dictionary = {}      # peer_id (int) -> state Dictionary
 var _opp_widget: Control = null
 var _opp_panels: Dictionary = {}         # peer_id → {hand_lbl, supply_lbls, vp_lbl}
 var _opp_ghost_hand: Node3D = null
+var _opp_info_panel: Control = null
 var _my_board_snap: Dictionary = {}      # saved while viewing opponent board
 var _ending_turn: bool = false
 
@@ -2561,12 +2562,46 @@ func _show_opponent_board(peer_id: int) -> void:
 			(_opp_ghost_hand as Node3D).call("add_card", placeholder)
 			placeholder.set_face_down($Board.TECH_BACK_URL)
 	_show_action_buttons(false)
-	if _es_back_btn:
-		_es_back_btn.show()
+	if _market_panel:
+		_market_panel.visible = false
+	_build_opp_info_panel(peer_id)
+
+func _build_opp_info_panel(peer_id: int) -> void:
+	if _opp_info_panel:
+		_opp_info_panel.queue_free()
+	var player_name: String = GameNetwork.player_names.get(peer_id, "Opponent")
+	var panel: Control = Control.new()
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_info_viewport.add_child(panel)
+	_opp_info_panel = panel
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 24)
+	vbox.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	vbox.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	vbox.grow_vertical = Control.GROW_DIRECTION_BOTH
+	panel.add_child(vbox)
+
+	var name_lbl: Label = Label.new()
+	name_lbl.text = "Viewing: " + player_name
+	name_lbl.add_theme_font_size_override("font_size", 38)
+	name_lbl.add_theme_color_override("font_color", Color(0.80, 0.90, 1.0))
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(name_lbl)
+
+	var back_btn: Button = Button.new()
+	back_btn.text = "Back to Market"
+	back_btn.add_theme_font_size_override("font_size", 26)
+	GameTheme.apply_to_button(back_btn)
+	back_btn.pressed.connect(_close_opponent_board_view)
+	vbox.add_child(back_btn)
 
 func _close_opponent_board_view() -> void:
-	if _es_back_btn:
-		_es_back_btn.hide()
+	if _opp_info_panel:
+		_opp_info_panel.queue_free()
+		_opp_info_panel = null
+	if _market_panel:
+		_market_panel.visible = true
 	if _opp_ghost_hand:
 		_opp_ghost_hand.queue_free()
 		_opp_ghost_hand = null
