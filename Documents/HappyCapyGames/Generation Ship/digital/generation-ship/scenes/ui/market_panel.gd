@@ -125,7 +125,7 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 
 	# Row 2: all 6 supply icons — Dust Metals Liquids Electrix Organix Thrust
 	var row2: HBoxContainer = HBoxContainer.new()
-	row2.add_theme_constant_override("separation", 4)
+	row2.add_theme_constant_override("separation", 10)
 	row2.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	entry_vbox.add_child(row2)
 
@@ -136,7 +136,7 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 	for display_i: int in 6:
 		var si: int = display_order[display_i]
 		var col: VBoxContainer = VBoxContainer.new()
-		col.add_theme_constant_override("separation", 0)
+		col.add_theme_constant_override("separation", 4)
 		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row2.add_child(col)
