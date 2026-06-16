@@ -272,7 +272,7 @@ func _build_ui() -> void:
 
 	var players_vbox := VBoxContainer.new()
 	players_vbox.add_theme_constant_override("separation", 4)
-	players_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	players_vbox.custom_minimum_size = Vector2(268.0, 0.0)
 	players_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	main_hbox.add_child(players_vbox)
 
