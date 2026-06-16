@@ -2613,7 +2613,7 @@ func _show_market_card_hologram(cd: CardData, is_advanced: bool) -> void:
 	var card: Node3D = glb_scene.instantiate()
 	add_child(card)
 	card.global_position = $UiInfo.global_position
-	card.global_rotation = $Hand.global_rotation
+	card.global_rotation = Vector3(PI / 2.0, 0.0, 0.0)
 	card.scale = Vector3.ZERO
 	_market_card_hologram = card
 
