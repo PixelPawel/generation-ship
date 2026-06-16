@@ -11,7 +11,7 @@ const HOVER_DURATION := 0.15
 const PLACED_LIFT_HEIGHT: float = 0.85
 const PLACED_LIFT_SCALE: float = 3.0
 const PLACED_LIFT_DURATION: float = 0.35
-const PLACED_LIFT_CENTER_PULL: float = 0.7
+const PLACED_LIFT_CENTER_PULL: float = 0.9
 const DRAG_THRESHOLD_PX: float = 8.0
 const _LANDSCAPE_CHILD_SCALE := Vector3(0.88 / 0.63, 0.63 / 0.88, 1.0)
 
