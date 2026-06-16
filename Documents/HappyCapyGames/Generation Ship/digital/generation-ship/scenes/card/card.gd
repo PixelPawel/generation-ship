@@ -89,9 +89,10 @@ func _instantiate_glb(card_type: CardData.CardType) -> void:
 		return
 	_card_glb = scene.instantiate()
 	_card_glb.scale = Vector3(14.0, 14.0, 7.0)
-	_card_glb.visible = false
 	add_child(_card_glb)
+	card_mesh.visible = false
 	_face_surface = _card_glb.find_child("*screen_image*", true, false) as MeshInstance3D
+	_apply_glb_depth_override(true)
 
 func _on_texture_loaded(_result: int, code: int, _headers: PackedStringArray, body: PackedByteArray, url: String, http: HTTPRequest) -> void:
 	http.queue_free()
@@ -104,6 +105,27 @@ func _on_texture_loaded(_result: int, code: int, _headers: PackedStringArray, bo
 	var tex := ImageTexture.create_from_image(img)
 	_apply_texture(tex)
 
+func _apply_glb_depth_override(no_depth_test: bool) -> void:
+	if not _card_glb:
+		return
+	for child: Node in _card_glb.find_children("*", "MeshInstance3D", true, false):
+		var mi: MeshInstance3D = child as MeshInstance3D
+		if not mi.mesh:
+			continue
+		for i: int in mi.mesh.get_surface_count():
+			if no_depth_test:
+				var src: Material = mi.get_active_material(i)
+				if not src:
+					continue
+				var dup: Material = src.duplicate()
+				if dup is BaseMaterial3D:
+					(dup as BaseMaterial3D).no_depth_test = true
+				mi.set_surface_override_material(i, dup)
+			else:
+				var cur: Material = mi.get_surface_override_material(i)
+				if cur is BaseMaterial3D:
+					(cur as BaseMaterial3D).no_depth_test = false
+
 func _apply_texture(tex: ImageTexture) -> void:
 	var mat := card_mesh.get_surface_override_material(0) as ShaderMaterial
 	if mat:
@@ -112,6 +134,7 @@ func _apply_texture(tex: ImageTexture) -> void:
 		var face_mat := StandardMaterial3D.new()
 		face_mat.albedo_texture = tex
 		face_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		face_mat.no_depth_test = not is_placed
 		_face_surface.set_surface_override_material(0, face_mat)
 
 func _on_input_event(_camera: Node, event: InputEvent, _pos: Vector3, _normal: Vector3, _idx: int) -> void:
@@ -224,9 +247,7 @@ func place() -> void:
 	is_dragging = false
 	_any_dragging = false
 	is_placed = true
-	if _card_glb:
-		_card_glb.visible = true
-		card_mesh.visible = false
+	_apply_glb_depth_override(false)
 	_kill_tween()
 	_tween = create_tween()
 	_tween.tween_property(self, "scale", Vector3(1.12, 1.12, 1.12), 0.08).set_ease(Tween.EASE_OUT)
