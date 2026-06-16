@@ -4,11 +4,12 @@ signal card_drag_started(card: Node3D)
 signal card_selected_for_discard(card: Node3D)
 signal card_right_clicked(card: Node3D)
 
-const SPACING: float = 0.104
-const MAX_FAN_WIDTH: float = 0.96
+const CARD_SCALE: float = 0.4       # card node scale while in hand (GLB inside stays 2,2,1)
+const SPACING: float = 0.25
+const MAX_FAN_WIDTH: float = 1.25
 const HOVER_LIFT: float = 0.50
-const NEIGHBOR_PUSH: float = 0.072
-const HOVER_SCALE: float = 1.1
+const NEIGHBOR_PUSH: float = 0.05
+const HOVER_SCALE: float = 1.15
 const LAYOUT_DURATION: float = 0.2
 const DRAW_STAGGER: float = 0.12
 
@@ -132,6 +133,7 @@ func _on_unhovered(_card: Node3D) -> void:
 
 func _on_drag_started(card: Node3D) -> void:
 	detach_card(card)
+	card.scale = Vector3.ONE
 	card_drag_started.emit(card)
 
 func _on_right_clicked(card: Node3D) -> void:
@@ -180,9 +182,14 @@ func _layout(animate: bool) -> void:
 					y_hover = HOVER_LIFT * clampf((base_sy - mouse_y) / screen_lift, 0.0, 1.0)
 
 		var rot_z: float = t * deg_to_rad(-3.0)
-		var z_depth: float = 0.05 if i == _hovered_idx else 0.0
+		# Negative Z in hand-local space = closer to camera (world +Y). Stagger per index
+		# so higher-index cards are always in front and win the raycast.
+		var z_depth: float = -float(i) * 0.015
+		if i == _hovered_idx:
+			z_depth -= 0.05
 		var target_pos: Vector3 = Vector3(x, y_arc + y_hover, z_depth)
-		var target_scale: Vector3 = Vector3.ONE * HOVER_SCALE if i == _hovered_idx else Vector3.ONE
+		var base_scale: Vector3 = Vector3.ONE * CARD_SCALE
+		var target_scale: Vector3 = base_scale * HOVER_SCALE if i == _hovered_idx else base_scale
 
 		if animate:
 			var tw: Tween = _cards[i].create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)

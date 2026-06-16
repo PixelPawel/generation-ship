@@ -1,7 +1,7 @@
 extends Node3D
 
 const DRAG_Y := 0.55
-const HAND_CARD_SCALE := 1.0
+const HAND_CARD_SCALE := 0.4
 const TECH_BACK_URL := "https://generationship.s3.eu-central-1.amazonaws.com/TTS/Tech/GS+Techs+44x67mm138.png"
 const EXPEDITION_BACK_URL := "https://generationship.s3.eu-central-1.amazonaws.com/TTS/Expedition/GS+Expeditions++44x67mm27.png"
 const DROP_RADIUS := 0.4
