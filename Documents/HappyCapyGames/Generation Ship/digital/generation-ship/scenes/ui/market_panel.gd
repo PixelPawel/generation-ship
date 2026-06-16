@@ -89,11 +89,16 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 	entry_hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	entry.add_child(entry_hbox)
 
-	var left_vbox: VBoxContainer = VBoxContainer.new()
-	left_vbox.add_theme_constant_override("separation", 2)
-	left_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	entry_hbox.add_child(left_vbox)
+	var entry_vbox: VBoxContainer = VBoxContainer.new()
+	entry_vbox.add_theme_constant_override("separation", 3)
+	entry_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	entry_hbox.add_child(entry_vbox)
+
+	# Row 1: Name | ♠ count | ⭐ count
+	var row1: HBoxContainer = HBoxContainer.new()
+	row1.add_theme_constant_override("separation", 8)
+	row1.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	entry_vbox.add_child(row1)
 
 	var name_lbl: Label = Label.new()
 	name_lbl.text = player_name
@@ -102,60 +107,57 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_lbl.clip_text = true
 	name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	left_vbox.add_child(name_lbl)
+	row1.add_child(name_lbl)
 
 	var hand_lbl: Label = Label.new()
 	hand_lbl.text = "♠ 0"
 	hand_lbl.add_theme_font_size_override("font_size", 16)
 	hand_lbl.add_theme_color_override("font_color", Color(0.70, 0.82, 1.0))
 	hand_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	left_vbox.add_child(hand_lbl)
+	row1.add_child(hand_lbl)
 
 	var vp_lbl: Label = Label.new()
 	vp_lbl.text = "⭐ 0"
 	vp_lbl.add_theme_font_size_override("font_size", 16)
 	vp_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
 	vp_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	left_vbox.add_child(vp_lbl)
+	row1.add_child(vp_lbl)
 
-	var supply_grid: VBoxContainer = VBoxContainer.new()
-	supply_grid.add_theme_constant_override("separation", 2)
-	supply_grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	entry_hbox.add_child(supply_grid)
+	# Row 2: all 6 supply icons — Dust Metals Liquids Electrix Organix Thrust
+	var row2: HBoxContainer = HBoxContainer.new()
+	row2.add_theme_constant_override("separation", 4)
+	row2.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	entry_vbox.add_child(row2)
 
 	var supply_lbls: Array = []
+	supply_lbls.resize(6)
+	var display_order: Array[int] = [0, 1, 2, 4, 3, 5]
 
-	for row_i: int in 2:
-		var row2: HBoxContainer = HBoxContainer.new()
-		row2.add_theme_constant_override("separation", 8)
-		row2.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		supply_grid.add_child(row2)
+	for display_i: int in 6:
+		var si: int = display_order[display_i]
+		var col: VBoxContainer = VBoxContainer.new()
+		col.add_theme_constant_override("separation", 0)
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row2.add_child(col)
 
-		for col_i: int in 3:
-			var si: int = row_i * 3 + col_i
-			var col: VBoxContainer = VBoxContainer.new()
-			col.add_theme_constant_override("separation", 0)
-			col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			row2.add_child(col)
+		var icon: TextureRect = TextureRect.new()
+		icon.texture = load(_SUPPLY_PATHS[si]) as Texture2D
+		icon.custom_minimum_size = Vector2(27.0, 27.0)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		col.add_child(icon)
 
-			var icon: TextureRect = TextureRect.new()
-			icon.texture = load(_SUPPLY_PATHS[si]) as Texture2D
-			icon.custom_minimum_size = Vector2(27.0, 27.0)
-			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-			icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			col.add_child(icon)
-
-			var s_lbl: Label = Label.new()
-			s_lbl.text = "0"
-			s_lbl.add_theme_font_size_override("font_size", 15)
-			s_lbl.add_theme_color_override("font_color", Color(0.70, 0.78, 0.90))
-			s_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			s_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			col.add_child(s_lbl)
-			supply_lbls.append(s_lbl)
+		var s_lbl: Label = Label.new()
+		s_lbl.text = "0"
+		s_lbl.add_theme_font_size_override("font_size", 15)
+		s_lbl.add_theme_color_override("font_color", Color(0.70, 0.78, 0.90))
+		s_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		s_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		col.add_child(s_lbl)
+		supply_lbls[si] = s_lbl
 
 	_opp_refs[peer_id] = {
 		"hand_lbl": hand_lbl,
