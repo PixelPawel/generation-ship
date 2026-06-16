@@ -84,24 +84,25 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 	entry.mouse_exited.connect(func() -> void: CursorManager.set_default())
 	_opp_vbox.add_child(entry)
 
-	var entry_vbox: VBoxContainer = VBoxContainer.new()
-	entry_vbox.add_theme_constant_override("separation", 3)
-	entry_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	entry.add_child(entry_vbox)
+	var entry_hbox: HBoxContainer = HBoxContainer.new()
+	entry_hbox.add_theme_constant_override("separation", 8)
+	entry_hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	entry.add_child(entry_hbox)
 
 	var name_lbl: Label = Label.new()
 	name_lbl.text = player_name
 	name_lbl.add_theme_font_size_override("font_size", 18)
 	name_lbl.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0))
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	name_lbl.clip_text = true
 	name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	entry_vbox.add_child(name_lbl)
+	entry_hbox.add_child(name_lbl)
 
 	var supply_grid: VBoxContainer = VBoxContainer.new()
 	supply_grid.add_theme_constant_override("separation", 2)
 	supply_grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	entry_vbox.add_child(supply_grid)
+	entry_hbox.add_child(supply_grid)
 
 	var hand_lbl: Label = Label.new()
 	var vp_lbl: Label = Label.new()
