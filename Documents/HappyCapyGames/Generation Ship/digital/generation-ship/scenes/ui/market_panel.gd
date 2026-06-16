@@ -5,7 +5,7 @@ signal sector_dust_pressed(slot_idx: int)
 signal expedition_pressed(slot_idx: int)
 signal opponent_pressed(peer_id: int)
 
-const CARD_W: int = 74
+const CARD_W: int = 112
 const CARD_H: int = 104
 
 const _SUPPLY_PATHS: Array[String] = [
