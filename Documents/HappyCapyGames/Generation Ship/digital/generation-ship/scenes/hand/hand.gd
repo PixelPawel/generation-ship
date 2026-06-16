@@ -4,14 +4,14 @@ signal card_drag_started(card: Node3D)
 signal card_selected_for_discard(card: Node3D)
 signal card_right_clicked(card: Node3D)
 
-const HAND_SCALE := 0.392
-const BASE_SPACING := 0.25
-const MAX_HAND_WIDTH := 2.5
-const CARD_WIDTH := 0.504
+const HAND_SCALE := 1.0
+const BASE_SPACING := 0.65
+const MAX_HAND_WIDTH := 6.0
+const CARD_WIDTH := 1.26
 const MIN_SPACING := CARD_WIDTH * 0.29
 const HOVER_LIFT := 0.50
-const HOVER_NEIGHBOR_SHIFT := 0.3
-const HOVER_SCALE := 0.686
+const HOVER_NEIGHBOR_SHIFT := 0.45
+const HOVER_SCALE := 1.1
 const LAYOUT_DURATION := 0.2
 
 var _cards: Array[Node3D] = []
