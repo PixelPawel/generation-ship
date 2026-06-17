@@ -40,6 +40,7 @@ var _detail_image: TextureRect = null
 var _detail_slot_idx: int = -1
 var _detail_is_advanced: bool = false
 var _detail_is_expedition: bool = false
+var _detail_tween: Tween = null
 
 func _ready() -> void:
 	_build_ui()
@@ -417,13 +418,57 @@ func _show_detail(cd: CardData, slot_idx: int, is_advanced: bool, is_expedition:
 	_detail_is_expedition = is_expedition
 	var url: String = cd.adv_image_url if is_advanced and not cd.adv_image_url.is_empty() else cd.image_url
 	_detail_image.texture = ImageCache.get_texture(url) if not url.is_empty() else null
-	_main_hbox.visible = false
+
+	if _detail_tween and _detail_tween.is_valid():
+		_detail_tween.kill()
+
+	_main_hbox.visible = true
+	_main_hbox.modulate.a = 1.0
+	_main_hbox.scale = Vector2.ONE
+	_detail_panel.modulate.a = 0.0
+	_detail_panel.scale = Vector2(0.8, 0.8)
 	_detail_panel.visible = true
 
+	await get_tree().process_frame
+
+	_main_hbox.pivot_offset = _main_hbox.size * 0.5
+	_detail_panel.pivot_offset = _detail_panel.size * 0.5
+
+	_detail_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	_detail_tween.tween_property(_main_hbox, "scale", Vector2(0.8, 0.8), 0.28)
+	_detail_tween.parallel().tween_property(_main_hbox, "modulate:a", 0.0, 0.22)
+	_detail_tween.parallel().tween_property(_detail_panel, "scale", Vector2.ONE, 0.28)
+	_detail_tween.parallel().tween_property(_detail_panel, "modulate:a", 1.0, 0.22)
+	_detail_tween.tween_callback(func() -> void:
+		_main_hbox.visible = false
+		_main_hbox.modulate.a = 1.0
+		_main_hbox.scale = Vector2.ONE
+	)
+
 func _hide_detail() -> void:
-	_detail_panel.visible = false
-	_main_hbox.visible = true
+	if _detail_slot_idx < 0:
+		return
 	_detail_slot_idx = -1
+
+	if _detail_tween and _detail_tween.is_valid():
+		_detail_tween.kill()
+
+	_main_hbox.pivot_offset = _main_hbox.size * 0.5
+	_detail_panel.pivot_offset = _detail_panel.size * 0.5
+	_main_hbox.visible = true
+	_main_hbox.modulate.a = 0.0
+	_main_hbox.scale = Vector2(0.8, 0.8)
+
+	_detail_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	_detail_tween.tween_property(_detail_panel, "scale", Vector2(0.8, 0.8), 0.2)
+	_detail_tween.parallel().tween_property(_detail_panel, "modulate:a", 0.0, 0.18)
+	_detail_tween.parallel().tween_property(_main_hbox, "scale", Vector2.ONE, 0.2)
+	_detail_tween.parallel().tween_property(_main_hbox, "modulate:a", 1.0, 0.18)
+	_detail_tween.tween_callback(func() -> void:
+		_detail_panel.visible = false
+		_detail_panel.modulate.a = 1.0
+		_detail_panel.scale = Vector2.ONE
+	)
 
 func _on_detail_buy_pressed() -> void:
 	var idx: int = _detail_slot_idx
