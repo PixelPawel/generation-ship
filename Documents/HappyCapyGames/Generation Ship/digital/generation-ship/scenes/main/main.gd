@@ -582,6 +582,7 @@ func _setup_info_screen_display() -> void:
 		mat.set_shader_parameter("vignette_falloff", 2.5)
 		screen_mesh.set_surface_override_material(0, mat)
 		_setup_info_screen_input(screen_mesh)
+	$Board.market_origin_3d = $UiInfo.global_position
 	for p: Control in [_bid_popup, _payment_panel, _scoreboard]:
 		p.reparent(_info_viewport, false)
 		_register_info_panel(p)

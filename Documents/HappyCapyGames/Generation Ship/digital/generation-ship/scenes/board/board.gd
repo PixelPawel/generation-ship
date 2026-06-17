@@ -35,6 +35,7 @@ enum DragOrigin { NONE, HAND, MARKET }
 var _hand: Node3D = null
 var _dragged_card: Node3D = null
 var _drag_origin: DragOrigin = DragOrigin.NONE
+var market_origin_3d: Vector3 = Vector3.ZERO
 var _drag_start_global_pos: Vector3 = Vector3.ZERO
 var _drag_start_scale: Vector3 = Vector3.ONE
 var _major_action_taken: bool = false
@@ -506,7 +507,7 @@ func _begin_drag(card: Node3D) -> void:
 		card.visible = false
 		_is_arrow_drag = true
 		var cam: Camera3D = get_viewport().get_camera_3d()
-		var from_3d: Vector3 = _hand.global_position if _hand else _drag_start_global_pos
+		var from_3d: Vector3 = market_origin_3d if _drag_origin == DragOrigin.MARKET else (_hand.global_position if _hand else _drag_start_global_pos)
 		var from_2d: Vector2 = cam.unproject_position(from_3d)
 		_drag_arrow.show_arrow(from_2d, from_2d)
 	if _drag_origin == DragOrigin.MARKET:
