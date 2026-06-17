@@ -24,6 +24,7 @@ var _title_label: Label = null
 var _total_label: Label = null
 var _confirm_btn: Button = null
 var _rows_container: VBoxContainer = null
+var _card_image_rect: TextureRect = null
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -45,11 +46,25 @@ func _ready() -> void:
 	_title_label.add_theme_font_size_override("font_size", 32)
 	outer_vbox.add_child(_title_label)
 
+	var content_hbox := HBoxContainer.new()
+	content_hbox.add_theme_constant_override("separation", 20)
+	content_hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	outer_vbox.add_child(content_hbox)
+
+	_card_image_rect = TextureRect.new()
+	_card_image_rect.custom_minimum_size = Vector2(200, 0)
+	_card_image_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_card_image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_card_image_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_card_image_rect.visible = false
+	content_hbox.add_child(_card_image_rect)
+
 	var rows_vbox := VBoxContainer.new()
 	rows_vbox.add_theme_constant_override("separation", 16)
 	rows_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	rows_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	outer_vbox.add_child(rows_vbox)
+	content_hbox.add_child(rows_vbox)
 
 	_rows_container = VBoxContainer.new()
 	_rows_container.add_theme_constant_override("separation", 10)
@@ -83,7 +98,7 @@ func _ready() -> void:
 	_confirm_btn.pressed.connect(_on_confirm)
 	btn_row.add_child(_confirm_btn)
 
-func show_bid_payment(card_name: String, amount: int, valid_colors: Array[CardData.SupplyColor], supply_ui: Control, _card_data: CardData = null, _is_advanced: bool = false) -> void:
+func show_bid_payment(card_name: String, amount: int, valid_colors: Array[CardData.SupplyColor], supply_ui: Control, card_data: CardData = null, is_advanced: bool = false) -> void:
 	_needed = amount
 	_supply_ui = supply_ui
 	_valid_colors = valid_colors
@@ -107,6 +122,17 @@ func show_bid_payment(card_name: String, amount: int, valid_colors: Array[CardDa
 		remaining -= take
 		if remaining <= 0:
 			break
+
+	if card_data and _card_image_rect:
+		var url: String = card_data.adv_image_url if (is_advanced and not card_data.adv_image_url.is_empty()) else card_data.image_url
+		if not url.is_empty():
+			var tex: ImageTexture = ImageCache.get_texture(url)
+			_card_image_rect.texture = tex
+			_card_image_rect.visible = tex != null
+		else:
+			_card_image_rect.visible = false
+	elif _card_image_rect:
+		_card_image_rect.visible = false
 
 	_title_label.text = "Pay for %s" % card_name
 	_rebuild_rows()
