@@ -6,6 +6,7 @@ uniform vec3 aabb_min;
 uniform vec3 aabb_max;
 
 uniform float emission_strength    : hint_range(0.0, 3.0)  = 1.3;
+uniform float exposure             : hint_range(0.0, 2.0)  = 1.0;
 uniform float scanline_count       : hint_range(0.0, 300.0) = 120.0;
 uniform float scanline_depth       : hint_range(0.0, 1.0)  = 0.08;
 uniform float vignette_strength    : hint_range(0.0, 1.0)  = 0.35;
@@ -23,6 +24,7 @@ void fragment() {
 	vec2 uv = vec2(u, v);
 
 	vec4 c = texture(viewport_tex, uv);
+	c.rgb *= exposure;
 
 	// Scanlines
 	float line_phase = fract(v * scanline_count);

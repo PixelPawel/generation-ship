@@ -564,6 +564,7 @@ func _setup_info_screen_display() -> void:
 		mat.set_shader_parameter("aabb_min", aabb.position)
 		mat.set_shader_parameter("aabb_max", aabb.position + aabb.size)
 		mat.set_shader_parameter("emission_strength", 0.45)
+		mat.set_shader_parameter("exposure", 0.6)
 		mat.set_shader_parameter("scanline_count", 60.0)
 		mat.set_shader_parameter("scanline_depth", 0.06)
 		mat.set_shader_parameter("vignette_strength", 0.25)
