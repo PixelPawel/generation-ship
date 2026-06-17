@@ -2347,13 +2347,15 @@ func _on_market_card_drag_failed(_card: Node3D) -> void:
 		_process_next_effect()
 
 func _on_market_sector_advanced_pressed(slot_idx: int) -> void:
+	if _effect_mode != EffectMode.NONE:
+		return
 	$Board.market_origin_3d = _viewport_to_world(_market_panel.get_slot_center("advanced", slot_idx))
 	$Board.begin_panel_sector_drag(slot_idx, true)
 
 func _on_market_sector_dust_pressed(slot_idx: int) -> void:
 	if _effect_mode == EffectMode.EFFECT_REVEAL_SECTOR:
 		$Board.reveal_sector_panel_slot(slot_idx)
-	else:
+	elif _effect_mode == EffectMode.NONE:
 		$Board.market_origin_3d = _viewport_to_world(_market_panel.get_slot_center("dust", slot_idx))
 		$Board.begin_panel_sector_drag(slot_idx, false)
 
@@ -2362,7 +2364,7 @@ func _on_market_expedition_pressed(slot_idx: int) -> void:
 		$Board.shuffle_expedition_panel_slot(slot_idx)
 	elif _effect_mode == EffectMode.EFFECT_REVEAL_EXPEDITION:
 		_execute_expedition_reveal(slot_idx)
-	else:
+	elif _effect_mode == EffectMode.NONE:
 		$Board.market_origin_3d = _viewport_to_world(_market_panel.get_slot_center("expedition", slot_idx))
 		$Board.begin_panel_expedition_drag(slot_idx)
 
