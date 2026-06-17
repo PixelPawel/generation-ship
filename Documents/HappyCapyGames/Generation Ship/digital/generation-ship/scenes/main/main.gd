@@ -123,6 +123,10 @@ var _cs_viewport: SubViewport = null
 var _info_viewport: SubViewport = null
 var _cs_display: SupplyUI = null
 var _es_viewport: Control = null
+var _bid_popup: Control = null
+var _payment_panel: Control = null
+var _scoreboard: Control = null
+var _pause_menu: Control = null
 var _bot_hands: Dictionary = {}      # bot_id → Array[CardData]
 var _bot_supplies: Dictionary = {}   # bot_id → Dictionary (int color → int count)
 var _es_back_btn: Button = null
@@ -153,12 +157,16 @@ func _ready() -> void:
 	$Board.expedition_reveal_requested.connect(_execute_expedition_reveal)
 	$Board.market_card_taken.connect(_on_market_card_taken)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
-	$UILayer/PauseMenu.main_menu_pressed.connect(_on_pause_main_menu)
-	$UILayer/BidPopup.bid_confirmed.connect(_on_bid_confirmed)
-	$UILayer/BidPopup.bid_cancelled.connect(_on_bid_cancelled)
-	$UILayer/BidPopup.bid_raised.connect(_on_bid_raised)
-	$UILayer/BidPopup.bid_passed.connect(_on_bid_passed)
-	$UILayer/PaymentPanel.recycle_requested.connect(_on_payment_recycle_requested)
+	_bid_popup = $UILayer/BidPopup
+	_payment_panel = $UILayer/PaymentPanel
+	_scoreboard = $UILayer/Scoreboard
+	_pause_menu = $UILayer/PauseMenu
+	_pause_menu.main_menu_pressed.connect(_on_pause_main_menu)
+	_bid_popup.bid_confirmed.connect(_on_bid_confirmed)
+	_bid_popup.bid_cancelled.connect(_on_bid_cancelled)
+	_bid_popup.bid_raised.connect(_on_bid_raised)
+	_bid_popup.bid_passed.connect(_on_bid_passed)
+	_payment_panel.recycle_requested.connect(_on_payment_recycle_requested)
 	ImageCache.progress_updated.connect(_on_cache_progress)
 	ImageCache.all_loaded.connect(_on_cache_ready)
 	ImageCache.preload_urls(_collect_urls())
@@ -167,7 +175,8 @@ func _ready() -> void:
 
 
 	_bid_payment_panel = load("res://scenes/ui/bid_payment_panel.gd").new()
-	$UILayer.add_child(_bid_payment_panel)
+	_info_viewport.add_child(_bid_payment_panel)
+	_register_info_panel(_bid_payment_panel)
 	_bid_payment_panel.confirmed.connect(_on_bid_payment_confirmed)
 	_bid_payment_panel.forfeited.connect(_on_bid_payment_forfeited)
 
@@ -189,15 +198,18 @@ func _ready() -> void:
 	_choice_popup.choice_made.connect(_on_choice_made)
 	_choice_popup.skipped.connect(_on_choice_skipped)
 	_choice_popup.multiselect_confirmed.connect(_on_multiselect_confirmed)
-	$UILayer.add_child(_choice_popup)
+	_info_viewport.add_child(_choice_popup)
+	_register_info_panel(_choice_popup)
 
 	_supply_cost_panel = SupplyCostPanel.new()
 	_supply_cost_panel.supply_chosen.connect(_on_supply_chosen)
 	_supply_cost_panel.cancelled.connect(_on_supply_choice_cancelled)
-	$UILayer.add_child(_supply_cost_panel)
+	_info_viewport.add_child(_supply_cost_panel)
+	_register_info_panel(_supply_cost_panel)
 
 	_sector_info_popup = SectorInfoPopup.new()
-	$UILayer.add_child(_sector_info_popup)
+	_info_viewport.add_child(_sector_info_popup)
+	_register_info_panel(_sector_info_popup)
 	_sector_info_popup.cargo_move_requested.connect(_on_cargo_move_requested)
 	_sector_info_popup.cargo_cancelled.connect(_on_cargo_cancelled)
 	$Board.sector_info_requested.connect(_on_sector_info_requested)
@@ -569,10 +581,27 @@ func _setup_info_screen_display() -> void:
 		mat.set_shader_parameter("vignette_falloff", 2.5)
 		screen_mesh.set_surface_override_material(0, mat)
 		_setup_info_screen_input(screen_mesh)
+	for p: Control in [_bid_popup, _payment_panel, _scoreboard, _pause_menu]:
+		p.reparent(_info_viewport, false)
+		_register_info_panel(p)
 
 func _setup_info_screen_input(screen_mesh: MeshInstance3D) -> void:
 	_setup_viewport_input(screen_mesh, _info_viewport)
 
+func _register_info_panel(panel: Control) -> void:
+	panel.visibility_changed.connect(func() -> void:
+		if not _market_panel:
+			return
+		if panel.visible:
+			_market_panel.visible = false
+		else:
+			var any_active: bool = false
+			for child: Node in _info_viewport.get_children():
+				if child != _market_panel and child is Control and (child as Control).visible:
+					any_active = true
+					break
+			_market_panel.visible = not any_active
+	)
 
 func _setup_enemy_screen_display() -> void:
 	var panel: PanelContainer = PanelContainer.new()
@@ -1030,7 +1059,7 @@ func _rpc_sync_auction_started(card_ref: Dictionary, slot_idx: int, is_tech: boo
 	var my_id: int = multiplayer.get_unique_id()
 	var is_active: bool = my_id == active_id
 	var can_pass: bool = is_active and my_id != initiator_id
-	$UILayer/BidPopup.show_auction(cd, is_adv, min_bid, leader_name, _auction_cost_color, is_active, can_pass)
+	_bid_popup.show_auction(cd, is_adv, min_bid, leader_name, _auction_cost_color, is_active, can_pass)
 	_auction_active = true
 	_show_action_buttons(false)
 	UIAudio.play_auction_music()
@@ -1045,7 +1074,7 @@ func _rpc_sync_auction_state(current_bid: int, leader_id: int, active_id: int, l
 	var my_id: int = multiplayer.get_unique_id()
 	var is_active: bool = my_id == active_id
 	var can_pass: bool = is_active and my_id != leader_id
-	$UILayer/BidPopup.update_auction(current_bid, leader_name, is_active, can_pass)
+	_bid_popup.update_auction(current_bid, leader_name, is_active, can_pass)
 	if multiplayer.is_server() and GameNetwork.is_bot(active_id):
 		get_tree().create_timer(0.6).timeout.connect(func() -> void: _server_handle_pass_bid(active_id))
 
@@ -1053,7 +1082,7 @@ func _rpc_sync_auction_state(current_bid: int, leader_id: int, active_id: int, l
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, card_ref: Dictionary, slot_idx: int, is_tech: bool, cost_color_int: int) -> void:
 	_auction_active = false
-	$UILayer/BidPopup.hide()
+	_bid_popup.hide()
 	UIAudio.stop_auction_music()
 	var cost_color: CardData.SupplyColor = cost_color_int as CardData.SupplyColor
 	var my_id: int = multiplayer.get_unique_id()
@@ -1206,7 +1235,7 @@ func _game_over() -> void:
 	for line: Dictionary in lines:
 		total += int(line.get("vp", 0))
 	if not GameNetwork.is_multiplayer:
-		$UILayer/Scoreboard.show_scores(lines, total)
+		_scoreboard.show_scores(lines, total)
 		return
 	var my_id: int = multiplayer.get_unique_id()
 	var players: Array[Dictionary] = []
@@ -1230,7 +1259,7 @@ func _game_over() -> void:
 	players.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return int(a.get("total", 0)) > int(b.get("total", 0))
 	)
-	$UILayer/Scoreboard.show_multiplayer_scores(players)
+	_scoreboard.show_multiplayer_scores(players)
 
 # ── Card discarded (all modes) ────────────────────────────────────────────────
 
@@ -2068,14 +2097,14 @@ func _on_bid_required(card: Node3D, slot: Node3D, min_cost: int, cost_color: Car
 	_bid_card_name = card.card_data.adv_name if card.is_advanced else card.card_data.card_name
 	var effective_min: int = max(0, min_cost - $Board.get_purchase_discount(card.card_data, slot as SectorSlot))
 	if not GameNetwork.is_multiplayer:
-		$UILayer/BidPopup.show_bid(card.card_data, card.is_advanced, effective_min, cost_color)
+		_bid_popup.show_bid(card.card_data, card.is_advanced, effective_min, cost_color)
 		return
 	_pending_auction_card_ref = CardRef.to_ref(card.card_data)
 	_pending_auction_slot_idx = $Board.get_slot_index(slot as SectorSlot)
 	_pending_auction_is_tech = is_tech
 	_pending_auction_is_adv = card.is_advanced
 	_pending_auction = true
-	$UILayer/BidPopup.show_bid(card.card_data, card.is_advanced, effective_min, cost_color)
+	_bid_popup.show_bid(card.card_data, card.is_advanced, effective_min, cost_color)
 
 func _on_bid_raised(amount: int) -> void:
 	if GameNetwork.is_host:
@@ -2413,9 +2442,11 @@ func _on_optimize_triggered(slot: SectorSlot, _level: int) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
+	if _info_viewport:
+		_info_viewport.push_input(event)
 	if event.is_action("pause_menu"):
-		$UILayer/PauseMenu.toggle()
-	elif event.is_action("end_turn") and not $UILayer/PauseMenu.visible:
+		_pause_menu.toggle()
+	elif event.is_action("end_turn") and not _pause_menu.visible:
 		if _cs_display.can_end_turn():
 			_on_end_turn_pressed()
 
@@ -2481,7 +2512,7 @@ func _rpc_request_end_turn() -> void:
 	_server_handle_end_turn()
 
 func _on_supply_changed() -> void:
-	$UILayer/PaymentPanel.refresh()
+	_payment_panel.refresh()
 	_bid_payment_panel.refresh()
 
 func _refresh_vp() -> void:
