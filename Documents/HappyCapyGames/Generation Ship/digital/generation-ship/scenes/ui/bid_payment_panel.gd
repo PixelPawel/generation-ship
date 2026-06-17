@@ -100,7 +100,7 @@ func _ready() -> void:
 	_confirm_btn.pressed.connect(_on_confirm)
 	btn_row.add_child(_confirm_btn)
 
-func show_bid_payment(card_name: String, amount: int, valid_colors: Array[CardData.SupplyColor], supply_ui: Control, card_data: CardData = null, is_advanced: bool = false) -> void:
+func show_bid_payment(card_name: String, amount: int, valid_colors: Array[CardData.SupplyColor], supply_ui: Control, card_data: CardData = null, is_advanced: bool = false, confirm_text: String = "Pay & Place") -> void:
 	_needed = amount
 	_supply_ui = supply_ui
 	_valid_colors = valid_colors
@@ -137,6 +137,7 @@ func show_bid_payment(card_name: String, amount: int, valid_colors: Array[CardDa
 		_card_image_rect.visible = false
 
 	_title_label.text = "Pay for %s" % card_name
+	_confirm_btn.text = confirm_text
 	_rebuild_rows()
 	_update_total()
 	show()

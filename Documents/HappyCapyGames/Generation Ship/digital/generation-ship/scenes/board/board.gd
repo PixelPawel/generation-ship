@@ -208,6 +208,22 @@ func begin_panel_sector_drag(slot_idx: int, is_advanced: bool) -> void:
 	_drag_origin = DragOrigin.MARKET
 	_begin_drag(card)
 
+func get_market_sector_card_data(slot_idx: int) -> CardData:
+	return _market.get_dust_card_data(slot_idx)
+
+func is_major_action_taken() -> bool:
+	return _major_action_taken
+
+func begin_prepaid_sector_drag(slot_idx: int) -> void:
+	if not GameNetwork.is_my_turn() or _major_action_taken:
+		return
+	var card: Node3D = _market.detach_dust_card(slot_idx)
+	if not card:
+		return
+	_is_free_gain = true
+	_drag_origin = DragOrigin.MARKET
+	_begin_drag(card)
+
 func begin_panel_expedition_drag(slot_idx: int) -> void:
 	if not GameNetwork.is_my_turn() or _major_action_taken:
 		return
