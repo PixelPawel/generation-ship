@@ -31,6 +31,8 @@ var _exp_counts:      Array[Label]       = []
 
 var _opp_vbox: VBoxContainer = null
 var _opp_refs: Dictionary = {}
+var _opp_slot_data: Array[Dictionary] = []
+var _opp_next_slot: int = 0
 
 var _main_hbox: HBoxContainer = null
 var _detail_panel: Control = null
@@ -50,26 +52,123 @@ func setup(sector_market: Node, expedition_market: Node) -> void:
 	expedition_market.market_changed.connect(_refresh)
 	_refresh()
 
+func _init_opponent_slots() -> void:
+	_opp_slot_data.clear()
+	_opp_next_slot = 0
+	for _i: int in 3:
+		var entry: PanelContainer = PanelContainer.new()
+		entry.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		entry.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		entry.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var style: StyleBoxFlat = StyleBoxFlat.new()
+		style.bg_color = Color(0.02, 0.03, 0.08, 0.30)
+		style.border_color = Color(0.22, 0.44, 0.70, 0.12)
+		style.set_border_width_all(1)
+		style.set_corner_radius_all(4)
+		style.content_margin_left = 9.0
+		style.content_margin_right = 9.0
+		style.content_margin_top = 7.0
+		style.content_margin_bottom = 7.0
+		entry.add_theme_stylebox_override("panel", style)
+		_opp_vbox.add_child(entry)
+
+		var entry_hbox: HBoxContainer = HBoxContainer.new()
+		entry_hbox.add_theme_constant_override("separation", 8)
+		entry_hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		entry_hbox.visible = false
+		entry.add_child(entry_hbox)
+
+		var entry_vbox: VBoxContainer = VBoxContainer.new()
+		entry_vbox.add_theme_constant_override("separation", 3)
+		entry_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		entry_hbox.add_child(entry_vbox)
+
+		var row1: HBoxContainer = HBoxContainer.new()
+		row1.add_theme_constant_override("separation", 8)
+		row1.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		entry_vbox.add_child(row1)
+
+		var name_lbl: Label = Label.new()
+		name_lbl.add_theme_font_size_override("font_size", 18)
+		name_lbl.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0))
+		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_lbl.clip_text = true
+		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row1.add_child(name_lbl)
+
+		var hand_lbl: Label = Label.new()
+		hand_lbl.text = "♠ 0"
+		hand_lbl.add_theme_font_size_override("font_size", 16)
+		hand_lbl.add_theme_color_override("font_color", Color(0.70, 0.82, 1.0))
+		hand_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row1.add_child(hand_lbl)
+
+		var vp_lbl: Label = Label.new()
+		vp_lbl.text = "⭐ 0"
+		vp_lbl.add_theme_font_size_override("font_size", 16)
+		vp_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
+		vp_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row1.add_child(vp_lbl)
+
+		var row2: HBoxContainer = HBoxContainer.new()
+		row2.add_theme_constant_override("separation", 10)
+		row2.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		entry_vbox.add_child(row2)
+
+		var supply_lbls: Array = []
+		supply_lbls.resize(6)
+		var display_order: Array[int] = [0, 1, 2, 4, 3, 5]
+		for display_i: int in 6:
+			var si: int = display_order[display_i]
+			var col: VBoxContainer = VBoxContainer.new()
+			col.add_theme_constant_override("separation", 4)
+			col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			row2.add_child(col)
+			var icon: TextureRect = TextureRect.new()
+			icon.texture = load(_SUPPLY_PATHS[si]) as Texture2D
+			icon.custom_minimum_size = Vector2(27.0, 27.0)
+			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			col.add_child(icon)
+			var s_lbl: Label = Label.new()
+			s_lbl.text = "0"
+			s_lbl.add_theme_font_size_override("font_size", 15)
+			s_lbl.add_theme_color_override("font_color", Color(0.70, 0.78, 0.90))
+			s_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			s_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			col.add_child(s_lbl)
+			supply_lbls[si] = s_lbl
+
+		_opp_slot_data.append({
+			"entry": entry,
+			"style": style,
+			"hbox": entry_hbox,
+			"name_lbl": name_lbl,
+			"hand_lbl": hand_lbl,
+			"supply_lbls": supply_lbls,
+			"vp_lbl": vp_lbl,
+		})
+
 func add_opponent(peer_id: int, player_name: String) -> void:
-	if _opp_refs.has(peer_id) or not _opp_vbox:
+	if _opp_refs.has(peer_id) or _opp_next_slot >= _opp_slot_data.size():
 		return
 
-	var pid: int = peer_id
+	var slot: Dictionary = _opp_slot_data[_opp_next_slot]
+	_opp_next_slot += 1
 
-	var entry: PanelContainer = PanelContainer.new()
+	var entry: PanelContainer = slot["entry"] as PanelContainer
+	var style: StyleBoxFlat = slot["style"] as StyleBoxFlat
+	style.bg_color = Color(0.05, 0.07, 0.15, 0.80)
+	style.border_color = Color(0.22, 0.44, 0.70, 0.38)
+
+	(slot["hbox"] as HBoxContainer).visible = true
+	(slot["name_lbl"] as Label).text = player_name
+
+	var pid: int = peer_id
 	entry.mouse_filter = Control.MOUSE_FILTER_STOP
-	entry.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	entry.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var entry_style: StyleBoxFlat = StyleBoxFlat.new()
-	entry_style.bg_color = Color(0.05, 0.07, 0.15, 0.80)
-	entry_style.border_color = Color(0.22, 0.44, 0.70, 0.38)
-	entry_style.set_border_width_all(1)
-	entry_style.set_corner_radius_all(4)
-	entry_style.content_margin_left = 9.0
-	entry_style.content_margin_right = 9.0
-	entry_style.content_margin_top = 7.0
-	entry_style.content_margin_bottom = 7.0
-	entry.add_theme_stylebox_override("panel", entry_style)
 	entry.gui_input.connect(func(event: InputEvent) -> void:
 		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			opponent_pressed.emit(pid)
@@ -77,87 +176,11 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 	)
 	entry.mouse_entered.connect(func() -> void: CursorManager.set_hover())
 	entry.mouse_exited.connect(func() -> void: CursorManager.set_default())
-	_opp_vbox.add_child(entry)
-
-	var entry_hbox: HBoxContainer = HBoxContainer.new()
-	entry_hbox.add_theme_constant_override("separation", 8)
-	entry_hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	entry.add_child(entry_hbox)
-
-	var entry_vbox: VBoxContainer = VBoxContainer.new()
-	entry_vbox.add_theme_constant_override("separation", 3)
-	entry_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	entry_hbox.add_child(entry_vbox)
-
-	# Row 1: Name | ♠ count | ⭐ count
-	var row1: HBoxContainer = HBoxContainer.new()
-	row1.add_theme_constant_override("separation", 8)
-	row1.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	entry_vbox.add_child(row1)
-
-	var name_lbl: Label = Label.new()
-	name_lbl.text = player_name
-	name_lbl.add_theme_font_size_override("font_size", 18)
-	name_lbl.add_theme_color_override("font_color", Color(0.85, 0.92, 1.0))
-	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_lbl.clip_text = true
-	name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row1.add_child(name_lbl)
-
-	var hand_lbl: Label = Label.new()
-	hand_lbl.text = "♠ 0"
-	hand_lbl.add_theme_font_size_override("font_size", 16)
-	hand_lbl.add_theme_color_override("font_color", Color(0.70, 0.82, 1.0))
-	hand_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row1.add_child(hand_lbl)
-
-	var vp_lbl: Label = Label.new()
-	vp_lbl.text = "⭐ 0"
-	vp_lbl.add_theme_font_size_override("font_size", 16)
-	vp_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
-	vp_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row1.add_child(vp_lbl)
-
-	# Row 2: all 6 supply icons — Dust Metals Liquids Electrix Organix Thrust
-	var row2: HBoxContainer = HBoxContainer.new()
-	row2.add_theme_constant_override("separation", 10)
-	row2.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	entry_vbox.add_child(row2)
-
-	var supply_lbls: Array = []
-	supply_lbls.resize(6)
-	var display_order: Array[int] = [0, 1, 2, 4, 3, 5]
-
-	for display_i: int in 6:
-		var si: int = display_order[display_i]
-		var col: VBoxContainer = VBoxContainer.new()
-		col.add_theme_constant_override("separation", 4)
-		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row2.add_child(col)
-
-		var icon: TextureRect = TextureRect.new()
-		icon.texture = load(_SUPPLY_PATHS[si]) as Texture2D
-		icon.custom_minimum_size = Vector2(27.0, 27.0)
-		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		col.add_child(icon)
-
-		var s_lbl: Label = Label.new()
-		s_lbl.text = "0"
-		s_lbl.add_theme_font_size_override("font_size", 15)
-		s_lbl.add_theme_color_override("font_color", Color(0.70, 0.78, 0.90))
-		s_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		s_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		col.add_child(s_lbl)
-		supply_lbls[si] = s_lbl
 
 	_opp_refs[peer_id] = {
-		"hand_lbl": hand_lbl,
-		"supply_lbls": supply_lbls,
-		"vp_lbl": vp_lbl,
+		"hand_lbl": slot["hand_lbl"],
+		"supply_lbls": slot["supply_lbls"],
+		"vp_lbl": slot["vp_lbl"],
 	}
 
 func update_opponent(peer_id: int, hand_count: int, supply: Dictionary, vp: int) -> void:
@@ -285,6 +308,7 @@ func _build_ui() -> void:
 	_opp_vbox.add_theme_constant_override("separation", 4)
 	_opp_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	players_vbox.add_child(_opp_vbox)
+	_init_opponent_slots()
 
 	_build_detail_overlay(panel)
 
