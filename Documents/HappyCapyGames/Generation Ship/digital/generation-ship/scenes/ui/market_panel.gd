@@ -32,8 +32,6 @@ var _exp_counts:      Array[Label]       = []
 var _opp_vbox: VBoxContainer = null
 var _opp_refs: Dictionary = {}
 
-var _pinned: bool = false
-
 var _main_hbox: HBoxContainer = null
 var _detail_panel: Control = null
 var _detail_image: TextureRect = null
@@ -44,19 +42,6 @@ var _detail_tween: Tween = null
 
 func _ready() -> void:
 	_build_ui()
-
-func _process(_delta: float) -> void:
-	if _pinned:
-		return
-	var inner: Control = get_child(0) as Control
-	if inner and inner.size.x > 0:
-		var vp: Vector2 = get_viewport().get_visible_rect().size
-		position = Vector2(
-			(vp.x - inner.size.x) * 0.5,
-			(vp.y - inner.size.y) * 0.5 + vp.y * 0.025
-		)
-		_pinned = true
-		set_process(false)
 
 func setup(sector_market: Node, expedition_market: Node) -> void:
 	_sector_market = sector_market
