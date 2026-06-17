@@ -23,7 +23,7 @@ var _avail_labels: Dictionary = {}
 var _title_label: Label = null
 var _total_label: Label = null
 var _confirm_btn: Button = null
-var _rows_container: VBoxContainer = null
+var _rows_container: GridContainer = null
 var _card_image_rect: TextureRect = null
 
 func _ready() -> void:
@@ -66,8 +66,10 @@ func _ready() -> void:
 	rows_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content_hbox.add_child(rows_vbox)
 
-	_rows_container = VBoxContainer.new()
-	_rows_container.add_theme_constant_override("separation", 10)
+	_rows_container = GridContainer.new()
+	_rows_container.columns = 6
+	_rows_container.add_theme_constant_override("h_separation", 16)
+	_rows_container.add_theme_constant_override("v_separation", 12)
 	_rows_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	rows_vbox.add_child(_rows_container)
 
@@ -202,48 +204,45 @@ func refresh() -> void:
 func _rebuild_rows() -> void:
 	for child: Node in _rows_container.get_children():
 		child.queue_free()
+	_count_labels.clear()
+	_avail_labels.clear()
 	for color: CardData.SupplyColor in _colors:
-		_rows_container.add_child(_make_row(color))
+		_add_row_cells(color)
 
-func _make_row(color: CardData.SupplyColor) -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(spacer)
+func _add_row_cells(color: CardData.SupplyColor) -> void:
+	var col_key: int = int(color)
 
 	var icon := TextureRect.new()
 	icon.texture = load(SUPPLY_ICON_PATHS[int(color)])
 	icon.custom_minimum_size = Vector2(40, 40)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	row.add_child(icon)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_rows_container.add_child(icon)
 
 	var name_lbl := Label.new()
 	name_lbl.text = CardData.color_name(color)
 	name_lbl.add_theme_font_size_override("font_size", 24)
 	name_lbl.add_theme_color_override("font_color", CardData.color_tint(color))
-	name_lbl.custom_minimum_size = Vector2(120, 0)
 	name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	row.add_child(name_lbl)
+	name_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_rows_container.add_child(name_lbl)
 
-	var col_key: int = int(color)
 	var avail_lbl := Label.new()
 	avail_lbl.text = "(have %d)" % _available[col_key]
 	avail_lbl.add_theme_font_size_override("font_size", 20)
 	avail_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
-	avail_lbl.custom_minimum_size = Vector2(110, 0)
 	avail_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	avail_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_avail_labels[col_key] = avail_lbl
-	row.add_child(avail_lbl)
+	_rows_container.add_child(avail_lbl)
 
 	var dec_btn := Button.new()
 	dec_btn.text = "−"
 	dec_btn.custom_minimum_size = Vector2(48, 48)
 	dec_btn.add_theme_font_size_override("font_size", 26)
 	dec_btn.pressed.connect(func() -> void: _change_alloc(col_key, -1))
-	row.add_child(dec_btn)
+	_rows_container.add_child(dec_btn)
 
 	var count_lbl := Label.new()
 	count_lbl.custom_minimum_size = Vector2(48, 48)
@@ -252,16 +251,14 @@ func _make_row(color: CardData.SupplyColor) -> HBoxContainer:
 	count_lbl.add_theme_font_size_override("font_size", 28)
 	count_lbl.text = str(_allocations[col_key])
 	_count_labels[col_key] = count_lbl
-	row.add_child(count_lbl)
+	_rows_container.add_child(count_lbl)
 
 	var inc_btn := Button.new()
 	inc_btn.text = "+"
 	inc_btn.custom_minimum_size = Vector2(48, 48)
 	inc_btn.add_theme_font_size_override("font_size", 26)
 	inc_btn.pressed.connect(func() -> void: _change_alloc(col_key, 1))
-	row.add_child(inc_btn)
-
-	return row
+	_rows_container.add_child(inc_btn)
 
 func _change_alloc(color_key: int, delta: int) -> void:
 	var current: int = _allocations.get(color_key, 0)
