@@ -483,10 +483,6 @@ func _setup_control_screen_display() -> void:
 	$UILayer/SupplyUI.hide()
 	$Board.set_supply_ui(_cs_display)
 
-	_pause_menu.reparent(_cs_viewport, false)
-	_pause_menu.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_pause_menu.hide()
-
 func _setup_screen_input(screen_mesh: MeshInstance3D) -> void:
 	_setup_viewport_input(screen_mesh, _cs_viewport)
 
@@ -2456,8 +2452,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _info_viewport:
 		_info_viewport.push_input(event)
-	if _cs_viewport:
-		_cs_viewport.push_input(event)
 	if event.is_action("pause_menu"):
 		if _pause_menu.visible:
 			_pause_menu.toggle()
