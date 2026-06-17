@@ -28,17 +28,18 @@ func _ready() -> void:
 
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 10)
-	vbox.custom_minimum_size = Vector2(360, 0)
+	vbox.custom_minimum_size = Vector2(520, 0)
+	vbox.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	margin.add_child(vbox)
 
 	_title = Label.new()
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title.add_theme_font_size_override("font_size", 18)
+	_title.add_theme_font_size_override("font_size", 24)
 	vbox.add_child(_title)
 
 	_hint = Label.new()
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint.add_theme_font_size_override("font_size", 14)
+	_hint.add_theme_font_size_override("font_size", 18)
 	_hint.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	vbox.add_child(_hint)
 
@@ -49,7 +50,7 @@ func _ready() -> void:
 
 	var cancel_btn := Button.new()
 	cancel_btn.text = "Cancel"
-	cancel_btn.add_theme_font_size_override("font_size", 15)
+	cancel_btn.add_theme_font_size_override("font_size", 20)
 	cancel_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	cancel_btn.pressed.connect(func() -> void: hide())
 	vbox.add_child(cancel_btn)
@@ -73,9 +74,9 @@ func show_cost(card_name: String, cost: int, affordable: Array) -> void:
 func _make_btn(color: CardData.SupplyColor, cost: int) -> Button:
 	var btn := Button.new()
 	btn.text = "%s ×%d" % [CardData.color_name(color), cost]
-	btn.add_theme_font_size_override("font_size", 18)
+	btn.add_theme_font_size_override("font_size", 22)
 	btn.add_theme_color_override("font_color", CardData.color_tint(color))
-	btn.custom_minimum_size = Vector2(130, 46)
+	btn.custom_minimum_size = Vector2(160, 52)
 	btn.pressed.connect(func() -> void:
 		_supply_chosen_fired = true
 		supply_chosen.emit(color)

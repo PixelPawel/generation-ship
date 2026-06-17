@@ -14,11 +14,13 @@ func _ready() -> void:
 
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 12)
+	vbox.custom_minimum_size = Vector2(640, 0)
+	vbox.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	panel.add_child(vbox)
 
 	var title := Label.new()
 	title.text = "Final Scores"
-	title.add_theme_font_size_override("font_size", 32)
+	title.add_theme_font_size_override("font_size", 36)
 	title.add_theme_color_override("font_color", Color.WHITE)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
@@ -42,14 +44,14 @@ func show_scores(lines: Array[Dictionary], total: int) -> void:
 		var name_label := Label.new()
 		name_label.text = line.get("label", "")
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_label.add_theme_font_size_override("font_size", 18)
+		name_label.add_theme_font_size_override("font_size", 22)
 		name_label.add_theme_color_override("font_color", Color.WHITE)
 		row.add_child(name_label)
 
 		var vp_label := Label.new()
 		vp_label.text = "%d VP" % int(line.get("vp", 0))
 		vp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		vp_label.add_theme_font_size_override("font_size", 18)
+		vp_label.add_theme_font_size_override("font_size", 22)
 		vp_label.add_theme_color_override("font_color", Color(0.9, 0.85, 0.4))
 		row.add_child(vp_label)
 
@@ -93,14 +95,14 @@ func _add_player_section(player_name: String, total: int, lines: Array, is_winne
 
 	var arrow_lbl := Label.new()
 	arrow_lbl.text = "▼" if start_expanded else "▶"
-	arrow_lbl.add_theme_font_size_override("font_size", 14)
+	arrow_lbl.add_theme_font_size_override("font_size", 17)
 	arrow_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
 	arrow_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	header_hbox.add_child(arrow_lbl)
 
 	var crown_lbl := Label.new()
 	crown_lbl.text = "★ " if is_winner else ""
-	crown_lbl.add_theme_font_size_override("font_size", 18)
+	crown_lbl.add_theme_font_size_override("font_size", 22)
 	crown_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
 	crown_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	header_hbox.add_child(crown_lbl)
@@ -108,7 +110,7 @@ func _add_player_section(player_name: String, total: int, lines: Array, is_winne
 	var name_lbl := Label.new()
 	name_lbl.text = player_name
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_lbl.add_theme_font_size_override("font_size", 20)
+	name_lbl.add_theme_font_size_override("font_size", 24)
 	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.92, 0.55) if is_winner else Color.WHITE)
 	name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	header_hbox.add_child(name_lbl)
@@ -116,7 +118,7 @@ func _add_player_section(player_name: String, total: int, lines: Array, is_winne
 	var total_lbl := Label.new()
 	total_lbl.text = "%d VP" % total
 	total_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	total_lbl.add_theme_font_size_override("font_size", 20)
+	total_lbl.add_theme_font_size_override("font_size", 24)
 	total_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3) if is_winner else Color(0.9, 0.85, 0.4))
 	total_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	header_hbox.add_child(total_lbl)
@@ -150,14 +152,14 @@ func _add_player_section(player_name: String, total: int, lines: Array, is_winne
 			var line_lbl := Label.new()
 			line_lbl.text = ld.get("label", "")
 			line_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			line_lbl.add_theme_font_size_override("font_size", 15)
+			line_lbl.add_theme_font_size_override("font_size", 18)
 			line_lbl.add_theme_color_override("font_color", Color(0.82, 0.82, 0.9))
 			row.add_child(line_lbl)
 
 			var vp_lbl := Label.new()
 			vp_lbl.text = "%d VP" % int(ld.get("vp", 0))
 			vp_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-			vp_lbl.add_theme_font_size_override("font_size", 15)
+			vp_lbl.add_theme_font_size_override("font_size", 18)
 			vp_lbl.add_theme_color_override("font_color", Color(0.9, 0.85, 0.4))
 			row.add_child(vp_lbl)
 
@@ -182,14 +184,14 @@ func _add_total_and_menu(total: int) -> void:
 		var total_name := Label.new()
 		total_name.text = "TOTAL"
 		total_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		total_name.add_theme_font_size_override("font_size", 22)
+		total_name.add_theme_font_size_override("font_size", 26)
 		total_name.add_theme_color_override("font_color", Color.WHITE)
 		total_row.add_child(total_name)
 
 		var total_vp := Label.new()
 		total_vp.text = "%d VP" % total
 		total_vp.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		total_vp.add_theme_font_size_override("font_size", 22)
+		total_vp.add_theme_font_size_override("font_size", 26)
 		total_vp.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3))
 		total_row.add_child(total_vp)
 
@@ -198,8 +200,8 @@ func _add_total_and_menu(total: int) -> void:
 
 	var menu_btn := Button.new()
 	menu_btn.text = "Main Menu"
-	menu_btn.custom_minimum_size = Vector2(0, 48)
-	menu_btn.add_theme_font_size_override("font_size", 20)
+	menu_btn.custom_minimum_size = Vector2(0, 52)
+	menu_btn.add_theme_font_size_override("font_size", 24)
 	menu_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	GameTheme.apply_to_button(menu_btn)
 	menu_btn.pressed.connect(func() -> void:

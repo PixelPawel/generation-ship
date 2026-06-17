@@ -26,10 +26,11 @@ func _ready() -> void:
 	_vbox = VBoxContainer.new()
 	var vbox: VBoxContainer = _vbox
 	vbox.add_theme_constant_override("separation", 16)
+	vbox.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	panel.add_child(vbox)
 
 	_prompt_label = Label.new()
-	_prompt_label.add_theme_font_size_override("font_size", 22)
+	_prompt_label.add_theme_font_size_override("font_size", 26)
 	_prompt_label.add_theme_color_override("font_color", Color.WHITE)
 	_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_prompt_label.autowrap_mode = TextServer.AUTOWRAP_WORD
@@ -48,7 +49,7 @@ func _ready() -> void:
 
 	_skip_btn = Button.new()
 	_skip_btn.text = "Skip"
-	_skip_btn.add_theme_font_size_override("font_size", 15)
+	_skip_btn.add_theme_font_size_override("font_size", 20)
 	_skip_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_skip_btn.pressed.connect(func(): hide(); skipped.emit())
 	_skip_btn.visible = false
@@ -56,7 +57,7 @@ func _ready() -> void:
 
 	_multiselect_done_btn = Button.new()
 	_multiselect_done_btn.text = "Done"
-	_multiselect_done_btn.add_theme_font_size_override("font_size", 15)
+	_multiselect_done_btn.add_theme_font_size_override("font_size", 20)
 	_multiselect_done_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_multiselect_done_btn.pressed.connect(_on_multiselect_done)
 	_multiselect_done_btn.visible = false
@@ -86,8 +87,8 @@ func show_choices(prompt: String, option_labels: Array, skippable: bool = false,
 	for i: int in option_labels.size():
 		var btn := Button.new()
 		btn.text = str(option_labels[i])
-		btn.add_theme_font_size_override("font_size", 18)
-		btn.custom_minimum_size = Vector2(120, 52)
+		btn.add_theme_font_size_override("font_size", 22)
+		btn.custom_minimum_size = Vector2(140, 56)
 		if i < tints.size():
 			btn.add_theme_color_override("font_color", tints[i])
 		var idx: int = i

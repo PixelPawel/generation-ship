@@ -33,6 +33,7 @@ func _ready() -> void:
 
 	var outer_vbox := VBoxContainer.new()
 	outer_vbox.add_theme_constant_override("separation", 16)
+	outer_vbox.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	panel.add_child(outer_vbox)
 
 	_scroll_container = ScrollContainer.new()
@@ -41,12 +42,12 @@ func _ready() -> void:
 
 	_content_vbox = VBoxContainer.new()
 	_content_vbox.add_theme_constant_override("separation", 12)
-	_content_vbox.custom_minimum_size = Vector2(460, 0)
+	_content_vbox.custom_minimum_size = Vector2(680, 0)
 	_scroll_container.add_child(_content_vbox)
 
 	var close_btn := Button.new()
 	close_btn.text = "Close"
-	close_btn.add_theme_font_size_override("font_size", 15)
+	close_btn.add_theme_font_size_override("font_size", 20)
 	close_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	close_btn.pressed.connect(func(): hide())
 	outer_vbox.add_child(close_btn)
@@ -68,7 +69,7 @@ func _rebuild(slot: SectorSlot) -> void:
 		title_str = cd.adv_name if is_adv else cd.card_name
 	var title := Label.new()
 	title.text = title_str
-	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_font_size_override("font_size", 30)
 	title.add_theme_color_override("font_color", Color.WHITE)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_content_vbox.add_child(title)
@@ -96,7 +97,7 @@ func _rebuild(slot: SectorSlot) -> void:
 			cell.add_child(icon)
 			var lbl := Label.new()
 			lbl.text = str(count)
-			lbl.add_theme_font_size_override("font_size", 18)
+			lbl.add_theme_font_size_override("font_size", 22)
 			lbl.add_theme_color_override("font_color", Color.WHITE)
 			cell.add_child(lbl)
 			row.add_child(cell)
@@ -129,14 +130,14 @@ func _fit_scroll_height() -> void:
 func _add_section_label(text: String) -> void:
 	var lbl := Label.new()
 	lbl.text = text
-	lbl.add_theme_font_size_override("font_size", 17)
+	lbl.add_theme_font_size_override("font_size", 22)
 	lbl.add_theme_color_override("font_color", Color(0.75, 0.8, 1.0))
 	_content_vbox.add_child(lbl)
 
 func _add_empty_state(text: String) -> void:
 	var empty := Label.new()
 	empty.text = text
-	empty.add_theme_font_size_override("font_size", 14)
+	empty.add_theme_font_size_override("font_size", 18)
 	empty.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 	empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_content_vbox.add_child(empty)
@@ -183,7 +184,7 @@ func _make_card_row(cards: Array, face_up: bool) -> VBoxContainer:
 			var name_lbl := Label.new()
 			name_lbl.text = cd.card_name
 			name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			name_lbl.add_theme_font_size_override("font_size", 13)
+			name_lbl.add_theme_font_size_override("font_size", 16)
 			name_lbl.add_theme_color_override("font_color", Color.WHITE)
 			name_lbl.custom_minimum_size = Vector2(130, 0)
 			name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
@@ -215,7 +216,7 @@ func _rebuild_cargo(slot: SectorSlot) -> void:
 		title_str += "Sector"
 	var title := Label.new()
 	title.text = title_str
-	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", Color.WHITE)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_content_vbox.add_child(title)
@@ -234,13 +235,13 @@ func _rebuild_cargo(slot: SectorSlot) -> void:
 			row.add_theme_constant_override("separation", 8)
 			var name_lbl := Label.new()
 			name_lbl.text = SUPPLY_NAMES[i]
-			name_lbl.add_theme_font_size_override("font_size", 14)
+			name_lbl.add_theme_font_size_override("font_size", 18)
 			name_lbl.add_theme_color_override("font_color", Color.WHITE)
 			name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			row.add_child(name_lbl)
 			var avail_lbl := Label.new()
 			avail_lbl.text = "(of %d)" % count
-			avail_lbl.add_theme_font_size_override("font_size", 13)
+			avail_lbl.add_theme_font_size_override("font_size", 16)
 			avail_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 			row.add_child(avail_lbl)
 			var spinbox := SpinBox.new()
@@ -277,7 +278,7 @@ func _rebuild_cargo(slot: SectorSlot) -> void:
 			row.add_child(img)
 			var name_lbl := Label.new()
 			name_lbl.text = (cd.card_name if cd else "?") if face_up else "Facedown"
-			name_lbl.add_theme_font_size_override("font_size", 13)
+			name_lbl.add_theme_font_size_override("font_size", 17)
 			name_lbl.add_theme_color_override("font_color", Color.WHITE)
 			name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
@@ -300,12 +301,12 @@ func _rebuild_cargo(slot: SectorSlot) -> void:
 	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	var move_btn := Button.new()
 	move_btn.text = "Move to Sector →"
-	move_btn.add_theme_font_size_override("font_size", 15)
+	move_btn.add_theme_font_size_override("font_size", 20)
 	move_btn.pressed.connect(_on_cargo_move_pressed)
 	btn_row.add_child(move_btn)
 	var cancel_btn := Button.new()
 	cancel_btn.text = "Cancel"
-	cancel_btn.add_theme_font_size_override("font_size", 15)
+	cancel_btn.add_theme_font_size_override("font_size", 20)
 	cancel_btn.pressed.connect(func() -> void: hide(); cargo_cancelled.emit())
 	btn_row.add_child(cancel_btn)
 	_content_vbox.add_child(btn_row)

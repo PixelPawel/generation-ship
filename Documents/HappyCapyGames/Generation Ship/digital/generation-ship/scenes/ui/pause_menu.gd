@@ -47,12 +47,14 @@ func _build_ui() -> void:
 
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 10)
+	vbox.custom_minimum_size = Vector2(500, 0)
+	vbox.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	panel.add_child(vbox)
 
 	var title := Label.new()
 	title.text = "PAUSED"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 30)
+	title.add_theme_font_size_override("font_size", 34)
 	title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
 	vbox.add_child(title)
 
@@ -87,8 +89,8 @@ func _make_button(label_text: String) -> Button:
 	var btn := Button.new()
 	btn.text = label_text
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn.custom_minimum_size = Vector2(0, 46)
-	btn.add_theme_font_size_override("font_size", 18)
+	btn.custom_minimum_size = Vector2(0, 52)
+	btn.add_theme_font_size_override("font_size", 22)
 	return btn
 
 func _build_settings_panel() -> void:
