@@ -13,13 +13,13 @@ signal confirmed(allocations: Dictionary)
 signal forfeited
 
 var _needed: int = 0
-var _allocations: Dictionary = {}   # int(color) -> int amount
-var _available: Dictionary = {}     # int(color) -> int amount
+var _allocations: Dictionary = {}
+var _available: Dictionary = {}
 var _colors: Array[CardData.SupplyColor] = []
 var _valid_colors: Array[CardData.SupplyColor] = []
 var _supply_ui: Control = null
-var _count_labels: Dictionary = {}  # int(color) -> Label
-var _avail_labels: Dictionary = {}  # int(color) -> Label
+var _count_labels: Dictionary = {}
+var _avail_labels: Dictionary = {}
 var _title_label: Label = null
 var _total_label: Label = null
 var _confirm_btn: Button = null
@@ -36,43 +36,53 @@ func _ready() -> void:
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(panel)
 
-	var h_split := HBoxContainer.new()
-	h_split.add_theme_constant_override("separation", 24)
-	panel.add_child(h_split)
-
-	_card_image_rect = TextureRect.new()
-	_card_image_rect.custom_minimum_size = Vector2(210, 0)
-	_card_image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_card_image_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_card_image_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_card_image_rect.visible = false
-	h_split.add_child(_card_image_rect)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 16)
-	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	h_split.add_child(vbox)
+	# Outer VBox fills the ScifiPanel (same proven pattern as all other panels)
+	var outer_vbox := VBoxContainer.new()
+	outer_vbox.add_theme_constant_override("separation", 12)
+	panel.add_child(outer_vbox)
 
 	_title_label = Label.new()
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title_label.add_theme_font_size_override("font_size", 32)
-	vbox.add_child(_title_label)
+	outer_vbox.add_child(_title_label)
+
+	# Inner HBox: card on left, supply rows on right.
+	# Lives inside outer_vbox so PanelContainer never touches it directly.
+	var content_hbox := HBoxContainer.new()
+	content_hbox.add_theme_constant_override("separation", 20)
+	content_hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	outer_vbox.add_child(content_hbox)
+
+	_card_image_rect = TextureRect.new()
+	_card_image_rect.custom_minimum_size = Vector2(200, 0)
+	_card_image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_card_image_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_card_image_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_card_image_rect.visible = false
+	content_hbox.add_child(_card_image_rect)
+
+	var rows_vbox := VBoxContainer.new()
+	rows_vbox.add_theme_constant_override("separation", 16)
+	rows_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rows_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content_hbox.add_child(rows_vbox)
 
 	_rows_container = VBoxContainer.new()
 	_rows_container.add_theme_constant_override("separation", 10)
-	vbox.add_child(_rows_container)
+	_rows_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	rows_vbox.add_child(_rows_container)
 
 	_total_label = Label.new()
 	_total_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_total_label.add_theme_font_size_override("font_size", 24)
-	vbox.add_child(_total_label)
+	rows_vbox.add_child(_total_label)
 
 	var btn_row := HBoxContainer.new()
 	btn_row.add_theme_constant_override("separation", 16)
 	btn_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	btn_row.custom_minimum_size = Vector2(560, 0)
-	vbox.add_child(btn_row)
+	outer_vbox.add_child(btn_row)
 
 	var forfeit_btn := Button.new()
 	forfeit_btn.text = "Forfeit"
@@ -155,15 +165,15 @@ func refresh() -> void:
 		for color: CardData.SupplyColor in _colors:
 			var col_key: int = int(color)
 			_allocations[col_key] = mini(old_allocs.get(col_key, 0), _available.get(col_key, 0))
-		var remaining: int = _needed - _get_total()
+		var rem: int = _needed - _get_total()
 		for color: CardData.SupplyColor in _colors:
-			if remaining <= 0:
+			if rem <= 0:
 				break
 			var col_key: int = int(color)
 			var can_add: int = _available.get(col_key, 0) - int(_allocations.get(col_key, 0))
-			var take: int = mini(can_add, remaining)
+			var take: int = mini(can_add, rem)
 			_allocations[col_key] = int(_allocations.get(col_key, 0)) + take
-			remaining -= take
+			rem -= take
 		_count_labels.clear()
 		_avail_labels.clear()
 		_rebuild_rows()
@@ -177,16 +187,16 @@ func refresh() -> void:
 				(_avail_labels[col_key] as Label).text = "(have %d)" % avail
 			if _count_labels.has(col_key):
 				(_count_labels[col_key] as Label).text = str(_allocations[col_key])
-		var remaining: int = _needed - _get_total()
+		var rem: int = _needed - _get_total()
 		for color: CardData.SupplyColor in _colors:
-			if remaining <= 0:
+			if rem <= 0:
 				break
 			var col_key: int = int(color)
 			var can_add: int = _available.get(col_key, 0) - int(_allocations.get(col_key, 0))
-			var take: int = mini(can_add, remaining)
+			var take: int = mini(can_add, rem)
 			if take > 0:
 				_allocations[col_key] = int(_allocations.get(col_key, 0)) + take
-				remaining -= take
+				rem -= take
 				if _count_labels.has(col_key):
 					(_count_labels[col_key] as Label).text = str(_allocations[col_key])
 	_update_total()
