@@ -11,7 +11,7 @@ const CARD_WIDTH := 0.504
 const MIN_SPACING := CARD_WIDTH * 0.29
 const HOVER_LIFT := 0.1
 const HOVER_NEIGHBOR_SHIFT := 0.3
-const HOVER_SCALE := HAND_SCALE * 1.5
+const HOVER_SCALE := HAND_SCALE * 2.2
 const LAYOUT_DURATION := 0.2
 
 var _cards: Array[Node3D] = []
