@@ -49,10 +49,10 @@ transform = Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 1
 fov = 45.0
 
 [node name="Hand" parent="." unique_id=1324524141 instance=ExtResource("4_hand")]
-transform = Transform3D(0.5, 0, 0, 0, -2.1855694e-08, 0.5, 0, -0.5, -2.1855694e-08, 0, 0.7023951, 0.41380346)
+transform = Transform3D(0.5, 0, 0, 0, -2.1855694e-08, 0.5, 0, -0.5, -2.1855694e-08, 0, 0.7023951, 0.4261111)
 
 [node name="HandLight" type="OmniLight3D" parent="Hand" unique_id=1179268605]
-transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0.3, -0.5)
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0.16159755, 0.97760415)
 light_color = Color(0.9, 0.93, 1, 1)
 light_energy = 0.2
 light_size = 0.069
@@ -149,16 +149,16 @@ grow_vertical = 2
 script = ExtResource("9_pause_menu")
 
 [node name="UiControl" parent="." unique_id=716352890 instance=ExtResource("16_ui_control")]
-transform = Transform3D(3.6514108, 0.20337482, 1.6204439, -1.6238606, 0.8749749, 3.549296, -0.17400247, -3.8978276, 0.8812861, -0.6715658, 1.1088601, -0.18143226)
+transform = Transform3D(3.6514108, 0.20337482, 1.6204439, -1.6238606, 0.8749749, 3.549296, -0.17400247, -3.8978276, 0.8812861, -0.6715658, 1.1088601, -0.19186915)
 
 [node name="UiInfo" parent="." unique_id=827463901 instance=ExtResource("17_ui_info")]
-transform = Transform3D(3.9998608, -0.033279438, 0.0023382183, 0.0057893703, 0.9685139, 3.8809707, -0.032855228, -3.8808334, 0.9685296, 0.7986912, 0.88359684, -0.26920414)
+transform = Transform3D(3.9998608, -0.033279438, 0.0023382183, 0.0057893703, 0.9685139, 3.8809707, -0.032855228, -3.8808334, 0.9685296, 0.7519453, 0.8777117, -0.29699337)
 
 [node name="UiCockpit" parent="." unique_id=938574012 instance=ExtResource("18_ui_cockpit")]
-transform = Transform3D(2.5, 0, 0, 0, 1.1768126, 1.6171304, 0, -1.6171304, 1.1768126, 0, 1.2682037, 0.11330436)
+transform = Transform3D(2.5, 0, 0, 0, 1.1768126, 1.6171304, 0, -1.6171304, 1.1768126, 0, 1.268, 0.12)
 
 [node name="CockpitFillLight" type="OmniLight3D" parent="." unique_id=815320505]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.002019018, 0.98539096, -0.22072826)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.002019018, 1.3139039, 0.2527306)
 light_color = Color(0.85, 0.92, 1, 1)
 light_energy = 0.7
 light_indirect_energy = 0.5
@@ -171,22 +171,22 @@ light_energy = 0.35
 omni_range = 0.8
 
 [node name="SectorSlot1" parent="." unique_id=506460163 instance=ExtResource("19_sector_slot")]
-transform = Transform3D(0.15, 0, 0, 0, 0.13724396, 0.0605318, 0, -0.0605318, 0.13724396, -0.3713315, 0.6297513, 0.30690604)
+transform = Transform3D(0.14999999, 0, 0, 0, 0.1357107, 0.06389532, 0, -0.06389532, 0.1357107, -0.3713315, 0.58897, 0.23686197)
 
 [node name="SectorSlot2" parent="." unique_id=1242461016 instance=ExtResource("19_sector_slot")]
-transform = Transform3D(0.15, 0, 0, 0, 0.13724396, 0.0605318, 0, -0.0605318, 0.13724396, -0.2213315, 0.6297513, 0.30690604)
+transform = Transform3D(0.14999999, 0, 0, 0, 0.1357107, 0.06389532, 0, -0.06389532, 0.1357107, -0.2213315, 0.58897, 0.23686197)
 
 [node name="SectorSlot3" parent="." unique_id=550041313 instance=ExtResource("19_sector_slot")]
-transform = Transform3D(0.15, 0, 0, 0, 0.13724396, 0.0605318, 0, -0.0605318, 0.13724396, -0.071331516, 0.6297513, 0.30690604)
+transform = Transform3D(0.14999999, 0, 0, 0, 0.1357107, 0.06389532, 0, -0.06389532, 0.1357107, -0.071331516, 0.58897, 0.23686197)
 
 [node name="SectorSlot4" parent="." unique_id=97400633 instance=ExtResource("19_sector_slot")]
-transform = Transform3D(0.15, 0, 0, 0, 0.13724396, 0.0605318, 0, -0.0605318, 0.13724396, 0.07866849, 0.6297513, 0.30690604)
+transform = Transform3D(0.14999999, 0, 0, 0, 0.1357107, 0.06389532, 0, -0.06389532, 0.1357107, 0.07866849, 0.58897, 0.23686197)
 
 [node name="SectorSlot5" parent="." unique_id=1240046444 instance=ExtResource("19_sector_slot")]
-transform = Transform3D(0.15, 0, 0, 0, 0.13724396, 0.0605318, 0, -0.0605318, 0.13724396, 0.22866848, 0.6297513, 0.30690604)
+transform = Transform3D(0.14999999, 0, 0, 0, 0.1357107, 0.06389532, 0, -0.06389532, 0.1357107, 0.22866848, 0.58897, 0.23686197)
 
 [node name="SectorSlot6" parent="." unique_id=1532818503 instance=ExtResource("19_sector_slot")]
-transform = Transform3D(0.15, 0, 0, 0, 0.13724396, 0.0605318, 0, -0.0605318, 0.13724396, 0.3786685, 0.6297513, 0.30690604)
+transform = Transform3D(0.14999999, 0, 0, 0, 0.1357107, 0.06389532, 0, -0.06389532, 0.1357107, 0.3786685, 0.58897, 0.23686197)
 
 [node name="Board" parent="." unique_id=208449846 instance=ExtResource("3_board")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.09578419, 0.5534699, 0)
