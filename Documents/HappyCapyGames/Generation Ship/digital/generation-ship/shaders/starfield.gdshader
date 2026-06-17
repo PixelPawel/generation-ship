@@ -1,9 +1,11 @@
 shader_type spatial;
 render_mode unshaded, cull_front, depth_draw_never;
 
-uniform float speed        : hint_range(0.0, 0.02)  = 0.003;
+uniform float speed        : hint_range(0.0, 0.1)   = 0.012;
 uniform float emission_str : hint_range(1.0, 40.0)  = 22.0;
 uniform float star_density : hint_range(0.02, 0.35) = 0.05;
+// Direction the ship is travelling toward (world space, need not be normalised)
+uniform vec3  travel_dir                            = vec3(0.0, 0.0, 1.0);
 
 varying vec3 v_dir;
 
@@ -27,12 +29,24 @@ vec2 cube_uv(vec3 d) {
 }
 
 float star_layer(vec3 dir, float lid, float grid_scale, float drift) {
+	// Per-layer yaw rotation breaks visual alignment between layers
 	float ca = cos(lid * 0.927);
 	float sa = sin(lid * 0.927);
 	vec3 r = vec3(dir.x * ca + dir.z * sa, dir.y, -dir.x * sa + dir.z * ca);
 
-	vec2 uv = cube_uv(r);
-	uv.x += drift;
+	// Rotate the travel direction by the same angle so parallax stays consistent
+	vec3 fwd = normalize(vec3(travel_dir.x * ca + travel_dir.z * sa,
+	                          travel_dir.y,
+	                         -travel_dir.x * sa + travel_dir.z * ca));
+
+	// Stars stream AWAY from fwd: a star now at direction r was previously
+	// at a direction closer to fwd.  Reconstruct that original direction.
+	// sin_theta = sine of angle between r and fwd — zero at poles, max at 90°.
+	vec3 perp     = r - dot(r, fwd) * fwd;
+	float sin_t   = length(perp);                        // 0 at fwd/back, 1 at 90°
+	vec3 orig_dir = normalize(r + fwd * drift * sin_t);  // trace back to origin
+
+	vec2 uv = cube_uv(orig_dir);
 
 	vec2 g    = uv * grid_scale;
 	vec2 cell = floor(g);
@@ -45,8 +59,6 @@ float star_layer(vec3 dir, float lid, float grid_scale, float drift) {
 	off *= 0.75;
 
 	float dist = length(frac - off);
-
-	// sz is the hard core radius; halo extends 25x further for a visible glow
 	float sz   = 0.015 + h12(cell + lid * 29.0 + 2.5) * 0.04;
 	float core = 1.0 - smoothstep(0.0, sz, dist);
 	float halo = (1.0 - smoothstep(0.0, sz * 5.0, dist)) * 0.30;
@@ -64,8 +76,9 @@ void fragment() {
 	float tot = 0.0;
 
 	for (int i = 0; i < 8; i++) {
-		float fi    = float(i);
-		float drift = TIME * speed * mix(1.0, 0.15, fi / 7.0);
+		float fi = float(i);
+		// Close layers (i=0) drift ~15x faster than distant ones (i=7) — parallax
+		float drift = TIME * speed * mix(1.5, 0.1, fi / 7.0);
 		float grid  = 18.0 + fi * 11.0;
 		float dim   = 1.0 - fi * 0.07;
 		tot += star_layer(dir, fi, grid, drift) * dim;

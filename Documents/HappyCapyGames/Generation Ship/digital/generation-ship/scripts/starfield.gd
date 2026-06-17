@@ -9,9 +9,10 @@ func _ready() -> void:
 
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/starfield.gdshader")
-	mat.set_shader_parameter("speed", 0.003)
+	mat.set_shader_parameter("speed", 0.012)
 	mat.set_shader_parameter("emission_str", 22.0)
 	mat.set_shader_parameter("star_density", 0.05)
+	mat.set_shader_parameter("travel_dir", Vector3(0.0, 0.0, 1.0))
 
 	var mesh := MeshInstance3D.new()
 	mesh.mesh = sphere
