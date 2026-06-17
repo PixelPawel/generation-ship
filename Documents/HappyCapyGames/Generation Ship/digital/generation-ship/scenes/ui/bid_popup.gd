@@ -43,6 +43,9 @@ func _ready() -> void:
 	_card_image.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_card_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card_image.visible = false
+	var _bid_mat: ShaderMaterial = ShaderMaterial.new()
+	_bid_mat.shader = load("res://shaders/card_rounded.gdshader")
+	_card_image.material = _bid_mat
 	vbox.add_child(_card_image)
 
 	_title_label = Label.new()

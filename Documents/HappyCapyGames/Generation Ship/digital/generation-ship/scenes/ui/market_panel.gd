@@ -421,6 +421,9 @@ func _build_detail_overlay(panel: Control) -> void:
 	_detail_image.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_detail_image.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_detail_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var _detail_mat: ShaderMaterial = ShaderMaterial.new()
+	_detail_mat.shader = load("res://shaders/card_rounded.gdshader")
+	_detail_image.material = _detail_mat
 	vbox.add_child(_detail_image)
 
 	var btn_row := HBoxContainer.new()

@@ -58,6 +58,9 @@ func _ready() -> void:
 	_card_image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_card_image_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_card_image_rect.visible = false
+	var _pay_mat: ShaderMaterial = ShaderMaterial.new()
+	_pay_mat.shader = load("res://shaders/card_rounded.gdshader")
+	_card_image_rect.material = _pay_mat
 	content_hbox.add_child(_card_image_rect)
 
 	var rows_vbox := VBoxContainer.new()

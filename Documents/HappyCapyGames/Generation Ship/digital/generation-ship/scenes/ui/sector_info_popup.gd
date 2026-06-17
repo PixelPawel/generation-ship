@@ -174,6 +174,9 @@ func _make_card_row(cards: Array, face_up: bool) -> VBoxContainer:
 		img.custom_minimum_size = Vector2(130, 183)
 		img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		var _sip_mat1: ShaderMaterial = ShaderMaterial.new()
+		_sip_mat1.shader = load("res://shaders/card_rounded.gdshader")
+		img.material = _sip_mat1
 		if tex:
 			img.texture = tex
 		else:
@@ -271,6 +274,9 @@ func _rebuild_cargo(slot: SectorSlot) -> void:
 			img.custom_minimum_size = Vector2(70, 98)
 			img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			var _sip_mat2: ShaderMaterial = ShaderMaterial.new()
+			_sip_mat2.shader = load("res://shaders/card_rounded.gdshader")
+			img.material = _sip_mat2
 			if tex:
 				img.texture = tex
 			else:

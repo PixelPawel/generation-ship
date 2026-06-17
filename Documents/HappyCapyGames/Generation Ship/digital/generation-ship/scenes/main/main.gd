@@ -1217,6 +1217,9 @@ func _show_won_card_popup() -> void:
 			img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			img.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			img.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			var _place_mat: ShaderMaterial = ShaderMaterial.new()
+			_place_mat.shader = load("res://shaders/card_rounded.gdshader")
+			img.material = _place_mat
 			vbox.add_child(img)
 
 	var hint := Label.new()
