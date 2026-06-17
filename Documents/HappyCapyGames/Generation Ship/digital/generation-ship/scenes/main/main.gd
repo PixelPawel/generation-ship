@@ -483,6 +483,10 @@ func _setup_control_screen_display() -> void:
 	$UILayer/SupplyUI.hide()
 	$Board.set_supply_ui(_cs_display)
 
+	_pause_menu.reparent(_cs_viewport, false)
+	_pause_menu.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_pause_menu.hide()
+
 func _setup_screen_input(screen_mesh: MeshInstance3D) -> void:
 	_setup_viewport_input(screen_mesh, _cs_viewport)
 
@@ -584,7 +588,7 @@ func _setup_info_screen_display() -> void:
 		mat.set_shader_parameter("vignette_falloff", 2.5)
 		screen_mesh.set_surface_override_material(0, mat)
 		_setup_info_screen_input(screen_mesh)
-	for p: Control in [_bid_popup, _payment_panel, _scoreboard, _pause_menu]:
+	for p: Control in [_bid_popup, _payment_panel, _scoreboard]:
 		p.reparent(_info_viewport, false)
 		_register_info_panel(p)
 
@@ -2452,13 +2456,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _info_viewport:
 		_info_viewport.push_input(event)
+	if _cs_viewport:
+		_cs_viewport.push_input(event)
 	if event.is_action("pause_menu"):
 		if _pause_menu.visible:
 			_pause_menu.toggle()
 		else:
 			var any_active: bool = false
 			for p: Control in _info_panels:
-				if p != _pause_menu and p.is_inside_tree() and p.visible:
+				if p.is_inside_tree() and p.visible:
 					any_active = true
 					break
 			if not any_active:
