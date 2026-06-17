@@ -28,41 +28,37 @@ vec2 cube_uv(vec3 d) {
 	return d.xy / a.z;
 }
 
-float star_layer(vec3 dir, float lid, float grid_scale, float drift) {
-	// Per-layer yaw rotation breaks visual alignment between layers
+// lid controls per-layer rotation only; seed controls star placement.
+// Separating them means a new cycle keeps the same rotation but gets fresh stars.
+float star_layer(vec3 dir, float lid, float seed, float grid_scale, float drift) {
 	float ca = cos(lid * 0.927);
 	float sa = sin(lid * 0.927);
 	vec3 r = vec3(dir.x * ca + dir.z * sa, dir.y, -dir.x * sa + dir.z * ca);
 
-	// Rotate the travel direction by the same angle so parallax stays consistent
 	vec3 fwd = normalize(vec3(travel_dir.x * ca + travel_dir.z * sa,
 	                          travel_dir.y,
 	                         -travel_dir.x * sa + travel_dir.z * ca));
 
-	// Stars stream AWAY from fwd: a star now at direction r was previously
-	// at a direction closer to fwd.  Reconstruct that original direction.
-	// sin_theta = sine of angle between r and fwd — zero at poles, max at 90°.
 	vec3 perp     = r - dot(r, fwd) * fwd;
-	float sin_t   = length(perp);                        // 0 at fwd/back, 1 at 90°
-	vec3 orig_dir = normalize(r + fwd * drift * sin_t);  // trace back to origin
+	float sin_t   = length(perp);
+	vec3 orig_dir = normalize(r + fwd * drift * sin_t);
 
 	vec2 uv = cube_uv(orig_dir);
-
 	vec2 g    = uv * grid_scale;
 	vec2 cell = floor(g);
 	vec2 frac = fract(g) - 0.5;
 
-	if (h12(cell + lid * 17.3) > star_density)
+	if (h12(cell + seed * 17.3) > star_density)
 		return 0.0;
 
-	vec2 off = vec2(h12(cell + lid * 7.0 + 0.5), h12(cell + lid * 13.0 + 1.5)) - 0.5;
+	vec2 off = vec2(h12(cell + seed * 7.0 + 0.5), h12(cell + seed * 13.0 + 1.5)) - 0.5;
 	off *= 0.75;
 
 	float dist = length(frac - off);
-	float sz   = 0.015 + h12(cell + lid * 29.0 + 2.5) * 0.04;
+	float sz   = 0.015 + h12(cell + seed * 29.0 + 2.5) * 0.04;
 	float core = 1.0 - smoothstep(0.0, sz, dist);
 	float halo = (1.0 - smoothstep(0.0, sz * 5.0, dist)) * 0.30;
-	float brt  = 0.3 + h12(cell + lid * 41.0 + 3.5) * 0.7;
+	float brt  = 0.3 + h12(cell + seed * 41.0 + 3.5) * 0.7;
 
 	return (core + halo) * brt;
 }
@@ -71,17 +67,37 @@ void vertex() {
 	v_dir = VERTEX;
 }
 
+// Stars converge toward the forward pole as drift grows unboundedly, eventually
+// collapsing to a single UV cell.  Fix: cap drift at CYCLE and crossfade in a
+// fresh batch of stars (different seed) before the old batch vanishes.
+const float CYCLE      = 1.0;   // drift units before regenerating each layer
+const float FADE_START = 0.75;  // fraction of CYCLE where crossfade begins
+
 void fragment() {
 	vec3 dir  = normalize(v_dir);
 	float tot = 0.0;
 
 	for (int i = 0; i < 8; i++) {
-		float fi = float(i);
-		// Close layers (i=0) drift ~15x faster than distant ones (i=7) — parallax
-		float drift = TIME * speed * mix(1.5, 0.1, fi / 7.0);
-		float grid  = 18.0 + fi * 11.0;
-		float dim   = 1.0 - fi * 0.07;
-		tot += star_layer(dir, fi, grid, drift) * dim;
+		float fi   = float(i);
+		float mult = mix(1.5, 0.1, fi / 7.0);
+		float drift_total = TIME * speed * mult;
+		float grid = 18.0 + fi * 11.0;
+		float dim  = 1.0 - fi * 0.07;
+
+		float cycle = floor(drift_total / CYCLE);
+		float t     = mod(drift_total, CYCLE);        // 0 → CYCLE within each cycle
+
+		// blend: 0 during most of cycle, rises to 1 at the end
+		float blend = smoothstep(FADE_START, CYCLE, t);
+
+		// Current batch: fresh at t=0, converging by t=CYCLE; fades out
+		float seed_cur  = fi + cycle * 3.77;
+		tot += star_layer(dir, fi, seed_cur, grid, t) * dim * (1.0 - blend);
+
+		// Next batch: starts with drift 0 when crossfade begins, fades in
+		float seed_next = fi + (cycle + 1.0) * 3.77;
+		float t_next    = max(0.0, t - FADE_START);   // 0 at fade start → CYCLE*0.25 at end
+		tot += star_layer(dir, fi, seed_next, grid, t_next) * dim * blend;
 	}
 
 	tot = clamp(tot, 0.0, 1.0);
