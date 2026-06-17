@@ -51,6 +51,7 @@ func _ready() -> void:
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 16)
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	h_split.add_child(vbox)
 
 	_title_label = Label.new()
