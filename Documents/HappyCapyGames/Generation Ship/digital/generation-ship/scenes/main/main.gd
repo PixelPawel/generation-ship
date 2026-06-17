@@ -10,8 +10,6 @@ var _bid_color: CardData.SupplyColor = CardData.SupplyColor.DUST
 var _bid_card_name: String = ""
 var _bid_card_data: CardData = null
 var _bid_is_advanced: bool = false
-var _bid_slot_idx: int = -1
-var _awaiting_drag_placement: bool = false
 
 # ── Effect queue ──────────────────────────────────────────────────────��───────
 
@@ -2270,10 +2268,6 @@ func _on_bid_payment_confirmed(allocations: Dictionary) -> void:
 		return
 	for color: Variant in allocations:
 		_cs_display.spend_supply(color as CardData.SupplyColor, int(allocations[color]))
-	if _awaiting_drag_placement:
-		_awaiting_drag_placement = false
-		$Board.begin_prepaid_sector_drag(_bid_slot_idx)
-		return
 	if _pending_auction_win:
 		_pending_auction_win = false
 		if _auction_win_is_initiator:
@@ -2291,10 +2285,6 @@ func _on_bid_payment_confirmed(allocations: Dictionary) -> void:
 		_process_next_effect()
 
 func _on_bid_payment_forfeited() -> void:
-	if _awaiting_drag_placement:
-		_awaiting_drag_placement = false
-		_bid_slot_idx = -1
-		return
 	if _effect_mode == EffectMode.PAYMENT_CONFIRM:
 		_effect_mode = EffectMode.NONE
 		$Board.cancel_payment_confirm()
@@ -2340,23 +2330,8 @@ func _on_market_sector_advanced_pressed(slot_idx: int) -> void:
 func _on_market_sector_dust_pressed(slot_idx: int) -> void:
 	if _effect_mode == EffectMode.EFFECT_REVEAL_SECTOR:
 		$Board.reveal_sector_panel_slot(slot_idx)
-		return
-	if not GameNetwork.is_my_turn() or $Board.is_major_action_taken():
-		return
-	var cd: CardData = $Board.get_market_sector_card_data(slot_idx)
-	if not cd:
-		return
-	_bid_slot_idx = slot_idx
-	_bid_card_data = cd
-	_bid_is_advanced = false
-	_bid_card_name = cd.card_name
-	_bid_color = cd.color
-	_awaiting_drag_placement = true
-	if cd.cost == 0:
-		$Board.begin_prepaid_sector_drag(_bid_slot_idx)
-		return
-	var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(cd.color)
-	_bid_payment_panel.show_bid_payment(cd.card_name, cd.cost, valid_colors, _cs_display, cd, false, "Pay")
+	else:
+		$Board.begin_panel_sector_drag(slot_idx, false)
 
 func _on_market_expedition_pressed(slot_idx: int) -> void:
 	if _effect_mode == EffectMode.EFFECT_EXPEDITION_SHUFFLE:
