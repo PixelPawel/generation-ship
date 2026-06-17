@@ -41,6 +41,9 @@ var _round_label: Label = null
 var _vp_label: Label = null
 var _prev_vp: int = 0
 var _end_turn_pulse_tween: Tween = null
+var _tooltip_panel: PanelContainer = null
+var _tooltip_title: Label = null
+var _tooltip_desc: Label = null
 
 func _ready() -> void:
 	for def: Dictionary in SUPPLY_DEFS:
@@ -152,6 +155,56 @@ func _build_ui() -> void:
 	_flow.add_child(_fuse_1to1_label)
 
 	_refresh_arrows()
+
+	# ── Button tooltip overlay ────────────────────────────────────────────────
+	_tooltip_panel = PanelContainer.new()
+	_tooltip_panel.visible = false
+	_tooltip_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tooltip_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_tooltip_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_tooltip_panel.grow_vertical = Control.GROW_DIRECTION_END
+	_tooltip_panel.offset_top = 8.0
+	var tt_style: StyleBoxFlat = StyleBoxFlat.new()
+	tt_style.bg_color = Color(0.05, 0.07, 0.15, 0.94)
+	tt_style.border_color = Color(0.3, 0.55, 0.85, 0.55)
+	tt_style.set_border_width_all(1)
+	tt_style.set_corner_radius_all(4)
+	tt_style.content_margin_left = 12.0
+	tt_style.content_margin_right = 12.0
+	tt_style.content_margin_top = 8.0
+	tt_style.content_margin_bottom = 8.0
+	_tooltip_panel.add_theme_stylebox_override("panel", tt_style)
+	var tt_vbox: VBoxContainer = VBoxContainer.new()
+	tt_vbox.add_theme_constant_override("separation", 3)
+	tt_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tooltip_panel.add_child(tt_vbox)
+	_tooltip_title = Label.new()
+	_tooltip_title.add_theme_font_size_override("font_size", 16)
+	_tooltip_title.add_theme_color_override("font_color", Color(0.82, 0.93, 1.0))
+	_tooltip_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_tooltip_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tt_vbox.add_child(_tooltip_title)
+	_tooltip_desc = Label.new()
+	_tooltip_desc.add_theme_font_size_override("font_size", 13)
+	_tooltip_desc.add_theme_color_override("font_color", Color(0.60, 0.68, 0.82))
+	_tooltip_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_tooltip_desc.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_tooltip_desc.custom_minimum_size = Vector2(230, 0)
+	_tooltip_desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tt_vbox.add_child(_tooltip_desc)
+	add_child(_tooltip_panel)
+
+
+func show_button_tooltip(title: String, desc: String) -> void:
+	if not _tooltip_panel:
+		return
+	_tooltip_title.text = title
+	_tooltip_desc.text = desc
+	_tooltip_panel.visible = true
+
+func hide_button_tooltip() -> void:
+	if _tooltip_panel:
+		_tooltip_panel.visible = false
 
 
 func _on_fuse_clicked(src: int, dst: int) -> void:

@@ -474,10 +474,16 @@ func _setup_control_screen_display() -> void:
 		_setup_screen_input(screen_mesh)
 
 	var btn_callbacks: Array[Callable] = [_on_research_pressed, _on_pass_pressed, _on_end_turn_pressed]
+	var btn_tooltip_titles: Array[String] = ["Research", "Pass", "End Turn"]
+	var btn_tooltip_descs: Array[String] = [
+		"Discard a hand card and draw a replacement, then end your turn.",
+		"End your turn without buying a card.",
+		"Finish your turn after buying or placing a card.",
+	]
 	for i: int in 3:
 		var btn_mesh: MeshInstance3D = $UiControl.find_child("gs_ui_control_button%d" % (i + 1), true, false) as MeshInstance3D
 		if btn_mesh:
-			_setup_button_input(btn_mesh, btn_callbacks[i])
+			_setup_button_input(btn_mesh, btn_callbacks[i], btn_tooltip_titles[i], btn_tooltip_descs[i])
 
 	$UILayer/SupplyUI.hide()
 	$Board.set_supply_ui(_cs_display)
@@ -485,7 +491,7 @@ func _setup_control_screen_display() -> void:
 func _setup_screen_input(screen_mesh: MeshInstance3D) -> void:
 	_setup_viewport_input(screen_mesh, _cs_viewport)
 
-func _setup_button_input(btn_mesh: MeshInstance3D, callback: Callable) -> void:
+func _setup_button_input(btn_mesh: MeshInstance3D, callback: Callable, tooltip_title: String = "", tooltip_desc: String = "") -> void:
 	var area: Area3D = Area3D.new()
 	area.input_ray_pickable = true
 	btn_mesh.add_child(area)
@@ -509,9 +515,12 @@ func _setup_button_input(btn_mesh: MeshInstance3D, callback: Callable) -> void:
 		mat.emission = Color(0.8, 0.9, 1.0)
 		mat.emission_energy_multiplier = 0.3
 		btn_mesh.set_surface_override_material(0, mat)
+		if not tooltip_title.is_empty():
+			_cs_display.show_button_tooltip(tooltip_title, tooltip_desc)
 	)
 	area.mouse_exited.connect(func() -> void:
 		btn_mesh.set_surface_override_material(0, null)
+		_cs_display.hide_button_tooltip()
 	)
 
 func _setup_viewport_input(screen_mesh: MeshInstance3D, vp: SubViewport) -> void:
