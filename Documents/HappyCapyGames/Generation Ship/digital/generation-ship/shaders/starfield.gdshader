@@ -3,7 +3,7 @@ render_mode unshaded, cull_front, depth_draw_never;
 
 uniform float speed        : hint_range(0.0, 0.02)  = 0.003;
 uniform float emission_str : hint_range(1.0, 40.0)  = 22.0;
-uniform float star_density : hint_range(0.02, 0.35) = 0.09;
+uniform float star_density : hint_range(0.02, 0.35) = 0.05;
 
 varying vec3 v_dir;
 
@@ -49,7 +49,7 @@ float star_layer(vec3 dir, float lid, float grid_scale, float drift) {
 	// sz is the hard core radius; halo extends 25x further for a visible glow
 	float sz   = 0.015 + h12(cell + lid * 29.0 + 2.5) * 0.04;
 	float core = 1.0 - smoothstep(0.0, sz, dist);
-	float halo = (1.0 - smoothstep(0.0, sz * 5.0, dist)) * 0.45;
+	float halo = (1.0 - smoothstep(0.0, sz * 5.0, dist)) * 0.30;
 	float brt  = 0.3 + h12(cell + lid * 41.0 + 3.5) * 0.7;
 
 	return (core + halo) * brt;
