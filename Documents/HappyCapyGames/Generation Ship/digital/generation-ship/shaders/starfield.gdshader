@@ -48,8 +48,8 @@ float star_layer(vec3 dir, float lid, float grid_scale, float drift) {
 
 	float dist = length(frac - off);
 	float sz   = 0.007 + h12(cell + lid * 29.0 + 2.5) * 0.02;
-	float core = smoothstep(sz, 0.0, dist);
-	float halo = smoothstep(sz * 5.0, 0.0, dist) * 0.08;
+	float core = 1.0 - smoothstep(0.0, sz, dist);
+	float halo = (1.0 - smoothstep(0.0, sz * 5.0, dist)) * 0.08;
 	float brt  = 0.2 + h12(cell + lid * 41.0 + 3.5) * 0.8;
 
 	return (core + halo) * brt;
