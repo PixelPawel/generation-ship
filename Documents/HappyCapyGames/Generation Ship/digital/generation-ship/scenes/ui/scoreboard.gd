@@ -14,8 +14,6 @@ func _ready() -> void:
 
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 12)
-	vbox.custom_minimum_size = Vector2(640, 0)
-	vbox.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	panel.add_child(vbox)
 
 	var title := Label.new()

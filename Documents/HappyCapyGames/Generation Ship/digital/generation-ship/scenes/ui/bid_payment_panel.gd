@@ -27,40 +27,42 @@ func _ready() -> void:
 	add_child(panel)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 12)
-	vbox.custom_minimum_size = Vector2(580, 0)
-	vbox.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	vbox.add_theme_constant_override("separation", 16)
 	panel.add_child(vbox)
 
 	_title_label = Label.new()
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title_label.add_theme_font_size_override("font_size", 26)
+	_title_label.add_theme_font_size_override("font_size", 32)
 	vbox.add_child(_title_label)
 
 	_rows_container = VBoxContainer.new()
-	_rows_container.add_theme_constant_override("separation", 8)
+	_rows_container.add_theme_constant_override("separation", 10)
 	vbox.add_child(_rows_container)
 
 	_total_label = Label.new()
 	_total_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_total_label.add_theme_font_size_override("font_size", 20)
+	_total_label.add_theme_font_size_override("font_size", 24)
 	vbox.add_child(_total_label)
 
 	var btn_row := HBoxContainer.new()
-	btn_row.add_theme_constant_override("separation", 10)
+	btn_row.add_theme_constant_override("separation", 16)
+	btn_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	btn_row.custom_minimum_size = Vector2(620, 0)
 	vbox.add_child(btn_row)
 
 	var forfeit_btn := Button.new()
 	forfeit_btn.text = "Forfeit"
 	forfeit_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	forfeit_btn.add_theme_font_size_override("font_size", 20)
+	forfeit_btn.custom_minimum_size = Vector2(0, 56)
+	forfeit_btn.add_theme_font_size_override("font_size", 24)
 	forfeit_btn.pressed.connect(func() -> void: hide(); forfeited.emit())
 	btn_row.add_child(forfeit_btn)
 
 	_confirm_btn = Button.new()
 	_confirm_btn.text = "Pay & Place"
 	_confirm_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_confirm_btn.add_theme_font_size_override("font_size", 20)
+	_confirm_btn.custom_minimum_size = Vector2(0, 56)
+	_confirm_btn.add_theme_font_size_override("font_size", 24)
 	_confirm_btn.pressed.connect(_on_confirm)
 	btn_row.add_child(_confirm_btn)
 
@@ -168,45 +170,46 @@ func _rebuild_rows() -> void:
 
 func _make_row(color: CardData.SupplyColor) -> HBoxContainer:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
 
 	var name_lbl := Label.new()
 	name_lbl.text = CardData.color_name(color)
-	name_lbl.add_theme_font_size_override("font_size", 20)
+	name_lbl.add_theme_font_size_override("font_size", 24)
 	name_lbl.add_theme_color_override("font_color", CardData.color_tint(color))
-	name_lbl.custom_minimum_size = Vector2(100, 0)
+	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(name_lbl)
 
 	var col_key: int = int(color)
 	var avail_lbl := Label.new()
 	avail_lbl.text = "(have %d)" % _available[col_key]
-	avail_lbl.add_theme_font_size_override("font_size", 17)
+	avail_lbl.add_theme_font_size_override("font_size", 20)
 	avail_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
-	avail_lbl.custom_minimum_size = Vector2(90, 0)
+	avail_lbl.custom_minimum_size = Vector2(110, 0)
+	avail_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_avail_labels[col_key] = avail_lbl
 	row.add_child(avail_lbl)
 
 	var dec_btn := Button.new()
 	dec_btn.text = "−"
-	dec_btn.custom_minimum_size = Vector2(42, 42)
-	dec_btn.add_theme_font_size_override("font_size", 22)
+	dec_btn.custom_minimum_size = Vector2(48, 48)
+	dec_btn.add_theme_font_size_override("font_size", 26)
 	dec_btn.pressed.connect(func() -> void: _change_alloc(col_key, -1))
 	row.add_child(dec_btn)
 
 	var count_lbl := Label.new()
-	count_lbl.custom_minimum_size = Vector2(40, 42)
+	count_lbl.custom_minimum_size = Vector2(48, 48)
 	count_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	count_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	count_lbl.add_theme_font_size_override("font_size", 24)
+	count_lbl.add_theme_font_size_override("font_size", 28)
 	count_lbl.text = str(_allocations[col_key])
 	_count_labels[col_key] = count_lbl
 	row.add_child(count_lbl)
 
 	var inc_btn := Button.new()
 	inc_btn.text = "+"
-	inc_btn.custom_minimum_size = Vector2(42, 42)
-	inc_btn.add_theme_font_size_override("font_size", 22)
+	inc_btn.custom_minimum_size = Vector2(48, 48)
+	inc_btn.add_theme_font_size_override("font_size", 26)
 	inc_btn.pressed.connect(func() -> void: _change_alloc(col_key, 1))
 	row.add_child(inc_btn)
 

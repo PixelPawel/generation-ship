@@ -33,13 +33,11 @@ func _ready() -> void:
 	add_child(panel)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 10)
-	vbox.custom_minimum_size = Vector2(580, 0)
-	vbox.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	vbox.add_theme_constant_override("separation", 14)
 	panel.add_child(vbox)
 
 	_card_image = TextureRect.new()
-	_card_image.custom_minimum_size = Vector2(0, 180)
+	_card_image.custom_minimum_size = Vector2(0, 260)
 	_card_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_card_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_card_image.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -49,68 +47,72 @@ func _ready() -> void:
 
 	_title_label = Label.new()
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title_label.add_theme_font_size_override("font_size", 28)
+	_title_label.add_theme_font_size_override("font_size", 32)
 	vbox.add_child(_title_label)
 
 	_hint_label = Label.new()
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint_label.add_theme_font_size_override("font_size", 18)
+	_hint_label.add_theme_font_size_override("font_size", 20)
 	_hint_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(_hint_label)
 
 	_accepted_row = HBoxContainer.new()
 	_accepted_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_accepted_row.add_theme_constant_override("separation", 6)
+	_accepted_row.add_theme_constant_override("separation", 8)
 	vbox.add_child(_accepted_row)
 
 	_status_label = Label.new()
 	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_status_label.add_theme_font_size_override("font_size", 18)
+	_status_label.add_theme_font_size_override("font_size", 20)
 	_status_label.visible = false
 	vbox.add_child(_status_label)
 
 	var bid_row := HBoxContainer.new()
 	bid_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	bid_row.add_theme_constant_override("separation", 12)
+	bid_row.add_theme_constant_override("separation", 16)
 	vbox.add_child(bid_row)
 
 	_dec_btn = Button.new()
 	_dec_btn.text = "−"
-	_dec_btn.custom_minimum_size = Vector2(48, 48)
-	_dec_btn.add_theme_font_size_override("font_size", 26)
+	_dec_btn.custom_minimum_size = Vector2(56, 56)
+	_dec_btn.add_theme_font_size_override("font_size", 30)
 	_dec_btn.pressed.connect(_on_decrease)
 	bid_row.add_child(_dec_btn)
 
 	_amount_label = Label.new()
-	_amount_label.custom_minimum_size = Vector2(70, 48)
+	_amount_label.custom_minimum_size = Vector2(90, 56)
 	_amount_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_amount_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_amount_label.add_theme_font_size_override("font_size", 34)
+	_amount_label.add_theme_font_size_override("font_size", 40)
 	bid_row.add_child(_amount_label)
 
 	_inc_btn = Button.new()
 	_inc_btn.text = "+"
-	_inc_btn.custom_minimum_size = Vector2(48, 48)
-	_inc_btn.add_theme_font_size_override("font_size", 26)
+	_inc_btn.custom_minimum_size = Vector2(56, 56)
+	_inc_btn.add_theme_font_size_override("font_size", 30)
 	_inc_btn.pressed.connect(_on_increase)
 	bid_row.add_child(_inc_btn)
 
 	var btn_row := HBoxContainer.new()
-	btn_row.add_theme_constant_override("separation", 8)
+	btn_row.add_theme_constant_override("separation", 16)
+	btn_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	btn_row.custom_minimum_size = Vector2(620, 0)
 	vbox.add_child(btn_row)
 
 	_cancel_btn = Button.new()
 	_cancel_btn.text = "Cancel"
 	_cancel_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_cancel_btn.add_theme_font_size_override("font_size", 20)
+	_cancel_btn.custom_minimum_size = Vector2(0, 56)
+	_cancel_btn.add_theme_font_size_override("font_size", 24)
 	_cancel_btn.pressed.connect(_on_cancel)
 	btn_row.add_child(_cancel_btn)
 
 	_pass_btn = Button.new()
 	_pass_btn.text = "Pass"
 	_pass_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_pass_btn.add_theme_font_size_override("font_size", 20)
+	_pass_btn.custom_minimum_size = Vector2(0, 56)
+	_pass_btn.add_theme_font_size_override("font_size", 24)
 	_pass_btn.pressed.connect(_on_pass)
 	_pass_btn.visible = false
 	btn_row.add_child(_pass_btn)
@@ -118,7 +120,8 @@ func _ready() -> void:
 	_confirm_btn = Button.new()
 	_confirm_btn.text = "Confirm Bid"
 	_confirm_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_confirm_btn.add_theme_font_size_override("font_size", 20)
+	_confirm_btn.custom_minimum_size = Vector2(0, 56)
+	_confirm_btn.add_theme_font_size_override("font_size", 24)
 	_confirm_btn.pressed.connect(_on_confirm)
 	btn_row.add_child(_confirm_btn)
 

@@ -26,7 +26,6 @@ func _ready() -> void:
 	_vbox = VBoxContainer.new()
 	var vbox: VBoxContainer = _vbox
 	vbox.add_theme_constant_override("separation", 16)
-	vbox.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	panel.add_child(vbox)
 
 	_prompt_label = Label.new()
@@ -68,11 +67,9 @@ func _ready() -> void:
 func _fit_scroll_width() -> void:
 	if not _scroll_container:
 		return
-	var max_w: float = get_viewport_rect().size.x * 0.55
+	var max_w: float = get_viewport_rect().size.x * 0.90
 	var w: float = min(_buttons_row.get_combined_minimum_size().x, max_w)
 	_scroll_container.custom_minimum_size.x = w
-	if _vbox and w > 0:
-		_vbox.custom_minimum_size.x = w
 
 func _clear_options() -> void:
 	for child: Node in _buttons_row.get_children():
