@@ -53,7 +53,7 @@ func _ready() -> void:
 	outer_vbox.add_child(content_hbox)
 
 	_card_image_rect = TextureRect.new()
-	_card_image_rect.custom_minimum_size = Vector2(200, 0)
+	_card_image_rect.custom_minimum_size = Vector2(600, 0)
 	_card_image_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_card_image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_card_image_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
