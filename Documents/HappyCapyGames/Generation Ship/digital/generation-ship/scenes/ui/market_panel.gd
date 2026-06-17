@@ -50,7 +50,10 @@ func _process(_delta: float) -> void:
 	var inner: Control = get_child(0) as Control
 	if inner and inner.size.x > 0:
 		var vp: Vector2 = get_viewport().get_visible_rect().size
-		position = Vector2((vp.x - inner.size.x) * 0.5, 12.0)
+		position = Vector2(
+			(vp.x - inner.size.x) * 0.5,
+			(vp.y - inner.size.y) * 0.5 + vp.y * 0.025
+		)
 		_pinned = true
 		set_process(false)
 
