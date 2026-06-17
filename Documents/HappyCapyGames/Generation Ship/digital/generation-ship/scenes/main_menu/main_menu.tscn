@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://b86phomrq56il" path="res://scenes/main_menu/main_menu.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://dbprqc2vk3kwv" path="res://assets/ui/Cover.jpeg" id="2_cover"]
+[ext_resource type="Texture2D" path="res://assets/ui/logo_fun.png" id="3_logo"]
 
 [node name="MainMenu" type="Control" unique_id=174534454]
 layout_mode = 3
@@ -47,12 +48,13 @@ grow_vertical = 2
 theme_override_constants/separation = 16
 alignment = 1
 
-[node name="Title" type="Label" parent="VBox" unique_id=1040120624]
+[node name="Title" type="TextureRect" parent="VBox" unique_id=1040120624]
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 72
-text = "Generation Ship"
-horizontal_alignment = 1
+custom_minimum_size = Vector2(0, 180)
+size_flags_horizontal = 4
+texture = ExtResource("3_logo")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="Spacer" type="Control" parent="VBox" unique_id=879164005]
 custom_minimum_size = Vector2(0, 48)
