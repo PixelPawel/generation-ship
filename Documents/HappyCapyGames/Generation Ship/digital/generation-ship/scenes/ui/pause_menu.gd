@@ -47,8 +47,7 @@ func _build_ui() -> void:
 
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 10)
-	vbox.custom_minimum_size = Vector2(500, 0)
-	vbox.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.add_child(vbox)
 
 	var title := Label.new()
@@ -104,7 +103,7 @@ func _build_settings_panel() -> void:
 	style.set_content_margin_all(28)
 	_settings_panel.add_theme_stylebox_override("panel", style)
 	_settings_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	_settings_panel.custom_minimum_size = Vector2(480, 0)
+	_settings_panel.custom_minimum_size = Vector2(300, 0)
 	_settings_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_settings_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_settings_panel.visible = false
