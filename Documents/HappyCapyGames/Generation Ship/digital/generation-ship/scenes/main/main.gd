@@ -121,6 +121,7 @@ var _auction_active: bool = false
 var _bots_passed_this_round: Array[int] = []
 var _cs_viewport: SubViewport = null
 var _info_viewport: SubViewport = null
+var _info_screen_mesh: MeshInstance3D = null
 var _cs_display: SupplyUI = null
 var _es_viewport: Control = null
 var _bid_popup: Control = null
@@ -567,6 +568,7 @@ func _setup_info_screen_display() -> void:
 
 	var screen_mesh: MeshInstance3D = $UiInfo.find_child("gs_ui_info_screen", true, false) as MeshInstance3D
 	if screen_mesh:
+		_info_screen_mesh = screen_mesh
 		var aabb: AABB = screen_mesh.mesh.get_aabb()
 		var shader: Shader = load("res://shaders/screen_display.gdshader") as Shader
 		var mat: ShaderMaterial = ShaderMaterial.new()
@@ -582,13 +584,22 @@ func _setup_info_screen_display() -> void:
 		mat.set_shader_parameter("vignette_falloff", 2.5)
 		screen_mesh.set_surface_override_material(0, mat)
 		_setup_info_screen_input(screen_mesh)
-	$Board.market_origin_3d = $UiInfo.global_position
 	for p: Control in [_bid_popup, _payment_panel, _scoreboard]:
 		p.reparent(_info_viewport, false)
 		_register_info_panel(p)
 
 func _setup_info_screen_input(screen_mesh: MeshInstance3D) -> void:
 	_setup_viewport_input(screen_mesh, _info_viewport)
+
+func _viewport_to_world(vp_pos: Vector2) -> Vector3:
+	if not _info_screen_mesh:
+		return $UiInfo.global_position
+	var aabb: AABB = _info_screen_mesh.mesh.get_aabb()
+	var u: float = vp_pos.x / float(_info_viewport.size.x)
+	var v: float = vp_pos.y / float(_info_viewport.size.y)
+	var local_x: float = u * aabb.size.x + aabb.position.x
+	var local_y: float = (1.0 - v) * aabb.size.y + aabb.position.y
+	return _info_screen_mesh.to_global(Vector3(local_x, local_y, 0.0))
 
 func _register_info_panel(panel: Control) -> void:
 	_info_panels.append(panel)
@@ -2324,12 +2335,14 @@ func _on_market_card_drag_failed(_card: Node3D) -> void:
 		_process_next_effect()
 
 func _on_market_sector_advanced_pressed(slot_idx: int) -> void:
+	$Board.market_origin_3d = _viewport_to_world(_market_panel.get_slot_center("advanced", slot_idx))
 	$Board.begin_panel_sector_drag(slot_idx, true)
 
 func _on_market_sector_dust_pressed(slot_idx: int) -> void:
 	if _effect_mode == EffectMode.EFFECT_REVEAL_SECTOR:
 		$Board.reveal_sector_panel_slot(slot_idx)
 	else:
+		$Board.market_origin_3d = _viewport_to_world(_market_panel.get_slot_center("dust", slot_idx))
 		$Board.begin_panel_sector_drag(slot_idx, false)
 
 func _on_market_expedition_pressed(slot_idx: int) -> void:
@@ -2338,6 +2351,7 @@ func _on_market_expedition_pressed(slot_idx: int) -> void:
 	elif _effect_mode == EffectMode.EFFECT_REVEAL_EXPEDITION:
 		_execute_expedition_reveal(slot_idx)
 	else:
+		$Board.market_origin_3d = _viewport_to_world(_market_panel.get_slot_center("expedition", slot_idx))
 		$Board.begin_panel_expedition_drag(slot_idx)
 
 func _execute_expedition_reveal(slot_idx: int) -> void:

@@ -169,6 +169,7 @@ func begin_drag_card(card: Node3D) -> void:
 		_expedition_market.detach_card(card)
 	elif card.card_data and card.card_data.card_type == CardData.CardType.SECTOR:
 		_market.detach_advanced_card(card)
+	market_origin_3d = card.global_position
 	_drag_origin = DragOrigin.MARKET
 	_begin_drag(card)
 
@@ -181,6 +182,7 @@ func begin_free_sector_gain(card: Node3D) -> void:
 		var slot_idx: int = card.get_meta("market_slot", -1)
 		if slot_idx >= 0:
 			_market.detach_dust_card(slot_idx)
+	market_origin_3d = card.global_position
 	_is_free_gain = true
 	_drag_origin = DragOrigin.MARKET
 	_begin_drag(card)
@@ -494,6 +496,7 @@ func _on_market_card_drag_started(card: Node3D) -> void:
 		else:
 			_market.return_card(card)
 		return
+	market_origin_3d = card.global_position
 	_drag_origin = DragOrigin.MARKET
 	_begin_drag(card)
 

@@ -28,6 +28,9 @@ var _dust_counts:     Array[Label]       = []
 var _dust_highlights: Array[ColorRect]   = []
 var _exp_rects:       Array[TextureRect] = []
 var _exp_counts:      Array[Label]       = []
+var _dust_slots:      Array[Control]     = []
+var _adv_slots:       Array[Control]     = []
+var _exp_slots:       Array[Control]     = []
 
 var _opp_vbox: VBoxContainer = null
 var _opp_refs: Dictionary = {}
@@ -183,6 +186,17 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 		"vp_lbl": slot["vp_lbl"],
 	}
 
+func get_slot_center(card_type: String, slot_idx: int) -> Vector2:
+	var slots: Array[Control]
+	match card_type:
+		"dust": slots = _dust_slots
+		"advanced": slots = _adv_slots
+		"expedition": slots = _exp_slots
+		_: return Vector2.ZERO
+	if slot_idx < 0 or slot_idx >= slots.size():
+		return Vector2.ZERO
+	return slots[slot_idx].get_global_rect().get_center()
+
 func update_opponent(peer_id: int, hand_count: int, supply: Dictionary, vp: int) -> void:
 	if not _opp_refs.has(peer_id):
 		return
@@ -232,6 +246,7 @@ func _build_ui() -> void:
 		slot.mouse_entered.connect(func() -> void: CursorManager.set_hover())
 		slot.mouse_exited.connect(func() -> void: CursorManager.set_default())
 		basic_vbox.add_child(slot)
+		_dust_slots.append(slot)
 
 	# ── Column 2: Advanced Sectors (stacked vertically) ───────────────────────
 	var vsep1 := VSeparator.new()
@@ -262,6 +277,7 @@ func _build_ui() -> void:
 		slot.mouse_entered.connect(func() -> void: CursorManager.set_hover())
 		slot.mouse_exited.connect(func() -> void: CursorManager.set_default())
 		adv_vbox.add_child(slot)
+		_adv_slots.append(slot)
 
 	# ── Column 3: Expeditions (stacked vertically) ────────────────────────────
 	var vsep2 := VSeparator.new()
@@ -292,6 +308,7 @@ func _build_ui() -> void:
 		slot.mouse_entered.connect(func() -> void: CursorManager.set_hover())
 		slot.mouse_exited.connect(func() -> void: CursorManager.set_default())
 		exp_vbox.add_child(slot)
+		_exp_slots.append(slot)
 
 	# ── Column 4: Players ──────────────────────────────────────────────────────
 	var vsep3 := VSeparator.new()
