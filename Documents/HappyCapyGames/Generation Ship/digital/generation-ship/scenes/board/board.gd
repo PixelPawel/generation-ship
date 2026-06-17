@@ -1138,14 +1138,14 @@ func restore_from_snapshot(snap: Dictionary) -> void:
 		_sector_row.remove_child(old_slot)
 		old_slot.queue_free()
 	for slot_snap: Dictionary in snap["slots"]:
-		if not slot_snap["occupied"]:
-			continue
 		var pos: Dictionary = slot_snap.get("position", {})
 		var slot: SectorSlot = _spawn_slot_at_pos(Vector3(pos.get("x", 0.0), 0.0, pos.get("z", 0.5)))
+		slot.highlight(false)
+		if not slot_snap["occupied"]:
+			continue
 		slot.tucked_cards = slot_snap["tucked_cards"]
 		slot.stored_supply = slot_snap["stored_supply"]
 		slot.refresh_display()
-		slot.highlight(false)
 		var sec_data: CardData = slot_snap["sector_data"] as CardData
 		if sec_data:
 			var sec_card: Node3D = _card_scene.instantiate()
