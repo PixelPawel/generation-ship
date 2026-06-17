@@ -190,6 +190,7 @@ func _make_row(color: CardData.SupplyColor) -> HBoxContainer:
 	var icon := TextureRect.new()
 	icon.texture = load(SUPPLY_ICON_PATHS[int(color)])
 	icon.custom_minimum_size = Vector2(40, 40)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	row.add_child(icon)
 
