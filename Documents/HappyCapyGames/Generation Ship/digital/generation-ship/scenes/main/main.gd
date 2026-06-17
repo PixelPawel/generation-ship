@@ -87,11 +87,9 @@ var _has_passed_or_researched: bool = false
 var _opp_snapshots: Dictionary = {}      # peer_id (int) -> state Dictionary
 var _opp_widget: Control = null
 var _opp_panels: Dictionary = {}         # peer_id → {hand_lbl, supply_lbls, vp_lbl}
-var _opp_ghost_hand: Node3D = null
 var _opp_info_panel: Control = null
 var _market_card_hologram: Node3D = null
 var _market_card_hologram_catcher: Control = null
-var _my_board_snap: Dictionary = {}      # saved while viewing opponent board
 var _ending_turn: bool = false
 
 var _auction_card_ref: Dictionary = {}
@@ -2572,26 +2570,8 @@ func _rpc_sync_expedition_reveal(slot_idx: int) -> void:
 func _show_opponent_board(peer_id: int) -> void:
 	if not _opp_snapshots.has(peer_id):
 		return
-	if not _my_board_snap.is_empty():
+	if _opp_info_panel:
 		_close_opponent_board_view()
-	_my_board_snap = $Board.get_snapshot()
-	$Board.restore_visual_from_public_snapshot(_opp_snapshots[peer_id])
-	$Board.set_view_only(true)
-	$Hand.visible = false
-	if _opp_ghost_hand:
-		_opp_ghost_hand.queue_free()
-		_opp_ghost_hand = null
-	var hand_size: int = _opp_snapshots[peer_id].get("hand_size", 0)
-	if hand_size > 0:
-		_opp_ghost_hand = Node3D.new()
-		_opp_ghost_hand.set_script(load("res://scenes/hand/hand.gd"))
-		_opp_ghost_hand.transform = $Hand.transform
-		add_child(_opp_ghost_hand)
-		for _i: int in hand_size:
-			var placeholder: Node3D = card_scene.instantiate()
-			(_opp_ghost_hand as Node3D).call("add_card", placeholder)
-			placeholder.set_face_down($Board.TECH_BACK_URL)
-	_show_action_buttons(false)
 	if _market_panel:
 		_market_panel.visible = false
 	_build_opp_info_panel(peer_id)
@@ -2599,32 +2579,158 @@ func _show_opponent_board(peer_id: int) -> void:
 func _build_opp_info_panel(peer_id: int) -> void:
 	if _opp_info_panel:
 		_opp_info_panel.queue_free()
+	var snap: Dictionary = _opp_snapshots.get(peer_id, {})
 	var player_name: String = GameNetwork.player_names.get(peer_id, "Opponent")
-	var panel: Control = Control.new()
-	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_info_viewport.add_child(panel)
-	_opp_info_panel = panel
 
-	var vbox: VBoxContainer = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 24)
-	vbox.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	vbox.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	vbox.grow_vertical = Control.GROW_DIRECTION_BOTH
-	panel.add_child(vbox)
+	var root: Control = Control.new()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_info_viewport.add_child(root)
+	_opp_info_panel = root
+
+	var scifi: ScifiPanel = load("res://scenes/ui/scifi_panel.gd").new()
+	scifi.set_content_margin(20)
+	scifi.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_child(scifi)
+
+	var outer: VBoxContainer = VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 12)
+	scifi.add_child(outer)
+
+	# ── Header ──────────────────────────────────────────────────────────────────
+	var header: HBoxContainer = HBoxContainer.new()
+	header.add_theme_constant_override("separation", 16)
+	outer.add_child(header)
 
 	var name_lbl: Label = Label.new()
-	name_lbl.text = "Viewing: " + player_name
-	name_lbl.add_theme_font_size_override("font_size", 38)
+	name_lbl.text = player_name
+	name_lbl.add_theme_font_size_override("font_size", 30)
 	name_lbl.add_theme_color_override("font_color", Color(0.80, 0.90, 1.0))
-	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(name_lbl)
+	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	header.add_child(name_lbl)
 
-	var back_btn: Button = Button.new()
-	back_btn.text = "Back to Market"
-	back_btn.add_theme_font_size_override("font_size", 26)
-	GameTheme.apply_to_button(back_btn)
-	back_btn.pressed.connect(_close_opponent_board_view)
-	vbox.add_child(back_btn)
+	var return_btn: Button = Button.new()
+	return_btn.text = "← Return"
+	return_btn.add_theme_font_size_override("font_size", 20)
+	return_btn.custom_minimum_size = Vector2(160, 48)
+	return_btn.pressed.connect(_close_opponent_board_view)
+	header.add_child(return_btn)
+
+	var hsep: HSeparator = HSeparator.new()
+	hsep.modulate = Color(0.4, 0.4, 0.5, 0.5)
+	outer.add_child(hsep)
+
+	# ── Body ────────────────────────────────────────────────────────────────────
+	var body: HBoxContainer = HBoxContainer.new()
+	body.add_theme_constant_override("separation", 24)
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	outer.add_child(body)
+
+	# Left column: supply + hand + VP
+	var left: VBoxContainer = VBoxContainer.new()
+	left.add_theme_constant_override("separation", 10)
+	left.custom_minimum_size = Vector2(280, 0)
+	body.add_child(left)
+
+	var supply_title: Label = Label.new()
+	supply_title.text = "SUPPLIES"
+	supply_title.add_theme_font_size_override("font_size", 14)
+	supply_title.add_theme_color_override("font_color", Color(0.55, 0.6, 0.75))
+	left.add_child(supply_title)
+
+	var supply_grid: GridContainer = GridContainer.new()
+	supply_grid.columns = 2
+	supply_grid.add_theme_constant_override("h_separation", 20)
+	supply_grid.add_theme_constant_override("v_separation", 8)
+	left.add_child(supply_grid)
+
+	var supply_dict: Dictionary = snap.get("supply", {})
+	var supply_paths: Array[String] = [
+		"res://assets/ui/supply/Dust.png",
+		"res://assets/ui/supply/Metals.png",
+		"res://assets/ui/supply/Liquids.png",
+		"res://assets/ui/supply/Organix.png",
+		"res://assets/ui/supply/Electrix.png",
+		"res://assets/ui/supply/Thrust.png",
+	]
+	var supply_names: Array[String] = ["Dust", "Metals", "Liquids", "Organix", "Electrix", "Thrust"]
+	for si: int in 6:
+		var cell: HBoxContainer = HBoxContainer.new()
+		cell.add_theme_constant_override("separation", 6)
+		supply_grid.add_child(cell)
+		var icon: TextureRect = TextureRect.new()
+		icon.texture = load(supply_paths[si]) as Texture2D
+		icon.custom_minimum_size = Vector2(22, 22)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		cell.add_child(icon)
+		var amt_lbl: Label = Label.new()
+		amt_lbl.text = "%s  %d" % [supply_names[si], supply_dict.get(si, 0)]
+		amt_lbl.add_theme_font_size_override("font_size", 17)
+		amt_lbl.add_theme_color_override("font_color", Color(0.75, 0.82, 1.0))
+		amt_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		cell.add_child(amt_lbl)
+
+	var stats_sep: HSeparator = HSeparator.new()
+	stats_sep.modulate = Color(0.4, 0.4, 0.5, 0.3)
+	left.add_child(stats_sep)
+
+	var hand_stat: Label = Label.new()
+	hand_stat.text = "♠  Hand: %d cards" % snap.get("hand_size", 0)
+	hand_stat.add_theme_font_size_override("font_size", 18)
+	hand_stat.add_theme_color_override("font_color", Color(0.70, 0.82, 1.0))
+	left.add_child(hand_stat)
+
+	var vp_stat: Label = Label.new()
+	vp_stat.text = "⭐  VP: %d" % snap.get("vp", 0)
+	vp_stat.add_theme_font_size_override("font_size", 20)
+	vp_stat.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
+	left.add_child(vp_stat)
+
+	var vsep: VSeparator = VSeparator.new()
+	vsep.modulate = Color(0.4, 0.4, 0.5, 0.5)
+	body.add_child(vsep)
+
+	# Right column: placed sectors
+	var right: VBoxContainer = VBoxContainer.new()
+	right.add_theme_constant_override("separation", 8)
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_child(right)
+
+	var sectors_title: Label = Label.new()
+	sectors_title.text = "PLACED SECTORS"
+	sectors_title.add_theme_font_size_override("font_size", 14)
+	sectors_title.add_theme_color_override("font_color", Color(0.55, 0.6, 0.75))
+	right.add_child(sectors_title)
+
+	var slots: Array = snap.get("slots", []) as Array
+	var occupied_count: int = 0
+	for slot_v: Variant in slots:
+		var slot: Dictionary = slot_v as Dictionary
+		if not bool(slot.get("occupied", false)):
+			continue
+		occupied_count += 1
+		var is_adv: bool = bool(slot.get("sector_advanced", false))
+		var sector_name: String = str(slot.get("sector_name", ""))
+		var tech_names: Array = slot.get("tech_names", []) as Array
+		var line: String = ("▲ " if is_adv else "• ") + sector_name
+		if tech_names.size() > 0:
+			line += "   [%s]" % ", ".join(tech_names)
+		var slot_lbl: Label = Label.new()
+		slot_lbl.text = line
+		slot_lbl.add_theme_font_size_override("font_size", 16)
+		slot_lbl.add_theme_color_override("font_color",
+			Color(1.0, 0.90, 0.50) if is_adv else Color(0.85, 0.90, 1.0))
+		slot_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		right.add_child(slot_lbl)
+	if occupied_count == 0:
+		var empty_lbl: Label = Label.new()
+		empty_lbl.text = "No sectors placed yet"
+		empty_lbl.add_theme_font_size_override("font_size", 16)
+		empty_lbl.add_theme_color_override("font_color", Color(0.4, 0.45, 0.55))
+		right.add_child(empty_lbl)
 
 func _close_opponent_board_view() -> void:
 	if _opp_info_panel:
@@ -2632,17 +2738,6 @@ func _close_opponent_board_view() -> void:
 		_opp_info_panel = null
 	if _market_panel:
 		_market_panel.visible = true
-	if _opp_ghost_hand:
-		_opp_ghost_hand.queue_free()
-		_opp_ghost_hand = null
-	if _my_board_snap.is_empty():
-		return
-	$Board.restore_from_snapshot(_my_board_snap)
-	_my_board_snap = {}
-	$Board.set_view_only(false)
-	$Hand.visible = true
-	if GameNetwork.is_my_turn():
-		_show_action_buttons(true)
 
 # ── Market card hologram ───────────────────────────────────────────────────────
 
