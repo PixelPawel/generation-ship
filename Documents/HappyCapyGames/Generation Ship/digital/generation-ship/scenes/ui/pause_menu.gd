@@ -96,22 +96,21 @@ func _build_settings_panel() -> void:
 	_settings_panel = PanelContainer.new()
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.04, 0.04, 0.09, 0.98)
-	style.corner_radius_top_left = 12
-	style.corner_radius_top_right = 12
-	style.corner_radius_bottom_left = 12
-	style.corner_radius_bottom_right = 12
-	style.set_content_margin_all(28)
+	style.set_content_margin_all(16)
 	_settings_panel.add_theme_stylebox_override("panel", style)
-	_settings_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	_settings_panel.custom_minimum_size = Vector2(300, 0)
-	_settings_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_settings_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_settings_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_settings_panel.visible = false
 	add_child(_settings_panel)
 
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_settings_panel.add_child(scroll)
+
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 12)
-	_settings_panel.add_child(vbox)
+	vbox.add_theme_constant_override("separation", 10)
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(vbox)
 
 	var title := Label.new()
 	title.text = "SETTINGS"
@@ -224,7 +223,7 @@ func _build_settings_panel() -> void:
 	for col_name: String in ["Primary", "Secondary"]:
 		var ch := Label.new()
 		ch.text = col_name
-		ch.custom_minimum_size = Vector2(110, 0)
+		ch.custom_minimum_size = Vector2(80, 0)
 		ch.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		ch.add_theme_font_size_override("font_size", 13)
 		ch.add_theme_color_override("font_color", Color(0.55, 0.6, 0.75))
@@ -250,14 +249,14 @@ func _build_settings_panel() -> void:
 		row.add_child(n)
 		var v := Label.new()
 		v.text = bind[1]
-		v.custom_minimum_size = Vector2(110, 0)
+		v.custom_minimum_size = Vector2(80, 0)
 		v.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_theme_font_size_override("font_size", 13)
 		v.add_theme_color_override("font_color", Color(0.5, 0.55, 0.7))
 		row.add_child(v)
 		var empty := Label.new()
 		empty.text = "—"
-		empty.custom_minimum_size = Vector2(110, 0)
+		empty.custom_minimum_size = Vector2(80, 0)
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty.add_theme_font_size_override("font_size", 13)
 		empty.add_theme_color_override("font_color", Color(0.35, 0.38, 0.5))
@@ -281,7 +280,7 @@ func _build_settings_panel() -> void:
 			var keycode: int = primary if slot == 0 else secondary
 			var btn := Button.new()
 			btn.text = OS.get_keycode_string(keycode) if keycode != 0 else "—"
-			btn.custom_minimum_size = Vector2(110, 30)
+			btn.custom_minimum_size = Vector2(80, 28)
 			btn.add_theme_font_size_override("font_size", 13)
 			row.add_child(btn)
 			btns.append(btn)
