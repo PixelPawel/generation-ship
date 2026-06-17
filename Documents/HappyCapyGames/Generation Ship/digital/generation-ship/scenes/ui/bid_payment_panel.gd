@@ -1,5 +1,14 @@
 extends Control
 
+const SUPPLY_ICON_PATHS: Array[String] = [
+	"res://assets/ui/supply/Dust.png",
+	"res://assets/ui/supply/Metals.png",
+	"res://assets/ui/supply/Liquids.png",
+	"res://assets/ui/supply/Organix.png",
+	"res://assets/ui/supply/Electrix.png",
+	"res://assets/ui/supply/Thrust.png",
+]
+
 signal confirmed(allocations: Dictionary)
 signal forfeited
 
@@ -15,6 +24,7 @@ var _title_label: Label = null
 var _total_label: Label = null
 var _confirm_btn: Button = null
 var _rows_container: VBoxContainer = null
+var _card_image_rect: TextureRect = null
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -26,9 +36,22 @@ func _ready() -> void:
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(panel)
 
+	var h_split := HBoxContainer.new()
+	h_split.add_theme_constant_override("separation", 24)
+	panel.add_child(h_split)
+
+	_card_image_rect = TextureRect.new()
+	_card_image_rect.custom_minimum_size = Vector2(210, 0)
+	_card_image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_card_image_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_card_image_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_card_image_rect.visible = false
+	h_split.add_child(_card_image_rect)
+
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 16)
-	panel.add_child(vbox)
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h_split.add_child(vbox)
 
 	_title_label = Label.new()
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -47,7 +70,7 @@ func _ready() -> void:
 	var btn_row := HBoxContainer.new()
 	btn_row.add_theme_constant_override("separation", 16)
 	btn_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	btn_row.custom_minimum_size = Vector2(620, 0)
+	btn_row.custom_minimum_size = Vector2(560, 0)
 	vbox.add_child(btn_row)
 
 	var forfeit_btn := Button.new()
@@ -66,7 +89,7 @@ func _ready() -> void:
 	_confirm_btn.pressed.connect(_on_confirm)
 	btn_row.add_child(_confirm_btn)
 
-func show_bid_payment(card_name: String, amount: int, valid_colors: Array[CardData.SupplyColor], supply_ui: Control) -> void:
+func show_bid_payment(card_name: String, amount: int, valid_colors: Array[CardData.SupplyColor], supply_ui: Control, card_data: CardData = null, is_advanced: bool = false) -> void:
 	_needed = amount
 	_supply_ui = supply_ui
 	_valid_colors = valid_colors
@@ -91,6 +114,17 @@ func show_bid_payment(card_name: String, amount: int, valid_colors: Array[CardDa
 		if remaining <= 0:
 			break
 
+	if card_data and _card_image_rect:
+		var url: String = card_data.adv_image_url if (is_advanced and not card_data.adv_image_url.is_empty()) else card_data.image_url
+		if not url.is_empty():
+			var tex: ImageTexture = ImageCache.get_texture(url)
+			_card_image_rect.texture = tex
+			_card_image_rect.visible = tex != null
+		else:
+			_card_image_rect.visible = false
+	elif _card_image_rect:
+		_card_image_rect.visible = false
+
 	_title_label.text = "Pay for %s" % card_name
 	_rebuild_rows()
 	_update_total()
@@ -99,7 +133,6 @@ func show_bid_payment(card_name: String, amount: int, valid_colors: Array[CardDa
 func refresh() -> void:
 	if not visible or not _supply_ui:
 		return
-	# Re-scan which colors are currently available.
 	var new_colors: Array[CardData.SupplyColor] = []
 	var new_available: Dictionary = {}
 	for color: CardData.SupplyColor in _valid_colors:
@@ -107,7 +140,6 @@ func refresh() -> void:
 		if avail > 0:
 			new_colors.append(color)
 			new_available[int(color)] = avail
-	# Rebuild rows when the set of payable colors changes (added or removed).
 	var colors_changed: bool = new_colors.size() != _colors.size()
 	if not colors_changed:
 		for i: int in new_colors.size():
@@ -119,11 +151,9 @@ func refresh() -> void:
 		_colors = new_colors
 		_available = new_available
 		_allocations.clear()
-		# Preserve what was already allocated where supply still covers it.
 		for color: CardData.SupplyColor in _colors:
 			var col_key: int = int(color)
 			_allocations[col_key] = mini(old_allocs.get(col_key, 0), _available.get(col_key, 0))
-		# Auto-fill remaining needed amount from available supply.
 		var remaining: int = _needed - _get_total()
 		for color: CardData.SupplyColor in _colors:
 			if remaining <= 0:
@@ -137,7 +167,6 @@ func refresh() -> void:
 		_avail_labels.clear()
 		_rebuild_rows()
 	else:
-		# Color set unchanged — update amounts and clamp allocations in place.
 		for color: CardData.SupplyColor in _colors:
 			var col_key: int = int(color)
 			var avail: int = new_available[col_key]
@@ -147,7 +176,6 @@ func refresh() -> void:
 				(_avail_labels[col_key] as Label).text = "(have %d)" % avail
 			if _count_labels.has(col_key):
 				(_count_labels[col_key] as Label).text = str(_allocations[col_key])
-		# Auto-fill any shortfall when supply increased (e.g. after a fuse).
 		var remaining: int = _needed - _get_total()
 		for color: CardData.SupplyColor in _colors:
 			if remaining <= 0:
@@ -172,11 +200,21 @@ func _make_row(color: CardData.SupplyColor) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(spacer)
+
+	var icon := TextureRect.new()
+	icon.texture = load(SUPPLY_ICON_PATHS[int(color)])
+	icon.custom_minimum_size = Vector2(40, 40)
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	row.add_child(icon)
+
 	var name_lbl := Label.new()
 	name_lbl.text = CardData.color_name(color)
 	name_lbl.add_theme_font_size_override("font_size", 24)
 	name_lbl.add_theme_color_override("font_color", CardData.color_tint(color))
-	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_lbl.custom_minimum_size = Vector2(120, 0)
 	name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(name_lbl)
 

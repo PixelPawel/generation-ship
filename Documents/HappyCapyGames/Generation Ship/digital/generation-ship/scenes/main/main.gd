@@ -8,6 +8,8 @@ var _round: int = 0
 var _bid_amount: int = 0
 var _bid_color: CardData.SupplyColor = CardData.SupplyColor.DUST
 var _bid_card_name: String = ""
+var _bid_card_data: CardData = null
+var _bid_is_advanced: bool = false
 
 # ── Effect queue ──────────────────────────────────────────────────────��───────
 
@@ -1099,7 +1101,7 @@ func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, ca
 		if cd:
 			c_name = cd.adv_name if (_auction_is_adv and not cd.adv_name.is_empty()) else cd.card_name
 		var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(cost_color)
-		_bid_payment_panel.show_bid_payment(c_name, final_bid, valid_colors, _cs_display)
+		_bid_payment_panel.show_bid_payment(c_name, final_bid, valid_colors, _cs_display, cd, _auction_is_adv)
 	else:
 		if my_id == initiator_id:
 			$Board.forfeit_purchase()
@@ -2096,6 +2098,8 @@ func _execute_effect_step(step: Dictionary) -> void:
 func _on_bid_required(card: Node3D, slot: Node3D, min_cost: int, cost_color: CardData.SupplyColor, is_tech: bool) -> void:
 	_show_action_buttons(false)
 	_bid_color = cost_color
+	_bid_card_data = card.card_data
+	_bid_is_advanced = card.is_advanced
 	_bid_card_name = card.card_data.adv_name if card.is_advanced else card.card_data.card_name
 	var effective_min: int = max(0, min_cost - $Board.get_purchase_discount(card.card_data, slot as SectorSlot))
 	if not GameNetwork.is_multiplayer:
@@ -2198,7 +2202,7 @@ func _on_runner_up_offer(card_ref: Dictionary, _slot_idx: int, _is_tech: bool, i
 	var c_name: String = cd.adv_name if (is_adv and not cd.adv_name.is_empty()) else cd.card_name
 	var cost_color: CardData.SupplyColor = cost_color_int as CardData.SupplyColor
 	var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(cost_color)
-	_bid_payment_panel.show_bid_payment(c_name, printed_cost, valid_colors, _cs_display)
+	_bid_payment_panel.show_bid_payment(c_name, printed_cost, valid_colors, _cs_display, cd, is_adv)
 	_update_turn_ui()
 
 func _on_market_card_taken(cd: CardData) -> void:
@@ -2255,7 +2259,7 @@ func _on_bid_confirmed(amount: int) -> void:
 		return
 	_bid_amount = amount
 	var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(_bid_color)
-	_bid_payment_panel.show_bid_payment(_bid_card_name, amount, valid_colors, _cs_display)
+	_bid_payment_panel.show_bid_payment(_bid_card_name, amount, valid_colors, _cs_display, _bid_card_data, _bid_is_advanced)
 
 func _on_bid_payment_confirmed(allocations: Dictionary) -> void:
 	if _effect_mode == EffectMode.PAYMENT_CONFIRM:
@@ -2360,9 +2364,11 @@ func _on_payment_confirm_required(card: Node3D, _slot: SectorSlot, pay_amounts: 
 	var card_name: String = ""
 	var cost_color: CardData.SupplyColor = CardData.SupplyColor.DUST
 	var total: int = 0
+	var cd: CardData = null
+	var is_adv: bool = false
 	if card.card_data:
-		var cd: CardData = card.card_data
-		var is_adv: bool = bool(card.get("is_advanced"))
+		cd = card.card_data
+		is_adv = bool(card.get("is_advanced"))
 		card_name = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
 		cost_color = cd.color
 		for v: Variant in pay_amounts.values():
@@ -2372,7 +2378,7 @@ func _on_payment_confirm_required(card: Node3D, _slot: SectorSlot, pay_amounts: 
 		$Board.confirm_payment()
 		return
 	var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(cost_color)
-	_bid_payment_panel.show_bid_payment(card_name, total, valid_colors, _cs_display)
+	_bid_payment_panel.show_bid_payment(card_name, total, valid_colors, _cs_display, cd, is_adv)
 
 func _on_supply_choice_required(card: Node3D, _slot: SectorSlot, cost: int, options: Array[CardData.SupplyColor], _is_tech: bool) -> void:
 	_effect_mode = EffectMode.SUPPLY_CHOICE
