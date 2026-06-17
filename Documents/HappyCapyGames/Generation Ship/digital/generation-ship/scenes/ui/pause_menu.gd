@@ -42,7 +42,9 @@ func _build_ui() -> void:
 
 	var panel: ScifiPanel = load("res://scenes/ui/scifi_panel.gd").new()
 	panel.set_content_margin(28)
-	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	add_child(panel)
 
 	var vbox := VBoxContainer.new()
