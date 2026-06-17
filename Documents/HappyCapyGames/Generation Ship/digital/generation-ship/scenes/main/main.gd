@@ -2453,7 +2453,16 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _info_viewport:
 		_info_viewport.push_input(event)
 	if event.is_action("pause_menu"):
-		_pause_menu.toggle()
+		if _pause_menu.visible:
+			_pause_menu.toggle()
+		else:
+			var any_active: bool = false
+			for p: Control in _info_panels:
+				if p != _pause_menu and p.is_inside_tree() and p.visible:
+					any_active = true
+					break
+			if not any_active:
+				_pause_menu.toggle()
 	elif event.is_action("end_turn") and not _pause_menu.visible:
 		if _cs_display.can_end_turn():
 			_on_end_turn_pressed()
