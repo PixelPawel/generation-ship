@@ -127,6 +127,7 @@ var _bid_popup: Control = null
 var _payment_panel: Control = null
 var _scoreboard: Control = null
 var _pause_menu: Control = null
+var _info_panels: Array[Control] = []
 var _bot_hands: Dictionary = {}      # bot_id → Array[CardData]
 var _bot_supplies: Dictionary = {}   # bot_id → Dictionary (int color → int count)
 var _es_back_btn: Button = null
@@ -589,6 +590,7 @@ func _setup_info_screen_input(screen_mesh: MeshInstance3D) -> void:
 	_setup_viewport_input(screen_mesh, _info_viewport)
 
 func _register_info_panel(panel: Control) -> void:
+	_info_panels.append(panel)
 	panel.visibility_changed.connect(func() -> void:
 		if not _market_panel:
 			return
@@ -596,8 +598,8 @@ func _register_info_panel(panel: Control) -> void:
 			_market_panel.visible = false
 		else:
 			var any_active: bool = false
-			for child: Node in _info_viewport.get_children():
-				if child != _market_panel and child is Control and (child as Control).visible:
+			for p: Control in _info_panels:
+				if p != panel and p.is_inside_tree() and p.visible:
 					any_active = true
 					break
 			_market_panel.visible = not any_active
