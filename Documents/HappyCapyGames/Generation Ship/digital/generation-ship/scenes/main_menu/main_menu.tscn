@@ -51,7 +51,7 @@ alignment = 1
 [node name="Title" type="TextureRect" parent="VBox" unique_id=1040120624]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 180)
-size_flags_horizontal = 4
+size_flags_horizontal = 3
 texture = ExtResource("3_logo")
 expand_mode = 1
 stretch_mode = 5
