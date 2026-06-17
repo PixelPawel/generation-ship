@@ -49,7 +49,7 @@ float star_layer(vec3 dir, float lid, float grid_scale, float drift) {
 	// sz is the hard core radius; halo extends 25x further for a visible glow
 	float sz   = 0.015 + h12(cell + lid * 29.0 + 2.5) * 0.04;
 	float core = 1.0 - smoothstep(0.0, sz, dist);
-	float halo = (1.0 - smoothstep(0.0, sz * 10.0, dist)) * 0.45;
+	float halo = (1.0 - smoothstep(0.0, sz * 5.0, dist)) * 0.45;
 	float brt  = 0.3 + h12(cell + lid * 41.0 + 3.5) * 0.7;
 
 	return (core + halo) * brt;
