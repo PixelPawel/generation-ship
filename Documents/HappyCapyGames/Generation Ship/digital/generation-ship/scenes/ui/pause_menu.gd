@@ -434,7 +434,7 @@ func _apply_monitor(index: int) -> void:
 	var screen_pos: Vector2i = DisplayServer.screen_get_position(index)
 	var screen_size: Vector2i = DisplayServer.screen_get_size(index)
 	var win_size: Vector2i = DisplayServer.window_get_size()
-	DisplayServer.window_set_position(screen_pos + (screen_size - win_size) / 2)
+	DisplayServer.window_set_position(screen_pos + Vector2i(Vector2(screen_size - win_size) / 2.0))
 
 func _load_monitor_setting() -> void:
 	var current: int = DisplayServer.window_get_current_screen()
