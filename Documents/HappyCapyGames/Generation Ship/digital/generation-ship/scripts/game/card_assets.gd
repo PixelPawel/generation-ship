@@ -35,8 +35,8 @@ func frame_path(cd: CardData, is_advanced: bool) -> String:
 func art_path(cd: CardData, is_advanced: bool) -> String:
 	match cd.card_type:
 		CardData.CardType.SECTOR:
-			var name := cd.adv_name if is_advanced else cd.card_name
-			return _find_art(_sector_index, name, cd.id)
+			var card_name := cd.adv_name if is_advanced else cd.card_name
+			return _find_art(_sector_index, card_name, cd.id)
 		CardData.CardType.TECH:
 			return _find_art(_tech_index, cd.card_name, cd.id)
 		CardData.CardType.EXPEDITION:
