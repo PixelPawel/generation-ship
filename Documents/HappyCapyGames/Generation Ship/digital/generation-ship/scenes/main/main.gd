@@ -450,9 +450,6 @@ func _setup_control_screen_display() -> void:
 		panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 		panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 
-	_cs_display.research_pressed.connect(_on_research_pressed)
-	_cs_display.pass_pressed.connect(_on_pass_pressed)
-	_cs_display.end_turn_pressed.connect(_on_end_turn_pressed)
 	_cs_display.supply_changed.connect(_on_supply_changed)
 	_cs_display.fuse_1to1_changed.connect(_try_auto_end_turn)
 

@@ -1,10 +1,7 @@
 class_name SupplyUI
 extends Control
 
-signal research_pressed
-signal pass_pressed
 signal supply_changed
-signal end_turn_pressed
 signal fuse_1to1_changed
 
 const SUPPLY_DEFS := [
