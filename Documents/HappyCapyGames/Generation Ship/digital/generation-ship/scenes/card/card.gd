@@ -290,8 +290,8 @@ func _on_hover_exit() -> void:
 	if not is_dragging:
 		unhovered.emit(self)
 	_kill_tween()
-	_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	if not managed_by_hand and not is_dragging:
+		_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		_tween.tween_property(self, "position:y", 0.0, HOVER_DURATION)
 
 func _kill_tween() -> void:
