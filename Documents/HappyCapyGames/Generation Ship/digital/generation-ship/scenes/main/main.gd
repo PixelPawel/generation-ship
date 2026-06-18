@@ -1137,7 +1137,6 @@ func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, ca
 
 func _show_auction_toast(message: String) -> void:
 	var panel := PanelContainer.new()
-	panel.layout_mode = Control.LAYOUT_MODE_ANCHORS
 	panel.anchor_left = 0.5
 	panel.anchor_right = 0.5
 	panel.anchor_top = 0.08
