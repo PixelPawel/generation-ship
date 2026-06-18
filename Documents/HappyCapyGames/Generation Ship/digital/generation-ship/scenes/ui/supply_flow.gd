@@ -90,7 +90,6 @@ func _draw() -> void:
 		var p1: Vector2 = pts[0]
 		var p2: Vector2 = pts[1]
 		var dir: Vector2 = (p2 - p1).normalized()
-		var total_len: float = (p2 - p1).length()
 		var shaft_end: Vector2 = p2 - dir * 20.0  # stop at arrowhead base
 		var shaft_len: float = (shaft_end - p1).length()
 		var is_1to1: bool = arrow.get("is_1to1", false)
