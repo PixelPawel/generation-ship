@@ -1256,7 +1256,6 @@ func _handle_failed_drop() -> void:
 	var card: Node3D = _dragged_card
 	var origin: DragOrigin = _drag_origin
 	var start_pos: Vector3 = _drag_start_global_pos
-	var start_scale: Vector3 = _drag_start_scale
 	_dragged_card = null
 	_drag_origin = DragOrigin.NONE
 	_is_free_gain = false
