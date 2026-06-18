@@ -31,11 +31,11 @@ func _apply(action: String, primary: int, secondary: int) -> void:
 	InputMap.action_erase_events(action)
 	if primary != 0:
 		var ev := InputEventKey.new()
-		ev.keycode = primary
+		ev.keycode = primary as Key
 		InputMap.action_add_event(action, ev)
 	if secondary != 0:
 		var ev2 := InputEventKey.new()
-		ev2.keycode = secondary
+		ev2.keycode = secondary as Key
 		InputMap.action_add_event(action, ev2)
 
 func save_binding(action: String, primary: int, secondary: int) -> void:
