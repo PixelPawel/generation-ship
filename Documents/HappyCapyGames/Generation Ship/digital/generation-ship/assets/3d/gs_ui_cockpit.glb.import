@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://cnt3hx80usgpr"
-path="res://.godot/imported/gs_ui_cockpit.glb-bf6418ed722465bb91b3e1ff8a99f671.scn"
+valid=true
 
 [deps]
 
 source_file="res://assets/3d/gs_ui_cockpit.glb"
-dest_files=["res://.godot/imported/gs_ui_cockpit.glb-bf6418ed722465bb91b3e1ff8a99f671.scn"]
 
 [params]
 
