@@ -1100,7 +1100,7 @@ func _rpc_sync_auction_state(current_bid: int, leader_id: int, active_id: int, l
 
 # Host → All: auction resolved — winner places the card.
 @rpc("authority", "reliable", "call_local")
-func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, card_ref: Dictionary, slot_idx: int, is_tech: bool, cost_color_int: int) -> void:
+func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, card_ref: Dictionary, _slot_idx: int, is_tech: bool, cost_color_int: int) -> void:
 	_auction_active = false
 	_bid_popup.hide()
 	UIAudio.stop_auction_music()
