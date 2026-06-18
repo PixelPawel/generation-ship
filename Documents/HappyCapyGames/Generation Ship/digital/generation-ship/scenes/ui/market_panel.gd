@@ -328,9 +328,9 @@ func _build_ui() -> void:
 
 	_build_detail_overlay(panel)
 
-func _make_slot(size: Vector2, rect: TextureRect, count_lbl: Label, highlight: ColorRect) -> Control:
+func _make_slot(slot_size: Vector2, rect: TextureRect, count_lbl: Label, highlight: ColorRect) -> Control:
 	var root := Control.new()
-	root.custom_minimum_size = size
+	root.custom_minimum_size = slot_size
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
