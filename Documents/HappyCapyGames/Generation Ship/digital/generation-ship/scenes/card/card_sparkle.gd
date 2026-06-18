@@ -38,9 +38,9 @@ func _ready() -> void:
 	gradient.add_point(1.00, c3)
 	color_ramp = gradient
 
-	var mesh := CapsuleMesh.new()
-	mesh.radius = 0.12
-	mesh.height = 0.9
+	var capsule_mesh := CapsuleMesh.new()
+	capsule_mesh.radius = 0.12
+	capsule_mesh.height = 0.9
 	var mat := StandardMaterial3D.new()
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -48,8 +48,8 @@ func _ready() -> void:
 	mat.emission_enabled = true
 	mat.emission = particle_color
 	mat.emission_energy_multiplier = 1.2
-	mesh.material = mat
-	self.mesh = mesh
+	capsule_mesh.material = mat
+	self.mesh = capsule_mesh
 
 	emitting = true
 	get_tree().create_timer(lifetime + 0.3).timeout.connect(queue_free)
