@@ -684,10 +684,10 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	$UILayer/StartButton.hide()
 	var ui_control_anim := $UiControl.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if ui_control_anim:
-		ui_control_anim.play("Animation")
+		ui_control_anim.play("intro")
 	var ui_info_anim := $UiInfo.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if ui_info_anim:
-		ui_info_anim.play("Animation")
+		ui_info_anim.play("intro")
 	_round = 1
 	_update_round_label()
 	_init_supply()
