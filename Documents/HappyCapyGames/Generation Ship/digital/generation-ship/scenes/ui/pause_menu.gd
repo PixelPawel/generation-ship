@@ -402,7 +402,7 @@ func _apply_resolution(index: int) -> void:
 		DisplayServer.window_set_size(RESOLUTIONS[index])
 		var screen: Vector2i = DisplayServer.screen_get_size()
 		var win: Vector2i = DisplayServer.window_get_size()
-		DisplayServer.window_set_position((screen - win) / 2)
+		DisplayServer.window_set_position(Vector2i((Vector2(screen - win)) / 2.0))
 
 func _load_resolution_setting() -> void:
 	var cfg: ConfigFile = ConfigFile.new()
