@@ -644,8 +644,8 @@ func _try_drop_sector() -> void:
 	if not target_slot:
 		_handle_failed_drop()
 		return
+	var placed: Node3D = _dragged_card
 	if _is_free_gain:
-		var placed: Node3D = _dragged_card
 		_dragged_card = null
 		_drag_origin = DragOrigin.NONE
 		_is_free_gain = false
@@ -658,7 +658,6 @@ func _try_drop_sector() -> void:
 		market_drag_resolved.emit()
 		return
 	if _is_auction_win:
-		var placed: Node3D = _dragged_card
 		_dragged_card = null
 		_drag_origin = DragOrigin.NONE
 		_is_auction_win = false
@@ -673,7 +672,6 @@ func _try_drop_sector() -> void:
 	if _should_bid(_dragged_card):
 		_start_bid(_dragged_card, target_slot, false)
 		return
-	var placed: Node3D = _dragged_card
 	var origin: DragOrigin = _drag_origin
 	var cd: CardData = placed.card_data
 	if not _resolve_card_payment(placed, target_slot, false):
