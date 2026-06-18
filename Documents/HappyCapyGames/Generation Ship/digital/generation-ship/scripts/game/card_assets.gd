@@ -70,7 +70,7 @@ func _build_index(dict: Dictionary, dir_path: String) -> void:
 func _normalize(s: String) -> String:
 	return s.to_lower().replace(" ", "").replace("_", "").replace("-", "")
 
-func _find_art(index: Dictionary, card_name: String, id: int) -> String:
+func _find_art(index: Dictionary, card_name: String, _id: int) -> String:
 	var key := _normalize(card_name)
 	# Exact match
 	if index.has(key):
