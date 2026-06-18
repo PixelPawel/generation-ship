@@ -693,8 +693,8 @@ func _try_drop_tech() -> void:
 	if not best_sector:
 		_handle_failed_drop()
 		return
+	var placed: Node3D = _dragged_card
 	if _is_auction_win:
-		var placed: Node3D = _dragged_card
 		_dragged_card = null
 		_drag_origin = DragOrigin.NONE
 		_is_auction_win = false
@@ -709,7 +709,6 @@ func _try_drop_tech() -> void:
 	if _should_bid(_dragged_card):
 		_start_bid(_dragged_card, best_sector, true)
 		return
-	var placed: Node3D = _dragged_card
 	if not _resolve_card_payment(placed, best_sector, true):
 		return
 	_dragged_card = null
