@@ -4,7 +4,6 @@ signal sector_advanced_pressed(slot_idx: int)
 signal sector_dust_pressed(slot_idx: int)
 signal expedition_pressed(slot_idx: int)
 signal opponent_pressed(peer_id: int)
-signal card_preview_requested(cd: CardData, is_advanced: bool)
 
 const CARD_W: int = 112
 const CARD_H: int = 104

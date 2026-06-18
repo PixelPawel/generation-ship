@@ -88,8 +88,6 @@ var _opp_snapshots: Dictionary = {}      # peer_id (int) -> state Dictionary
 var _opp_widget: Control = null
 var _opp_panels: Dictionary = {}         # peer_id → {hand_lbl, supply_lbls, vp_lbl}
 var _opp_info_panel: Control = null
-var _market_card_hologram: Node3D = null
-var _market_card_hologram_catcher: Control = null
 var _ending_turn: bool = false
 
 var _auction_card_ref: Dictionary = {}
@@ -570,7 +568,6 @@ func _setup_info_screen_display() -> void:
 	_market_panel.sector_dust_pressed.connect(_on_market_sector_dust_pressed)
 	_market_panel.expedition_pressed.connect(_on_market_expedition_pressed)
 	_market_panel.opponent_pressed.connect(_show_opponent_board)
-	_market_panel.card_preview_requested.connect(_show_market_card_hologram)
 
 	var screen_mesh: MeshInstance3D = $UiInfo.find_child("gs_ui_info_screen", true, false) as MeshInstance3D
 	if screen_mesh:
@@ -2765,49 +2762,6 @@ func _close_opponent_board_view() -> void:
 		_market_panel.visible = true
 
 # ── Market card hologram ───────────────────────────────────────────────────────
-
-func _show_market_card_hologram(cd: CardData, is_advanced: bool) -> void:
-	_dismiss_market_card_hologram()
-
-	var card: Node3D = card_scene.instantiate()
-	add_child(card)
-	card.set("can_drag", false)
-	card.set("can_elevate", false)
-	card.set("is_advanced", is_advanced)
-	card.call("set_card_data", cd)
-	card.global_position = $UiInfo.global_position
-	card.global_rotation = Vector3(-PI / 2.0, 0.0, 0.0)
-	card.scale = Vector3.ZERO
-	_market_card_hologram = card
-
-	# Tween from info screen position to floating above the scene
-	var float_pos: Vector3 = Vector3(0.0, 1.38, 0.0)
-	var tw: Tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	tw.tween_property(card, "global_position", float_pos, 0.45)
-	tw.parallel().tween_property(card, "scale", Vector3.ONE * 0.25, 0.45)
-
-	# Click anywhere to dismiss
-	var catcher: Control = Control.new()
-	catcher.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	catcher.mouse_filter = Control.MOUSE_FILTER_STOP
-	catcher.gui_input.connect(func(ev: InputEvent) -> void:
-		if ev is InputEventMouseButton and (ev as InputEventMouseButton).pressed:
-			_dismiss_market_card_hologram()
-	)
-	$UILayer.add_child(catcher)
-	_market_card_hologram_catcher = catcher
-
-func _dismiss_market_card_hologram() -> void:
-	if _market_card_hologram_catcher:
-		_market_card_hologram_catcher.queue_free()
-		_market_card_hologram_catcher = null
-	if not _market_card_hologram:
-		return
-	var card: Node3D = _market_card_hologram
-	_market_card_hologram = null
-	var tw: Tween = create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_BACK)
-	tw.tween_property(card, "scale", Vector3.ZERO, 0.2)
-	tw.tween_callback(card.queue_free)
 
 # ── Connection loss ───────────────────────────────────────────────────────────
 
