@@ -75,14 +75,6 @@ func _build_ui() -> void:
 	supply_panel.offset_bottom = -16.0
 	add_child(supply_panel)
 
-	var ship_bg := TextureRect.new()
-	ship_bg.texture = load("res://assets/ui/Player_Ship_1.png") as Texture2D
-	ship_bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	ship_bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	ship_bg.modulate = Color(1.0, 1.0, 1.0, 0.35)
-	ship_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	supply_panel.add_child(ship_bg)
-
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 6)
 	supply_panel.add_child(vbox)
