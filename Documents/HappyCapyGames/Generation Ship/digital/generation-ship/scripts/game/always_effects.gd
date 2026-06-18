@@ -56,8 +56,8 @@ static func get_board_wide_steps(completed_slot: SectorSlot, all_slots: Array[Se
 # placed_card: the card just placed; placed_expeditions: all expeditions on board (including placed_card if it is one).
 static func get_global_expedition_steps(placed_card: CardData, placed_expeditions: Array[CardData]) -> Array[Dictionary]:
 	var steps: Array[Dictionary] = []
-	for exp: CardData in placed_expeditions:
-		match exp.card_name:
+	for expedition: CardData in placed_expeditions:
+		match expedition.card_name:
 			"Einstein-Rosen Portal":
 				# Store 1 supply of the placed card's color on its sector (handled via _effect_slot)
 				if placed_card.is_star_card:
