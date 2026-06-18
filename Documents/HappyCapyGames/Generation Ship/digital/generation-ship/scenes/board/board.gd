@@ -700,9 +700,9 @@ func _try_drop_tech() -> void:
 		_is_auction_win = false
 		best_sector.accept_tech_card(placed)
 		placed.place()
-		var opt_levels: Array[int] = _update_optimize_state(best_sector)
+		var auction_opt_levels: Array[int] = _update_optimize_state(best_sector)
 		card_placed.emit(placed, best_sector)
-		for level: int in opt_levels:
+		for level: int in auction_opt_levels:
 			optimize_triggered.emit(best_sector, level)
 		market_drag_resolved.emit()
 		return
