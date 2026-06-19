@@ -124,6 +124,8 @@ var _info_screen_mesh: MeshInstance3D = null
 var _cs_display: SupplyUI = null
 var _end_turn_btn_mesh: MeshInstance3D = null
 var _end_turn_flash_tween: Tween = null
+var _effect_hint_panel: Control = null
+var _effect_hint_label: Label = null
 var _es_viewport: Control = null
 var _bid_popup: Control = null
 var _payment_panel: Control = null
@@ -602,6 +604,37 @@ func _setup_info_screen_display() -> void:
 		p.reparent(_info_viewport, false)
 		_register_info_panel(p)
 
+	var hint_root := Control.new()
+	hint_root.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	hint_root.offset_bottom = 56.0
+	hint_root.z_index = 10
+	hint_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var hint_bg := ColorRect.new()
+	hint_bg.color = Color(0.03, 0.04, 0.09, 0.92)
+	hint_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hint_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint_root.add_child(hint_bg)
+	var hint_border := ColorRect.new()
+	hint_border.color = Color(0.3, 0.6, 1.0, 0.55)
+	hint_border.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	hint_border.offset_top = -2.0
+	hint_border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint_root.add_child(hint_border)
+	var hint_label := Label.new()
+	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	hint_label.add_theme_font_size_override("font_size", 22)
+	hint_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.55))
+	hint_label.add_theme_constant_override("outline_size", 2)
+	hint_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.7))
+	hint_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint_root.add_child(hint_label)
+	_effect_hint_panel = hint_root
+	_effect_hint_label = hint_label
+	_effect_hint_panel.hide()
+	_info_viewport.add_child(hint_root)
+
 func _setup_info_screen_input(screen_mesh: MeshInstance3D) -> void:
 	_setup_viewport_input(screen_mesh, _info_viewport)
 
@@ -739,8 +772,7 @@ func _on_research_pressed() -> void:
 		return
 	_effect_mode = EffectMode.RESEARCH
 	_set_action_buttons_disabled(true)
-	$UILayer/DiscardHint.text = "Click a card in your hand to discard it"
-	$UILayer/DiscardHint.show()
+	_show_effect_hint("Click a card in your hand to discard it")
 	$Hand.set_discard_mode(true)
 
 func _on_pass_pressed() -> void:
@@ -1294,13 +1326,13 @@ func _on_card_discarded(card: Node3D) -> void:
 	match _effect_mode:
 		EffectMode.RESEARCH:
 			_effect_mode = EffectMode.NONE
-			$UILayer/DiscardHint.hide()
+			_hide_effect_hint()
 			$Hand.set_discard_mode(false)
 			$Board.discard_and_draw(card)
 			_do_pass()
 
 		EffectMode.PAYMENT_RECYCLE:
-			$UILayer/DiscardHint.hide()
+			_hide_effect_hint()
 			UIAudio.play_recycle_sfx()
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
 			_cs_display.add_supply(color, 1)
@@ -1473,7 +1505,7 @@ func _reset_effect_state() -> void:
 	_caldera_slots = []
 	_effect_done_btn.hide()
 	_choice_popup.hide()
-	$UILayer/DiscardHint.hide()
+	_hide_effect_hint()
 	$Hand.set_discard_mode(false)
 	$Board.set_sector_reveal_mode(false)
 	$Board.set_expedition_reveal_mode(false)
@@ -1686,7 +1718,7 @@ func _on_sector_info_requested(slot: SectorSlot) -> void:
 				_sector_picker.hide()
 				_pending_target_slot = slot
 				$Board.set_cargo_click_mode(false)
-				$UILayer/DiscardHint.hide()
+				_hide_effect_hint()
 				_effect_mode = EffectMode.EFFECT_RECYCLE_TUCK_STORE_DECIDE
 				var labels: Array[String] = ["Store on sector", "Gain as currency"]
 				_choice_popup.show_choices("Terraformed Planet — what to do with recycled supply?", labels, false)
@@ -1697,7 +1729,7 @@ func _on_sector_info_requested(slot: SectorSlot) -> void:
 					slot.add_tucked_card(_pending_tuck_card_data, _effect_face_up)
 				_pending_tuck_card_data = null
 				$Board.set_cargo_click_mode(false)
-				$UILayer/DiscardHint.hide()
+				_hide_effect_hint()
 				_effect_remaining -= 1
 				if _effect_remaining > 0:
 					_effect_mode = EffectMode.EFFECT_TUCK_ANY_SECTOR
@@ -1754,7 +1786,7 @@ func _on_sector_revealed(card_data: CardData, slot_idx: int) -> void:
 			_server_sync_sector_reveal(slot_idx, 1)
 		else:
 			_rpc_notify_sector_revealed.rpc_id(1, slot_idx)
-	$UILayer/DiscardHint.hide()
+	_hide_effect_hint()
 	_effect_mode = EffectMode.NONE
 	$Board.set_sector_reveal_mode(false)
 	if _pending_reveal_gain_supply and card_data:
@@ -1952,16 +1984,14 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_pending_reveal_may_bid = bool(step.get("may_bid", false))
 			_pending_reveal_may_free_gain = bool(step.get("may_free_gain", false))
 			_effect_mode = EffectMode.EFFECT_REVEAL_SECTOR
-			$UILayer/DiscardHint.text = "Click a free sector slot in the Market panel to reveal it"
-			$UILayer/DiscardHint.show()
+			_show_effect_hint("Click a free sector slot in the Market panel to reveal it")
 			$Board.set_sector_reveal_mode(true)
 
 		"reveal_expedition":
 			_pending_expedition_reveal_gain_supply = bool(step.get("gain_supply", false))
 			_pending_expedition_reveal_may_bid = bool(step.get("may_bid", false))
 			_effect_mode = EffectMode.EFFECT_REVEAL_EXPEDITION
-			$UILayer/DiscardHint.text = "Click an expedition slot in the Market panel to reveal it"
-			$UILayer/DiscardHint.show()
+			_show_effect_hint("Click an expedition slot in the Market panel to reveal it")
 			$Board.set_expedition_reveal_mode(true)
 			_market_panel.set_expedition_reveal_mode(true)
 
@@ -2115,8 +2145,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_effect_mode = EffectMode.EFFECT_EXPEDITION_SHUFFLE
 			_effect_remaining = 3
 			_shuffle_count = 0
-			$UILayer/DiscardHint.text = "Click up to 3 expeditions to shuffle back — then click Done"
-			$UILayer/DiscardHint.show()
+			_show_effect_hint("Click up to 3 expeditions to shuffle back — then click Done")
 			_effect_done_btn.show()
 			$Board.set_expedition_shuffle_mode(true)
 
@@ -2379,7 +2408,7 @@ func _on_market_expedition_pressed(slot_idx: int) -> void:
 func _execute_expedition_reveal(slot_idx: int) -> void:
 	_effect_mode = EffectMode.NONE
 	$Board.set_expedition_reveal_mode(false)
-	$UILayer/DiscardHint.hide()
+	_hide_effect_hint()
 	var revealed: CardData = $Board.reveal_expedition_to_slot(slot_idx)
 	if _pending_expedition_reveal_gain_supply and revealed:
 		_cs_display.add_supply(revealed.color, 1)
@@ -2448,13 +2477,13 @@ func _on_expedition_shuffled_back(card_data: CardData, deck_insert_idx: int) -> 
 	if _effect_remaining <= 0:
 		_finish_expedition_shuffle()
 	else:
-		$UILayer/DiscardHint.text = "Click up to %d more expedition(s) to shuffle back — or Done" % _effect_remaining
+		_show_effect_hint("Click up to %d more expedition(s) to shuffle back — or Done" % _effect_remaining)
 
 func _finish_expedition_shuffle() -> void:
 	$Board.set_expedition_shuffle_mode(false)
 	_effect_mode = EffectMode.NONE
 	_effect_remaining = 0
-	$UILayer/DiscardHint.hide()
+	_hide_effect_hint()
 	_effect_done_btn.hide()
 	for _i: int in _shuffle_count:
 		_effect_queue.insert(0, {type = "reveal_expedition"})
@@ -2463,8 +2492,7 @@ func _finish_expedition_shuffle() -> void:
 
 func _on_payment_recycle_requested() -> void:
 	_effect_mode = EffectMode.PAYMENT_RECYCLE
-	$UILayer/DiscardHint.text = "Click a card to recycle it for payment"
-	$UILayer/DiscardHint.show()
+	_show_effect_hint("Click a card to recycle it for payment")
 	$Hand.set_discard_mode(true)
 
 func _on_major_action_changed(taken: bool) -> void:
@@ -2890,6 +2918,16 @@ func _init_supply() -> void:
 	ui.set_supply(CardData.SupplyColor.ORGANIX,  1)
 	ui.set_supply(CardData.SupplyColor.ELECTRIX, 1)
 	ui.set_supply(CardData.SupplyColor.THRUST,   0)
+
+func _show_effect_hint(text: String) -> void:
+	if _effect_hint_label:
+		_effect_hint_label.text = text
+	if _effect_hint_panel:
+		_effect_hint_panel.show()
+
+func _hide_effect_hint() -> void:
+	if _effect_hint_panel:
+		_effect_hint_panel.hide()
 
 func _show_action_buttons(v: bool) -> void:
 	_cs_display.show_action_buttons(v)
