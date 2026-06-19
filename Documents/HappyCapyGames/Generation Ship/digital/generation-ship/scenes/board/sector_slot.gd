@@ -405,7 +405,7 @@ func compact_tech_cards() -> void:
 
 func _setup_stack_hover() -> void:
 	var area: Area3D = Area3D.new()
-	area.input_ray_pickable = false
+	area.input_ray_pickable = true
 	var cshape: CollisionShape3D = CollisionShape3D.new()
 	var box: BoxShape3D = BoxShape3D.new()
 	box.size = Vector3(0.8, 0.8, 1.6)
