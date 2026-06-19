@@ -6,8 +6,6 @@ uniform vec2 tilt = vec2(0.0, 0.0);
 uniform float sheen_strength : hint_range(0.0, 1.0) = 0.22;
 uniform vec3 discount_glow_color = vec3(0.0);
 uniform float corner_radius : hint_range(0.0, 0.2) = 0.06;
-uniform float contrast   : hint_range(0.5, 2.0) = 1.2;
-uniform float saturation : hint_range(0.0, 2.0) = 1.1;
 
 void fragment() {
 	vec4 face = texture(card_texture, UV);
@@ -19,12 +17,6 @@ void fragment() {
 	vec2 c = vec2(min(UV.x, 1.0 - UV.x), min(UV.y, 1.0 - UV.y));
 
 	vec3 lit = face.rgb + vec3(sheen * 0.6, sheen * 0.75, sheen);
-
-	float lum = dot(lit, vec3(0.299, 0.587, 0.114));
-	lit = mix(vec3(lum), lit, saturation);
-	lit = (lit - 0.5) * contrast + 0.5;
-	lit = clamp(lit, 0.0, 1.0);
-
 	ALBEDO = lit;
 	ROUGHNESS = 0.78;
 	SPECULAR = 0.1;
