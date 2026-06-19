@@ -1,6 +1,6 @@
 shader_type canvas_item;
 uniform float corner_radius : hint_range(0.0, 0.5) = 0.06;
-uniform float brightness : hint_range(0.0, 1.5) = 0.60;
+uniform float brightness : hint_range(0.0, 1.5) = 0.70;
 
 void fragment() {
 	vec2 c = vec2(min(UV.x, 1.0 - UV.x), min(UV.y, 1.0 - UV.y));
