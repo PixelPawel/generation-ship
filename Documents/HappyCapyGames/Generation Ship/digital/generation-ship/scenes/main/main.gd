@@ -64,6 +64,7 @@ var _pending_store_nodes: Array[Node3D] = []
 var _last_drawn_cards: Array[Node3D] = []
 var _restrict_picks_to_drawn: bool = false
 var _sector_info_popup: SectorInfoPopup = null
+var _sector_picker: SectorPickerPanel = null
 var _supply_cost_panel: SupplyCostPanel = null
 var _market_panel: Control = null
 var _bid_payment_panel: Control = null
@@ -212,6 +213,12 @@ func _ready() -> void:
 	_register_info_panel(_sector_info_popup)
 	_sector_info_popup.cargo_move_requested.connect(_on_cargo_move_requested)
 	_sector_info_popup.cargo_cancelled.connect(_on_cargo_cancelled)
+
+	_sector_picker = load("res://scenes/ui/sector_picker_panel.gd").new()
+	_info_viewport.add_child(_sector_picker)
+	_register_info_panel(_sector_picker)
+	_sector_picker.sector_selected.connect(_on_sector_selected_from_picker)
+
 	$Board.sector_info_requested.connect(_on_sector_info_requested)
 	_turn_label = Label.new()
 	_turn_label.visible = false
@@ -1410,8 +1417,9 @@ func _process_hand_choice(index: int) -> void:
 			$Hand.remove_card_fly_out(card)
 			_effect_mode = EffectMode.EFFECT_TUCK_ANY_SECTOR_SLOT
 			$Board.set_cargo_click_mode(true)
-			$UILayer/DiscardHint.text = "Click a sector to tuck the card facedown under it"
-			$UILayer/DiscardHint.show()
+			var face_str_tuck: String = "faceup" if _effect_face_up else "facedown"
+			var tuck_name: String = card.card_data.card_name if card.card_data else "card"
+			_sector_picker.setup("Tuck %s %s — pick a sector" % [tuck_name, face_str_tuck], $Board.get_all_sector_slots())
 
 		EffectMode.EFFECT_RECYCLE_TUCK:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
@@ -1584,8 +1592,7 @@ func _apply_recycle_tuck_store_multiselect(indices: Array[int]) -> void:
 		return
 	_effect_mode = EffectMode.EFFECT_RECYCLE_TUCK_STORE_SECTOR
 	$Board.set_cargo_click_mode(true)
-	$UILayer/DiscardHint.text = "Terraformed Planet — click a sector to tuck the cards facedown"
-	$UILayer/DiscardHint.show()
+	_sector_picker.setup("Terraformed Planet — pick a sector to tuck facedown", $Board.get_all_sector_slots())
 
 func _apply_recycle_tuck_store_decision(store_on_sector: bool) -> void:
 	var target: SectorSlot = _pending_target_slot if _pending_target_slot else _effect_slot
@@ -1652,19 +1659,26 @@ func _on_choice_skipped() -> void:
 	else:
 		_process_next_effect()
 
+func _on_sector_selected_from_picker(slot: SectorSlot) -> void:
+	_on_sector_info_requested(slot)
+
 func _on_sector_info_requested(slot: SectorSlot) -> void:
 	match _effect_mode:
 		EffectMode.EFFECT_CARGO_DRONES:
 			_sector_info_popup.show_sector_for_cargo(slot)
+			_sector_picker.hide()
 		EffectMode.EFFECT_CARGO_DRONES_DEST:
 			if slot != _cargo_source_slot and slot.occupied:
+				_sector_picker.hide()
 				_apply_cargo_move(slot)
 		EffectMode.EFFECT_STORE_ON_SECTOR:
 			if slot.occupied:
+				_sector_picker.hide()
 				slot.add_stored_supply(_pending_store_color, _pending_store_amount)
 				_finish_interactive_step()
 		EffectMode.EFFECT_RECYCLE_TUCK_STORE_SECTOR:
 			if slot.occupied:
+				_sector_picker.hide()
 				_pending_target_slot = slot
 				$Board.set_cargo_click_mode(false)
 				$UILayer/DiscardHint.hide()
@@ -1673,6 +1687,7 @@ func _on_sector_info_requested(slot: SectorSlot) -> void:
 				_choice_popup.show_choices("Terraformed Planet — what to do with recycled supply?", labels, false)
 		EffectMode.EFFECT_TUCK_ANY_SECTOR_SLOT:
 			if slot.occupied:
+				_sector_picker.hide()
 				if _pending_tuck_card_data:
 					slot.add_tucked_card(_pending_tuck_card_data, _effect_face_up)
 				_pending_tuck_card_data = null
@@ -1695,12 +1710,11 @@ func _on_cargo_move_requested(source: SectorSlot, supplies: Dictionary, tucked_i
 	_cargo_pending_supplies = supplies
 	_cargo_pending_tucked = tucked_indices
 	_effect_mode = EffectMode.EFFECT_CARGO_DRONES_DEST
-	$UILayer/DiscardHint.text = "Cargo Drones: click the destination sector"
-	$UILayer/DiscardHint.show()
+	_sector_picker.setup("Cargo Drones — pick the destination sector", $Board.get_all_sector_slots(), _cargo_source_slot)
 
 func _on_cargo_cancelled() -> void:
 	_effect_mode = EffectMode.EFFECT_CARGO_DRONES
-	$UILayer/DiscardHint.text = "Cargo Drones: click a sector to move cargo from"
+	_sector_picker.setup("Cargo Drones — pick a source sector", $Board.get_all_sector_slots())
 
 func _apply_cargo_move(dest: SectorSlot) -> void:
 	for color: int in _cargo_pending_supplies:
@@ -1727,7 +1741,7 @@ func _apply_cargo_move(dest: SectorSlot) -> void:
 	_cargo_pending_supplies = {}
 	_cargo_pending_tucked = []
 	_effect_mode = EffectMode.EFFECT_CARGO_DRONES
-	$UILayer/DiscardHint.text = "Cargo Drones: click a sector to move cargo from"
+	_sector_picker.setup("Cargo Drones — pick a source sector", $Board.get_all_sector_slots())
 
 func _on_sector_revealed(card_data: CardData, slot_idx: int) -> void:
 	if GameNetwork.is_multiplayer:
@@ -1834,8 +1848,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_effect_mode = EffectMode.EFFECT_STORE_ON_SECTOR
 			$Board.set_cargo_click_mode(true)
 			var color_names: Array[String] = ["Dust", "Metals", "Liquids", "Organix", "Electrix", "Thrust"]
-			$UILayer/DiscardHint.text = "Click a sector to store %d %s on it" % [_pending_store_amount, color_names[_pending_store_color]]
-			$UILayer/DiscardHint.show()
+			_sector_picker.setup("Store %d %s — pick a sector" % [_pending_store_amount, color_names[_pending_store_color]], $Board.get_all_sector_slots())
 
 		"store_per_card_here":
 			if _effect_slot:
@@ -2089,9 +2102,8 @@ func _execute_effect_step(step: Dictionary) -> void:
 		"cargo_drones":
 			_effect_mode = EffectMode.EFFECT_CARGO_DRONES
 			$Board.set_cargo_click_mode(true)
-			$UILayer/DiscardHint.text = "Cargo Drones: click a sector to move cargo from"
-			$UILayer/DiscardHint.show()
 			_effect_done_btn.show()
+			_sector_picker.setup("Cargo Drones — pick a source sector", $Board.get_all_sector_slots())
 
 		"black_hole_encounter":
 			_effect_mode = EffectMode.EFFECT_EXPEDITION_SHUFFLE
