@@ -7,7 +7,7 @@ const MAX_CONCURRENT := 6
 const CACHE_DIR := "res://assets/cards"
 const META_PATH := "res://assets/cards/meta.json"
 
-var _memory: Dictionary = {}   # url/path -> Texture2D
+var _memory: Dictionary = {}   # url -> ImageTexture
 var _meta: Dictionary = {}     # url -> { file: String, etag: String }
 var _queue: Array[String] = []
 var _active: int = 0
@@ -46,9 +46,6 @@ func preload_urls(urls: Array[String]) -> void:
 	var added: int = 0
 	for url: String in urls:
 		if url.is_empty() or _memory.has(url):
-			continue
-		if url.begins_with("res://"):
-			_load_local(url)
 			continue
 		_queue.append(url)
 		_memory[url] = null
@@ -126,19 +123,6 @@ func _load_from_disk(url: String) -> void:
 	if img.load_png_from_buffer(data) == OK:
 		_memory[url] = ImageTexture.create_from_image(img)
 
-func _load_local(path: String) -> void:
-	var res: Resource = load(path)
-	if res == null:
-		return
-	if res is Texture2D:
-		var img: Image = (res as Texture2D).get_image()
-		if img:
-			_memory[path] = ImageTexture.create_from_image(img)
-		else:
-			_memory[path] = res as Texture2D
-	elif res is Image:
-		_memory[path] = ImageTexture.create_from_image(res as Image)
-
 func _save_to_disk(file_path: String, data: PackedByteArray) -> void:
 	var file: FileAccess = FileAccess.open(file_path, FileAccess.WRITE)
 	if file:
@@ -154,7 +138,5 @@ func _extract_etag(headers: PackedStringArray) -> String:
 			return header.substr(5).strip_edges()
 	return ""
 
-func get_texture(url: String) -> Texture2D:
-	if not _memory.has(url) and url.begins_with("res://"):
-		_load_local(url)
-	return _memory.get(url, null) as Texture2D
+func get_texture(url: String) -> ImageTexture:
+	return _memory.get(url, null) as ImageTexture

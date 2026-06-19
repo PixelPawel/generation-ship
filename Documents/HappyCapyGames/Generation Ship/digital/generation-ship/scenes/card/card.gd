@@ -69,8 +69,6 @@ func set_card_data(data: CardData) -> void:
 	if cached:
 		_apply_texture(cached)
 		return
-	if url.begins_with("res://"):
-		return
 	_pending_url = url
 	var http := HTTPRequest.new()
 	add_child(http)
@@ -220,13 +218,13 @@ func set_face_down(back_url: String) -> void:
 	collider.input_ray_pickable = false
 	if back_url.is_empty():
 		return
-	var cached: Texture2D = ImageCache.get_texture(back_url)
+	var cached: ImageTexture = ImageCache.get_texture(back_url)
 	if cached:
 		_apply_texture(cached)
 		return
 	_pending_url = back_url
 	ImageCache.all_loaded.connect(func() -> void:
-		var tex: Texture2D = ImageCache.get_texture(back_url)
+		var tex: ImageTexture = ImageCache.get_texture(back_url)
 		if tex and is_instance_valid(self):
 			_apply_texture(tex)
 	, CONNECT_ONE_SHOT)
