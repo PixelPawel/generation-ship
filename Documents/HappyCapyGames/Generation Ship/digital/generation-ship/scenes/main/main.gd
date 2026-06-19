@@ -629,9 +629,6 @@ func _setup_enemy_screen_display() -> void:
 	$UILayer.add_child(panel)
 	_es_viewport = panel
 
-func _on_control_screen_btn_pressed() -> void:
-	pass
-
 func _init_bot_state() -> void:
 	for bot_id: int in GameNetwork.bot_ids:
 		var supply: Dictionary = {}
