@@ -14,8 +14,15 @@ const SUPPLY_ICON_PATHS := [
 	"res://assets/ui/supply/Thrust.png",
 ]
 
-# Each offset: (0, Y, Z) relative to this slot — Z steps of 0.44 toward camera
-static var TECH_OFFSETS: Array[Vector3] = [
+static var TECH_OFFSETS_COMPACT: Array[Vector3] = [
+	Vector3(0, 0.67, -0.44),
+	Vector3(0, 0.66, -0.53),
+	Vector3(0, 0.65, -0.62),
+	Vector3(0, 0.64, -0.71),
+	Vector3(0, 0.63, -0.80),
+]
+
+static var TECH_OFFSETS_EXPANDED: Array[Vector3] = [
 	Vector3(0, 0.67, -0.44),
 	Vector3(0, 0.47, -0.74),
 	Vector3(0, 0.27, -1.04),
@@ -64,15 +71,16 @@ func _ready() -> void:
 	if mat:
 		_slot_mat = mat.duplicate() as ShaderMaterial
 		_mesh.set_surface_override_material(0, _slot_mat)
-	for i in TECH_OFFSETS.size():
+	for i in TECH_OFFSETS_COMPACT.size():
 		var slot := Node3D.new()
 		slot.set_script(TechSlotScript)
-		slot.position = TECH_OFFSETS[i]
+		slot.position = TECH_OFFSETS_COMPACT[i]
 		slot.set("slot_index", i)
 		add_child(slot)
 		_tech_slots.append(slot)
 	_float_phase = randf() * TAU
 	_setup_display()
+	_setup_stack_hover()
 	set_process(false)
 
 func _setup_display() -> void:
@@ -395,6 +403,32 @@ func compact_tech_cards() -> void:
 		var tween := card.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		tween.tween_property(card, "position", Vector3.ZERO, 0.25)
 
+func _setup_stack_hover() -> void:
+	var area: Area3D = Area3D.new()
+	area.input_ray_pickable = false
+	var cshape: CollisionShape3D = CollisionShape3D.new()
+	var box: BoxShape3D = BoxShape3D.new()
+	box.size = Vector3(0.8, 0.8, 1.6)
+	cshape.position = Vector3(0, 0.45, -1.02)
+	cshape.shape = box
+	area.add_child(cshape)
+	area.mouse_entered.connect(_on_stack_hover_enter)
+	area.mouse_exited.connect(_on_stack_hover_exit)
+	add_child(area)
+
+func _fan_tech_slots(expanded: bool) -> void:
+	var offsets: Array[Vector3] = TECH_OFFSETS_EXPANDED if expanded else TECH_OFFSETS_COMPACT
+	for i: int in _tech_slots.size():
+		var ts: Node3D = _tech_slots[i]
+		var tween: Tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		tween.tween_property(ts, "position", offsets[i], 0.20)
+
+func _on_stack_hover_enter() -> void:
+	_fan_tech_slots(true)
+
+func _on_stack_hover_exit() -> void:
+	_fan_tech_slots(false)
+
 func accept_card(card: Node3D) -> void:
 	occupied = true
 	placed_card = card
@@ -406,7 +440,7 @@ func accept_card(card: Node3D) -> void:
 	card.managed_by_hand = false
 	card.set("_elev_rest_pos", Vector3(0, CARD_REST_Y, 0))
 	# Positive offset keeps sector card in front of all tech slots in transparent sort.
-	card.call("set_sort_order", TECH_OFFSETS.size() * TechSlotScript.SORT_STEP + TechSlotScript.SORT_STEP)
+	card.call("set_sort_order", TECH_OFFSETS_EXPANDED.size() * TechSlotScript.SORT_STEP + TechSlotScript.SORT_STEP)
 	var tween := card.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tween.tween_property(card, "position", Vector3(0, CARD_REST_Y, 0), 0.3)
 	tween.parallel().tween_property(card, "rotation", Vector3(-PI / 2.0, 0.0, 0.0), 0.3)
