@@ -16,11 +16,11 @@ const SUPPLY_ICON_PATHS := [
 
 # Each offset: (0, Y, Z) relative to this slot — Z steps of 0.44 toward camera
 static var TECH_OFFSETS: Array[Vector3] = [
-	Vector3(0, 0.07, -0.44),
-	Vector3(0, 0.27, -0.56),
+	Vector3(0, 0.87, -0.44),
+	Vector3(0, 0.67, -0.56),
 	Vector3(0, 0.47, -0.68),
-	Vector3(0, 0.67, -0.80),
-	Vector3(0, 0.87, -0.92),
+	Vector3(0, 0.27, -0.80),
+	Vector3(0, 0.07, -0.92),
 ]
 
 
