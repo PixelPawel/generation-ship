@@ -103,8 +103,8 @@ func _build_card_btn(slot: SectorSlot, pos: Vector2, sz: Vector2) -> void:
 		var cd: CardData = slot.placed_card.card_data as CardData
 		var is_adv: bool = bool(slot.placed_card.get("is_advanced"))
 		var url: String = cd.adv_image_url if is_adv else cd.image_url
-		var name: String = (cd.adv_name if (is_adv and not cd.adv_name.is_empty()) else cd.card_name)
-		lbl.text = name
+		var card_name: String = (cd.adv_name if (is_adv and not cd.adv_name.is_empty()) else cd.card_name)
+		lbl.text = card_name
 		if not url.is_empty():
 			rect.texture = ImageCache.get_texture(url)
 
