@@ -39,11 +39,11 @@ func setup(cards: Array[CardData], back_url: String = "") -> void:
 	_apply_back_url(back_url)
 
 func _on_cache_loaded() -> void:
-	var tex: ImageTexture = ImageCache.get_texture(_back_url)
+	var tex: Texture2D = ImageCache.get_texture(_back_url)
 	if tex:
 		_apply_back_texture(tex)
 
-func _apply_back_texture(tex: ImageTexture) -> void:
+func _apply_back_texture(tex: Texture2D) -> void:
 	if _mat:
 		_mat.albedo_texture = tex
 		_mat.albedo_color = Color.WHITE
@@ -62,7 +62,7 @@ func _apply_back_url(url: String) -> void:
 	if url.is_empty():
 		return
 	_back_url = url
-	var cached: ImageTexture = ImageCache.get_texture(url)
+	var cached: Texture2D = ImageCache.get_texture(url)
 	if cached:
 		_apply_back_texture(cached)
 	else:

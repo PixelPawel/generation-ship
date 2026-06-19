@@ -1265,7 +1265,7 @@ func _show_won_card_popup() -> void:
 
 	var image_url: String = cd.adv_image_url if _pending_won_is_adv else cd.image_url
 	if not image_url.is_empty():
-		var tex: ImageTexture = ImageCache.get_texture(image_url)
+		var tex: Texture2D = ImageCache.get_texture(image_url)
 		if tex:
 			var img := TextureRect.new()
 			img.texture = tex

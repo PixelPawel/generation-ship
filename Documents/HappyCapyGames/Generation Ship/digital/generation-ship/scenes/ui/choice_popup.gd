@@ -148,7 +148,7 @@ func _build_card_rows(cards: Array[CardData], on_click: Callable, advanced_flags
 		var cd: CardData = cards[i]
 		var is_adv: bool = advanced_flags[i] if i < advanced_flags.size() else cd.card_type == CardData.CardType.SECTOR
 		var url: String = cd.adv_image_url if (is_adv and not cd.adv_image_url.is_empty()) else cd.image_url
-		var tex: ImageTexture = ImageCache.get_texture(url) if not url.is_empty() else null
+		var tex: Texture2D = ImageCache.get_texture(url) if not url.is_empty() else null
 		var display: String = cd.adv_name if is_adv else cd.card_name
 
 		var card_vbox := VBoxContainer.new()

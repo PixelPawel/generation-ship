@@ -155,7 +155,7 @@ func _set_card_image(card_data: CardData, is_advanced: bool) -> void:
 	if url.is_empty():
 		_card_image.visible = false
 		return
-	var tex: ImageTexture = ImageCache.get_texture(url)
+	var tex: Texture2D = ImageCache.get_texture(url)
 	_card_image.texture = tex
 	_card_image.visible = tex != null
 

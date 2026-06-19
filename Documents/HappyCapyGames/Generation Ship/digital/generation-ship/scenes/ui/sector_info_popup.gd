@@ -176,7 +176,7 @@ func _make_card_row(cards: Array, face_up: bool) -> VBoxContainer:
 		var tuck: Dictionary = cards[idx]
 		var cd: CardData = tuck.get("data") as CardData
 		var url: String = (cd.image_url if cd else "") if face_up else TECH_BACK_URL
-		var tex: ImageTexture = ImageCache.get_texture(url) if not url.is_empty() else null
+		var tex: Texture2D = ImageCache.get_texture(url) if not url.is_empty() else null
 
 		var card_vbox := VBoxContainer.new()
 		card_vbox.add_theme_constant_override("separation", 4)
@@ -277,7 +277,7 @@ func _rebuild_cargo(slot: SectorSlot) -> void:
 			var cd: CardData = entry.get("data") as CardData
 			var face_up: bool = entry.get("face_up", false)
 			var url: String = (cd.image_url if cd else "") if face_up else TECH_BACK_URL
-			var tex: ImageTexture = ImageCache.get_texture(url) if not url.is_empty() else null
+			var tex: Texture2D = ImageCache.get_texture(url) if not url.is_empty() else null
 
 			var row := HBoxContainer.new()
 			row.add_theme_constant_override("separation", 8)

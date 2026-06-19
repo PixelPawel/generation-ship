@@ -4,11 +4,57 @@ var sectors: Array[CardData] = []
 var techs: Array[CardData] = []
 var expeditions: Array[CardData] = []
 
+var _local_art: Dictionary = {}  # normalized_name -> res:// path
+
 func _ready() -> void:
+	_build_local_art_lookup()
 	_load_sector_cards()
 	_load_techs()
 	_load_expeditions()
 	print("CardDatabase loaded: %d sectors, %d techs, %d expeditions" % [sectors.size(), techs.size(), expeditions.size()])
+
+func _build_local_art_lookup() -> void:
+	var dirs: Array[String] = [
+		"res://assets/art/tech",
+		"res://assets/art/expeditions",
+		"res://assets/art/sectors",
+	]
+	for dir_path: String in dirs:
+		var dir: DirAccess = DirAccess.open(dir_path)
+		if not dir:
+			continue
+		dir.list_dir_begin()
+		var fname: String = dir.get_next()
+		while fname != "":
+			if fname.ends_with(".png"):
+				var key: String = _normalize(fname.get_basename())
+				if not _local_art.has(key):
+					_local_art[key] = dir_path + "/" + fname
+			fname = dir.get_next()
+		dir.list_dir_end()
+
+static func _normalize(s: String) -> String:
+	# Strip common prefixes like "TCH_23_", "GS_01_", "EXP_01_", "SEC_10_", "Technologies-02-", "Expedition_1_"
+	var r: RegEx = RegEx.new()
+	r.compile("^(?:TCH|GS|EXP|SEC|CBK)_\\d+_")
+	s = r.sub(s, "")
+	r.compile("^(?:Technologies|Expedition)[-_]\\d+[-_]")
+	s = r.sub(s, "")
+	# Strip trailing " NN" or "_NN" numbers (concept art suffixes like "Portal 01")
+	r.compile("[_ ]\\d+$")
+	s = r.sub(s, "")
+	# Lowercase, keep only a-z and 0-9
+	var out: String = ""
+	for ch: String in s:
+		var code: int = ch.unicode_at(0)
+		if (code >= 97 and code <= 122) or (code >= 65 and code <= 90):
+			out += ch.to_lower()
+		elif code >= 48 and code <= 57:
+			out += ch
+	return out
+
+func _local_art_url(name: String) -> String:
+	return _local_art.get(_normalize(name), "")
 
 func _load_sector_cards() -> void:
 	# Build dust side lookup by name
@@ -39,7 +85,8 @@ func _load_sector_cards() -> void:
 		card.cost = int(dust.get("Cost", "2")) if dust.get("Cost", "").is_valid_int() else 2
 		card.effect_text = dust.get("Effect", "").strip_edges()
 		card.flavor_text = dust.get("Flavor", "").strip_edges()
-		card.image_url = dust.get("Link", "").strip_edges()
+		var dust_local: String = _local_art_url(card.card_name)
+		card.image_url = dust_local if not dust_local.is_empty() else dust.get("Link", "").strip_edges()
 		card.opt1_req = _parse_color_list(dust.get("Optimize 1", ""))
 
 		# Advanced side
@@ -48,7 +95,8 @@ func _load_sector_cards() -> void:
 		card.adv_cost = int(row.get("Cost", "0")) if row.get("Cost", "").is_valid_int() else 0
 		card.adv_effect_text = row.get("Effect", "").strip_edges()
 		card.adv_flavor_text = row.get("Flavor", "").strip_edges()
-		card.adv_image_url = row.get("Link", "").strip_edges()
+		var adv_local: String = _local_art_url(card.adv_name)
+		card.adv_image_url = adv_local if not adv_local.is_empty() else row.get("Link", "").strip_edges()
 		card.adv_opt1_req = _parse_color_list(row.get("Optimize 1", ""))
 		card.adv_opt2_req = _parse_color_list(row.get("Optimize 2", ""))
 		card.adv_opt3_req = _parse_color_list(row.get("Optimize 3", ""))
@@ -83,7 +131,8 @@ func _populate_base_fields(card: CardData, row: Dictionary) -> void:
 	card.cost         = int(row.get("Cost", "0")) if row.get("Cost", "").is_valid_int() else 0
 	card.effect_text  = row.get("Effect", "").strip_edges()
 	card.flavor_text  = row.get("Flavor", "").strip_edges()
-	card.image_url    = row.get("Link", "")
+	var local: String = _local_art_url(card.card_name)
+	card.image_url    = local if not local.is_empty() else row.get("Link", "")
 	card.stars        = row.get("Printed Star", "").count("⭐")
 	card.is_star_card = _parse_yes_no(row.get("Star Card", row.get("Star card", "No")))
 	card.trigger_type = _parse_trigger(row.get("Type", ""))

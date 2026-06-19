@@ -46,7 +46,7 @@ func add_discard(card_data: CardData = null) -> void:
 	var url: String = card_data.image_url
 	if url.is_empty():
 		return
-	var tex: ImageTexture = ImageCache.get_texture(url)
+	var tex: Texture2D = ImageCache.get_texture(url)
 	if tex:
 		_apply_texture(tex)
 
