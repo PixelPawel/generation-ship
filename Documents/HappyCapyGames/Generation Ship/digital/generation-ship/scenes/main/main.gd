@@ -124,6 +124,8 @@ var _info_screen_mesh: MeshInstance3D = null
 var _cs_display: SupplyUI = null
 var _end_turn_btn_mesh: MeshInstance3D = null
 var _end_turn_flash_tween: Tween = null
+var _ui_control_shown: bool = false
+var _ui_info_shown: bool = false
 var _end_turn_flash_mat: StandardMaterial3D = null
 var _effect_hint_panel: Control = null
 var _effect_hint_label: Label = null
@@ -550,21 +552,35 @@ func _setup_cockpit_switches() -> void:
 	var switch1: MeshInstance3D = $UiCockpit.find_child("gs_ui_switch_flat1", true, false) as MeshInstance3D
 	if switch1:
 		_setup_switch_input(switch1, func() -> void:
+			_ui_control_shown = not _ui_control_shown
 			if cockpit_anim:
-				cockpit_anim.play("gs_ui_switch_flat1_on")
+				if _ui_control_shown:
+					cockpit_anim.play_backwards("gs_ui_switch_flat1_on")
+				else:
+					cockpit_anim.play("gs_ui_switch_flat1_on")
 			var anim: AnimationPlayer = $UiControl.find_child("AnimationPlayer", true, false) as AnimationPlayer
 			if anim:
-				anim.play_backwards("intro")
+				if _ui_control_shown:
+					anim.play("intro")
+				else:
+					anim.play_backwards("intro")
 		)
 
 	var switch2: MeshInstance3D = $UiCockpit.find_child("gs_ui_switch_flat2", true, false) as MeshInstance3D
 	if switch2:
 		_setup_switch_input(switch2, func() -> void:
+			_ui_info_shown = not _ui_info_shown
 			if cockpit_anim:
-				cockpit_anim.play("gs_ui_switch_flat2_on")
+				if _ui_info_shown:
+					cockpit_anim.play_backwards("gs_ui_switch_flat2_on")
+				else:
+					cockpit_anim.play("gs_ui_switch_flat2_on")
 			var anim: AnimationPlayer = $UiInfo.find_child("AnimationPlayer", true, false) as AnimationPlayer
 			if anim:
-				anim.play_backwards("intro")
+				if _ui_info_shown:
+					anim.play("intro")
+				else:
+					anim.play_backwards("intro")
 		)
 
 func _setup_switch_input(switch_mesh: MeshInstance3D, callback: Callable) -> void:
@@ -791,9 +807,11 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	var ui_control_anim := $UiControl.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if ui_control_anim:
 		ui_control_anim.play("intro")
+		_ui_control_shown = true
 	var ui_info_anim := $UiInfo.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if ui_info_anim:
 		ui_info_anim.play("intro")
+		_ui_info_shown = true
 	_round = 1
 	_update_round_label()
 	_init_supply()
