@@ -122,6 +122,8 @@ var _cs_viewport: SubViewport = null
 var _info_viewport: SubViewport = null
 var _info_screen_mesh: MeshInstance3D = null
 var _cs_display: SupplyUI = null
+var _end_turn_btn_mesh: MeshInstance3D = null
+var _end_turn_flash_tween: Tween = null
 var _es_viewport: Control = null
 var _bid_popup: Control = null
 var _payment_panel: Control = null
@@ -486,6 +488,8 @@ func _setup_control_screen_display() -> void:
 		var btn_mesh: MeshInstance3D = $UiControl.find_child("gs_ui_control_button%d" % (i + 1), true, false) as MeshInstance3D
 		if btn_mesh:
 			_setup_button_input(btn_mesh, btn_callbacks[i], btn_tooltip_titles[i], btn_tooltip_descs[i])
+			if i == 2:
+				_end_turn_btn_mesh = btn_mesh
 
 	$UILayer/SupplyUI.hide()
 	$Board.set_supply_ui(_cs_display)
@@ -2890,9 +2894,36 @@ func _show_action_buttons(v: bool) -> void:
 
 func _show_end_turn_button(v: bool) -> void:
 	_cs_display.show_end_turn_button(v)
+	if not v:
+		_stop_end_turn_3d_flash()
 
 func _set_action_buttons_disabled(v: bool) -> void:
 	_cs_display.set_action_buttons_disabled(v)
 
 func _set_end_turn_button_disabled(v: bool) -> void:
 	_cs_display.set_end_turn_button_disabled(v)
+	if v:
+		_stop_end_turn_3d_flash()
+	else:
+		_start_end_turn_3d_flash()
+
+func _start_end_turn_3d_flash() -> void:
+	if not _end_turn_btn_mesh:
+		return
+	if _end_turn_flash_tween:
+		_end_turn_flash_tween.kill()
+	var mat: StandardMaterial3D = StandardMaterial3D.new()
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.08, 0.08)
+	mat.emission_energy_multiplier = 0.0
+	_end_turn_btn_mesh.material_override = mat
+	_end_turn_flash_tween = create_tween().set_loops()
+	_end_turn_flash_tween.tween_property(mat, "emission_energy_multiplier", 2.5, 0.5).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+	_end_turn_flash_tween.tween_property(mat, "emission_energy_multiplier", 0.0, 0.5).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+
+func _stop_end_turn_3d_flash() -> void:
+	if _end_turn_flash_tween:
+		_end_turn_flash_tween.kill()
+		_end_turn_flash_tween = null
+	if _end_turn_btn_mesh:
+		_end_turn_btn_mesh.material_override = null
