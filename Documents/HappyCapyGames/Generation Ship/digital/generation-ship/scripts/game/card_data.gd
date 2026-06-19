@@ -97,6 +97,8 @@ static func effective_cost(cd: CardData, is_advanced: bool) -> int:
 
 @export var opt1_req: Array[int] = []
 
+@export var local_art_path: String = ""
+
 # Advanced side (sector cards only)
 @export var adv_name: String = ""
 @export var adv_color: SupplyColor = SupplyColor.DUST
@@ -104,6 +106,7 @@ static func effective_cost(cd: CardData, is_advanced: bool) -> int:
 @export var adv_effect_text: String = ""
 @export var adv_flavor_text: String = ""
 @export var adv_image_url: String = ""
+@export var adv_local_art_path: String = ""
 @export var adv_opt1_req: Array[int] = []
 @export var adv_opt2_req: Array[int] = []
 @export var adv_opt3_req: Array[int] = []
