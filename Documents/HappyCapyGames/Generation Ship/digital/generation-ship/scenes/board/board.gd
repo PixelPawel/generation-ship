@@ -16,8 +16,6 @@ const _SLOT_SCENE := preload("res://scenes/board/sector_slot.tscn")
 signal card_recycled(supply_color: CardData.SupplyColor)
 signal major_action_changed(taken: bool)
 signal market_card_taken(card_data: CardData)
-signal market_drag_started(card: Node3D)
-signal market_drag_resolved
 signal bid_required(card: Node3D, slot: Node3D, min_cost: int, cost_color: CardData.SupplyColor, is_tech: bool)
 signal payment_confirm_required(card: Node3D, slot: Node3D, pay_amounts: Dictionary, is_tech: bool)
 signal supply_choice_required(card: Node3D, slot: Node3D, cost: int, options: Array[CardData.SupplyColor], is_tech: bool)
@@ -39,7 +37,6 @@ var market_origin_3d: Vector3 = Vector3.ZERO
 var _drag_start_global_pos: Vector3 = Vector3.ZERO
 var _drag_start_scale: Vector3 = Vector3.ONE
 var _major_action_taken: bool = false
-var _view_only: bool = false
 var _supply_ui: Control = null
 var _card_scene: PackedScene = null
 var _pending_card: Node3D = null
@@ -373,12 +370,6 @@ func get_purchase_discount(target: CardData, placement_slot: SectorSlot = null) 
 						discount += 2
 	return discount
 
-func generate_supply() -> Dictionary:
-	var totals: Dictionary = {}
-	for entry: Dictionary in get_supply_generators():
-		totals[entry["color"]] = totals.get(entry["color"], 0) + 1
-	return totals
-
 func get_supply_generators() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for slot: SectorSlot in _sector_row.get_children():
@@ -477,11 +468,8 @@ func set_major_action_taken() -> void:
 func is_major_action_taken() -> bool:
 	return _major_action_taken
 
-func set_view_only(enabled: bool) -> void:
-	_view_only = enabled
-
 func _on_hand_card_drag_started(card: Node3D) -> void:
-	if not GameNetwork.is_my_turn() or _major_action_taken or _view_only:
+	if not GameNetwork.is_my_turn() or _major_action_taken:
 		card.end_drag()
 		_hand.add_card(card, true)
 		return
@@ -489,7 +477,7 @@ func _on_hand_card_drag_started(card: Node3D) -> void:
 	_begin_drag(card)
 
 func _on_market_card_drag_started(card: Node3D) -> void:
-	if not GameNetwork.is_my_turn() or _major_action_taken or _view_only:
+	if not GameNetwork.is_my_turn() or _major_action_taken:
 		card.end_drag()
 		if card.card_data and card.card_data.card_type == CardData.CardType.EXPEDITION:
 			_expedition_market.return_card(card)
@@ -513,9 +501,6 @@ func _begin_drag(card: Node3D) -> void:
 		var from_3d: Vector3 = market_origin_3d if _drag_origin == DragOrigin.MARKET else (_hand.global_position if _hand else _drag_start_global_pos)
 		var from_2d: Vector2 = cam.unproject_position(from_3d)
 		_drag_arrow.show_arrow(from_2d, from_2d)
-	if _drag_origin == DragOrigin.MARKET:
-		market_drag_started.emit(card)
-
 func _process(_delta: float) -> void:
 	if not _dragged_card:
 		return
@@ -655,7 +640,6 @@ func _try_drop_sector() -> void:
 		card_placed.emit(placed, target_slot)
 		if placed.card_data:
 			market_card_taken.emit(placed.card_data)
-		market_drag_resolved.emit()
 		return
 	if _is_auction_win:
 		_dragged_card = null
@@ -666,7 +650,6 @@ func _try_drop_sector() -> void:
 		card_placed.emit(placed, target_slot)
 		if placed.card_data:
 			market_card_taken.emit(placed.card_data)
-		market_drag_resolved.emit()
 		return
 	_pending_dynamic_slot = null
 	if _should_bid(_dragged_card):
@@ -683,7 +666,6 @@ func _try_drop_sector() -> void:
 	card_placed.emit(placed, target_slot)
 	if origin == DragOrigin.MARKET and cd:
 		market_card_taken.emit(cd)
-	market_drag_resolved.emit()
 
 func _try_drop_tech() -> void:
 	if _drag_origin == DragOrigin.HAND and _major_action_taken:
@@ -704,7 +686,6 @@ func _try_drop_tech() -> void:
 		card_placed.emit(placed, best_sector)
 		for level: int in auction_opt_levels:
 			optimize_triggered.emit(best_sector, level)
-		market_drag_resolved.emit()
 		return
 	if _should_bid(_dragged_card):
 		_start_bid(_dragged_card, best_sector, true)
@@ -719,7 +700,6 @@ func _try_drop_tech() -> void:
 	card_placed.emit(placed, best_sector)
 	for level: int in opt_levels:
 		optimize_triggered.emit(best_sector, level)
-	market_drag_resolved.emit()
 
 func _should_bid(card: Node3D) -> bool:
 	if _is_free_gain:
@@ -771,7 +751,6 @@ func complete_purchase() -> void:
 	if not sector_slot:
 		card_recycled.emit(card.card_data.color)
 		card.queue_free()
-		market_drag_resolved.emit()
 		return
 	if is_tech:
 		if sector_slot.has_tech_space():
@@ -799,7 +778,6 @@ func complete_purchase() -> void:
 		else:
 			card_recycled.emit(card.card_data.adv_color if card.is_advanced else card.card_data.color)
 			card.queue_free()
-	market_drag_resolved.emit()
 
 func get_slot_index(slot: SectorSlot) -> int:
 	return _sector_row.get_children().find(slot)
@@ -875,7 +853,6 @@ func _end_pending_purchase(return_to_market: bool) -> void:
 	else:
 		card.queue_free()
 	_refresh_slot_availability()
-	market_drag_resolved.emit()
 
 func remove_market_card(cd: CardData) -> void:
 	if cd.card_type == CardData.CardType.EXPEDITION:
@@ -975,7 +952,6 @@ func confirm_payment() -> void:
 		card_placed.emit(card, slot)
 	if pay_origin == DragOrigin.MARKET and card.card_data:
 		market_card_taken.emit(card.card_data)
-	market_drag_resolved.emit()
 
 func cancel_payment_confirm() -> void:
 	if not _pending_card:
@@ -995,7 +971,6 @@ func cancel_payment_confirm() -> void:
 		_expedition_market.return_card(card)
 	else:
 		_market.return_card(card)
-	market_drag_resolved.emit()
 
 func restore_visual_from_public_snapshot(snap: Dictionary) -> void:
 	if _dragged_card:
@@ -1266,7 +1241,6 @@ func _handle_failed_drop() -> void:
 			t.tween_property(card, "global_position", start_pos, 0.3)
 			t.parallel().tween_property(card, "scale", Vector3.ONE * HAND_CARD_SCALE, 0.3)
 			t.tween_callback(func() -> void: _hand.add_card(card, false))
-			market_drag_resolved.emit()
 		DragOrigin.MARKET:
 			market_card_drag_failed.emit(card)
 			var t: Tween = card.create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
@@ -1276,8 +1250,7 @@ func _handle_failed_drop() -> void:
 					_expedition_market.return_card(card)
 				else:
 					_market.return_card(card)
-				market_drag_resolved.emit()
-			)
+					)
 
 func _refresh_slot_availability() -> void:
 	pass

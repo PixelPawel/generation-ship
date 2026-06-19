@@ -31,8 +31,6 @@ var _rest_rotations: Dictionary = {}
 var _rest_sort_orders: Dictionary = {}
 var _hover_tweens: Dictionary = {}
 var _float_phases: Dictionary = {}
-var _hidden_drag_slot: int = -1
-var _hidden_drag_type: String = ""
 
 func setup(sector_market: Node, expedition_market: Node, card_scene: PackedScene) -> void:
 	_sector_market = sector_market
@@ -129,44 +127,20 @@ func _refresh() -> void:
 		_refresh_dust(i)
 		_refresh_exp(i)
 
-func _refresh_slot(i: int, cards: Array[Node3D], hidden_type: String, get_data: Callable) -> void:
-	if _hidden_drag_type == hidden_type and _hidden_drag_slot == i:
-		cards[i].visible = false
-		return
+func _refresh_slot(i: int, cards: Array[Node3D], get_data: Callable) -> void:
 	var cd: CardData = get_data.call(i)
 	cards[i].visible = cd != null
 	if cd:
 		cards[i].set_card_data(cd)
 
 func _refresh_adv(i: int) -> void:
-	_refresh_slot(i, _adv_cards, "adv", _sector_market.get_advanced_card_data)
+	_refresh_slot(i, _adv_cards, _sector_market.get_advanced_card_data)
 
 func _refresh_dust(i: int) -> void:
-	_refresh_slot(i, _dust_cards, "dust", _sector_market.get_dust_card_data)
+	_refresh_slot(i, _dust_cards, _sector_market.get_dust_card_data)
 
 func _refresh_exp(i: int) -> void:
-	_refresh_slot(i, _exp_cards, "exp", _expedition_market.get_card_data)
-
-func on_market_drag_started(card: Node3D) -> void:
-	var slot_idx: int = card.get_meta("market_slot", -1)
-	if slot_idx < 0:
-		return
-	var cd: CardData = card.get("card_data") as CardData
-	if not cd:
-		return
-	if cd.card_type == CardData.CardType.EXPEDITION:
-		_hidden_drag_type = "exp"
-	elif bool(card.get("is_advanced")):
-		_hidden_drag_type = "adv"
-	else:
-		_hidden_drag_type = "dust"
-	_hidden_drag_slot = slot_idx
-	_refresh()
-
-func on_market_drag_ended() -> void:
-	_hidden_drag_slot = -1
-	_hidden_drag_type = ""
-	_refresh()
+	_refresh_slot(i, _exp_cards, _expedition_market.get_card_data)
 
 func _process(_delta: float) -> void:
 	var t: float = Time.get_ticks_msec() / 1000.0

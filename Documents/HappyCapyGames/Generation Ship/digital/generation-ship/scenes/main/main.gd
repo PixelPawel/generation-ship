@@ -64,6 +64,7 @@ var _pending_store_nodes: Array[Node3D] = []
 var _last_drawn_cards: Array[Node3D] = []
 var _restrict_picks_to_drawn: bool = false
 var _sector_info_popup: SectorInfoPopup = null
+var _sector_picker: SectorPickerPanel = null
 var _supply_cost_panel: SupplyCostPanel = null
 var _market_panel: Control = null
 var _bid_payment_panel: Control = null
@@ -121,6 +122,11 @@ var _cs_viewport: SubViewport = null
 var _info_viewport: SubViewport = null
 var _info_screen_mesh: MeshInstance3D = null
 var _cs_display: SupplyUI = null
+var _end_turn_btn_mesh: MeshInstance3D = null
+var _end_turn_flash_tween: Tween = null
+var _end_turn_flash_mat: StandardMaterial3D = null
+var _effect_hint_panel: Control = null
+var _effect_hint_label: Label = null
 var _es_viewport: Control = null
 var _bid_popup: Control = null
 var _payment_panel: Control = null
@@ -212,6 +218,12 @@ func _ready() -> void:
 	_register_info_panel(_sector_info_popup)
 	_sector_info_popup.cargo_move_requested.connect(_on_cargo_move_requested)
 	_sector_info_popup.cargo_cancelled.connect(_on_cargo_cancelled)
+
+	_sector_picker = load("res://scenes/ui/sector_picker_panel.gd").new()
+	_info_viewport.add_child(_sector_picker)
+	_register_info_panel(_sector_picker)
+	_sector_picker.sector_selected.connect(_on_sector_selected_from_picker)
+
 	$Board.sector_info_requested.connect(_on_sector_info_requested)
 	_turn_label = Label.new()
 	_turn_label.visible = false
@@ -479,6 +491,8 @@ func _setup_control_screen_display() -> void:
 		var btn_mesh: MeshInstance3D = $UiControl.find_child("gs_ui_control_button%d" % (i + 1), true, false) as MeshInstance3D
 		if btn_mesh:
 			_setup_button_input(btn_mesh, btn_callbacks[i], btn_tooltip_titles[i], btn_tooltip_descs[i])
+			if i == 2:
+				_end_turn_btn_mesh = btn_mesh
 
 	$UILayer/SupplyUI.hide()
 	$Board.set_supply_ui(_cs_display)
@@ -514,7 +528,10 @@ func _setup_button_input(btn_mesh: MeshInstance3D, callback: Callable, tooltip_t
 			_cs_display.show_button_tooltip(tooltip_title, tooltip_desc)
 	)
 	area.mouse_exited.connect(func() -> void:
-		btn_mesh.set_surface_override_material(0, null)
+		if btn_mesh == _end_turn_btn_mesh and _end_turn_flash_mat != null:
+			btn_mesh.set_surface_override_material(0, _end_turn_flash_mat)
+		else:
+			btn_mesh.set_surface_override_material(0, null)
 		_cs_display.hide_button_tooltip()
 	)
 
@@ -532,6 +549,11 @@ func _setup_viewport_input(screen_mesh: MeshInstance3D, vp: SubViewport) -> void
 	area.input_event.connect(func(_cam: Node, event: InputEvent, pos: Vector3, _norm: Vector3, _idx: int) -> void:
 		_forward_to_viewport(event, pos, screen_mesh, vp)
 	)
+	area.mouse_exited.connect(func() -> void:
+		var mm: InputEventMouseMotion = InputEventMouseMotion.new()
+		mm.position = Vector2(-1.0, -1.0)
+		vp.push_input(mm, true)
+	)
 
 func _forward_to_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshInstance3D, vp: SubViewport) -> void:
 	var local_pos: Vector3 = mesh.to_local(world_pos)
@@ -545,6 +567,11 @@ func _forward_to_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshInsta
 		mb.pressed = (event as InputEventMouseButton).pressed
 		mb.position = vp_pos
 		vp.push_input(mb, true)
+	elif event is InputEventMouseMotion:
+		var mm: InputEventMouseMotion = InputEventMouseMotion.new()
+		mm.position = vp_pos
+		mm.relative = (event as InputEventMouseMotion).relative
+		vp.push_input(mm, true)
 
 func _setup_info_screen_display() -> void:
 	_info_viewport = SubViewport.new()
@@ -585,11 +612,43 @@ func _setup_info_screen_display() -> void:
 		mat.set_shader_parameter("scanline_depth", 0.06)
 		mat.set_shader_parameter("vignette_strength", 0.25)
 		mat.set_shader_parameter("vignette_falloff", 2.5)
+		mat.set_shader_parameter("bloom_threshold", 0.7)
 		screen_mesh.set_surface_override_material(0, mat)
 		_setup_info_screen_input(screen_mesh)
 	for p: Control in [_bid_popup, _payment_panel, _scoreboard]:
 		p.reparent(_info_viewport, false)
 		_register_info_panel(p)
+
+	var hint_root := Control.new()
+	hint_root.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	hint_root.offset_bottom = 56.0
+	hint_root.z_index = 10
+	hint_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var hint_bg := ColorRect.new()
+	hint_bg.color = Color(0.03, 0.04, 0.09, 0.92)
+	hint_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hint_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint_root.add_child(hint_bg)
+	var hint_border := ColorRect.new()
+	hint_border.color = Color(0.3, 0.6, 1.0, 0.55)
+	hint_border.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	hint_border.offset_top = -2.0
+	hint_border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint_root.add_child(hint_border)
+	var hint_label := Label.new()
+	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	hint_label.add_theme_font_size_override("font_size", 22)
+	hint_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.55))
+	hint_label.add_theme_constant_override("outline_size", 2)
+	hint_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.7))
+	hint_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint_root.add_child(hint_label)
+	_effect_hint_panel = hint_root
+	_effect_hint_label = hint_label
+	_effect_hint_panel.hide()
+	_info_viewport.add_child(hint_root)
 
 func _setup_info_screen_input(screen_mesh: MeshInstance3D) -> void:
 	_setup_viewport_input(screen_mesh, _info_viewport)
@@ -628,9 +687,6 @@ func _setup_enemy_screen_display() -> void:
 	panel.visible = false
 	$UILayer.add_child(panel)
 	_es_viewport = panel
-
-func _on_control_screen_btn_pressed() -> void:
-	pass
 
 func _init_bot_state() -> void:
 	for bot_id: int in GameNetwork.bot_ids:
@@ -684,10 +740,10 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	$UILayer/StartButton.hide()
 	var ui_control_anim := $UiControl.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if ui_control_anim:
-		ui_control_anim.play("Animation")
+		ui_control_anim.play("intro")
 	var ui_info_anim := $UiInfo.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if ui_info_anim:
-		ui_info_anim.play("Animation")
+		ui_info_anim.play("intro")
 	_round = 1
 	_update_round_label()
 	_init_supply()
@@ -731,8 +787,7 @@ func _on_research_pressed() -> void:
 		return
 	_effect_mode = EffectMode.RESEARCH
 	_set_action_buttons_disabled(true)
-	$UILayer/DiscardHint.text = "Click a card in your hand to discard it"
-	$UILayer/DiscardHint.show()
+	_show_effect_hint("Click a card in your hand to discard it")
 	$Hand.set_discard_mode(true)
 
 func _on_pass_pressed() -> void:
@@ -1286,13 +1341,13 @@ func _on_card_discarded(card: Node3D) -> void:
 	match _effect_mode:
 		EffectMode.RESEARCH:
 			_effect_mode = EffectMode.NONE
-			$UILayer/DiscardHint.hide()
+			_hide_effect_hint()
 			$Hand.set_discard_mode(false)
 			$Board.discard_and_draw(card)
 			_do_pass()
 
 		EffectMode.PAYMENT_RECYCLE:
-			$UILayer/DiscardHint.hide()
+			_hide_effect_hint()
 			UIAudio.play_recycle_sfx()
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
 			_cs_display.add_supply(color, 1)
@@ -1413,8 +1468,9 @@ func _process_hand_choice(index: int) -> void:
 			$Hand.remove_card_fly_out(card)
 			_effect_mode = EffectMode.EFFECT_TUCK_ANY_SECTOR_SLOT
 			$Board.set_cargo_click_mode(true)
-			$UILayer/DiscardHint.text = "Click a sector to tuck the card facedown under it"
-			$UILayer/DiscardHint.show()
+			var face_str_tuck: String = "faceup" if _effect_face_up else "facedown"
+			var tuck_name: String = card.card_data.card_name if card.card_data else "card"
+			_sector_picker.setup("Tuck %s %s — pick a sector" % [tuck_name, face_str_tuck], $Board.get_all_sector_slots())
 
 		EffectMode.EFFECT_RECYCLE_TUCK:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
@@ -1464,12 +1520,14 @@ func _reset_effect_state() -> void:
 	_caldera_slots = []
 	_effect_done_btn.hide()
 	_choice_popup.hide()
-	$UILayer/DiscardHint.hide()
+	_hide_effect_hint()
 	$Hand.set_discard_mode(false)
 	$Board.set_sector_reveal_mode(false)
 	$Board.set_expedition_reveal_mode(false)
 	$Board.set_expedition_shuffle_mode(false)
 	$Board.set_cargo_click_mode(false)
+	_market_panel.set_sector_reveal_mode(false)
+	_market_panel.set_expedition_reveal_mode(false)
 
 func _finish_interactive_step() -> void:
 	_reset_effect_state()
@@ -1587,8 +1645,7 @@ func _apply_recycle_tuck_store_multiselect(indices: Array[int]) -> void:
 		return
 	_effect_mode = EffectMode.EFFECT_RECYCLE_TUCK_STORE_SECTOR
 	$Board.set_cargo_click_mode(true)
-	$UILayer/DiscardHint.text = "Terraformed Planet — click a sector to tuck the cards facedown"
-	$UILayer/DiscardHint.show()
+	_sector_picker.setup("Terraformed Planet — pick a sector to tuck facedown", $Board.get_all_sector_slots())
 
 func _apply_recycle_tuck_store_decision(store_on_sector: bool) -> void:
 	var target: SectorSlot = _pending_target_slot if _pending_target_slot else _effect_slot
@@ -1655,32 +1712,40 @@ func _on_choice_skipped() -> void:
 	else:
 		_process_next_effect()
 
+func _on_sector_selected_from_picker(slot: SectorSlot) -> void:
+	_on_sector_info_requested(slot)
+
 func _on_sector_info_requested(slot: SectorSlot) -> void:
 	match _effect_mode:
 		EffectMode.EFFECT_CARGO_DRONES:
 			_sector_info_popup.show_sector_for_cargo(slot)
+			_sector_picker.hide()
 		EffectMode.EFFECT_CARGO_DRONES_DEST:
 			if slot != _cargo_source_slot and slot.occupied:
+				_sector_picker.hide()
 				_apply_cargo_move(slot)
 		EffectMode.EFFECT_STORE_ON_SECTOR:
 			if slot.occupied:
+				_sector_picker.hide()
 				slot.add_stored_supply(_pending_store_color, _pending_store_amount)
 				_finish_interactive_step()
 		EffectMode.EFFECT_RECYCLE_TUCK_STORE_SECTOR:
 			if slot.occupied:
+				_sector_picker.hide()
 				_pending_target_slot = slot
 				$Board.set_cargo_click_mode(false)
-				$UILayer/DiscardHint.hide()
+				_hide_effect_hint()
 				_effect_mode = EffectMode.EFFECT_RECYCLE_TUCK_STORE_DECIDE
 				var labels: Array[String] = ["Store on sector", "Gain as currency"]
 				_choice_popup.show_choices("Terraformed Planet — what to do with recycled supply?", labels, false)
 		EffectMode.EFFECT_TUCK_ANY_SECTOR_SLOT:
 			if slot.occupied:
+				_sector_picker.hide()
 				if _pending_tuck_card_data:
 					slot.add_tucked_card(_pending_tuck_card_data, _effect_face_up)
 				_pending_tuck_card_data = null
 				$Board.set_cargo_click_mode(false)
-				$UILayer/DiscardHint.hide()
+				_hide_effect_hint()
 				_effect_remaining -= 1
 				if _effect_remaining > 0:
 					_effect_mode = EffectMode.EFFECT_TUCK_ANY_SECTOR
@@ -1698,12 +1763,11 @@ func _on_cargo_move_requested(source: SectorSlot, supplies: Dictionary, tucked_i
 	_cargo_pending_supplies = supplies
 	_cargo_pending_tucked = tucked_indices
 	_effect_mode = EffectMode.EFFECT_CARGO_DRONES_DEST
-	$UILayer/DiscardHint.text = "Cargo Drones: click the destination sector"
-	$UILayer/DiscardHint.show()
+	_sector_picker.setup("Cargo Drones — pick the destination sector", $Board.get_all_sector_slots(), _cargo_source_slot)
 
 func _on_cargo_cancelled() -> void:
 	_effect_mode = EffectMode.EFFECT_CARGO_DRONES
-	$UILayer/DiscardHint.text = "Cargo Drones: click a sector to move cargo from"
+	_sector_picker.setup("Cargo Drones — pick a source sector", $Board.get_all_sector_slots())
 
 func _apply_cargo_move(dest: SectorSlot) -> void:
 	for color: int in _cargo_pending_supplies:
@@ -1730,7 +1794,7 @@ func _apply_cargo_move(dest: SectorSlot) -> void:
 	_cargo_pending_supplies = {}
 	_cargo_pending_tucked = []
 	_effect_mode = EffectMode.EFFECT_CARGO_DRONES
-	$UILayer/DiscardHint.text = "Cargo Drones: click a sector to move cargo from"
+	_sector_picker.setup("Cargo Drones — pick a source sector", $Board.get_all_sector_slots())
 
 func _on_sector_revealed(card_data: CardData, slot_idx: int) -> void:
 	if GameNetwork.is_multiplayer:
@@ -1738,9 +1802,10 @@ func _on_sector_revealed(card_data: CardData, slot_idx: int) -> void:
 			_server_sync_sector_reveal(slot_idx, 1)
 		else:
 			_rpc_notify_sector_revealed.rpc_id(1, slot_idx)
-	$UILayer/DiscardHint.hide()
+	_hide_effect_hint()
 	_effect_mode = EffectMode.NONE
 	$Board.set_sector_reveal_mode(false)
+	_market_panel.set_sector_reveal_mode(false)
 	if _pending_reveal_gain_supply and card_data:
 		_cs_display.add_supply(card_data.adv_color, 1)
 	if _pending_reveal_may_bid and card_data:
@@ -1837,8 +1902,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_effect_mode = EffectMode.EFFECT_STORE_ON_SECTOR
 			$Board.set_cargo_click_mode(true)
 			var color_names: Array[String] = ["Dust", "Metals", "Liquids", "Organix", "Electrix", "Thrust"]
-			$UILayer/DiscardHint.text = "Click a sector to store %d %s on it" % [_pending_store_amount, color_names[_pending_store_color]]
-			$UILayer/DiscardHint.show()
+			_sector_picker.setup("Store %d %s — pick a sector" % [_pending_store_amount, color_names[_pending_store_color]], $Board.get_all_sector_slots())
 
 		"store_per_card_here":
 			if _effect_slot:
@@ -1937,17 +2001,17 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_pending_reveal_may_bid = bool(step.get("may_bid", false))
 			_pending_reveal_may_free_gain = bool(step.get("may_free_gain", false))
 			_effect_mode = EffectMode.EFFECT_REVEAL_SECTOR
-			$UILayer/DiscardHint.text = "Click a free sector slot in the Market panel to reveal it"
-			$UILayer/DiscardHint.show()
+			_show_effect_hint("Click a free sector slot in the Market panel to reveal it")
 			$Board.set_sector_reveal_mode(true)
+			_market_panel.set_sector_reveal_mode(true)
 
 		"reveal_expedition":
 			_pending_expedition_reveal_gain_supply = bool(step.get("gain_supply", false))
 			_pending_expedition_reveal_may_bid = bool(step.get("may_bid", false))
 			_effect_mode = EffectMode.EFFECT_REVEAL_EXPEDITION
-			$UILayer/DiscardHint.text = "Click an expedition slot in the Market panel to reveal it"
-			$UILayer/DiscardHint.show()
+			_show_effect_hint("Click an expedition slot in the Market panel to reveal it")
 			$Board.set_expedition_reveal_mode(true)
+			_market_panel.set_expedition_reveal_mode(true)
 
 		"reveal_expedition_slot":
 			var exp_slot: int = int(step.get("slot", 0))
@@ -2092,16 +2156,14 @@ func _execute_effect_step(step: Dictionary) -> void:
 		"cargo_drones":
 			_effect_mode = EffectMode.EFFECT_CARGO_DRONES
 			$Board.set_cargo_click_mode(true)
-			$UILayer/DiscardHint.text = "Cargo Drones: click a sector to move cargo from"
-			$UILayer/DiscardHint.show()
 			_effect_done_btn.show()
+			_sector_picker.setup("Cargo Drones — pick a source sector", $Board.get_all_sector_slots())
 
 		"black_hole_encounter":
 			_effect_mode = EffectMode.EFFECT_EXPEDITION_SHUFFLE
 			_effect_remaining = 3
 			_shuffle_count = 0
-			$UILayer/DiscardHint.text = "Click up to 3 expeditions to shuffle back — then click Done"
-			$UILayer/DiscardHint.show()
+			_show_effect_hint("Click up to 3 expeditions to shuffle back — then click Done")
 			_effect_done_btn.show()
 			$Board.set_expedition_shuffle_mode(true)
 
@@ -2364,7 +2426,7 @@ func _on_market_expedition_pressed(slot_idx: int) -> void:
 func _execute_expedition_reveal(slot_idx: int) -> void:
 	_effect_mode = EffectMode.NONE
 	$Board.set_expedition_reveal_mode(false)
-	$UILayer/DiscardHint.hide()
+	_hide_effect_hint()
 	var revealed: CardData = $Board.reveal_expedition_to_slot(slot_idx)
 	if _pending_expedition_reveal_gain_supply and revealed:
 		_cs_display.add_supply(revealed.color, 1)
@@ -2433,13 +2495,13 @@ func _on_expedition_shuffled_back(card_data: CardData, deck_insert_idx: int) -> 
 	if _effect_remaining <= 0:
 		_finish_expedition_shuffle()
 	else:
-		$UILayer/DiscardHint.text = "Click up to %d more expedition(s) to shuffle back — or Done" % _effect_remaining
+		_show_effect_hint("Click up to %d more expedition(s) to shuffle back — or Done" % _effect_remaining)
 
 func _finish_expedition_shuffle() -> void:
 	$Board.set_expedition_shuffle_mode(false)
 	_effect_mode = EffectMode.NONE
 	_effect_remaining = 0
-	$UILayer/DiscardHint.hide()
+	_hide_effect_hint()
 	_effect_done_btn.hide()
 	for _i: int in _shuffle_count:
 		_effect_queue.insert(0, {type = "reveal_expedition"})
@@ -2448,8 +2510,7 @@ func _finish_expedition_shuffle() -> void:
 
 func _on_payment_recycle_requested() -> void:
 	_effect_mode = EffectMode.PAYMENT_RECYCLE
-	$UILayer/DiscardHint.text = "Click a card to recycle it for payment"
-	$UILayer/DiscardHint.show()
+	_show_effect_hint("Click a card to recycle it for payment")
 	$Hand.set_discard_mode(true)
 
 func _on_major_action_changed(taken: bool) -> void:
@@ -2876,14 +2937,54 @@ func _init_supply() -> void:
 	ui.set_supply(CardData.SupplyColor.ELECTRIX, 1)
 	ui.set_supply(CardData.SupplyColor.THRUST,   0)
 
+func _show_effect_hint(text: String) -> void:
+	if _effect_hint_label:
+		_effect_hint_label.text = text
+	if _effect_hint_panel:
+		_effect_hint_panel.show()
+
+func _hide_effect_hint() -> void:
+	if _effect_hint_panel:
+		_effect_hint_panel.hide()
+
 func _show_action_buttons(v: bool) -> void:
 	_cs_display.show_action_buttons(v)
 
 func _show_end_turn_button(v: bool) -> void:
 	_cs_display.show_end_turn_button(v)
+	if not v:
+		_stop_end_turn_3d_flash()
 
 func _set_action_buttons_disabled(v: bool) -> void:
 	_cs_display.set_action_buttons_disabled(v)
 
 func _set_end_turn_button_disabled(v: bool) -> void:
 	_cs_display.set_end_turn_button_disabled(v)
+	if v:
+		_stop_end_turn_3d_flash()
+	else:
+		_start_end_turn_3d_flash()
+
+func _start_end_turn_3d_flash() -> void:
+	if not _end_turn_btn_mesh:
+		return
+	if _end_turn_flash_tween:
+		_end_turn_flash_tween.kill()
+	var base: Material = _end_turn_btn_mesh.mesh.surface_get_material(0)
+	var mat: StandardMaterial3D = (base as StandardMaterial3D).duplicate() as StandardMaterial3D if base is StandardMaterial3D else StandardMaterial3D.new()
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.08, 0.08)
+	mat.emission_energy_multiplier = 0.0
+	_end_turn_flash_mat = mat
+	_end_turn_btn_mesh.set_surface_override_material(0, mat)
+	_end_turn_flash_tween = create_tween().set_loops()
+	_end_turn_flash_tween.tween_property(mat, "emission_energy_multiplier", 2.5, 0.5).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+	_end_turn_flash_tween.tween_property(mat, "emission_energy_multiplier", 0.0, 0.5).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+
+func _stop_end_turn_3d_flash() -> void:
+	if _end_turn_flash_tween:
+		_end_turn_flash_tween.kill()
+		_end_turn_flash_tween = null
+	_end_turn_flash_mat = null
+	if _end_turn_btn_mesh:
+		_end_turn_btn_mesh.set_surface_override_material(0, null)
