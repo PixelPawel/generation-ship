@@ -1479,6 +1479,7 @@ func _reset_effect_state() -> void:
 	$Board.set_expedition_reveal_mode(false)
 	$Board.set_expedition_shuffle_mode(false)
 	$Board.set_cargo_click_mode(false)
+	_market_panel.set_expedition_reveal_mode(false)
 
 func _finish_interactive_step() -> void:
 	_reset_effect_state()
@@ -1962,6 +1963,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 			$UILayer/DiscardHint.text = "Click an expedition slot in the Market panel to reveal it"
 			$UILayer/DiscardHint.show()
 			$Board.set_expedition_reveal_mode(true)
+			_market_panel.set_expedition_reveal_mode(true)
 
 		"reveal_expedition_slot":
 			var exp_slot: int = int(step.get("slot", 0))

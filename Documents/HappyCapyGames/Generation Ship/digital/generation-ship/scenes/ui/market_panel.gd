@@ -19,6 +19,7 @@ const _SUPPLY_PATHS: Array[String] = [
 
 var _sector_market: Node = null
 var _expedition_market: Node = null
+var _exp_reveal_mode: bool = false
 
 var _adv_rects:       Array[TextureRect] = []
 var _adv_counts:      Array[Label]       = []
@@ -300,9 +301,12 @@ func _build_ui() -> void:
 			if ev is InputEventMouseButton:
 				var mb: InputEventMouseButton = ev as InputEventMouseButton
 				if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
-					var cd: CardData = _expedition_market.get_card_data(idx) if _expedition_market else null
-					if cd:
-						_show_detail(cd, idx, false, true)
+					if _exp_reveal_mode:
+						expedition_pressed.emit(idx)
+					else:
+						var cd: CardData = _expedition_market.get_card_data(idx) if _expedition_market else null
+						if cd:
+							_show_detail(cd, idx, false, true)
 		)
 		slot.mouse_entered.connect(func() -> void: CursorManager.set_hover())
 		slot.mouse_exited.connect(func() -> void: CursorManager.set_default())
@@ -455,6 +459,9 @@ func _hide_detail() -> void:
 	_detail_panel.visible = false
 	_main_hbox.visible = true
 	_detail_slot_idx = -1
+
+func set_expedition_reveal_mode(active: bool) -> void:
+	_exp_reveal_mode = active
 
 func _on_detail_buy_pressed() -> void:
 	var idx: int = _detail_slot_idx
