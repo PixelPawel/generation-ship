@@ -71,6 +71,21 @@ func _fit_scroll_width() -> void:
 	var w: float = min(_buttons_row.get_combined_minimum_size().x, max_w)
 	_scroll_container.custom_minimum_size.x = w
 
+func _compute_card_size(n: int, is_landscape: bool) -> Vector2:
+	var vp: Vector2 = get_viewport_rect().size
+	const OVERHEAD := 160.0
+	const NAME_AND_SEP := 28.0
+	const GAP := 12.0
+	var avail_w: float = vp.x - 48.0 - float(n - 1) * GAP
+	var avail_h: float = vp.y - OVERHEAD - NAME_AND_SEP
+	var ratio: float = 88.0 / 63.0 if is_landscape else 63.0 / 88.0
+	var card_w: float = avail_w / float(n)
+	var card_h: float = card_w / ratio
+	if card_h > avail_h:
+		card_h = avail_h
+		card_w = card_h * ratio
+	return Vector2(card_w, card_h)
+
 func _clear_options() -> void:
 	for child: Node in _buttons_row.get_children():
 		child.queue_free()
@@ -103,7 +118,6 @@ func show_card_choices(prompt: String, cards: Array[CardData], skippable: bool =
 	_clear_options()
 	_build_card_rows(cards, func(idx: int, _btn: Button) -> void: _on_pressed(idx), advanced_flags)
 	_skip_btn.visible = skippable
-	_fit_scroll_width()
 	show()
 
 func show_multiselect_card_choices(prompt: String, cards: Array[CardData]) -> void:
@@ -118,11 +132,19 @@ func show_multiselect_card_choices(prompt: String, cards: Array[CardData]) -> vo
 	_build_card_rows(cards, func(idx: int, btn: Button) -> void: _on_multiselect_toggle(idx, btn))
 	_skip_btn.visible = false
 	_multiselect_done_btn.visible = true
-	_fit_scroll_width()
 	show()
 
 func _build_card_rows(cards: Array[CardData], on_click: Callable, advanced_flags: Array[bool] = []) -> void:
-	for i: int in cards.size():
+	var n: int = cards.size()
+	var all_landscape: bool = true
+	for i: int in n:
+		var is_adv: bool = advanced_flags[i] if i < advanced_flags.size() else cards[i].card_type == CardData.CardType.SECTOR
+		if not is_adv:
+			all_landscape = false
+			break
+	var card_sz: Vector2 = _compute_card_size(n, all_landscape)
+
+	for i: int in n:
 		var cd: CardData = cards[i]
 		var is_adv: bool = advanced_flags[i] if i < advanced_flags.size() else cd.card_type == CardData.CardType.SECTOR
 		var url: String = cd.adv_image_url if (is_adv and not cd.adv_image_url.is_empty()) else cd.image_url
@@ -133,7 +155,7 @@ func _build_card_rows(cards: Array[CardData], on_click: Callable, advanced_flags
 		card_vbox.add_theme_constant_override("separation", 4)
 
 		var img_btn := Button.new()
-		img_btn.custom_minimum_size = Vector2(150, 218)
+		img_btn.custom_minimum_size = card_sz
 		if tex:
 			img_btn.icon = tex
 			img_btn.expand_icon = true
@@ -152,7 +174,7 @@ func _build_card_rows(cards: Array[CardData], on_click: Callable, advanced_flags
 		name_lbl.add_theme_font_size_override("font_size", 14)
 		name_lbl.add_theme_color_override("font_color", Color.WHITE)
 		name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
-		name_lbl.custom_minimum_size = Vector2(150, 0)
+		name_lbl.custom_minimum_size = Vector2(card_sz.x, 0)
 		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card_vbox.add_child(name_lbl)
 

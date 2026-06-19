@@ -33,16 +33,17 @@ func _ready() -> void:
 
 	var outer_vbox := VBoxContainer.new()
 	outer_vbox.add_theme_constant_override("separation", 16)
-	outer_vbox.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	outer_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.add_child(outer_vbox)
 
 	_scroll_container = ScrollContainer.new()
 	_scroll_container.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	outer_vbox.add_child(_scroll_container)
 
 	_content_vbox = VBoxContainer.new()
 	_content_vbox.add_theme_constant_override("separation", 12)
-	_content_vbox.custom_minimum_size = Vector2(680, 0)
+	_content_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll_container.add_child(_content_vbox)
 
 	var close_btn := Button.new()
@@ -151,6 +152,16 @@ func _has_stored_supply(slot: SectorSlot) -> bool:
 const CARDS_PER_ROW := 8
 
 func _make_card_row(cards: Array, face_up: bool) -> VBoxContainer:
+	var n_per_row: int = min(cards.size(), CARDS_PER_ROW)
+	var vp: Vector2 = get_viewport_rect().size
+	var avail_w: float = vp.x - 48.0
+	var card_w: float = (avail_w - float(n_per_row - 1) * 8.0) / float(n_per_row)
+	var card_h: float = card_w * (183.0 / 130.0)
+	var max_card_h: float = vp.y * 0.60
+	if card_h > max_card_h:
+		card_h = max_card_h
+		card_w = card_h * (130.0 / 183.0)
+
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 8)
 
@@ -171,7 +182,7 @@ func _make_card_row(cards: Array, face_up: bool) -> VBoxContainer:
 		card_vbox.add_theme_constant_override("separation", 4)
 
 		var img := TextureRect.new()
-		img.custom_minimum_size = Vector2(130, 183)
+		img.custom_minimum_size = Vector2(card_w, card_h)
 		img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		var _sip_mat1: ShaderMaterial = ShaderMaterial.new()
@@ -189,7 +200,7 @@ func _make_card_row(cards: Array, face_up: bool) -> VBoxContainer:
 			name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			name_lbl.add_theme_font_size_override("font_size", 16)
 			name_lbl.add_theme_color_override("font_color", Color.WHITE)
-			name_lbl.custom_minimum_size = Vector2(130, 0)
+			name_lbl.custom_minimum_size = Vector2(card_w, 0)
 			name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
 			card_vbox.add_child(name_lbl)
 
