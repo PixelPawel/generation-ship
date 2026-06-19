@@ -239,6 +239,7 @@ func _ready() -> void:
 	_setup_sfx()
 	_setup_control_screen_display()
 	_setup_enemy_screen_display()
+	_setup_cockpit_switches()
 
 	_wire_sector_slots_to_board()
 
@@ -542,6 +543,47 @@ func _animate_button_press(btn_mesh: MeshInstance3D) -> void:
 	var tween: Tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tween.tween_property(btn_mesh, "position", rest_pos + Vector3(0.0, 0.0, -press_depth), 0.07)
 	tween.tween_property(btn_mesh, "position", rest_pos, 0.14)
+
+func _setup_cockpit_switches() -> void:
+	var cockpit_anim: AnimationPlayer = $UiCockpit.find_child("AnimationPlayer", true, false) as AnimationPlayer
+
+	var switch1: MeshInstance3D = $UiCockpit.find_child("gs_ui_switch_flat1", true, false) as MeshInstance3D
+	if switch1:
+		_setup_switch_input(switch1, func() -> void:
+			if cockpit_anim:
+				cockpit_anim.play("gs_ui_switch_flat1_on")
+			var anim: AnimationPlayer = $UiControl.find_child("AnimationPlayer", true, false) as AnimationPlayer
+			if anim:
+				anim.play_backwards("intro")
+		)
+
+	var switch2: MeshInstance3D = $UiCockpit.find_child("gs_ui_switch_flat2", true, false) as MeshInstance3D
+	if switch2:
+		_setup_switch_input(switch2, func() -> void:
+			if cockpit_anim:
+				cockpit_anim.play("gs_ui_switch_flat2_on")
+			var anim: AnimationPlayer = $UiInfo.find_child("AnimationPlayer", true, false) as AnimationPlayer
+			if anim:
+				anim.play_backwards("intro")
+		)
+
+func _setup_switch_input(switch_mesh: MeshInstance3D, callback: Callable) -> void:
+	var area: Area3D = Area3D.new()
+	area.input_ray_pickable = true
+	switch_mesh.add_child(area)
+	var cshape: CollisionShape3D = CollisionShape3D.new()
+	var box: BoxShape3D = BoxShape3D.new()
+	var aabb: AABB = switch_mesh.mesh.get_aabb()
+	box.size = aabb.size
+	cshape.shape = box
+	cshape.position = aabb.get_center()
+	area.add_child(cshape)
+	area.input_event.connect(func(_cam: Node, event: InputEvent, _pos: Vector3, _norm: Vector3, _idx: int) -> void:
+		if event is InputEventMouseButton:
+			var mb: InputEventMouseButton = event as InputEventMouseButton
+			if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+				callback.call()
+	)
 
 func _setup_viewport_input(screen_mesh: MeshInstance3D, vp: SubViewport) -> void:
 	var area: Area3D = Area3D.new()
