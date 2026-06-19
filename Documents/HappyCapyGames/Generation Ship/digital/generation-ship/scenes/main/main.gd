@@ -124,6 +124,7 @@ var _info_screen_mesh: MeshInstance3D = null
 var _cs_display: SupplyUI = null
 var _end_turn_btn_mesh: MeshInstance3D = null
 var _end_turn_flash_tween: Tween = null
+var _end_turn_flash_mat: StandardMaterial3D = null
 var _effect_hint_panel: Control = null
 var _effect_hint_label: Label = null
 var _es_viewport: Control = null
@@ -527,7 +528,10 @@ func _setup_button_input(btn_mesh: MeshInstance3D, callback: Callable, tooltip_t
 			_cs_display.show_button_tooltip(tooltip_title, tooltip_desc)
 	)
 	area.mouse_exited.connect(func() -> void:
-		btn_mesh.set_surface_override_material(0, null)
+		if btn_mesh == _end_turn_btn_mesh and _end_turn_flash_mat != null:
+			btn_mesh.set_surface_override_material(0, _end_turn_flash_mat)
+		else:
+			btn_mesh.set_surface_override_material(0, null)
 		_cs_display.hide_button_tooltip()
 	)
 
@@ -2955,11 +2959,13 @@ func _start_end_turn_3d_flash() -> void:
 		return
 	if _end_turn_flash_tween:
 		_end_turn_flash_tween.kill()
-	var mat: StandardMaterial3D = StandardMaterial3D.new()
+	var base: Material = _end_turn_btn_mesh.mesh.surface_get_material(0)
+	var mat: StandardMaterial3D = (base as StandardMaterial3D).duplicate() as StandardMaterial3D if base is StandardMaterial3D else StandardMaterial3D.new()
 	mat.emission_enabled = true
 	mat.emission = Color(1.0, 0.08, 0.08)
 	mat.emission_energy_multiplier = 0.0
-	_end_turn_btn_mesh.material_override = mat
+	_end_turn_flash_mat = mat
+	_end_turn_btn_mesh.set_surface_override_material(0, mat)
 	_end_turn_flash_tween = create_tween().set_loops()
 	_end_turn_flash_tween.tween_property(mat, "emission_energy_multiplier", 2.5, 0.5).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
 	_end_turn_flash_tween.tween_property(mat, "emission_energy_multiplier", 0.0, 0.5).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
@@ -2968,5 +2974,6 @@ func _stop_end_turn_3d_flash() -> void:
 	if _end_turn_flash_tween:
 		_end_turn_flash_tween.kill()
 		_end_turn_flash_tween = null
+	_end_turn_flash_mat = null
 	if _end_turn_btn_mesh:
-		_end_turn_btn_mesh.material_override = null
+		_end_turn_btn_mesh.set_surface_override_material(0, null)
