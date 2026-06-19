@@ -515,6 +515,7 @@ func _setup_button_input(btn_mesh: MeshInstance3D, callback: Callable, tooltip_t
 		if event is InputEventMouseButton:
 			var mb: InputEventMouseButton = event as InputEventMouseButton
 			if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+				_animate_button_press(btn_mesh)
 				callback.call()
 	)
 	area.mouse_entered.connect(func() -> void:
@@ -534,6 +535,13 @@ func _setup_button_input(btn_mesh: MeshInstance3D, callback: Callable, tooltip_t
 			btn_mesh.set_surface_override_material(0, null)
 		_cs_display.hide_button_tooltip()
 	)
+
+func _animate_button_press(btn_mesh: MeshInstance3D) -> void:
+	var press_depth: float = btn_mesh.mesh.get_aabb().size.z * 0.35
+	var rest_pos: Vector3 = btn_mesh.position
+	var tween: Tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tween.tween_property(btn_mesh, "position", rest_pos + Vector3(0.0, 0.0, -press_depth), 0.07)
+	tween.tween_property(btn_mesh, "position", rest_pos, 0.14)
 
 func _setup_viewport_input(screen_mesh: MeshInstance3D, vp: SubViewport) -> void:
 	var area: Area3D = Area3D.new()
