@@ -549,6 +549,11 @@ func _setup_viewport_input(screen_mesh: MeshInstance3D, vp: SubViewport) -> void
 	area.input_event.connect(func(_cam: Node, event: InputEvent, pos: Vector3, _norm: Vector3, _idx: int) -> void:
 		_forward_to_viewport(event, pos, screen_mesh, vp)
 	)
+	area.mouse_exited.connect(func() -> void:
+		var mm: InputEventMouseMotion = InputEventMouseMotion.new()
+		mm.position = Vector2(-1.0, -1.0)
+		vp.push_input(mm, true)
+	)
 
 func _forward_to_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshInstance3D, vp: SubViewport) -> void:
 	var local_pos: Vector3 = mesh.to_local(world_pos)
@@ -562,6 +567,11 @@ func _forward_to_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshInsta
 		mb.pressed = (event as InputEventMouseButton).pressed
 		mb.position = vp_pos
 		vp.push_input(mb, true)
+	elif event is InputEventMouseMotion:
+		var mm: InputEventMouseMotion = InputEventMouseMotion.new()
+		mm.position = vp_pos
+		mm.relative = (event as InputEventMouseMotion).relative
+		vp.push_input(mm, true)
 
 func _setup_info_screen_display() -> void:
 	_info_viewport = SubViewport.new()
