@@ -1241,7 +1241,7 @@ func _handle_failed_drop() -> void:
 			t.tween_property(card, "global_position", start_pos, 0.3)
 			t.parallel().tween_property(card, "scale", Vector3.ONE * HAND_CARD_SCALE, 0.3)
 			t.tween_callback(func() -> void: _hand.add_card(card, false))
-			DragOrigin.MARKET:
+		DragOrigin.MARKET:
 			market_card_drag_failed.emit(card)
 			var t: Tween = card.create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
 			t.tween_property(card, "scale", Vector3.ZERO, 0.25)
