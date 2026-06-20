@@ -11,8 +11,9 @@ config_version=5
 [application]
 
 config/name="Generation Ship"
+config/version="0.1"
 run/main_scene="res://scenes/main_menu/main_menu.tscn"
-config/features=PackedStringArray("4.6", "Forward Plus")
+config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="uid://byiy34u3x50eb"
 
 [audio]

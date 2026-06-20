@@ -14,6 +14,14 @@ const FULLSCREEN_IDX: int = 5
 func _ready() -> void:
 	theme = GameTheme.get_theme()
 	_apply_saved_settings()
+	var ver_lbl := Label.new()
+	ver_lbl.text = "v" + ProjectSettings.get_setting("application/config/version")
+	ver_lbl.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	ver_lbl.position = Vector2(-60.0, -28.0)
+	ver_lbl.add_theme_font_size_override("font_size", 13)
+	ver_lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.45))
+	ver_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(ver_lbl)
 
 func _on_multiplayer_pressed() -> void:
 	SceneTransition.change_scene("res://scenes/lobby/lobby.tscn")
