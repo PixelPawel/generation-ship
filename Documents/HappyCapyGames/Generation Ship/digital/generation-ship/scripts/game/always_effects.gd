@@ -6,14 +6,14 @@ extends RefCounted
 # Called AFTER the card is registered in the slot.
 #
 # Handled Always effects:
-#   Biodomes           — draw 1 per Biodomes present when any card is placed
 #   Insects            — store 1 of placed card's color when it's a new color for this sector
 #   Crops              — gain 1 Organix per star on the placed card (per Crops present)
 #   Living Hull        — draw 1 per star on the placed card (per Living Hull present)
 #   Quantum Archives   — store 1 of placed card's color per star (simplified: player has no choice)
 #
-# Board-wide Always effects (use get_board_wide_steps):
+# Board-wide Always effects (use get_board_wide_steps / get_board_wide_placement_steps):
 #   1-G Thrust         — gain 1 Thrust per 1-G Thrust on the ENTIRE board when any sector completes
+#   Biodomes           — draw 1 per Biodomes anywhere on the board when any Liquids card is placed
 
 static func get_colocated_steps(placed_card: CardData, slot: SectorSlot) -> Array[Dictionary]:
 	var steps: Array[Dictionary] = []
@@ -22,9 +22,6 @@ static func get_colocated_steps(placed_card: CardData, slot: SectorSlot) -> Arra
 		if cd == null:
 			continue
 		match cd.card_name:
-			"Biodomes":
-				if placed_card.color == CardData.SupplyColor.LIQUIDS:
-					steps.append({type = "draw", count = 1})
 			"Insects":
 				if _is_new_color(placed_card, slot):
 					steps.append({type = "store_on_slot", color = placed_card.color, amount = 1})
@@ -51,6 +48,31 @@ static func get_board_wide_steps(completed_slot: SectorSlot, all_slots: Array[Se
 			if cd and cd.card_name == "1-G Thrust":
 				steps.append({type = "gain_supply", color = CardData.SupplyColor.THRUST, amount = 1})
 	return steps
+
+# Checks the entire board for Biodomes when any card is placed anywhere.
+# placed_node: the Node3D that was just placed (used to read card_data + is_advanced).
+static func get_board_wide_placement_steps(placed_node: Node3D, all_slots: Array[SectorSlot]) -> Array[Dictionary]:
+	var steps: Array[Dictionary] = []
+	if not _is_liquids_card(placed_node):
+		return steps
+	var biodome_count: int = 0
+	for s: SectorSlot in all_slots:
+		for card_node: Node3D in s.get_all_placed_cards():
+			var cd: CardData = card_node.get("card_data")
+			if cd and cd.card_name == "Biodomes":
+				biodome_count += 1
+	for _i: int in biodome_count:
+		steps.append({type = "draw", count = 1})
+	return steps
+
+static func _is_liquids_card(card_node: Node3D) -> bool:
+	var cd: CardData = card_node.get("card_data")
+	if cd == null:
+		return false
+	if cd.card_type == CardData.CardType.SECTOR:
+		var is_adv: bool = bool(card_node.get("is_advanced"))
+		return (cd.adv_color if is_adv else cd.color) == CardData.SupplyColor.LIQUIDS
+	return cd.color == CardData.SupplyColor.LIQUIDS
 
 # Checks all placed expedition cards for board-wide Always triggers.
 # placed_card: the card just placed; placed_expeditions: all expeditions on board (including placed_card if it is one).
