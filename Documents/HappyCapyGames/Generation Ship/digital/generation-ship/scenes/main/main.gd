@@ -147,7 +147,7 @@ func _ready() -> void:
 	for node: Node3D in [$UiControl, $UiInfo, $UiCockpit]:
 		_rumble_base_pos[node] = node.position
 		_rumble_base_rot[node] = node.rotation
-		_start_node_rumble_timer(node)
+	_start_rumble_timer()
 	GameTheme.apply_to_button($UILayer/StartButton)
 	var hand: Node3D = $Hand
 	$Board.set_hand(hand)
@@ -3051,24 +3051,25 @@ func _stop_end_turn_3d_flash() -> void:
 
 # ── Cockpit rumble ────────────────────────────────────────────────────────────
 
-func _start_node_rumble_timer(node: Node3D) -> void:
-	get_tree().create_timer(randf_range(30.0, 60.0)).timeout.connect(func() -> void: _play_node_rumble(node))
+func _start_rumble_timer() -> void:
+	get_tree().create_timer(randf_range(30.0, 60.0)).timeout.connect(_play_rumble)
 
-func _play_node_rumble(node: Node3D) -> void:
-	var tw: Tween = _rumble_tweens.get(node) as Tween
-	if tw and tw.is_valid():
-		tw.kill()
-	tw = create_tween()
-	_rumble_tweens[node] = tw
-	var base_pos: Vector3 = _rumble_base_pos[node]
-	var base_rot: Vector3 = _rumble_base_rot[node]
+func _play_rumble() -> void:
 	const JOLT_SEC: float = 0.10
-	var jolt_count: int = int(randf_range(1.0, 3.0) / JOLT_SEC)
-	for _i: int in jolt_count:
-		var dp: Vector3 = Vector3(randf_range(-0.010, 0.010), randf_range(-0.005, 0.005), randf_range(-0.008, 0.008))
-		var dr: Vector3 = base_rot + Vector3(randf_range(-0.005, 0.005), randf_range(-0.003, 0.003), randf_range(-0.005, 0.005))
-		tw.tween_property(node, "position", base_pos + dp, JOLT_SEC).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
-		tw.parallel().tween_property(node, "rotation", dr, JOLT_SEC).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
-	tw.tween_property(node, "position", base_pos, 0.40).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.parallel().tween_property(node, "rotation", base_rot, 0.40).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_callback(func() -> void: _start_node_rumble_timer(node))
+	const JOLT_COUNT: int = 15  # 15 × 0.10 s = 1.5 s
+	for node: Node3D in [$UiControl, $UiInfo, $UiCockpit]:
+		var tw: Tween = _rumble_tweens.get(node) as Tween
+		if tw and tw.is_valid():
+			tw.kill()
+		tw = create_tween()
+		_rumble_tweens[node] = tw
+		var base_pos: Vector3 = _rumble_base_pos[node]
+		var base_rot: Vector3 = _rumble_base_rot[node]
+		for _i: int in JOLT_COUNT:
+			var dp: Vector3 = Vector3(randf_range(-0.003, 0.003), randf_range(-0.0015, 0.0015), randf_range(-0.0024, 0.0024))
+			var dr: Vector3 = base_rot + Vector3(randf_range(-0.0015, 0.0015), randf_range(-0.0009, 0.0009), randf_range(-0.0015, 0.0015))
+			tw.tween_property(node, "position", base_pos + dp, JOLT_SEC).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+			tw.parallel().tween_property(node, "rotation", dr, JOLT_SEC).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+		tw.tween_property(node, "position", base_pos, 0.40).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		tw.parallel().tween_property(node, "rotation", base_rot, 0.40).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	_rumble_tweens[$UiCockpit].tween_callback(_start_rumble_timer)
