@@ -119,8 +119,9 @@ var _auction_active: bool = false
 var _bots_passed_this_round: Array[int] = []
 var _cs_viewport: SubViewport = null
 var _info_viewport: SubViewport = null
-var _rumble_tween: Tween = null
-var _cam_base_transform: Transform3D
+var _rumble_tweens: Dictionary = {}   # Node3D -> Tween
+var _rumble_base_pos: Dictionary = {} # Node3D -> Vector3
+var _rumble_base_rot: Dictionary = {} # Node3D -> Vector3
 var _info_screen_mesh: MeshInstance3D = null
 var _cs_display: SupplyUI = null
 var _end_turn_btn_mesh: MeshInstance3D = null
@@ -143,8 +144,10 @@ var _es_back_btn: Button = null
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
 func _ready() -> void:
-	_cam_base_transform = $Camera3D.transform
-	_start_rumble_timer()
+	for node: Node3D in [$UiControl, $UiInfo, $UiCockpit]:
+		_rumble_base_pos[node] = node.position
+		_rumble_base_rot[node] = node.rotation
+		_start_node_rumble_timer(node)
 	GameTheme.apply_to_button($UILayer/StartButton)
 	var hand: Node3D = $Hand
 	$Board.set_hand(hand)
@@ -3046,25 +3049,26 @@ func _stop_end_turn_3d_flash() -> void:
 	if _end_turn_btn_mesh:
 		_end_turn_btn_mesh.set_surface_override_material(0, null)
 
-# ── Camera rumble ─────────────────────────────────────────────────────────────
+# ── Cockpit rumble ────────────────────────────────────────────────────────────
 
-func _start_rumble_timer() -> void:
-	get_tree().create_timer(randf_range(30.0, 60.0)).timeout.connect(_play_rumble)
+func _start_node_rumble_timer(node: Node3D) -> void:
+	get_tree().create_timer(randf_range(30.0, 60.0)).timeout.connect(func() -> void: _play_node_rumble(node))
 
-func _play_rumble() -> void:
-	var cam: Camera3D = $Camera3D
-	if _rumble_tween and _rumble_tween.is_valid():
-		_rumble_tween.kill()
-	var base_pos: Vector3 = _cam_base_transform.origin
-	var base_rot: Vector3 = _cam_base_transform.basis.get_euler()
-	_rumble_tween = create_tween()
-	# Three micro-jolts in random directions, each 0.12 s
-	for _i: int in 3:
-		var dp: Vector3 = Vector3(randf_range(-0.005, 0.005), 0.0, randf_range(-0.004, 0.004))
-		var dr: Vector3 = base_rot + Vector3(randf_range(-0.003, 0.003), randf_range(-0.002, 0.002), randf_range(-0.003, 0.003))
-		_rumble_tween.tween_property(cam, "position", base_pos + dp, 0.12).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
-		_rumble_tween.parallel().tween_property(cam, "rotation", dr, 0.12).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
-	# Ease back to rest
-	_rumble_tween.tween_property(cam, "position", base_pos, 0.45).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	_rumble_tween.parallel().tween_property(cam, "rotation", base_rot, 0.45).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	_rumble_tween.tween_callback(_start_rumble_timer)
+func _play_node_rumble(node: Node3D) -> void:
+	var tw: Tween = _rumble_tweens.get(node) as Tween
+	if tw and tw.is_valid():
+		tw.kill()
+	tw = create_tween()
+	_rumble_tweens[node] = tw
+	var base_pos: Vector3 = _rumble_base_pos[node]
+	var base_rot: Vector3 = _rumble_base_rot[node]
+	const JOLT_SEC: float = 0.10
+	var jolt_count: int = int(randf_range(1.0, 3.0) / JOLT_SEC)
+	for _i: int in jolt_count:
+		var dp: Vector3 = Vector3(randf_range(-0.010, 0.010), randf_range(-0.005, 0.005), randf_range(-0.008, 0.008))
+		var dr: Vector3 = base_rot + Vector3(randf_range(-0.005, 0.005), randf_range(-0.003, 0.003), randf_range(-0.005, 0.005))
+		tw.tween_property(node, "position", base_pos + dp, JOLT_SEC).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+		tw.parallel().tween_property(node, "rotation", dr, JOLT_SEC).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(node, "position", base_pos, 0.40).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.parallel().tween_property(node, "rotation", base_rot, 0.40).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_callback(func() -> void: _start_node_rumble_timer(node))
