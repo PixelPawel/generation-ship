@@ -2234,6 +2234,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_show_effect_hint("Click up to 3 expeditions to shuffle back — then click Done")
 			_effect_done_btn.show()
 			$Board.set_expedition_shuffle_mode(true)
+			_market_panel.set_expedition_shuffle_mode(true)
 
 		_:
 			_process_next_effect()
@@ -2567,6 +2568,7 @@ func _on_expedition_shuffled_back(card_data: CardData, deck_insert_idx: int) -> 
 
 func _finish_expedition_shuffle() -> void:
 	$Board.set_expedition_shuffle_mode(false)
+	_market_panel.set_expedition_shuffle_mode(false)
 	_effect_mode = EffectMode.NONE
 	_effect_remaining = 0
 	_hide_effect_hint()

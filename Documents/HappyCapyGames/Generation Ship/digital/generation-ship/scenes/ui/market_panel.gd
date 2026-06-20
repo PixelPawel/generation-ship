@@ -21,6 +21,7 @@ var _sector_market: Node = null
 var _expedition_market: Node = null
 var _sector_reveal_mode: bool = false
 var _exp_reveal_mode: bool = false
+var _exp_shuffle_mode: bool = false
 
 var _adv_rects:       Array[TextureRect] = []
 var _adv_counts:      Array[Label]       = []
@@ -305,7 +306,7 @@ func _build_ui() -> void:
 			if ev is InputEventMouseButton:
 				var mb: InputEventMouseButton = ev as InputEventMouseButton
 				if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
-					if _exp_reveal_mode:
+					if _exp_shuffle_mode or _exp_reveal_mode:
 						expedition_pressed.emit(idx)
 					else:
 						var cd: CardData = _expedition_market.get_card_data(idx) if _expedition_market else null
@@ -469,6 +470,9 @@ func set_sector_reveal_mode(active: bool) -> void:
 
 func set_expedition_reveal_mode(active: bool) -> void:
 	_exp_reveal_mode = active
+
+func set_expedition_shuffle_mode(active: bool) -> void:
+	_exp_shuffle_mode = active
 
 func _on_detail_buy_pressed() -> void:
 	var idx: int = _detail_slot_idx
