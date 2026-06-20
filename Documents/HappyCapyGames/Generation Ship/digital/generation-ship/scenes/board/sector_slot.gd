@@ -15,11 +15,11 @@ const SUPPLY_ICON_PATHS := [
 ]
 
 static var TECH_OFFSETS: Array[Vector3] = [
-	Vector3(0, 0.005, -0.44),
-	Vector3(0, 0.010, -0.64),
-	Vector3(0, 0.020, -0.84),
-	Vector3(0, 0.030, -1.04),
-	Vector3(0, 0.040, -1.24),
+	Vector3(0, 0.030, -0.44),
+	Vector3(0, 0.040, -0.64),
+	Vector3(0, 0.050, -0.84),
+	Vector3(0, 0.060, -1.04),
+	Vector3(0, 0.070, -1.24),
 ]
 
 
@@ -36,9 +36,9 @@ var last_placed_tech_cost: int = 0
 var tucked_cards: Array = []   # Array of {data: CardData, face_up: bool}
 var stored_supply: Dictionary = {}  # SupplyColor (int) -> int count
 var _tech_slots: Array = []
-const FLOAT_AMP: float = 0.012
+const FLOAT_AMP: float = 0.010
 const FLOAT_SPEED: float = 0.07
-const CARD_REST_Y: float = 0.06
+const CARD_REST_Y: float = 0.015
 
 var _float_phase: float = 0.0
 var _highlighted: bool = false
