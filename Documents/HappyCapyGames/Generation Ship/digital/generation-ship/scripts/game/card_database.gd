@@ -173,12 +173,26 @@ func _parse_color(color_str: String) -> CardData.SupplyColor:
 	return CardData.SupplyColor.DUST
 
 func _read_csv(path: String) -> Array[Dictionary]:
+	var content: String = ""
 	var file := FileAccess.open(path, FileAccess.READ)
-	if not file:
-		push_error("CardDatabase: could not open " + path)
-		return []
-	var content := file.get_as_text()
-	file.close()
+	if file:
+		content = file.get_as_text()
+		file.close()
+	else:
+		# CSV not in PCK — fall back to baked constants so exports work
+		# without relying on export_presets.cfg include_filter
+		match path.get_file():
+			"Generation Ship Full Card Details - Advanced Sectors.csv":
+				content = CardDataBaked.ADVANCED_SECTORS
+			"Generation Ship Full Card Details - Dust Sectors.csv":
+				content = CardDataBaked.DUST_SECTORS
+			"Generation Ship Full Card Details - Techs.csv":
+				content = CardDataBaked.TECHS
+			"Generation Ship Full Card Details - Expeditions.csv":
+				content = CardDataBaked.EXPEDITIONS
+		if content.is_empty():
+			push_error("CardDatabase: could not open " + path)
+			return []
 
 	var rows := _parse_csv(content)
 	if rows.size() < 2:
