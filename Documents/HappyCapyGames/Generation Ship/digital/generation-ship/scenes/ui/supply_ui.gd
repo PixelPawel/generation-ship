@@ -38,6 +38,10 @@ var _round_label: Label = null
 var _vp_label: Label = null
 var _prev_vp: int = 0
 var _end_turn_pulse_tween: Tween = null
+var _turn_indicator_panel: PanelContainer = null
+var _turn_indicator_label: Label = null
+var _turn_style_on: StyleBoxFlat = null
+var _turn_style_off: StyleBoxFlat = null
 var _tooltip_panel: PanelContainer = null
 var _tooltip_title: Label = null
 var _tooltip_desc: Label = null
@@ -78,6 +82,41 @@ func _build_ui() -> void:
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 6)
 	supply_panel.add_child(vbox)
+
+	# ── Turn indicator (multiplayer only) ────────────────────────────────────
+	_turn_style_off = StyleBoxFlat.new()
+	_turn_style_off.bg_color = Color(0.06, 0.07, 0.09)
+	_turn_style_off.border_color = Color(0.22, 0.28, 0.22)
+	_turn_style_off.set_border_width_all(1)
+	_turn_style_off.set_corner_radius_all(4)
+	_turn_style_off.content_margin_left = 8.0
+	_turn_style_off.content_margin_right = 8.0
+	_turn_style_off.content_margin_top = 5.0
+	_turn_style_off.content_margin_bottom = 5.0
+
+	_turn_style_on = StyleBoxFlat.new()
+	_turn_style_on.bg_color = Color(0.04, 0.22, 0.07)
+	_turn_style_on.border_color = Color(0.28, 0.92, 0.38)
+	_turn_style_on.set_border_width_all(2)
+	_turn_style_on.set_corner_radius_all(4)
+	_turn_style_on.content_margin_left = 8.0
+	_turn_style_on.content_margin_right = 8.0
+	_turn_style_on.content_margin_top = 5.0
+	_turn_style_on.content_margin_bottom = 5.0
+
+	_turn_indicator_panel = PanelContainer.new()
+	_turn_indicator_panel.add_theme_stylebox_override("panel", _turn_style_off)
+	_turn_indicator_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_turn_indicator_panel.visible = false
+	vbox.add_child(_turn_indicator_panel)
+
+	_turn_indicator_label = Label.new()
+	_turn_indicator_label.text = "YOUR TURN"
+	_turn_indicator_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_turn_indicator_label.add_theme_font_size_override("font_size", 14)
+	_turn_indicator_label.add_theme_color_override("font_color", Color(0.18, 0.25, 0.18))
+	_turn_indicator_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_turn_indicator_panel.add_child(_turn_indicator_label)
 
 	# ── Game info (round + VP) ────────────────────────────────────────────────
 	_game_info_box = VBoxContainer.new()
@@ -421,3 +460,17 @@ func _spawn_float_label(text: String, local_pos: Vector2, color: Color, font_siz
 func show_game_info(visible_state: bool) -> void:
 	if _game_info_box:
 		_game_info_box.visible = visible_state
+
+func show_turn_indicator(visible_state: bool) -> void:
+	if _turn_indicator_panel:
+		_turn_indicator_panel.visible = visible_state
+
+func set_my_turn(is_my_turn: bool) -> void:
+	if not _turn_indicator_panel or not _turn_indicator_label:
+		return
+	if is_my_turn:
+		_turn_indicator_panel.add_theme_stylebox_override("panel", _turn_style_on)
+		_turn_indicator_label.add_theme_color_override("font_color", Color(0.35, 1.0, 0.45))
+	else:
+		_turn_indicator_panel.add_theme_stylebox_override("panel", _turn_style_off)
+		_turn_indicator_label.add_theme_color_override("font_color", Color(0.18, 0.25, 0.18))

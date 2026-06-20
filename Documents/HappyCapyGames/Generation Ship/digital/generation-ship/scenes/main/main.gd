@@ -82,7 +82,6 @@ var _pending_store_amount: int = 0
 var _pending_tuck_card_data: CardData = null
 var _pending_target_slot: SectorSlot = null
 var _effect_label: String = ""
-var _turn_label: Label = null
 var _players_passed_this_round: int = 0
 var _has_passed_or_researched: bool = false
 var _opp_snapshots: Dictionary = {}      # peer_id (int) -> state Dictionary
@@ -228,16 +227,6 @@ func _ready() -> void:
 	_sector_picker.sector_selected.connect(_on_sector_selected_from_picker)
 
 	$Board.sector_info_requested.connect(_on_sector_info_requested)
-	_turn_label = Label.new()
-	_turn_label.visible = false
-	_turn_label.add_theme_font_size_override("font_size", 22)
-	_turn_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	_turn_label.offset_top = 6.0
-	_turn_label.offset_bottom = 38.0
-	_turn_label.offset_left = -200.0
-	_turn_label.offset_right = 200.0
-	_turn_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	$UILayer.add_child(_turn_label)
 
 	_setup_sfx()
 	_setup_control_screen_display()
@@ -948,21 +937,14 @@ func _update_round_label() -> void:
 # ── Multiplayer turn management ───────────────────────────────────────────────
 
 func _update_turn_ui() -> void:
-	if not _turn_label:
-		return
 	if not GameNetwork.is_multiplayer:
-		_turn_label.visible = false
+		_cs_display.show_turn_indicator(false)
 		return
-	_turn_label.visible = true
+	_cs_display.show_turn_indicator(true)
 	var my_turn: bool = GameNetwork.is_my_turn()
-	if my_turn:
-		_turn_label.text = "Your turn"
-		_turn_label.add_theme_color_override("font_color", Color(0.4, 1.0, 0.4))
-		if _round > 0:
-			_show_your_turn_banner()
-	else:
-		_turn_label.text = "Opponent's turn"
-		_turn_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	_cs_display.set_my_turn(my_turn)
+	if my_turn and _round > 0:
+		_show_your_turn_banner()
 	_set_action_buttons_disabled(not my_turn)
 
 func _show_your_turn_banner() -> void:
