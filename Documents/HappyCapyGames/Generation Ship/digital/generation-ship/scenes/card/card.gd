@@ -244,9 +244,6 @@ func place() -> void:
 	is_placed = true
 	visible = true
 	_kill_tween()
-	_tween = create_tween()
-	_tween.tween_property(self, "scale", Vector3(1.12, 1.12, 1.12), 0.08).set_ease(Tween.EASE_OUT)
-	_tween.tween_property(self, "scale", Vector3.ONE, 0.14).set_ease(Tween.EASE_IN)
 	_spawn_sparkle()
 	_shake_camera()
 
