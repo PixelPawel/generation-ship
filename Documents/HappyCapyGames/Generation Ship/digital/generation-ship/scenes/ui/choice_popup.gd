@@ -11,6 +11,7 @@ var _scroll_container: ScrollContainer = null
 var _skip_btn: Button = null
 var _multiselect_done_btn: Button = null
 var _selected_flags: Array[bool] = []
+var _max_select: int = 0
 var _vbox: VBoxContainer = null
 
 func _ready() -> void:
@@ -120,12 +121,13 @@ func show_card_choices(prompt: String, cards: Array[CardData], skippable: bool =
 	_skip_btn.visible = skippable
 	show()
 
-func show_multiselect_card_choices(prompt: String, cards: Array[CardData]) -> void:
+func show_multiselect_card_choices(prompt: String, cards: Array[CardData], max_select: int = 0) -> void:
 	_scroll_container.custom_minimum_size.x = 0
 	if _vbox:
 		_vbox.custom_minimum_size.x = 0
 	_prompt_label.text = prompt
 	_clear_options()
+	_max_select = max_select
 	_selected_flags = []
 	for _i: int in cards.size():
 		_selected_flags.append(false)
@@ -183,7 +185,12 @@ func _build_card_rows(cards: Array[CardData], on_click: Callable, advanced_flags
 func _on_multiselect_toggle(index: int, btn: Button) -> void:
 	if index >= _selected_flags.size():
 		return
-	_selected_flags[index] = not _selected_flags[index]
+	var currently_selected: bool = _selected_flags[index]
+	if not currently_selected and _max_select > 0:
+		var count: int = _selected_flags.count(true)
+		if count >= _max_select:
+			return
+	_selected_flags[index] = not currently_selected
 	btn.modulate = Color(0.5, 1.0, 0.5) if _selected_flags[index] else Color.WHITE
 
 func _on_multiselect_done() -> void:

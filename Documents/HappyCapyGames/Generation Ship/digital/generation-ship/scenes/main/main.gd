@@ -1472,7 +1472,7 @@ func _show_hand_multiselect(prompt: String) -> void:
 	if card_data.is_empty():
 		_finish_interactive_step()
 		return
-	_choice_popup.show_multiselect_card_choices(prompt, card_data)
+	_choice_popup.show_multiselect_card_choices(prompt, card_data, _effect_remaining)
 
 func _process_hand_choice(index: int) -> void:
 	if index >= _pending_recycle_cards.size():
