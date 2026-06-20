@@ -4,8 +4,8 @@ signal all_loaded
 signal progress_updated(loaded: int, total: int)
 
 const MAX_CONCURRENT := 6
-const CACHE_DIR := "res://assets/cards"
-const META_PATH := "res://assets/cards/meta.json"
+const CACHE_DIR := "user://card_cache"
+const META_PATH := "user://card_cache/meta.json"
 
 var _memory: Dictionary = {}   # url -> ImageTexture
 var _meta: Dictionary = {}     # url -> { file: String, etag: String }
@@ -19,9 +19,7 @@ func _ready() -> void:
 	_load_meta()
 
 func _ensure_cache_dir() -> void:
-	var dir: DirAccess = DirAccess.open("res://assets")
-	if dir and not dir.dir_exists("cards"):
-		dir.make_dir("cards")
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(CACHE_DIR))
 
 func _load_meta() -> void:
 	if not FileAccess.file_exists(META_PATH):
