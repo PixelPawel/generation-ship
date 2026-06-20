@@ -14,6 +14,7 @@ const TECH_BACK_URL := "https://generationship.s3.eu-central-1.amazonaws.com/TTS
 
 signal cargo_move_requested(slot: SectorSlot, supplies: Dictionary, tucked_indices: Array[int])
 signal cargo_cancelled
+signal effect_done
 
 var _content_vbox: VBoxContainer = null
 var _scroll_container: ScrollContainer = null
@@ -326,6 +327,11 @@ func _rebuild_cargo(slot: SectorSlot) -> void:
 	cancel_btn.add_theme_font_size_override("font_size", 20)
 	cancel_btn.pressed.connect(func() -> void: hide(); cargo_cancelled.emit())
 	btn_row.add_child(cancel_btn)
+	var cancel_effect_btn := Button.new()
+	cancel_effect_btn.text = "Cancel effect"
+	cancel_effect_btn.add_theme_font_size_override("font_size", 20)
+	cancel_effect_btn.pressed.connect(func() -> void: hide(); effect_done.emit())
+	btn_row.add_child(cancel_effect_btn)
 	_content_vbox.add_child(btn_row)
 	_fit_scroll_height()
 

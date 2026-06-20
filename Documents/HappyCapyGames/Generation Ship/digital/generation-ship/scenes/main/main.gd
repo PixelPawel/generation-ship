@@ -220,6 +220,7 @@ func _ready() -> void:
 	_register_info_panel(_sector_info_popup)
 	_sector_info_popup.cargo_move_requested.connect(_on_cargo_move_requested)
 	_sector_info_popup.cargo_cancelled.connect(_on_cargo_cancelled)
+	_sector_info_popup.effect_done.connect(_on_effect_done_pressed)
 
 	_sector_picker = load("res://scenes/ui/sector_picker_panel.gd").new()
 	_info_viewport.add_child(_sector_picker)
@@ -2224,7 +2225,6 @@ func _execute_effect_step(step: Dictionary) -> void:
 		"cargo_drones":
 			_effect_mode = EffectMode.EFFECT_CARGO_DRONES
 			$Board.set_cargo_click_mode(true)
-			_effect_done_btn.show()
 			_sector_picker.setup("Cargo Drones — pick a source sector", $Board.get_all_sector_slots())
 
 		"black_hole_encounter":
