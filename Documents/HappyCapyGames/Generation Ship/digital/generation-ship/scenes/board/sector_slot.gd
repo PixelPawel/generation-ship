@@ -294,7 +294,7 @@ func _check_stack_hover() -> void:
 	if ray_t < 0.0:
 		return
 	var hit := to_local(from + dir * ray_t)
-	var in_zone := abs(hit.x) < 0.36 and hit.z < -0.10 and hit.z > -1.70
+	var in_zone: bool = abs(hit.x) < 0.36 and hit.z < -0.10 and hit.z > -1.70
 	if in_zone != _stack_expanded:
 		_fan_tech_slots(in_zone)
 
