@@ -15,19 +15,19 @@ const SUPPLY_ICON_PATHS := [
 ]
 
 static var TECH_OFFSETS_COMPACT: Array[Vector3] = [
-	Vector3(0, 0.030, -0.32),
-	Vector3(0, 0.040, -0.76),
+	Vector3(0, 0.070, -0.32),
+	Vector3(0, 0.060, -0.76),
 	Vector3(0, 0.050, -1.20),
-	Vector3(0, 0.060, -1.64),
-	Vector3(0, 0.070, -2.08),
+	Vector3(0, 0.040, -1.64),
+	Vector3(0, 0.030, -2.08),
 ]
 
 static var TECH_OFFSETS_EXPANDED: Array[Vector3] = [
-	Vector3(0, 0.030, -0.32),
-	Vector3(0, 0.040, -1.02),
+	Vector3(0, 0.070, -0.32),
+	Vector3(0, 0.060, -1.02),
 	Vector3(0, 0.050, -1.72),
-	Vector3(0, 0.060, -2.42),
-	Vector3(0, 0.070, -3.12),
+	Vector3(0, 0.040, -2.42),
+	Vector3(0, 0.030, -3.12),
 ]
 
 
@@ -47,7 +47,7 @@ var _tech_slots: Array = []
 var _stack_expanded: bool = false
 const FLOAT_AMP: float = 0.010
 const FLOAT_SPEED: float = 0.07
-const CARD_REST_Y: float = 0.015
+const CARD_REST_Y: float = 0.085
 
 var _float_phase: float = 0.0
 var _highlighted: bool = false
@@ -158,7 +158,7 @@ func _refresh_tuck_display() -> void:
 
 	const TUCK_Z_START: float = 0.38
 	const TUCK_Z_STEP: float = 0.07
-	const TUCK_Y: float = 0.002
+	const TUCK_Y: float = 0.002   # opaque, renders before all transparent cards
 	const CARD_W: float = 0.38
 	const CARD_H: float = 0.54
 	const COL_X_FACEUP: float = -0.23
