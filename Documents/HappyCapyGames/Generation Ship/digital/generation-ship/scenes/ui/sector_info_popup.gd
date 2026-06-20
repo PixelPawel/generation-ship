@@ -150,13 +150,11 @@ func _has_stored_supply(slot: SectorSlot) -> bool:
 			return true
 	return false
 
-const CARDS_PER_ROW := 8
-
-func _make_card_row(cards: Array, face_up: bool) -> VBoxContainer:
-	var n_per_row: int = min(cards.size(), CARDS_PER_ROW)
+func _make_card_row(cards: Array, face_up: bool) -> Control:
+	# Fixed card size — same as if there were exactly one card
 	var vp: Vector2 = get_viewport_rect().size
 	var avail_w: float = vp.x - 48.0
-	var card_w: float = (avail_w - float(n_per_row - 1) * 8.0) / float(n_per_row)
+	var card_w: float = avail_w
 	var card_h: float = card_w * (183.0 / 130.0)
 	var max_card_h: float = vp.y * 0.60
 	if card_h > max_card_h:
@@ -164,16 +162,20 @@ func _make_card_row(cards: Array, face_up: bool) -> VBoxContainer:
 		card_w = card_h * (130.0 / 183.0)
 
 	var outer := VBoxContainer.new()
-	outer.add_theme_constant_override("separation", 8)
+	outer.add_theme_constant_override("separation", 4)
 
-	var row: HBoxContainer = null
+	var hscroll := ScrollContainer.new()
+	hscroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	hscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	hscroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hscroll.custom_minimum_size = Vector2(0, card_h + 16)
+	outer.add_child(hscroll)
+
+	var hbox := HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 8)
+	hscroll.add_child(hbox)
+
 	for idx: int in cards.size():
-		if idx % CARDS_PER_ROW == 0:
-			row = HBoxContainer.new()
-			row.add_theme_constant_override("separation", 8)
-			row.alignment = BoxContainer.ALIGNMENT_CENTER
-			outer.add_child(row)
-
 		var tuck: Dictionary = cards[idx]
 		var cd: CardData = tuck.get("data") as CardData
 		var url: String = (cd.image_url if cd else "") if face_up else TECH_BACK_URL
@@ -186,9 +188,9 @@ func _make_card_row(cards: Array, face_up: bool) -> VBoxContainer:
 		img.custom_minimum_size = Vector2(card_w, card_h)
 		img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		var _sip_mat1: ShaderMaterial = ShaderMaterial.new()
-		_sip_mat1.shader = load("res://shaders/card_rounded.gdshader")
-		img.material = _sip_mat1
+		var sip_mat: ShaderMaterial = ShaderMaterial.new()
+		sip_mat.shader = load("res://shaders/card_rounded.gdshader")
+		img.material = sip_mat
 		if tex:
 			img.texture = tex
 		else:
@@ -205,8 +207,42 @@ func _make_card_row(cards: Array, face_up: bool) -> VBoxContainer:
 			name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
 			card_vbox.add_child(name_lbl)
 
-		row.add_child(card_vbox)
+		hbox.add_child(card_vbox)
+
+	# Apply glowy blue scrollbar once the node is in the tree
+	hscroll.ready.connect(func() -> void: _style_blue_scrollbar(hscroll))
 	return outer
+
+func _style_blue_scrollbar(scroll: ScrollContainer) -> void:
+	var hsb: HScrollBar = scroll.get_h_scroll_bar()
+	if not hsb:
+		return
+	hsb.custom_minimum_size = Vector2(0, 12)
+
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(0.04, 0.08, 0.20, 0.75)
+	track.set_corner_radius_all(6)
+	track.content_margin_top = 2.0
+	track.content_margin_bottom = 2.0
+
+	var grabber := StyleBoxFlat.new()
+	grabber.bg_color = Color(0.18, 0.55, 1.0, 0.9)
+	grabber.set_corner_radius_all(6)
+	grabber.shadow_color = Color(0.18, 0.55, 1.0, 0.55)
+	grabber.shadow_size = 6
+	grabber.shadow_offset = Vector2.ZERO
+
+	var grabber_hl := StyleBoxFlat.new()
+	grabber_hl.bg_color = Color(0.38, 0.72, 1.0, 1.0)
+	grabber_hl.set_corner_radius_all(6)
+	grabber_hl.shadow_color = Color(0.38, 0.72, 1.0, 0.75)
+	grabber_hl.shadow_size = 9
+	grabber_hl.shadow_offset = Vector2.ZERO
+
+	hsb.add_theme_stylebox_override("scroll", track)
+	hsb.add_theme_stylebox_override("grabber", grabber)
+	hsb.add_theme_stylebox_override("grabber_highlight", grabber_hl)
+	hsb.add_theme_stylebox_override("grabber_pressed", grabber_hl)
 
 # ── Cargo Drones mode ────────────────────────────────────────────────────────
 
