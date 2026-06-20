@@ -295,8 +295,15 @@ func _check_stack_hover() -> void:
 		return
 	var hit := to_local(from + dir * ray_t)
 	var in_zone: bool = abs(hit.x) < 0.36 and hit.z < 0.50 and hit.z > -3.60
-	if in_zone != _stack_expanded:
-		_fan_tech_slots(in_zone)
+	var want_expanded: bool = in_zone or _any_tech_elevated()
+	if want_expanded != _stack_expanded:
+		_fan_tech_slots(want_expanded)
+
+func _any_tech_elevated() -> bool:
+	for ts: Node3D in _tech_slots:
+		if ts.occupied and ts.placed_card and bool(ts.placed_card.get("_placed_elevated")):
+			return true
+	return false
 
 func _fan_tech_slots(expanded: bool) -> void:
 	_stack_expanded = expanded
