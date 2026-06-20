@@ -90,9 +90,11 @@ void fragment() {
 		// blend: 0 during most of cycle, rises to 1 at the end
 		float blend = smoothstep(FADE_START, CYCLE, t);
 
-		// Current batch: fresh at t=0, converging by t=CYCLE; fades out
+		// Current batch starts at drift CYCLE-FADE_START so its position matches
+		// exactly where the previous next-batch left off at the cycle boundary.
 		float seed_cur  = fi + cycle * 3.77;
-		tot += star_layer(dir, fi, seed_cur, grid, t) * dim * (1.0 - blend);
+		float t_cur     = min(t + (CYCLE - FADE_START), CYCLE);
+		tot += star_layer(dir, fi, seed_cur, grid, t_cur) * dim * (1.0 - blend);
 
 		// Next batch: starts with drift 0 when crossfade begins, fades in
 		float seed_next = fi + (cycle + 1.0) * 3.77;
