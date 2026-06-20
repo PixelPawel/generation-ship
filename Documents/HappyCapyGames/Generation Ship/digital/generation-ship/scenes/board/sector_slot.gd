@@ -14,7 +14,15 @@ const SUPPLY_ICON_PATHS := [
 	"res://assets/ui/supply/Thrust.png",
 ]
 
-static var TECH_OFFSETS: Array[Vector3] = [
+static var TECH_OFFSETS_COMPACT: Array[Vector3] = [
+	Vector3(0, 0.030, -0.44),
+	Vector3(0, 0.040, -0.53),
+	Vector3(0, 0.050, -0.62),
+	Vector3(0, 0.060, -0.71),
+	Vector3(0, 0.070, -0.80),
+]
+
+static var TECH_OFFSETS_EXPANDED: Array[Vector3] = [
 	Vector3(0, 0.030, -0.44),
 	Vector3(0, 0.040, -0.64),
 	Vector3(0, 0.050, -0.84),
@@ -36,6 +44,7 @@ var last_placed_tech_cost: int = 0
 var tucked_cards: Array = []   # Array of {data: CardData, face_up: bool}
 var stored_supply: Dictionary = {}  # SupplyColor (int) -> int count
 var _tech_slots: Array = []
+var _stack_expanded: bool = false
 const FLOAT_AMP: float = 0.010
 const FLOAT_SPEED: float = 0.07
 const CARD_REST_Y: float = 0.015
@@ -63,10 +72,10 @@ func _ready() -> void:
 	if mat:
 		_slot_mat = mat.duplicate() as ShaderMaterial
 		_mesh.set_surface_override_material(0, _slot_mat)
-	for i in TECH_OFFSETS.size():
+	for i in TECH_OFFSETS_COMPACT.size():
 		var slot := Node3D.new()
 		slot.set_script(TechSlotScript)
-		slot.position = TECH_OFFSETS[i]
+		slot.position = TECH_OFFSETS_COMPACT[i]
 		slot.set("slot_index", i)
 		add_child(slot)
 		_tech_slots.append(slot)
@@ -270,6 +279,32 @@ func _process(_delta: float) -> void:
 			return
 		var t: float = Time.get_ticks_msec() / 1000.0
 		placed_card.position.y = CARD_REST_Y + sin(t * FLOAT_SPEED * TAU + _float_phase) * FLOAT_AMP
+		_check_stack_hover()
+
+func _check_stack_hover() -> void:
+	var camera := get_viewport().get_camera_3d()
+	if not camera:
+		return
+	var mouse := get_viewport().get_mouse_position()
+	var from := camera.project_ray_origin(mouse)
+	var dir := camera.project_ray_normal(mouse)
+	if abs(dir.y) < 0.001:
+		return
+	var ray_t := (global_position.y + 0.05 - from.y) / dir.y
+	if ray_t < 0.0:
+		return
+	var hit := to_local(from + dir * ray_t)
+	var in_zone := abs(hit.x) < 0.36 and hit.z < -0.10 and hit.z > -1.70
+	if in_zone != _stack_expanded:
+		_fan_tech_slots(in_zone)
+
+func _fan_tech_slots(expanded: bool) -> void:
+	_stack_expanded = expanded
+	var offsets: Array[Vector3] = TECH_OFFSETS_EXPANDED if expanded else TECH_OFFSETS_COMPACT
+	for i: int in _tech_slots.size():
+		var ts: Node3D = _tech_slots[i]
+		var tw: Tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		tw.tween_property(ts, "position", offsets[i], 0.20)
 
 func highlight(on: bool) -> void:
 	if _highlighted == on:
@@ -388,7 +423,7 @@ func compact_tech_cards() -> void:
 		ts.placed_card = card
 		if card.get_parent() != ts:
 			card.reparent(ts, true)
-		card.call("set_sort_order", i * 0.5)
+		card.call("set_sort_order", 0.0)
 		var tween := card.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		tween.tween_property(card, "position", Vector3.ZERO, 0.25)
 
