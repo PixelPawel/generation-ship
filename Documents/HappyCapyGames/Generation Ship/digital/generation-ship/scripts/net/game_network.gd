@@ -17,6 +17,9 @@ var player_names: Dictionary = {}
 # IDs of bot (dummy) players managed locally by the host.
 var bot_ids: Array[int] = []
 
+# Difficulty per bot: bot_id → int (BotAI.Difficulty). Set by lobby before scene change.
+var bot_difficulty: Dictionary = {}
+
 # Returns true when the local player is allowed to take an action.
 func is_my_turn() -> bool:
 	if not is_multiplayer:

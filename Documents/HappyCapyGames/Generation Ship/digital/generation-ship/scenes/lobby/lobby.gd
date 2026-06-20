@@ -17,6 +17,8 @@ var _spinner_time: float = 0.0
 var _bot_count: int = 0
 var _add_bot_btn: Button = null
 var _remove_bot_btn: Button = null
+var _diff_btn: OptionButton = null
+var _bot_difficulties: Dictionary = {}   # bot_id → int (BotAI.Difficulty)
 
 const _SPINNER_FRAMES: Array[String] = [
 	"|", "/", "—", "\\", "|", "/", "—", "\\", "|", "/",
@@ -97,6 +99,14 @@ func _show_staging() -> void:
 		_remove_bot_btn.disabled = true
 		_remove_bot_btn.pressed.connect(_on_remove_bot_pressed)
 		bot_row.add_child(_remove_bot_btn)
+		_diff_btn = OptionButton.new()
+		_diff_btn.add_item("Easy")
+		_diff_btn.add_item("Normal")
+		_diff_btn.add_item("Hard")
+		_diff_btn.selected = 1
+		_diff_btn.custom_minimum_size = Vector2(100, 44)
+		_diff_btn.add_theme_font_size_override("font_size", 18)
+		bot_row.add_child(_diff_btn)
 
 func _start_preload() -> void:
 	var vbox: VBoxContainer = $StagingPanel/VBox
@@ -338,6 +348,7 @@ func _rpc_load_game() -> void:
 	GameNetwork.setup_multiplayer(multiplayer.is_server(), real_ids)
 	GameNetwork.player_names = _players.duplicate()
 	GameNetwork.bot_ids = bot_ids_local
+	GameNetwork.bot_difficulty = _bot_difficulties.duplicate()
 	SceneTransition.change_scene("res://scenes/main/main.tscn")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -347,7 +358,10 @@ func _on_add_bot_pressed() -> void:
 		return
 	_bot_count += 1
 	var bot_id: int = -_bot_count
-	_players[bot_id] = "Bot %d" % _bot_count
+	var diff: int = _diff_btn.selected if _diff_btn else 1
+	_bot_difficulties[bot_id] = diff
+	var diff_label: String = ["Easy", "Normal", "Hard"][diff]
+	_players[bot_id] = "Bot %d (%s)" % [_bot_count, diff_label]
 	_players_ready[bot_id] = true
 	_rpc_sync_players.rpc(_players)
 	_refresh_player_list()
