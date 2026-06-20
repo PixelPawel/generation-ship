@@ -16,10 +16,10 @@ const SUPPLY_ICON_PATHS := [
 
 static var TECH_OFFSETS_COMPACT: Array[Vector3] = [
 	Vector3(0, 0.030,  0.10),
-	Vector3(0, 0.040,  0.17),
-	Vector3(0, 0.050,  0.24),
-	Vector3(0, 0.060,  0.31),
-	Vector3(0, 0.070,  0.38),
+	Vector3(0, 0.040,  0.54),
+	Vector3(0, 0.050,  0.98),
+	Vector3(0, 0.060,  1.42),
+	Vector3(0, 0.070,  1.86),
 ]
 
 static var TECH_OFFSETS_EXPANDED: Array[Vector3] = [
