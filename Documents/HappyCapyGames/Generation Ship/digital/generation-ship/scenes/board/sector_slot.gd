@@ -14,13 +14,12 @@ const SUPPLY_ICON_PATHS := [
 	"res://assets/ui/supply/Thrust.png",
 ]
 
-# Each offset: (0, Y, Z) relative to this slot — Z steps of 0.44 toward camera
 static var TECH_OFFSETS: Array[Vector3] = [
-	Vector3(0, 0.67, -0.44),
-	Vector3(0, 0.47, -0.74),
-	Vector3(0, 0.27, -1.04),
-	Vector3(0, 0.10, -1.34),
-	Vector3(0, 0.03, -1.64),
+	Vector3(0, 0.07, -0.44),
+	Vector3(0, 0.08, -0.64),
+	Vector3(0, 0.09, -0.84),
+	Vector3(0, 0.10, -1.04),
+	Vector3(0, 0.11, -1.24),
 ]
 
 
@@ -39,7 +38,7 @@ var stored_supply: Dictionary = {}  # SupplyColor (int) -> int count
 var _tech_slots: Array = []
 const FLOAT_AMP: float = 0.012
 const FLOAT_SPEED: float = 0.07
-const CARD_REST_Y: float = 0.87
+const CARD_REST_Y: float = 0.06
 
 var _float_phase: float = 0.0
 var _highlighted: bool = false
@@ -405,8 +404,8 @@ func accept_card(card: Node3D) -> void:
 	card.reparent(self, true)
 	card.managed_by_hand = false
 	card.set("_elev_rest_pos", Vector3(0, CARD_REST_Y, 0))
-	# Positive offset keeps sector card in front of all tech slots in transparent sort.
-	card.call("set_sort_order", TECH_OFFSETS.size() * TechSlotScript.SORT_STEP + TechSlotScript.SORT_STEP)
+	# Negative offset pushes sector card behind all tech slots in transparent sort.
+	card.call("set_sort_order", -(TECH_OFFSETS.size() * 0.5))
 	var tween := card.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tween.tween_property(card, "position", Vector3(0, CARD_REST_Y, 0), 0.3)
 	tween.parallel().tween_property(card, "rotation", Vector3(-PI / 2.0, 0.0, 0.0), 0.3)
