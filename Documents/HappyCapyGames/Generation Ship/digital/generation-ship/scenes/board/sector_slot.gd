@@ -125,7 +125,6 @@ func _make_card_count_icon(pos: Vector3) -> MeshInstance3D:
 	mi.mesh = plane
 	mi.position = pos
 	var mat := StandardMaterial3D.new()
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mat.albedo_color = Color(0.12, 0.18, 0.32)
 	mi.material_override = mat
 	mi.visible = false
@@ -183,7 +182,6 @@ func _refresh_tuck_display() -> void:
 			mat.albedo_texture = tex
 		else:
 			mat.albedo_color = Color(0.92, 0.87, 0.76) if face_up else Color(0.12, 0.18, 0.32)
-		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 		mi.material_override = mat
 
 		add_child(mi)
