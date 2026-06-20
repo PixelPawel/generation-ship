@@ -149,7 +149,7 @@ func _refresh_tuck_display() -> void:
 
 	const TUCK_Z_START: float = 0.38
 	const TUCK_Z_STEP: float = 0.07
-	const TUCK_Y: float = 0.03
+	const TUCK_Y: float = 0.002
 	const CARD_W: float = 0.38
 	const CARD_H: float = 0.54
 	const COL_X_FACEUP: float = -0.23
