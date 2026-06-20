@@ -132,6 +132,7 @@ func _on_shuffle_card_clicked(card: Node3D) -> void:
 		insert_idx = _expedition_deck.shuffle_in(data)
 	card.queue_free()
 	_update_slot_visuals(slot_idx)
+	market_changed.emit()
 	card_shuffled_back.emit(data, insert_idx)
 	if _shuffle_active:
 		_refresh_shuffle_connections()
