@@ -119,6 +119,8 @@ var _auction_active: bool = false
 var _bots_passed_this_round: Array[int] = []
 var _cs_viewport: SubViewport = null
 var _info_viewport: SubViewport = null
+var _rumble_tween: Tween = null
+var _cam_base_transform: Transform3D
 var _info_screen_mesh: MeshInstance3D = null
 var _cs_display: SupplyUI = null
 var _end_turn_btn_mesh: MeshInstance3D = null
@@ -141,6 +143,8 @@ var _es_back_btn: Button = null
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
 func _ready() -> void:
+	_cam_base_transform = $Camera3D.transform
+	_start_rumble_timer()
 	GameTheme.apply_to_button($UILayer/StartButton)
 	var hand: Node3D = $Hand
 	$Board.set_hand(hand)
@@ -3041,3 +3045,26 @@ func _stop_end_turn_3d_flash() -> void:
 	_end_turn_flash_mat = null
 	if _end_turn_btn_mesh:
 		_end_turn_btn_mesh.set_surface_override_material(0, null)
+
+# ── Camera rumble ─────────────────────────────────────────────────────────────
+
+func _start_rumble_timer() -> void:
+	get_tree().create_timer(randf_range(30.0, 60.0)).timeout.connect(_play_rumble)
+
+func _play_rumble() -> void:
+	var cam: Camera3D = $Camera3D
+	if _rumble_tween and _rumble_tween.is_valid():
+		_rumble_tween.kill()
+	var base_pos: Vector3 = _cam_base_transform.origin
+	var base_rot: Vector3 = _cam_base_transform.basis.get_euler()
+	_rumble_tween = create_tween()
+	# Three micro-jolts in random directions, each 0.12 s
+	for _i: int in 3:
+		var dp: Vector3 = Vector3(randf_range(-0.005, 0.005), 0.0, randf_range(-0.004, 0.004))
+		var dr: Vector3 = base_rot + Vector3(randf_range(-0.003, 0.003), randf_range(-0.002, 0.002), randf_range(-0.003, 0.003))
+		_rumble_tween.tween_property(cam, "position", base_pos + dp, 0.12).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+		_rumble_tween.parallel().tween_property(cam, "rotation", dr, 0.12).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+	# Ease back to rest
+	_rumble_tween.tween_property(cam, "position", base_pos, 0.45).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	_rumble_tween.parallel().tween_property(cam, "rotation", base_rot, 0.45).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	_rumble_tween.tween_callback(_start_rumble_timer)
