@@ -51,5 +51,6 @@ func _ready() -> void:
 	capsule_mesh.material = mat
 	self.mesh = capsule_mesh
 
+	sorting_offset = 50.0
 	emitting = true
 	get_tree().create_timer(lifetime + 0.3).timeout.connect(queue_free)
