@@ -16,18 +16,18 @@ const SUPPLY_ICON_PATHS := [
 
 static var TECH_OFFSETS_COMPACT: Array[Vector3] = [
 	Vector3(0, 0.030, -0.44),
-	Vector3(0, 0.040, -0.53),
-	Vector3(0, 0.050, -0.62),
-	Vector3(0, 0.060, -0.71),
-	Vector3(0, 0.070, -0.80),
-]
-
-static var TECH_OFFSETS_EXPANDED: Array[Vector3] = [
-	Vector3(0, 0.030, -0.44),
 	Vector3(0, 0.040, -0.64),
 	Vector3(0, 0.050, -0.84),
 	Vector3(0, 0.060, -1.04),
 	Vector3(0, 0.070, -1.24),
+]
+
+static var TECH_OFFSETS_EXPANDED: Array[Vector3] = [
+	Vector3(0, 0.030, -0.44),
+	Vector3(0, 0.040, -0.84),
+	Vector3(0, 0.050, -1.24),
+	Vector3(0, 0.060, -1.64),
+	Vector3(0, 0.070, -2.04),
 ]
 
 
@@ -294,7 +294,7 @@ func _check_stack_hover() -> void:
 	if ray_t < 0.0:
 		return
 	var hit := to_local(from + dir * ray_t)
-	var in_zone: bool = abs(hit.x) < 0.36 and hit.z < -0.10 and hit.z > -1.70
+	var in_zone: bool = abs(hit.x) < 0.36 and hit.z < -0.10 and hit.z > -2.50
 	if in_zone != _stack_expanded:
 		_fan_tech_slots(in_zone)
 
