@@ -210,6 +210,8 @@ func _on_reveal_mode_changed(active: bool) -> void:
 
 func _on_expedition_reveal_mode_changed(active: bool) -> void:
 	_exp_reveal_mode = active
+	for card: Node3D in _exp_cards:
+		_set_dust_glow(card, active)
 
 func _set_dust_glow(card: Node3D, active: bool) -> void:
 	var mesh_node: MeshInstance3D = card.get_node_or_null("CardMesh") as MeshInstance3D
