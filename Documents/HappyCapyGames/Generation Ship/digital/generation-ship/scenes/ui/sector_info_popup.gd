@@ -173,6 +173,8 @@ func _make_card_row(cards: Array, face_up: bool) -> Control:
 
 	var hbox := HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 8)
+	# Must NOT expand — expansion distributes width equally among children, shrinking cards
+	hbox.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	hscroll.add_child(hbox)
 
 	for idx: int in cards.size():
@@ -183,11 +185,12 @@ func _make_card_row(cards: Array, face_up: bool) -> Control:
 
 		var card_vbox := VBoxContainer.new()
 		card_vbox.add_theme_constant_override("separation", 4)
+		card_vbox.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 
 		var img := TextureRect.new()
 		img.custom_minimum_size = Vector2(card_w, card_h)
 		img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		img.expand_mode = TextureRect.EXPAND_KEEP_SIZE
 		var sip_mat: ShaderMaterial = ShaderMaterial.new()
 		sip_mat.shader = load("res://shaders/card_rounded.gdshader")
 		img.material = sip_mat
