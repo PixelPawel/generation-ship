@@ -49,7 +49,8 @@ func _ready() -> void:
 
 	_skip_btn = Button.new()
 	_skip_btn.text = "Skip"
-	_skip_btn.add_theme_font_size_override("font_size", 20)
+	_skip_btn.add_theme_font_size_override("font_size", 40)
+	_skip_btn.custom_minimum_size = Vector2(200, 80)
 	_skip_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_skip_btn.pressed.connect(func(): hide(); skipped.emit())
 	_skip_btn.visible = false
@@ -57,7 +58,8 @@ func _ready() -> void:
 
 	_multiselect_done_btn = Button.new()
 	_multiselect_done_btn.text = "Done"
-	_multiselect_done_btn.add_theme_font_size_override("font_size", 20)
+	_multiselect_done_btn.add_theme_font_size_override("font_size", 40)
+	_multiselect_done_btn.custom_minimum_size = Vector2(200, 80)
 	_multiselect_done_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_multiselect_done_btn.pressed.connect(_on_multiselect_done)
 	_multiselect_done_btn.visible = false
