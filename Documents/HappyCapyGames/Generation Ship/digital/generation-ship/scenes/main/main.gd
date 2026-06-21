@@ -1220,6 +1220,7 @@ func _broadcast_my_state() -> void:
 
 func _apply_opponent_state(state: Dictionary) -> void:
 	var peer_id: int = state.get("peer_id", 0)
+	print("[OPP] _apply_opponent_state peer_id=", peer_id, " slots=", (state.get("slots", []) as Array).size())
 	_opp_snapshots[peer_id] = state
 	if _market_panel:
 		_market_panel.update_opponent(peer_id, state.get("hand_size", 0), state.get("supply", {}), state.get("vp", 0))
@@ -2841,6 +2842,9 @@ func _rpc_sync_expedition_reveal(slot_idx: int) -> void:
 # ── Opponent board view ───────────────────────────────────────────────────────
 
 func _show_opponent_board(peer_id: int) -> void:
+	print("[OPP] _show_opponent_board called, peer_id=", peer_id,
+		" has_snapshot=", _opp_snapshots.has(peer_id),
+		" snapshot_keys=", _opp_snapshots.keys())
 	if not _opp_snapshots.has(peer_id):
 		return
 	if _opp_info_panel:
