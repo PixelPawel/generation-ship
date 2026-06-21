@@ -161,10 +161,6 @@ func _layout(animate: bool) -> void:
 	for i in n:
 		var x := -total_width * 0.5 + i * spacing
 
-		if _hovered_index >= 0 and i != _hovered_index:
-			var dist := i - _hovered_index
-			x += HOVER_NEIGHBOR_SHIFT * sign(float(dist)) / float(abs(dist))
-
 		var t := float(i) / float(max(n - 1, 1)) * 2.0 - 1.0
 		var y_hover := HOVER_LIFT if i == _hovered_index else 0.0
 		var rot_z := t * deg_to_rad(-3.0)
