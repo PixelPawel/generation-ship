@@ -819,9 +819,16 @@ func _run_bot_turn(bot_id: int) -> void:
 		_server_handle_end_turn()
 		return
 	var difficulty: int = GameNetwork.bot_difficulty.get(bot_id, BotAI.Difficulty.EASY)
+	var _dbg_hand: Array[CardData] = _bot_hand(bot_id)
+	var _dbg_sup: Dictionary = _bot_supplies.get(bot_id, {}) as Dictionary
+	print("[BOT] turn bot=", bot_id, " diff=", difficulty, " hand=", _dbg_hand.size(),
+		" supply=", _dbg_sup, " boards=", (_bot_boards.get(bot_id, []) as Array).size())
+	for _dbg_c: CardData in _dbg_hand:
+		print("[BOT]   card=", _dbg_c.card_name, " type=", _dbg_c.card_type, " color=", _dbg_c.color, " cost=", _dbg_c.cost)
 	var action: Dictionary = BotAI.decide_action(
 		difficulty, _bot_hand(bot_id), _bot_supplies.get(bot_id, {}) as Dictionary,
 		_bot_boards.get(bot_id, []) as Array, _round)
+	print("[BOT] action=", action)
 	match action.get("type", "pass"):
 		"place_sector":
 			_bot_place_sector(bot_id, action["card"] as CardData)
