@@ -6,8 +6,6 @@ signal drag_started(card: Node3D)
 signal clicked(card: Node3D)
 signal right_clicked(card: Node3D)
 
-const HOVER_HEIGHT := 0.15
-const HOVER_DURATION := 0.15
 const PLACED_LIFT_HEIGHT: float = 0.85
 const PLACED_LIFT_SCALE: float = 3.0
 const PLACED_LIFT_DURATION: float = 0.35
@@ -284,24 +282,13 @@ func _shake_camera() -> void:
 
 func _on_hover_enter() -> void:
 	CursorManager.set_hover()
-	if is_placed:
-		return
-	hovered.emit(self)
-	if not managed_by_hand and not is_dragging:
-		_kill_tween()
-		_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-		_tween.tween_property(self, "position:y", HOVER_HEIGHT, HOVER_DURATION)
+	if not is_placed:
+		hovered.emit(self)
 
 func _on_hover_exit() -> void:
 	CursorManager.set_default()
-	if is_placed:
-		return
-	if not is_dragging:
+	if not is_placed and not is_dragging:
 		unhovered.emit(self)
-	_kill_tween()
-	if not managed_by_hand and not is_dragging:
-		_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-		_tween.tween_property(self, "position:y", 0.0, HOVER_DURATION)
 
 func _kill_tween() -> void:
 	if _tween and _tween.is_valid():
