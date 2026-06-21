@@ -48,7 +48,9 @@ var _face_surface: MeshInstance3D = null
 func _ready() -> void:
 	var mat := card_mesh.get_surface_override_material(0) as ShaderMaterial
 	if mat:
-		card_mesh.set_surface_override_material(0, mat.duplicate())
+		var m: ShaderMaterial = mat.duplicate() as ShaderMaterial
+		m.render_priority = 1
+		card_mesh.set_surface_override_material(0, m)
 	collider.mouse_entered.connect(_on_hover_enter)
 	collider.mouse_exited.connect(_on_hover_exit)
 	collider.input_event.connect(_on_input_event)
@@ -106,6 +108,8 @@ func _apply_local_art_to_glb() -> void:
 	var face_mat := StandardMaterial3D.new()
 	face_mat.albedo_texture = tex
 	face_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	face_mat.no_depth_test = true
+	face_mat.render_priority = 1
 	_face_surface.set_surface_override_material(0, face_mat)
 
 func _on_texture_loaded(_result: int, code: int, _headers: PackedStringArray, body: PackedByteArray, url: String, http: HTTPRequest) -> void:
@@ -130,6 +134,8 @@ func _apply_texture(tex: ImageTexture) -> void:
 		var face_mat := StandardMaterial3D.new()
 		face_mat.albedo_texture = tex
 		face_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		face_mat.no_depth_test = true
+		face_mat.render_priority = 1
 		_face_surface.set_surface_override_material(0, face_mat)
 
 func _on_input_event(_camera: Node, event: InputEvent, _pos: Vector3, _normal: Vector3, _idx: int) -> void:
