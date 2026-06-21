@@ -3058,6 +3058,171 @@ func _build_opp_sector_widget(slot: Dictionary) -> Control:
 			t_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			vbox.add_child(t_lbl)
 
+	outer.mouse_filter = Control.MOUSE_FILTER_STOP
+	outer.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	outer.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			_show_opp_sector_detail(slot)
+	)
+
+	return outer
+
+
+func _show_opp_sector_detail(slot: Dictionary) -> void:
+	var existing: Node = _opp_info_panel.get_node_or_null("SectorDetail")
+	if existing:
+		existing.queue_free()
+
+	var sector_name: String = str(slot.get("sector_name", ""))
+	var is_adv: bool = bool(slot.get("sector_advanced", false))
+	var tech_names: Array = slot.get("tech_names", []) as Array
+
+	var sector_cd: CardData = null
+	for c: CardData in CardDatabase.sectors:
+		if c.card_name == sector_name or c.adv_name == sector_name:
+			sector_cd = c
+			break
+
+	var overlay: Control = Control.new()
+	overlay.name = "SectorDetail"
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_opp_info_panel.add_child(overlay)
+
+	var dim: ColorRect = ColorRect.new()
+	dim.color = Color(0.0, 0.0, 0.0, 0.78)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	dim.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			overlay.queue_free()
+	)
+	overlay.add_child(dim)
+
+	var center: CenterContainer = CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(center)
+
+	var panel: PanelContainer = PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	var ps: StyleBoxFlat = StyleBoxFlat.new()
+	ps.bg_color = Color(0.06, 0.09, 0.20, 0.98)
+	ps.border_color = Color(0.35, 0.42, 0.62)
+	ps.set_border_width_all(2)
+	ps.set_corner_radius_all(6)
+	ps.content_margin_left = 24
+	ps.content_margin_right = 24
+	ps.content_margin_top = 20
+	ps.content_margin_bottom = 20
+	panel.add_theme_stylebox_override("panel", ps)
+	center.add_child(panel)
+
+	var inner: VBoxContainer = VBoxContainer.new()
+	inner.add_theme_constant_override("separation", 14)
+	panel.add_child(inner)
+
+	var hdr: Label = Label.new()
+	hdr.text = ("▲ " if is_adv else "") + sector_name
+	hdr.add_theme_font_size_override("font_size", 26)
+	hdr.add_theme_color_override("font_color",
+		Color(1.0, 0.90, 0.50) if is_adv else Color(0.80, 0.90, 1.0))
+	hdr.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	inner.add_child(hdr)
+
+	var hsep_d: HSeparator = HSeparator.new()
+	hsep_d.modulate = Color(0.4, 0.4, 0.5, 0.5)
+	inner.add_child(hsep_d)
+
+	var cards_row: HBoxContainer = HBoxContainer.new()
+	cards_row.add_theme_constant_override("separation", 16)
+	inner.add_child(cards_row)
+
+	cards_row.add_child(_build_detail_card(sector_cd, is_adv, sector_name))
+
+	if not tech_names.is_empty():
+		var vsep_d: VSeparator = VSeparator.new()
+		vsep_d.modulate = Color(0.4, 0.4, 0.5, 0.4)
+		cards_row.add_child(vsep_d)
+		for t: Variant in tech_names:
+			var t_name: String = str(t)
+			var tech_cd: CardData = null
+			for c: CardData in CardDatabase.techs:
+				if c.card_name == t_name:
+					tech_cd = c
+					break
+			cards_row.add_child(_build_detail_card(tech_cd, false, t_name))
+
+	var close_sep: HSeparator = HSeparator.new()
+	close_sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
+	inner.add_child(close_sep)
+
+	var close_btn: Button = Button.new()
+	close_btn.text = "✕  Close"
+	close_btn.add_theme_font_size_override("font_size", 18)
+	close_btn.custom_minimum_size = Vector2(160, 44)
+	close_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	close_btn.pressed.connect(func() -> void: overlay.queue_free())
+	inner.add_child(close_btn)
+
+
+func _build_detail_card(cd: CardData, is_adv: bool, fallback_name: String) -> Control:
+	var supply_color: CardData.SupplyColor = CardData.SupplyColor.DUST
+	if cd:
+		supply_color = cd.adv_color if is_adv else cd.color
+	var border_col: Color = CardData.color_tint(supply_color)
+
+	var outer: PanelContainer = PanelContainer.new()
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = Color(0.05, 0.08, 0.16)
+	style.border_color = border_col
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 6
+	style.content_margin_right = 6
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	outer.add_theme_stylebox_override("panel", style)
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	outer.add_child(vbox)
+
+	var img_url: String = ""
+	if cd:
+		img_url = cd.adv_image_url if is_adv else cd.image_url
+	var tex: ImageTexture = ImageCache.get_texture(img_url) if not img_url.is_empty() else null
+
+	if tex:
+		var art: TextureRect = TextureRect.new()
+		art.texture = tex
+		art.custom_minimum_size = Vector2(240, 336)
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		vbox.add_child(art)
+	else:
+		var placeholder: ColorRect = ColorRect.new()
+		placeholder.color = border_col.darkened(0.55)
+		placeholder.custom_minimum_size = Vector2(240, 336)
+		vbox.add_child(placeholder)
+
+	var card_name: String = ((cd.adv_name if is_adv else cd.card_name) if cd else fallback_name)
+	var name_lbl: Label = Label.new()
+	name_lbl.text = card_name
+	name_lbl.add_theme_font_size_override("font_size", 14)
+	name_lbl.add_theme_color_override("font_color",
+		Color(1.0, 0.90, 0.50) if is_adv else Color(0.85, 0.92, 1.0))
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_lbl.custom_minimum_size = Vector2(240, 0)
+	vbox.add_child(name_lbl)
+
+	if cd and cd.stars > 0:
+		var stars_lbl: Label = Label.new()
+		stars_lbl.text = "⭐".repeat(cd.stars)
+		stars_lbl.add_theme_font_size_override("font_size", 13)
+		stars_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		vbox.add_child(stars_lbl)
+
 	return outer
 
 
