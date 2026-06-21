@@ -755,9 +755,14 @@ func _setup_enemy_screen_display() -> void:
 
 func _init_bot_state() -> void:
 	for bot_id: int in GameNetwork.bot_ids:
-		var supply: Dictionary = {}
-		for color: CardData.SupplyColor in CardData.SupplyColor.values():
-			supply[int(color)] = 2
+		var supply: Dictionary = {
+			int(CardData.SupplyColor.DUST):     4,
+			int(CardData.SupplyColor.METALS):   2,
+			int(CardData.SupplyColor.LIQUIDS):  2,
+			int(CardData.SupplyColor.ORGANIX):  1,
+			int(CardData.SupplyColor.ELECTRIX): 1,
+			int(CardData.SupplyColor.THRUST):   0,
+		}
 		_bot_supplies[bot_id] = supply
 		_bot_hands[bot_id] = $Board.draw_card_data(6)
 		_bot_boards[bot_id] = []
