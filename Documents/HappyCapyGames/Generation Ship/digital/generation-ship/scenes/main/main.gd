@@ -795,8 +795,8 @@ func _run_bot_turn(bot_id: int) -> void:
 		return
 	var difficulty: int = GameNetwork.bot_difficulty.get(bot_id, BotAI.Difficulty.EASY)
 	var action: Dictionary = BotAI.decide_action(
-		difficulty, _bot_hands[bot_id], _bot_supplies[bot_id],
-		_bot_boards[bot_id], _round)
+		difficulty, _bot_hand(bot_id), _bot_supplies.get(bot_id, {}) as Dictionary,
+		_bot_boards.get(bot_id, []) as Array, _round)
 	match action.get("type", "pass"):
 		"place_sector":
 			_bot_place_sector(bot_id, action["card"] as CardData)
@@ -814,8 +814,21 @@ func _run_bot_turn(bot_id: int) -> void:
 			_bot_pass(bot_id)
 
 
+func _bot_hand(bot_id: int) -> Array[CardData]:
+	var result: Array[CardData] = []
+	for item: Variant in (_bot_hands.get(bot_id, []) as Array):
+		if item is CardData:
+			result.append(item as CardData)
+	return result
+
+func _bot_set_hand(bot_id: int, hand: Array[CardData]) -> void:
+	_bot_hands[bot_id] = hand
+
+
 func _bot_place_sector(bot_id: int, card_data: CardData) -> void:
-	_bot_hands[bot_id].erase(card_data)
+	var hand: Array[CardData] = _bot_hand(bot_id)
+	hand.erase(card_data)
+	_bot_set_hand(bot_id, hand)
 	var color: int = int(card_data.color)
 	_bot_supplies[bot_id][color] = max(0, _bot_supplies[bot_id].get(color, 0) - max(0, card_data.cost))
 	_bot_boards[bot_id].append({"sector": card_data, "is_advanced": false, "techs": [], "stored": {}})
@@ -823,7 +836,9 @@ func _bot_place_sector(bot_id: int, card_data: CardData) -> void:
 
 
 func _bot_place_tech(bot_id: int, card_data: CardData, slot_idx: int) -> void:
-	_bot_hands[bot_id].erase(card_data)
+	var hand: Array[CardData] = _bot_hand(bot_id)
+	hand.erase(card_data)
+	_bot_set_hand(bot_id, hand)
 	var color: int = int(card_data.color)
 	_bot_supplies[bot_id][color] = max(0, _bot_supplies[bot_id].get(color, 0) - max(0, card_data.cost))
 	(_bot_boards[bot_id][slot_idx]["techs"] as Array).append(card_data)
@@ -831,12 +846,13 @@ func _bot_place_tech(bot_id: int, card_data: CardData, slot_idx: int) -> void:
 
 
 func _bot_do_research(bot_id: int) -> void:
-	var hand: Array[CardData] = _bot_hands[bot_id]
+	var hand: Array[CardData] = _bot_hand(bot_id)
 	if hand.is_empty():
 		return
 	hand.sort_custom(func(a: CardData, b: CardData) -> bool: return a.cost < b.cost)
 	$Board.add_to_discard(hand.pop_front())
 	hand.append_array($Board.draw_card_data(1))
+	_bot_set_hand(bot_id, hand)
 
 
 func _bot_pass(bot_id: int) -> void:
@@ -852,7 +868,9 @@ func _apply_bot_effect_steps(bot_id: int, steps: Array[Dictionary]) -> void:
 	for step: Dictionary in steps:
 		match step.get("type"):
 			"draw":
-				_bot_hands[bot_id].append_array($Board.draw_card_data(int(step.get("count", 1))))
+				var hand: Array[CardData] = _bot_hand(bot_id)
+				hand.append_array($Board.draw_card_data(int(step.get("count", 1))))
+				_bot_set_hand(bot_id, hand)
 			"gain_supply":
 				var c: int = int(step.get("color", 0))
 				_bot_supplies[bot_id][c] = _bot_supplies[bot_id].get(c, 0) + int(step.get("amount", 1))
