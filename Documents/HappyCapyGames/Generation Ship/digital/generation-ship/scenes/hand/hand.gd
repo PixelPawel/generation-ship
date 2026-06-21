@@ -9,9 +9,14 @@ const BASE_SPACING := 0.25
 const MAX_HAND_WIDTH := 2.5
 const CARD_WIDTH := 0.504
 const MIN_SPACING := CARD_WIDTH * 0.29
+const HOVER_LIFT := 0.2
+const HOVER_NEIGHBOR_SHIFT := 0.3
+const HOVER_SCALE := HAND_SCALE * 2.2
 const LAYOUT_DURATION := 0.2
 
 var _cards: Array[Node3D] = []
+var _hovered_index := -1
+var _unhover_pending: bool = false
 
 func add_card(card: Node3D, animate: bool = false) -> void:
 	if _cards.has(card):
@@ -22,6 +27,8 @@ func add_card(card: Node3D, animate: bool = false) -> void:
 		add_child(card)
 	_cards.append(card)
 	card.managed_by_hand = true
+	card.hovered.connect(_on_card_hovered)
+	card.unhovered.connect(_on_card_unhovered)
 	card.drag_started.connect(_on_card_drag_started)
 	card.right_clicked.connect(_on_card_right_clicked)
 	_layout(animate)
@@ -41,6 +48,10 @@ func animate_draw_cards(cards: Array[Node3D]) -> void:
 		t.parallel().tween_property(card, "scale", target_scale, 0.32)
 
 func _disconnect_card_signals(card: Node3D) -> void:
+	if card.hovered.is_connected(_on_card_hovered):
+		card.hovered.disconnect(_on_card_hovered)
+	if card.unhovered.is_connected(_on_card_unhovered):
+		card.unhovered.disconnect(_on_card_unhovered)
 	if card.drag_started.is_connected(_on_card_drag_started):
 		card.drag_started.disconnect(_on_card_drag_started)
 	if card.right_clicked.is_connected(_on_card_right_clicked):
@@ -58,6 +69,7 @@ func _fly_out_card(card: Node3D, on_done: Callable = Callable()) -> void:
 	)
 
 func remove_card(card: Node3D) -> void:
+	_hovered_index = -1
 	card.managed_by_hand = false
 	_disconnect_card_signals(card)
 	remove_child(card)
@@ -65,6 +77,7 @@ func remove_card(card: Node3D) -> void:
 	_layout(false)
 
 func remove_card_fly_out(card: Node3D) -> void:
+	_hovered_index = -1
 	card.managed_by_hand = false
 	_disconnect_card_signals(card)
 	_cards.erase(card)
@@ -72,6 +85,7 @@ func remove_card_fly_out(card: Node3D) -> void:
 	_fly_out_card(card)
 
 func detach_card(card: Node3D) -> void:
+	_hovered_index = -1
 	card.managed_by_hand = false
 	_disconnect_card_signals(card)
 	_cards.erase(card)
@@ -104,6 +118,7 @@ func clear() -> void:
 
 func _on_card_clicked_for_discard(card: Node3D) -> void:
 	set_discard_mode(false)
+	_hovered_index = -1
 	card.managed_by_hand = false
 	_disconnect_card_signals(card)
 	_cards.erase(card)
@@ -118,6 +133,20 @@ func _on_card_drag_started(card: Node3D) -> void:
 	detach_card(card)
 	card_drag_started.emit(card)
 
+func _on_card_hovered(card: Node3D) -> void:
+	_unhover_pending = false
+	_hovered_index = _cards.find(card)
+	_layout(true)
+
+func _on_card_unhovered(_card: Node3D) -> void:
+	_unhover_pending = true
+	get_tree().create_timer(0.1).timeout.connect(func() -> void:
+		if _unhover_pending:
+			_unhover_pending = false
+			_hovered_index = -1
+			_layout(true)
+	)
+
 func _layout(animate: bool) -> void:
 	var n := _cards.size()
 	if n == 0:
@@ -131,10 +160,14 @@ func _layout(animate: bool) -> void:
 
 	for i in n:
 		var x := -total_width * 0.5 + i * spacing
+
 		var t := float(i) / float(max(n - 1, 1)) * 2.0 - 1.0
+		var y_hover := HOVER_LIFT if i == _hovered_index else 0.0
 		var rot_z := t * deg_to_rad(-3.0)
-		var target_pos := Vector3(x, 0.0, 0.0)
-		var target_scale := Vector3.ONE * HAND_SCALE
+		var z_depth := 0.05 if i == _hovered_index else 0.0
+
+		var target_pos := Vector3(x, y_hover, z_depth)
+		var target_scale := Vector3.ONE * HOVER_SCALE if i == _hovered_index else Vector3.ONE * HAND_SCALE
 
 		if animate:
 			var tween := _cards[i].create_tween()

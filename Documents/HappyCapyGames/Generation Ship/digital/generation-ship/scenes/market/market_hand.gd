@@ -52,6 +52,8 @@ func _make_card(card_scene: PackedScene, is_advanced: bool) -> Node3D:
 	card.is_advanced = is_advanced
 	add_child(card)
 	_float_phases[card] = randf() * TAU
+	card.hovered.connect(func(_c: Node3D) -> void: CursorManager.set_hover())
+	card.unhovered.connect(func(_c: Node3D) -> void: CursorManager.set_default())
 	return card
 
 func _snap_card_to_rest(card: Node3D) -> void:
