@@ -2983,31 +2983,105 @@ func _build_opp_info_panel(peer_id: int) -> void:
 	right.add_child(sectors_title)
 
 	var slots: Array = snap.get("slots", []) as Array
+
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	right.add_child(scroll)
+
+	var card_flow: HFlowContainer = HFlowContainer.new()
+	card_flow.add_theme_constant_override("h_separation", 8)
+	card_flow.add_theme_constant_override("v_separation", 8)
+	card_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(card_flow)
+
 	var occupied_count: int = 0
 	for slot_v: Variant in slots:
 		var slot: Dictionary = slot_v as Dictionary
 		if not bool(slot.get("occupied", false)):
 			continue
 		occupied_count += 1
-		var is_adv: bool = bool(slot.get("sector_advanced", false))
-		var sector_name: String = str(slot.get("sector_name", ""))
-		var tech_names: Array = slot.get("tech_names", []) as Array
-		var line: String = ("▲ " if is_adv else "• ") + sector_name
-		if tech_names.size() > 0:
-			line += "   [%s]" % ", ".join(tech_names)
-		var slot_lbl: Label = Label.new()
-		slot_lbl.text = line
-		slot_lbl.add_theme_font_size_override("font_size", 16)
-		slot_lbl.add_theme_color_override("font_color",
-			Color(1.0, 0.90, 0.50) if is_adv else Color(0.85, 0.90, 1.0))
-		slot_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		right.add_child(slot_lbl)
+		card_flow.add_child(_build_opp_sector_widget(slot))
 	if occupied_count == 0:
 		var empty_lbl: Label = Label.new()
 		empty_lbl.text = "No sectors placed yet"
 		empty_lbl.add_theme_font_size_override("font_size", 16)
 		empty_lbl.add_theme_color_override("font_color", Color(0.4, 0.45, 0.55))
-		right.add_child(empty_lbl)
+		card_flow.add_child(empty_lbl)
+
+func _build_opp_sector_widget(slot: Dictionary) -> Control:
+	var sector_name: String = str(slot.get("sector_name", ""))
+	var is_adv: bool = bool(slot.get("sector_advanced", false))
+	var tech_names: Array = slot.get("tech_names", []) as Array
+
+	var cd: CardData = null
+	for c: CardData in CardDatabase.sectors:
+		if c.card_name == sector_name or c.adv_name == sector_name:
+			cd = c
+			break
+
+	var supply_color: CardData.SupplyColor = CardData.SupplyColor.DUST
+	if cd:
+		supply_color = cd.adv_color if is_adv else cd.color
+	var border_col: Color = CardData.color_tint(supply_color)
+
+	var outer: PanelContainer = PanelContainer.new()
+	outer.custom_minimum_size = Vector2(130, 0)
+	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.06, 0.09, 0.18, 0.95)
+	panel_style.border_color = border_col
+	panel_style.set_border_width_all(2)
+	panel_style.set_corner_radius_all(4)
+	panel_style.content_margin_left = 6
+	panel_style.content_margin_right = 6
+	panel_style.content_margin_top = 6
+	panel_style.content_margin_bottom = 6
+	outer.add_theme_stylebox_override("panel", panel_style)
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 4)
+	outer.add_child(vbox)
+
+	var img_url: String = ""
+	if cd:
+		img_url = cd.adv_image_url if is_adv else cd.image_url
+	var tex: ImageTexture = ImageCache.get_texture(img_url) if not img_url.is_empty() else null
+
+	if tex:
+		var art: TextureRect = TextureRect.new()
+		art.texture = tex
+		art.custom_minimum_size = Vector2(118, 165)
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		vbox.add_child(art)
+	else:
+		var placeholder: ColorRect = ColorRect.new()
+		placeholder.color = border_col.darkened(0.55)
+		placeholder.custom_minimum_size = Vector2(118, 165)
+		vbox.add_child(placeholder)
+
+	var name_lbl: Label = Label.new()
+	name_lbl.text = ("▲ " if is_adv else "") + sector_name
+	name_lbl.add_theme_font_size_override("font_size", 12)
+	name_lbl.add_theme_color_override("font_color",
+		Color(1.0, 0.90, 0.50) if is_adv else Color(0.85, 0.92, 1.0))
+	name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(name_lbl)
+
+	if not tech_names.is_empty():
+		var sep: HSeparator = HSeparator.new()
+		sep.modulate = Color(0.35, 0.40, 0.55, 0.5)
+		vbox.add_child(sep)
+		for t: Variant in tech_names:
+			var t_lbl: Label = Label.new()
+			t_lbl.text = "• " + str(t)
+			t_lbl.add_theme_font_size_override("font_size", 11)
+			t_lbl.add_theme_color_override("font_color", Color(0.65, 0.80, 1.0))
+			t_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			vbox.add_child(t_lbl)
+
+	return outer
+
 
 func _close_opponent_board_view() -> void:
 	if _opp_info_panel:
