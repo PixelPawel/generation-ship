@@ -282,20 +282,7 @@ func _process(_delta: float) -> void:
 		_check_stack_hover()
 
 func _check_stack_hover() -> void:
-	var camera := get_viewport().get_camera_3d()
-	if not camera:
-		return
-	var mouse := get_viewport().get_mouse_position()
-	var from := camera.project_ray_origin(mouse)
-	var dir := camera.project_ray_normal(mouse)
-	if abs(dir.y) < 0.001:
-		return
-	var ray_t := (global_position.y + 0.05 - from.y) / dir.y
-	if ray_t < 0.0:
-		return
-	var hit := to_local(from + dir * ray_t)
-	var in_zone: bool = abs(hit.x) < 0.36 and hit.z < 0.50 and hit.z > -3.60
-	var want_expanded: bool = in_zone or _any_tech_elevated()
+	var want_expanded: bool = _any_tech_elevated()
 	if want_expanded != _stack_expanded:
 		_fan_tech_slots(want_expanded)
 
