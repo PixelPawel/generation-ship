@@ -6,15 +6,16 @@ enum Difficulty { EASY = 0, NORMAL = 1, HARD = 2 }
 const _TECH_CAPACITY: int = 3
 
 # Returns {type, card?, slot_idx?}
-# type: "pass" | "research" | "place_sector" | "place_tech"
+# type: "pass" | "research" | "buy_sector" | "place_tech"
 static func decide_action(
 	difficulty: int,
 	hand: Array[CardData],
 	supplies: Dictionary,
 	bot_board: Array,
-	_round: int
+	_round: int,
+	market_sectors: Array[CardData]
 ) -> Dictionary:
-	var sectors: Array[Dictionary] = _get_affordable_sector_plays(hand, supplies)
+	var sectors: Array[Dictionary] = _get_affordable_sector_plays(market_sectors, supplies)
 	var techs: Array[Dictionary] = _get_affordable_tech_plays(hand, supplies, bot_board)
 
 	match difficulty:
@@ -73,7 +74,6 @@ static func _decide_hard(
 ) -> Dictionary:
 	var all: Array[Dictionary] = sectors + techs
 	if all.is_empty():
-		# Research: discard lowest-cost card if we have options
 		if hand.size() > 1:
 			var sorted: Array[CardData] = hand.duplicate()
 			sorted.sort_custom(func(a: CardData, b: CardData) -> bool: return a.cost < b.cost)
@@ -90,7 +90,7 @@ static func _score_play(play: Dictionary, bot_board: Array, advanced: bool) -> f
 	var card: CardData = play["card"] as CardData
 	var score: float = float(card.stars) * 2.0
 	if card.is_star_card:
-		score += 3.0 if not advanced else 3.0
+		score += 3.0
 	if play["type"] == "place_tech":
 		var slot_idx: int = play["slot_idx"] as int
 		if slot_idx >= 0 and slot_idx < bot_board.size():
@@ -103,14 +103,12 @@ static func _score_play(play: Dictionary, bot_board: Array, advanced: bool) -> f
 
 # ── Candidate generation ───────────────────────────────────────────────────────
 
-static func _get_affordable_sector_plays(hand: Array[CardData], supplies: Dictionary) -> Array[Dictionary]:
+static func _get_affordable_sector_plays(market_sectors: Array[CardData], supplies: Dictionary) -> Array[Dictionary]:
 	var plays: Array[Dictionary] = []
-	for card: CardData in hand:
-		if card.card_type != CardData.CardType.SECTOR:
-			continue
+	for card: CardData in market_sectors:
 		var avail: int = supplies.get(int(card.color), 0) as int
 		if avail >= max(0, card.cost):
-			plays.append({type = "place_sector", card = card})
+			plays.append({type = "buy_sector", card = card})
 	return plays
 
 
@@ -129,5 +127,5 @@ static func _get_affordable_tech_plays(
 			var avail: int = supplies.get(int(card.color), 0) as int
 			if avail >= max(0, card.cost):
 				plays.append({type = "place_tech", card = card, slot_idx = i})
-				break  # one play per slot per card is enough
+				break
 	return plays

@@ -819,19 +819,13 @@ func _run_bot_turn(bot_id: int) -> void:
 		_server_handle_end_turn()
 		return
 	var difficulty: int = GameNetwork.bot_difficulty.get(bot_id, BotAI.Difficulty.EASY)
-	var _dbg_hand: Array[CardData] = _bot_hand(bot_id)
-	var _dbg_sup: Dictionary = _bot_supplies.get(bot_id, {}) as Dictionary
-	print("[BOT] turn bot=", bot_id, " diff=", difficulty, " hand=", _dbg_hand.size(),
-		" supply=", _dbg_sup, " boards=", (_bot_boards.get(bot_id, []) as Array).size())
-	for _dbg_c: CardData in _dbg_hand:
-		print("[BOT]   card=", _dbg_c.card_name, " type=", _dbg_c.card_type, " color=", _dbg_c.color, " cost=", _dbg_c.cost)
+	var market_sectors: Array[CardData] = $Board.get_available_dust_sectors()
 	var action: Dictionary = BotAI.decide_action(
 		difficulty, _bot_hand(bot_id), _bot_supplies.get(bot_id, {}) as Dictionary,
-		_bot_boards.get(bot_id, []) as Array, _round)
-	print("[BOT] action=", action)
+		_bot_boards.get(bot_id, []) as Array, _round, market_sectors)
 	match action.get("type", "pass"):
-		"place_sector":
-			_bot_place_sector(bot_id, action["card"] as CardData)
+		"buy_sector":
+			_bot_buy_sector(bot_id, action["card"] as CardData)
 			_broadcast_bot_states()
 			await get_tree().create_timer(0.5).timeout
 			_server_handle_end_turn()
@@ -860,12 +854,10 @@ func _bot_set_hand(bot_id: int, hand: Array[CardData]) -> void:
 	_bot_hands[bot_id] = hand
 
 
-func _bot_place_sector(bot_id: int, card_data: CardData) -> void:
-	var hand: Array[CardData] = _bot_hand(bot_id)
-	hand.erase(card_data)
-	_bot_set_hand(bot_id, hand)
+func _bot_buy_sector(bot_id: int, card_data: CardData) -> void:
 	var color: int = int(card_data.color)
 	_bot_supplies[bot_id][color] = max(0, _bot_supplies[bot_id].get(color, 0) - max(0, card_data.cost))
+	$Board.get_market().remove_card(card_data)
 	_bot_boards[bot_id].append({"sector": card_data, "is_advanced": false, "techs": [], "stored": {}})
 	_apply_bot_effect_steps(bot_id, _simple_bot_card_steps(card_data))
 
@@ -1227,7 +1219,6 @@ func _broadcast_my_state() -> void:
 
 func _apply_opponent_state(state: Dictionary) -> void:
 	var peer_id: int = state.get("peer_id", 0)
-	print("[OPP] _apply_opponent_state peer_id=", peer_id, " slots=", (state.get("slots", []) as Array).size())
 	_opp_snapshots[peer_id] = state
 	if _market_panel:
 		_market_panel.update_opponent(peer_id, state.get("hand_size", 0), state.get("supply", {}), state.get("vp", 0))
@@ -2849,9 +2840,6 @@ func _rpc_sync_expedition_reveal(slot_idx: int) -> void:
 # ── Opponent board view ───────────────────────────────────────────────────────
 
 func _show_opponent_board(peer_id: int) -> void:
-	print("[OPP] _show_opponent_board called, peer_id=", peer_id,
-		" has_snapshot=", _opp_snapshots.has(peer_id),
-		" snapshot_keys=", _opp_snapshots.keys())
 	if not _opp_snapshots.has(peer_id):
 		return
 	if _opp_info_panel:
