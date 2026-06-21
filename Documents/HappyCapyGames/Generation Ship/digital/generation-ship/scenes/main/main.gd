@@ -774,14 +774,39 @@ func _update_bots_for_new_round() -> void:
 		_bot_supplies[bot_id] = supply
 
 func _get_bot_snapshot(bot_id: int) -> Dictionary:
-	var hand_arr: Array = _bot_hands.get(bot_id, [])
+	var hand_arr: Array = _bot_hands.get(bot_id, []) as Array
+	var board: Array = _bot_boards.get(bot_id, []) as Array
+	var slot_snaps: Array = []
+	for entry_v: Variant in board:
+		var entry: Dictionary = entry_v as Dictionary
+		var sector: CardData = entry.get("sector") as CardData
+		if sector == null:
+			continue
+		var is_adv: bool = bool(entry.get("is_advanced", false))
+		var techs: Array = entry.get("techs", []) as Array
+		var tech_names: Array[String] = []
+		for t: Variant in techs:
+			var tc: CardData = t as CardData
+			if tc:
+				tech_names.append(tc.card_name)
+		slot_snaps.append({
+			"occupied": true,
+			"optimize_count": 0,
+			"max_optimizations": 0,
+			"is_optimized": false,
+			"tech_count": techs.size(),
+			"sector_name": sector.adv_name if (is_adv and not sector.adv_name.is_empty()) else sector.card_name,
+			"sector_advanced": is_adv,
+			"tech_names": tech_names,
+			"position": {"x": 0.0, "z": 0.0},
+		})
 	return {
 		"peer_id": bot_id,
 		"supply": _bot_supplies.get(bot_id, {}),
 		"hand_size": hand_arr.size(),
 		"vp": 0,
 		"vp_lines": [],
-		"slots": [],
+		"slots": slot_snaps,
 	}
 
 # ── Bot AI turn engine ────────────────────────────────────────────────────────
@@ -800,14 +825,17 @@ func _run_bot_turn(bot_id: int) -> void:
 	match action.get("type", "pass"):
 		"place_sector":
 			_bot_place_sector(bot_id, action["card"] as CardData)
+			_broadcast_bot_states()
 			await get_tree().create_timer(0.5).timeout
 			_server_handle_end_turn()
 		"place_tech":
 			_bot_place_tech(bot_id, action["card"] as CardData, action["slot_idx"] as int)
+			_broadcast_bot_states()
 			await get_tree().create_timer(0.5).timeout
 			_server_handle_end_turn()
 		"research":
 			_bot_do_research(bot_id)
+			_broadcast_bot_states()
 			await get_tree().create_timer(0.3).timeout
 			_bot_pass(bot_id)
 		_:
@@ -858,6 +886,15 @@ func _bot_do_research(bot_id: int) -> void:
 func _bot_pass(bot_id: int) -> void:
 	_bots_passed_this_round.append(bot_id)
 	_server_handle_pass()
+
+
+func _broadcast_bot_states() -> void:
+	for bot_id: int in GameNetwork.bot_ids:
+		var bot_state: Dictionary = _get_bot_snapshot(bot_id)
+		_apply_opponent_state(bot_state)
+		for peer_id: int in GameNetwork.player_order:
+			if peer_id != 1 and not GameNetwork.is_bot(peer_id):
+				_rpc_recv_board_state.rpc_id(peer_id, bot_state)
 
 
 func _simple_bot_card_steps(_card_data: CardData) -> Array[Dictionary]:
