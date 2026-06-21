@@ -2897,29 +2897,10 @@ func _build_opp_info_panel(peer_id: int) -> void:
 	hsep.modulate = Color(0.4, 0.4, 0.5, 0.5)
 	outer.add_child(hsep)
 
-	# ── Body ────────────────────────────────────────────────────────────────────
-	var body: HBoxContainer = HBoxContainer.new()
-	body.add_theme_constant_override("separation", 24)
-	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	outer.add_child(body)
-
-	# Left column: supply + hand + VP
-	var left: VBoxContainer = VBoxContainer.new()
-	left.add_theme_constant_override("separation", 10)
-	left.custom_minimum_size = Vector2(280, 0)
-	body.add_child(left)
-
-	var supply_title: Label = Label.new()
-	supply_title.text = "SUPPLIES"
-	supply_title.add_theme_font_size_override("font_size", 14)
-	supply_title.add_theme_color_override("font_color", Color(0.55, 0.6, 0.75))
-	left.add_child(supply_title)
-
-	var supply_grid: GridContainer = GridContainer.new()
-	supply_grid.columns = 2
-	supply_grid.add_theme_constant_override("h_separation", 20)
-	supply_grid.add_theme_constant_override("v_separation", 8)
-	left.add_child(supply_grid)
+	# ── Stats bar ───────────────────────────────────────────────────────────────
+	var stats_bar: HBoxContainer = HBoxContainer.new()
+	stats_bar.add_theme_constant_override("separation", 16)
+	outer.add_child(stats_bar)
 
 	var supply_dict: Dictionary = snap.get("supply", {})
 	var supply_paths: Array[String] = [
@@ -2930,11 +2911,10 @@ func _build_opp_info_panel(peer_id: int) -> void:
 		"res://assets/ui/supply/Electrix.png",
 		"res://assets/ui/supply/Thrust.png",
 	]
-	var supply_names: Array[String] = ["Dust", "Metals", "Liquids", "Organix", "Electrix", "Thrust"]
 	for si: int in 6:
 		var cell: HBoxContainer = HBoxContainer.new()
-		cell.add_theme_constant_override("separation", 6)
-		supply_grid.add_child(cell)
+		cell.add_theme_constant_override("separation", 5)
+		stats_bar.add_child(cell)
 		var icon: TextureRect = TextureRect.new()
 		icon.texture = load(supply_paths[si]) as Texture2D
 		icon.custom_minimum_size = Vector2(22, 22)
@@ -2943,82 +2923,67 @@ func _build_opp_info_panel(peer_id: int) -> void:
 		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		cell.add_child(icon)
 		var amt_lbl: Label = Label.new()
-		amt_lbl.text = "%s  %d" % [supply_names[si], supply_dict.get(si, 0)]
-		amt_lbl.add_theme_font_size_override("font_size", 17)
+		amt_lbl.text = str(supply_dict.get(si, 0))
+		amt_lbl.add_theme_font_size_override("font_size", 18)
 		amt_lbl.add_theme_color_override("font_color", Color(0.75, 0.82, 1.0))
 		amt_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		cell.add_child(amt_lbl)
 
-	var stats_sep: HSeparator = HSeparator.new()
-	stats_sep.modulate = Color(0.4, 0.4, 0.5, 0.3)
-	left.add_child(stats_sep)
+	var sv1: VSeparator = VSeparator.new()
+	sv1.modulate = Color(0.4, 0.4, 0.5, 0.5)
+	stats_bar.add_child(sv1)
 
-	var hand_stat: Label = Label.new()
-	hand_stat.text = "♠  Hand: %d cards" % snap.get("hand_size", 0)
-	hand_stat.add_theme_font_size_override("font_size", 18)
-	hand_stat.add_theme_color_override("font_color", Color(0.70, 0.82, 1.0))
-	left.add_child(hand_stat)
+	var hand_lbl: Label = Label.new()
+	hand_lbl.text = "♠  %d cards" % snap.get("hand_size", 0)
+	hand_lbl.add_theme_font_size_override("font_size", 18)
+	hand_lbl.add_theme_color_override("font_color", Color(0.70, 0.82, 1.0))
+	hand_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	stats_bar.add_child(hand_lbl)
 
-	var vp_stat: Label = Label.new()
-	vp_stat.text = "⭐  VP: %d" % snap.get("vp", 0)
-	vp_stat.add_theme_font_size_override("font_size", 20)
-	vp_stat.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
-	left.add_child(vp_stat)
+	var sv2: VSeparator = VSeparator.new()
+	sv2.modulate = Color(0.4, 0.4, 0.5, 0.5)
+	stats_bar.add_child(sv2)
 
-	var vsep: VSeparator = VSeparator.new()
-	vsep.modulate = Color(0.4, 0.4, 0.5, 0.5)
-	body.add_child(vsep)
+	var vp_lbl: Label = Label.new()
+	vp_lbl.text = "⭐  VP: %d" % snap.get("vp", 0)
+	vp_lbl.add_theme_font_size_override("font_size", 20)
+	vp_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
+	vp_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	stats_bar.add_child(vp_lbl)
 
-	# Right column: placed sectors
-	var right: VBoxContainer = VBoxContainer.new()
-	right.add_theme_constant_override("separation", 8)
-	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.add_child(right)
+	var hsep2: HSeparator = HSeparator.new()
+	hsep2.modulate = Color(0.4, 0.4, 0.5, 0.5)
+	outer.add_child(hsep2)
 
-	var sectors_title: Label = Label.new()
-	sectors_title.text = "PLACED SECTORS"
-	sectors_title.add_theme_font_size_override("font_size", 14)
-	sectors_title.add_theme_color_override("font_color", Color(0.55, 0.6, 0.75))
-	right.add_child(sectors_title)
+	# ── Sector columns ──────────────────────────────────────────────────────────
+	var sectors_row: HBoxContainer = HBoxContainer.new()
+	sectors_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sectors_row.add_theme_constant_override("separation", 8)
+	outer.add_child(sectors_row)
 
 	var slots: Array = snap.get("slots", []) as Array
+	var occupied_slots: Array = []
+	for sv: Variant in slots:
+		if bool((sv as Dictionary).get("occupied", false)):
+			occupied_slots.append(sv as Dictionary)
+	while occupied_slots.size() < 6:
+		occupied_slots.append({"occupied": false})
 
-	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	right.add_child(scroll)
-
-	var card_flow: HFlowContainer = HFlowContainer.new()
-	card_flow.add_theme_constant_override("h_separation", 8)
-	card_flow.add_theme_constant_override("v_separation", 8)
-	card_flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(card_flow)
-
-	var occupied_count: int = 0
-	for slot_v: Variant in slots:
-		var slot: Dictionary = slot_v as Dictionary
-		if not bool(slot.get("occupied", false)):
-			continue
-		occupied_count += 1
-		card_flow.add_child(_build_opp_sector_widget(slot))
-	if occupied_count == 0:
-		var empty_lbl: Label = Label.new()
-		empty_lbl.text = "No sectors placed yet"
-		empty_lbl.add_theme_font_size_override("font_size", 16)
-		empty_lbl.add_theme_color_override("font_color", Color(0.4, 0.45, 0.55))
-		card_flow.add_child(empty_lbl)
+	for slot_v: Variant in occupied_slots:
+		sectors_row.add_child(_build_opp_sector_widget(slot_v as Dictionary))
 
 func _build_opp_sector_widget(slot: Dictionary) -> Control:
+	var occupied: bool = bool(slot.get("occupied", false))
 	var sector_name: String = str(slot.get("sector_name", ""))
 	var is_adv: bool = bool(slot.get("sector_advanced", false))
 	var tech_names: Array = slot.get("tech_names", []) as Array
 
 	var cd: CardData = null
-	for c: CardData in CardDatabase.sectors:
-		if c.card_name == sector_name or c.adv_name == sector_name:
-			cd = c
-			break
+	if occupied:
+		for c: CardData in CardDatabase.sectors:
+			if c.card_name == sector_name or c.adv_name == sector_name:
+				cd = c
+				break
 
 	var supply_color: CardData.SupplyColor = CardData.SupplyColor.DUST
 	if cd:
@@ -3026,10 +2991,11 @@ func _build_opp_sector_widget(slot: Dictionary) -> Control:
 	var border_col: Color = CardData.color_tint(supply_color)
 
 	var outer: PanelContainer = PanelContainer.new()
-	outer.custom_minimum_size = Vector2(130, 0)
+	outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	outer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.06, 0.09, 0.18, 0.95)
-	panel_style.border_color = border_col
+	panel_style.bg_color = Color(0.06, 0.09, 0.18, 0.95) if occupied else Color(0.04, 0.06, 0.12, 0.6)
+	panel_style.border_color = border_col if occupied else Color(0.25, 0.28, 0.38, 0.5)
 	panel_style.set_border_width_all(2)
 	panel_style.set_corner_radius_all(4)
 	panel_style.content_margin_left = 6
@@ -3042,6 +3008,17 @@ func _build_opp_sector_widget(slot: Dictionary) -> Control:
 	vbox.add_theme_constant_override("separation", 4)
 	outer.add_child(vbox)
 
+	if not occupied:
+		var empty_lbl: Label = Label.new()
+		empty_lbl.text = "—"
+		empty_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		empty_lbl.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		empty_lbl.add_theme_font_size_override("font_size", 28)
+		empty_lbl.add_theme_color_override("font_color", Color(0.25, 0.28, 0.38, 0.6))
+		vbox.add_child(empty_lbl)
+		return outer
+
 	var img_url: String = ""
 	if cd:
 		img_url = cd.adv_image_url if is_adv else cd.image_url
@@ -3050,22 +3027,23 @@ func _build_opp_sector_widget(slot: Dictionary) -> Control:
 	if tex:
 		var art: TextureRect = TextureRect.new()
 		art.texture = tex
-		art.custom_minimum_size = Vector2(118, 165)
+		art.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		vbox.add_child(art)
 	else:
 		var placeholder: ColorRect = ColorRect.new()
 		placeholder.color = border_col.darkened(0.55)
-		placeholder.custom_minimum_size = Vector2(118, 165)
+		placeholder.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		vbox.add_child(placeholder)
 
 	var name_lbl: Label = Label.new()
 	name_lbl.text = ("▲ " if is_adv else "") + sector_name
-	name_lbl.add_theme_font_size_override("font_size", 12)
+	name_lbl.add_theme_font_size_override("font_size", 13)
 	name_lbl.add_theme_color_override("font_color",
 		Color(1.0, 0.90, 0.50) if is_adv else Color(0.85, 0.92, 1.0))
 	name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox.add_child(name_lbl)
 
 	if not tech_names.is_empty():
