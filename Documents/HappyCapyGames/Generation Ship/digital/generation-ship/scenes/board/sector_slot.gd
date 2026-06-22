@@ -95,6 +95,7 @@ func _setup_display() -> void:
 		spr.pixel_size = 0.00004
 		spr.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		spr.no_depth_test = true
+		spr.render_priority = 2
 		spr.position = Vector3(X_START + i * X_STEP, DISC_Y, DISC_Z)
 		spr.visible = false
 		add_child(spr)
@@ -117,6 +118,7 @@ func _make_badge(pos: Vector3, color: Color, outlined: bool = false) -> Label3D:
 	lbl.pixel_size = 0.005
 	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	lbl.no_depth_test = true
+	lbl.render_priority = 2
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.modulate = color
 	if outlined:
