@@ -41,7 +41,7 @@ static func decide_bid(
 		Difficulty.EASY:
 			return 0
 		Difficulty.NORMAL:
-			return current_bid + 1 if current_bid < budget / 2 else 0
+			return current_bid + 1 if current_bid < budget / 2.0 else 0
 		Difficulty.HARD:
 			return current_bid + 1 if current_bid < budget - 1 else 0
 	return 0
