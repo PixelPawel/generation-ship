@@ -85,7 +85,7 @@ func _ready() -> void:
 
 func _setup_display() -> void:
 	const DISC_Z: float = 0.28
-	const DISC_Y: float = 0.28
+	const DISC_Y: float = 0.15
 	const X_START: float = -0.37
 	const X_STEP: float = 0.148
 
