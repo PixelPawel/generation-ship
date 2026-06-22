@@ -50,8 +50,8 @@ static func _normalize(s: String) -> String:
 			out += ch
 	return out
 
-func _local_art_url(name: String) -> String:
-	return _local_art.get(_normalize(name), "")
+func _local_art_url(card_name: String) -> String:
+	return _local_art.get(_normalize(card_name), "")
 
 func _load_sector_cards() -> void:
 	# Build dust side lookup by name
