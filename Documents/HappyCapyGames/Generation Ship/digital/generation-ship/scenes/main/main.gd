@@ -132,8 +132,7 @@ var _hover_tweens: Dictionary = {}         # Node3D -> Tween
 var _hover_base_pos: Dictionary = {}       # Node3D -> Vector3
 var _screen_meshes: Dictionary = {}        # Node3D (screen) -> MeshInstance3D
 var _duck_tweens: Dictionary = {}          # SectorSlot -> Tween
-var _duck_base_pos: Dictionary = {}        # SectorSlot -> Vector3
-var _duck_mats: Dictionary = {}            # SectorSlot -> {card: ShaderMaterial, face: BaseMaterial3D}
+var _duck_card_rots: Dictionary = {}       # Node3D (card) -> Vector3 rest rotation
 var _hover_ducked_slots: Dictionary = {}   # Node3D (screen) -> Array[SectorSlot]
 var _info_screen_mesh: MeshInstance3D = null
 var _cs_display: SupplyUI = null
@@ -3698,34 +3697,9 @@ func _setup_screen_hovers() -> void:
 const _HOVER_DIST: float = 0.115
 const _HOVER_IN_SEC: float = 0.25
 const _HOVER_OUT_SEC: float = 0.40
-const _DUCK_DIST: float = 0.06
+const _DUCK_FOLD_RAD: float = PI / 3.0
 const _DUCK_IN_SEC: float = 0.30
 const _DUCK_OUT_SEC: float = 0.45
-
-const _DUCK_ALPHA: float = 0.30
-
-func _collect_slot_mats(slot: SectorSlot) -> Dictionary:
-	var shader_mats: Array = []
-	var base_mats: Array = []
-	for card: Node3D in slot.get_all_placed_cards():
-		var card_mi: MeshInstance3D = card.get_node_or_null("CardMesh") as MeshInstance3D
-		if card_mi:
-			var sm: ShaderMaterial = card_mi.get_surface_override_material(0) as ShaderMaterial
-			if sm:
-				shader_mats.append(sm)
-		var face_node: Node = card.find_child("*screen_image*", true, false)
-		if face_node is MeshInstance3D:
-			var bm: BaseMaterial3D = (face_node as MeshInstance3D).get_surface_override_material(0) as BaseMaterial3D
-			if bm:
-				base_mats.append(bm)
-	return {"s": shader_mats, "b": base_mats}
-
-func _apply_duck_alpha(dtw: Tween, mats: Dictionary, from_a: float, to_a: float, dur: float) -> void:
-	for sm: ShaderMaterial in mats.get("s", []):
-		dtw.parallel().tween_method(func(a: float) -> void: sm.set_shader_parameter("alpha_mult", a), from_a, to_a, dur)
-	for bm: BaseMaterial3D in mats.get("b", []):
-		dtw.parallel().tween_method(func(a: float) -> void:
-			var c: Color = bm.albedo_color; c.a = a; bm.albedo_color = c, from_a, to_a, dur)
 
 func _on_screen_hover_enter(node: Node3D) -> void:
 	var tw: Tween = _hover_tweens.get(node) as Tween
@@ -3744,13 +3718,18 @@ func _on_screen_hover_enter(node: Node3D) -> void:
 		var dtw: Tween = _duck_tweens.get(slot) as Tween
 		if dtw and dtw.is_valid():
 			dtw.kill()
-		_duck_base_pos[slot] = slot.position
-		var mats: Dictionary = _collect_slot_mats(slot)
-		_duck_mats[slot] = mats
-		var away: Vector3 = (slot.global_position - $Camera3D.global_position).normalized()
+		var cards: Array[Node3D] = slot.get_all_placed_cards()
 		dtw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-		dtw.tween_property(slot, "position", slot.position + away * _DUCK_DIST, _DUCK_IN_SEC)
-		_apply_duck_alpha(dtw, mats, 1.0, _DUCK_ALPHA, _DUCK_IN_SEC)
+		var first: bool = true
+		for card: Node3D in cards:
+			if card not in _duck_card_rots:
+				_duck_card_rots[card] = card.rotation
+			var fold_rot: Vector3 = _duck_card_rots[card] + Vector3(_DUCK_FOLD_RAD, 0.0, 0.0)
+			if first:
+				dtw.tween_property(card, "rotation", fold_rot, _DUCK_IN_SEC)
+				first = false
+			else:
+				dtw.parallel().tween_property(card, "rotation", fold_rot, _DUCK_IN_SEC)
 		_duck_tweens[slot] = dtw
 		ducked.append(slot)
 	_hover_ducked_slots[node] = ducked
@@ -3767,9 +3746,16 @@ func _on_screen_hover_exit(node: Node3D) -> void:
 		var dtw: Tween = _duck_tweens.get(slot) as Tween
 		if dtw and dtw.is_valid():
 			dtw.kill()
-		var mats: Dictionary = _duck_mats.get(slot, {})
+		var cards: Array[Node3D] = slot.get_all_placed_cards()
 		dtw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-		dtw.tween_property(slot, "position", _duck_base_pos.get(slot, slot.position), _DUCK_OUT_SEC)
-		_apply_duck_alpha(dtw, mats, _DUCK_ALPHA, 1.0, _DUCK_OUT_SEC)
+		var first: bool = true
+		for card: Node3D in cards:
+			var rest_rot: Vector3 = _duck_card_rots.get(card, card.rotation)
+			if first:
+				dtw.tween_property(card, "rotation", rest_rot, _DUCK_OUT_SEC)
+				first = false
+			else:
+				dtw.parallel().tween_property(card, "rotation", rest_rot, _DUCK_OUT_SEC)
+			_duck_card_rots.erase(card)
 		_duck_tweens[slot] = dtw
 	_hover_ducked_slots.erase(node)
