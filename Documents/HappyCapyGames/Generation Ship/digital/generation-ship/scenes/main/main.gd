@@ -796,21 +796,22 @@ func _setup_log_screen_display() -> void:
 	header.add_theme_font_size_override("font_size", 24)
 	header.add_theme_color_override("font_color", Color(0.65, 0.80, 1.0))
 	header.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	header.offset_bottom = 52.0
+	header.offset_top = 12.0
+	header.offset_bottom = 64.0
 	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	canvas.add_child(header)
 
 	var sep: ColorRect = ColorRect.new()
 	sep.color = Color(0.25, 0.45, 0.80, 0.5)
 	sep.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	sep.offset_top = 52.0
-	sep.offset_bottom = 54.0
+	sep.offset_top = 64.0
+	sep.offset_bottom = 66.0
 	sep.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	canvas.add_child(sep)
 
 	_log_scroll = ScrollContainer.new()
 	_log_scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_log_scroll.offset_top = 56.0
+	_log_scroll.offset_top = 68.0
 	_log_scroll.follow_focus = false
 	_log_scroll.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	canvas.add_child(_log_scroll)
