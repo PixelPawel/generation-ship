@@ -3001,6 +3001,8 @@ func _try_auto_end_turn() -> void:
 func _on_end_turn_pressed() -> void:
 	if not GameNetwork.is_my_turn():
 		return
+	if not $Board.is_major_action_taken():
+		return
 	_ending_turn = true
 	_effect_queue.clear()
 	_effect_slot = null
