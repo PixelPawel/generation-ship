@@ -3688,7 +3688,7 @@ func _setup_screen_hovers() -> void:
 		area.mouse_entered.connect(func() -> void: _on_screen_hover_enter(node))
 		area.mouse_exited.connect(func() -> void: _on_screen_hover_exit(node))
 
-const _HOVER_DIST: float = 0.10
+const _HOVER_DIST: float = 0.115
 const _HOVER_IN_SEC: float = 0.25
 const _HOVER_OUT_SEC: float = 0.40
 
