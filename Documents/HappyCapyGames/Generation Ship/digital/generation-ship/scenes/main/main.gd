@@ -127,6 +127,8 @@ var _log_scroll: ScrollContainer = null
 var _rumble_tweens: Dictionary = {}   # Node3D -> Tween
 var _rumble_base_pos: Dictionary = {} # Node3D -> Vector3
 var _rumble_base_rot: Dictionary = {} # Node3D -> Vector3
+var _hover_tweens: Dictionary = {}    # Node3D -> Tween
+var _hover_base_pos: Dictionary = {}  # Node3D -> Vector3
 var _info_screen_mesh: MeshInstance3D = null
 var _cs_display: SupplyUI = null
 var _end_turn_btn_mesh: MeshInstance3D = null
@@ -247,6 +249,7 @@ func _ready() -> void:
 	_setup_enemy_screen_display()
 	_setup_log_screen_display()
 	_setup_cockpit_switches()
+	_setup_screen_hovers()
 
 	_wire_sector_slots_to_board()
 
@@ -3623,6 +3626,10 @@ func _start_rumble_timer() -> void:
 func _play_rumble() -> void:
 	const JOLT_SEC: float = 0.10
 	const JOLT_COUNT: int = 15  # 15 × 0.10 s = 1.5 s
+	for node: Node3D in [$UiControl, $UiInfo]:
+		var htw: Tween = _hover_tweens.get(node) as Tween
+		if htw and htw.is_valid():
+			htw.kill()
 	for node: Node3D in [$UiControl, $UiInfo, $UiCockpit]:
 		var tw: Tween = _rumble_tweens.get(node) as Tween
 		if tw and tw.is_valid():
@@ -3639,3 +3646,53 @@ func _play_rumble() -> void:
 		tw.tween_property(node, "position", base_pos, 0.40).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		tw.parallel().tween_property(node, "rotation", base_rot, 0.40).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	_rumble_tweens[$UiCockpit].tween_callback(_start_rumble_timer)
+
+func _setup_screen_hovers() -> void:
+	var nodes: Array[Node3D] = [$UiControl, $UiInfo, $UiLog]
+	var names: Array[String] = ["gs_ui_control_screen", "gs_ui_info_screen", "gs_ui_log_screen"]
+	for i: int in nodes.size():
+		var node: Node3D = nodes[i]
+		_hover_base_pos[node] = node.position
+		var mesh: MeshInstance3D = node.find_child(names[i], true, false) as MeshInstance3D
+		if not mesh:
+			continue
+		var area: Area3D = null
+		for child: Node in mesh.get_children():
+			if child is Area3D:
+				area = child as Area3D
+				break
+		if not area:
+			area = Area3D.new()
+			area.input_ray_pickable = true
+			var cshape: CollisionShape3D = CollisionShape3D.new()
+			var box: BoxShape3D = BoxShape3D.new()
+			var aabb: AABB = mesh.mesh.get_aabb()
+			box.size = Vector3(aabb.size.x, aabb.size.y, 0.01)
+			cshape.shape = box
+			cshape.position = aabb.get_center()
+			area.add_child(cshape)
+			mesh.add_child(area)
+		area.mouse_entered.connect(func() -> void: _on_screen_hover_enter(node))
+		area.mouse_exited.connect(func() -> void: _on_screen_hover_exit(node))
+
+const _HOVER_DIST: float = 0.10
+const _HOVER_IN_SEC: float = 0.25
+const _HOVER_OUT_SEC: float = 0.40
+
+func _on_screen_hover_enter(node: Node3D) -> void:
+	var tw: Tween = _hover_tweens.get(node) as Tween
+	if tw and tw.is_valid():
+		tw.kill()
+	var base: Vector3 = _hover_base_pos[node]
+	var dir: Vector3 = ($Camera3D.global_position - node.global_position).normalized()
+	tw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(node, "position", base + dir * _HOVER_DIST, _HOVER_IN_SEC)
+	_hover_tweens[node] = tw
+
+func _on_screen_hover_exit(node: Node3D) -> void:
+	var tw: Tween = _hover_tweens.get(node) as Tween
+	if tw and tw.is_valid():
+		tw.kill()
+	tw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(node, "position", _hover_base_pos[node], _HOVER_OUT_SEC)
+	_hover_tweens[node] = tw
