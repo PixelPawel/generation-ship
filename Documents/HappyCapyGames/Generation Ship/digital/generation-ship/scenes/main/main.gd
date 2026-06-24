@@ -1322,6 +1322,8 @@ func _rpc_sync_auction_started(card_ref: Dictionary, slot_idx: int, is_tech: boo
 	var my_id: int = multiplayer.get_unique_id()
 	var is_active: bool = my_id == active_id
 	var can_pass: bool = is_active and my_id != initiator_id
+	if GameNetwork.is_multiplayer and initiator_id != multiplayer.get_unique_id():
+		_flash_auction_warning()
 	_bid_popup.show_auction(cd, is_adv, min_bid, leader_name, _auction_cost_color, is_active, can_pass)
 	_auction_active = true
 	_show_action_buttons(false)
@@ -1416,6 +1418,33 @@ func _show_auction_toast(message: String) -> void:
 	tween.tween_interval(2.5)
 	tween.tween_property(panel, "modulate:a", 0.0, 0.8)
 	tween.tween_callback(panel.queue_free)
+
+func _flash_auction_warning() -> void:
+	var overlay := ColorRect.new()
+	overlay.color = Color(1.0, 0.0, 0.0, 0.0)
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.z_index = 10
+	var lbl := Label.new()
+	lbl.text = "⚠  AUCTION"
+	lbl.add_theme_font_size_override("font_size", 72)
+	lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lbl.modulate.a = 0.0
+	overlay.add_child(lbl)
+	$UILayer.add_child(overlay)
+	var t: Tween = create_tween()
+	for i: int in 3:
+		t.tween_property(overlay, "color:a", 0.35, 0.12)
+		if i == 0:
+			t.parallel().tween_property(lbl, "modulate:a", 1.0, 0.12)
+		t.tween_property(overlay, "color:a", 0.0, 0.15)
+		if i == 2:
+			t.parallel().tween_property(lbl, "modulate:a", 0.0, 0.15)
+	t.tween_callback(overlay.queue_free)
 
 func _show_won_card_popup() -> void:
 	if _won_popup:
