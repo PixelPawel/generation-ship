@@ -130,6 +130,7 @@ var _rumble_base_pos: Dictionary = {} # Node3D -> Vector3
 var _rumble_base_rot: Dictionary = {} # Node3D -> Vector3
 var _hover_tweens: Dictionary = {}         # Node3D -> Tween
 var _hover_base_pos: Dictionary = {}       # Node3D -> Vector3
+var _hovered_screens: Dictionary = {}      # Node3D -> true while mouse is over it
 var _screen_meshes: Dictionary = {}        # Node3D (screen) -> MeshInstance3D
 var _duck_tweens: Dictionary = {}          # SectorSlot -> Tween
 var _duck_card_pos: Dictionary = {}        # Node3D (tech card) -> Vector3 rest position
@@ -3641,11 +3642,10 @@ func _start_rumble_timer() -> void:
 func _play_rumble() -> void:
 	const JOLT_SEC: float = 0.10
 	const JOLT_COUNT: int = 15  # 15 × 0.10 s = 1.5 s
+	var targets: Array[Node3D] = [$UiCockpit]
 	for node: Node3D in [$UiControl, $UiInfo, $UiLog]:
-		var htw: Tween = _hover_tweens.get(node) as Tween
-		if htw and htw.is_valid():
-			htw.kill()
-	var targets: Array[Node3D] = [$UiControl, $UiInfo, $UiLog, $UiCockpit]
+		if node not in _hovered_screens:
+			targets.append(node)
 	for slot: SectorSlot in $Board.get_all_sector_slots():
 		targets.append(slot)
 	for node: Node3D in targets:
@@ -3702,6 +3702,7 @@ const _DUCK_IN_SEC: float = 0.30
 const _DUCK_OUT_SEC: float = 0.45
 
 func _on_screen_hover_enter(node: Node3D) -> void:
+	_hovered_screens[node] = true
 	var tw: Tween = _hover_tweens.get(node) as Tween
 	if tw and tw.is_valid():
 		tw.kill()
@@ -3740,6 +3741,7 @@ func _on_screen_hover_enter(node: Node3D) -> void:
 	_hover_ducked_slots[node] = ducked
 
 func _on_screen_hover_exit(node: Node3D) -> void:
+	_hovered_screens.erase(node)
 	var tw: Tween = _hover_tweens.get(node) as Tween
 	if tw and tw.is_valid():
 		tw.kill()
