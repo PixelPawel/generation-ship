@@ -3702,7 +3702,7 @@ const _DUCK_DIST: float = 0.06
 const _DUCK_IN_SEC: float = 0.30
 const _DUCK_OUT_SEC: float = 0.45
 
-const _DUCK_X_RANGE: float = 0.35
+const _DUCK_ALPHA: float = 0.30
 
 func _collect_slot_mats(slot: SectorSlot) -> Dictionary:
 	var shader_mats: Array = []
@@ -3741,8 +3741,6 @@ func _on_screen_hover_enter(node: Node3D) -> void:
 	for slot: SectorSlot in $Board.get_all_sector_slots():
 		if not slot.occupied:
 			continue
-		if abs(node.global_position.x - slot.global_position.x) > _DUCK_X_RANGE:
-			continue
 		var dtw: Tween = _duck_tweens.get(slot) as Tween
 		if dtw and dtw.is_valid():
 			dtw.kill()
@@ -3752,7 +3750,7 @@ func _on_screen_hover_enter(node: Node3D) -> void:
 		var away: Vector3 = (slot.global_position - $Camera3D.global_position).normalized()
 		dtw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		dtw.tween_property(slot, "position", slot.position + away * _DUCK_DIST, _DUCK_IN_SEC)
-		_apply_duck_alpha(dtw, mats, 1.0, 0.0, _DUCK_IN_SEC)
+		_apply_duck_alpha(dtw, mats, 1.0, _DUCK_ALPHA, _DUCK_IN_SEC)
 		_duck_tweens[slot] = dtw
 		ducked.append(slot)
 	_hover_ducked_slots[node] = ducked
@@ -3772,6 +3770,6 @@ func _on_screen_hover_exit(node: Node3D) -> void:
 		var mats: Dictionary = _duck_mats.get(slot, {})
 		dtw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		dtw.tween_property(slot, "position", _duck_base_pos.get(slot, slot.position), _DUCK_OUT_SEC)
-		_apply_duck_alpha(dtw, mats, 0.0, 1.0, _DUCK_OUT_SEC)
+		_apply_duck_alpha(dtw, mats, _DUCK_ALPHA, 1.0, _DUCK_OUT_SEC)
 		_duck_tweens[slot] = dtw
 	_hover_ducked_slots.erase(node)
