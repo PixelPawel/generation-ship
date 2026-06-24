@@ -763,11 +763,20 @@ func _setup_log_screen_display() -> void:
 	_log_viewport.transparent_bg = true
 	$UiLog.add_child(_log_viewport)
 
+	# The screen mesh is rotated 90° in the model, so author content in
+	# landscape (760×420) and rotate 90° CW to fill the portrait viewport.
+	var canvas: Control = Control.new()
+	canvas.size = Vector2(760.0, 420.0)
+	canvas.rotation_degrees = 90.0
+	canvas.position = Vector2(420.0, 0.0)
+	canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_log_viewport.add_child(canvas)
+
 	var bg: ColorRect = ColorRect.new()
 	bg.color = Color(0.03, 0.04, 0.09, 0.93)
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_log_viewport.add_child(bg)
+	canvas.add_child(bg)
 
 	var header: Label = Label.new()
 	header.text = "Event Log"
@@ -777,7 +786,7 @@ func _setup_log_screen_display() -> void:
 	header.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	header.offset_bottom = 32.0
 	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_log_viewport.add_child(header)
+	canvas.add_child(header)
 
 	var sep: ColorRect = ColorRect.new()
 	sep.color = Color(0.25, 0.45, 0.80, 0.5)
@@ -785,14 +794,14 @@ func _setup_log_screen_display() -> void:
 	sep.offset_top = 32.0
 	sep.offset_bottom = 34.0
 	sep.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_log_viewport.add_child(sep)
+	canvas.add_child(sep)
 
 	_log_scroll = ScrollContainer.new()
 	_log_scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_log_scroll.offset_top = 36.0
 	_log_scroll.follow_focus = false
 	_log_scroll.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_log_viewport.add_child(_log_scroll)
+	canvas.add_child(_log_scroll)
 
 	_log_vbox = VBoxContainer.new()
 	_log_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
