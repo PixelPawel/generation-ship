@@ -132,7 +132,7 @@ var _hover_tweens: Dictionary = {}         # Node3D -> Tween
 var _hover_base_pos: Dictionary = {}       # Node3D -> Vector3
 var _screen_meshes: Dictionary = {}        # Node3D (screen) -> MeshInstance3D
 var _duck_tweens: Dictionary = {}          # SectorSlot -> Tween
-var _duck_base_pos: Dictionary = {}        # SectorSlot -> Vector3 rest position
+var _duck_card_pos: Dictionary = {}        # Node3D (tech card) -> Vector3 rest position
 var _hover_ducked_slots: Dictionary = {}   # Node3D (screen) -> Array[SectorSlot]
 var _info_screen_mesh: MeshInstance3D = null
 var _cs_display: SupplyUI = null
@@ -3697,7 +3697,7 @@ func _setup_screen_hovers() -> void:
 const _HOVER_DIST: float = 0.115
 const _HOVER_IN_SEC: float = 0.25
 const _HOVER_OUT_SEC: float = 0.40
-const _DUCK_SINK: float = 0.08
+const _DUCK_SLIDE_Z: float = 0.20
 const _DUCK_IN_SEC: float = 0.30
 const _DUCK_OUT_SEC: float = 0.45
 
@@ -3715,13 +3715,26 @@ func _on_screen_hover_enter(node: Node3D) -> void:
 	for slot: SectorSlot in $Board.get_all_sector_slots():
 		if not slot.occupied:
 			continue
+		var tech_cards: Array[Node3D] = []
+		for card: Node3D in slot.get_all_placed_cards():
+			if card != slot.placed_card:
+				tech_cards.append(card)
+		if tech_cards.is_empty():
+			continue
 		var dtw: Tween = _duck_tweens.get(slot) as Tween
 		if dtw and dtw.is_valid():
 			dtw.kill()
-		if slot not in _duck_base_pos:
-			_duck_base_pos[slot] = slot.position
 		dtw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-		dtw.tween_property(slot, "position", _duck_base_pos[slot] - Vector3(0.0, _DUCK_SINK, 0.0), _DUCK_IN_SEC)
+		var first: bool = true
+		for card: Node3D in tech_cards:
+			if card not in _duck_card_pos:
+				_duck_card_pos[card] = card.position
+			var slide_pos: Vector3 = _duck_card_pos[card] + Vector3(0.0, 0.0, _DUCK_SLIDE_Z)
+			if first:
+				dtw.tween_property(card, "position", slide_pos, _DUCK_IN_SEC)
+				first = false
+			else:
+				dtw.parallel().tween_property(card, "position", slide_pos, _DUCK_IN_SEC)
 		_duck_tweens[slot] = dtw
 		ducked.append(slot)
 	_hover_ducked_slots[node] = ducked
@@ -3738,8 +3751,22 @@ func _on_screen_hover_exit(node: Node3D) -> void:
 		var dtw: Tween = _duck_tweens.get(slot) as Tween
 		if dtw and dtw.is_valid():
 			dtw.kill()
+		var tech_cards: Array[Node3D] = []
+		for card: Node3D in slot.get_all_placed_cards():
+			if card != slot.placed_card:
+				tech_cards.append(card)
+		if tech_cards.is_empty():
+			_duck_tweens.erase(slot)
+			continue
 		dtw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-		dtw.tween_property(slot, "position", _duck_base_pos.get(slot, slot.position), _DUCK_OUT_SEC)
-		_duck_base_pos.erase(slot)
+		var first: bool = true
+		for card: Node3D in tech_cards:
+			var rest_pos: Vector3 = _duck_card_pos.get(card, card.position)
+			if first:
+				dtw.tween_property(card, "position", rest_pos, _DUCK_OUT_SEC)
+				first = false
+			else:
+				dtw.parallel().tween_property(card, "position", rest_pos, _DUCK_OUT_SEC)
+			_duck_card_pos.erase(card)
 		_duck_tweens[slot] = dtw
 	_hover_ducked_slots.erase(node)
