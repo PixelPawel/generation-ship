@@ -31,7 +31,7 @@ func _setup_starfield() -> void:
 	var sf: Control = Control.new()
 	sf.set_script(load("res://scenes/ui/starfield.gd"))
 	add_child(sf)
-	move_child(sf, $VBox.get_index())
+	move_child(sf, $DarkOverlay.get_index() + 1)
 	sf.z_index = 0
 
 func _start_animations() -> void:
@@ -45,11 +45,11 @@ func _animate_overlay() -> void:
 	tw.tween_property($DarkOverlay, "color:a", 0.45, 4.0)
 
 func _animate_logo() -> void:
-	var vbox: VBoxContainer = $VBox
-	var base_y: float = vbox.position.y
+	var title: TextureRect = $Title
+	var base_y: float = title.position.y
 	var tw: Tween = create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tw.tween_property(vbox, "position:y", base_y - 6.0, 2.0)
-	tw.tween_property(vbox, "position:y", base_y + 6.0, 2.0)
+	tw.tween_property(title, "position:y", base_y - 6.0, 2.0)
+	tw.tween_property(title, "position:y", base_y + 6.0, 2.0)
 
 func _animate_buttons() -> void:
 	var buttons: Array[Node] = [$VBox/MultiplayerBtn, $VBox/QuitBtn]
