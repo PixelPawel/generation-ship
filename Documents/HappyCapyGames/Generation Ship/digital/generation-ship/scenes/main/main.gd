@@ -3726,13 +3726,15 @@ func _on_screen_hover_enter(node: Node3D) -> void:
 		if dtw and dtw.is_valid():
 			dtw.kill()
 		dtw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-		for i: int in tech_cards.size():
-			var card: Node3D = tech_cards[i]
+		var first: bool = true
+		for card: Node3D in tech_cards:
 			if card not in _duck_card_pos:
 				_duck_card_pos[card] = card.position
-			var slide_pos: Vector3 = _duck_card_pos[card] + Vector3(0.0, 0.0, _DUCK_SLIDE_Z * float(i + 1))
-			if i == 0:
+			var slot_idx: int = card.get_parent().get("slot_index") as int
+			var slide_pos: Vector3 = _duck_card_pos[card] + Vector3(0.0, 0.0, _DUCK_SLIDE_Z * float(slot_idx + 1))
+			if first:
 				dtw.tween_property(card, "position", slide_pos, _DUCK_IN_SEC)
+				first = false
 			else:
 				dtw.parallel().tween_property(card, "position", slide_pos, _DUCK_IN_SEC)
 		_duck_tweens[slot] = dtw
