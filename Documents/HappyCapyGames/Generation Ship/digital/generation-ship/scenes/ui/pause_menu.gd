@@ -14,6 +14,7 @@ const RESOLUTIONS: Array[Vector2i] = [
 const FULLSCREEN_IDX: int = 5
 
 var _settings_panel: Control = null
+var _main_panel: Control = null
 var _resolution_option: OptionButton = null
 var _monitor_option: OptionButton = null
 var _music_slider: HSlider = null
@@ -29,6 +30,13 @@ func _ready() -> void:
 
 func toggle() -> void:
 	visible = not visible
+
+func open_settings() -> void:
+	if _main_panel:
+		_main_panel.visible = false
+	if _settings_panel:
+		_settings_panel.visible = true
+	visible = true
 
 func _build_ui() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -46,6 +54,7 @@ func _build_ui() -> void:
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	add_child(panel)
+	_main_panel = panel
 
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 10)
@@ -301,7 +310,10 @@ func _build_settings_panel() -> void:
 		_rebind_buttons[action] = btns
 
 	var close_btn := _make_button("Close")
-	close_btn.pressed.connect(func(): _settings_panel.visible = false)
+	close_btn.pressed.connect(func() -> void:
+		_settings_panel.visible = false
+		if _main_panel and not _main_panel.visible:
+			visible = false)
 	vbox.add_child(close_btn)
 
 	_load_resolution_setting()

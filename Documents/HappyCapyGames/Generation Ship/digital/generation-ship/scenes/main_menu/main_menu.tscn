@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://b86phomrq56il" path="res://scenes/main_menu/main_menu.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://dbprqc2vk3kwv" path="res://assets/ui/Cover.jpeg" id="2_cover"]
 [ext_resource type="Texture2D" path="res://assets/ui/logo_fun.png" id="3_logo"]
+[ext_resource type="Script" uid="uid://ct67cx1lxa08t" path="res://scenes/ui/pause_menu.gd" id="4_pause_menu"]
 
 [node name="MainMenu" type="Control" unique_id=174534454]
 layout_mode = 3
@@ -64,11 +65,27 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 32
 text = "Start Game"
 
+[node name="SettingsBtn" type="Button" parent="VBox" unique_id=312847291]
+custom_minimum_size = Vector2(440, 64)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Settings"
+
 [node name="QuitBtn" type="Button" parent="VBox" unique_id=145901013]
 custom_minimum_size = Vector2(440, 64)
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
 text = "Quit"
 
+[node name="PauseMenu" type="Control" parent="." unique_id=923741056]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("4_pause_menu")
+
 [connection signal="pressed" from="VBox/MultiplayerBtn" to="." method="_on_multiplayer_pressed"]
+[connection signal="pressed" from="VBox/SettingsBtn" to="." method="_on_settings_btn_pressed"]
 [connection signal="pressed" from="VBox/QuitBtn" to="." method="_on_quit_pressed"]

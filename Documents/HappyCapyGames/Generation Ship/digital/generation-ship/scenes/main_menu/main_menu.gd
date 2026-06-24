@@ -24,6 +24,7 @@ func _ready() -> void:
 	_setup_starfield()
 	_setup_music()
 	$VBox/MultiplayerBtn.modulate.a = 0.0
+	$VBox/SettingsBtn.modulate.a = 0.0
 	$VBox/QuitBtn.modulate.a = 0.0
 	call_deferred("_start_animations")
 	var ver_lbl := Label.new()
@@ -66,6 +67,7 @@ func _start_animations() -> void:
 	_animate_logo()
 	_animate_buttons()
 	_setup_button_hover($VBox/MultiplayerBtn as Button)
+	_setup_button_hover($VBox/SettingsBtn as Button)
 	_setup_button_hover($VBox/QuitBtn as Button)
 
 func _animate_overlay() -> void:
@@ -81,7 +83,7 @@ func _animate_logo() -> void:
 	tw.tween_property(title, "position:y", base_y + 6.0, 2.0)
 
 func _animate_buttons() -> void:
-	var buttons: Array[Node] = [$VBox/MultiplayerBtn, $VBox/QuitBtn]
+	var buttons: Array[Node] = [$VBox/MultiplayerBtn, $VBox/SettingsBtn, $VBox/QuitBtn]
 	for i: int in buttons.size():
 		var btn: Control = buttons[i] as Control
 		var tw: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
@@ -110,6 +112,9 @@ func _on_btn_hover_exit(btn: Button) -> void:
 	tw.tween_property(btn, "scale", Vector2(1.0, 1.0), _BTN_HOVER_OUT_SEC)
 	tw.parallel().tween_property(btn, "modulate", Color(1.0, 1.0, 1.0, 1.0), _BTN_HOVER_OUT_SEC)
 	_btn_tweens[btn] = tw
+
+func _on_settings_btn_pressed() -> void:
+	$PauseMenu.open_settings()
 
 func _on_multiplayer_pressed() -> void:
 	if _music_player:
