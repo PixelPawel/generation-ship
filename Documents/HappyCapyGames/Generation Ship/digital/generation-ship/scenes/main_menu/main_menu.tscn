@@ -21,7 +21,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 texture = ExtResource("2_cover")
-stretch_mode = 6
+stretch_mode = 5
 
 [node name="DarkOverlay" type="ColorRect" parent="." unique_id=6790213]
 layout_mode = 1

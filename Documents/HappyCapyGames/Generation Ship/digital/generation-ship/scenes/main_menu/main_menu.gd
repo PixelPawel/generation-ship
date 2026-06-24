@@ -35,17 +35,9 @@ func _setup_starfield() -> void:
 	sf.z_index = 0
 
 func _start_animations() -> void:
-	_animate_background()
 	_animate_overlay()
 	_animate_logo()
 	_animate_buttons()
-
-func _animate_background() -> void:
-	var bg: TextureRect = $Background
-	bg.pivot_offset = bg.size / 2.0
-	var tw: Tween = create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tw.tween_property(bg, "scale", Vector2(1.06, 1.06), 15.0)
-	tw.tween_property(bg, "scale", Vector2(1.0, 1.0), 15.0)
 
 func _animate_overlay() -> void:
 	var tw: Tween = create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
