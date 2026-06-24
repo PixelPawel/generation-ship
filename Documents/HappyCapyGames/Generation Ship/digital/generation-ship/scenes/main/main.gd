@@ -3701,6 +3701,21 @@ const _DUCK_DIST: float = 0.06
 const _DUCK_IN_SEC: float = 0.30
 const _DUCK_OUT_SEC: float = 0.45
 
+func _set_slot_draw_priority(slot: SectorSlot, card_pri: int, badge_pri: int) -> void:
+	for card: Node in slot.get_children():
+		if not (card is Node3D):
+			continue
+		for mi_node: Node in card.find_children("*", "MeshInstance3D", true, false):
+			var mi: MeshInstance3D = mi_node as MeshInstance3D
+			for s: int in mi.get_surface_override_material_count():
+				var mat: Material = mi.get_surface_override_material(s)
+				if mat:
+					mat.render_priority = card_pri
+	for spr_node: Node in slot.find_children("*", "Sprite3D", true, false):
+		(spr_node as Sprite3D).render_priority = badge_pri
+	for lbl_node: Node in slot.find_children("*", "Label3D", true, false):
+		(lbl_node as Label3D).render_priority = badge_pri
+
 func _get_screen_rect(mesh: MeshInstance3D) -> Rect2:
 	var cam: Camera3D = $Camera3D
 	var aabb: AABB = mesh.mesh.get_aabb()
@@ -3747,6 +3762,7 @@ func _on_screen_hover_enter(node: Node3D) -> void:
 		if dtw and dtw.is_valid():
 			dtw.kill()
 		_duck_base_pos[slot] = slot.position
+		_set_slot_draw_priority(slot, -1, -1)
 		var away: Vector3 = (slot.global_position - $Camera3D.global_position).normalized()
 		dtw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		dtw.tween_property(slot, "position", slot.position + away * _DUCK_DIST, _DUCK_IN_SEC)
@@ -3766,6 +3782,7 @@ func _on_screen_hover_exit(node: Node3D) -> void:
 		var dtw: Tween = _duck_tweens.get(slot) as Tween
 		if dtw and dtw.is_valid():
 			dtw.kill()
+		_set_slot_draw_priority(slot, 1, 2)
 		var base: Vector3 = _duck_base_pos.get(slot, slot.position)
 		dtw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		dtw.tween_property(slot, "position", base, _DUCK_OUT_SEC)
