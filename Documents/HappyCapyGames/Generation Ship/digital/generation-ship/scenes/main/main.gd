@@ -3704,18 +3704,17 @@ const _DUCK_OUT_SEC: float = 0.45
 const _DUCK_X_RANGE: float = 0.35
 
 func _set_slot_draw_priority(slot: SectorSlot, card_pri: int, badge_pri: int) -> void:
+	var ducking: bool = (card_pri < 0)
 	if slot.placed_card:
 		for mi_node: Node in slot.placed_card.find_children("*", "MeshInstance3D", true, false):
 			var mi: MeshInstance3D = mi_node as MeshInstance3D
 			for s: int in mi.get_surface_override_material_count():
 				var mat: Material = mi.get_surface_override_material(s)
-				if mat:
-					mat.render_priority = card_pri
-		var card_mesh: MeshInstance3D = slot.placed_card.get_node_or_null("CardMesh") as MeshInstance3D
-		if card_mesh:
-			var mat: Material = card_mesh.get_surface_override_material(0)
-			if mat:
+				if not mat:
+					continue
 				mat.render_priority = card_pri
+				if mat is BaseMaterial3D:
+					(mat as BaseMaterial3D).no_depth_test = not ducking
 	for spr_node: Node in slot.find_children("*", "Sprite3D", false, false):
 		(spr_node as Sprite3D).render_priority = badge_pri
 	for lbl_node: Node in slot.find_children("*", "Label3D", false, false):
