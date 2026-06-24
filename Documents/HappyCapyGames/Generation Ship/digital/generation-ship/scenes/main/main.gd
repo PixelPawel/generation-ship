@@ -120,6 +120,9 @@ var _auction_active: bool = false
 var _bots_passed_this_round: Array[int] = []
 var _cs_viewport: SubViewport = null
 var _info_viewport: SubViewport = null
+var _log_viewport: SubViewport = null
+var _log_vbox: VBoxContainer = null
+var _log_scroll: ScrollContainer = null
 var _rumble_tweens: Dictionary = {}   # Node3D -> Tween
 var _rumble_base_pos: Dictionary = {} # Node3D -> Vector3
 var _rumble_base_rot: Dictionary = {} # Node3D -> Vector3
@@ -241,6 +244,7 @@ func _ready() -> void:
 	_setup_sfx()
 	_setup_control_screen_display()
 	_setup_enemy_screen_display()
+	_setup_log_screen_display()
 	_setup_cockpit_switches()
 
 	_wire_sector_slots_to_board()
@@ -752,6 +756,101 @@ func _register_info_panel(panel: Control) -> void:
 			_market_panel.visible = not any_active
 	)
 
+func _setup_log_screen_display() -> void:
+	_log_viewport = SubViewport.new()
+	_log_viewport.size = Vector2i(420, 760)
+	_log_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_log_viewport.transparent_bg = true
+	$UiLog.add_child(_log_viewport)
+
+	var bg: ColorRect = ColorRect.new()
+	bg.color = Color(0.03, 0.04, 0.09, 0.93)
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_log_viewport.add_child(bg)
+
+	var header: Label = Label.new()
+	header.text = "Event Log"
+	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	header.add_theme_font_size_override("font_size", 18)
+	header.add_theme_color_override("font_color", Color(0.65, 0.80, 1.0))
+	header.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	header.offset_bottom = 32.0
+	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_log_viewport.add_child(header)
+
+	var sep: ColorRect = ColorRect.new()
+	sep.color = Color(0.25, 0.45, 0.80, 0.5)
+	sep.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	sep.offset_top = 32.0
+	sep.offset_bottom = 34.0
+	sep.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_log_viewport.add_child(sep)
+
+	_log_scroll = ScrollContainer.new()
+	_log_scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_log_scroll.offset_top = 36.0
+	_log_scroll.follow_focus = false
+	_log_scroll.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_log_viewport.add_child(_log_scroll)
+
+	_log_vbox = VBoxContainer.new()
+	_log_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_log_vbox.add_theme_constant_override("separation", 2)
+	_log_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_log_scroll.add_child(_log_vbox)
+
+	var screen_mesh: MeshInstance3D = $UiLog.find_child("gs_ui_log_screen", true, false) as MeshInstance3D
+	if screen_mesh:
+		var aabb: AABB = screen_mesh.mesh.get_aabb()
+		var shader: Shader = load("res://shaders/screen_display.gdshader") as Shader
+		var mat: ShaderMaterial = ShaderMaterial.new()
+		mat.shader = shader
+		mat.set_shader_parameter("viewport_tex", _log_viewport.get_texture())
+		mat.set_shader_parameter("aabb_min", aabb.position)
+		mat.set_shader_parameter("aabb_max", aabb.position + aabb.size)
+		mat.set_shader_parameter("emission_strength", 0.45)
+		mat.set_shader_parameter("exposure", 0.6)
+		mat.set_shader_parameter("scanline_count", 80.0)
+		mat.set_shader_parameter("scanline_depth", 0.05)
+		mat.set_shader_parameter("vignette_strength", 0.2)
+		mat.set_shader_parameter("vignette_falloff", 2.5)
+		mat.set_shader_parameter("bloom_threshold", 0.7)
+		screen_mesh.set_surface_override_material(0, mat)
+
+func _log_action(text: String, color: Color = Color(0.80, 0.88, 1.0)) -> void:
+	if not _log_vbox:
+		return
+	var lbl: Label = Label.new()
+	lbl.text = text
+	lbl.add_theme_font_size_override("font_size", 14)
+	lbl.add_theme_color_override("font_color", color)
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_log_vbox.add_child(lbl)
+	_log_scroll.call_deferred("set_v_scroll", 999999)
+
+# Host → All: append a line to the event log.
+@rpc("authority", "reliable", "call_local")
+func _rpc_log_event(text: String, color_r: float, color_g: float, color_b: float) -> void:
+	_log_action(text, Color(color_r, color_g, color_b))
+
+# Client → Host: broadcast a log entry to all players.
+@rpc("any_peer", "reliable")
+func _rpc_request_log_event(text: String, color_r: float, color_g: float, color_b: float) -> void:
+	if not multiplayer.is_server():
+		return
+	_rpc_log_event.rpc(text, color_r, color_g, color_b)
+
+func _broadcast_log(text: String, color: Color = Color(0.80, 0.88, 1.0)) -> void:
+	if GameNetwork.is_multiplayer:
+		if GameNetwork.is_host:
+			_rpc_log_event.rpc(text, color.r, color.g, color.b)
+		else:
+			_rpc_request_log_event.rpc_id(1, text, color.r, color.g, color.b)
+	else:
+		_log_action(text, color)
+
 func _setup_enemy_screen_display() -> void:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -1000,6 +1099,7 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 		_build_opponent_widget()
 	if GameNetwork.is_multiplayer:
 		_broadcast_my_state()
+	_log_action("─── Round 1 / %d ───" % MAX_ROUNDS, Color(0.6, 0.82, 1.0))
 	if multiplayer.is_server() and GameNetwork.is_bot(GameNetwork.active_peer_id):
 		_run_bot_turn(GameNetwork.active_peer_id)
 
@@ -1036,6 +1136,7 @@ func _do_pass() -> void:
 		else:
 			_rpc_request_pass.rpc_id(1)
 		return
+	_log_action("You: passed", Color(0.55, 0.55, 0.70))
 	var supply_dur: float = _apply_supply_generation()
 	var delay: float = maxf(supply_dur + 0.15, 0.25)
 	get_tree().create_timer(delay).timeout.connect(func() -> void:
@@ -1090,9 +1191,11 @@ func _end_round() -> void:
 	_refresh_all_opp_status_labels()
 	$Board.reset_turn()
 	if _round >= MAX_ROUNDS:
+		_log_action("─── Game over ───", Color(0.6, 0.82, 1.0))
 		_game_over()
 		return
 	_round += 1
+	_log_action("─── Round %d / %d ───" % [_round, MAX_ROUNDS], Color(0.6, 0.82, 1.0))
 	_update_round_label()
 	$Board.draw_cards(6)
 	if multiplayer.is_server() and not GameNetwork.bot_ids.is_empty():
@@ -1291,6 +1394,11 @@ func _refresh_all_opp_status_labels() -> void:
 func _rpc_sync_opp_status(peer_id: int, status: String) -> void:
 	_opp_statuses[peer_id] = status
 	_refresh_opp_status_label(peer_id)
+	var peer_name: String = GameNetwork.player_names.get(peer_id, "Player")
+	if status == "passed":
+		_log_action("%s: passed" % peer_name, Color(0.55, 0.55, 0.70))
+	elif status == "researching":
+		_log_action("%s: researching…" % peer_name, Color(0.50, 0.78, 1.0))
 
 # Client → Host: I entered research mode.
 @rpc("any_peer", "reliable")
@@ -1380,6 +1488,8 @@ func _rpc_sync_auction_started(card_ref: Dictionary, slot_idx: int, is_tech: boo
 	var can_pass: bool = is_active and my_id != initiator_id
 	if GameNetwork.is_multiplayer and initiator_id != multiplayer.get_unique_id():
 		_flash_auction_warning()
+	var _initiator_name: String = GameNetwork.player_names.get(initiator_id, "Player")
+	_log_action("%s: auction for %s" % [_initiator_name, card_name], Color(1.0, 0.72, 0.28))
 	_bid_popup.show_auction(cd, is_adv, min_bid, leader_name, _auction_cost_color, is_active, can_pass)
 	_auction_active = true
 	_show_action_buttons(false)
@@ -1432,6 +1542,7 @@ func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, ca
 		_cn_toast = _cd_toast.adv_name if (_auction_is_adv and not _cd_toast.adv_name.is_empty()) else _cd_toast.card_name
 	var _wn_toast: String = GameNetwork.player_names.get(winner_id, "Player")
 	_show_auction_toast("%s won %s for %d" % [_wn_toast, _cn_toast, final_bid])
+	_log_action("%s won %s for %d" % [_wn_toast, _cn_toast, final_bid], Color(1.0, 0.92, 0.35))
 	UIAudio.play_gavel_sfx()
 	if _bid_is_from_effect:
 		_bid_is_from_effect = false
@@ -1622,6 +1733,8 @@ func _on_card_discarded(card: Node3D) -> void:
 			_hide_effect_hint()
 			$Hand.set_discard_mode(false)
 			$Board.discard_and_draw(card)
+			if not GameNetwork.is_multiplayer:
+				_log_action("You: researched", Color(0.50, 0.78, 1.0))
 			_do_pass()
 
 		EffectMode.PAYMENT_RECYCLE:
@@ -2100,6 +2213,11 @@ func _on_sector_revealed(card_data: CardData, slot_idx: int) -> void:
 func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	if not card.card_data:
 		return
+	var _cd: CardData = card.card_data
+	var _is_adv: bool = bool(card.get("is_advanced"))
+	var _cname: String = _cd.adv_name if _is_adv and not _cd.adv_name.is_empty() else _cd.card_name
+	var _pname: String = GameNetwork.player_names.get(multiplayer.get_unique_id(), "You")
+	_broadcast_log("%s: placed %s" % [_pname, _cname], Color(1.0, 0.88, 0.50))
 	_play_drill_sfx()
 	$Board.refresh_discount_glow()
 	if _effect_mode != EffectMode.NONE:
