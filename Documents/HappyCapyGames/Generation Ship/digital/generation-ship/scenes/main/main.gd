@@ -765,17 +765,18 @@ func _setup_log_screen_display() -> void:
 		_log_font.variation_opentype = {"wght": 500}
 
 	_log_viewport = SubViewport.new()
-	_log_viewport.size = Vector2i(420, 760)
+	# AABB is 0.1308 × 0.0623 (landscape 2.1:1), so viewport must match that
+	# ratio to avoid distortion. 760×362 = 2.099:1.
+	# Canvas is portrait (362×760) rotated 90° CW to fill the landscape viewport.
+	_log_viewport.size = Vector2i(760, 362)
 	_log_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_log_viewport.transparent_bg = true
 	$UiLog.add_child(_log_viewport)
 
-	# The screen mesh is rotated 90° in the model, so author content in
-	# landscape (760×420) and rotate 90° CW to fill the portrait viewport.
 	var canvas: Control = Control.new()
-	canvas.size = Vector2(760.0, 420.0)
+	canvas.size = Vector2(362.0, 760.0)
 	canvas.rotation_degrees = 90.0
-	canvas.position = Vector2(420.0, 0.0)
+	canvas.position = Vector2(760.0, 0.0)
 	canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_log_viewport.add_child(canvas)
 
