@@ -14,6 +14,10 @@ const FULLSCREEN_IDX: int = 5
 func _ready() -> void:
 	theme = GameTheme.get_theme()
 	_apply_saved_settings()
+	_setup_starfield()
+	$VBox/MultiplayerBtn.modulate.a = 0.0
+	$VBox/QuitBtn.modulate.a = 0.0
+	call_deferred("_start_animations")
 	var ver_lbl := Label.new()
 	ver_lbl.text = "v" + ProjectSettings.get_setting("application/config/version")
 	ver_lbl.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -22,6 +26,46 @@ func _ready() -> void:
 	ver_lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.45))
 	ver_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(ver_lbl)
+
+func _setup_starfield() -> void:
+	var sf: Control = Control.new()
+	sf.set_script(load("res://scenes/ui/starfield.gd"))
+	add_child(sf)
+	move_child(sf, $VBox.get_index())
+	sf.z_index = 0
+
+func _start_animations() -> void:
+	_animate_background()
+	_animate_overlay()
+	_animate_logo()
+	_animate_buttons()
+
+func _animate_background() -> void:
+	var bg: TextureRect = $Background
+	bg.pivot_offset = bg.size / 2.0
+	var tw: Tween = create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(bg, "scale", Vector2(1.06, 1.06), 15.0)
+	tw.tween_property(bg, "scale", Vector2(1.0, 1.0), 15.0)
+
+func _animate_overlay() -> void:
+	var tw: Tween = create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property($DarkOverlay, "color:a", 0.58, 4.0)
+	tw.tween_property($DarkOverlay, "color:a", 0.45, 4.0)
+
+func _animate_logo() -> void:
+	var vbox: VBoxContainer = $VBox
+	var base_y: float = vbox.position.y
+	var tw: Tween = create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(vbox, "position:y", base_y - 6.0, 2.0)
+	tw.tween_property(vbox, "position:y", base_y + 6.0, 2.0)
+
+func _animate_buttons() -> void:
+	var buttons: Array[Node] = [$VBox/MultiplayerBtn, $VBox/QuitBtn]
+	for i: int in buttons.size():
+		var btn: Control = buttons[i] as Control
+		var tw: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		tw.tween_interval(0.35 + float(i) * 0.15)
+		tw.tween_property(btn, "modulate:a", 1.0, 0.40)
 
 func _on_multiplayer_pressed() -> void:
 	SceneTransition.change_scene("res://scenes/lobby/lobby.tscn")
