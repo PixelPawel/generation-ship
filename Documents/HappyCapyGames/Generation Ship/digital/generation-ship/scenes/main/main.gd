@@ -3630,14 +3630,17 @@ func _play_rumble() -> void:
 		var htw: Tween = _hover_tweens.get(node) as Tween
 		if htw and htw.is_valid():
 			htw.kill()
-	for node: Node3D in [$UiControl, $UiInfo, $UiLog, $UiCockpit]:
+	var targets: Array[Node3D] = [$UiControl, $UiInfo, $UiLog, $UiCockpit]
+	for slot: SectorSlot in $Board.get_all_sector_slots():
+		targets.append(slot)
+	for node: Node3D in targets:
 		var tw: Tween = _rumble_tweens.get(node) as Tween
 		if tw and tw.is_valid():
 			tw.kill()
 		tw = create_tween()
 		_rumble_tweens[node] = tw
-		var base_pos: Vector3 = _rumble_base_pos[node]
-		var base_rot: Vector3 = _rumble_base_rot[node]
+		var base_pos: Vector3 = _rumble_base_pos.get(node, node.position)
+		var base_rot: Vector3 = _rumble_base_rot.get(node, node.rotation)
 		for _i: int in JOLT_COUNT:
 			var dp: Vector3 = Vector3(randf_range(-0.003, 0.003), randf_range(-0.0015, 0.0015), randf_range(-0.0024, 0.0024))
 			var dr: Vector3 = base_rot + Vector3(randf_range(-0.0015, 0.0015), randf_range(-0.0009, 0.0009), randf_range(-0.0015, 0.0015))
