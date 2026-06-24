@@ -7,6 +7,7 @@ const _BTN_HOVER_IN_SEC: float = 0.15
 const _BTN_HOVER_OUT_SEC: float = 0.22
 
 var _btn_tweens: Dictionary = {}
+var _music_player: AudioStreamPlayer = null
 
 const RESOLUTIONS: Array[Vector2i] = [
 	Vector2i(1280, 720),
@@ -21,6 +22,7 @@ func _ready() -> void:
 	theme = GameTheme.get_theme()
 	_apply_saved_settings()
 	_setup_starfield()
+	_setup_music()
 	$VBox/MultiplayerBtn.modulate.a = 0.0
 	$VBox/QuitBtn.modulate.a = 0.0
 	call_deferred("_start_animations")
@@ -37,6 +39,20 @@ func _process(delta: float) -> void:
 	var vp_size: Vector2 = get_viewport_rect().size
 	var norm: Vector2 = (get_viewport().get_mouse_position() / vp_size - Vector2(0.5, 0.5)) * 2.0
 	$Background.position = $Background.position.lerp(norm * -_PARALLAX_STRENGTH, delta * _PARALLAX_SPEED)
+
+func _setup_music() -> void:
+	var stream: AudioStreamOggVorbis = load("res://assets/music/ambience.ogg") as AudioStreamOggVorbis
+	if not stream:
+		return
+	stream.loop = true
+	_music_player = AudioStreamPlayer.new()
+	_music_player.stream = stream
+	_music_player.bus = &"Music"
+	_music_player.volume_db = -80.0
+	add_child(_music_player)
+	_music_player.play()
+	var tw: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_music_player, "volume_db", 0.0, 2.0)
 
 func _setup_starfield() -> void:
 	var sf: Control = Control.new()
@@ -96,6 +112,8 @@ func _on_btn_hover_exit(btn: Button) -> void:
 	_btn_tweens[btn] = tw
 
 func _on_multiplayer_pressed() -> void:
+	if _music_player:
+		create_tween().tween_property(_music_player, "volume_db", -80.0, 0.25)
 	SceneTransition.change_scene("res://scenes/lobby/lobby.tscn")
 
 func _on_quit_pressed() -> void:
