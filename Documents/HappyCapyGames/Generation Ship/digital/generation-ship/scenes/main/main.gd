@@ -153,7 +153,7 @@ var _es_back_btn: Button = null
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
 func _ready() -> void:
-	for node: Node3D in [$UiControl, $UiInfo, $UiCockpit]:
+	for node: Node3D in [$UiControl, $UiInfo, $UiLog, $UiCockpit]:
 		_rumble_base_pos[node] = node.position
 		_rumble_base_rot[node] = node.rotation
 	_start_rumble_timer()
@@ -3626,11 +3626,11 @@ func _start_rumble_timer() -> void:
 func _play_rumble() -> void:
 	const JOLT_SEC: float = 0.10
 	const JOLT_COUNT: int = 15  # 15 × 0.10 s = 1.5 s
-	for node: Node3D in [$UiControl, $UiInfo]:
+	for node: Node3D in [$UiControl, $UiInfo, $UiLog]:
 		var htw: Tween = _hover_tweens.get(node) as Tween
 		if htw and htw.is_valid():
 			htw.kill()
-	for node: Node3D in [$UiControl, $UiInfo, $UiCockpit]:
+	for node: Node3D in [$UiControl, $UiInfo, $UiLog, $UiCockpit]:
 		var tw: Tween = _rumble_tweens.get(node) as Tween
 		if tw and tw.is_valid():
 			tw.kill()
