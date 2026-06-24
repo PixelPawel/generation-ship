@@ -128,8 +128,12 @@ var _log_font: FontVariation = null
 var _rumble_tweens: Dictionary = {}   # Node3D -> Tween
 var _rumble_base_pos: Dictionary = {} # Node3D -> Vector3
 var _rumble_base_rot: Dictionary = {} # Node3D -> Vector3
-var _hover_tweens: Dictionary = {}    # Node3D -> Tween
-var _hover_base_pos: Dictionary = {}  # Node3D -> Vector3
+var _hover_tweens: Dictionary = {}         # Node3D -> Tween
+var _hover_base_pos: Dictionary = {}       # Node3D -> Vector3
+var _screen_meshes: Dictionary = {}        # Node3D (screen) -> MeshInstance3D
+var _duck_tweens: Dictionary = {}          # SectorSlot -> Tween
+var _duck_base_pos: Dictionary = {}        # SectorSlot -> Vector3
+var _hover_ducked_slots: Dictionary = {}   # Node3D (screen) -> Array[SectorSlot]
 var _info_screen_mesh: MeshInstance3D = null
 var _cs_display: SupplyUI = null
 var _end_turn_btn_mesh: MeshInstance3D = null
@@ -3670,6 +3674,7 @@ func _setup_screen_hovers() -> void:
 		var mesh: MeshInstance3D = node.find_child(names[i], true, false) as MeshInstance3D
 		if not mesh:
 			continue
+		_screen_meshes[node] = mesh
 		var area: Area3D = null
 		for child: Node in mesh.get_children():
 			if child is Area3D:
@@ -3692,6 +3697,30 @@ func _setup_screen_hovers() -> void:
 const _HOVER_DIST: float = 0.115
 const _HOVER_IN_SEC: float = 0.25
 const _HOVER_OUT_SEC: float = 0.40
+const _DUCK_DIST: float = 0.06
+const _DUCK_IN_SEC: float = 0.30
+const _DUCK_OUT_SEC: float = 0.45
+
+func _get_screen_rect(mesh: MeshInstance3D) -> Rect2:
+	var cam: Camera3D = $Camera3D
+	var aabb: AABB = mesh.mesh.get_aabb()
+	var gt: Transform3D = mesh.global_transform
+	var min_s: Vector2 = Vector2(INF, INF)
+	var max_s: Vector2 = Vector2(-INF, -INF)
+	for i: int in 8:
+		var corner: Vector3 = aabb.position + Vector3(
+			aabb.size.x if (i & 1) else 0.0,
+			aabb.size.y if (i & 2) else 0.0,
+			aabb.size.z if (i & 4) else 0.0)
+		var world_corner: Vector3 = gt * corner
+		if cam.is_position_behind(world_corner):
+			continue
+		var sp: Vector2 = cam.unproject_position(world_corner)
+		min_s = min_s.min(sp)
+		max_s = max_s.max(sp)
+	if min_s.x == INF:
+		return Rect2()
+	return Rect2(min_s, max_s - min_s)
 
 func _on_screen_hover_enter(node: Node3D) -> void:
 	var tw: Tween = _hover_tweens.get(node) as Tween
@@ -3703,6 +3732,28 @@ func _on_screen_hover_enter(node: Node3D) -> void:
 	tw.tween_property(node, "position", base + dir * _HOVER_DIST, _HOVER_IN_SEC)
 	_hover_tweens[node] = tw
 
+	var mesh: MeshInstance3D = _screen_meshes.get(node) as MeshInstance3D
+	if not mesh:
+		return
+	var rect: Rect2 = _get_screen_rect(mesh)
+	var ducked: Array[SectorSlot] = []
+	for slot: SectorSlot in $Board.get_all_sector_slots():
+		if not slot.occupied:
+			continue
+		var sp: Vector2 = $Camera3D.unproject_position(slot.global_position)
+		if not rect.has_point(sp):
+			continue
+		var dtw: Tween = _duck_tweens.get(slot) as Tween
+		if dtw and dtw.is_valid():
+			dtw.kill()
+		_duck_base_pos[slot] = slot.position
+		var away: Vector3 = (slot.global_position - $Camera3D.global_position).normalized()
+		dtw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		dtw.tween_property(slot, "position", slot.position + away * _DUCK_DIST, _DUCK_IN_SEC)
+		_duck_tweens[slot] = dtw
+		ducked.append(slot)
+	_hover_ducked_slots[node] = ducked
+
 func _on_screen_hover_exit(node: Node3D) -> void:
 	var tw: Tween = _hover_tweens.get(node) as Tween
 	if tw and tw.is_valid():
@@ -3710,3 +3761,13 @@ func _on_screen_hover_exit(node: Node3D) -> void:
 	tw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tw.tween_property(node, "position", _hover_base_pos[node], _HOVER_OUT_SEC)
 	_hover_tweens[node] = tw
+
+	for slot: SectorSlot in _hover_ducked_slots.get(node, [] as Array):
+		var dtw: Tween = _duck_tweens.get(slot) as Tween
+		if dtw and dtw.is_valid():
+			dtw.kill()
+		var base: Vector3 = _duck_base_pos.get(slot, slot.position)
+		dtw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		dtw.tween_property(slot, "position", base, _DUCK_OUT_SEC)
+		_duck_tweens[slot] = dtw
+	_hover_ducked_slots.erase(node)
