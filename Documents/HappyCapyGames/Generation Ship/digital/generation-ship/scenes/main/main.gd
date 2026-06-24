@@ -3701,41 +3701,25 @@ const _DUCK_DIST: float = 0.06
 const _DUCK_IN_SEC: float = 0.30
 const _DUCK_OUT_SEC: float = 0.45
 
+const _DUCK_X_RANGE: float = 0.35
+
 func _set_slot_draw_priority(slot: SectorSlot, card_pri: int, badge_pri: int) -> void:
-	for card: Node in slot.get_children():
-		if not (card is Node3D):
-			continue
-		for mi_node: Node in card.find_children("*", "MeshInstance3D", true, false):
+	if slot.placed_card:
+		for mi_node: Node in slot.placed_card.find_children("*", "MeshInstance3D", true, false):
 			var mi: MeshInstance3D = mi_node as MeshInstance3D
 			for s: int in mi.get_surface_override_material_count():
 				var mat: Material = mi.get_surface_override_material(s)
 				if mat:
 					mat.render_priority = card_pri
-	for spr_node: Node in slot.find_children("*", "Sprite3D", true, false):
+		var card_mesh: MeshInstance3D = slot.placed_card.get_node_or_null("CardMesh") as MeshInstance3D
+		if card_mesh:
+			var mat: Material = card_mesh.get_surface_override_material(0)
+			if mat:
+				mat.render_priority = card_pri
+	for spr_node: Node in slot.find_children("*", "Sprite3D", false, false):
 		(spr_node as Sprite3D).render_priority = badge_pri
-	for lbl_node: Node in slot.find_children("*", "Label3D", true, false):
+	for lbl_node: Node in slot.find_children("*", "Label3D", false, false):
 		(lbl_node as Label3D).render_priority = badge_pri
-
-func _get_screen_rect(mesh: MeshInstance3D) -> Rect2:
-	var cam: Camera3D = $Camera3D
-	var aabb: AABB = mesh.mesh.get_aabb()
-	var gt: Transform3D = mesh.global_transform
-	var min_s: Vector2 = Vector2(INF, INF)
-	var max_s: Vector2 = Vector2(-INF, -INF)
-	for i: int in 8:
-		var corner: Vector3 = aabb.position + Vector3(
-			aabb.size.x if (i & 1) else 0.0,
-			aabb.size.y if (i & 2) else 0.0,
-			aabb.size.z if (i & 4) else 0.0)
-		var world_corner: Vector3 = gt * corner
-		if cam.is_position_behind(world_corner):
-			continue
-		var sp: Vector2 = cam.unproject_position(world_corner)
-		min_s = min_s.min(sp)
-		max_s = max_s.max(sp)
-	if min_s.x == INF:
-		return Rect2()
-	return Rect2(min_s, max_s - min_s)
 
 func _on_screen_hover_enter(node: Node3D) -> void:
 	var tw: Tween = _hover_tweens.get(node) as Tween
@@ -3747,16 +3731,11 @@ func _on_screen_hover_enter(node: Node3D) -> void:
 	tw.tween_property(node, "position", base + dir * _HOVER_DIST, _HOVER_IN_SEC)
 	_hover_tweens[node] = tw
 
-	var mesh: MeshInstance3D = _screen_meshes.get(node) as MeshInstance3D
-	if not mesh:
-		return
-	var rect: Rect2 = _get_screen_rect(mesh)
 	var ducked: Array[SectorSlot] = []
 	for slot: SectorSlot in $Board.get_all_sector_slots():
 		if not slot.occupied:
 			continue
-		var sp: Vector2 = $Camera3D.unproject_position(slot.global_position)
-		if not rect.has_point(sp):
+		if abs(node.global_position.x - slot.global_position.x) > _DUCK_X_RANGE:
 			continue
 		var dtw: Tween = _duck_tweens.get(slot) as Tween
 		if dtw and dtw.is_valid():
