@@ -3768,6 +3768,8 @@ func _on_screen_hover_exit(node: Node3D) -> void:
 				first = false
 			else:
 				dtw.parallel().tween_property(card, "position", rest_pos, _DUCK_OUT_SEC)
-			_duck_card_pos.erase(card)
+		dtw.tween_callback(func() -> void:
+			for card: Node3D in tech_cards:
+				_duck_card_pos.erase(card))
 		_duck_tweens[slot] = dtw
 	_hover_ducked_slots.erase(node)
