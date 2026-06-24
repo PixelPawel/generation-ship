@@ -6,6 +6,7 @@ uniform vec2 tilt = vec2(0.0, 0.0);
 uniform float sheen_strength : hint_range(0.0, 1.0) = 0.22;
 uniform vec3 discount_glow_color = vec3(0.0);
 uniform float corner_radius : hint_range(0.0, 0.2) = 0.06;
+uniform float alpha_mult : hint_range(0.0, 1.0) = 1.0;
 
 void fragment() {
 	vec4 face = texture(card_texture, UV);
@@ -25,7 +26,7 @@ void fragment() {
 		float d = length(c - vec2(corner_radius));
 		alpha *= smoothstep(corner_radius, corner_radius - 0.01, d);
 	}
-	ALPHA = alpha;
+	ALPHA = alpha * alpha_mult;
 
 	float edge = min(c.x, c.y);
 	float rim = 1.0 - smoothstep(0.0, 0.04, edge);

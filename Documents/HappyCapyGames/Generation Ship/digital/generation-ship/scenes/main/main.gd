@@ -133,6 +133,7 @@ var _hover_base_pos: Dictionary = {}       # Node3D -> Vector3
 var _screen_meshes: Dictionary = {}        # Node3D (screen) -> MeshInstance3D
 var _duck_tweens: Dictionary = {}          # SectorSlot -> Tween
 var _duck_base_pos: Dictionary = {}        # SectorSlot -> Vector3
+var _duck_mats: Dictionary = {}            # SectorSlot -> {card: ShaderMaterial, face: BaseMaterial3D}
 var _hover_ducked_slots: Dictionary = {}   # Node3D (screen) -> Array[SectorSlot]
 var _info_screen_mesh: MeshInstance3D = null
 var _cs_display: SupplyUI = null
@@ -3703,22 +3704,17 @@ const _DUCK_OUT_SEC: float = 0.45
 
 const _DUCK_X_RANGE: float = 0.35
 
-func _set_slot_draw_priority(slot: SectorSlot, card_pri: int, badge_pri: int) -> void:
-	var ducking: bool = (card_pri < 0)
-	if slot.placed_card:
-		for mi_node: Node in slot.placed_card.find_children("*", "MeshInstance3D", true, false):
-			var mi: MeshInstance3D = mi_node as MeshInstance3D
-			for s: int in mi.get_surface_override_material_count():
-				var mat: Material = mi.get_surface_override_material(s)
-				if not mat:
-					continue
-				mat.render_priority = card_pri
-				if mat is BaseMaterial3D:
-					(mat as BaseMaterial3D).no_depth_test = not ducking
-	for spr_node: Node in slot.find_children("*", "Sprite3D", false, false):
-		(spr_node as Sprite3D).render_priority = badge_pri
-	for lbl_node: Node in slot.find_children("*", "Label3D", false, false):
-		(lbl_node as Label3D).render_priority = badge_pri
+func _get_slot_duck_mats(slot: SectorSlot) -> Dictionary:
+	var result: Dictionary = {}
+	if not slot.placed_card:
+		return result
+	var card_mi: MeshInstance3D = slot.placed_card.get_node_or_null("CardMesh") as MeshInstance3D
+	if card_mi:
+		result["card"] = card_mi.get_surface_override_material(0) as ShaderMaterial
+	var face_node: Node = slot.placed_card.find_child("*screen_image*", true, false)
+	if face_node is MeshInstance3D:
+		result["face"] = (face_node as MeshInstance3D).get_surface_override_material(0) as BaseMaterial3D
+	return result
 
 func _on_screen_hover_enter(node: Node3D) -> void:
 	var tw: Tween = _hover_tweens.get(node) as Tween
@@ -3740,10 +3736,18 @@ func _on_screen_hover_enter(node: Node3D) -> void:
 		if dtw and dtw.is_valid():
 			dtw.kill()
 		_duck_base_pos[slot] = slot.position
-		_set_slot_draw_priority(slot, -1, -1)
+		var mats: Dictionary = _get_slot_duck_mats(slot)
+		_duck_mats[slot] = mats
 		var away: Vector3 = (slot.global_position - $Camera3D.global_position).normalized()
 		dtw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		dtw.tween_property(slot, "position", slot.position + away * _DUCK_DIST, _DUCK_IN_SEC)
+		var cm: ShaderMaterial = mats.get("card") as ShaderMaterial
+		var fm: BaseMaterial3D = mats.get("face") as BaseMaterial3D
+		if cm:
+			dtw.parallel().tween_method(func(a: float) -> void: cm.set_shader_parameter("alpha_mult", a), 1.0, 0.0, _DUCK_IN_SEC)
+		if fm:
+			dtw.parallel().tween_method(func(a: float) -> void:
+				var c: Color = fm.albedo_color; c.a = a; fm.albedo_color = c, 1.0, 0.0, _DUCK_IN_SEC)
 		_duck_tweens[slot] = dtw
 		ducked.append(slot)
 	_hover_ducked_slots[node] = ducked
@@ -3760,9 +3764,16 @@ func _on_screen_hover_exit(node: Node3D) -> void:
 		var dtw: Tween = _duck_tweens.get(slot) as Tween
 		if dtw and dtw.is_valid():
 			dtw.kill()
-		_set_slot_draw_priority(slot, 1, 2)
-		var base: Vector3 = _duck_base_pos.get(slot, slot.position)
+		var base_pos: Vector3 = _duck_base_pos.get(slot, slot.position)
+		var mats: Dictionary = _duck_mats.get(slot, {})
 		dtw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-		dtw.tween_property(slot, "position", base, _DUCK_OUT_SEC)
+		dtw.tween_property(slot, "position", base_pos, _DUCK_OUT_SEC)
+		var cm: ShaderMaterial = mats.get("card") as ShaderMaterial
+		var fm: BaseMaterial3D = mats.get("face") as BaseMaterial3D
+		if cm:
+			dtw.parallel().tween_method(func(a: float) -> void: cm.set_shader_parameter("alpha_mult", a), 0.0, 1.0, _DUCK_OUT_SEC)
+		if fm:
+			dtw.parallel().tween_method(func(a: float) -> void:
+				var c: Color = fm.albedo_color; c.a = a; fm.albedo_color = c, 0.0, 1.0, _DUCK_OUT_SEC)
 		_duck_tweens[slot] = dtw
 	_hover_ducked_slots.erase(node)
