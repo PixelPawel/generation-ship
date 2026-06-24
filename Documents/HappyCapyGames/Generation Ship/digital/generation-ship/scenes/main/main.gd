@@ -123,6 +123,7 @@ var _info_viewport: SubViewport = null
 var _log_viewport: SubViewport = null
 var _log_vbox: VBoxContainer = null
 var _log_scroll: ScrollContainer = null
+var _log_font: FontVariation = null
 
 var _rumble_tweens: Dictionary = {}   # Node3D -> Tween
 var _rumble_base_pos: Dictionary = {} # Node3D -> Vector3
@@ -761,6 +762,12 @@ func _register_info_panel(panel: Control) -> void:
 	)
 
 func _setup_log_screen_display() -> void:
+	var myriad: FontFile = load("res://assets/fonts/Myriad Variable Concept.ttf") as FontFile
+	if myriad:
+		_log_font = FontVariation.new()
+		_log_font.base_font = myriad
+		_log_font.variation_opentype = {"wght": 500}
+
 	_log_viewport = SubViewport.new()
 	# AABB is 0.1308 × 0.0623 (landscape 2.1:1), so viewport must match that
 	# ratio to avoid distortion. 760×362 = 2.099:1.
@@ -840,6 +847,8 @@ func _log_action(text: String, color: Color = Color(0.80, 0.88, 1.0)) -> void:
 	lbl.add_theme_font_size_override("font_size", 24)
 	lbl.add_theme_color_override("font_color", color)
 	lbl.clip_text = true
+	if _log_font:
+		lbl.add_theme_font_override("font", _log_font)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_log_vbox.add_child(lbl)
 	_log_scroll.call_deferred("set_v_scroll", 999999)
