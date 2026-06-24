@@ -970,6 +970,9 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	if ui_info_anim:
 		ui_info_anim.play("intro")
 		_ui_info_shown = true
+	var ui_log_anim := $UiLog.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if ui_log_anim:
+		ui_log_anim.play("intro")
 	_round = 1
 	_update_round_label()
 	_init_supply()
