@@ -2241,7 +2241,8 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	var _is_adv: bool = bool(card.get("is_advanced"))
 	var _cname: String = _cd.adv_name if _is_adv and not _cd.adv_name.is_empty() else _cd.card_name
 	var _pname: String = GameNetwork.player_names.get(multiplayer.get_unique_id(), "You")
-	_broadcast_log("%s: placed %s" % [_pname, _cname], Color(1.0, 0.88, 0.50))
+	var _supply: CardData.SupplyColor = _cd.adv_color if _is_adv else _cd.color
+	_broadcast_log("%s: placed %s" % [_pname, _cname], CardData.color_tint(_supply))
 	_play_drill_sfx()
 	$Board.refresh_discount_glow()
 	if _effect_mode != EffectMode.NONE:
