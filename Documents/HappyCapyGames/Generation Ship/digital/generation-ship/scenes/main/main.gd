@@ -1287,7 +1287,8 @@ func _rpc_pass_bid() -> void:
 func _rpc_notify_auction_forfeit() -> void:
 	if not multiplayer.is_server():
 		return
-	if multiplayer.get_remote_sender_id() != _auction_initiator_id:
+	var _sender: int = multiplayer.get_remote_sender_id()
+	if _sender != _auction_initiator_id and _sender != _auction_leader_id:
 		return
 	_server_offer_to_runner_up()
 
@@ -2570,9 +2571,9 @@ func _on_bid_payment_forfeited() -> void:
 				_rpc_notify_auction_forfeit.rpc_id(1)
 		else:
 			if GameNetwork.is_host:
-				_rpc_sync_market_removal.rpc(_pending_won_card_ref)
+				_server_offer_to_runner_up()
 			else:
-				_rpc_notify_runner_up_forfeit.rpc_id(1, _pending_won_card_ref)
+				_rpc_notify_auction_forfeit.rpc_id(1)
 		_show_action_buttons(true)
 		return
 	$Board.cancel_purchase()
