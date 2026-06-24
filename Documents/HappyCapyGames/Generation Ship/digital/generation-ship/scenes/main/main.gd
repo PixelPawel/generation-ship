@@ -86,7 +86,8 @@ var _players_passed_this_round: int = 0
 var _has_passed_or_researched: bool = false
 var _opp_snapshots: Dictionary = {}      # peer_id (int) -> state Dictionary
 var _opp_widget: Control = null
-var _opp_panels: Dictionary = {}         # peer_id → {hand_lbl, supply_lbls, vp_lbl}
+var _opp_panels: Dictionary = {}         # peer_id → {hand_lbl, supply_lbls, vp_lbl, status_lbl}
+var _opp_statuses: Dictionary = {}      # peer_id → String ("" | "passed" | "researching")
 var _opp_info_panel: Control = null
 var _ending_turn: bool = false
 
@@ -343,6 +344,12 @@ func _build_opponent_widget() -> void:
 		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row1.add_child(name_lbl)
 
+		var status_lbl: Label = Label.new()
+		status_lbl.add_theme_font_size_override("font_size", 11)
+		status_lbl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		status_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row1.add_child(status_lbl)
+
 		var hand_lbl: Label = Label.new()
 		hand_lbl.text = "♠ 0"
 		hand_lbl.add_theme_font_size_override("font_size", 13)
@@ -403,6 +410,7 @@ func _build_opponent_widget() -> void:
 			"hand_lbl": hand_lbl,
 			"supply_lbls": supply_lbls,
 			"vp_lbl": vp_lbl,
+			"status_lbl": status_lbl,
 		}
 
 	var bottom_sep: HSeparator = HSeparator.new()
@@ -1001,6 +1009,11 @@ func _on_research_pressed() -> void:
 	_set_action_buttons_disabled(true)
 	_show_effect_hint("Click a card in your hand to discard it")
 	$Hand.set_discard_mode(true)
+	if GameNetwork.is_multiplayer:
+		if GameNetwork.is_host:
+			_rpc_sync_opp_status.rpc(multiplayer.get_unique_id(), "researching")
+		else:
+			_rpc_request_research_status.rpc_id(1)
 
 func _on_pass_pressed() -> void:
 	if not GameNetwork.is_my_turn():
@@ -1070,6 +1083,8 @@ func _show_round_transition(then: Callable) -> void:
 func _end_round() -> void:
 	_has_passed_or_researched = false
 	_bots_passed_this_round.clear()
+	_opp_statuses.clear()
+	_refresh_all_opp_status_labels()
 	$Board.reset_turn()
 	if _round >= MAX_ROUNDS:
 		_game_over()
@@ -1110,6 +1125,7 @@ func _show_your_turn_banner() -> void:
 	t.tween_callback(lbl.queue_free)
 
 func _server_handle_pass() -> void:
+	_rpc_sync_opp_status.rpc(GameNetwork.active_peer_id, "passed")
 	_players_passed_this_round += 1
 	if _players_passed_this_round >= GameNetwork.player_order.size():
 		_players_passed_this_round = 0
@@ -1144,6 +1160,7 @@ func _rpc_sync_active_player(peer_id: int) -> void:
 		_deferred_effect_queue.clear()
 		_deferred_effect_slot = null
 		_process_next_effect()
+	_refresh_all_opp_status_labels()
 	if multiplayer.is_server() and GameNetwork.is_bot(peer_id):
 		_run_bot_turn(peer_id)
 
@@ -1242,6 +1259,42 @@ func _apply_opponent_state(state: Dictionary) -> void:
 
 	var vp_lbl: Label = refs["vp_lbl"] as Label
 	vp_lbl.text = "⭐ %d" % state.get("vp", 0)
+
+func _refresh_opp_status_label(peer_id: int) -> void:
+	var refs: Dictionary = _opp_panels.get(peer_id, {}) as Dictionary
+	var lbl: Label = refs.get("status_lbl") as Label
+	if not is_instance_valid(lbl):
+		return
+	var status: String = _opp_statuses.get(peer_id, "") as String
+	if status == "researching":
+		lbl.text = "Researching"
+		lbl.add_theme_color_override("font_color", Color(0.5, 0.85, 1.0))
+	elif status == "passed":
+		lbl.text = "Passed"
+		lbl.add_theme_color_override("font_color", Color(0.55, 0.55, 0.65))
+	elif GameNetwork.active_peer_id == peer_id:
+		lbl.text = "Active"
+		lbl.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
+	else:
+		lbl.text = ""
+		lbl.remove_theme_color_override("font_color")
+
+func _refresh_all_opp_status_labels() -> void:
+	for pid: int in _opp_panels:
+		_refresh_opp_status_label(pid)
+
+# Host → All: an opponent's action status changed.
+@rpc("authority", "reliable", "call_local")
+func _rpc_sync_opp_status(peer_id: int, status: String) -> void:
+	_opp_statuses[peer_id] = status
+	_refresh_opp_status_label(peer_id)
+
+# Client → Host: I entered research mode.
+@rpc("any_peer", "reliable")
+func _rpc_request_research_status() -> void:
+	if not multiplayer.is_server():
+		return
+	_rpc_sync_opp_status.rpc(multiplayer.get_remote_sender_id(), "researching")
 
 # Client → Host: relay my board state to other players.
 @rpc("any_peer", "reliable")
