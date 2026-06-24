@@ -786,7 +786,7 @@ func _setup_log_screen_display() -> void:
 	var header: Label = Label.new()
 	header.text = "Event Log"
 	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	header.add_theme_font_size_override("font_size", 40)
+	header.add_theme_font_size_override("font_size", 24)
 	header.add_theme_color_override("font_color", Color(0.65, 0.80, 1.0))
 	header.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	header.offset_bottom = 52.0
@@ -837,7 +837,7 @@ func _log_action(text: String, color: Color = Color(0.80, 0.88, 1.0)) -> void:
 		return
 	var lbl: Label = Label.new()
 	lbl.text = text
-	lbl.add_theme_font_size_override("font_size", 40)
+	lbl.add_theme_font_size_override("font_size", 24)
 	lbl.add_theme_color_override("font_color", color)
 	lbl.clip_text = true
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
