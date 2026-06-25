@@ -3,6 +3,7 @@ extends Control
 const SETTINGS_PATH: String = "user://settings.cfg"
 const _BTN_HOVER_IN_SEC: float = 0.15
 const _BTN_HOVER_OUT_SEC: float = 0.22
+const _SLIDE_DURATION: float = 0.5
 
 var _btn_tweens: Dictionary = {}
 var _music_player: AudioStreamPlayer = null
@@ -21,10 +22,18 @@ func _ready() -> void:
 	_apply_saved_settings()
 	_setup_video()
 	_setup_music()
-	$VBox/MultiplayerBtn.modulate.a = 0.0
-	$VBox/SettingsBtn.modulate.a = 0.0
-	$VBox/QuitBtn.modulate.a = 0.0
+
+	var vp: Vector2 = get_viewport_rect().size
+	$Panels.position = Vector2.ZERO
+	$Panels/MainView.size = vp
+	$Panels/LobbyView.position = Vector2(0.0, vp.y)
+	$Panels/LobbyView.size = vp
+
+	$Panels/MainView/VBox/MultiplayerBtn.modulate.a = 0.0
+	$Panels/MainView/VBox/SettingsBtn.modulate.a = 0.0
+	$Panels/MainView/VBox/QuitBtn.modulate.a = 0.0
 	call_deferred("_start_animations")
+
 	var ver_lbl := Label.new()
 	ver_lbl.text = "v" + ProjectSettings.get_setting("application/config/version")
 	ver_lbl.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -66,19 +75,23 @@ func _setup_music() -> void:
 func _start_animations() -> void:
 	_animate_logo()
 	_animate_buttons()
-	_setup_button_hover($VBox/MultiplayerBtn as Button)
-	_setup_button_hover($VBox/SettingsBtn as Button)
-	_setup_button_hover($VBox/QuitBtn as Button)
+	_setup_button_hover($Panels/MainView/VBox/MultiplayerBtn as Button)
+	_setup_button_hover($Panels/MainView/VBox/SettingsBtn as Button)
+	_setup_button_hover($Panels/MainView/VBox/QuitBtn as Button)
 
 func _animate_logo() -> void:
-	var title: TextureRect = $Title
+	var title: TextureRect = $Panels/MainView/Title
 	var base_y: float = title.position.y
 	var tw: Tween = create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_property(title, "position:y", base_y - 6.0, 2.0)
 	tw.tween_property(title, "position:y", base_y + 6.0, 2.0)
 
 func _animate_buttons() -> void:
-	var buttons: Array[Node] = [$VBox/MultiplayerBtn, $VBox/SettingsBtn, $VBox/QuitBtn]
+	var buttons: Array[Node] = [
+		$Panels/MainView/VBox/MultiplayerBtn,
+		$Panels/MainView/VBox/SettingsBtn,
+		$Panels/MainView/VBox/QuitBtn,
+	]
 	for i: int in buttons.size():
 		var btn: Control = buttons[i] as Control
 		var tw: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
@@ -112,12 +125,22 @@ func _on_settings_btn_pressed() -> void:
 	$PauseMenu.open_settings()
 
 func _on_multiplayer_pressed() -> void:
-	if _music_player:
-		create_tween().tween_property(_music_player, "volume_db", -80.0, SceneTransition.SLIDE_DURATION)
-	SceneTransition.slide_change_scene("res://scenes/lobby/lobby.tscn")
+	_slide_to_lobby()
 
 func _on_quit_pressed() -> void:
 	get_tree().quit()
+
+func _on_lobby_back_requested() -> void:
+	_slide_to_main()
+
+func _slide_to_lobby() -> void:
+	var vp_h: float = get_viewport_rect().size.y
+	var tw: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property($Panels, "position:y", -vp_h, _SLIDE_DURATION)
+
+func _slide_to_main() -> void:
+	var tw: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property($Panels, "position:y", 0.0, _SLIDE_DURATION)
 
 func _apply_saved_settings() -> void:
 	var cfg: ConfigFile = ConfigFile.new()

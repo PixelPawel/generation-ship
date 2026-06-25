@@ -1,5 +1,7 @@
 extends Control
 
+signal back_requested
+
 const MAX_PLAYERS: int = 4
 const SETTINGS_PATH: String = "user://settings.cfg"
 const LOBBY_REFRESH_INTERVAL: float = 5.0
@@ -41,7 +43,6 @@ const _SPINNER_FRAMES: Array[String] = [
 
 func _ready() -> void:
 	theme = GameTheme.get_theme()
-	_setup_video()
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
@@ -55,21 +56,6 @@ func _ready() -> void:
 	($LobbyPanel/DirectRow as Control).visible = false
 	_load_saved_name()
 	_request_lobby_list()
-
-func _setup_video() -> void:
-	const VIDEO_PATH: String = "res://assets/video/flythrough.mp4"
-	if not FileAccess.file_exists(VIDEO_PATH):
-		return
-	var vp := VideoPlayback.new()
-	vp.enable_audio = false
-	vp.loop = true
-	vp.enable_auto_play = true
-	vp.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(vp)
-	move_child(vp, $Background.get_index())
-	vp.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	vp.set_video_path(VIDEO_PATH)
-	$Background.visible = false
 
 func _process(delta: float) -> void:
 	if _spinner_active:
@@ -290,7 +276,10 @@ func _on_back_pressed() -> void:
 	if multiplayer.multiplayer_peer:
 		multiplayer.multiplayer_peer.close()
 		multiplayer.multiplayer_peer = null
-	SceneTransition.change_scene("res://scenes/main_menu/main_menu.tscn")
+	if back_requested.get_connections().size() > 0:
+		back_requested.emit()
+	else:
+		SceneTransition.change_scene("res://scenes/main_menu/main_menu.tscn")
 
 # ── Multiplayer signals ───────────────────────────────────────────────────────
 

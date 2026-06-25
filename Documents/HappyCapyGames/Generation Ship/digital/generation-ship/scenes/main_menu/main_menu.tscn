@@ -4,8 +4,60 @@
 [ext_resource type="Texture2D" uid="uid://dbprqc2vk3kwv" path="res://assets/ui/Cover.jpeg" id="2_cover"]
 [ext_resource type="Texture2D" path="res://assets/ui/logo_fun.png" id="3_logo"]
 [ext_resource type="Script" uid="uid://ct67cx1lxa08t" path="res://scenes/ui/pause_menu.gd" id="4_pause_menu"]
+[ext_resource type="Script" path="res://scenes/lobby/lobby.gd" id="5_lobby"]
 
-[node name="MainMenu" type="Control" unique_id=174534454]
+[sub_resource type="StyleBoxFlat" id="SBF_input_n"]
+bg_color = Color(0.04, 0.08, 0.18, 0.90)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.22, 0.44, 0.75, 0.70)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+
+[sub_resource type="StyleBoxFlat" id="SBF_input_f"]
+bg_color = Color(0.04, 0.10, 0.22, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 2
+border_color = Color(0.42, 0.82, 1.00, 0.90)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+
+[sub_resource type="StyleBoxFlat" id="SBF_list_bg"]
+bg_color = Color(0.04, 0.08, 0.18, 0.90)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.22, 0.44, 0.75, 0.70)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="SBF_list_sel"]
+bg_color = Color(0.14, 0.40, 0.80, 0.45)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[node name="MainMenu" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -14,7 +66,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_script")
 
-[node name="Background" type="TextureRect" parent="." unique_id=1966526599]
+[node name="Background" type="TextureRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -24,7 +76,13 @@ grow_vertical = 2
 texture = ExtResource("2_cover")
 stretch_mode = 5
 
-[node name="Title" type="TextureRect" parent="." unique_id=1040120624]
+[node name="Panels" type="Control" parent="."]
+layout_mode = 0
+
+[node name="MainView" type="Control" parent="Panels"]
+layout_mode = 0
+
+[node name="Title" type="TextureRect" parent="Panels/MainView"]
 layout_mode = 1
 anchor_left = 0.0
 anchor_top = 0.0
@@ -38,7 +96,7 @@ texture = ExtResource("3_logo")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="VBox" type="VBoxContainer" parent="." unique_id=847666985]
+[node name="VBox" type="VBoxContainer" parent="Panels/MainView"]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -50,25 +108,245 @@ grow_vertical = 2
 theme_override_constants/separation = 16
 alignment = 1
 
-[node name="MultiplayerBtn" type="Button" parent="VBox" unique_id=758960205]
+[node name="MultiplayerBtn" type="Button" parent="Panels/MainView/VBox"]
 custom_minimum_size = Vector2(440, 64)
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
 text = "Start Game"
 
-[node name="SettingsBtn" type="Button" parent="VBox" unique_id=312847291]
+[node name="SettingsBtn" type="Button" parent="Panels/MainView/VBox"]
 custom_minimum_size = Vector2(440, 64)
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
 text = "Settings"
 
-[node name="QuitBtn" type="Button" parent="VBox" unique_id=145901013]
+[node name="QuitBtn" type="Button" parent="Panels/MainView/VBox"]
 custom_minimum_size = Vector2(440, 64)
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
 text = "Quit"
 
-[node name="PauseMenu" type="Control" parent="." unique_id=923741056]
+[node name="LobbyView" type="Control" parent="Panels"]
+layout_mode = 0
+script = ExtResource("5_lobby")
+
+[node name="LobbyPanel" type="VBoxContainer" parent="Panels/LobbyView"]
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -280.0
+offset_top = -400.0
+offset_right = 280.0
+offset_bottom = 400.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="TextureRect" parent="Panels/LobbyView/LobbyPanel"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 140)
+size_flags_horizontal = 3
+texture = ExtResource("3_logo")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Spacer" type="Control" parent="Panels/LobbyView/LobbyPanel"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 6)
+
+[node name="NameRow" type="HBoxContainer" parent="Panels/LobbyView/LobbyPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="NameLabel" type="Label" parent="Panels/LobbyView/LobbyPanel/NameRow"]
+layout_mode = 2
+text = "Name"
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+
+[node name="NameInput" type="LineEdit" parent="Panels/LobbyView/LobbyPanel/NameRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Your name…"
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.88, 0.93, 1.0, 1)
+theme_override_colors/font_placeholder_color = Color(0.40, 0.58, 0.78, 0.65)
+theme_override_colors/caret_color = Color(0.55, 0.85, 1.0, 1)
+theme_override_styles/normal = SubResource("SBF_input_n")
+theme_override_styles/focus = SubResource("SBF_input_f")
+
+[node name="HostBtn" type="Button" parent="Panels/LobbyView/LobbyPanel"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 52)
+text = "Host Game"
+theme_override_font_sizes/font_size = 24
+
+[node name="Separator" type="HSeparator" parent="Panels/LobbyView/LobbyPanel"]
+layout_mode = 2
+
+[node name="GamesRow" type="HBoxContainer" parent="Panels/LobbyView/LobbyPanel"]
+layout_mode = 2
+
+[node name="GamesLabel" type="Label" parent="Panels/LobbyView/LobbyPanel/GamesRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Steam Lobbies:"
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.75, 0.75, 0.75, 1)
+
+[node name="RefreshBtn" type="Button" parent="Panels/LobbyView/LobbyPanel/GamesRow"]
+layout_mode = 2
+text = "↻ Refresh"
+theme_override_font_sizes/font_size = 14
+
+[node name="GameList" type="ItemList" parent="Panels/LobbyView/LobbyPanel"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 140)
+size_flags_vertical = 3
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.88, 0.93, 1.0, 1)
+theme_override_colors/font_selected_color = Color(1.0, 1.0, 1.0, 1)
+theme_override_styles/panel = SubResource("SBF_list_bg")
+theme_override_styles/selected = SubResource("SBF_list_sel")
+theme_override_styles/selected_focus = SubResource("SBF_list_sel")
+
+[node name="JoinSelectedBtn" type="Button" parent="Panels/LobbyView/LobbyPanel"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 46)
+text = "Join Selected"
+theme_override_font_sizes/font_size = 22
+
+[node name="DirectRow" type="HBoxContainer" parent="Panels/LobbyView/LobbyPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="IPInput" type="LineEdit" parent="Panels/LobbyView/LobbyPanel/DirectRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "127.0.0.1"
+placeholder_text = "or enter IP directly…"
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.88, 0.93, 1.0, 1)
+theme_override_colors/font_placeholder_color = Color(0.40, 0.58, 0.78, 0.65)
+theme_override_colors/caret_color = Color(0.55, 0.85, 1.0, 1)
+theme_override_styles/normal = SubResource("SBF_input_n")
+theme_override_styles/focus = SubResource("SBF_input_f")
+
+[node name="DirectJoinBtn" type="Button" parent="Panels/LobbyView/LobbyPanel/DirectRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(90, 0)
+text = "Join IP"
+theme_override_font_sizes/font_size = 18
+
+[node name="StatusLabel" type="Label" parent="Panels/LobbyView/LobbyPanel"]
+layout_mode = 2
+text = ""
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.7, 0.9, 0.7, 1)
+
+[node name="BackBtn" type="Button" parent="Panels/LobbyView/LobbyPanel"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+text = "← Back"
+theme_override_font_sizes/font_size = 20
+
+[node name="StagingPanel" type="Control" parent="Panels/LobbyView"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+visible = false
+
+[node name="VBox" type="VBoxContainer" parent="Panels/LobbyView/StagingPanel"]
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -260.0
+offset_top = -340.0
+offset_right = 260.0
+offset_bottom = 340.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="TextureRect" parent="Panels/LobbyView/StagingPanel/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 120)
+size_flags_horizontal = 3
+texture = ExtResource("3_logo")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="SubLabel" type="Label" parent="Panels/LobbyView/StagingPanel/VBox"]
+layout_mode = 2
+text = "Game Lobby"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+
+[node name="InviteBtn" type="Button" parent="Panels/LobbyView/StagingPanel/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+text = "Invite Friends…"
+theme_override_font_sizes/font_size = 20
+
+[node name="IPRow" type="HBoxContainer" parent="Panels/LobbyView/StagingPanel/VBox"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 10
+
+[node name="IPLabel" type="Label" parent="Panels/LobbyView/StagingPanel/VBox/IPRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_alignment = 1
+text = "Host IP: —"
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.7, 0.9, 1.0, 1)
+
+[node name="CopyIPBtn" type="Button" parent="Panels/LobbyView/StagingPanel/VBox/IPRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(90, 0)
+text = "Copy IP"
+theme_override_font_sizes/font_size = 16
+
+[node name="Separator" type="HSeparator" parent="Panels/LobbyView/StagingPanel/VBox"]
+layout_mode = 2
+
+[node name="PlayersLabel" type="Label" parent="Panels/LobbyView/StagingPanel/VBox"]
+layout_mode = 2
+text = "Players:"
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(0.75, 0.75, 0.75, 1)
+
+[node name="PlayerList" type="Label" parent="Panels/LobbyView/StagingPanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+text = "(no players)"
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.95, 0.95, 0.95, 1)
+
+[node name="Separator2" type="HSeparator" parent="Panels/LobbyView/StagingPanel/VBox"]
+layout_mode = 2
+
+[node name="StartBtn" type="Button" parent="Panels/LobbyView/StagingPanel/VBox"]
+layout_mode = 2
+visible = false
+custom_minimum_size = Vector2(0, 56)
+text = "▶  Start Game"
+theme_override_font_sizes/font_size = 26
+
+[node name="LeaveBtn" type="Button" parent="Panels/LobbyView/StagingPanel/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 44)
+text = "← Leave Game"
+theme_override_font_sizes/font_size = 20
+
+[node name="PauseMenu" type="Control" parent="."]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -77,6 +355,16 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("4_pause_menu")
 
-[connection signal="pressed" from="VBox/MultiplayerBtn" to="." method="_on_multiplayer_pressed"]
-[connection signal="pressed" from="VBox/SettingsBtn" to="." method="_on_settings_btn_pressed"]
-[connection signal="pressed" from="VBox/QuitBtn" to="." method="_on_quit_pressed"]
+[connection signal="pressed" from="Panels/MainView/VBox/MultiplayerBtn" to="." method="_on_multiplayer_pressed"]
+[connection signal="pressed" from="Panels/MainView/VBox/SettingsBtn" to="." method="_on_settings_btn_pressed"]
+[connection signal="pressed" from="Panels/MainView/VBox/QuitBtn" to="." method="_on_quit_pressed"]
+[connection signal="pressed" from="Panels/LobbyView/LobbyPanel/HostBtn" to="Panels/LobbyView" method="_on_host_pressed"]
+[connection signal="pressed" from="Panels/LobbyView/LobbyPanel/GamesRow/RefreshBtn" to="Panels/LobbyView" method="_on_refresh_pressed"]
+[connection signal="pressed" from="Panels/LobbyView/LobbyPanel/JoinSelectedBtn" to="Panels/LobbyView" method="_on_join_selected_pressed"]
+[connection signal="pressed" from="Panels/LobbyView/LobbyPanel/DirectRow/DirectJoinBtn" to="Panels/LobbyView" method="_on_join_pressed"]
+[connection signal="pressed" from="Panels/LobbyView/LobbyPanel/BackBtn" to="Panels/LobbyView" method="_on_back_pressed"]
+[connection signal="pressed" from="Panels/LobbyView/StagingPanel/VBox/InviteBtn" to="Panels/LobbyView" method="_on_invite_pressed"]
+[connection signal="pressed" from="Panels/LobbyView/StagingPanel/VBox/IPRow/CopyIPBtn" to="Panels/LobbyView" method="_on_copy_ip_pressed"]
+[connection signal="pressed" from="Panels/LobbyView/StagingPanel/VBox/StartBtn" to="Panels/LobbyView" method="_on_start_pressed"]
+[connection signal="pressed" from="Panels/LobbyView/StagingPanel/VBox/LeaveBtn" to="Panels/LobbyView" method="_on_leave_pressed"]
+[connection signal="back_requested" from="Panels/LobbyView" to="." method="_on_lobby_back_requested"]
