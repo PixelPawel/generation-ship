@@ -113,8 +113,8 @@ func _on_settings_btn_pressed() -> void:
 
 func _on_multiplayer_pressed() -> void:
 	if _music_player:
-		create_tween().tween_property(_music_player, "volume_db", -80.0, 0.25)
-	SceneTransition.change_scene("res://scenes/lobby/lobby.tscn")
+		create_tween().tween_property(_music_player, "volume_db", -80.0, SceneTransition.SLIDE_DURATION)
+	SceneTransition.slide_change_scene("res://scenes/lobby/lobby.tscn")
 
 func _on_quit_pressed() -> void:
 	get_tree().quit()
