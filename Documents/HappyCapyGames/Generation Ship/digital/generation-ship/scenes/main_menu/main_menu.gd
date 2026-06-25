@@ -46,20 +46,21 @@ func _process(delta: float) -> void:
 	_bg_node.position = _bg_node.position.lerp(norm * -_PARALLAX_STRENGTH, delta * _PARALLAX_SPEED)
 
 func _setup_video() -> void:
-	var stream: VideoStream = load("res://assets/video/flythrough.ogv") as VideoStream
-	if not stream:
+	const VIDEO_PATH: String = "res://assets/video/flythrough.mp4"
+	if not FileAccess.file_exists(VIDEO_PATH):
 		_bg_node = $Background
 		return
-	var vsp := VideoStreamPlayer.new()
-	vsp.stream = stream
-	vsp.expand = true
-	vsp.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(vsp)
-	move_child(vsp, $Background.get_index())
-	vsp.finished.connect(vsp.play)
-	vsp.play()
+	var vp := VideoPlayback.new()
+	vp.enable_audio = false
+	vp.loop = true
+	vp.enable_auto_play = true
+	vp.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(vp)
+	move_child(vp, $Background.get_index())
+	vp.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	vp.set_video_path(VIDEO_PATH)
 	$Background.visible = false
-	_bg_node = vsp
+	_bg_node = vp
 
 func _setup_music() -> void:
 	var stream: AudioStreamOggVorbis = load("res://assets/music/ambience.ogg") as AudioStreamOggVorbis
