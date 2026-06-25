@@ -28,6 +28,8 @@ func _ready() -> void:
 	$Panels/MainView.size = vp
 	$Panels/LobbyView.position = Vector2(0.0, vp.y)
 	$Panels/LobbyView.size = vp
+	$Panels/LobbyView/StagingPanel.position = Vector2(0.0, vp.y)
+	$Panels/LobbyView/StagingPanel.size = vp
 
 	$Panels/MainView/VBox/MultiplayerBtn.modulate.a = 0.0
 	$Panels/MainView/VBox/SettingsBtn.modulate.a = 0.0
@@ -133,14 +135,25 @@ func _on_quit_pressed() -> void:
 func _on_lobby_back_requested() -> void:
 	_slide_to_main()
 
+func _on_lobby_staging_requested() -> void:
+	_slide_to_staging()
+
+func _on_lobby_view_requested() -> void:
+	_slide_to_lobby()
+
+func _slide_to_main() -> void:
+	var tw: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property($Panels, "position:y", 0.0, _SLIDE_DURATION)
+
 func _slide_to_lobby() -> void:
 	var vp_h: float = get_viewport_rect().size.y
 	var tw: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_property($Panels, "position:y", -vp_h, _SLIDE_DURATION)
 
-func _slide_to_main() -> void:
+func _slide_to_staging() -> void:
+	var vp_h: float = get_viewport_rect().size.y
 	var tw: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
-	tw.tween_property($Panels, "position:y", 0.0, _SLIDE_DURATION)
+	tw.tween_property($Panels, "position:y", -vp_h * 2.0, _SLIDE_DURATION)
 
 func _apply_saved_settings() -> void:
 	var cfg: ConfigFile = ConfigFile.new()

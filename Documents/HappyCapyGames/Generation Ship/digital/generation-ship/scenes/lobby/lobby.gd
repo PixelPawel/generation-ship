@@ -1,6 +1,8 @@
 extends Control
 
 signal back_requested
+signal staging_requested
+signal lobby_view_requested
 
 const MAX_PLAYERS: int = 4
 const SETTINGS_PATH: String = "user://settings.cfg"
@@ -109,6 +111,7 @@ func _show_staging() -> void:
 		_diff_btn.custom_minimum_size = Vector2(100, 44)
 		_diff_btn.add_theme_font_size_override("font_size", 18)
 		bot_row.add_child(_diff_btn)
+	staging_requested.emit()
 
 func _start_preload() -> void:
 	var vbox: VBoxContainer = $StagingPanel/VBox
@@ -161,6 +164,7 @@ func _show_lobby() -> void:
 	_set_controls_locked(false)
 	_lobby_refresh_timer = 0.0
 	_is_host = false
+	lobby_view_requested.emit()
 
 # ── Lobby list ────────────────────────────────────────────────────────────────
 

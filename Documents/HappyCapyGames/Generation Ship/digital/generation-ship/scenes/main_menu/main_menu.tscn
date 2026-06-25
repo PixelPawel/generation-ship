@@ -254,10 +254,7 @@ text = "← Back"
 theme_override_font_sizes/font_size = 20
 
 [node name="StagingPanel" type="Control" parent="Panels/LobbyView"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
+layout_mode = 0
 visible = false
 
 [node name="VBox" type="VBoxContainer" parent="Panels/LobbyView/StagingPanel"]
@@ -368,3 +365,5 @@ script = ExtResource("4_pause_menu")
 [connection signal="pressed" from="Panels/LobbyView/StagingPanel/VBox/StartBtn" to="Panels/LobbyView" method="_on_start_pressed"]
 [connection signal="pressed" from="Panels/LobbyView/StagingPanel/VBox/LeaveBtn" to="Panels/LobbyView" method="_on_leave_pressed"]
 [connection signal="back_requested" from="Panels/LobbyView" to="." method="_on_lobby_back_requested"]
+[connection signal="staging_requested" from="Panels/LobbyView" to="." method="_on_lobby_staging_requested"]
+[connection signal="lobby_view_requested" from="Panels/LobbyView" to="." method="_on_lobby_view_requested"]
