@@ -1,14 +1,11 @@
 extends Control
 
 const SETTINGS_PATH: String = "user://settings.cfg"
-const _PARALLAX_STRENGTH: float = 10.0
-const _PARALLAX_SPEED: float = 3.0
 const _BTN_HOVER_IN_SEC: float = 0.15
 const _BTN_HOVER_OUT_SEC: float = 0.22
 
 var _btn_tweens: Dictionary = {}
 var _music_player: AudioStreamPlayer = null
-var _bg_node: Control = null
 
 const RESOLUTIONS: Array[Vector2i] = [
 	Vector2i(1280, 720),
@@ -37,17 +34,9 @@ func _ready() -> void:
 	ver_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(ver_lbl)
 
-func _process(delta: float) -> void:
-	if not _bg_node:
-		return
-	var vp_size: Vector2 = get_viewport_rect().size
-	var norm: Vector2 = (get_viewport().get_mouse_position() / vp_size - Vector2(0.5, 0.5)) * 2.0
-	_bg_node.position = _bg_node.position.lerp(norm * -_PARALLAX_STRENGTH, delta * _PARALLAX_SPEED)
-
 func _setup_video() -> void:
 	const VIDEO_PATH: String = "res://assets/video/flythrough.mp4"
 	if not FileAccess.file_exists(VIDEO_PATH):
-		_bg_node = $Background
 		return
 	var vp := VideoPlayback.new()
 	vp.enable_audio = false
@@ -59,7 +48,6 @@ func _setup_video() -> void:
 	vp.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	vp.set_video_path(VIDEO_PATH)
 	$Background.visible = false
-	_bg_node = vp
 
 func _setup_music() -> void:
 	var stream: AudioStreamOggVorbis = load("res://assets/music/ambience.ogg") as AudioStreamOggVorbis
