@@ -23,7 +23,6 @@ func _ready() -> void:
 	theme = GameTheme.get_theme()
 	_apply_saved_settings()
 	_setup_video()
-	_setup_starfield()
 	_setup_music()
 	$VBox/MultiplayerBtn.modulate.a = 0.0
 	$VBox/SettingsBtn.modulate.a = 0.0
@@ -76,25 +75,12 @@ func _setup_music() -> void:
 	var tw: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_property(_music_player, "volume_db", 0.0, 2.0)
 
-func _setup_starfield() -> void:
-	var sf: Control = Control.new()
-	sf.set_script(load("res://scenes/ui/starfield.gd"))
-	add_child(sf)
-	move_child(sf, $DarkOverlay.get_index() + 1)
-	sf.z_index = 0
-
 func _start_animations() -> void:
-	_animate_overlay()
 	_animate_logo()
 	_animate_buttons()
 	_setup_button_hover($VBox/MultiplayerBtn as Button)
 	_setup_button_hover($VBox/SettingsBtn as Button)
 	_setup_button_hover($VBox/QuitBtn as Button)
-
-func _animate_overlay() -> void:
-	var tw: Tween = create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tw.tween_property($DarkOverlay, "color:a", 0.58, 4.0)
-	tw.tween_property($DarkOverlay, "color:a", 0.45, 4.0)
 
 func _animate_logo() -> void:
 	var title: TextureRect = $Title
