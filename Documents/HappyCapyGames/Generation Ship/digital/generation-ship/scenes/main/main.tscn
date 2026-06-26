@@ -12,9 +12,9 @@
 [ext_resource type="PackedScene" uid="uid://lr1fv7ps1enp" path="res://assets/3d/gs_ui_control.glb" id="16_ui_control"]
 [ext_resource type="PackedScene" uid="uid://bms2gw8qt2foq" path="res://assets/3d/gs_ui_info.glb" id="17_ui_info"]
 [ext_resource type="PackedScene" uid="uid://cnt3hx80usgpr" path="res://assets/3d/gs_ui_cockpit.glb" id="18_ui_cockpit"]
-[ext_resource type="PackedScene" uid="uid://dxp7nk4qb3mjs" path="res://assets/3d/gs_ui_log.glb" id="21_ui_log"]
 [ext_resource type="PackedScene" uid="uid://c4s6l8t0r2e5" path="res://scenes/board/sector_slot.tscn" id="19_sector_slot"]
 [ext_resource type="Script" uid="uid://dbo2s5pwckbd" path="res://scripts/starfield.gd" id="20_starfield"]
+[ext_resource type="PackedScene" uid="uid://dxp7nk4qb3mjs" path="res://assets/3d/gs_ui_log.glb" id="21_ui_log"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 1
@@ -150,15 +150,16 @@ grow_vertical = 2
 script = ExtResource("9_pause_menu")
 
 [node name="UiControl" parent="." unique_id=415939886 instance=ExtResource("16_ui_control")]
-transform = Transform3D(3.9999757, 0.013962626, -1.5365728e-07, 1.5394755e-07, -8.2892214e-08, 4.0000005, 0.013962626, -3.9999757, -8.342909e-08, -0.53126466, 1.1373519, -0.21471411)
+transform = Transform3D(3.6809187, 0.012848869, 1.5654639, -1.565454, -0.005464573, 3.6809409, 0.0139626255, -3.999976, -8.3744354e-08, -0.636, 1.1118473, -0.22355545)
 
 [node name="UiInfo" parent="." unique_id=827463901 instance=ExtResource("17_ui_info")]
-transform = Transform3D(3.9999938, 0.0069813137, 3.0516292e-10, 0, -1.7484555e-07, 4, 0.0069813137, -3.9999938, -1.7484528e-07, 0.71724474, 0.9406268, -0.27440512)
+transform = Transform3D(3.9999938, 0.0069813137, 3.0516292e-10, 0, -1.7484555e-07, 4, 0.0069813137, -3.9999938, -1.7484528e-07, 0.7282883, 0.9406268, -0.27440512)
 
 [node name="UiCockpit" parent="." unique_id=938574012 instance=ExtResource("18_ui_cockpit")]
 transform = Transform3D(2.5, 0, 0, 0, 0.88841176, 1.8694555, 0, -2.3368194, 0.7107294, -0.0023359656, 0.9999999, -0.119951665)
 
-[node name="UiLog" parent="." unique_id=2200000001 instance=ExtResource("21_ui_log")]
+[node name="UiLog" parent="." unique_id=-2094967295 instance=ExtResource("21_ui_log")]
+transform = Transform3D(-0.0003750714, -2.4959066, 0.11440481, 2.1444182e-05, 0.14300601, 1.9967252, -2, 0.00046960489, -4.5915144e-08, -0.22001189, 0.965, -0.33102542)
 
 [node name="CockpitFillLight" type="OmniLight3D" parent="." unique_id=815320505]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.037768304, 1.0892866, -0.05723527)
@@ -186,7 +187,7 @@ light_energy = 0.35
 omni_range = 0.8
 
 [node name="CockpitPanelGlow" type="OmniLight3D" parent="CockpitPanelGlow/CockpitPanelGlow2" unique_id=394644946]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.7827995, -0.00016492605, -0.009)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8734183, -0.07851958, 0.0075092018)
 light_color = Color(0.55, 0.78, 1, 1)
 light_energy = 0.35
 omni_range = 0.8
