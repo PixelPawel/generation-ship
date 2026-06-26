@@ -90,7 +90,7 @@ func _animate_logo() -> void:
 	title.hide()
 	var logo_vp: VideoPlayback = VideoPlayback.new()
 	logo_vp.enable_audio = false
-	logo_vp.loop = false
+	logo_vp.loop = true
 	logo_vp.enable_auto_play = true
 	title.get_parent().add_child(logo_vp)
 	logo_vp.anchor_left = 0.0
