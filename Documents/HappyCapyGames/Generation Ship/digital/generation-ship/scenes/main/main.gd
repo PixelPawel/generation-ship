@@ -1653,12 +1653,12 @@ func _flash_auction_warning() -> void:
 	$UILayer.add_child(overlay)
 	var t: Tween = create_tween()
 	for i: int in 3:
-		t.tween_property(overlay, "color:a", 0.35, 0.12)
+		t.tween_property(overlay, "color:a", 0.35, 0.24)
 		if i == 0:
-			t.parallel().tween_property(lbl, "modulate:a", 1.0, 0.12)
-		t.tween_property(overlay, "color:a", 0.0, 0.15)
+			t.parallel().tween_property(lbl, "modulate:a", 1.0, 0.24)
+		t.tween_property(overlay, "color:a", 0.0, 0.30)
 		if i == 2:
-			t.parallel().tween_property(lbl, "modulate:a", 0.0, 0.15)
+			t.parallel().tween_property(lbl, "modulate:a", 0.0, 0.30)
 	t.tween_callback(overlay.queue_free)
 
 func _show_won_card_popup() -> void:
