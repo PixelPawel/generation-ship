@@ -1090,17 +1090,6 @@ func _generate_shuffled_order(size: int) -> Array:
 @rpc("authority", "reliable", "call_local")
 func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	$UILayer/StartButton.hide()
-	var ui_control_anim := $UiControl.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	if ui_control_anim:
-		ui_control_anim.play("intro")
-		_ui_control_shown = true
-	var ui_info_anim := $UiInfo.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	if ui_info_anim:
-		ui_info_anim.play("intro")
-		_ui_info_shown = true
-	var ui_log_anim := $UiLog.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	if ui_log_anim:
-		ui_log_anim.play("intro")
 	_round = 1
 	_update_round_label()
 	_init_supply()
@@ -1114,7 +1103,6 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	else:
 		$Board.setup_expedition_deck_ordered(exp_order)
 	$Board.setup_expedition_market()
-	$Board.deal_opening_hand()
 	if multiplayer.is_server() and not GameNetwork.bot_ids.is_empty():
 		_init_bot_state()
 	$Board.refresh_discount_glow()
@@ -1126,9 +1114,28 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	_update_turn_ui()
 	if GameNetwork.is_multiplayer:
 		_build_opponent_widget()
+	_log_action("─── Round 1 / %d ───" % MAX_ROUNDS, Color(0.6, 0.82, 1.0))
+
+	var ui_control_anim := $UiControl.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if ui_control_anim:
+		ui_control_anim.play("intro", -1, 0.5)
+		_ui_control_shown = true
+		await ui_control_anim.animation_finished
+
+	var ui_info_anim := $UiInfo.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if ui_info_anim:
+		ui_info_anim.play("intro", -1, 0.5)
+		_ui_info_shown = true
+		await ui_info_anim.animation_finished
+
+	var ui_log_anim := $UiLog.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if ui_log_anim:
+		ui_log_anim.play("intro", -1, 0.5)
+		await ui_log_anim.animation_finished
+
+	$Board.deal_opening_hand()
 	if GameNetwork.is_multiplayer:
 		_broadcast_my_state()
-	_log_action("─── Round 1 / %d ───" % MAX_ROUNDS, Color(0.6, 0.82, 1.0))
 	if multiplayer.is_server() and GameNetwork.is_bot(GameNetwork.active_peer_id):
 		_run_bot_turn(GameNetwork.active_peer_id)
 
