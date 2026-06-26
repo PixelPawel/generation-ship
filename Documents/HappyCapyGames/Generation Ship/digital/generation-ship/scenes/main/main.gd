@@ -93,8 +93,6 @@ var _ending_turn: bool = false
 var _pre_setup_done: bool = false
 var _cached_sector_order: Array = []
 var _cached_exp_order: Array = []
-var _video_layer: CanvasLayer = null
-var _video_node: VideoPlayback = null
 
 var _auction_card_ref: Dictionary = {}
 var _auction_slot_idx: int = -1
@@ -164,7 +162,6 @@ var _es_back_btn: Button = null
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
 func _ready() -> void:
-	_setup_bg_video()
 	for node: Node3D in [$UiControl, $UiInfo, $UiLog, $UiCockpit]:
 		_rumble_base_pos[node] = node.position
 		_rumble_base_rot[node] = node.rotation
@@ -462,22 +459,6 @@ func _collect_urls() -> Array[String]:
 	urls.append($Board.TECH_BACK_URL)
 	urls.append($Board.EXPEDITION_BACK_URL)
 	return urls
-
-func _setup_bg_video() -> void:
-	const VIDEO_PATH: String = "res://assets/video/flythrough.mp4"
-	if not FileAccess.file_exists(VIDEO_PATH):
-		return
-	_video_layer = CanvasLayer.new()
-	_video_layer.layer = 0
-	add_child(_video_layer)
-	_video_node = VideoPlayback.new()
-	_video_node.enable_audio = false
-	_video_node.loop = true
-	_video_node.enable_auto_play = true
-	_video_node.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_video_layer.add_child(_video_node)
-	_video_node.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	_video_node.set_video_path(VIDEO_PATH)
 
 # ── Cache / start ─────────────────────────────────────────────────────────────
 
@@ -1151,19 +1132,11 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	if not _pre_setup_done:
 		_do_game_setup(sector_order, exp_order)
 
-	if _video_node:
-		var vfade: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-		vfade.tween_property(_video_node, "modulate:a", 0.0, 0.8)
-
 	var ui_control_anim := $UiControl.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if ui_control_anim:
 		ui_control_anim.play("intro", -1, 0.5)
 		_ui_control_shown = true
 		await ui_control_anim.animation_finished
-	if _video_layer:
-		_video_layer.queue_free()
-		_video_layer = null
-		_video_node = null
 
 	var ui_info_anim := $UiInfo.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if ui_info_anim:
