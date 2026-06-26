@@ -48,7 +48,6 @@ var _pending_cost: int = 0
 var _is_free_gain: bool = false
 var _is_auction_win: bool = false
 var _pending_dynamic_slot: SectorSlot = null
-var _pending_drop_pos: Vector3 = Vector3.ZERO
 var _drag_arrow: DragArrow = null
 var _is_arrow_drag: bool = false
 @onready var _sector_row: Node3D = $SectorRow
@@ -560,18 +559,6 @@ func _do_recycle() -> void:
 		_discard_pile.add_discard(card.card_data)
 	card.queue_free()
 
-func _try_capture_drop_pos() -> bool:
-	var pos: Vector3 = _dragged_card.global_position
-	for slot: SectorSlot in _sector_row.get_children():
-		if not slot.occupied:
-			continue
-		var dx: float = pos.x - slot.global_position.x
-		var dz: float = pos.z - slot.global_position.z
-		if sqrt(dx * dx + dz * dz) < MIN_SLOT_DISTANCE:
-			return false
-	_pending_drop_pos = pos
-	return true
-
 func _spawn_slot_at_pos(pos: Vector3) -> SectorSlot:
 	var slot: SectorSlot = _SLOT_SCENE.instantiate() as SectorSlot
 	_sector_row.add_child(slot)
@@ -882,20 +869,6 @@ func _viable_single_color_options(card_color: CardData.SupplyColor, cost: int) -
 		if _supply_ui.get_supply(color) >= cost:
 			options.append(color)
 	return options
-
-func _start_supply_choice(card: Node3D, slot: SectorSlot, cost: int, options: Array[CardData.SupplyColor], is_tech: bool) -> void:
-	_pending_card = card
-	_pending_slot = slot
-	_pending_is_tech = is_tech
-	_pending_cost = cost
-	_pending_pay_amounts = {}
-	_pending_drag_origin = _drag_origin
-	_dragged_card = null
-	_drag_origin = DragOrigin.NONE
-	card.end_drag()
-	var t: Tween = card.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	t.tween_property(card, "global_position", slot.global_position + Vector3(0.0, PENDING_HOVER_Y, 0.0), 0.2)
-	supply_choice_required.emit(card, slot, cost, options, is_tech)
 
 func apply_supply_choice(color: CardData.SupplyColor) -> void:
 	_pending_pay_amounts = {color: _pending_cost}

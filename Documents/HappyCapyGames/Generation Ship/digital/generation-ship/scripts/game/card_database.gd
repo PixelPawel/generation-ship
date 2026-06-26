@@ -162,6 +162,21 @@ func _is_valid_color(s: String) -> bool:
 			return true
 	return false
 
+func get_all_image_urls() -> Array[String]:
+	var urls: Array[String] = []
+	for cd: CardData in sectors:
+		if not cd.image_url.is_empty():
+			urls.append(cd.image_url)
+		if not cd.adv_image_url.is_empty():
+			urls.append(cd.adv_image_url)
+	for cd: CardData in techs:
+		if not cd.image_url.is_empty():
+			urls.append(cd.image_url)
+	for cd: CardData in expeditions:
+		if not cd.image_url.is_empty():
+			urls.append(cd.image_url)
+	return urls
+
 func _parse_color(color_str: String) -> CardData.SupplyColor:
 	match color_str.strip_edges().to_lower():
 		"dust":    return CardData.SupplyColor.DUST

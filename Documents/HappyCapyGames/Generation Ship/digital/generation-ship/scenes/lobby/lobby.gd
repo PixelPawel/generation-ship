@@ -115,19 +115,7 @@ func _show_staging() -> void:
 	staging_requested.emit()
 
 func _preload_card_images() -> void:
-	var urls: Array[String] = []
-	for cd: CardData in CardDatabase.sectors:
-		if not cd.image_url.is_empty():
-			urls.append(cd.image_url)
-		if not cd.adv_image_url.is_empty():
-			urls.append(cd.adv_image_url)
-	for cd: CardData in CardDatabase.techs:
-		if not cd.image_url.is_empty():
-			urls.append(cd.image_url)
-	for cd: CardData in CardDatabase.expeditions:
-		if not cd.image_url.is_empty():
-			urls.append(cd.image_url)
-	ImageCache.preload_urls(urls)
+	ImageCache.preload_urls(CardDatabase.get_all_image_urls())
 
 func _start_preload() -> void:
 	var vbox: VBoxContainer = $StagingPanel/VBox
@@ -142,19 +130,7 @@ func _start_preload() -> void:
 		ImageCache.progress_updated.connect(_on_preload_progress)
 	if not ImageCache.all_loaded.is_connected(_on_preload_done):
 		ImageCache.all_loaded.connect(_on_preload_done)
-	var urls: Array[String] = []
-	for cd: CardData in CardDatabase.sectors:
-		if not cd.image_url.is_empty():
-			urls.append(cd.image_url)
-		if not cd.adv_image_url.is_empty():
-			urls.append(cd.adv_image_url)
-	for cd: CardData in CardDatabase.techs:
-		if not cd.image_url.is_empty():
-			urls.append(cd.image_url)
-	for cd: CardData in CardDatabase.expeditions:
-		if not cd.image_url.is_empty():
-			urls.append(cd.image_url)
-	ImageCache.preload_urls(urls)
+	ImageCache.preload_urls(CardDatabase.get_all_image_urls())
 
 func _on_preload_progress(loaded: int, total: int) -> void:
 	if _loading_label:

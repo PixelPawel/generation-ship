@@ -156,7 +156,6 @@ var _info_panels: Array[Control] = []
 var _bot_hands: Dictionary = {}      # bot_id → Array[CardData]
 var _bot_supplies: Dictionary = {}   # bot_id → Dictionary (int color → int count)
 var _bot_boards: Dictionary = {}     # bot_id → Array[{sector, is_advanced, techs, stored}]
-const _BOT_TECH_CAPACITY: int = 3
 var _es_back_btn: Button = null
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
@@ -444,18 +443,7 @@ func _build_opponent_widget() -> void:
 	outer_vbox.add_child(_es_back_btn)
 
 func _collect_urls() -> Array[String]:
-	var urls: Array[String] = []
-	for card: CardData in CardDatabase.sectors:
-		if not card.image_url.is_empty():
-			urls.append(card.image_url)
-		if not card.adv_image_url.is_empty():
-			urls.append(card.adv_image_url)
-	for card: CardData in CardDatabase.techs:
-		if not card.image_url.is_empty():
-			urls.append(card.image_url)
-	for card: CardData in CardDatabase.expeditions:
-		if not card.image_url.is_empty():
-			urls.append(card.image_url)
+	var urls: Array[String] = CardDatabase.get_all_image_urls()
 	urls.append($Board.TECH_BACK_URL)
 	urls.append($Board.EXPEDITION_BACK_URL)
 	return urls

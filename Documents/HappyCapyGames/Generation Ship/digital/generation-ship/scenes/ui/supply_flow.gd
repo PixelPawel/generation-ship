@@ -7,7 +7,6 @@ const ICON_HALF  := ICON_SZ * 0.5
 const ARROW_OFF  := 31.0   # distance from icon centre to arrow tip/tail
 const ARROW_W    := 3.5
 const ARROW_HOVER_W := 5.5
-const ARROW_GLOW_W  := 18.0
 const ARROW_HIT  := 26.0   # px from line to count as a hit
 
 const COL_ARROW    := Color(0.9, 0.2, 0.3)

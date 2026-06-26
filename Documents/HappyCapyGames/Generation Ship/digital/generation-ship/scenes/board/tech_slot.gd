@@ -1,7 +1,5 @@
 extends Node3D
 
-const MAX_SLOTS := 5
-
 var slot_index: int = 0
 var occupied := false
 var placed_card: Node3D = null

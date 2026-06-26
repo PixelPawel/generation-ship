@@ -10,12 +10,11 @@ const MAX_HAND_WIDTH := 2.5
 const CARD_WIDTH := 0.504
 const MIN_SPACING := CARD_WIDTH * 0.29
 const HOVER_LIFT := 0.2
-const HOVER_NEIGHBOR_SHIFT := 0.3
 const HOVER_SCALE := HAND_SCALE * 2.2
 const LAYOUT_DURATION := 0.2
 
 var _cards: Array[Node3D] = []
-var _hovered_index := -1
+var _hovered_index: int = -1
 var _unhover_pending: bool = false
 
 func add_card(card: Node3D, animate: bool = false) -> void:
