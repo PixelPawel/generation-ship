@@ -471,13 +471,15 @@ func _on_cache_ready() -> void:
 		GameNetwork.setup_solo()
 		_cached_sector_order = _generate_shuffled_order(CardDatabase.sectors.size())
 		_cached_exp_order = _generate_shuffled_order(CardDatabase.expeditions.size())
-		_do_game_setup(_cached_sector_order, _cached_exp_order)
+		call_deferred("_deferred_pre_setup")
 	elif GameNetwork.is_host:
 		_cached_sector_order = _generate_shuffled_order(CardDatabase.sectors.size())
 		_cached_exp_order = _generate_shuffled_order(CardDatabase.expeditions.size())
-		_do_game_setup(_cached_sector_order, _cached_exp_order)
-	if not GameNetwork.is_multiplayer or GameNetwork.is_host:
-		$UILayer/StartButton.show()
+		call_deferred("_deferred_pre_setup")
+
+func _deferred_pre_setup() -> void:
+	_do_game_setup(_cached_sector_order, _cached_exp_order)
+	$UILayer/StartButton.show()
 
 func _do_game_setup(sector_order: Array, exp_order: Array) -> void:
 	_pre_setup_done = true
