@@ -82,7 +82,7 @@ func _start_animations() -> void:
 	_setup_button_hover($Panels/MainView/VBox/QuitBtn as Button)
 
 func _animate_logo() -> void:
-	const LOGO_PATH: String = "res://assets/video/logo.mp4"
+	const LOGO_PATH: String = "res://assets/video/logo.webm"
 	var title: TextureRect = $Panels/MainView/Title
 	if not FileAccess.file_exists(LOGO_PATH):
 		title.modulate.a = 1.0
