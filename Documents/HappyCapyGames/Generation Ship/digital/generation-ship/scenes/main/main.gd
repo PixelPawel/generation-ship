@@ -64,6 +64,7 @@ var _pending_store_nodes: Array[Node3D] = []
 var _last_drawn_cards: Array[Node3D] = []
 var _restrict_picks_to_drawn: bool = false
 var _sector_info_popup: SectorInfoPopup = null
+var _recycle_panel: RecyclePanel = null
 var _sector_picker: SectorPickerPanel = null
 var _supply_cost_panel: SupplyCostPanel = null
 var _market_panel: Control = null
@@ -170,6 +171,7 @@ func _ready() -> void:
 	$Board.set_hand(hand)
 	$Board.set_card_scene(card_scene)
 	$Board.card_recycled.connect(_on_card_recycled)
+	$Board.recycle_confirm_required.connect(_on_recycle_confirm_required)
 	$Board.setup_tech_deck(CardDatabase.techs)
 	$Board.setup_sector_deck(CardDatabase.sectors)
 	$UILayer/StartButton.pressed.connect(_on_start_pressed)
@@ -244,6 +246,12 @@ func _ready() -> void:
 	_sector_info_popup.cargo_move_requested.connect(_on_cargo_move_requested)
 	_sector_info_popup.cargo_cancelled.connect(_on_cargo_cancelled)
 	_sector_info_popup.effect_done.connect(_on_effect_done_pressed)
+
+	_recycle_panel = RecyclePanel.new()
+	_info_viewport.add_child(_recycle_panel)
+	_register_info_panel(_recycle_panel)
+	_recycle_panel.confirmed.connect(_on_recycle_panel_confirmed)
+	_recycle_panel.cancelled.connect(_on_recycle_panel_cancelled)
 
 	_sector_picker = load("res://scenes/ui/sector_picker_panel.gd").new()
 	_info_viewport.add_child(_sector_picker)
@@ -1799,12 +1807,17 @@ func _on_card_right_clicked_free_recycle(card: Node3D) -> void:
 		return
 	if not GameNetwork.is_my_turn():
 		return
-	UIAudio.play_recycle_sfx()
-	var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-	_cs_display.add_supply(color, 1)
-	_apply_recycle_bonus(color)
-	$Board.add_to_discard(card.card_data)
-	_recycle_card_to_supply(card, color)
+	$Board.request_recycle(card)
+
+func _on_recycle_confirm_required(card: Node3D, color: CardData.SupplyColor) -> void:
+	var tc_count: int = $Board.count_tech_by_name("Trash Compactor") if color == CardData.SupplyColor.DUST else 0
+	_recycle_panel.show_recycle(card.card_data if card.card_data else null, color, tc_count)
+
+func _on_recycle_panel_confirmed() -> void:
+	$Board.confirm_recycle()
+
+func _on_recycle_panel_cancelled() -> void:
+	$Board.cancel_recycle()
 
 
 func _gather_hand_source() -> Array[CardData]:

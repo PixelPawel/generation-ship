@@ -14,6 +14,7 @@ const MIN_SLOT_DISTANCE := 0.075
 const _SLOT_SCENE := preload("res://scenes/board/sector_slot.tscn")
 
 signal card_recycled(supply_color: CardData.SupplyColor)
+signal recycle_confirm_required(card: Node3D, color: CardData.SupplyColor)
 signal major_action_changed(taken: bool)
 signal market_card_taken(card_data: CardData)
 signal bid_required(card: Node3D, slot: Node3D, min_cost: int, cost_color: CardData.SupplyColor, is_tech: bool)
@@ -40,6 +41,7 @@ var _major_action_taken: bool = false
 var _supply_ui: Control = null
 var _card_scene: PackedScene = null
 var _pending_card: Node3D = null
+var _pending_recycle_card: Node3D = null
 var _pending_slot: Node3D = null
 var _pending_is_tech: bool = false
 var _pending_pay_amounts: Dictionary = {}
@@ -468,7 +470,7 @@ func is_major_action_taken() -> bool:
 	return _major_action_taken
 
 func _on_hand_card_drag_started(card: Node3D) -> void:
-	if not GameNetwork.is_my_turn() or _major_action_taken:
+	if not GameNetwork.is_my_turn() or _pending_card or _pending_recycle_card:
 		card.end_drag()
 		_hand.add_card(card, true)
 		return
@@ -553,11 +555,44 @@ func _do_recycle() -> void:
 	var card: Node3D = _dragged_card
 	_dragged_card = null
 	_drag_origin = DragOrigin.NONE
-	if card.card_data:
-		card_recycled.emit(card.card_data.color)
-	if _discard_pile:
-		_discard_pile.add_discard(card.card_data)
-	card.queue_free()
+	card.end_drag()
+	var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
+	_pending_recycle_card = card
+	recycle_confirm_required.emit(card, color)
+
+func request_recycle(card: Node3D) -> void:
+	if _pending_recycle_card or not is_instance_valid(card):
+		return
+	if _hand:
+		_hand.detach_card(card)
+	var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
+	_pending_recycle_card = card
+	recycle_confirm_required.emit(card, color)
+
+func confirm_recycle() -> void:
+	if not is_instance_valid(_pending_recycle_card):
+		_pending_recycle_card = null
+		return
+	var card: Node3D = _pending_recycle_card
+	var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
+	_pending_recycle_card = null
+	add_to_discard(card.card_data)
+	card_recycled.emit(color)
+	var t: Tween = card.create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
+	t.tween_property(card, "scale", Vector3.ZERO, 0.25)
+	t.tween_callback(func() -> void:
+		if is_instance_valid(card):
+			card.queue_free()
+	)
+
+func cancel_recycle() -> void:
+	if not is_instance_valid(_pending_recycle_card):
+		_pending_recycle_card = null
+		return
+	var card: Node3D = _pending_recycle_card
+	_pending_recycle_card = null
+	if _hand:
+		_hand.add_card(card, true)
 
 func _spawn_slot_at_pos(pos: Vector3) -> SectorSlot:
 	var slot: SectorSlot = _SLOT_SCENE.instantiate() as SectorSlot
