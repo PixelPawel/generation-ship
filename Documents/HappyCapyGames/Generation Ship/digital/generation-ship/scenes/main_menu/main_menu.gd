@@ -7,7 +7,6 @@ const _SLIDE_DURATION: float = 0.5
 
 var _btn_tweens: Dictionary = {}
 var _music_player: AudioStreamPlayer = null
-var _video_node: VideoPlayback = null
 
 const RESOLUTIONS: Array[Vector2i] = [
 	Vector2i(1280, 720),
@@ -50,15 +49,15 @@ func _setup_video() -> void:
 	const VIDEO_PATH: String = "res://assets/video/flythrough.mp4"
 	if not FileAccess.file_exists(VIDEO_PATH):
 		return
-	_video_node = VideoPlayback.new()
-	_video_node.enable_audio = false
-	_video_node.loop = true
-	_video_node.enable_auto_play = true
-	_video_node.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(_video_node)
-	move_child(_video_node, $Background.get_index())
-	_video_node.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	_video_node.set_video_path(VIDEO_PATH)
+	var vp := VideoPlayback.new()
+	vp.enable_audio = false
+	vp.loop = true
+	vp.enable_auto_play = true
+	vp.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(vp)
+	move_child(vp, $Background.get_index())
+	vp.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	vp.set_video_path(VIDEO_PATH)
 	$Background.visible = false
 
 func _setup_music() -> void:
@@ -151,19 +150,8 @@ func _on_quit_pressed() -> void:
 func _on_lobby_back_requested() -> void:
 	_slide_to_main()
 
-func _on_lobby_loading_started() -> void:
-	if not _video_node:
-		return
-	var tw: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tw.tween_property(_video_node, "modulate:a", 0.0, 0.3)
-
 func _on_lobby_staging_requested() -> void:
 	_slide_to_staging()
-	if not _video_node:
-		return
-	var tw: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.tween_interval(_SLIDE_DURATION)
-	tw.tween_property(_video_node, "modulate:a", 1.0, 0.4)
 
 func _on_lobby_view_requested() -> void:
 	_slide_to_lobby()
