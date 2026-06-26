@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scenes/lobby/lobby.gd" id="1_script"]
 [ext_resource type="Texture2D" path="res://assets/ui/Cover.jpeg" id="2_cover"]
-[ext_resource type="Texture2D" path="res://assets/ui/logo_fun.png" id="3_logo"]
+[ext_resource type="Texture2D" path="res://assets/logo/0250.png" id="3_logo"]
 
 [sub_resource type="StyleBoxFlat" id="SBF_input_n"]
 bg_color = Color(0.04, 0.08, 0.18, 0.90)

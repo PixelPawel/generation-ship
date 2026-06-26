@@ -82,26 +82,25 @@ func _start_animations() -> void:
 	_setup_button_hover($Panels/MainView/VBox/QuitBtn as Button)
 
 func _animate_logo() -> void:
+	const LOGO_PATH: String = "res://assets/video/logo.mp4"
 	var title: TextureRect = $Panels/MainView/Title
-	title.pivot_offset = title.size / 2.0
-	title.scale = Vector2(0.93, 0.93)
-	title.modulate = Color(1.0, 1.0, 1.0, 0.0)
-
-	var enter: Tween = create_tween().set_parallel(true)
-	enter.tween_property(title, "scale", Vector2(1.0, 1.0), 0.75) \
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	enter.tween_property(title, "modulate:a", 1.0, 0.55) \
-		.set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
-	await enter.finished
-
-	var base_y: float = title.position.y
-	var float_tw: Tween = create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	float_tw.tween_property(title, "position:y", base_y - 9.0, 2.5)
-	float_tw.tween_property(title, "position:y", base_y + 9.0, 2.5)
-
-	var glow_tw: Tween = create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	glow_tw.tween_property(title, "modulate", Color(1.1, 1.18, 1.35, 1.0), 3.5)
-	glow_tw.tween_property(title, "modulate", Color(1.0, 1.0, 1.0, 1.0), 3.5)
+	if not FileAccess.file_exists(LOGO_PATH):
+		title.modulate.a = 1.0
+		return
+	title.hide()
+	var logo_vp: VideoPlayback = VideoPlayback.new()
+	logo_vp.enable_audio = false
+	logo_vp.loop = false
+	logo_vp.enable_auto_play = true
+	title.get_parent().add_child(logo_vp)
+	logo_vp.anchor_left = 0.0
+	logo_vp.anchor_top = 0.0
+	logo_vp.anchor_right = 1.0
+	logo_vp.anchor_bottom = 0.0
+	logo_vp.offset_top = 48.0
+	logo_vp.offset_bottom = 248.0
+	logo_vp.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	logo_vp.set_video_path(LOGO_PATH)
 
 func _animate_buttons() -> void:
 	var buttons: Array[Node] = [
