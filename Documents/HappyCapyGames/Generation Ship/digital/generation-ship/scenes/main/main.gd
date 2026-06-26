@@ -125,6 +125,8 @@ var _is_runner_up_offer: bool = false
 var _runner_up_phase: bool = false
 var _bots_passed_this_round: Array[int] = []
 var _cs_viewport: SubViewport = null
+var _vp_button_held: bool = false
+var _vp_prev_pos: Dictionary = {}  # SubViewport -> Vector2
 var _info_viewport: SubViewport = null
 var _log_viewport: SubViewport = null
 var _log_vbox: VBoxContainer = null
@@ -669,7 +671,7 @@ func _setup_viewport_input(screen_mesh: MeshInstance3D, vp: SubViewport) -> void
 	var cshape: CollisionShape3D = CollisionShape3D.new()
 	var box: BoxShape3D = BoxShape3D.new()
 	var aabb: AABB = screen_mesh.mesh.get_aabb()
-	box.size = Vector3(aabb.size.x, aabb.size.y, 0.01)
+	box.size = Vector3(aabb.size.x, aabb.size.y, 0.05)
 	cshape.shape = box
 	cshape.position = aabb.get_center()
 	area.add_child(cshape)
@@ -677,6 +679,9 @@ func _setup_viewport_input(screen_mesh: MeshInstance3D, vp: SubViewport) -> void
 		_forward_to_viewport(event, pos, screen_mesh, vp)
 	)
 	area.mouse_exited.connect(func() -> void:
+		if _vp_button_held:
+			return
+		_vp_prev_pos.erase(vp)
 		var mm: InputEventMouseMotion = InputEventMouseMotion.new()
 		mm.position = Vector2(-1.0, -1.0)
 		vp.push_input(mm, true)
@@ -689,15 +694,20 @@ func _forward_to_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshInsta
 	var v: float = 1.0 - (local_pos.y - aabb.position.y) / aabb.size.y
 	var vp_pos: Vector2 = Vector2(u * float(vp.size.x), v * float(vp.size.y))
 	if event is InputEventMouseButton:
+		var src: InputEventMouseButton = event as InputEventMouseButton
+		_vp_button_held = src.pressed
 		var mb: InputEventMouseButton = InputEventMouseButton.new()
-		mb.button_index = (event as InputEventMouseButton).button_index
-		mb.pressed = (event as InputEventMouseButton).pressed
+		mb.button_index = src.button_index
+		mb.pressed = src.pressed
+		mb.button_mask = src.button_mask
 		mb.position = vp_pos
 		vp.push_input(mb, true)
 	elif event is InputEventMouseMotion:
+		var prev: Vector2 = _vp_prev_pos.get(vp, vp_pos)
+		_vp_prev_pos[vp] = vp_pos
 		var mm: InputEventMouseMotion = InputEventMouseMotion.new()
 		mm.position = vp_pos
-		mm.relative = (event as InputEventMouseMotion).relative
+		mm.relative = vp_pos - prev
 		vp.push_input(mm, true)
 
 func _setup_info_screen_display() -> void:
