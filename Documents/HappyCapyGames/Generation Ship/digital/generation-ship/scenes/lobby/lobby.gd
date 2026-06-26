@@ -59,6 +59,29 @@ func _ready() -> void:
 	_load_saved_name()
 	_request_lobby_list()
 	_preload_card_images()
+	_animate_logos()
+
+func _animate_logos() -> void:
+	const LOGO_PATH: String = "res://assets/video/logo.webm"
+	if not FileAccess.file_exists(LOGO_PATH):
+		return
+	_replace_logo_with_video($LobbyPanel/Title, 140.0)
+	_replace_logo_with_video($StagingPanel/VBox/Title, 120.0)
+
+func _replace_logo_with_video(title: TextureRect, min_height: float) -> void:
+	var parent: Control = title.get_parent() as Control
+	var idx: int = title.get_index()
+	title.hide()
+	var vp: VideoPlayback = VideoPlayback.new()
+	vp.enable_audio = false
+	vp.loop = true
+	vp.enable_auto_play = true
+	vp.custom_minimum_size = Vector2(0.0, min_height)
+	vp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(vp)
+	parent.move_child(vp, idx)
+	vp.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	vp.set_video_path("res://assets/video/logo.webm")
 
 func _process(delta: float) -> void:
 	if _spinner_active:
