@@ -83,10 +83,25 @@ func _start_animations() -> void:
 
 func _animate_logo() -> void:
 	var title: TextureRect = $Panels/MainView/Title
+	title.pivot_offset = title.size / 2.0
+	title.scale = Vector2(0.93, 0.93)
+	title.modulate = Color(1.0, 1.0, 1.0, 0.0)
+
+	var enter: Tween = create_tween().set_parallel(true)
+	enter.tween_property(title, "scale", Vector2(1.0, 1.0), 0.75) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	enter.tween_property(title, "modulate:a", 1.0, 0.55) \
+		.set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	await enter.finished
+
 	var base_y: float = title.position.y
-	var tw: Tween = create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tw.tween_property(title, "position:y", base_y - 6.0, 2.0)
-	tw.tween_property(title, "position:y", base_y + 6.0, 2.0)
+	var float_tw: Tween = create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	float_tw.tween_property(title, "position:y", base_y - 9.0, 2.5)
+	float_tw.tween_property(title, "position:y", base_y + 9.0, 2.5)
+
+	var glow_tw: Tween = create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	glow_tw.tween_property(title, "modulate", Color(1.1, 1.18, 1.35, 1.0), 3.5)
+	glow_tw.tween_property(title, "modulate", Color(1.0, 1.0, 1.0, 1.0), 3.5)
 
 func _animate_buttons() -> void:
 	var buttons: Array[Node] = [
