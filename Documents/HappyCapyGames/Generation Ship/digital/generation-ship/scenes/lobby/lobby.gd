@@ -58,6 +58,7 @@ func _ready() -> void:
 	($LobbyPanel/DirectRow as Control).visible = false
 	_load_saved_name()
 	_request_lobby_list()
+	_preload_card_images()
 
 func _process(delta: float) -> void:
 	if _spinner_active:
@@ -112,6 +113,21 @@ func _show_staging() -> void:
 		_diff_btn.add_theme_font_size_override("font_size", 18)
 		bot_row.add_child(_diff_btn)
 	staging_requested.emit()
+
+func _preload_card_images() -> void:
+	var urls: Array[String] = []
+	for cd: CardData in CardDatabase.sectors:
+		if not cd.image_url.is_empty():
+			urls.append(cd.image_url)
+		if not cd.adv_image_url.is_empty():
+			urls.append(cd.adv_image_url)
+	for cd: CardData in CardDatabase.techs:
+		if not cd.image_url.is_empty():
+			urls.append(cd.image_url)
+	for cd: CardData in CardDatabase.expeditions:
+		if not cd.image_url.is_empty():
+			urls.append(cd.image_url)
+	ImageCache.preload_urls(urls)
 
 func _start_preload() -> void:
 	var vbox: VBoxContainer = $StagingPanel/VBox
