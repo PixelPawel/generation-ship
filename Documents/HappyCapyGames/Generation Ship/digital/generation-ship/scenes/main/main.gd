@@ -121,6 +121,8 @@ var _won_popup: Control = null
 var _pending_auction_win: bool = false
 var _auction_win_is_initiator: bool = false
 var _auction_active: bool = false
+var _is_runner_up_offer: bool = false
+var _runner_up_phase: bool = false
 var _bots_passed_this_round: Array[int] = []
 var _cs_viewport: SubViewport = null
 var _info_viewport: SubViewport = null
@@ -1510,11 +1512,17 @@ func _rpc_notify_runner_up_forfeit(card_ref: Dictionary) -> void:
 	if not multiplayer.is_server():
 		return
 	_rpc_sync_market_removal.rpc(card_ref)
+	_rpc_sync_runner_up_phase.rpc(false)
 
 # Host → Runner-up: you may claim this card at printed cost.
 @rpc("authority", "reliable")
 func _rpc_offer_to_runner_up(card_ref: Dictionary, slot_idx: int, is_tech: bool, is_adv: bool, printed_cost: int, cost_color_int: int) -> void:
 	_on_runner_up_offer(card_ref, slot_idx, is_tech, is_adv, printed_cost, cost_color_int)
+
+# Host → All: runner-up phase started/ended; block end-turn until resolved.
+@rpc("authority", "reliable", "call_local")
+func _rpc_sync_runner_up_phase(active: bool) -> void:
+	_runner_up_phase = active
 
 # Host → All: auction has started, show bid popup.
 @rpc("authority", "reliable", "call_local")
@@ -1563,6 +1571,7 @@ func _rpc_sync_auction_state(current_bid: int, leader_id: int, active_id: int, l
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, card_ref: Dictionary, _slot_idx: int, _is_tech: bool, cost_color_int: int) -> void:
 	_auction_active = false
+	_is_runner_up_offer = false
 	_bid_popup.hide()
 	UIAudio.stop_auction_music()
 	var cost_color: CardData.SupplyColor = cost_color_int as CardData.SupplyColor
@@ -1581,7 +1590,7 @@ func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, ca
 		_bid_payment_panel.show_bid_payment(c_name, final_bid, valid_colors, _cs_display, cd, _auction_is_adv)
 	else:
 		if my_id == initiator_id:
-			$Board.forfeit_purchase()
+			$Board.cancel_purchase()
 		_show_action_buttons(true)
 	_update_turn_ui()
 	var _cd_toast: CardData = CardRef.from_ref(card_ref)
@@ -2714,6 +2723,7 @@ func _server_offer_to_runner_up() -> void:
 	var cd: CardData = CardRef.from_ref(_auction_card_ref)
 	if not cd:
 		return
+	_rpc_sync_runner_up_phase.rpc(true)
 	var printed_cost: int = cd.adv_cost if _auction_is_adv else cd.cost
 	if _auction_second_id == multiplayer.get_unique_id():
 		_on_runner_up_offer(_auction_card_ref, _auction_slot_idx, _auction_is_tech, _auction_is_adv, printed_cost, int(_auction_cost_color))
@@ -2728,6 +2738,7 @@ func _on_runner_up_offer(card_ref: Dictionary, _slot_idx: int, _is_tech: bool, i
 	_pending_won_is_adv = is_adv
 	_pending_auction_win = true
 	_auction_win_is_initiator = false
+	_is_runner_up_offer = true
 	var c_name: String = cd.adv_name if (is_adv and not cd.adv_name.is_empty()) else cd.card_name
 	var cost_color: CardData.SupplyColor = cost_color_int as CardData.SupplyColor
 	var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(cost_color)
@@ -2740,6 +2751,8 @@ func _on_market_card_taken(cd: CardData) -> void:
 	var card_ref: Dictionary = CardRef.to_ref(cd)
 	if GameNetwork.is_host:
 		_rpc_sync_market_removal.rpc(card_ref)
+		if _runner_up_phase:
+			_rpc_sync_runner_up_phase.rpc(false)
 	else:
 		_rpc_notify_market_taken.rpc_id(1, card_ref)
 
@@ -2749,6 +2762,8 @@ func _rpc_notify_market_taken(card_ref: Dictionary) -> void:
 	if not multiplayer.is_server():
 		return
 	_rpc_sync_market_removal.rpc(card_ref)
+	if _runner_up_phase:
+		_rpc_sync_runner_up_phase.rpc(false)
 
 # Host → All: remove this card from the shared market view.
 @rpc("authority", "reliable", "call_local")
@@ -2828,10 +2843,18 @@ func _on_bid_payment_forfeited() -> void:
 			else:
 				_rpc_notify_auction_forfeit.rpc_id(1)
 		else:
-			if GameNetwork.is_host:
-				_server_offer_to_runner_up()
+			if _is_runner_up_offer:
+				_is_runner_up_offer = false
+				if GameNetwork.is_host:
+					_rpc_sync_market_removal.rpc(_pending_won_card_ref)
+					_rpc_sync_runner_up_phase.rpc(false)
+				else:
+					_rpc_notify_runner_up_forfeit.rpc_id(1, _pending_won_card_ref)
 			else:
-				_rpc_notify_auction_forfeit.rpc_id(1)
+				if GameNetwork.is_host:
+					_server_offer_to_runner_up()
+				else:
+					_rpc_notify_auction_forfeit.rpc_id(1)
 		_show_action_buttons(true)
 		return
 	$Board.cancel_purchase()
@@ -3015,7 +3038,7 @@ func _try_auto_end_turn() -> void:
 		return
 	if not _effect_queue.is_empty():
 		return
-	if _auction_active or _pending_auction or _pending_auction_win or _pending_won:
+	if _auction_active or _runner_up_phase or _pending_auction or _pending_auction_win or _pending_won:
 		return
 	if _pending_reveal_gain_supply or _pending_reveal_may_bid or _pending_reveal_may_free_gain:
 		return
@@ -3027,6 +3050,8 @@ func _on_end_turn_pressed() -> void:
 	if not GameNetwork.is_my_turn():
 		return
 	if not $Board.is_major_action_taken():
+		return
+	if _runner_up_phase:
 		return
 	_ending_turn = true
 	_effect_queue.clear()
