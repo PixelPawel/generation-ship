@@ -90,6 +90,9 @@ var _opp_panels: Dictionary = {}         # peer_id → {hand_lbl, supply_lbls, v
 var _opp_statuses: Dictionary = {}      # peer_id → String ("" | "passed" | "researching")
 var _opp_info_panel: Control = null
 var _ending_turn: bool = false
+var _pre_setup_done: bool = false
+var _cached_sector_order: Array = []
+var _cached_exp_order: Array = []
 
 var _auction_card_ref: Dictionary = {}
 var _auction_slot_idx: int = -1
@@ -464,8 +467,45 @@ func _on_cache_progress(loaded: int, total: int) -> void:
 
 func _on_cache_ready() -> void:
 	$UILayer/LoadingLabel.hide()
+	if not GameNetwork.is_multiplayer:
+		GameNetwork.setup_solo()
+		_cached_sector_order = _generate_shuffled_order(CardDatabase.sectors.size())
+		_cached_exp_order = _generate_shuffled_order(CardDatabase.expeditions.size())
+		_do_game_setup(_cached_sector_order, _cached_exp_order)
+	elif GameNetwork.is_host:
+		_cached_sector_order = _generate_shuffled_order(CardDatabase.sectors.size())
+		_cached_exp_order = _generate_shuffled_order(CardDatabase.expeditions.size())
+		_do_game_setup(_cached_sector_order, _cached_exp_order)
 	if not GameNetwork.is_multiplayer or GameNetwork.is_host:
 		$UILayer/StartButton.show()
+
+func _do_game_setup(sector_order: Array, exp_order: Array) -> void:
+	_pre_setup_done = true
+	_round = 1
+	_update_round_label()
+	_init_supply()
+	if sector_order.is_empty():
+		$Board.setup_market()
+	else:
+		$Board.setup_market_ordered(sector_order)
+	$Board.reveal_sector_round_cards()
+	if exp_order.is_empty():
+		$Board.setup_expedition_deck(CardDatabase.expeditions)
+	else:
+		$Board.setup_expedition_deck_ordered(exp_order)
+	$Board.setup_expedition_market()
+	if multiplayer.is_server() and not GameNetwork.bot_ids.is_empty():
+		_init_bot_state()
+	$Board.refresh_discount_glow()
+	_market_panel.setup($Board.get_market(), $Board.get_expedition_market())
+	_show_action_buttons(true)
+	_show_end_turn_button(true)
+	_set_end_turn_button_disabled(true)
+	_refresh_vp()
+	_update_turn_ui()
+	if GameNetwork.is_multiplayer:
+		_build_opponent_widget()
+	_log_action("─── Round 1 / %d ───" % MAX_ROUNDS, Color(0.6, 0.82, 1.0))
 
 func _setup_control_screen_display() -> void:
 	_cs_viewport = SubViewport.new()
@@ -1072,13 +1112,10 @@ func _bot_decide_bid(bot_id: int) -> void:
 
 func _on_start_pressed() -> void:
 	if not GameNetwork.is_multiplayer:
-		GameNetwork.setup_solo()
 		_rpc_start_game([], [])
 		return
 	if GameNetwork.is_host:
-		var sector_order: Array = _generate_shuffled_order(CardDatabase.sectors.size())
-		var exp_order: Array = _generate_shuffled_order(CardDatabase.expeditions.size())
-		_rpc_start_game.rpc(sector_order, exp_order)
+		_rpc_start_game.rpc(_cached_sector_order, _cached_exp_order)
 
 func _generate_shuffled_order(size: int) -> Array:
 	var order: Array = []
@@ -1090,31 +1127,8 @@ func _generate_shuffled_order(size: int) -> Array:
 @rpc("authority", "reliable", "call_local")
 func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	$UILayer/StartButton.hide()
-	_round = 1
-	_update_round_label()
-	_init_supply()
-	if sector_order.is_empty():
-		$Board.setup_market()
-	else:
-		$Board.setup_market_ordered(sector_order)
-	$Board.reveal_sector_round_cards()
-	if exp_order.is_empty():
-		$Board.setup_expedition_deck(CardDatabase.expeditions)
-	else:
-		$Board.setup_expedition_deck_ordered(exp_order)
-	$Board.setup_expedition_market()
-	if multiplayer.is_server() and not GameNetwork.bot_ids.is_empty():
-		_init_bot_state()
-	$Board.refresh_discount_glow()
-	_market_panel.setup($Board.get_market(), $Board.get_expedition_market())
-	_show_action_buttons(true)
-	_show_end_turn_button(true)
-	_set_end_turn_button_disabled(true)
-	_refresh_vp()
-	_update_turn_ui()
-	if GameNetwork.is_multiplayer:
-		_build_opponent_widget()
-	_log_action("─── Round 1 / %d ───" % MAX_ROUNDS, Color(0.6, 0.82, 1.0))
+	if not _pre_setup_done:
+		_do_game_setup(sector_order, exp_order)
 
 	var ui_control_anim := $UiControl.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if ui_control_anim:
