@@ -98,7 +98,7 @@ func _animate_logo() -> void:
 	logo_vp.anchor_right = 1.0
 	logo_vp.anchor_bottom = 0.0
 	logo_vp.offset_top = 48.0
-	logo_vp.offset_bottom = 248.0
+	logo_vp.offset_bottom = 408.0
 	logo_vp.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	logo_vp.set_video_path(LOGO_PATH)
 
