@@ -367,3 +367,4 @@ script = ExtResource("4_pause_menu")
 [connection signal="back_requested" from="Panels/LobbyView" to="." method="_on_lobby_back_requested"]
 [connection signal="staging_requested" from="Panels/LobbyView" to="." method="_on_lobby_staging_requested"]
 [connection signal="lobby_view_requested" from="Panels/LobbyView" to="." method="_on_lobby_view_requested"]
+[connection signal="loading_started" from="Panels/LobbyView" to="." method="_on_lobby_loading_started"]

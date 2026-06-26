@@ -3,6 +3,7 @@ extends Control
 signal back_requested
 signal staging_requested
 signal lobby_view_requested
+signal loading_started
 
 const MAX_PLAYERS: int = 4
 const SETTINGS_PATH: String = "user://settings.cfg"
@@ -193,6 +194,7 @@ func _on_lobby_match_list(lobbies: Array) -> void:
 # ── Hosting ───────────────────────────────────────────────────────────────────
 
 func _on_host_pressed() -> void:
+	loading_started.emit()
 	_player_name = _read_name()
 	_set_controls_locked(true)
 	_spinner_active = true
@@ -226,6 +228,7 @@ func _on_join_selected_pressed() -> void:
 	if selected.is_empty():
 		_set_status("Select a game from the list first.")
 		return
+	loading_started.emit()
 	var lobby_id: int = int(_game_list.get_item_metadata(selected[0]))
 	_set_controls_locked(true)
 	_set_status("Joining lobby…")
