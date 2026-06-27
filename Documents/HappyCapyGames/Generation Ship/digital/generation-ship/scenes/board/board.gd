@@ -925,8 +925,7 @@ func _start_payment_confirm(card: Node3D, slot: SectorSlot, pay_amounts: Diction
 	_dragged_card = null
 	_drag_origin = DragOrigin.NONE
 	card.end_drag()
-	var t: Tween = card.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	t.tween_property(card, "global_position", slot.global_position + Vector3(0.0, PENDING_HOVER_Y, 0.0), 0.2)
+	card.visible = false
 	payment_confirm_required.emit(card, slot, pay_amounts, is_tech)
 
 func confirm_payment_with_allocations(allocations: Dictionary) -> void:
@@ -980,8 +979,8 @@ func cancel_payment_confirm() -> void:
 	_pending_pay_amounts = {}
 	_pending_drag_origin = DragOrigin.NONE
 	card.end_drag()
+	card.visible = true
 	if origin == DragOrigin.HAND:
-		card.visible = true
 		_hand.add_card(card, true)
 	elif card.card_data and card.card_data.card_type == CardData.CardType.EXPEDITION:
 		_expedition_market.return_card(card)
