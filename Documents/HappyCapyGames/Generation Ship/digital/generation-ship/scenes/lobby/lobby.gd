@@ -60,6 +60,7 @@ func _ready() -> void:
 	($LobbyPanel/DirectRow as Control).visible = false
 	_load_saved_name()
 	_request_lobby_list()
+	_lobby_refresh_timer = LOBBY_REFRESH_INTERVAL
 	_preload_card_images()
 	_animate_logos()
 
