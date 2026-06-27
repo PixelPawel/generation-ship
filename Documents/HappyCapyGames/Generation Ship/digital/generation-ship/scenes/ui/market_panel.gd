@@ -30,6 +30,7 @@ var _dust_counts:     Array[Label]       = []
 var _dust_highlights: Array[ColorRect]   = []
 var _exp_rects:       Array[TextureRect] = []
 var _exp_counts:      Array[Label]       = []
+var _exp_highlights:  Array[ColorRect]   = []
 var _dust_slots:      Array[Control]     = []
 var _adv_slots:       Array[Control]     = []
 var _exp_slots:       Array[Control]     = []
@@ -55,6 +56,7 @@ func setup(sector_market: Node, expedition_market: Node) -> void:
 	sector_market.market_changed.connect(_refresh)
 	sector_market.reveal_mode_changed.connect(_on_reveal_mode_changed)
 	expedition_market.market_changed.connect(_refresh)
+	expedition_market.reveal_mode_changed.connect(_on_expedition_reveal_mode_changed)
 	_refresh()
 
 func _init_opponent_slots() -> void:
@@ -298,9 +300,11 @@ func _build_ui() -> void:
 	for i: int in 3:
 		var rect := TextureRect.new()
 		var count_lbl := Label.new()
-		var slot := _make_slot(Vector2(CARD_W, CARD_H), rect, count_lbl, null)
+		var highlight := ColorRect.new()
+		var slot := _make_slot(Vector2(CARD_W, CARD_H), rect, count_lbl, highlight)
 		_exp_rects.append(rect)
 		_exp_counts.append(count_lbl)
+		_exp_highlights.append(highlight)
 		var idx: int = i
 		slot.gui_input.connect(func(ev: InputEvent) -> void:
 			if ev is InputEventMouseButton:
@@ -410,6 +414,10 @@ func _refresh_exp(i: int) -> void:
 
 func _on_reveal_mode_changed(active: bool) -> void:
 	for highlight: ColorRect in _dust_highlights:
+		highlight.visible = active
+
+func _on_expedition_reveal_mode_changed(active: bool) -> void:
+	for highlight: ColorRect in _exp_highlights:
 		highlight.visible = active
 
 func _build_detail_overlay(panel: Control) -> void:
