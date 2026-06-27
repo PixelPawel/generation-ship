@@ -75,6 +75,14 @@ func _ready() -> void:
 func _on_sector_slot_clicked(slot: SectorSlot) -> void:
 	sector_info_requested.emit(slot)
 
+func show_payment_confirm_arrow(from_2d: Vector2, to_2d: Vector2) -> void:
+	if _drag_arrow:
+		_drag_arrow.show_arrow(from_2d, to_2d)
+
+func hide_payment_confirm_arrow() -> void:
+	if _drag_arrow:
+		_drag_arrow.hide_arrow()
+
 func add_sector_slot(slot: SectorSlot) -> void:
 	slot.reparent(_sector_row, true)
 	if not slot.slot_clicked.is_connected(_on_sector_slot_clicked):

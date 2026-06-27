@@ -2819,6 +2819,7 @@ func _on_bid_confirmed(amount: int) -> void:
 func _on_bid_payment_confirmed(allocations: Dictionary) -> void:
 	if _effect_mode == EffectMode.PAYMENT_CONFIRM:
 		_effect_mode = EffectMode.NONE
+		$Board.hide_payment_confirm_arrow()
 		$Board.confirm_payment_with_allocations(allocations)
 		return
 	for color: Variant in allocations:
@@ -2842,6 +2843,7 @@ func _on_bid_payment_confirmed(allocations: Dictionary) -> void:
 func _on_bid_payment_forfeited() -> void:
 	if _effect_mode == EffectMode.PAYMENT_CONFIRM:
 		_effect_mode = EffectMode.NONE
+		$Board.hide_payment_confirm_arrow()
 		$Board.cancel_payment_confirm()
 		return
 	if _pending_auction_win:
@@ -2927,7 +2929,7 @@ func _execute_expedition_reveal(slot_idx: int) -> void:
 			_rpc_notify_expedition_reveal.rpc_id(1, slot_idx)
 	_process_next_effect()
 
-func _on_payment_confirm_required(card: Node3D, _slot: SectorSlot, pay_amounts: Dictionary, _is_tech: bool) -> void:
+func _on_payment_confirm_required(card: Node3D, slot: SectorSlot, pay_amounts: Dictionary, _is_tech: bool) -> void:
 	_effect_mode = EffectMode.PAYMENT_CONFIRM
 	var card_name: String = ""
 	var cost_color: CardData.SupplyColor = CardData.SupplyColor.DUST
@@ -2947,6 +2949,13 @@ func _on_payment_confirm_required(card: Node3D, _slot: SectorSlot, pay_amounts: 
 		return
 	var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(cost_color)
 	_bid_payment_panel.show_bid_payment(card_name, total, valid_colors, _cs_display, cd, is_adv)
+	var cam: Camera3D = get_viewport().get_camera_3d()
+	if cam and _info_screen_mesh and slot:
+		var aabb: AABB = _info_screen_mesh.mesh.get_aabb()
+		var from_world: Vector3 = _info_screen_mesh.to_global(aabb.get_center())
+		var from_2d: Vector2 = cam.unproject_position(from_world)
+		var to_2d: Vector2 = cam.unproject_position(slot.global_position)
+		$Board.show_payment_confirm_arrow(from_2d, to_2d)
 
 func _on_supply_choice_required(card: Node3D, _slot: SectorSlot, cost: int, options: Array[CardData.SupplyColor], _is_tech: bool) -> void:
 	_effect_mode = EffectMode.SUPPLY_CHOICE
