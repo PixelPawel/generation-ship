@@ -151,7 +151,6 @@ func show_multiselect_card_choices(prompt: String, cards: Array[CardData], max_s
 	for _i: int in cards.size():
 		_selected_flags.append(false)
 	_build_card_rows(cards, func(idx: int, btn: Button) -> void: _on_multiselect_toggle(idx, btn))
-	_skip_btn.visible = true
 	_multiselect_done_btn.visible = true
 	show()
 
