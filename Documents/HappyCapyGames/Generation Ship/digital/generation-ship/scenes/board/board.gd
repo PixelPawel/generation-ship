@@ -157,6 +157,9 @@ func get_expedition_slot_sizes() -> Array[int]:
 func get_sector_dust_count(slot_idx: int) -> int:
 	return _market.get_dust_count(slot_idx)
 
+func get_sector_advanced_card_data(slot_idx: int) -> CardData:
+	return _market.get_advanced_card_data(slot_idx)
+
 func get_expedition_slot_card_data(slot_idx: int) -> CardData:
 	return _expedition_market.get_card_data(slot_idx)
 

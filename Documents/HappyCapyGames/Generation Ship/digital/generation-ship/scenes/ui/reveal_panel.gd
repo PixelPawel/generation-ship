@@ -49,9 +49,9 @@ func _ready() -> void:
 	skip_btn.pressed.connect(func() -> void: hide(); skipped.emit())
 	add_child(skip_btn)
 
-func show_sector_reveal(slot_counts: Array[int]) -> void:
+func show_sector_reveal(slot_counts: Array[int], slot_cards: Array[CardData] = []) -> void:
 	_title_label.text = "Reveal a Sector — choose a slot"
-	_build_slots(slot_counts, [], true)
+	_build_slots(slot_counts, slot_cards, true)
 	show()
 
 func show_expedition_reveal(slot_cards: Array[CardData], slot_counts: Array[int]) -> void:
@@ -105,12 +105,10 @@ func _build_slot_btn(slot_idx: int, pos: Vector2, sz: Vector2, count: int, cd: C
 	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if face_down or cd == null:
-		rect.texture = load("res://assets/ui/Card_Background.png") as Texture2D
+	if cd != null and not cd.image_url.is_empty():
+		rect.texture = ImageCache.get_texture(cd.image_url)
 	else:
-		var url: String = cd.image_url
-		if not url.is_empty():
-			rect.texture = ImageCache.get_texture(url)
+		rect.texture = load("res://assets/ui/Card_Background.png") as Texture2D
 	if empty:
 		rect.modulate = Color(1.0, 1.0, 1.0, 0.35)
 	btn.add_child(rect)
