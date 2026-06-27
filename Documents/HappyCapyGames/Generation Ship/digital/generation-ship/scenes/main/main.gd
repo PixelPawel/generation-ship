@@ -1144,14 +1144,21 @@ func _generate_shuffled_order(size: int) -> Array:
 func _flicker_sector_slots() -> void:
 	var slots: Array[SectorSlot] = $Board.get_sector_slots()
 	await get_tree().create_timer(0.15).timeout
+	const STAGGER: float = 0.25
+	const PATTERN_DURATION: float = 0.66  # sum of durations in _flicker_one_slot
+	for i: int in slots.size():
+		_flicker_one_slot(slots[i], float(i) * STAGGER)
+	await get_tree().create_timer(float(slots.size() - 1) * STAGGER + PATTERN_DURATION).timeout
+
+func _flicker_one_slot(slot: SectorSlot, delay: float) -> void:
+	if delay > 0.0:
+		await get_tree().create_timer(delay).timeout
 	var on_off: Array[float]    = [1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0]
 	var durations: Array[float] = [0.07, 0.09, 0.05, 0.14, 0.12, 0.06, 0.08, 0.05]
 	for i: int in on_off.size():
-		for slot: SectorSlot in slots:
-			slot.set_slot_brightness(on_off[i])
+		slot.set_slot_brightness(on_off[i])
 		await get_tree().create_timer(durations[i]).timeout
-	for slot: SectorSlot in slots:
-		slot.set_slot_brightness(1.0)
+	slot.set_slot_brightness(1.0)
 
 @rpc("authority", "reliable", "call_local")
 func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
