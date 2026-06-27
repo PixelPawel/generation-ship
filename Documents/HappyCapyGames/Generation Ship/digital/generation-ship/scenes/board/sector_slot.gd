@@ -329,6 +329,10 @@ func highlight(on: bool) -> void:
 		_scale_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		_scale_tween.tween_property(_mesh, "scale", Vector3.ONE, 0.2)
 
+func set_slot_brightness(v: float) -> void:
+	if _slot_mat:
+		_slot_mat.set_shader_parameter("slot_power", v)
+
 func set_available(available: bool) -> void:
 	is_available = available
 	if not occupied:

@@ -5,6 +5,7 @@ const float HALF_X = 0.46;
 const float HALF_Z = 0.34;
 
 uniform float highlight_t : hint_range(0.0, 1.0) = 0.0;
+uniform float slot_power  : hint_range(0.0, 1.0) = 1.0;
 
 varying vec2 slot_uv;
 
@@ -73,7 +74,7 @@ void fragment() {
 
 	float alpha = inside * 0.85 + glow_out * 0.20;
 
-	ALBEDO   = col;
-	EMISSION = col * 1.2;
-	ALPHA    = clamp(alpha, 0.0, 1.0);
+	ALBEDO   = col * slot_power;
+	EMISSION = col * 1.2 * slot_power;
+	ALPHA    = clamp(alpha, 0.0, 1.0) * slot_power;
 }

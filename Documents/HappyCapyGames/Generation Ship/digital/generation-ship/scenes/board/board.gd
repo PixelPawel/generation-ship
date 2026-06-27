@@ -131,6 +131,14 @@ func _connect_market_signals() -> void:
 	if not _market.sector_revealed.is_connected(_on_market_sector_revealed):
 		_market.sector_revealed.connect(_on_market_sector_revealed)
 
+func get_sector_slots() -> Array[SectorSlot]:
+	var result: Array[SectorSlot] = []
+	for child: Node in _sector_row.get_children():
+		var slot: SectorSlot = child as SectorSlot
+		if slot:
+			result.append(slot)
+	return result
+
 func set_sector_reveal_mode(active: bool) -> void:
 	_market.set_reveal_mode(active)
 

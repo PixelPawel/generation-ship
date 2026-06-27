@@ -1141,11 +1141,26 @@ func _generate_shuffled_order(size: int) -> Array:
 	order.shuffle()
 	return order
 
+func _flicker_sector_slots() -> void:
+	var slots: Array[SectorSlot] = $Board.get_sector_slots()
+	await get_tree().create_timer(0.15).timeout
+	var on_off: Array[float]    = [1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0]
+	var durations: Array[float] = [0.07, 0.09, 0.05, 0.14, 0.12, 0.06, 0.08, 0.05]
+	for i: int in on_off.size():
+		for slot: SectorSlot in slots:
+			slot.set_slot_brightness(on_off[i])
+		await get_tree().create_timer(durations[i]).timeout
+	for slot: SectorSlot in slots:
+		slot.set_slot_brightness(1.0)
+
 @rpc("authority", "reliable", "call_local")
 func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	$UILayer/StartButton.hide()
 	if not _pre_setup_done:
 		_do_game_setup(sector_order, exp_order)
+
+	for slot: SectorSlot in $Board.get_sector_slots():
+		slot.set_slot_brightness(0.0)
 
 	var ui_control_anim := $UiControl.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if ui_control_anim:
@@ -1164,6 +1179,7 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 		ui_log_anim.play("intro", -1, 0.5)
 		await ui_log_anim.animation_finished
 
+	await _flicker_sector_slots()
 	$Board.deal_opening_hand()
 	if GameNetwork.is_multiplayer:
 		_broadcast_my_state()
