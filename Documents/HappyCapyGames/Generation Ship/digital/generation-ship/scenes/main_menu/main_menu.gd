@@ -7,6 +7,8 @@ const _SLIDE_DURATION: float = 0.5
 
 var _btn_tweens: Dictionary = {}
 var _music_player: AudioStreamPlayer = null
+var _flythrough_vp: VideoPlayback = null
+var _logo_vp: VideoPlayback = null
 
 const RESOLUTIONS: Array[Vector2i] = [
 	Vector2i(1280, 720),
@@ -49,15 +51,15 @@ func _setup_video() -> void:
 	const VIDEO_PATH: String = "res://assets/video/flythrough.mp4"
 	if not FileAccess.file_exists(VIDEO_PATH):
 		return
-	var vp := VideoPlayback.new()
-	vp.enable_audio = false
-	vp.loop = true
-	vp.enable_auto_play = true
-	vp.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(vp)
-	move_child(vp, $Background.get_index())
-	vp.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	vp.set_video_path(VIDEO_PATH)
+	_flythrough_vp = VideoPlayback.new()
+	_flythrough_vp.enable_audio = false
+	_flythrough_vp.loop = true
+	_flythrough_vp.enable_auto_play = true
+	_flythrough_vp.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_flythrough_vp)
+	move_child(_flythrough_vp, $Background.get_index())
+	_flythrough_vp.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_flythrough_vp.set_video_path(VIDEO_PATH)
 	$Background.visible = false
 
 func _setup_music() -> void:
@@ -88,19 +90,19 @@ func _animate_logo() -> void:
 		title.modulate.a = 1.0
 		return
 	title.hide()
-	var logo_vp: VideoPlayback = VideoPlayback.new()
-	logo_vp.enable_audio = false
-	logo_vp.loop = true
-	logo_vp.enable_auto_play = true
-	title.get_parent().add_child(logo_vp)
-	logo_vp.anchor_left = 0.0
-	logo_vp.anchor_top = 0.0
-	logo_vp.anchor_right = 1.0
-	logo_vp.anchor_bottom = 0.0
-	logo_vp.offset_top = 48.0
-	logo_vp.offset_bottom = 408.0
-	logo_vp.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	logo_vp.set_video_path(LOGO_PATH)
+	_logo_vp = VideoPlayback.new()
+	_logo_vp.enable_audio = false
+	_logo_vp.loop = true
+	_logo_vp.enable_auto_play = true
+	title.get_parent().add_child(_logo_vp)
+	_logo_vp.anchor_left = 0.0
+	_logo_vp.anchor_top = 0.0
+	_logo_vp.anchor_right = 1.0
+	_logo_vp.anchor_bottom = 0.0
+	_logo_vp.offset_top = 48.0
+	_logo_vp.offset_bottom = 408.0
+	_logo_vp.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_logo_vp.set_video_path(LOGO_PATH)
 
 func _animate_buttons() -> void:
 	var buttons: Array[Node] = [
@@ -157,10 +159,14 @@ func _on_lobby_view_requested() -> void:
 	_slide_to_lobby()
 
 func _slide_to_main() -> void:
+	if _flythrough_vp: _flythrough_vp.play()
+	if _logo_vp: _logo_vp.play()
 	var tw: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_property($Panels, "position:y", 0.0, _SLIDE_DURATION)
 
 func _slide_to_lobby() -> void:
+	if _flythrough_vp: _flythrough_vp.pause()
+	if _logo_vp: _logo_vp.pause()
 	var vp_h: float = get_viewport_rect().size.y
 	var tw: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_property($Panels, "position:y", -vp_h, _SLIDE_DURATION)
