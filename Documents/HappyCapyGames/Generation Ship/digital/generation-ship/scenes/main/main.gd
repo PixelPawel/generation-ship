@@ -3737,24 +3737,22 @@ func _setup_screen_hovers() -> void:
 		if not mesh:
 			continue
 		_screen_meshes[node] = mesh
-		var area: Area3D = null
-		for child: Node in mesh.get_children():
-			if child is Area3D:
-				area = child as Area3D
-				break
-		if not area:
-			area = Area3D.new()
-			area.input_ray_pickable = true
-			var cshape: CollisionShape3D = CollisionShape3D.new()
-			var box: BoxShape3D = BoxShape3D.new()
-			var aabb: AABB = mesh.mesh.get_aabb()
-			box.size = Vector3(aabb.size.x, aabb.size.y, 0.01)
-			cshape.shape = box
-			cshape.position = aabb.get_center()
-			area.add_child(cshape)
-			mesh.add_child(area)
-		area.mouse_entered.connect(func() -> void: _on_screen_hover_enter(node))
-		area.mouse_exited.connect(func() -> void: _on_screen_hover_exit(node))
+		# Hover detection lives on the scene root so it never moves when the screen
+		# node tweens — prevents oscillation when the tween edge sweeps past the cursor.
+		# Viewport input (UV forwarding) stays on the mesh child and moves correctly.
+		var aabb: AABB = mesh.mesh.get_aabb()
+		var hover_area: Area3D = Area3D.new()
+		hover_area.input_ray_pickable = true
+		var cshape: CollisionShape3D = CollisionShape3D.new()
+		var box: BoxShape3D = BoxShape3D.new()
+		box.size = Vector3(aabb.size.x, aabb.size.y, 0.20)
+		cshape.shape = box
+		hover_area.add_child(cshape)
+		add_child(hover_area)
+		hover_area.global_transform = mesh.global_transform
+		hover_area.global_position = mesh.to_global(aabb.get_center())
+		hover_area.mouse_entered.connect(func() -> void: _on_screen_hover_enter(node))
+		hover_area.mouse_exited.connect(func() -> void: _on_screen_hover_exit(node))
 
 const _HOVER_DIST: float = 0.115
 const _HOVER_IN_SEC: float = 0.25
@@ -3770,9 +3768,7 @@ func _on_screen_hover_enter(node: Node3D) -> void:
 		tw.kill()
 	var base: Vector3 = _hover_base_pos[node]
 	var dir: Vector3 = ($Camera3D.global_position - node.global_position).normalized()
-	dir.x = 0.0
-	dir.y = 0.0
-	dir = dir.normalized()
+	dir.x *= 0.5
 	tw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tw.tween_property(node, "position", base + dir * _HOVER_DIST, _HOVER_IN_SEC)
 	_hover_tweens[node] = tw
