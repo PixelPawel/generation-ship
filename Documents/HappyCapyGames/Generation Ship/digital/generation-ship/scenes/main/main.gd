@@ -622,12 +622,18 @@ func _setup_cockpit_switches() -> void:
 					cockpit_anim.play_backwards("gs_ui_switch_flat1_on")
 				else:
 					cockpit_anim.play("gs_ui_switch_flat1_on")
-			var anim: AnimationPlayer = $UiControl.find_child("AnimationPlayer", true, false) as AnimationPlayer
-			if anim:
+			var ctrl_anim: AnimationPlayer = $UiControl.find_child("AnimationPlayer", true, false) as AnimationPlayer
+			if ctrl_anim:
 				if _ui_control_shown:
-					anim.play("intro")
+					ctrl_anim.play("intro")
 				else:
-					anim.play_backwards("intro")
+					ctrl_anim.play_backwards("intro")
+			var log_anim: AnimationPlayer = $UiLog.find_child("AnimationPlayer", true, false) as AnimationPlayer
+			if log_anim:
+				if _ui_control_shown:
+					log_anim.play("intro")
+				else:
+					log_anim.play_backwards("intro")
 		)
 
 	var switch2: MeshInstance3D = $UiCockpit.find_child("gs_ui_switch_flat2", true, false) as MeshInstance3D
