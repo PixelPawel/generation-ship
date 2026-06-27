@@ -171,7 +171,7 @@ func _ready() -> void:
 		_rumble_base_pos[node] = node.position
 		_rumble_base_rot[node] = node.rotation
 	_start_rumble_timer()
-	GameTheme.apply_to_button($UILayer/StartButton)
+	$UILayer/StartButton.queue_free()
 	var hand: Node3D = $Hand
 	$Board.set_hand(hand)
 	$Board.set_card_scene(card_scene)
@@ -179,7 +179,6 @@ func _ready() -> void:
 	$Board.recycle_confirm_required.connect(_on_recycle_confirm_required)
 	$Board.setup_tech_deck(CardDatabase.techs)
 	$Board.setup_sector_deck(CardDatabase.sectors)
-	$UILayer/StartButton.pressed.connect(_on_start_pressed)
 	$Hand.card_selected_for_discard.connect(_on_card_discarded)
 	$Hand.card_right_clicked.connect(_on_card_right_clicked_free_recycle)
 	$Board.bid_required.connect(_on_bid_required)
@@ -480,7 +479,11 @@ func _on_cache_ready() -> void:
 
 func _deferred_pre_setup() -> void:
 	_do_game_setup(_cached_sector_order, _cached_exp_order)
-	$UILayer/StartButton.show()
+	await get_tree().create_timer(3.0).timeout
+	if not GameNetwork.is_multiplayer:
+		_rpc_start_game([], [])
+	elif GameNetwork.is_host:
+		_rpc_start_game.rpc(_cached_sector_order, _cached_exp_order)
 
 func _do_game_setup(sector_order: Array, exp_order: Array) -> void:
 	_pre_setup_done = true
@@ -1127,13 +1130,6 @@ func _bot_decide_bid(bot_id: int) -> void:
 	else:
 		_server_handle_pass_bid(bot_id)
 
-func _on_start_pressed() -> void:
-	if not GameNetwork.is_multiplayer:
-		_rpc_start_game([], [])
-		return
-	if GameNetwork.is_host:
-		_rpc_start_game.rpc(_cached_sector_order, _cached_exp_order)
-
 func _generate_shuffled_order(size: int) -> Array:
 	var order: Array = []
 	for i: int in size:
@@ -1162,7 +1158,6 @@ func _flicker_one_slot(slot: SectorSlot, delay: float) -> void:
 
 @rpc("authority", "reliable", "call_local")
 func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
-	$UILayer/StartButton.hide()
 	if not _pre_setup_done:
 		_do_game_setup(sector_order, exp_order)
 
