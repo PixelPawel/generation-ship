@@ -23,6 +23,8 @@ var _add_bot_btn: Button = null
 var _remove_bot_btn: Button = null
 var _diff_btn: OptionButton = null
 var _bot_difficulties: Dictionary = {}   # bot_id → int (BotAI.Difficulty)
+var _lobby_logo_vp: VideoPlayback = null
+var _staging_logo_vp: VideoPlayback = null
 
 const _SPINNER_FRAMES: Array[String] = [
 	"|", "/", "—", "\\", "|", "/", "—", "\\", "|", "/",
@@ -65,23 +67,36 @@ func _animate_logos() -> void:
 	const LOGO_PATH: String = "res://assets/video/logo.webm"
 	if not FileAccess.file_exists(LOGO_PATH):
 		return
-	_replace_logo_with_video($LobbyPanel/Title, 140.0)
-	_replace_logo_with_video($StagingPanel/VBox/Title, 120.0)
+	_lobby_logo_vp = _replace_logo_with_video($LobbyPanel/Title, 140.0)
+	_staging_logo_vp = _replace_logo_with_video($StagingPanel/VBox/Title, 120.0)
+	_lobby_panel.visibility_changed.connect(func() -> void:
+		if _lobby_logo_vp:
+			if _lobby_panel.visible: _lobby_logo_vp.play() else: _lobby_logo_vp.pause()
+	)
+	_staging_panel.visibility_changed.connect(func() -> void:
+		if _staging_logo_vp:
+			if _staging_panel.visible: _staging_logo_vp.play() else: _staging_logo_vp.pause()
+	)
 
-func _replace_logo_with_video(title: TextureRect, min_height: float) -> void:
+func on_lobby_shown() -> void:
+	if _lobby_logo_vp:
+		_lobby_logo_vp.play()
+
+func _replace_logo_with_video(title: TextureRect, min_height: float) -> VideoPlayback:
 	var parent: Control = title.get_parent() as Control
 	var idx: int = title.get_index()
 	title.hide()
 	var vp: VideoPlayback = VideoPlayback.new()
 	vp.enable_audio = false
 	vp.loop = true
-	vp.enable_auto_play = true
+	vp.enable_auto_play = false
 	vp.custom_minimum_size = Vector2(0.0, min_height)
 	vp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	parent.add_child(vp)
 	parent.move_child(vp, idx)
 	vp.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	vp.set_video_path("res://assets/video/logo.webm")
+	return vp
 
 func _process(delta: float) -> void:
 	if _spinner_active:
