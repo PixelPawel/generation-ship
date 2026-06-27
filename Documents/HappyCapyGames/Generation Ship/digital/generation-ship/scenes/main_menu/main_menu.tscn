@@ -144,14 +144,6 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 10
 
-[node name="Title" type="TextureRect" parent="Panels/LobbyView/LobbyPanel"]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 140)
-size_flags_horizontal = 3
-texture = ExtResource("3_logo")
-expand_mode = 1
-stretch_mode = 5
-
 [node name="Spacer" type="Control" parent="Panels/LobbyView/LobbyPanel"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 6)
@@ -270,14 +262,6 @@ offset_bottom = 340.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 14
-
-[node name="Title" type="TextureRect" parent="Panels/LobbyView/StagingPanel/VBox"]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 120)
-size_flags_horizontal = 3
-texture = ExtResource("3_logo")
-expand_mode = 1
-stretch_mode = 5
 
 [node name="SubLabel" type="Label" parent="Panels/LobbyView/StagingPanel/VBox"]
 layout_mode = 2
