@@ -2534,11 +2534,18 @@ func _execute_effect_step(step: Dictionary) -> void:
 				labels.append(str(opt.get("label", "?")))
 				if opt.has("tint"):
 					tints.append(opt["tint"] as Color)
+			var choice_cd: CardData = null
+			var choice_is_adv: bool = false
+			if _effect_slot and is_instance_valid(_effect_slot) and _effect_slot.placed_card:
+				choice_cd = _effect_slot.placed_card.card_data
+				choice_is_adv = bool(_effect_slot.placed_card.get("is_advanced"))
 			_choice_popup.show_choices(
 				str(step.get("prompt", "Choose:")),
 				labels,
 				bool(step.get("skippable", false)),
-				tints
+				tints,
+				choice_cd,
+				choice_is_adv
 			)
 
 		"reflectors_choice":

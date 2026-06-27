@@ -13,6 +13,7 @@ var _multiselect_done_btn: Button = null
 var _selected_flags: Array[bool] = []
 var _max_select: int = 0
 var _vbox: VBoxContainer = null
+var _card_image_rect: TextureRect = null
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -24,10 +25,28 @@ func _ready() -> void:
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(panel)
 
+	var outer_hbox: HBoxContainer = HBoxContainer.new()
+	outer_hbox.add_theme_constant_override("separation", 20)
+	outer_hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	outer_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	panel.add_child(outer_hbox)
+
+	_card_image_rect = TextureRect.new()
+	_card_image_rect.custom_minimum_size = Vector2(250, 0)
+	_card_image_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_card_image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_card_image_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_card_image_rect.visible = false
+	var card_mat: ShaderMaterial = ShaderMaterial.new()
+	card_mat.shader = load("res://shaders/card_rounded.gdshader") as Shader
+	_card_image_rect.material = card_mat
+	outer_hbox.add_child(_card_image_rect)
+
 	_vbox = VBoxContainer.new()
 	var vbox: VBoxContainer = _vbox
 	vbox.add_theme_constant_override("separation", 16)
-	panel.add_child(vbox)
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	outer_hbox.add_child(vbox)
 
 	_prompt_label = Label.new()
 	_prompt_label.add_theme_font_size_override("font_size", 26)
@@ -82,7 +101,7 @@ func _clear_options() -> void:
 	for child: Node in _buttons_row.get_children():
 		child.queue_free()
 
-func show_choices(prompt: String, option_labels: Array, skippable: bool = false, tints: Array[Color] = []) -> void:
+func show_choices(prompt: String, option_labels: Array, skippable: bool = false, tints: Array[Color] = [], card_data: CardData = null, is_advanced: bool = false) -> void:
 	_scroll_container.custom_minimum_size.x = 0
 	if _vbox:
 		_vbox.custom_minimum_size.x = 0
@@ -100,6 +119,13 @@ func show_choices(prompt: String, option_labels: Array, skippable: bool = false,
 		_buttons_row.add_child(btn)
 	_skip_btn.visible = skippable
 	_fit_scroll_width()
+	if _card_image_rect:
+		if card_data:
+			var url: String = card_data.adv_image_url if (is_advanced and not card_data.adv_image_url.is_empty()) else card_data.image_url
+			_card_image_rect.texture = ImageCache.get_texture(url) if not url.is_empty() else null
+			_card_image_rect.visible = _card_image_rect.texture != null
+		else:
+			_card_image_rect.visible = false
 	show()
 
 func show_card_choices(prompt: String, cards: Array[CardData], skippable: bool = true, advanced_flags: Array[bool] = []) -> void:
@@ -108,6 +134,8 @@ func show_card_choices(prompt: String, cards: Array[CardData], skippable: bool =
 		_vbox.custom_minimum_size.x = 0
 	_prompt_label.text = prompt
 	_clear_options()
+	if _card_image_rect:
+		_card_image_rect.visible = false
 	_build_card_rows(cards, func(idx: int, _btn: Button) -> void: _on_pressed(idx), advanced_flags)
 	_skip_btn.visible = skippable
 	show()
