@@ -495,6 +495,8 @@ func _begin_drag(card: Node3D) -> void:
 	_dragged_card = card
 	card.set("is_dragging", true)
 	card.reparent(self, true)
+	if _drag_origin == DragOrigin.HAND:
+		card.visible = false
 	if _drag_arrow != null:
 		card.visible = false
 		_is_arrow_drag = true
@@ -1245,6 +1247,7 @@ func _handle_failed_drop() -> void:
 	card.end_drag()
 	match origin:
 		DragOrigin.HAND:
+			card.visible = true
 			var t: Tween = card.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 			t.tween_property(card, "global_position", start_pos, 0.3)
 			t.parallel().tween_property(card, "scale", Vector3.ONE * HAND_CARD_SCALE, 0.3)
