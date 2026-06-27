@@ -90,16 +90,17 @@ func _build_slot_btn(slot_idx: int, pos: Vector2, sz: Vector2, count: int, cd: C
 	var btn: Button = Button.new()
 	btn.position = pos
 	btn.size = sz
-	btn.flat = true
 	btn.disabled = empty
 	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	btn.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
-	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	var hover_style: StyleBoxFlat = StyleBoxFlat.new()
-	hover_style.bg_color = Color(1.0, 1.0, 1.0, 0.15)
-	hover_style.set_corner_radius_all(6)
-	btn.add_theme_stylebox_override("hover", hover_style)
-	btn.add_theme_stylebox_override("pressed", hover_style)
+	if face_down:
+		btn.flat = true
+		btn.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+		btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+		var hover_style: StyleBoxFlat = StyleBoxFlat.new()
+		hover_style.bg_color = Color(1.0, 1.0, 1.0, 0.15)
+		hover_style.set_corner_radius_all(6)
+		btn.add_theme_stylebox_override("hover", hover_style)
+		btn.add_theme_stylebox_override("pressed", hover_style)
 	if empty:
 		btn.modulate = Color(1.0, 1.0, 1.0, 0.4)
 	_card_container.add_child(btn)
@@ -148,17 +149,10 @@ func _build_slot_btn(slot_idx: int, pos: Vector2, sz: Vector2, count: int, cd: C
 		else:
 			_add_outline(btn, Vector2(adv_x, adv_y), Vector2(sub_w, adv_h))
 	else:
-		# Expedition slots: single card, full slot size
+		# Expedition slots: themed icon button matching choice_popup card style
 		if cd != null and not cd.image_url.is_empty():
-			var rect: TextureRect = TextureRect.new()
-			rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-			rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			rect.texture = ImageCache.get_texture(cd.image_url)
-			btn.add_child(rect)
-		else:
-			_add_outline(btn, Vector2.ZERO, sz)
+			btn.icon = ImageCache.get_texture(cd.image_url)
+			btn.expand_icon = true
 
 	var sub_lbl: Label = Label.new()
 	sub_lbl.position = Vector2(pos.x, pos.y + sz.y + 4.0)
