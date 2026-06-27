@@ -144,7 +144,6 @@ func _on_settings_btn_pressed() -> void:
 
 func _on_multiplayer_pressed() -> void:
 	_slide_to_lobby()
-	$Panels/LobbyView.call("on_lobby_shown")
 
 func _on_quit_pressed() -> void:
 	get_tree().quit()
