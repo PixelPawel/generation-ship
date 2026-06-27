@@ -102,7 +102,7 @@ func show_choices(prompt: String, option_labels: Array, skippable: bool = false,
 	_fit_scroll_width()
 	show()
 
-func show_card_choices(prompt: String, cards: Array[CardData], skippable: bool = false, advanced_flags: Array[bool] = []) -> void:
+func show_card_choices(prompt: String, cards: Array[CardData], skippable: bool = true, advanced_flags: Array[bool] = []) -> void:
 	_scroll_container.custom_minimum_size.x = 0
 	if _vbox:
 		_vbox.custom_minimum_size.x = 0
@@ -123,7 +123,7 @@ func show_multiselect_card_choices(prompt: String, cards: Array[CardData], max_s
 	for _i: int in cards.size():
 		_selected_flags.append(false)
 	_build_card_rows(cards, func(idx: int, btn: Button) -> void: _on_multiselect_toggle(idx, btn))
-	_skip_btn.visible = false
+	_skip_btn.visible = true
 	_multiselect_done_btn.visible = true
 	show()
 

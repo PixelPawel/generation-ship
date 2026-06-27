@@ -2,11 +2,13 @@ extends Control
 class_name SectorPickerPanel
 
 signal sector_selected(slot: SectorSlot)
+signal skipped
 
 const SECTOR_W_H_RATIO := 88.0 / 63.0
 const TITLE_H := 52.0
 const PADDING := 16.0
 const GAP := 12.0
+const SKIP_BTN_H := 80.0
 
 var _title_label: Label = null
 var _card_container: Control = null
@@ -27,9 +29,24 @@ func _ready() -> void:
 
 	_card_container = Control.new()
 	_card_container.position = Vector2(0.0, TITLE_H + 10.0)
-	_card_container.size = Vector2(1200.0, 572.0 - TITLE_H - 10.0)
+	_card_container.size = Vector2(1200.0, 572.0 - TITLE_H - 10.0 - SKIP_BTN_H)
 	_card_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_card_container)
+
+	var skip_btn: Button = Button.new()
+	skip_btn.text = "Skip"
+	skip_btn.add_theme_font_size_override("font_size", 26)
+	skip_btn.custom_minimum_size = Vector2(200, 56)
+	skip_btn.anchor_left = 0.5
+	skip_btn.anchor_right = 0.5
+	skip_btn.anchor_top = 1.0
+	skip_btn.anchor_bottom = 1.0
+	skip_btn.offset_left = -100.0
+	skip_btn.offset_right = 100.0
+	skip_btn.offset_top = -SKIP_BTN_H + 12.0
+	skip_btn.offset_bottom = -12.0
+	skip_btn.pressed.connect(func() -> void: hide(); skipped.emit())
+	add_child(skip_btn)
 
 func setup(title: String, all_slots: Array[SectorSlot], exclude: SectorSlot = null) -> void:
 	_title_label.text = title
@@ -48,7 +65,7 @@ func setup(title: String, all_slots: Array[SectorSlot], exclude: SectorSlot = nu
 func _build_cards(slots: Array[SectorSlot]) -> void:
 	var n: int = slots.size()
 	var avail_w: float = 1200.0 - PADDING * 2.0 - GAP * float(n - 1)
-	var avail_h: float = 572.0 - TITLE_H - 28.0
+	var avail_h: float = 572.0 - TITLE_H - 28.0 - SKIP_BTN_H
 
 	var card_w: float = avail_w / float(n)
 	var card_h: float = card_w / SECTOR_W_H_RATIO

@@ -86,7 +86,7 @@ func _ready() -> void:
 	outer_vbox.add_child(btn_row)
 
 	var cancel_btn: Button = Button.new()
-	cancel_btn.text = "Cancel"
+	cancel_btn.text = "Skip"
 	cancel_btn.custom_minimum_size = Vector2(140.0, 52.0)
 	cancel_btn.add_theme_font_size_override("font_size", 22)
 	cancel_btn.pressed.connect(func() -> void: _on_cancelled())

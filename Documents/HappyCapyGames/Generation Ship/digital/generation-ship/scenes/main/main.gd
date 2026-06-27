@@ -262,6 +262,7 @@ func _ready() -> void:
 	_info_viewport.add_child(_sector_picker)
 	_register_info_panel(_sector_picker)
 	_sector_picker.sector_selected.connect(_on_sector_selected_from_picker)
+	_sector_picker.skipped.connect(_on_sector_picker_skipped)
 
 	$Board.sector_info_requested.connect(_on_sector_info_requested)
 
@@ -2179,6 +2180,10 @@ func _on_choice_skipped() -> void:
 
 func _on_sector_selected_from_picker(slot: SectorSlot) -> void:
 	_on_sector_info_requested(slot)
+
+func _on_sector_picker_skipped() -> void:
+	$Board.set_cargo_click_mode(false)
+	_finish_interactive_step()
 
 func _on_sector_info_requested(slot: SectorSlot) -> void:
 	match _effect_mode:
