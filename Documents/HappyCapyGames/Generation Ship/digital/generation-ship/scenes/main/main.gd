@@ -191,7 +191,6 @@ func _ready() -> void:
 	$Board.sector_revealed.connect(_on_sector_revealed)
 	$Board.market_card_drag_failed.connect(_on_market_card_drag_failed)
 	$Board.payment_confirm_required.connect(_on_payment_confirm_required)
-	$Board.supply_choice_required.connect(_on_supply_choice_required)
 	$Board.expedition_card_shuffled_back.connect(_on_expedition_shuffled_back)
 	$Board.expedition_reveal_requested.connect(_execute_expedition_reveal)
 	$Board.market_card_taken.connect(_on_market_card_taken)

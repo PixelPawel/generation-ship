@@ -19,7 +19,6 @@ signal major_action_changed(taken: bool)
 signal market_card_taken(card_data: CardData)
 signal bid_required(card: Node3D, slot: Node3D, min_cost: int, cost_color: CardData.SupplyColor, is_tech: bool)
 signal payment_confirm_required(card: Node3D, slot: Node3D, pay_amounts: Dictionary, is_tech: bool)
-signal supply_choice_required(card: Node3D, slot: Node3D, cost: int, options: Array[CardData.SupplyColor], is_tech: bool)
 signal card_placed(card: Node3D, slot: SectorSlot)
 signal optimize_triggered(slot: SectorSlot, level: int)
 signal action_committed
