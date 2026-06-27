@@ -10,6 +10,7 @@ const SKIP_BTN_H := 80.0
 const PADDING := 24.0
 const GAP := 16.0
 const LABEL_H := 32.0
+const SUB_GAP := 8.0  # gap between advanced and dust sub-cards within a sector slot
 
 var _title_label: Label = null
 var _card_container: Control = null
@@ -98,29 +99,61 @@ func _build_slot_btn(slot_idx: int, pos: Vector2, sz: Vector2, count: int, cd: C
 	hover_style.set_corner_radius_all(6)
 	btn.add_theme_stylebox_override("hover", hover_style)
 	btn.add_theme_stylebox_override("pressed", hover_style)
+	if empty:
+		btn.modulate = Color(1.0, 1.0, 1.0, 0.4)
 	_card_container.add_child(btn)
 
-	if cd != null and not cd.image_url.is_empty():
-		var rect: TextureRect = TextureRect.new()
-		rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		rect.texture = ImageCache.get_texture(cd.image_url)
-		btn.add_child(rect)
+	if face_down:
+		# Sector slots: advanced card (left, landscape) + dust card (right, portrait back)
+		var sub_w: float = (sz.x - SUB_GAP) / 2.0
+		# Landscape card h = w * (63/88); portrait card h = w * (88/63)
+		var adv_h: float = sub_w * CARD_W_H_RATIO
+		var dust_h: float = sub_w / CARD_W_H_RATIO
+
+		# Advanced (revealed) card — left half, centered vertically
+		var adv_y: float = (sz.y - adv_h) / 2.0
+		if cd != null:
+			var adv_url: String = cd.adv_image_url if not cd.adv_image_url.is_empty() else cd.image_url
+			if not adv_url.is_empty():
+				var adv_rect: TextureRect = TextureRect.new()
+				adv_rect.position = Vector2(0.0, adv_y)
+				adv_rect.size = Vector2(sub_w, adv_h)
+				adv_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				adv_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				adv_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				adv_rect.texture = ImageCache.get_texture(adv_url)
+				btn.add_child(adv_rect)
+			else:
+				_add_outline(btn, Vector2(0.0, adv_y), Vector2(sub_w, adv_h))
+		else:
+			_add_outline(btn, Vector2(0.0, adv_y), Vector2(sub_w, adv_h))
+
+		# Dust card — right half, centered vertically
+		var dust_x: float = sub_w + SUB_GAP
+		var dust_y: float = (sz.y - dust_h) / 2.0
+		if count > 0:
+			var dust_rect: TextureRect = TextureRect.new()
+			dust_rect.position = Vector2(dust_x, dust_y)
+			dust_rect.size = Vector2(sub_w, dust_h)
+			dust_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			dust_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			dust_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			dust_rect.texture = load("res://assets/ui/Card_Background.png") as Texture2D
+			btn.add_child(dust_rect)
+		else:
+			_add_outline(btn, Vector2(dust_x, dust_y), Vector2(sub_w, dust_h))
 	else:
-		var outline: Panel = Panel.new()
-		outline.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		outline.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var style: StyleBoxFlat = StyleBoxFlat.new()
-		style.bg_color = Color(0.0, 0.0, 0.0, 0.0)
-		style.set_border_width_all(2)
-		style.border_color = Color(0.6, 0.65, 0.75, 0.45)
-		style.set_corner_radius_all(8)
-		outline.add_theme_stylebox_override("panel", style)
-		if empty:
-			outline.modulate = Color(1.0, 1.0, 1.0, 0.4)
-		btn.add_child(outline)
+		# Expedition slots: single card, full slot size
+		if cd != null and not cd.image_url.is_empty():
+			var rect: TextureRect = TextureRect.new()
+			rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			rect.texture = ImageCache.get_texture(cd.image_url)
+			btn.add_child(rect)
+		else:
+			_add_outline(btn, Vector2.ZERO, sz)
 
 	var sub_lbl: Label = Label.new()
 	sub_lbl.position = Vector2(pos.x, pos.y + sz.y + 4.0)
@@ -137,3 +170,16 @@ func _build_slot_btn(slot_idx: int, pos: Vector2, sz: Vector2, count: int, cd: C
 
 	var captured: int = slot_idx
 	btn.pressed.connect(func() -> void: hide(); slot_chosen.emit(captured))
+
+func _add_outline(parent: Control, pos: Vector2, sz: Vector2) -> void:
+	var outline: Panel = Panel.new()
+	outline.position = pos
+	outline.size = sz
+	outline.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = Color.TRANSPARENT
+	style.set_border_width_all(2)
+	style.border_color = Color(0.6, 0.65, 0.75, 0.45)
+	style.set_corner_radius_all(8)
+	outline.add_theme_stylebox_override("panel", style)
+	parent.add_child(outline)
