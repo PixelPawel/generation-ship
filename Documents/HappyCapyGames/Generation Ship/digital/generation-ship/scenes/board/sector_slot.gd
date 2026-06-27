@@ -72,6 +72,7 @@ func _ready() -> void:
 	if mat:
 		_slot_mat = mat.duplicate() as ShaderMaterial
 		_mesh.set_surface_override_material(0, _slot_mat)
+		_slot_mat.set_shader_parameter("slot_power", 0.0)
 	for i in TECH_OFFSETS_COMPACT.size():
 		var slot := Node3D.new()
 		slot.set_script(TechSlotScript)
