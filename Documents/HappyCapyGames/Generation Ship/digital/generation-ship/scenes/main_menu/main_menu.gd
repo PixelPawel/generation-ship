@@ -20,6 +20,7 @@ const FULLSCREEN_IDX: int = 5
 func _ready() -> void:
 	theme = GameTheme.get_theme()
 	_apply_saved_settings()
+	_setup_video()
 	_setup_music()
 
 	var vp: Vector2 = get_viewport_rect().size
@@ -44,6 +45,20 @@ func _ready() -> void:
 	ver_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(ver_lbl)
 
+func _setup_video() -> void:
+	const VIDEO_PATH: String = "res://assets/video/flythrough.mp4"
+	if not FileAccess.file_exists(VIDEO_PATH):
+		return
+	var vp := VideoPlayback.new()
+	vp.enable_audio = false
+	vp.loop = true
+	vp.enable_auto_play = true
+	vp.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(vp)
+	move_child(vp, $Background.get_index())
+	vp.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	vp.set_video_path(VIDEO_PATH)
+	$Background.visible = false
 
 func _setup_music() -> void:
 	var stream: AudioStreamOggVorbis = load("res://assets/music/ambience.ogg") as AudioStreamOggVorbis
