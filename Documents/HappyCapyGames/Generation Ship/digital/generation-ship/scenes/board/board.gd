@@ -154,6 +154,15 @@ func reveal_expedition_to_slot(slot_idx: int) -> CardData:
 func get_expedition_slot_sizes() -> Array[int]:
 	return _expedition_market.get_slot_sizes()
 
+func get_sector_dust_count(slot_idx: int) -> int:
+	return _market.get_dust_count(slot_idx)
+
+func get_expedition_slot_card_data(slot_idx: int) -> CardData:
+	return _expedition_market.get_card_data(slot_idx)
+
+func get_expedition_slot_count(slot_idx: int) -> int:
+	return _expedition_market.get_count(slot_idx)
+
 func find_market_card(cd: CardData) -> Node3D:
 	if cd.card_type == CardData.CardType.EXPEDITION:
 		return _expedition_market.find_card(cd)
