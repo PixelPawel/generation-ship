@@ -88,7 +88,7 @@ func _ready() -> void:
 	outer_vbox.add_child(btn_row)
 
 	var forfeit_btn := Button.new()
-	forfeit_btn.text = "Forfeit"
+	forfeit_btn.text = "Cancel"
 	forfeit_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	forfeit_btn.custom_minimum_size = Vector2(0, 56)
 	forfeit_btn.add_theme_font_size_override("font_size", 24)

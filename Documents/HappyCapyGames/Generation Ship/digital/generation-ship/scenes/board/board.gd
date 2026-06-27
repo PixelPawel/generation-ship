@@ -637,8 +637,13 @@ func _resolve_card_payment(placed: Node3D, slot: SectorSlot, is_tech: bool) -> b
 			else:
 				pay_amounts = _compute_payment(cd.color, effective_cost)
 				if pay_amounts.is_empty():
-					_handle_failed_drop()
-					return false
+					# Can't fully afford: open the payment window anyway so the player
+					# can see what's needed and cancel deliberately.
+					var valid: Array[CardData.SupplyColor] = CardData.valid_payment_colors(cd.color)
+					if valid.is_empty():
+						_handle_failed_drop()
+						return false
+					pay_amounts = {valid[0]: effective_cost}
 	var needs_confirm: bool = GameNetwork.is_multiplayer or not pay_amounts.is_empty()
 	if needs_confirm:
 		_start_payment_confirm(placed, slot, pay_amounts, is_tech)
@@ -976,6 +981,7 @@ func cancel_payment_confirm() -> void:
 	_pending_drag_origin = DragOrigin.NONE
 	card.end_drag()
 	if origin == DragOrigin.HAND:
+		card.visible = true
 		_hand.add_card(card, true)
 	elif card.card_data and card.card_data.card_type == CardData.CardType.EXPEDITION:
 		_expedition_market.return_card(card)
