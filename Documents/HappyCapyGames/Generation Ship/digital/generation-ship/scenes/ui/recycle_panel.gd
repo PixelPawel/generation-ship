@@ -42,10 +42,11 @@ func _ready() -> void:
 	outer_vbox.add_child(title)
 
 	_card_image = TextureRect.new()
-	_card_image.custom_minimum_size = Vector2(180.0, 252.0)
+	_card_image.custom_minimum_size = Vector2(90.0, 126.0)
 	_card_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_card_image.expand_mode = TextureRect.EXPAND_KEEP_SIZE
+	_card_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_card_image.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_card_image.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var mat: ShaderMaterial = ShaderMaterial.new()
 	mat.shader = load("res://shaders/card_rounded.gdshader")
 	_card_image.material = mat
