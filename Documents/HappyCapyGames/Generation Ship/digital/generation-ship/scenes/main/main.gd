@@ -672,7 +672,7 @@ func _setup_viewport_input(screen_mesh: MeshInstance3D, vp: SubViewport) -> void
 	var cshape: CollisionShape3D = CollisionShape3D.new()
 	var box: BoxShape3D = BoxShape3D.new()
 	var aabb: AABB = screen_mesh.mesh.get_aabb()
-	box.size = Vector3(aabb.size.x, aabb.size.y, 0.05)
+	box.size = Vector3(aabb.size.x, aabb.size.y, 0.002)
 	cshape.shape = box
 	cshape.position = aabb.get_center()
 	area.add_child(cshape)
@@ -3850,4 +3850,3 @@ func _on_screen_hover_exit(node: Node3D) -> void:
 			_duck_tweens[slot] = dtw
 		_hover_ducked_slots.erase(node)
 	)
-
