@@ -3770,7 +3770,9 @@ func _on_screen_hover_enter(node: Node3D) -> void:
 		tw.kill()
 	var base: Vector3 = _hover_base_pos[node]
 	var dir: Vector3 = ($Camera3D.global_position - node.global_position).normalized()
-	dir.x *= 0.5
+	dir.x = 0.0
+	dir.y = 0.0
+	dir = dir.normalized()
 	tw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tw.tween_property(node, "position", base + dir * _HOVER_DIST, _HOVER_IN_SEC)
 	_hover_tweens[node] = tw
