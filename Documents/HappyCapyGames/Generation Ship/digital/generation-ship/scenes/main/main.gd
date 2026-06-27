@@ -65,7 +65,6 @@ var _last_drawn_cards: Array[Node3D] = []
 var _restrict_picks_to_drawn: bool = false
 var _sector_info_popup: SectorInfoPopup = null
 var _recycle_panel: Control = null
-var _reveal_panel: RevealPanel = null
 var _sector_picker: SectorPickerPanel = null
 var _supply_cost_panel: SupplyCostPanel = null
 var _market_panel: Control = null
@@ -263,12 +262,6 @@ func _ready() -> void:
 	_register_info_panel(_sector_picker)
 	_sector_picker.sector_selected.connect(_on_sector_selected_from_picker)
 	_sector_picker.skipped.connect(_on_sector_picker_skipped)
-
-	_reveal_panel = RevealPanel.new()
-	_info_viewport.add_child(_reveal_panel)
-	_register_info_panel(_reveal_panel)
-	_reveal_panel.slot_chosen.connect(_on_reveal_panel_slot_chosen)
-	_reveal_panel.skipped.connect(_on_reveal_panel_skipped)
 
 	$Board.sector_info_requested.connect(_on_sector_info_requested)
 
@@ -2191,15 +2184,6 @@ func _on_sector_picker_skipped() -> void:
 	$Board.set_cargo_click_mode(false)
 	_finish_interactive_step()
 
-func _on_reveal_panel_slot_chosen(slot_idx: int) -> void:
-	if _effect_mode == EffectMode.EFFECT_REVEAL_SECTOR:
-		$Board.reveal_sector_panel_slot(slot_idx)
-	elif _effect_mode == EffectMode.EFFECT_REVEAL_EXPEDITION:
-		_execute_expedition_reveal(slot_idx)
-
-func _on_reveal_panel_skipped() -> void:
-	_finish_interactive_step()
-
 
 func _on_sector_info_requested(slot: SectorSlot) -> void:
 	match _effect_mode:
@@ -2494,21 +2478,17 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_pending_reveal_may_bid = bool(step.get("may_bid", false))
 			_pending_reveal_may_free_gain = bool(step.get("may_free_gain", false))
 			_effect_mode = EffectMode.EFFECT_REVEAL_SECTOR
-			var sector_counts: Array[int] = []
-			for _si: int in 3:
-				sector_counts.append($Board.get_sector_dust_count(_si))
-			_reveal_panel.show_sector_reveal(sector_counts)
+			_show_effect_hint("Click a free sector slot in the Market panel to reveal it")
+			$Board.set_sector_reveal_mode(true)
+			_market_panel.set_sector_reveal_mode(true)
 
 		"reveal_expedition":
 			_pending_expedition_reveal_gain_supply = bool(step.get("gain_supply", false))
 			_pending_expedition_reveal_may_bid = bool(step.get("may_bid", false))
 			_effect_mode = EffectMode.EFFECT_REVEAL_EXPEDITION
-			var exp_cards: Array[CardData] = []
-			var exp_counts: Array[int] = []
-			for _ei: int in 3:
-				exp_cards.append($Board.get_expedition_slot_card_data(_ei))
-				exp_counts.append($Board.get_expedition_slot_count(_ei))
-			_reveal_panel.show_expedition_reveal(exp_cards, exp_counts)
+			_show_effect_hint("Click an expedition slot in the Market panel to reveal it")
+			$Board.set_expedition_reveal_mode(true)
+			_market_panel.set_expedition_reveal_mode(true)
 
 		"reveal_expedition_slot":
 			var exp_slot: int = int(step.get("slot", 0))
