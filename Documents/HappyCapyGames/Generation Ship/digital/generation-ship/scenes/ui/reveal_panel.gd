@@ -50,17 +50,17 @@ func _ready() -> void:
 	skip_btn.pressed.connect(func() -> void: hide(); skipped.emit())
 	add_child(skip_btn)
 
-func show_sector_reveal(slot_counts: Array[int], slot_cards: Array[CardData] = []) -> void:
+func show_sector_reveal(slot_counts: Array[int], adv_cards: Array[CardData] = [], dust_cards: Array[CardData] = []) -> void:
 	_title_label.text = "Reveal a Sector — choose a slot"
-	_build_slots(slot_counts, slot_cards, true)
+	_build_slots(slot_counts, adv_cards, dust_cards, true)
 	show()
 
 func show_expedition_reveal(slot_cards: Array[CardData], slot_counts: Array[int]) -> void:
 	_title_label.text = "Add an Expedition Card — choose a slot"
-	_build_slots(slot_counts, slot_cards, false)
+	_build_slots(slot_counts, slot_cards, [], false)
 	show()
 
-func _build_slots(counts: Array[int], cards: Array[CardData], face_down: bool) -> void:
+func _build_slots(counts: Array[int], cards: Array[CardData], dust_cards: Array[CardData], face_down: bool) -> void:
 	for child: Node in _card_container.get_children():
 		child.queue_free()
 
@@ -80,10 +80,11 @@ func _build_slots(counts: Array[int], cards: Array[CardData], face_down: bool) -
 	for i: int in 3:
 		var count: int = counts[i] if i < counts.size() else 0
 		var cd: CardData = cards[i] if i < cards.size() else null
+		var dust_cd: CardData = dust_cards[i] if i < dust_cards.size() else null
 		var x: float = start_x + float(i) * (card_w + GAP)
-		_build_slot_btn(i, Vector2(x, start_y), Vector2(card_w, card_h), count, cd, face_down)
+		_build_slot_btn(i, Vector2(x, start_y), Vector2(card_w, card_h), count, cd, dust_cd, face_down)
 
-func _build_slot_btn(slot_idx: int, pos: Vector2, sz: Vector2, count: int, cd: CardData, face_down: bool) -> void:
+func _build_slot_btn(slot_idx: int, pos: Vector2, sz: Vector2, count: int, cd: CardData, dust_cd: CardData, face_down: bool) -> void:
 	var empty: bool = face_down and count == 0
 
 	var btn: Button = Button.new()
@@ -104,9 +105,9 @@ func _build_slot_btn(slot_idx: int, pos: Vector2, sz: Vector2, count: int, cd: C
 	_card_container.add_child(btn)
 
 	if face_down:
-		# Sector slots: advanced card (left, landscape) + dust card (right, portrait back)
+		# Sector slots: advanced card (left, landscape) + dust card (right, portrait face-up)
 		var sub_w: float = (sz.x - SUB_GAP) / 2.0
-		# Landscape card h = w * (63/88); portrait card h = w * (88/63)
+		# Landscape h = w * (63/88); portrait h = w / (63/88) = w * (88/63)
 		var adv_h: float = sub_w * CARD_W_H_RATIO
 		var dust_h: float = sub_w / CARD_W_H_RATIO
 
@@ -128,18 +129,22 @@ func _build_slot_btn(slot_idx: int, pos: Vector2, sz: Vector2, count: int, cd: C
 		else:
 			_add_outline(btn, Vector2(0.0, adv_y), Vector2(sub_w, adv_h))
 
-		# Dust card — right half, centered vertically
+		# Dust card — right half, centered vertically, shown face-up (portrait image_url)
 		var dust_x: float = sub_w + SUB_GAP
 		var dust_y: float = (sz.y - dust_h) / 2.0
-		if count > 0:
-			var dust_rect: TextureRect = TextureRect.new()
-			dust_rect.position = Vector2(dust_x, dust_y)
-			dust_rect.size = Vector2(sub_w, dust_h)
-			dust_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			dust_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			dust_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			dust_rect.texture = load("res://assets/ui/Card_Background.png") as Texture2D
-			btn.add_child(dust_rect)
+		if dust_cd != null:
+			var dust_url: String = dust_cd.local_art_path if not dust_cd.local_art_path.is_empty() else dust_cd.image_url
+			if not dust_url.is_empty():
+				var dust_rect: TextureRect = TextureRect.new()
+				dust_rect.position = Vector2(dust_x, dust_y)
+				dust_rect.size = Vector2(sub_w, dust_h)
+				dust_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				dust_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				dust_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				dust_rect.texture = ImageCache.get_texture(dust_url)
+				btn.add_child(dust_rect)
+			else:
+				_add_outline(btn, Vector2(dust_x, dust_y), Vector2(sub_w, dust_h))
 		else:
 			_add_outline(btn, Vector2(dust_x, dust_y), Vector2(sub_w, dust_h))
 	else:
