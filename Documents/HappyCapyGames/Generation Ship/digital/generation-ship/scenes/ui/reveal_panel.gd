@@ -100,18 +100,27 @@ func _build_slot_btn(slot_idx: int, pos: Vector2, sz: Vector2, count: int, cd: C
 	btn.add_theme_stylebox_override("pressed", hover_style)
 	_card_container.add_child(btn)
 
-	var rect: TextureRect = TextureRect.new()
-	rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if cd != null and not cd.image_url.is_empty():
+		var rect: TextureRect = TextureRect.new()
+		rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		rect.texture = ImageCache.get_texture(cd.image_url)
+		btn.add_child(rect)
 	else:
-		rect.texture = load("res://assets/ui/Card_Background.png") as Texture2D
-	if empty:
-		rect.modulate = Color(1.0, 1.0, 1.0, 0.35)
-	btn.add_child(rect)
+		var outline: Panel = Panel.new()
+		outline.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		outline.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var style: StyleBoxFlat = StyleBoxFlat.new()
+		style.bg_color = Color(0.0, 0.0, 0.0, 0.0)
+		style.set_border_width_all(2)
+		style.border_color = Color(0.6, 0.65, 0.75, 0.45)
+		style.set_corner_radius_all(8)
+		outline.add_theme_stylebox_override("panel", style)
+		if empty:
+			outline.modulate = Color(1.0, 1.0, 1.0, 0.4)
+		btn.add_child(outline)
 
 	var sub_lbl: Label = Label.new()
 	sub_lbl.position = Vector2(pos.x, pos.y + sz.y + 4.0)
