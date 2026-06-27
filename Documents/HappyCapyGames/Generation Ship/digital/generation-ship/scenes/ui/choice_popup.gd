@@ -39,6 +39,7 @@ func _ready() -> void:
 	_scroll_container = ScrollContainer.new()
 	_scroll_container.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(_scroll_container)
 
 	_buttons_row = HBoxContainer.new()
@@ -74,20 +75,8 @@ func _fit_scroll_width() -> void:
 	var w: float = min(_buttons_row.get_combined_minimum_size().x, max_w)
 	_scroll_container.custom_minimum_size.x = w
 
-func _compute_card_size(n: int, is_landscape: bool) -> Vector2:
-	var vp: Vector2 = get_viewport_rect().size
-	const OVERHEAD := 160.0
-	const NAME_AND_SEP := 28.0
-	const GAP := 12.0
-	var avail_w: float = vp.x - 48.0 - float(n - 1) * GAP
-	var avail_h: float = vp.y - OVERHEAD - NAME_AND_SEP
-	var ratio: float = 88.0 / 63.0 if is_landscape else 63.0 / 88.0
-	var card_w: float = avail_w / float(n)
-	var card_h: float = card_w / ratio
-	if card_h > avail_h:
-		card_h = avail_h
-		card_w = card_h * ratio
-	return Vector2(card_w, card_h)
+const _CARD_SIZE_PORTRAIT: Vector2 = Vector2(200, 280)
+const _CARD_SIZE_LANDSCAPE: Vector2 = Vector2(280, 200)
 
 func _clear_options() -> void:
 	for child: Node in _buttons_row.get_children():
@@ -139,18 +128,10 @@ func show_multiselect_card_choices(prompt: String, cards: Array[CardData], max_s
 	show()
 
 func _build_card_rows(cards: Array[CardData], on_click: Callable, advanced_flags: Array[bool] = []) -> void:
-	var n: int = cards.size()
-	var all_landscape: bool = true
-	for i: int in n:
-		var is_adv: bool = advanced_flags[i] if i < advanced_flags.size() else cards[i].card_type == CardData.CardType.SECTOR
-		if not is_adv:
-			all_landscape = false
-			break
-	var card_sz: Vector2 = _compute_card_size(n, all_landscape)
-
-	for i: int in n:
+	for i: int in cards.size():
 		var cd: CardData = cards[i]
 		var is_adv: bool = advanced_flags[i] if i < advanced_flags.size() else cd.card_type == CardData.CardType.SECTOR
+		var card_sz: Vector2 = _CARD_SIZE_LANDSCAPE if is_adv else _CARD_SIZE_PORTRAIT
 		var url: String = cd.adv_image_url if (is_adv and not cd.adv_image_url.is_empty()) else cd.image_url
 		var tex: ImageTexture = ImageCache.get_texture(url) if not url.is_empty() else null
 		var display: String = cd.adv_name if is_adv else cd.card_name
