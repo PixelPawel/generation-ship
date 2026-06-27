@@ -2495,13 +2495,9 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_pending_reveal_may_free_gain = bool(step.get("may_free_gain", false))
 			_effect_mode = EffectMode.EFFECT_REVEAL_SECTOR
 			var sector_counts: Array[int] = []
-			var sector_adv_cards: Array[CardData] = []
-			var sector_dust_cards: Array[CardData] = []
 			for _si: int in 3:
 				sector_counts.append($Board.get_sector_dust_count(_si))
-				sector_adv_cards.append($Board.get_sector_advanced_card_data(_si))
-				sector_dust_cards.append($Board.get_sector_dust_card_data(_si))
-			_reveal_panel.show_sector_reveal(sector_counts, sector_adv_cards, sector_dust_cards)
+			_reveal_panel.show_sector_reveal(sector_counts)
 
 		"reveal_expedition":
 			_pending_expedition_reveal_gain_supply = bool(step.get("gain_supply", false))
