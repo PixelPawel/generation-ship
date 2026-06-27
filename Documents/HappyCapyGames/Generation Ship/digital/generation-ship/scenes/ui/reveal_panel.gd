@@ -105,38 +105,20 @@ func _build_slot_btn(slot_idx: int, pos: Vector2, sz: Vector2, count: int, cd: C
 	_card_container.add_child(btn)
 
 	if face_down:
-		# Sector slots: advanced card (left, landscape) + dust card (right, portrait face-up)
+		# Sector slots: dust card (left, portrait) + advanced card (right, landscape)
 		var sub_w: float = (sz.x - SUB_GAP) / 2.0
-		# Landscape h = w * (63/88); portrait h = w / (63/88) = w * (88/63)
-		var adv_h: float = sub_w * CARD_W_H_RATIO
+		# Portrait h = w / (63/88) = w * (88/63); landscape h = w * (63/88)
 		var dust_h: float = sub_w / CARD_W_H_RATIO
+		var adv_h: float = sub_w * CARD_W_H_RATIO
+		var adv_x: float = sub_w + SUB_GAP
 
-		# Advanced (revealed) card — left half, centered vertically
-		var adv_y: float = (sz.y - adv_h) / 2.0
-		if cd != null:
-			var adv_url: String = cd.adv_image_url if not cd.adv_image_url.is_empty() else cd.image_url
-			if not adv_url.is_empty():
-				var adv_rect: TextureRect = TextureRect.new()
-				adv_rect.position = Vector2(0.0, adv_y)
-				adv_rect.size = Vector2(sub_w, adv_h)
-				adv_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-				adv_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-				adv_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				adv_rect.texture = ImageCache.get_texture(adv_url)
-				btn.add_child(adv_rect)
-			else:
-				_add_outline(btn, Vector2(0.0, adv_y), Vector2(sub_w, adv_h))
-		else:
-			_add_outline(btn, Vector2(0.0, adv_y), Vector2(sub_w, adv_h))
-
-		# Dust card — right half, centered vertically, shown face-up (portrait image_url)
-		var dust_x: float = sub_w + SUB_GAP
+		# Dust card — left half, centered vertically, shown face-up (portrait)
 		var dust_y: float = (sz.y - dust_h) / 2.0
 		if dust_cd != null:
 			var dust_url: String = dust_cd.local_art_path if not dust_cd.local_art_path.is_empty() else dust_cd.image_url
 			if not dust_url.is_empty():
 				var dust_rect: TextureRect = TextureRect.new()
-				dust_rect.position = Vector2(dust_x, dust_y)
+				dust_rect.position = Vector2(0.0, dust_y)
 				dust_rect.size = Vector2(sub_w, dust_h)
 				dust_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 				dust_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -144,9 +126,27 @@ func _build_slot_btn(slot_idx: int, pos: Vector2, sz: Vector2, count: int, cd: C
 				dust_rect.texture = ImageCache.get_texture(dust_url)
 				btn.add_child(dust_rect)
 			else:
-				_add_outline(btn, Vector2(dust_x, dust_y), Vector2(sub_w, dust_h))
+				_add_outline(btn, Vector2(0.0, dust_y), Vector2(sub_w, dust_h))
 		else:
-			_add_outline(btn, Vector2(dust_x, dust_y), Vector2(sub_w, dust_h))
+			_add_outline(btn, Vector2(0.0, dust_y), Vector2(sub_w, dust_h))
+
+		# Advanced (revealed) card — right half, centered vertically (landscape)
+		var adv_y: float = (sz.y - adv_h) / 2.0
+		if cd != null:
+			var adv_url: String = cd.adv_image_url if not cd.adv_image_url.is_empty() else cd.image_url
+			if not adv_url.is_empty():
+				var adv_rect: TextureRect = TextureRect.new()
+				adv_rect.position = Vector2(adv_x, adv_y)
+				adv_rect.size = Vector2(sub_w, adv_h)
+				adv_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				adv_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				adv_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				adv_rect.texture = ImageCache.get_texture(adv_url)
+				btn.add_child(adv_rect)
+			else:
+				_add_outline(btn, Vector2(adv_x, adv_y), Vector2(sub_w, adv_h))
+		else:
+			_add_outline(btn, Vector2(adv_x, adv_y), Vector2(sub_w, adv_h))
 	else:
 		# Expedition slots: single card, full slot size
 		if cd != null and not cd.image_url.is_empty():
