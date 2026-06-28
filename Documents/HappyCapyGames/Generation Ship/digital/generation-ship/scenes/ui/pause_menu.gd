@@ -19,6 +19,7 @@ var _resolution_option: OptionButton = null
 var _monitor_option: OptionButton = null
 var _music_slider: HSlider = null
 var _sfx_slider: HSlider = null
+var _shake_check: CheckButton = null
 var _rebind_buttons: Dictionary = {}   # action -> [primary_btn, secondary_btn]
 var _listening_action: String = ""
 var _listening_slot: int = -1
@@ -175,6 +176,24 @@ func _build_settings_panel() -> void:
 		_monitor_option.add_item("Monitor %d  (%d×%d)" % [i + 1, sz.x, sz.y])
 	mon_row.add_child(_monitor_option)
 
+	var shake_row := HBoxContainer.new()
+	shake_row.add_theme_constant_override("separation", 10)
+	vbox.add_child(shake_row)
+
+	var shake_lbl := Label.new()
+	shake_lbl.text = "Screen Shake"
+	shake_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	shake_lbl.add_theme_font_size_override("font_size", 16)
+	shake_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	shake_row.add_child(shake_lbl)
+
+	_shake_check = CheckButton.new()
+	_shake_check.toggled.connect(func(on: bool) -> void:
+		Card.screen_shake_enabled = on
+		_save_shake_setting(on)
+	)
+	shake_row.add_child(_shake_check)
+
 	var audio_sep := HSeparator.new()
 	audio_sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
 	vbox.add_child(audio_sep)
@@ -319,6 +338,7 @@ func _build_settings_panel() -> void:
 	_load_resolution_setting()
 	_load_monitor_setting()
 	_load_audio_settings()
+	_load_shake_setting()
 
 func _input(event: InputEvent) -> void:
 	if _listening_action.is_empty():
@@ -393,6 +413,21 @@ func _save_audio_settings() -> void:
 	cfg.load(SETTINGS_PATH)
 	cfg.set_value("audio", "music_volume", _music_slider.value if _music_slider else 1.0)
 	cfg.set_value("audio", "sfx_volume", _sfx_slider.value if _sfx_slider else 1.0)
+	cfg.save(SETTINGS_PATH)
+
+func _load_shake_setting() -> void:
+	var cfg: ConfigFile = ConfigFile.new()
+	var on: bool = true
+	if cfg.load(SETTINGS_PATH) == OK:
+		on = bool(cfg.get_value("display", "screen_shake", true))
+	if _shake_check:
+		_shake_check.set_pressed_no_signal(on)
+	Card.screen_shake_enabled = on
+
+func _save_shake_setting(on: bool) -> void:
+	var cfg: ConfigFile = ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
+	cfg.set_value("display", "screen_shake", on)
 	cfg.save(SETTINGS_PATH)
 
 func _on_settings_pressed() -> void:

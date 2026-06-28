@@ -188,3 +188,5 @@ func _apply_saved_settings() -> void:
 	var screen_size: Vector2i = DisplayServer.screen_get_size(mon_idx)
 	var win_size: Vector2i = DisplayServer.window_get_size()
 	DisplayServer.window_set_position(screen_pos + Vector2i((screen_size - win_size) / 2.0))
+
+	Card.screen_shake_enabled = bool(cfg.get_value("display", "screen_shake", true))

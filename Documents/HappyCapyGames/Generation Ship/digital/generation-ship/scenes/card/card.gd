@@ -1,4 +1,7 @@
+class_name Card
 extends Node3D
+
+static var screen_shake_enabled: bool = true
 
 signal hovered(card: Node3D)
 signal unhovered(card: Node3D)
@@ -273,6 +276,8 @@ func _supply_sparkle_color(supply: CardData.SupplyColor) -> Color:
 	return Color(1.00, 0.85, 0.05)
 
 func _shake_camera() -> void:
+	if not screen_shake_enabled:
+		return
 	var cam: Camera3D = get_viewport().get_camera_3d()
 	if not cam:
 		return
