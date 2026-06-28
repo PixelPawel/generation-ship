@@ -15,6 +15,7 @@
 [ext_resource type="PackedScene" uid="uid://c4s6l8t0r2e5" path="res://scenes/board/sector_slot.tscn" id="19_sector_slot"]
 [ext_resource type="Script" uid="uid://dbo2s5pwckbd" path="res://scripts/starfield.gd" id="20_starfield"]
 [ext_resource type="PackedScene" uid="uid://dxp7nk4qb3mjs" path="res://assets/3d/gs_ui_log.glb" id="21_ui_log"]
+[ext_resource type="Script" path="res://scenes/main/sun_animation.gd" id="22_sun_anim"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 1
@@ -41,6 +42,10 @@ card_scene = ExtResource("2_card")
 
 [node name="Starfield" type="Node3D" parent="." unique_id=1110987654]
 script = ExtResource("20_starfield")
+
+[node name="Sun" type="Sprite3D" parent="." unique_id=1847362525]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, -15.0, 2.0)
+script = ExtResource("22_sun_anim")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=915283741]
 environment = SubResource("Environment_1")
@@ -150,16 +155,16 @@ grow_vertical = 2
 script = ExtResource("9_pause_menu")
 
 [node name="UiControl" parent="." unique_id=415939886 instance=ExtResource("16_ui_control")]
-transform = Transform3D(3.6809187, 0.012848869, 1.5654639, -1.565454, -0.005464573, 3.6809409, 0.0139626255, -3.999976, -8.3744354e-08, -0.636, 1.1118473, -0.22355545)
+transform = Transform3D(3.6809187, 0.012848869, 1.5654639, -1.565454, -0.005464573, 3.6809409, 0.0139626255, -3.999976, -8.3744354e-08, -0.6569027, 1.1118473, -0.22355545)
 
 [node name="UiInfo" parent="." unique_id=827463901 instance=ExtResource("17_ui_info")]
-transform = Transform3D(3.9999938, 0.0069813137, 3.0516292e-10, 0, -1.7484555e-07, 4, 0.0069813137, -3.9999938, -1.7484528e-07, 0.7282883, 0.9406268, -0.27440512)
+transform = Transform3D(3.9999938, 0.0069813137, 3.0516292e-10, 0, -1.7484555e-07, 4, 0.0069813137, -3.9999938, -1.7484528e-07, 0.74006987, 0.9406268, -0.27440512)
 
 [node name="UiCockpit" parent="." unique_id=938574012 instance=ExtResource("18_ui_cockpit")]
 transform = Transform3D(2.5, 0, 0, 0, 0.88841176, 1.8694555, 0, -2.3368194, 0.7107294, -0.0023359656, 0.9999999, -0.119951665)
 
 [node name="UiLog" parent="." unique_id=-2094967295 instance=ExtResource("21_ui_log")]
-transform = Transform3D(-0.0003750714, -2.4959066, 0.11440481, 2.1444182e-05, 0.14300601, 1.9967252, -2, 0.00046960489, -4.5915144e-08, -0.22001189, 0.965, -0.33102542)
+transform = Transform3D(-0.0003750714, -2.4959066, 0.11440481, 2.1444182e-05, 0.14300601, 1.9967252, -2, 0.00046960489, -4.5915144e-08, -0.2580184, 0.965, -0.33102542)
 
 [node name="CockpitFillLight" type="OmniLight3D" parent="." unique_id=815320505]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.037768304, 1.0892866, -0.05723527)
