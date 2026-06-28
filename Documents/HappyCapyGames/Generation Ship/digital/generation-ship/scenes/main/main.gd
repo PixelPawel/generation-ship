@@ -136,14 +136,6 @@ var _log_font: FontVariation = null
 var _rumble_tweens: Dictionary = {}   # Node3D -> Tween
 var _rumble_base_pos: Dictionary = {} # Node3D -> Vector3
 var _rumble_base_rot: Dictionary = {} # Node3D -> Vector3
-var _hover_tweens: Dictionary = {}         # Node3D -> Tween
-var _hover_base_pos: Dictionary = {}       # Node3D -> Vector3
-var _hovered_screens: Dictionary = {}      # Node3D -> true while mouse is over it
-var _screen_meshes: Dictionary = {}        # Node3D (screen) -> MeshInstance3D
-var _hover_exit_timers: Dictionary = {}    # Node3D -> SceneTreeTimer
-var _duck_tweens: Dictionary = {}          # SectorSlot -> Tween
-var _duck_card_pos: Dictionary = {}        # Node3D (tech card) -> Vector3 rest position
-var _hover_ducked_slots: Dictionary = {}   # Node3D (screen) -> Array[SectorSlot]
 var _info_screen_mesh: MeshInstance3D = null
 var _cs_display: SupplyUI = null
 var _end_turn_btn_mesh: MeshInstance3D = null
@@ -269,7 +261,6 @@ func _ready() -> void:
 	_setup_enemy_screen_display()
 	_setup_log_screen_display()
 	_setup_cockpit_switches()
-	_setup_screen_hovers()
 
 	_wire_sector_slots_to_board()
 
@@ -3756,10 +3747,7 @@ func _start_rumble_timer() -> void:
 func _play_rumble() -> void:
 	const JOLT_SEC: float = 0.10
 	const JOLT_COUNT: int = 15  # 15 × 0.10 s = 1.5 s
-	var targets: Array[Node3D] = [$UiCockpit]
-	for node: Node3D in [$UiControl, $UiInfo, $UiLog]:
-		if node not in _hovered_screens:
-			targets.append(node)
+	var targets: Array[Node3D] = [$UiCockpit, $UiControl, $UiInfo, $UiLog]
 	for slot: SectorSlot in $Board.get_all_sector_slots():
 		targets.append(slot)
 	for node: Node3D in targets:
@@ -3779,125 +3767,3 @@ func _play_rumble() -> void:
 		tw.parallel().tween_property(node, "rotation", base_rot, 0.40).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	_rumble_tweens[$UiCockpit].tween_callback(_start_rumble_timer)
 
-func _setup_screen_hovers() -> void:
-	var nodes: Array[Node3D] = [$UiControl, $UiInfo, $UiLog]
-	var names: Array[String] = ["gs_ui_control_screen", "gs_ui_info_screen", "gs_ui_log_screen"]
-	for i: int in nodes.size():
-		var node: Node3D = nodes[i]
-		_hover_base_pos[node] = node.position
-		var mesh: MeshInstance3D = node.find_child(names[i], true, false) as MeshInstance3D
-		if not mesh:
-			continue
-		_screen_meshes[node] = mesh
-		var area: Area3D = null
-		for child: Node in mesh.get_children():
-			if child is Area3D:
-				area = child as Area3D
-				break
-		if not area:
-			area = Area3D.new()
-			area.input_ray_pickable = true
-			var cshape: CollisionShape3D = CollisionShape3D.new()
-			var box: BoxShape3D = BoxShape3D.new()
-			var aabb: AABB = mesh.mesh.get_aabb()
-			box.size = Vector3(aabb.size.x, aabb.size.y, 0.01)
-			cshape.shape = box
-			cshape.position = aabb.get_center()
-			area.add_child(cshape)
-			mesh.add_child(area)
-		area.mouse_entered.connect(func() -> void: _on_screen_hover_enter(node))
-		area.mouse_exited.connect(func() -> void: _on_screen_hover_exit(node))
-
-const _HOVER_DIST: float = 0.115
-const _HOVER_IN_SEC: float = 0.25
-const _HOVER_OUT_SEC: float = 0.40
-const _DUCK_SLIDE_Z: float = 0.20
-const _DUCK_IN_SEC: float = 0.30
-const _DUCK_OUT_SEC: float = 0.45
-
-func _on_screen_hover_enter(node: Node3D) -> void:
-	_hover_exit_timers.erase(node)
-	_hovered_screens[node] = true
-	var tw: Tween = _hover_tweens.get(node) as Tween
-	if tw and tw.is_valid():
-		tw.kill()
-	var base: Vector3 = _hover_base_pos[node]
-	var dir: Vector3 = ($Camera3D.global_position - node.global_position).normalized()
-	dir.x *= 0.5
-	tw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(node, "position", base + dir * _HOVER_DIST, _HOVER_IN_SEC)
-	_hover_tweens[node] = tw
-
-	var ducked: Array[SectorSlot] = []
-	for slot: SectorSlot in $Board.get_all_sector_slots():
-		if not slot.occupied:
-			continue
-		var tech_cards: Array[Node3D] = []
-		for card: Node3D in slot.get_all_placed_cards():
-			if card != slot.placed_card:
-				tech_cards.append(card)
-		if tech_cards.is_empty():
-			continue
-		var dtw: Tween = _duck_tweens.get(slot) as Tween
-		if dtw and dtw.is_valid():
-			dtw.kill()
-		dtw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-		var first: bool = true
-		for card: Node3D in tech_cards:
-			if card not in _duck_card_pos:
-				_duck_card_pos[card] = card.position
-			var slot_idx: int = card.get_parent().get("slot_index") as int
-			var slide_pos: Vector3 = _duck_card_pos[card] + Vector3(0.0, 0.0, _DUCK_SLIDE_Z * float(slot_idx + 1))
-			if first:
-				dtw.tween_property(card, "position", slide_pos, _DUCK_IN_SEC)
-				first = false
-			else:
-				dtw.parallel().tween_property(card, "position", slide_pos, _DUCK_IN_SEC)
-		_duck_tweens[slot] = dtw
-		ducked.append(slot)
-	_hover_ducked_slots[node] = ducked
-
-func _on_screen_hover_exit(node: Node3D) -> void:
-	# Debounce: ignore brief exits that happen when the tween sweeps the area edge
-	# past the cursor. If mouse_entered fires again within the window, erase() above
-	# cancels this timer and the screen stays hovered.
-	var timer: SceneTreeTimer = get_tree().create_timer(0.08)
-	_hover_exit_timers[node] = timer
-	timer.timeout.connect(func() -> void:
-		if not _hover_exit_timers.has(node):
-			return
-		_hover_exit_timers.erase(node)
-		_hovered_screens.erase(node)
-		var tw: Tween = _hover_tweens.get(node) as Tween
-		if tw and tw.is_valid():
-			tw.kill()
-		tw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-		tw.tween_property(node, "position", _hover_base_pos[node], _HOVER_OUT_SEC)
-		_hover_tweens[node] = tw
-		var slots: Array = _hover_ducked_slots.get(node, [] as Array)
-		for slot: SectorSlot in slots:
-			var dtw: Tween = _duck_tweens.get(slot) as Tween
-			if dtw and dtw.is_valid():
-				dtw.kill()
-			var tech_cards: Array[Node3D] = []
-			for card: Node3D in slot.get_all_placed_cards():
-				if card != slot.placed_card:
-					tech_cards.append(card)
-			if tech_cards.is_empty():
-				_duck_tweens.erase(slot)
-				continue
-			dtw = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-			var first: bool = true
-			for card: Node3D in tech_cards:
-				var rest_pos: Vector3 = _duck_card_pos.get(card, card.position)
-				if first:
-					dtw.tween_property(card, "position", rest_pos, _DUCK_OUT_SEC)
-					first = false
-				else:
-					dtw.parallel().tween_property(card, "position", rest_pos, _DUCK_OUT_SEC)
-			dtw.tween_callback(func() -> void:
-				for card: Node3D in tech_cards:
-					_duck_card_pos.erase(card))
-			_duck_tweens[slot] = dtw
-		_hover_ducked_slots.erase(node)
-	)
