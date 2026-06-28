@@ -12,7 +12,7 @@ func _ready() -> void:
 	alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
 	no_depth_test = false
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	pixel_size = 0.004
+	pixel_size = 0.0072
 	texture = _load_frame(0)
 
 func _process(delta: float) -> void:
