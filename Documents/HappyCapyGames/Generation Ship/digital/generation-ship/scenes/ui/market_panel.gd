@@ -47,6 +47,10 @@ var _detail_slot_idx: int = -1
 var _detail_is_advanced: bool = false
 var _detail_is_expedition: bool = false
 
+var _preview_panel: Control = null
+var _preview_image: TextureRect = null
+var _preview_pending_hide: bool = false
+
 func _ready() -> void:
 	_build_ui()
 
@@ -250,8 +254,16 @@ func _build_ui() -> void:
 						if cd:
 							_show_detail(cd, idx, false, false)
 		)
-		slot.mouse_entered.connect(func() -> void: CursorManager.set_hover())
-		slot.mouse_exited.connect(func() -> void: CursorManager.set_default())
+		slot.mouse_entered.connect(func() -> void:
+			CursorManager.set_hover()
+			var hcd: CardData = _sector_market.get_dust_card_data(idx) if _sector_market else null
+			if hcd and not hcd.image_url.is_empty():
+				_show_preview(hcd.image_url)
+		)
+		slot.mouse_exited.connect(func() -> void:
+			CursorManager.set_default()
+			_schedule_hide_preview()
+		)
 		basic_vbox.add_child(slot)
 		_dust_slots.append(slot)
 
@@ -281,8 +293,18 @@ func _build_ui() -> void:
 					if cd:
 						_show_detail(cd, idx, true, false)
 		)
-		slot.mouse_entered.connect(func() -> void: CursorManager.set_hover())
-		slot.mouse_exited.connect(func() -> void: CursorManager.set_default())
+		slot.mouse_entered.connect(func() -> void:
+			CursorManager.set_hover()
+			var hcd: CardData = _sector_market.get_advanced_card_data(idx) if _sector_market else null
+			if hcd:
+				var hurl: String = hcd.adv_image_url if not hcd.adv_image_url.is_empty() else hcd.image_url
+				if not hurl.is_empty():
+					_show_preview(hurl)
+		)
+		slot.mouse_exited.connect(func() -> void:
+			CursorManager.set_default()
+			_schedule_hide_preview()
+		)
 		adv_vbox.add_child(slot)
 		_adv_slots.append(slot)
 
@@ -317,8 +339,16 @@ func _build_ui() -> void:
 						if cd:
 							_show_detail(cd, idx, false, true)
 		)
-		slot.mouse_entered.connect(func() -> void: CursorManager.set_hover())
-		slot.mouse_exited.connect(func() -> void: CursorManager.set_default())
+		slot.mouse_entered.connect(func() -> void:
+			CursorManager.set_hover()
+			var hcd: CardData = _expedition_market.get_card_data(idx) if _expedition_market else null
+			if hcd and not hcd.image_url.is_empty():
+				_show_preview(hcd.image_url)
+		)
+		slot.mouse_exited.connect(func() -> void:
+			CursorManager.set_default()
+			_schedule_hide_preview()
+		)
 		exp_vbox.add_child(slot)
 		_exp_slots.append(slot)
 
@@ -340,6 +370,7 @@ func _build_ui() -> void:
 	_init_opponent_slots()
 
 	_build_detail_overlay(panel)
+	_build_preview_panel(panel)
 
 func _make_slot(slot_size: Vector2, rect: TextureRect, count_lbl: Label, highlight: ColorRect) -> Control:
 	var root := Control.new()
@@ -460,6 +491,8 @@ func _build_detail_overlay(panel: Control) -> void:
 	btn_row.add_child(buy_btn)
 
 func _show_detail(cd: CardData, slot_idx: int, is_advanced: bool, is_expedition: bool) -> void:
+	_preview_panel.visible = false
+	_preview_pending_hide = false
 	_detail_slot_idx = slot_idx
 	_detail_is_advanced = is_advanced
 	_detail_is_expedition = is_expedition
@@ -493,3 +526,47 @@ func _on_detail_buy_pressed() -> void:
 		sector_advanced_pressed.emit(idx)
 	else:
 		sector_dust_pressed.emit(idx)
+
+func _build_preview_panel(panel: Control) -> void:
+	var pp := PanelContainer.new()
+	pp.set_anchor_and_offset(SIDE_LEFT, 1.0, -260.0)
+	pp.set_anchor_and_offset(SIDE_RIGHT, 1.0, 0.0)
+	pp.set_anchor_and_offset(SIDE_TOP, 0.0, 0.0)
+	pp.set_anchor_and_offset(SIDE_BOTTOM, 1.0, 0.0)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.04, 0.04, 0.09, 0.97)
+	style.border_color = Color(0.3, 0.55, 0.85, 0.55)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 6.0
+	style.content_margin_right = 6.0
+	style.content_margin_top = 6.0
+	style.content_margin_bottom = 6.0
+	pp.add_theme_stylebox_override("panel", style)
+	pp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pp.visible = false
+	panel.add_child(pp)
+	_preview_panel = pp
+
+	_preview_image = TextureRect.new()
+	_preview_image.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_preview_image.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_preview_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_preview_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_preview_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/card_rounded.gdshader")
+	_preview_image.material = mat
+	pp.add_child(_preview_image)
+
+func _show_preview(url: String) -> void:
+	_preview_pending_hide = false
+	_preview_image.texture = ImageCache.get_texture(url) if not url.is_empty() else null
+	_preview_panel.visible = _preview_image.texture != null
+
+func _schedule_hide_preview() -> void:
+	_preview_pending_hide = true
+	get_tree().create_timer(0.08).timeout.connect(func() -> void:
+		if _preview_pending_hide:
+			_preview_panel.visible = false
+	)
