@@ -64,6 +64,8 @@ func _play_reveal_animation(card: Node3D, target_pos: Vector3) -> void:
 	card.rotation = CARD_ROTATION + Vector3(0.0, PI, 0.0)
 	card.scale = Vector3.ONE
 	var t: Tween = card.create_tween()
+	card.set_meta("_reveal_tween", t)
+	card.set_meta("_reveal_target_pos", target_pos)
 	t.tween_property(card, "position", target_pos + Vector3(0.0, 0.22, 0.0), 0.14).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	t.parallel().tween_property(card, "scale", Vector3.ONE * 1.12, 0.14)
 	t.tween_property(card, "rotation", CARD_ROTATION, 0.38).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_CUBIC)
@@ -163,6 +165,13 @@ func remove_card(cd: CardData) -> void:
 				return
 
 func detach_card(card: Node3D) -> void:
+	if card.has_meta("_reveal_tween"):
+		(card.get_meta("_reveal_tween") as Tween).kill()
+		card.position = card.get_meta("_reveal_target_pos")
+		card.rotation = CARD_ROTATION
+		card.scale = Vector3.ONE
+		card.remove_meta("_reveal_tween")
+		card.remove_meta("_reveal_target_pos")
 	var slot_idx: int = card.get_meta("market_slot", -1)
 	if slot_idx < 0:
 		return

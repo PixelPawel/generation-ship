@@ -151,6 +151,8 @@ func _update_advanced_visuals(stack_idx: int, skip_card: Node3D = null) -> void:
 func _play_reveal_animation(card: Node3D, target_pos: Vector3) -> void:
 	var lift_pos: Vector3 = card.position + Vector3(0.0, 0.28, 0.0)
 	var t: Tween = card.create_tween()
+	card.set_meta("_reveal_tween", t)
+	card.set_meta("_reveal_target_pos", target_pos)
 	# Phase 1 — rise off the dust pile and scale up slightly
 	t.tween_property(card, "position", lift_pos, 0.14).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	t.parallel().tween_property(card, "scale", Vector3.ONE * 1.12, 0.14)
@@ -234,6 +236,13 @@ func remove_card(cd: CardData) -> void:
 			return
 
 func detach_advanced_card(card: Node3D) -> void:
+	if card.has_meta("_reveal_tween"):
+		(card.get_meta("_reveal_tween") as Tween).kill()
+		card.position = card.get_meta("_reveal_target_pos")
+		card.rotation = CARD_ROTATION
+		card.scale = Vector3.ONE
+		card.remove_meta("_reveal_tween")
+		card.remove_meta("_reveal_target_pos")
 	var slot_idx: int = card.get_meta("market_slot", -1)
 	if slot_idx >= 0 and slot_idx < _advanced_stacks.size():
 		_advanced_stacks[slot_idx].erase(card)
