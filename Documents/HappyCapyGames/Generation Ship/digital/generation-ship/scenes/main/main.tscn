@@ -14,6 +14,7 @@
 [ext_resource type="PackedScene" uid="uid://cnt3hx80usgpr" path="res://assets/3d/gs_ui_cockpit.glb" id="18_ui_cockpit"]
 [ext_resource type="PackedScene" uid="uid://c4s6l8t0r2e5" path="res://scenes/board/sector_slot.tscn" id="19_sector_slot"]
 [ext_resource type="Script" uid="uid://dbo2s5pwckbd" path="res://scripts/starfield.gd" id="20_starfield"]
+[ext_resource type="Script" uid="uid://ivx7m2bfysip" path="res://addons/gde_gozen/video_playback.gd" id="23_sun_video"]
 [ext_resource type="PackedScene" uid="uid://dxp7nk4qb3mjs" path="res://assets/3d/gs_ui_log.glb" id="21_ui_log"]
 
 [sub_resource type="Environment" id="Environment_1"]
@@ -64,6 +65,22 @@ omni_range = 1.8
 transform = Transform3D(1, 0, 0, 0, 0.342, -0.94, 0, 0.94, 0.342, 0, 3, 0)
 light_energy = 0.9
 shadow_enabled = true
+
+[node name="SunLayer" type="CanvasLayer" parent="." unique_id=1000000001]
+layer = 0
+
+[node name="SunVideo" type="Control" parent="SunLayer" unique_id=1000000002]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("23_sun_video")
+path = "res://assets/video/Sun.mp4"
+loop = true
+enable_auto_play = true
+enable_audio = false
 
 [node name="UILayer" type="CanvasLayer" parent="." unique_id=2083177684]
 
