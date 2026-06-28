@@ -44,7 +44,7 @@ card_scene = ExtResource("2_card")
 script = ExtResource("20_starfield")
 
 [node name="Sun" type="MeshInstance3D" parent="." unique_id=1847362525]
-transform = Transform3D(5, 0, 0, 0, 5, 0, 0, 0, 5, 0, -0.907379, -0.19951642)
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, -15, 0)
 script = ExtResource("22_sun_anim")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=915283741]
