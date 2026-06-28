@@ -800,6 +800,19 @@ func _setup_info_screen_display() -> void:
 func _setup_info_screen_input(screen_mesh: MeshInstance3D) -> void:
 	_setup_viewport_input(screen_mesh, _info_viewport)
 
+func _effect_card_origin(card_node: Node3D, cd: CardData) -> Vector3:
+	if not _market_panel:
+		return $UiInfo.global_position
+	var slot_idx: int = card_node.get_meta("market_slot", 0)
+	var slot_type: String
+	if cd.card_type == CardData.CardType.EXPEDITION:
+		slot_type = "expedition"
+	elif bool(card_node.get("is_advanced")):
+		slot_type = "advanced"
+	else:
+		slot_type = "dust"
+	return _viewport_to_world(_market_panel.get_slot_center(slot_type, slot_idx))
+
 func _viewport_to_world(vp_pos: Vector2) -> Vector3:
 	if not _info_screen_mesh:
 		return $UiInfo.global_position
@@ -2617,6 +2630,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 			if not card_node:
 				_process_next_effect()
 				return
+			$Board.market_origin_3d = _effect_card_origin(card_node, cd)
 			$Board.begin_free_sector_gain(card_node)
 
 		"initiate_market_bid":
@@ -2629,6 +2643,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 				_process_next_effect()
 				return
 			_bid_is_from_effect = true
+			$Board.market_origin_3d = _effect_card_origin(card_node, cd)
 			$Board.begin_drag_card(card_node)
 
 		"seedbanks":
