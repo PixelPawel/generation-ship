@@ -102,6 +102,21 @@ func _find_nearest_empty_sector_slot() -> SectorSlot:
 			best = slot
 	return best
 
+func _find_nearest_empty_sector_slot_any_dist() -> SectorSlot:
+	var pos: Vector3 = _dragged_card.global_position
+	var best: SectorSlot = null
+	var best_dist: float = INF
+	for slot: SectorSlot in _sector_row.get_children():
+		if slot.occupied or not slot.is_available:
+			continue
+		var dx: float = pos.x - slot.global_position.x
+		var dz: float = pos.z - slot.global_position.z
+		var dist: float = sqrt(dx * dx + dz * dz)
+		if dist < best_dist:
+			best_dist = dist
+			best = slot
+	return best
+
 func set_card_scene(scene: PackedScene) -> void:
 	_card_scene = scene
 
@@ -527,6 +542,8 @@ func _process(_delta: float) -> void:
 	if _is_arrow_drag and _drag_arrow != null:
 		var cam: Camera3D = get_viewport().get_camera_3d()
 		var snap_slot: SectorSlot = _find_nearest_empty_sector_slot() if _is_sector_card() else _find_nearest_tech_slot()
+		if snap_slot == null:
+			snap_slot = _find_nearest_empty_sector_slot_any_dist()
 		var to_2d: Vector2 = cam.unproject_position(snap_slot.global_position) if snap_slot else get_viewport().get_mouse_position()
 		_drag_arrow.update_to(to_2d)
 	_update_slot_highlights()
