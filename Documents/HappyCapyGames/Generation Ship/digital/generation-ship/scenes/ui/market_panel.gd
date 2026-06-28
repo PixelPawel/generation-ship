@@ -529,10 +529,6 @@ func _on_detail_buy_pressed() -> void:
 
 func _build_preview_panel(panel: Control) -> void:
 	var pp := PanelContainer.new()
-	pp.set_anchor_and_offset(SIDE_LEFT, 1.0, -260.0)
-	pp.set_anchor_and_offset(SIDE_RIGHT, 1.0, 0.0)
-	pp.set_anchor_and_offset(SIDE_TOP, 0.0, 0.0)
-	pp.set_anchor_and_offset(SIDE_BOTTOM, 1.0, 0.0)
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.04, 0.04, 0.09, 0.97)
 	style.border_color = Color(0.3, 0.55, 0.85, 0.55)
@@ -562,7 +558,13 @@ func _build_preview_panel(panel: Control) -> void:
 func _show_preview(url: String) -> void:
 	_preview_pending_hide = false
 	_preview_image.texture = ImageCache.get_texture(url) if not url.is_empty() else null
-	_preview_panel.visible = _preview_image.texture != null
+	if _preview_image.texture != null:
+		var r: Rect2 = _opp_vbox.get_global_rect()
+		_preview_panel.global_position = r.position
+		_preview_panel.size = r.size
+		_preview_panel.visible = true
+	else:
+		_preview_panel.visible = false
 
 func _schedule_hide_preview() -> void:
 	_preview_pending_hide = true
