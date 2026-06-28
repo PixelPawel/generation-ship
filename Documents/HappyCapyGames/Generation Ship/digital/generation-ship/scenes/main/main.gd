@@ -663,7 +663,7 @@ func _setup_switch_input(switch_mesh: MeshInstance3D, callback: Callable) -> voi
 	var cshape: CollisionShape3D = CollisionShape3D.new()
 	var box: BoxShape3D = BoxShape3D.new()
 	var aabb: AABB = switch_mesh.mesh.get_aabb()
-	box.size = aabb.size
+	box.size = Vector3(aabb.size.x, aabb.size.y, aabb.size.z + 0.01)
 	cshape.shape = box
 	cshape.position = aabb.get_center()
 	area.add_child(cshape)
