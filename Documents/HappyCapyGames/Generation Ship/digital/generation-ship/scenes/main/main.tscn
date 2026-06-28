@@ -15,7 +15,7 @@
 [ext_resource type="PackedScene" uid="uid://c4s6l8t0r2e5" path="res://scenes/board/sector_slot.tscn" id="19_sector_slot"]
 [ext_resource type="Script" uid="uid://dbo2s5pwckbd" path="res://scripts/starfield.gd" id="20_starfield"]
 [ext_resource type="PackedScene" uid="uid://dxp7nk4qb3mjs" path="res://assets/3d/gs_ui_log.glb" id="21_ui_log"]
-[ext_resource type="Script" path="res://scenes/main/sun_animation.gd" id="22_sun_anim"]
+[ext_resource type="Script" uid="uid://cf21yorgaub8x" path="res://scenes/main/sun_animation.gd" id="22_sun_anim"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 1
@@ -43,8 +43,8 @@ card_scene = ExtResource("2_card")
 [node name="Starfield" type="Node3D" parent="." unique_id=1110987654]
 script = ExtResource("20_starfield")
 
-[node name="Sun" type="Sprite3D" parent="." unique_id=1847362525]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, -15.0, 2.0)
+[node name="Sun" type="MeshInstance3D" parent="." unique_id=1847362525]
+transform = Transform3D(5, 0, 0, 0, 5, 0, 0, 0, 5, 0, -0.907379, -0.19951642)
 script = ExtResource("22_sun_anim")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=915283741]
