@@ -928,14 +928,16 @@ func _setup_log_screen_display() -> void:
 	preview_style.content_margin_bottom = 6.0
 	pp.add_theme_stylebox_override("panel", preview_style)
 	pp.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pp.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	pp.visible = false
 	_log_canvas.add_child(pp)
+	var _log_panel_h: float = 362.0 * 1.524 / 1.249
+	pp.size = Vector2(362.0, _log_panel_h)
+	pp.position = Vector2(0.0, (760.0 - _log_panel_h) / 2.0)
 	_log_preview_panel = pp
 	_log_preview_image = TextureRect.new()
 	_log_preview_image.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_log_preview_image.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_log_preview_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_log_preview_image.stretch_mode = TextureRect.STRETCH_SCALE
 	_log_preview_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_log_preview_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var preview_mat := ShaderMaterial.new()
