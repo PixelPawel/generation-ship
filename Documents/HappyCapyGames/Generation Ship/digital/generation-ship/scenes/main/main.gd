@@ -3707,7 +3707,7 @@ func _setup_sun_background() -> void:
 	# ndc_pos:  center in NDC coords (-1..1, Y up). Tune to reposition on screen.
 	# ndc_size: width/height in NDC units. Tune to resize.
 	mat.set_shader_parameter("ndc_pos",  Vector2(0.0, -0.3))
-	mat.set_shader_parameter("ndc_size", Vector2(0.17, 0.17))
+	mat.set_shader_parameter("ndc_size", Vector2(0.17, 0.227))
 	mesh_inst.set_surface_override_material(0, mat)
 
 	add_child(mesh_inst)
