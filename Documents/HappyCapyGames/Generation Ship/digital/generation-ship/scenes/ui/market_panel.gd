@@ -480,7 +480,7 @@ func _show_preview(url: String) -> void:
 		var opp: Rect2 = _opp_vbox.get_global_rect()
 		var preview_size := Vector2(opp.size.x, CARD_H * 2 + 12)
 		var v_center: float = (opp.size.y - preview_size.y) / 2.0
-		_preview_panel.global_position = opp.position + Vector2(-20.0, v_center)
+		_preview_panel.global_position = opp.position + Vector2(-20.0, v_center / 2.0)
 		_preview_panel.size = preview_size
 		_preview_panel.visible = true
 	else:
