@@ -136,6 +136,9 @@ var _log_font: FontVariation = null
 var _log_preview_panel: Control = null
 var _log_preview_image: TextureRect = null
 var _log_preview_pending_hide: bool = false
+var _log_tooltip_panel: Control = null
+var _log_tooltip_title: Label = null
+var _log_tooltip_desc: Label = null
 var _sun_elevated_count: int = 0
 
 var _rumble_tweens: Dictionary = {}   # Node3D -> Tween
@@ -613,6 +616,7 @@ func _setup_button_input(btn_mesh: MeshInstance3D, callback: Callable, tooltip_t
 		btn_mesh.set_surface_override_material(0, mat)
 		if not tooltip_title.is_empty():
 			_cs_display.show_button_tooltip(tooltip_title, tooltip_desc)
+			_show_log_tooltip(tooltip_title, tooltip_desc)
 	)
 	area.mouse_exited.connect(func() -> void:
 		if btn_mesh == _end_turn_btn_mesh and _end_turn_flash_mat != null:
@@ -620,6 +624,7 @@ func _setup_button_input(btn_mesh: MeshInstance3D, callback: Callable, tooltip_t
 		else:
 			btn_mesh.set_surface_override_material(0, null)
 		_cs_display.hide_button_tooltip()
+		_hide_log_tooltip()
 	)
 
 func _animate_button_press(btn_mesh: MeshInstance3D) -> void:
@@ -963,6 +968,55 @@ func _setup_log_screen_display() -> void:
 	preview_mat.shader = load("res://shaders/card_rounded.gdshader")
 	_log_preview_image.material = preview_mat
 	preview_wrap.add_child(_log_preview_image)
+
+	# Button tooltip — centered on the log canvas.
+	var lt_panel: PanelContainer = PanelContainer.new()
+	lt_panel.visible = false
+	lt_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lt_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	lt_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	lt_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var lt_style: StyleBoxFlat = StyleBoxFlat.new()
+	lt_style.bg_color = Color(0.05, 0.07, 0.15, 0.94)
+	lt_style.border_color = Color(0.3, 0.55, 0.85, 0.55)
+	lt_style.set_border_width_all(1)
+	lt_style.set_corner_radius_all(4)
+	lt_style.content_margin_left = 12.0
+	lt_style.content_margin_right = 12.0
+	lt_style.content_margin_top = 8.0
+	lt_style.content_margin_bottom = 8.0
+	lt_panel.add_theme_stylebox_override("panel", lt_style)
+	var lt_vbox: VBoxContainer = VBoxContainer.new()
+	lt_vbox.add_theme_constant_override("separation", 3)
+	lt_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lt_panel.add_child(lt_vbox)
+	_log_tooltip_title = Label.new()
+	_log_tooltip_title.add_theme_font_size_override("font_size", 16)
+	_log_tooltip_title.add_theme_color_override("font_color", Color(0.82, 0.93, 1.0))
+	_log_tooltip_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_log_tooltip_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lt_vbox.add_child(_log_tooltip_title)
+	_log_tooltip_desc = Label.new()
+	_log_tooltip_desc.add_theme_font_size_override("font_size", 13)
+	_log_tooltip_desc.add_theme_color_override("font_color", Color(0.60, 0.68, 0.82))
+	_log_tooltip_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_log_tooltip_desc.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_log_tooltip_desc.custom_minimum_size = Vector2(230, 0)
+	_log_tooltip_desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lt_vbox.add_child(_log_tooltip_desc)
+	_log_canvas.add_child(lt_panel)
+	_log_tooltip_panel = lt_panel
+
+func _show_log_tooltip(title: String, desc: String) -> void:
+	if not _log_tooltip_panel:
+		return
+	_log_tooltip_title.text = title
+	_log_tooltip_desc.text = desc
+	_log_tooltip_panel.visible = true
+
+func _hide_log_tooltip() -> void:
+	if _log_tooltip_panel:
+		_log_tooltip_panel.visible = false
 
 func _log_action(text: String, color: Color = Color(0.80, 0.88, 1.0)) -> void:
 	if not _log_vbox:
