@@ -917,7 +917,7 @@ func _setup_log_screen_display() -> void:
 		screen_mesh.set_surface_override_material(0, mat)
 
 	var log_card_h: float = 320.0      # card height in log viewport px — increase to enlarge
-	var log_card_aspect: float = 1.30  # card w:h ratio — 1.524 matches landscape card images
+	var log_card_aspect: float = 1.524  # card w:h ratio — 1.524 matches landscape card images
 	var log_card_w: float = log_card_h * log_card_aspect
 	var log_cw: float = log_card_h + 12.0
 	var log_ch: float = log_card_w + 12.0
