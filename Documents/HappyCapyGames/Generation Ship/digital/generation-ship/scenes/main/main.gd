@@ -277,14 +277,14 @@ func _on_node_added_to_tree(node: Node) -> void:
 
 func _on_card_elevation_started(_card: Node3D) -> void:
 	_sun_elevated_count += 1
-	get_tree().create_timer(0.2).timeout.connect(func() -> void:
+	get_tree().create_timer(0.15).timeout.connect(func() -> void:
 		if _sun_elevated_count > 0:
 			$SunLayer.visible = false
 	)
 
 func _on_card_elevation_ended(_card: Node3D) -> void:
 	_sun_elevated_count = max(0, _sun_elevated_count - 1)
-	get_tree().create_timer(0.2).timeout.connect(func() -> void:
+	get_tree().create_timer(0.15).timeout.connect(func() -> void:
 		if _sun_elevated_count == 0:
 			$SunLayer.visible = true
 	)
