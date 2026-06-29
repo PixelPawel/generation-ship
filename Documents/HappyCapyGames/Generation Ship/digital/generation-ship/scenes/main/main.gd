@@ -2988,7 +2988,7 @@ func _on_market_card_hovered(url: String, scale: float) -> void:
 		lx *= 0.65
 		ly *= 0.8
 	else:  # sector
-		ly *= 1.25
+		ly *= 1.3
 	_log_preview_panel.size     = Vector2(lx + 2.0 * pad, ly + 2.0 * pad)
 	_log_preview_panel.position = Vector2((408.0 - lx - 2.0 * pad) / 2.0, (980.0 - ly - 2.0 * pad) / 2.0)
 	_log_preview_image.size     = Vector2(lx, ly)
