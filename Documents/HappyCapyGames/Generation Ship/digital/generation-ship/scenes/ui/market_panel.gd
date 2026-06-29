@@ -326,7 +326,7 @@ func _build_ui() -> void:
 			CursorManager.set_hover()
 			var hcd: CardData = _expedition_market.get_card_data(idx) if _expedition_market else null
 			if hcd and not hcd.image_url.is_empty():
-				_show_preview(hcd.image_url, 1.4, Vector2(-40.0, -30.0))
+				_show_preview(hcd.image_url, 1.4, Vector2(-50.0, -30.0))
 		)
 		slot.mouse_exited.connect(func() -> void:
 			CursorManager.set_default()
