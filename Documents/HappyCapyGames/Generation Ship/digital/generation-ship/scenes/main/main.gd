@@ -2982,7 +2982,7 @@ func _on_market_card_hovered(url: String, scale: float) -> void:
 	# Increase log_screen_h_scale if cards look too wide; decrease if too narrow.
 	var log_screen_h_scale: float = 0.7
 	var pad: float = 6.0
-	var lx: float = 475.0
+	var lx: float = 408.0
 	var ly: float = lx * float(img.y) / float(img.x) / log_screen_h_scale
 	if scale > 1.0:  # expedition slot
 		lx *= 0.75
