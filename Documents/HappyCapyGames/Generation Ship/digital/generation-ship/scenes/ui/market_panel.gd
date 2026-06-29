@@ -248,7 +248,7 @@ func _build_ui() -> void:
 			CursorManager.set_hover()
 			var hcd: CardData = _sector_market.get_dust_card_data(idx) if _sector_market else null
 			if hcd and not hcd.image_url.is_empty():
-				_show_preview(hcd.image_url)
+				_show_preview(hcd.image_url, 0.9)
 		)
 		slot.mouse_exited.connect(func() -> void:
 			CursorManager.set_default()
@@ -287,7 +287,7 @@ func _build_ui() -> void:
 			if hcd:
 				var hurl: String = hcd.adv_image_url if not hcd.adv_image_url.is_empty() else hcd.image_url
 				if not hurl.is_empty():
-					_show_preview(hurl)
+					_show_preview(hurl, 0.9)
 		)
 		slot.mouse_exited.connect(func() -> void:
 			CursorManager.set_default()
@@ -326,7 +326,7 @@ func _build_ui() -> void:
 			CursorManager.set_hover()
 			var hcd: CardData = _expedition_market.get_card_data(idx) if _expedition_market else null
 			if hcd and not hcd.image_url.is_empty():
-				_show_preview(hcd.image_url, 1.5)
+				_show_preview(hcd.image_url, 1.4)
 		)
 		slot.mouse_exited.connect(func() -> void:
 			CursorManager.set_default()
