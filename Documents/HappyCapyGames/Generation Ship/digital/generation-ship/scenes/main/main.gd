@@ -845,17 +845,17 @@ func _setup_log_screen_display() -> void:
 
 	_log_viewport = SubViewport.new()
 	# AABB is 0.1308 × 0.0623 (landscape 2.1:1), so viewport must match that
-	# ratio to avoid distortion. 760×362 = 2.099:1.
-	# Canvas is portrait (362×760) rotated 90° CW to fill the landscape viewport.
-	_log_viewport.size = Vector2i(760, 362)
+	# ratio to avoid distortion. 856×408 = 2.098:1.
+	# Canvas is portrait (408×856) rotated 90° CW to fill the landscape viewport.
+	_log_viewport.size = Vector2i(856, 408)
 	_log_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_log_viewport.transparent_bg = true
 	$UiLog.add_child(_log_viewport)
 
 	var canvas: Control = Control.new()
-	canvas.size = Vector2(362.0, 760.0)
+	canvas.size = Vector2(408.0, 856.0)
 	canvas.rotation_degrees = 90.0
-	canvas.position = Vector2(760.0, 0.0)
+	canvas.position = Vector2(856.0, 0.0)
 	canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_log_viewport.add_child(canvas)
 	_log_canvas = canvas
@@ -927,7 +927,7 @@ func _setup_log_screen_display() -> void:
 	preview_wrap.visible = false
 	_log_canvas.add_child(preview_wrap)
 	preview_wrap.size = Vector2(log_cw, log_ch)
-	preview_wrap.position = Vector2((362.0 - log_cw) / 2.0, (760.0 - log_ch) / 2.0)
+	preview_wrap.position = Vector2((408.0 - log_cw) / 2.0, (856.0 - log_ch) / 2.0)
 	_log_preview_panel = preview_wrap
 
 	var pp: PanelContainer = PanelContainer.new()
@@ -3000,7 +3000,7 @@ func _on_market_card_hovered(url: String, _scale: float) -> void:
 	var new_cw: float = new_lx + 12.0
 	var new_ch: float = new_ly + 12.0
 	_log_preview_panel.size = Vector2(new_cw, new_ch)
-	_log_preview_panel.position = Vector2((362.0 - new_cw) / 2.0, (760.0 - new_ch) / 2.0)
+	_log_preview_panel.position = Vector2((408.0 - new_cw) / 2.0, (856.0 - new_ch) / 2.0)
 	_log_preview_image.size = Vector2(new_lx, new_ly)
 	_log_preview_image.pivot_offset = Vector2(new_lx / 2.0, new_ly / 2.0)
 	_log_preview_image.position = Vector2(6.0, 6.0)
