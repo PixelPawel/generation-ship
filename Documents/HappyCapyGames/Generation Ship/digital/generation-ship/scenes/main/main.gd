@@ -916,8 +916,8 @@ func _setup_log_screen_display() -> void:
 		mat.set_shader_parameter("bloom_threshold", 0.7)
 		screen_mesh.set_surface_override_material(0, mat)
 
-	var log_card_h: float = 250.0      # card height in log viewport px — increase to enlarge
-	var log_card_aspect: float = 1.524  # card w:h ratio — 1.524 matches landscape card images
+	var log_card_h: float = 350.0      # card height in log viewport px — increase to enlarge
+	var log_card_aspect: float = 1.24  # card w:h ratio — 1.524 matches landscape card images
 	var log_card_w: float = log_card_h * log_card_aspect
 	var log_cw: float = log_card_h + 12.0
 	var log_ch: float = log_card_w + 12.0
@@ -945,7 +945,6 @@ func _setup_log_screen_display() -> void:
 	_log_preview_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_log_preview_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_log_preview_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_log_preview_image.rotation_degrees = -90.0
 	var preview_mat: ShaderMaterial = ShaderMaterial.new()
 	preview_mat.shader = load("res://shaders/card_rounded.gdshader")
 	_log_preview_image.material = preview_mat
