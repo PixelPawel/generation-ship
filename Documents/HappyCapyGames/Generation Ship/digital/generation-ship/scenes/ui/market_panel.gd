@@ -326,7 +326,7 @@ func _build_ui() -> void:
 			CursorManager.set_hover()
 			var hcd: CardData = _expedition_market.get_card_data(idx) if _expedition_market else null
 			if hcd and not hcd.image_url.is_empty():
-				_show_preview(hcd.image_url, 1.4)
+				_show_preview(hcd.image_url, 1.4, Vector2(-40.0, -30.0))
 		)
 		slot.mouse_exited.connect(func() -> void:
 			CursorManager.set_default()
@@ -473,7 +473,7 @@ func _build_preview_panel(_panel: Control) -> void:
 	_preview_image.material = mat
 	pp.add_child(_preview_image)
 
-func _show_preview(url: String, scale: float = 1.0) -> void:
+func _show_preview(url: String, scale: float = 1.0, extra_offset: Vector2 = Vector2.ZERO) -> void:
 	_preview_pending_hide = false
 	_preview_image.texture = ImageCache.get_texture(url) if not url.is_empty() else null
 	if _preview_image.texture != null:
@@ -482,7 +482,7 @@ func _show_preview(url: String, scale: float = 1.0) -> void:
 		var preview_size := base_size * scale
 		var base_v_center: float = (opp.size.y - base_size.y) / 2.0
 		var anchor := Vector2(-130.0 + base_size.x / 2.0, base_v_center / 2.0 + base_size.y / 2.0)
-		_preview_panel.global_position = opp.position + anchor - preview_size / 2.0
+		_preview_panel.global_position = opp.position + anchor - preview_size / 2.0 + extra_offset
 		_preview_panel.size = preview_size
 		_preview_panel.visible = true
 	else:
