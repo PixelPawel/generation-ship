@@ -3692,9 +3692,14 @@ func _on_peer_disconnected(peer_id: int) -> void:
 
 func _setup_sun_background() -> void:
 	var sun_vp: SubViewport = $SunViewport
-	sun_vp.size = Vector2i(400, 300)
+	# SubViewport must match the video's native resolution (1920×1080) so the
+	# VideoPlayback addon's canvas-pixel rendering shows the full frame.
+	sun_vp.size = Vector2i(1920, 1080)
 	sun_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	sun_vp.transparent_bg = true
+
+	var sun_video: Control = sun_vp.get_node("SunVideo") as Control
+	sun_video.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 	var mesh_inst: MeshInstance3D = MeshInstance3D.new()
 	var quad: QuadMesh = QuadMesh.new()
