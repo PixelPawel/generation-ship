@@ -916,11 +916,11 @@ func _setup_log_screen_display() -> void:
 		mat.set_shader_parameter("bloom_threshold", 0.7)
 		screen_mesh.set_surface_override_material(0, mat)
 
-	var log_card_h: float = 320.0      # card height in log viewport px — increase to enlarge
-	var log_card_aspect: float = 1.524  # card w:h ratio — 1.524 matches landscape card images
-	var log_card_w: float = log_card_h * log_card_aspect
-	var log_cw: float = log_card_h + 12.0
-	var log_ch: float = log_card_w + 12.0
+	var log_card_target: float = 320.0  # long side of card in log viewport px
+	var log_init_lx: float = log_card_target * 0.656  # canvas_x (portrait pixel default)
+	var log_init_ly: float = log_card_target            # canvas_y
+	var log_cw: float = log_init_lx + 12.0
+	var log_ch: float = log_init_ly + 12.0
 
 	var preview_wrap: Control = Control.new()
 	preview_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -949,9 +949,9 @@ func _setup_log_screen_display() -> void:
 	preview_mat.shader = load("res://shaders/card_rounded.gdshader")
 	_log_preview_image.material = preview_mat
 	preview_wrap.add_child(_log_preview_image)
-	_log_preview_image.size = Vector2(log_card_w, log_card_h)
-	_log_preview_image.pivot_offset = Vector2(log_card_w / 2.0, log_card_h / 2.0)
-	_log_preview_image.position = Vector2(log_cw / 2.0 - log_card_w / 2.0, log_ch / 2.0 - log_card_h / 2.0)
+	_log_preview_image.size = Vector2(log_init_lx, log_init_ly)
+	_log_preview_image.pivot_offset = Vector2(log_init_lx / 2.0, log_init_ly / 2.0)
+	_log_preview_image.position = Vector2(6.0, 6.0)
 
 func _log_action(text: String, color: Color = Color(0.80, 0.88, 1.0)) -> void:
 	if not _log_vbox:
@@ -2979,8 +2979,33 @@ func _on_market_card_hovered(url: String, _scale: float) -> void:
 	if not _log_preview_panel:
 		return
 	_log_preview_pending_hide = false
-	_log_preview_image.texture = ImageCache.get_texture(url) if not url.is_empty() else null
-	_log_preview_panel.visible = _log_preview_image.texture != null
+	var tex: Texture2D = ImageCache.get_texture(url) if not url.is_empty() else null
+	_log_preview_image.texture = tex
+	if tex == null:
+		_log_preview_panel.visible = false
+		return
+	var img_size: Vector2i = tex.get_size()
+	var target: float = 320.0
+	var vp_w: float = 0.0
+	var vp_h: float = 0.0
+	if img_size.y >= img_size.x:
+		# portrait pixel → landscape in log viewport
+		vp_w = target
+		vp_h = target * float(img_size.x) / float(img_size.y)
+	else:
+		# landscape pixel → portrait in log viewport
+		vp_h = target
+		vp_w = target * float(img_size.y) / float(img_size.x)
+	var new_lx: float = vp_h
+	var new_ly: float = vp_w
+	var new_cw: float = new_lx + 12.0
+	var new_ch: float = new_ly + 12.0
+	_log_preview_panel.size = Vector2(new_cw, new_ch)
+	_log_preview_panel.position = Vector2((362.0 - new_cw) / 2.0, (760.0 - new_ch) / 2.0)
+	_log_preview_image.size = Vector2(new_lx, new_ly)
+	_log_preview_image.pivot_offset = Vector2(new_lx / 2.0, new_ly / 2.0)
+	_log_preview_image.position = Vector2(6.0, 6.0)
+	_log_preview_panel.visible = true
 
 func _on_market_card_unhovered() -> void:
 	if not _log_preview_panel:
