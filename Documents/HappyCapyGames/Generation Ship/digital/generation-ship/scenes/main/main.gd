@@ -2980,7 +2980,7 @@ func _on_market_card_hovered(url: String, _scale: float) -> void:
 	# STRETCH_SCALE fills the TextureRect exactly, so ly pre-corrects for the UiLog 3D
 	# world-scale non-uniformity (horizontal appears wider than vertical in world space).
 	# Increase log_screen_h_scale if cards look too wide; decrease if too narrow.
-	var log_screen_h_scale: float = 1.0
+	var log_screen_h_scale: float = 0.7
 	var pad: float = 6.0
 	var lx: float = 396.0
 	var ly: float = lx * float(img.y) / float(img.x) / log_screen_h_scale
