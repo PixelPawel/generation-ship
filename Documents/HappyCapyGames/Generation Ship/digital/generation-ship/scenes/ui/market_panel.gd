@@ -248,7 +248,7 @@ func _build_ui() -> void:
 			CursorManager.set_hover()
 			var hcd: CardData = _sector_market.get_dust_card_data(idx) if _sector_market else null
 			if hcd and not hcd.image_url.is_empty():
-				_show_preview(hcd.image_url, 1.0, Vector2(-10.0, 0.0))
+				_show_preview(hcd.image_url)
 		)
 		slot.mouse_exited.connect(func() -> void:
 			CursorManager.set_default()
@@ -287,7 +287,7 @@ func _build_ui() -> void:
 			if hcd:
 				var hurl: String = hcd.adv_image_url if not hcd.adv_image_url.is_empty() else hcd.image_url
 				if not hurl.is_empty():
-					_show_preview(hurl, 1.0, Vector2(-10.0, 0.0))
+					_show_preview(hurl)
 		)
 		slot.mouse_exited.connect(func() -> void:
 			CursorManager.set_default()
@@ -481,7 +481,7 @@ func _show_preview(url: String, scale: float = 1.0, extra_offset: Vector2 = Vect
 		var base_size := Vector2(opp.size.x, CARD_H * 2 + 12)
 		var preview_size := base_size * scale
 		var base_v_center: float = (opp.size.y - base_size.y) / 2.0
-		var anchor := Vector2(-130.0 + base_size.x / 2.0, base_v_center / 2.0 + base_size.y / 2.0)
+		var anchor := Vector2(-140.0 + base_size.x / 2.0, base_v_center / 2.0 + base_size.y / 2.0)
 		_preview_panel.global_position = opp.position + anchor - preview_size / 2.0 + extra_offset
 		_preview_panel.size = preview_size
 		_preview_panel.visible = true
