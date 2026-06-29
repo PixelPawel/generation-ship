@@ -136,6 +136,7 @@ var _log_font: FontVariation = null
 var _log_preview_panel: Control = null
 var _log_preview_image: TextureRect = null
 var _log_preview_pending_hide: bool = false
+var _sun_elevated_count: int = 0
 
 var _rumble_tweens: Dictionary = {}   # Node3D -> Tween
 var _rumble_base_pos: Dictionary = {} # Node3D -> Vector3
@@ -163,6 +164,7 @@ var _es_back_btn: Button = null
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
 func _ready() -> void:
+	get_tree().node_added.connect(_on_node_added_to_tree)
 	for node: Node3D in [$UiControl, $UiInfo, $UiLog, $UiCockpit]:
 		_rumble_base_pos[node] = node.position
 		_rumble_base_rot[node] = node.rotation
@@ -267,6 +269,20 @@ func _ready() -> void:
 	_setup_cockpit_switches()
 
 	_wire_sector_slots_to_board()
+
+func _on_node_added_to_tree(node: Node) -> void:
+	if node is Card:
+		node.elevation_started.connect(_on_card_elevation_started)
+		node.elevation_ended.connect(_on_card_elevation_ended)
+
+func _on_card_elevation_started(_card: Node3D) -> void:
+	_sun_elevated_count += 1
+	$SunLayer.visible = false
+
+func _on_card_elevation_ended(_card: Node3D) -> void:
+	_sun_elevated_count = max(0, _sun_elevated_count - 1)
+	if _sun_elevated_count == 0:
+		$SunLayer.visible = true
 
 func _wire_sector_slots_to_board() -> void:
 	for i: int in 6:

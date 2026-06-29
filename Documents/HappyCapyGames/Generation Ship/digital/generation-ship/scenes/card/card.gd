@@ -8,6 +8,8 @@ signal unhovered(card: Node3D)
 signal drag_started(card: Node3D)
 signal clicked(card: Node3D)
 signal right_clicked(card: Node3D)
+signal elevation_started(card: Node3D)
+signal elevation_ended(card: Node3D)
 
 const HOVER_HEIGHT := 0.15
 const HOVER_DURATION := 0.15
@@ -198,6 +200,7 @@ func toggle_elevation(elev_pos: Vector3, elev_scale: Vector3, grace_sec: float) 
 	_tween.parallel().tween_property(self, "scale", elev_scale, PLACED_LIFT_DURATION)
 	_tween.parallel().tween_property(self, "global_rotation", Vector3(deg_to_rad(-90.0), global_rotation.y, global_rotation.z), PLACED_LIFT_DURATION)
 	_placed_elevated = true
+	elevation_started.emit(self)
 	if grace_sec > 0.0:
 		get_tree().create_timer(grace_sec).timeout.connect(func() -> void:
 			if _placed_elevated:
@@ -212,6 +215,7 @@ func _collapse_elevation() -> void:
 	_tween.tween_property(self, "position", _elev_rest_pos, PLACED_LIFT_DURATION)
 	_tween.parallel().tween_property(self, "scale", _elev_rest_scale, PLACED_LIFT_DURATION)
 	_tween.parallel().tween_property(self, "global_rotation", _elev_rest_rotation, PLACED_LIFT_DURATION)
+	elevation_ended.emit(self)
 
 func set_discount_glow(active: bool) -> void:
 	var mat: ShaderMaterial = card_mesh.get_surface_override_material(0) as ShaderMaterial
