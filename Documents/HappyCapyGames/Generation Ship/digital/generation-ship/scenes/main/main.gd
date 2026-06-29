@@ -916,34 +916,43 @@ func _setup_log_screen_display() -> void:
 		mat.set_shader_parameter("bloom_threshold", 0.7)
 		screen_mesh.set_surface_override_material(0, mat)
 
-	var pp := PanelContainer.new()
-	var preview_style := StyleBoxFlat.new()
+	var log_card_h: float = 250.0      # card height in log viewport px — increase to enlarge
+	var log_card_aspect: float = 1.524  # card w:h ratio — 1.524 matches landscape card images
+	var log_card_w: float = log_card_h * log_card_aspect
+	var log_cw: float = log_card_h + 12.0
+	var log_ch: float = log_card_w + 12.0
+
+	var preview_wrap: Control = Control.new()
+	preview_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	preview_wrap.visible = false
+	_log_canvas.add_child(preview_wrap)
+	preview_wrap.size = Vector2(log_cw, log_ch)
+	preview_wrap.position = Vector2((362.0 - log_cw) / 2.0, (760.0 - log_ch) / 2.0)
+	_log_preview_panel = preview_wrap
+
+	var pp: PanelContainer = PanelContainer.new()
+	var preview_style: StyleBoxFlat = StyleBoxFlat.new()
 	preview_style.bg_color = Color(0.04, 0.04, 0.09, 0.97)
 	preview_style.border_color = Color(0.3, 0.55, 0.85, 0.55)
 	preview_style.set_border_width_all(1)
 	preview_style.set_corner_radius_all(6)
-	preview_style.content_margin_left = 6.0
-	preview_style.content_margin_right = 6.0
-	preview_style.content_margin_top = 6.0
-	preview_style.content_margin_bottom = 6.0
 	pp.add_theme_stylebox_override("panel", preview_style)
 	pp.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pp.visible = false
-	_log_canvas.add_child(pp)
-	var _log_panel_h: float = 362.0 / 1.524 + 12.0
-	pp.size = Vector2(362.0, _log_panel_h)
-	pp.position = Vector2(0.0, (760.0 - _log_panel_h) / 2.0)
-	_log_preview_panel = pp
+	preview_wrap.add_child(pp)
+	pp.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
 	_log_preview_image = TextureRect.new()
-	_log_preview_image.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_log_preview_image.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_log_preview_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_log_preview_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_log_preview_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var preview_mat := ShaderMaterial.new()
+	_log_preview_image.rotation_degrees = -90.0
+	var preview_mat: ShaderMaterial = ShaderMaterial.new()
 	preview_mat.shader = load("res://shaders/card_rounded.gdshader")
 	_log_preview_image.material = preview_mat
-	pp.add_child(_log_preview_image)
+	preview_wrap.add_child(_log_preview_image)
+	_log_preview_image.size = Vector2(log_card_w, log_card_h)
+	_log_preview_image.pivot_offset = Vector2(log_card_w / 2.0, log_card_h / 2.0)
+	_log_preview_image.position = Vector2(log_cw / 2.0 - log_card_w / 2.0, log_ch / 2.0 - log_card_h / 2.0)
 
 func _log_action(text: String, color: Color = Color(0.80, 0.88, 1.0)) -> void:
 	if not _log_vbox:
