@@ -4,6 +4,8 @@ signal sector_advanced_pressed(slot_idx: int)
 signal sector_dust_pressed(slot_idx: int)
 signal expedition_pressed(slot_idx: int)
 signal opponent_pressed(peer_id: int)
+signal card_hovered(url: String, scale: float)
+signal card_unhovered()
 
 const CARD_W: int = 112
 const CARD_H: int = 104
@@ -42,9 +44,6 @@ var _opp_next_slot: int = 0
 
 var _main_hbox: HBoxContainer = null
 
-var _preview_panel: Control = null
-var _preview_image: TextureRect = null
-var _preview_pending_hide: bool = false
 
 func _ready() -> void:
 	_build_ui()
@@ -248,11 +247,11 @@ func _build_ui() -> void:
 			CursorManager.set_hover()
 			var hcd: CardData = _sector_market.get_dust_card_data(idx) if _sector_market else null
 			if hcd and not hcd.image_url.is_empty():
-				_show_preview(hcd.image_url)
+				card_hovered.emit(hcd.image_url, 1.0)
 		)
 		slot.mouse_exited.connect(func() -> void:
 			CursorManager.set_default()
-			_schedule_hide_preview()
+			card_unhovered.emit()
 		)
 		basic_vbox.add_child(slot)
 		_dust_slots.append(slot)
@@ -287,11 +286,11 @@ func _build_ui() -> void:
 			if hcd:
 				var hurl: String = hcd.adv_image_url if not hcd.adv_image_url.is_empty() else hcd.image_url
 				if not hurl.is_empty():
-					_show_preview(hurl)
+					card_hovered.emit(hurl, 1.0)
 		)
 		slot.mouse_exited.connect(func() -> void:
 			CursorManager.set_default()
-			_schedule_hide_preview()
+			card_unhovered.emit()
 		)
 		adv_vbox.add_child(slot)
 		_adv_slots.append(slot)
@@ -326,11 +325,11 @@ func _build_ui() -> void:
 			CursorManager.set_hover()
 			var hcd: CardData = _expedition_market.get_card_data(idx) if _expedition_market else null
 			if hcd and not hcd.image_url.is_empty():
-				_show_preview(hcd.image_url, 1.4, Vector2(-50.0, -30.0))
+				card_hovered.emit(hcd.image_url, 1.4)
 		)
 		slot.mouse_exited.connect(func() -> void:
 			CursorManager.set_default()
-			_schedule_hide_preview()
+			card_unhovered.emit()
 		)
 		exp_vbox.add_child(slot)
 		_exp_slots.append(slot)
@@ -351,8 +350,6 @@ func _build_ui() -> void:
 	_opp_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	players_vbox.add_child(_opp_vbox)
 	_init_opponent_slots()
-
-	_build_preview_panel(panel)
 
 func _make_slot(slot_size: Vector2, rect: TextureRect, count_lbl: Label, highlight: ColorRect) -> Control:
 	var root := Control.new()
@@ -443,54 +440,3 @@ func set_expedition_reveal_mode(active: bool) -> void:
 func set_expedition_shuffle_mode(active: bool) -> void:
 	_exp_shuffle_mode = active
 
-
-func _build_preview_panel(_panel: Control) -> void:
-	var pp := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.04, 0.04, 0.09, 0.97)
-	style.border_color = Color(0.3, 0.55, 0.85, 0.55)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(6)
-	style.content_margin_left = 6.0
-	style.content_margin_right = 6.0
-	style.content_margin_top = 6.0
-	style.content_margin_bottom = 6.0
-	pp.add_theme_stylebox_override("panel", style)
-	pp.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pp.clip_children = Control.CLIP_CHILDREN_ONLY
-	pp.visible = false
-	add_child(pp)
-	_preview_panel = pp
-
-	_preview_image = TextureRect.new()
-	_preview_image.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_preview_image.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_preview_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_preview_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_preview_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var mat := ShaderMaterial.new()
-	mat.shader = load("res://shaders/card_rounded.gdshader")
-	_preview_image.material = mat
-	pp.add_child(_preview_image)
-
-func _show_preview(url: String, scale: float = 1.0, extra_offset: Vector2 = Vector2.ZERO) -> void:
-	_preview_pending_hide = false
-	_preview_image.texture = ImageCache.get_texture(url) if not url.is_empty() else null
-	if _preview_image.texture != null:
-		var opp: Rect2 = _opp_vbox.get_global_rect()
-		var base_size := Vector2(opp.size.x, CARD_H * 2 + 12)
-		var preview_size := base_size * scale
-		var base_v_center: float = (opp.size.y - base_size.y) / 2.0
-		var anchor := Vector2(-140.0 + base_size.x / 2.0, base_v_center / 2.0 + base_size.y / 2.0)
-		_preview_panel.global_position = opp.position + anchor - preview_size / 2.0 + extra_offset
-		_preview_panel.size = preview_size
-		_preview_panel.visible = true
-	else:
-		_preview_panel.visible = false
-
-func _schedule_hide_preview() -> void:
-	_preview_pending_hide = true
-	get_tree().create_timer(0.08).timeout.connect(func() -> void:
-		if _preview_pending_hide:
-			_preview_panel.visible = false
-	)

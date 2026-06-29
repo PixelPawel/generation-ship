@@ -129,9 +129,13 @@ var _vp_button_held: bool = false
 var _vp_prev_pos: Dictionary = {}  # SubViewport -> Vector2
 var _info_viewport: SubViewport = null
 var _log_viewport: SubViewport = null
+var _log_canvas: Control = null
 var _log_vbox: VBoxContainer = null
 var _log_scroll: ScrollContainer = null
 var _log_font: FontVariation = null
+var _log_preview_panel: Control = null
+var _log_preview_image: TextureRect = null
+var _log_preview_pending_hide: bool = false
 
 var _rumble_tweens: Dictionary = {}   # Node3D -> Tween
 var _rumble_base_pos: Dictionary = {} # Node3D -> Vector3
@@ -733,6 +737,8 @@ func _setup_info_screen_display() -> void:
 	_market_panel.sector_dust_pressed.connect(_on_market_sector_dust_pressed)
 	_market_panel.expedition_pressed.connect(_on_market_expedition_pressed)
 	_market_panel.opponent_pressed.connect(_show_opponent_board)
+	_market_panel.card_hovered.connect(_on_market_card_hovered)
+	_market_panel.card_unhovered.connect(_on_market_card_unhovered)
 
 	var screen_mesh: MeshInstance3D = $UiInfo.find_child("gs_ui_info_screen", true, false) as MeshInstance3D
 	if screen_mesh:
@@ -852,6 +858,7 @@ func _setup_log_screen_display() -> void:
 	canvas.position = Vector2(760.0, 0.0)
 	canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_log_viewport.add_child(canvas)
+	_log_canvas = canvas
 
 	var bg: ColorRect = ColorRect.new()
 	bg.color = Color(0.03, 0.04, 0.09, 0.93)
@@ -908,6 +915,33 @@ func _setup_log_screen_display() -> void:
 		mat.set_shader_parameter("vignette_falloff", 2.5)
 		mat.set_shader_parameter("bloom_threshold", 0.7)
 		screen_mesh.set_surface_override_material(0, mat)
+
+	var pp := PanelContainer.new()
+	var preview_style := StyleBoxFlat.new()
+	preview_style.bg_color = Color(0.04, 0.04, 0.09, 0.97)
+	preview_style.border_color = Color(0.3, 0.55, 0.85, 0.55)
+	preview_style.set_border_width_all(1)
+	preview_style.set_corner_radius_all(6)
+	preview_style.content_margin_left = 6.0
+	preview_style.content_margin_right = 6.0
+	preview_style.content_margin_top = 6.0
+	preview_style.content_margin_bottom = 6.0
+	pp.add_theme_stylebox_override("panel", preview_style)
+	pp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pp.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	pp.visible = false
+	_log_canvas.add_child(pp)
+	_log_preview_panel = pp
+	_log_preview_image = TextureRect.new()
+	_log_preview_image.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_log_preview_image.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_log_preview_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_log_preview_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_log_preview_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var preview_mat := ShaderMaterial.new()
+	preview_mat.shader = load("res://shaders/card_rounded.gdshader")
+	_log_preview_image.material = preview_mat
+	pp.add_child(_log_preview_image)
 
 func _log_action(text: String, color: Color = Color(0.80, 0.88, 1.0)) -> void:
 	if not _log_vbox:
@@ -2931,6 +2965,22 @@ func _on_market_card_drag_failed(_card: Node3D) -> void:
 		_bid_is_from_effect = false
 		_process_next_effect()
 
+func _on_market_card_hovered(url: String, _scale: float) -> void:
+	if not _log_preview_panel:
+		return
+	_log_preview_pending_hide = false
+	_log_preview_image.texture = ImageCache.get_texture(url) if not url.is_empty() else null
+	_log_preview_panel.visible = _log_preview_image.texture != null
+
+func _on_market_card_unhovered() -> void:
+	if not _log_preview_panel:
+		return
+	_log_preview_pending_hide = true
+	get_tree().create_timer(0.08).timeout.connect(func() -> void:
+		if _log_preview_pending_hide:
+			_log_preview_panel.visible = false
+	)
+
 func _on_market_sector_advanced_pressed(slot_idx: int) -> void:
 	if _effect_mode != EffectMode.NONE:
 		return
@@ -3766,4 +3816,3 @@ func _play_rumble() -> void:
 		tw.tween_property(node, "position", base_pos, 0.40).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		tw.parallel().tween_property(node, "rotation", base_rot, 0.40).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	_rumble_tweens[$UiCockpit].tween_callback(_start_rumble_timer)
-
