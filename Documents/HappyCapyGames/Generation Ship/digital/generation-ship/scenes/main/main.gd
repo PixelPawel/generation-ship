@@ -916,18 +916,11 @@ func _setup_log_screen_display() -> void:
 		mat.set_shader_parameter("bloom_threshold", 0.7)
 		screen_mesh.set_surface_override_material(0, mat)
 
-	var log_card_target: float = 320.0  # long side of card in log viewport px
-	var log_init_lx: float = log_card_target * 0.656  # canvas_x (portrait pixel default)
-	var log_init_ly: float = log_card_target            # canvas_y
-	var log_cw: float = log_init_lx + 12.0
-	var log_ch: float = log_init_ly + 12.0
-
+	# Preview panel – hidden until hover. Size is set in _on_market_card_hovered.
 	var preview_wrap: Control = Control.new()
 	preview_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	preview_wrap.visible = false
 	_log_canvas.add_child(preview_wrap)
-	preview_wrap.size = Vector2(log_cw, log_ch)
-	preview_wrap.position = Vector2((408.0 - log_cw) / 2.0, (856.0 - log_ch) / 2.0)
 	_log_preview_panel = preview_wrap
 
 	var pp: PanelContainer = PanelContainer.new()
@@ -942,16 +935,13 @@ func _setup_log_screen_display() -> void:
 	pp.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 	_log_preview_image = TextureRect.new()
-	_log_preview_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_log_preview_image.stretch_mode = TextureRect.STRETCH_SCALE
 	_log_preview_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_log_preview_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var preview_mat: ShaderMaterial = ShaderMaterial.new()
 	preview_mat.shader = load("res://shaders/card_rounded.gdshader")
 	_log_preview_image.material = preview_mat
 	preview_wrap.add_child(_log_preview_image)
-	_log_preview_image.size = Vector2(log_init_lx, log_init_ly)
-	_log_preview_image.pivot_offset = Vector2(log_init_lx / 2.0, log_init_ly / 2.0)
-	_log_preview_image.position = Vector2(6.0, 6.0)
 
 func _log_action(text: String, color: Color = Color(0.80, 0.88, 1.0)) -> void:
 	if not _log_vbox:
@@ -2984,27 +2974,20 @@ func _on_market_card_hovered(url: String, _scale: float) -> void:
 	if tex == null:
 		_log_preview_panel.visible = false
 		return
-	# log screen 3D mesh has non-uniform world scale; this corrects horizontal stretch.
-	# >1.0 = cards appeared too wide; <1.0 = cards appeared too narrow.
-	var log_h_correction: float = 1.4
-	var img_size: Vector2i = tex.get_size()
-	var new_lx: float
-	var new_ly: float
-	if img_size.y >= img_size.x:
-		# portrait pixel → landscape in viewport (sectors): drive from height
-		new_lx = 396.0
-		new_ly = new_lx * float(img_size.y) / float(img_size.x) / log_h_correction
-	else:
-		# landscape pixel → portrait in viewport (expeditions): drive from width (slim)
-		new_ly = 220.0 / log_h_correction
-		new_lx = new_ly * float(img_size.x) / float(img_size.y)
-	var new_cw: float = new_lx + 12.0
-	var new_ch: float = new_ly + 12.0
-	_log_preview_panel.size = Vector2(new_cw, new_ch)
-	_log_preview_panel.position = Vector2((408.0 - new_cw) / 2.0, (856.0 - new_ch) / 2.0)
-	_log_preview_image.size = Vector2(new_lx, new_ly)
-	_log_preview_image.pivot_offset = Vector2(new_lx / 2.0, new_ly / 2.0)
-	_log_preview_image.position = Vector2(6.0, 6.0)
+	var img: Vector2i = tex.get_size()
+	# lx  = canvas LOCAL_x = maps to viewport_y (height on log screen)
+	# ly  = canvas LOCAL_y = maps to viewport_x (width on log screen)
+	# STRETCH_SCALE fills the TextureRect exactly, so ly pre-corrects for the UiLog 3D
+	# world-scale non-uniformity (horizontal appears wider than vertical in world space).
+	# Increase log_screen_h_scale if cards look too wide; decrease if too narrow.
+	var log_screen_h_scale: float = 1.4
+	var pad: float = 6.0
+	var lx: float = 396.0
+	var ly: float = lx * float(img.y) / float(img.x) / log_screen_h_scale
+	_log_preview_panel.size     = Vector2(lx + 2.0 * pad, ly + 2.0 * pad)
+	_log_preview_panel.position = Vector2((408.0 - lx - 2.0 * pad) / 2.0, (856.0 - ly - 2.0 * pad) / 2.0)
+	_log_preview_image.size     = Vector2(lx, ly)
+	_log_preview_image.position = Vector2(pad, pad)
 	_log_preview_panel.visible = true
 
 func _on_market_card_unhovered() -> void:
