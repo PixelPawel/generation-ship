@@ -479,8 +479,7 @@ func _show_preview(url: String) -> void:
 	if _preview_image.texture != null:
 		var opp: Rect2 = _opp_vbox.get_global_rect()
 		var preview_size := Vector2(opp.size.x, CARD_H * 2 + 12)
-		_preview_panel.position = opp.position - get_global_position()
-		_preview_panel.custom_minimum_size = preview_size
+		_preview_panel.global_position = opp.position
 		_preview_panel.size = preview_size
 		_preview_panel.visible = true
 	else:
