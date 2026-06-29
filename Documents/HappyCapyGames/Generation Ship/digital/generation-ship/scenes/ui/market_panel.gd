@@ -477,9 +477,11 @@ func _show_preview(url: String) -> void:
 	_preview_pending_hide = false
 	_preview_image.texture = ImageCache.get_texture(url) if not url.is_empty() else null
 	if _preview_image.texture != null:
-		var r: Rect2 = _opp_vbox.get_global_rect()
-		_preview_panel.global_position = r.position
-		_preview_panel.size = r.size
+		var opp: Rect2 = _opp_vbox.get_global_rect()
+		var preview_size := Vector2(opp.size.x, CARD_H * 2 + 12)
+		_preview_panel.position = opp.position - get_global_position()
+		_preview_panel.custom_minimum_size = preview_size
+		_preview_panel.size = preview_size
 		_preview_panel.visible = true
 	else:
 		_preview_panel.visible = false
