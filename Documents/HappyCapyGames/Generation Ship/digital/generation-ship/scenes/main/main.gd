@@ -2986,7 +2986,7 @@ func _on_market_card_hovered(url: String, scale: float) -> void:
 	var ly: float = lx * float(img.y) / float(img.x) / log_screen_h_scale
 	if scale > 1.0:  # expedition slot
 		lx *= 0.65
-		ly *= 0.8
+		ly *= 0.85
 	else:  # sector
 		ly *= 1.3
 	_log_preview_panel.size     = Vector2(lx + 2.0 * pad, ly + 2.0 * pad)
