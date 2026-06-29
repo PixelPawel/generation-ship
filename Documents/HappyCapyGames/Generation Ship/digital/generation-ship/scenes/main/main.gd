@@ -2986,7 +2986,7 @@ func _on_market_card_hovered(url: String, _scale: float) -> void:
 		return
 	# log screen 3D mesh has non-uniform world scale; this corrects horizontal stretch.
 	# >1.0 = cards appeared too wide; <1.0 = cards appeared too narrow.
-	var log_h_correction: float = 2.0
+	var log_h_correction: float = 1.4
 	var img_size: Vector2i = tex.get_size()
 	var new_lx: float
 	var new_ly: float
