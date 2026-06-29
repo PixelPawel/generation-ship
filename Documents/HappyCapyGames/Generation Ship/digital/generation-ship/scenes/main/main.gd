@@ -136,6 +136,7 @@ var _log_font: FontVariation = null
 var _log_preview_panel: Control = null
 var _log_preview_image: TextureRect = null
 var _log_preview_pending_hide: bool = false
+var _sun_quad: MeshInstance3D = null
 
 var _rumble_tweens: Dictionary = {}   # Node3D -> Tween
 var _rumble_base_pos: Dictionary = {} # Node3D -> Vector3
@@ -265,6 +266,7 @@ func _ready() -> void:
 	_setup_enemy_screen_display()
 	_setup_log_screen_display()
 	_setup_cockpit_switches()
+	_setup_sun_background()
 
 	_wire_sector_slots_to_board()
 
@@ -3685,6 +3687,31 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	vbox.add_child(btn)
 	panel.add_child(vbox)
 	$UILayer.add_child(panel)
+
+# ── Sun background ────────────────────────────────────────────────────────────
+
+func _setup_sun_background() -> void:
+	var sun_vp: SubViewport = $SunViewport
+	sun_vp.size = Vector2i(400, 300)
+	sun_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	sun_vp.transparent_bg = true
+
+	var mesh_inst: MeshInstance3D = MeshInstance3D.new()
+	var quad: QuadMesh = QuadMesh.new()
+	quad.size = Vector2(1.0, 1.0)
+	mesh_inst.mesh = quad
+
+	var mat: ShaderMaterial = ShaderMaterial.new()
+	mat.shader = load("res://shaders/sun_background.gdshader")
+	mat.set_shader_parameter("sun_texture", sun_vp.get_texture())
+	# ndc_pos:  center in NDC coords (-1..1, Y up). Tune to reposition on screen.
+	# ndc_size: width/height in NDC units. Tune to resize.
+	mat.set_shader_parameter("ndc_pos",  Vector2(0.0, 0.26))
+	mat.set_shader_parameter("ndc_size", Vector2(0.13, 0.17))
+	mesh_inst.set_surface_override_material(0, mat)
+
+	add_child(mesh_inst)
+	_sun_quad = mesh_inst
 
 # ── SFX ───────────────────────────────────────────────────────────────────────
 
