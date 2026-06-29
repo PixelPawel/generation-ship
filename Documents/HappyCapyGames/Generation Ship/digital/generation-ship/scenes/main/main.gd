@@ -3694,7 +3694,7 @@ func _setup_sun_background() -> void:
 	var sun_vp: SubViewport = $SunViewport
 	# SubViewport must match the video's native resolution (1920×1080) so the
 	# VideoPlayback addon's canvas-pixel rendering shows the full frame.
-	sun_vp.size = Vector2i(1920, 1080)
+	sun_vp.size = Vector2i(1080, 1080)
 	sun_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	sun_vp.transparent_bg = true
 
@@ -3712,7 +3712,7 @@ func _setup_sun_background() -> void:
 	# ndc_pos:  center in NDC coords (-1..1, Y up). Tune to reposition on screen.
 	# ndc_size: width/height in NDC units. Tune to resize.
 	mat.set_shader_parameter("ndc_pos",  Vector2(0.0, -0.3))
-	mat.set_shader_parameter("ndc_size", Vector2(0.17, 0.227))
+	mat.set_shader_parameter("ndc_size", Vector2(0.17, 0.302))
 	mesh_inst.set_surface_override_material(0, mat)
 
 	add_child(mesh_inst)
