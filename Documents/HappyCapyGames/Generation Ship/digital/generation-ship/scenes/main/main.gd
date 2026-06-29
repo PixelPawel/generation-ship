@@ -2984,16 +2984,19 @@ func _on_market_card_hovered(url: String, _scale: float) -> void:
 	if tex == null:
 		_log_preview_panel.visible = false
 		return
+	# log screen 3D mesh has non-uniform world scale; this corrects horizontal stretch.
+	# >1.0 = cards appeared too wide; <1.0 = cards appeared too narrow.
+	var log_h_correction: float = 1.74
 	var img_size: Vector2i = tex.get_size()
 	var new_lx: float
 	var new_ly: float
 	if img_size.y >= img_size.x:
 		# portrait pixel → landscape in viewport (sectors): drive from height
 		new_lx = 396.0
-		new_ly = new_lx * float(img_size.y) / float(img_size.x)
+		new_ly = new_lx * float(img_size.y) / float(img_size.x) / log_h_correction
 	else:
 		# landscape pixel → portrait in viewport (expeditions): drive from width (slim)
-		new_ly = 220.0
+		new_ly = 220.0 / log_h_correction
 		new_lx = new_ly * float(img_size.x) / float(img_size.y)
 	var new_cw: float = new_lx + 12.0
 	var new_ch: float = new_ly + 12.0
