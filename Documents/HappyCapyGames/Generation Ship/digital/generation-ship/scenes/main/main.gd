@@ -2985,8 +2985,16 @@ func _on_market_card_hovered(url: String, _scale: float) -> void:
 		_log_preview_panel.visible = false
 		return
 	var img_size: Vector2i = tex.get_size()
-	var new_lx: float = 396.0  # canvas_x → viewport_height; fills the 408px viewport
-	var new_ly: float = new_lx * float(img_size.y) / float(img_size.x)  # canvas_y → viewport_width
+	var new_lx: float
+	var new_ly: float
+	if img_size.y >= img_size.x:
+		# portrait pixel → landscape in viewport (sectors): drive from height
+		new_lx = 396.0
+		new_ly = new_lx * float(img_size.y) / float(img_size.x)
+	else:
+		# landscape pixel → portrait in viewport (expeditions): drive from width (slim)
+		new_ly = 220.0
+		new_lx = new_ly * float(img_size.x) / float(img_size.y)
 	var new_cw: float = new_lx + 12.0
 	var new_ch: float = new_ly + 12.0
 	_log_preview_panel.size = Vector2(new_cw, new_ch)
