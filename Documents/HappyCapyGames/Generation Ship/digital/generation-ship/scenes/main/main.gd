@@ -2965,7 +2965,7 @@ func _on_market_card_drag_failed(_card: Node3D) -> void:
 		_bid_is_from_effect = false
 		_process_next_effect()
 
-func _on_market_card_hovered(url: String, _scale: float) -> void:
+func _on_market_card_hovered(url: String, scale: float) -> void:
 	if not _log_preview_panel:
 		return
 	_log_preview_pending_hide = false
@@ -2984,7 +2984,7 @@ func _on_market_card_hovered(url: String, _scale: float) -> void:
 	var pad: float = 6.0
 	var lx: float = 396.0
 	var ly: float = lx * float(img.y) / float(img.x) / log_screen_h_scale
-	if img.x > img.y:  # expedition (landscape pixel)
+	if scale > 1.0:  # expedition slot
 		lx *= 0.4
 		ly *= 0.4
 	_log_preview_panel.size     = Vector2(lx + 2.0 * pad, ly + 2.0 * pad)
