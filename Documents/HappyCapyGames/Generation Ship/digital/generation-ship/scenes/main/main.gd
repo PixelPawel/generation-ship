@@ -1591,18 +1591,21 @@ func _apply_opponent_state(state: Dictionary) -> void:
 	vp_lbl.text = "⭐ %d" % state.get("vp", 0)
 
 func _refresh_opp_status_label(peer_id: int) -> void:
+	var status: String = _opp_statuses.get(peer_id, "") as String
+	var is_active: bool = GameNetwork.active_peer_id == peer_id
+	if _market_panel:
+		_market_panel.update_opponent_status(peer_id, status, is_active)
 	var refs: Dictionary = _opp_panels.get(peer_id, {}) as Dictionary
 	var lbl: Label = refs.get("status_lbl") as Label
 	if not is_instance_valid(lbl):
 		return
-	var status: String = _opp_statuses.get(peer_id, "") as String
 	if status == "researching":
 		lbl.text = "Researching"
 		lbl.add_theme_color_override("font_color", Color(0.5, 0.85, 1.0))
 	elif status == "passed":
 		lbl.text = "Passed"
 		lbl.add_theme_color_override("font_color", Color(0.55, 0.55, 0.65))
-	elif GameNetwork.active_peer_id == peer_id:
+	elif is_active:
 		lbl.text = "Active"
 		lbl.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
 	else:

@@ -101,6 +101,12 @@ func _init_opponent_slots() -> void:
 		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row1.add_child(name_lbl)
 
+		var status_lbl: Label = Label.new()
+		status_lbl.add_theme_font_size_override("font_size", 13)
+		status_lbl.size_flags_horizontal = Control.SIZE_SHRINK_END
+		status_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row1.add_child(status_lbl)
+
 		var hand_lbl: Label = Label.new()
 		hand_lbl.text = "♠ 0"
 		hand_lbl.add_theme_font_size_override("font_size", 16)
@@ -152,6 +158,7 @@ func _init_opponent_slots() -> void:
 			"style": style,
 			"hbox": entry_hbox,
 			"name_lbl": name_lbl,
+			"status_lbl": status_lbl,
 			"hand_lbl": hand_lbl,
 			"supply_lbls": supply_lbls,
 			"vp_lbl": vp_lbl,
@@ -183,6 +190,7 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 	entry.mouse_exited.connect(func() -> void: CursorManager.set_default())
 
 	_opp_refs[peer_id] = {
+		"status_lbl": slot["status_lbl"],
 		"hand_lbl": slot["hand_lbl"],
 		"supply_lbls": slot["supply_lbls"],
 		"vp_lbl": slot["vp_lbl"],
@@ -208,6 +216,23 @@ func update_opponent(peer_id: int, hand_count: int, supply: Dictionary, vp: int)
 	for si: int in 6:
 		(supply_lbls[si] as Label).text = str(supply.get(si, 0))
 	(refs["vp_lbl"] as Label).text = "⭐ %d" % vp
+
+func update_opponent_status(peer_id: int, status: String, is_active: bool) -> void:
+	if not _opp_refs.has(peer_id):
+		return
+	var lbl: Label = _opp_refs[peer_id]["status_lbl"] as Label
+	if status == "researching":
+		lbl.text = "Researching"
+		lbl.add_theme_color_override("font_color", Color(0.5, 0.85, 1.0))
+	elif status == "passed":
+		lbl.text = "Passed"
+		lbl.add_theme_color_override("font_color", Color(0.55, 0.55, 0.65))
+	elif is_active:
+		lbl.text = "Active"
+		lbl.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
+	else:
+		lbl.text = ""
+		lbl.remove_theme_color_override("font_color")
 
 func _build_ui() -> void:
 	var panel: ScifiPanel = load("res://scenes/ui/scifi_panel.gd").new()
@@ -439,4 +464,3 @@ func set_expedition_reveal_mode(active: bool) -> void:
 
 func set_expedition_shuffle_mode(active: bool) -> void:
 	_exp_shuffle_mode = active
-
