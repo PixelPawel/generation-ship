@@ -1177,6 +1177,8 @@ func _run_bot_turn(bot_id: int) -> void:
 		"research":
 			_bot_do_research(bot_id)
 			_broadcast_bot_states()
+			var _rname: String = GameNetwork.player_names.get(bot_id, "Bot")
+			_broadcast_log("%s: researching…" % _rname, Color(0.50, 0.78, 1.0))
 			await get_tree().create_timer(0.3).timeout
 			_bot_pass(bot_id)
 		_:
@@ -1200,6 +1202,8 @@ func _bot_buy_sector(bot_id: int, card_data: CardData) -> void:
 	$Board.get_market().remove_card(card_data)
 	_bot_boards[bot_id].append({"sector": card_data, "is_advanced": false, "techs": [], "stored": {}})
 	_apply_bot_effect_steps(bot_id, _simple_bot_card_steps(card_data))
+	var _bname: String = GameNetwork.player_names.get(bot_id, "Bot")
+	_broadcast_log("%s: bought %s" % [_bname, card_data.card_name], CardData.color_tint(card_data.color))
 
 
 func _bot_place_tech(bot_id: int, card_data: CardData, slot_idx: int) -> void:
@@ -1210,6 +1214,8 @@ func _bot_place_tech(bot_id: int, card_data: CardData, slot_idx: int) -> void:
 	_bot_supplies[bot_id][color] = max(0, _bot_supplies[bot_id].get(color, 0) - max(0, card_data.cost))
 	(_bot_boards[bot_id][slot_idx]["techs"] as Array).append(card_data)
 	_apply_bot_effect_steps(bot_id, _simple_bot_card_steps(card_data))
+	var _bname: String = GameNetwork.player_names.get(bot_id, "Bot")
+	_broadcast_log("%s: placed %s" % [_bname, card_data.card_name], CardData.color_tint(card_data.color))
 
 
 func _bot_do_research(bot_id: int) -> void:
