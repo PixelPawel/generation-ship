@@ -274,15 +274,12 @@ func _ready() -> void:
 	_wire_sector_slots_to_board()
 
 func _on_node_added_to_tree(node: Node) -> void:
-	if node is Card:
-		if not node.elevation_started.is_connected(_on_card_elevation_started):
-			node.elevation_started.connect(_on_card_elevation_started)
-		if not node.elevation_ended.is_connected(_on_card_elevation_ended):
-			node.elevation_ended.connect(_on_card_elevation_ended)
-		if not node.hovered.is_connected(_on_any_card_hovered):
-			node.hovered.connect(_on_any_card_hovered)
-		if not node.unhovered.is_connected(_on_any_card_unhovered):
-			node.unhovered.connect(_on_any_card_unhovered)
+	if node is Card and not node.has_meta("_main_connected"):
+		node.set_meta("_main_connected", true)
+		node.elevation_started.connect(_on_card_elevation_started)
+		node.elevation_ended.connect(_on_card_elevation_ended)
+		node.hovered.connect(_on_any_card_hovered)
+		node.unhovered.connect(_on_any_card_unhovered)
 
 func _on_any_card_hovered(card_node: Node3D) -> void:
 	var card: Card = card_node as Card
