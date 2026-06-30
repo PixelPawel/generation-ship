@@ -277,6 +277,29 @@ func _on_node_added_to_tree(node: Node) -> void:
 	if node is Card:
 		node.elevation_started.connect(_on_card_elevation_started)
 		node.elevation_ended.connect(_on_card_elevation_ended)
+		node.hovered.connect(_on_any_card_hovered)
+		node.unhovered.connect(_on_any_card_unhovered)
+
+func _on_any_card_hovered(card_node: Node3D) -> void:
+	var card: Card = card_node as Card
+	if not card:
+		return
+	var desc: String = ""
+	if card.is_placed:
+		desc = "Right-click to shrink card." if card.is_elevated() else "Right-click to enlarge card."
+	elif card.managed_by_hand:
+		desc = "Left-click and drag onto sector to buy or Right-click to Recycle."
+	elif card.card_data:
+		match card.card_data.card_type:
+			CardData.CardType.EXPEDITION:
+				desc = "left-click and drag onto sector card to start a bid."
+			CardData.CardType.SECTOR:
+				desc = "Left-click and drag onto a blue sector slot to start a bid." if card.is_advanced else "Left-click and drag onto a blue sector slot to buy sector. Base card to place other cards onto."
+	if not desc.is_empty():
+		_show_log_tooltip("", desc)
+
+func _on_any_card_unhovered(_card: Node3D) -> void:
+	_hide_log_tooltip()
 
 func _on_card_elevation_started(_card: Node3D) -> void:
 	_sun_elevated_count += 1
@@ -572,9 +595,9 @@ func _setup_control_screen_display() -> void:
 	var btn_callbacks: Array[Callable] = [_on_research_pressed, _on_pass_pressed, _on_end_turn_pressed]
 	var btn_tooltip_titles: Array[String] = ["Research", "Pass", "End Turn"]
 	var btn_tooltip_descs: Array[String] = [
-		"Discard a hand card and draw a replacement, then end your turn.",
-		"End your turn without buying a card.",
-		"Finish your turn after buying or placing a card.",
+		"Discard a hand card and draw a replacement, once this Action is taken, you can only Research or Pass.",
+		"End your turn. Once all players pass the Generation is over.",
+		"Finish your turn manually, after buying or placing a card. Mostly automated",
 	]
 	for i: int in 3:
 		var btn_mesh: MeshInstance3D = $UiControl.find_child("gs_ui_control_button%d" % (i + 1), true, false) as MeshInstance3D
@@ -1013,6 +1036,7 @@ func _show_log_tooltip(title: String, desc: String) -> void:
 	if not _log_tooltip_panel:
 		return
 	_log_tooltip_title.text = title
+	_log_tooltip_title.visible = not title.is_empty()
 	_log_tooltip_desc.text = desc
 	_log_tooltip_panel.visible = true
 

@@ -235,6 +235,9 @@ func collapse_if_elevated() -> void:
 	if _placed_elevated:
 		_collapse_elevation()
 
+func is_elevated() -> bool:
+	return _placed_elevated
+
 func set_face_down(back_url: String) -> void:
 	can_drag = false
 	collider.input_ray_pickable = false
@@ -293,9 +296,9 @@ func _shake_camera() -> void:
 
 func _on_hover_enter() -> void:
 	CursorManager.set_hover()
+	hovered.emit(self)
 	if is_placed:
 		return
-	hovered.emit(self)
 	if not managed_by_hand and not is_dragging:
 		_kill_tween()
 		_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
@@ -303,10 +306,10 @@ func _on_hover_enter() -> void:
 
 func _on_hover_exit() -> void:
 	CursorManager.set_default()
-	if is_placed:
-		return
 	if not is_dragging:
 		unhovered.emit(self)
+	if is_placed:
+		return
 	_kill_tween()
 	if not managed_by_hand and not is_dragging:
 		_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
