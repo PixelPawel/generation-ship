@@ -970,12 +970,15 @@ func _setup_log_screen_display() -> void:
 	preview_wrap.add_child(_log_preview_image)
 
 	# Button tooltip — centered on the log canvas.
+	# scale.y stretches in canvas-Y (= screen-horizontal) by 1/log_screen_h_scale
+	# to compensate for UiLog's non-uniform world scale, same as the card previews.
 	var lt_panel: PanelContainer = PanelContainer.new()
 	lt_panel.visible = false
 	lt_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	lt_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	lt_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	lt_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	lt_panel.scale = Vector2(1.0, 1.0 / 0.7)
 	var lt_style: StyleBoxFlat = StyleBoxFlat.new()
 	lt_style.bg_color = Color(0.05, 0.07, 0.15, 0.94)
 	lt_style.border_color = Color(0.3, 0.55, 0.85, 0.55)
