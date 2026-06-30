@@ -615,7 +615,6 @@ func _setup_button_input(btn_mesh: MeshInstance3D, callback: Callable, tooltip_t
 		mat.emission_energy_multiplier = 0.3
 		btn_mesh.set_surface_override_material(0, mat)
 		if not tooltip_title.is_empty():
-			_cs_display.show_button_tooltip(tooltip_title, tooltip_desc)
 			_show_log_tooltip(tooltip_title, tooltip_desc)
 	)
 	area.mouse_exited.connect(func() -> void:
@@ -623,7 +622,6 @@ func _setup_button_input(btn_mesh: MeshInstance3D, callback: Callable, tooltip_t
 			btn_mesh.set_surface_override_material(0, _end_turn_flash_mat)
 		else:
 			btn_mesh.set_surface_override_material(0, null)
-		_cs_display.hide_button_tooltip()
 		_hide_log_tooltip()
 	)
 
@@ -994,13 +992,13 @@ func _setup_log_screen_display() -> void:
 	lt_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	lt_panel.add_child(lt_vbox)
 	_log_tooltip_title = Label.new()
-	_log_tooltip_title.add_theme_font_size_override("font_size", 16)
+	_log_tooltip_title.add_theme_font_size_override("font_size", 23)
 	_log_tooltip_title.add_theme_color_override("font_color", Color(0.82, 0.93, 1.0))
 	_log_tooltip_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_log_tooltip_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	lt_vbox.add_child(_log_tooltip_title)
 	_log_tooltip_desc = Label.new()
-	_log_tooltip_desc.add_theme_font_size_override("font_size", 13)
+	_log_tooltip_desc.add_theme_font_size_override("font_size", 23)
 	_log_tooltip_desc.add_theme_color_override("font_color", Color(0.60, 0.68, 0.82))
 	_log_tooltip_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_log_tooltip_desc.autowrap_mode = TextServer.AUTOWRAP_WORD
