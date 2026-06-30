@@ -107,20 +107,6 @@ func _init_opponent_slots() -> void:
 		status_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row1.add_child(status_lbl)
 
-		var hand_lbl: Label = Label.new()
-		hand_lbl.text = "♠ 0"
-		hand_lbl.add_theme_font_size_override("font_size", 16)
-		hand_lbl.add_theme_color_override("font_color", Color(0.70, 0.82, 1.0))
-		hand_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row1.add_child(hand_lbl)
-
-		var vp_lbl: Label = Label.new()
-		vp_lbl.text = "⭐ 0"
-		vp_lbl.add_theme_font_size_override("font_size", 16)
-		vp_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
-		vp_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row1.add_child(vp_lbl)
-
 		var row2: HBoxContainer = HBoxContainer.new()
 		row2.add_theme_constant_override("separation", 10)
 		row2.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -152,6 +138,26 @@ func _init_opponent_slots() -> void:
 			s_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			col.add_child(s_lbl)
 			supply_lbls[si] = s_lbl
+
+		var row3: HBoxContainer = HBoxContainer.new()
+		row3.add_theme_constant_override("separation", 12)
+		row3.alignment = BoxContainer.ALIGNMENT_END
+		row3.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		entry_vbox.add_child(row3)
+
+		var hand_lbl: Label = Label.new()
+		hand_lbl.text = "♠ 0"
+		hand_lbl.add_theme_font_size_override("font_size", 16)
+		hand_lbl.add_theme_color_override("font_color", Color(0.70, 0.82, 1.0))
+		hand_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row3.add_child(hand_lbl)
+
+		var vp_lbl: Label = Label.new()
+		vp_lbl.text = "⭐ 0"
+		vp_lbl.add_theme_font_size_override("font_size", 16)
+		vp_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
+		vp_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row3.add_child(vp_lbl)
 
 		_opp_slot_data.append({
 			"entry": entry,
