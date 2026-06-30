@@ -978,7 +978,7 @@ func _setup_log_screen_display() -> void:
 	lt_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	lt_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	lt_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	lt_panel.scale = Vector2(1.0 / 0.7, 1.0 / 0.7)
+	lt_panel.scale = Vector2(1.0, 1.0 / 0.7)
 	var lt_style: StyleBoxFlat = StyleBoxFlat.new()
 	lt_style.bg_color = Color(0.05, 0.07, 0.15, 0.94)
 	lt_style.border_color = Color(0.3, 0.55, 0.85, 0.55)
