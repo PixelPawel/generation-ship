@@ -84,7 +84,8 @@ var _pending_tuck_card_data: CardData = null
 var _pending_target_slot: SectorSlot = null
 var _effect_label: String = ""
 var _players_passed_this_round: int = 0
-var _has_passed_or_researched: bool = false
+var _has_passed: bool = false
+var _has_researched: bool = false
 var _opp_snapshots: Dictionary = {}      # peer_id (int) -> state Dictionary
 var _opp_widget: Control = null
 var _opp_panels: Dictionary = {}         # peer_id → {hand_lbl, supply_lbls, vp_lbl, status_lbl}
@@ -1354,7 +1355,7 @@ func _on_pass_pressed() -> void:
 	_do_pass()
 
 func _do_pass() -> void:
-	_has_passed_or_researched = true
+	_has_passed = true
 	_ending_turn = true
 	_cs_display.clear_fuse_1to1()
 	_ending_turn = false
@@ -1415,7 +1416,8 @@ func _show_round_transition(then: Callable) -> void:
 	t.tween_callback(then)
 
 func _end_round() -> void:
-	_has_passed_or_researched = false
+	_has_passed = false
+	_has_researched = false
 	_bots_passed_this_round.clear()
 	_opp_statuses.clear()
 	_refresh_all_opp_status_labels()
@@ -1483,10 +1485,12 @@ func _rpc_request_pass() -> void:
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_active_player(peer_id: int) -> void:
 	GameNetwork.active_peer_id = peer_id
-	var already_acted: bool = GameNetwork.is_my_turn() and _has_passed_or_researched
-	if not already_acted:
+	var already_passed: bool = GameNetwork.is_my_turn() and _has_passed
+	if not already_passed:
 		$Board.reset_turn()
 		_show_action_buttons(true)
+		if _has_researched and GameNetwork.is_my_turn():
+			$Board.set_major_action_taken()
 	else:
 		$Board.set_major_action_taken()
 	_update_turn_ui()
@@ -1973,9 +1977,19 @@ func _on_card_discarded(card: Node3D) -> void:
 			_hide_effect_hint()
 			$Hand.set_discard_mode(false)
 			$Board.discard_and_draw(card)
+			_has_researched = true
 			if not GameNetwork.is_multiplayer:
 				_log_action("You: researched", Color(0.50, 0.78, 1.0))
-			_do_pass()
+			_broadcast_my_state()
+			if GameNetwork.is_multiplayer:
+				if GameNetwork.is_host:
+					_server_handle_end_turn()
+				else:
+					_rpc_request_end_turn.rpc_id(1)
+			else:
+				$Board.set_major_action_taken()
+				_show_action_buttons(true)
+				_set_action_buttons_disabled(false)
 
 		EffectMode.PAYMENT_RECYCLE:
 			_hide_effect_hint()
@@ -3259,6 +3273,8 @@ func _on_pause_main_menu() -> void:
 
 func _try_auto_end_turn() -> void:
 	if _ending_turn:
+		return
+	if _has_researched:
 		return
 	if not GameNetwork.is_my_turn():
 		return
