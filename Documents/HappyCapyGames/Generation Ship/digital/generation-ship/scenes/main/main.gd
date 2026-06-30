@@ -991,13 +991,19 @@ func _setup_log_screen_display() -> void:
 	lt_vbox.add_theme_constant_override("separation", 3)
 	lt_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	lt_panel.add_child(lt_vbox)
+	var tt_font_var: FontVariation = FontVariation.new()
+	if _log_font:
+		tt_font_var.base_font = _log_font.base_font
+	tt_font_var.variation_transform = Transform2D(0.0, Vector2(1.3, 1.3), 0.0, Vector2.ZERO)
 	_log_tooltip_title = Label.new()
+	_log_tooltip_title.add_theme_font_override("font", tt_font_var)
 	_log_tooltip_title.add_theme_font_size_override("font_size", 23)
 	_log_tooltip_title.add_theme_color_override("font_color", Color(0.82, 0.93, 1.0))
 	_log_tooltip_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_log_tooltip_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	lt_vbox.add_child(_log_tooltip_title)
 	_log_tooltip_desc = Label.new()
+	_log_tooltip_desc.add_theme_font_override("font", tt_font_var)
 	_log_tooltip_desc.add_theme_font_size_override("font_size", 23)
 	_log_tooltip_desc.add_theme_color_override("font_color", Color(0.60, 0.68, 0.82))
 	_log_tooltip_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
