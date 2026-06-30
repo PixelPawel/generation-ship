@@ -891,18 +891,18 @@ func _setup_log_screen_display() -> void:
 		_log_font.variation_opentype = {"wght": 500}
 
 	_log_viewport = SubViewport.new()
-	# AABB is 0.1308 × 0.0623 (landscape 2.1:1), so viewport must match that
-	# ratio to avoid distortion. 980×408 compensates for UiLog X-scale=4.0 / Y-scale=2.0.
-	# Canvas is portrait (408×980) rotated 90° CW to fill the landscape viewport.
-	_log_viewport.size = Vector2i(980, 408)
+	# 686×408 viewport: 686 = 980 × 0.7 compensates for UiLog non-uniform world scale
+	# so all content pixels are square in world space without per-element correction.
+	# Canvas is portrait (408×686) rotated 90° CW to fill the landscape viewport.
+	_log_viewport.size = Vector2i(686, 408)
 	_log_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_log_viewport.transparent_bg = true
 	$UiLog.add_child(_log_viewport)
 
 	var canvas: Control = Control.new()
-	canvas.size = Vector2(408.0, 980.0)
+	canvas.size = Vector2(408.0, 686.0)
 	canvas.rotation_degrees = 90.0
-	canvas.position = Vector2(980.0, 0.0)
+	canvas.position = Vector2(686.0, 0.0)
 	canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_log_viewport.add_child(canvas)
 	_log_canvas = canvas
@@ -916,6 +916,7 @@ func _setup_log_screen_display() -> void:
 	var header: Label = Label.new()
 	header.text = "Event Log"
 	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	header.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	header.add_theme_font_size_override("font_size", 24)
 	header.add_theme_color_override("font_color", Color(0.65, 0.80, 1.0))
 	header.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
@@ -990,16 +991,13 @@ func _setup_log_screen_display() -> void:
 	_log_preview_image.material = preview_mat
 	preview_wrap.add_child(_log_preview_image)
 
-	# Button tooltip — centered on the log canvas.
-	# scale.y stretches in canvas-Y (= screen-horizontal) by 1/log_screen_h_scale
-	# to compensate for UiLog's non-uniform world scale, same as the card previews.
 	var lt_panel: PanelContainer = PanelContainer.new()
 	lt_panel.visible = false
 	lt_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	lt_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	lt_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	lt_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	lt_panel.scale = Vector2(1.5, 1.5 / 0.7)
+	lt_panel.scale = Vector2(1.5, 1.5)
 	lt_panel.resized.connect(func() -> void: lt_panel.pivot_offset = lt_panel.size / 2.0)
 	var lt_style: StyleBoxFlat = StyleBoxFlat.new()
 	lt_style.bg_color = Color(0.05, 0.07, 0.15, 0.94)
@@ -1051,6 +1049,7 @@ func _log_action(text: String, color: Color = Color(0.80, 0.88, 1.0)) -> void:
 	lbl.text = text
 	lbl.add_theme_font_size_override("font_size", 32)
 	lbl.add_theme_color_override("font_color", color)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.clip_text = true
 	if _log_font:
 		lbl.add_theme_font_override("font", _log_font)
@@ -3076,22 +3075,16 @@ func _on_market_card_hovered(url: String, card_scale: float) -> void:
 		_log_preview_panel.visible = false
 		return
 	var img: Vector2i = tex.get_size()
-	# lx  = canvas LOCAL_x = maps to viewport_y (height on log screen)
-	# ly  = canvas LOCAL_y = maps to viewport_x (width on log screen)
-	# STRETCH_SCALE fills the TextureRect exactly, so ly pre-corrects for the UiLog 3D
-	# world-scale non-uniformity (horizontal appears wider than vertical in world space).
-	# Increase log_screen_h_scale if cards look too wide; decrease if too narrow.
-	var log_screen_h_scale: float = 0.7
 	var pad: float = 6.0
 	var lx: float = 408.0
-	var ly: float = lx * float(img.y) / float(img.x) / log_screen_h_scale
+	var ly: float = lx * float(img.y) / float(img.x)
 	if card_scale > 1.0:  # expedition slot
 		lx *= 0.65
 		ly *= 0.95
 	else:  # sector
 		ly *= 1.5
 	_log_preview_panel.size     = Vector2(lx + 2.0 * pad, ly + 2.0 * pad)
-	_log_preview_panel.position = Vector2((408.0 - lx - 2.0 * pad) / 2.0, (980.0 - ly - 2.0 * pad) / 2.0)
+	_log_preview_panel.position = Vector2((408.0 - lx - 2.0 * pad) / 2.0, (686.0 - ly - 2.0 * pad) / 2.0)
 	_log_preview_image.size     = Vector2(lx, ly)
 	_log_preview_image.position = Vector2(pad, pad)
 	_log_preview_panel.visible = true
