@@ -899,6 +899,7 @@ func _setup_log_screen_display() -> void:
 	_log_viewport.size = Vector2i(686, 408)
 	_log_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_log_viewport.transparent_bg = true
+	_log_viewport.gui_disable_input = false
 	$UiLog.add_child(_log_viewport)
 
 	var canvas: Control = Control.new()
@@ -939,7 +940,7 @@ func _setup_log_screen_display() -> void:
 	_log_scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_log_scroll.offset_top = 68.0
 	_log_scroll.follow_focus = false
-	_log_scroll.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_log_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
 	canvas.add_child(_log_scroll)
 
 	_log_vbox = VBoxContainer.new()
@@ -965,6 +966,7 @@ func _setup_log_screen_display() -> void:
 		mat.set_shader_parameter("vignette_falloff", 2.5)
 		mat.set_shader_parameter("bloom_threshold", 0.7)
 		screen_mesh.set_surface_override_material(0, mat)
+		_setup_viewport_input(screen_mesh, _log_viewport)
 
 	# Preview panel – hidden until hover. Size is set in _on_market_card_hovered.
 	var preview_wrap: Control = Control.new()
