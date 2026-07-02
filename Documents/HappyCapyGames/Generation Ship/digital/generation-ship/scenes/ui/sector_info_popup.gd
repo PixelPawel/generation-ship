@@ -10,7 +10,7 @@ const SUPPLY_ICON_PATHS: Array[String] = [
 	"res://assets/ui/supply/Thrust.png",
 ]
 const SUPPLY_NAMES: Array[String] = ["Dust", "Metals", "Liquids", "Organix", "Electrix", "Thrust"]
-const TECH_BACK_PATH := "res://assets/art/tech_back.png"
+const TECH_BACK_PATH := "res://assets/cards/tech/GS Techs Back 44x67mm.png"
 
 signal cargo_move_requested(slot: SectorSlot, supplies: Dictionary, tucked_indices: Array[int])
 signal cargo_cancelled

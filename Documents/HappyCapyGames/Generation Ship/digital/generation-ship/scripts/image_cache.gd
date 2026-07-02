@@ -155,28 +155,44 @@ func _extract_etag(headers: PackedStringArray) -> String:
 func get_texture(url: String) -> Texture2D:
 	return _memory.get(url, null) as Texture2D
 
+const _S3_PREFIX := "https://generationship.s3.eu-central-1.amazonaws.com/TTS/"
+const _DIR_MAP: Dictionary = {
+	"Tech/": "res://assets/cards/tech/",
+	"Sector/": "res://assets/cards/sector/",
+	"Expedition/": "res://assets/cards/expedition/",
+}
+
 func preload_local_art() -> void:
 	var cards: Array = []
 	cards.append_array(CardDatabase.sectors)
 	cards.append_array(CardDatabase.techs)
 	cards.append_array(CardDatabase.expeditions)
 	for cd: CardData in cards:
-		_cache_local(cd.image_url, cd.local_art_path)
-		_cache_local(cd.adv_image_url, cd.adv_local_art_path)
-	for path: String in ["res://assets/art/tech_back.png", "res://assets/art/expedition_back.png"]:
+		_cache_url(cd.image_url)
+		_cache_url(cd.adv_image_url)
+	for path: String in [
+		"res://assets/cards/tech/GS Techs Back 44x67mm.png",
+		"res://assets/cards/expedition/GS Expeditions Back 44x67mm.png",
+	]:
 		if not _memory.has(path) and ResourceLoader.exists(path):
 			_memory[path] = load(path) as Texture2D
 
-func _cache_local(url: String, art_path: String) -> void:
-	if art_path.is_empty():
+func _cache_url(url: String) -> void:
+	if url.is_empty() or _memory.has(url):
 		return
-	var tex: Texture2D
-	if _memory.has(art_path):
-		tex = _memory.get(art_path) as Texture2D
-	else:
-		if ResourceLoader.exists(art_path):
-			tex = load(art_path) as Texture2D
-		if tex:
-			_memory[art_path] = tex
-	if not url.is_empty() and tex:
+	var local_path: String = _url_to_local(url)
+	if local_path.is_empty() or not ResourceLoader.exists(local_path):
+		return
+	var tex: Texture2D = load(local_path) as Texture2D
+	if tex:
 		_memory[url] = tex
+
+func _url_to_local(url: String) -> String:
+	if not url.begins_with(_S3_PREFIX):
+		return ""
+	var rel: String = url.substr(_S3_PREFIX.length())
+	for sub: String in _DIR_MAP:
+		if rel.begins_with(sub):
+			var fname: String = rel.substr(sub.length()).replace("+", " ")
+			return _DIR_MAP[sub] + fname
+	return ""

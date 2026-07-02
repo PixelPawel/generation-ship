@@ -2,7 +2,7 @@ class_name SectorSlot
 extends Node3D
 
 const TechSlotScript := preload("res://scenes/board/tech_slot.gd")
-const TECH_BACK_PATH := "res://assets/art/tech_back.png"
+const TECH_BACK_PATH := "res://assets/cards/tech/GS Techs Back 44x67mm.png"
 
 # Supply icon paths, indexed by SupplyColor enum (DUST=0 .. THRUST=5)
 const SUPPLY_ICON_PATHS := [
