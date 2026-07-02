@@ -170,12 +170,21 @@ func preload_local_art() -> void:
 	for cd: CardData in cards:
 		_cache_url(cd.image_url)
 		_cache_url(cd.adv_image_url)
-	for path: String in [
-		"res://assets/cards/tech/GS Techs Back 44x67mm.png",
-		"res://assets/cards/expedition/GS Expeditions Back 44x67mm.png",
-	]:
-		if not _memory.has(path) and ResourceLoader.exists(path):
-			_memory[path] = load(path) as Texture2D
+	for dir_path: String in _DIR_MAP.values():
+		var dir: DirAccess = DirAccess.open(dir_path)
+		if not dir:
+			continue
+		dir.list_dir_begin()
+		var fname: String = dir.get_next()
+		while fname != "":
+			if "Back" in fname and fname.ends_with(".png"):
+				var path: String = dir_path + fname
+				if not _memory.has(path):
+					var tex: Texture2D = load(path) as Texture2D
+					if tex:
+						_memory[path] = tex
+			fname = dir.get_next()
+		dir.list_dir_end()
 
 func _cache_url(url: String) -> void:
 	if url.is_empty() or _memory.has(url):
