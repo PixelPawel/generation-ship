@@ -83,7 +83,10 @@ func _on_response(_result: int, code: int, response_headers: PackedStringArray, 
 
 	if code == 304:
 		_load_from_disk(url)
-	elif code == 200:
+		_pump()
+		return
+
+	if code == 200:
 		var img: Image = Image.new()
 		var err: Error = img.load_png_from_buffer(body)
 		if err != OK:
@@ -104,10 +107,11 @@ func _on_response(_result: int, code: int, response_headers: PackedStringArray, 
 
 func _load_from_disk(url: String) -> void:
 	var entry: Variant = _meta.get(url, null)
-	if entry == null:
-		return
-	var file_path: String = entry.get("file", "")
+	var file_path: String = ""
+	if entry != null:
+		file_path = entry.get("file", "")
 	if file_path.is_empty() or not FileAccess.file_exists(file_path):
+		call_deferred("_finish_disk_load", url, null)
 		return
 	var captured_url: String = url
 	var captured_path: String = file_path
@@ -128,6 +132,10 @@ func _load_from_disk(url: String) -> void:
 func _finish_disk_load(url: String, img: Image) -> void:
 	if img:
 		_memory[url] = ImageTexture.create_from_image(img)
+	_loaded += 1
+	progress_updated.emit(_loaded, _total)
+	if _loaded >= _total:
+		all_loaded.emit()
 
 func _save_to_disk(file_path: String, data: PackedByteArray) -> void:
 	var file: FileAccess = FileAccess.open(file_path, FileAccess.WRITE)
