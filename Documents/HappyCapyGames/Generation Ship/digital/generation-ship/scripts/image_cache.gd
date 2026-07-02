@@ -163,14 +163,27 @@ const _DIR_MAP: Dictionary = {
 }
 
 func preload_local_art() -> void:
+	# "Back" files in the sector directory are the dust-side face images,
+	# keyed by sector column number extracted from the filename.
+	var sector_backs: Dictionary = _build_sector_back_map()
+
 	var cards: Array = []
 	cards.append_array(CardDatabase.sectors)
 	cards.append_array(CardDatabase.techs)
 	cards.append_array(CardDatabase.expeditions)
 	for cd: CardData in cards:
-		_cache_url(cd.image_url)
-		_cache_url(cd.adv_image_url)
-	for dir_path: String in _DIR_MAP.values():
+		if cd.card_type == CardData.CardType.SECTOR:
+			# Dust side: prefer the "Back" file for this sector column
+			_cache_sector_dust_url(cd.image_url, sector_backs)
+			# Advanced side: numbered file via URL
+			_cache_url(cd.adv_image_url)
+		else:
+			_cache_url(cd.image_url)
+			_cache_url(cd.adv_image_url)
+
+	# Load deck-back images for tech and expedition (sector "Back" files are
+	# dust faces, not deck backs, so we skip that directory here)
+	for dir_path: String in ["res://assets/cards/tech/", "res://assets/cards/expedition/"]:
 		var dir: DirAccess = DirAccess.open(dir_path)
 		if not dir:
 			continue
@@ -185,6 +198,40 @@ func preload_local_art() -> void:
 						_memory[path] = tex
 			fname = dir.get_next()
 		dir.list_dir_end()
+
+func _build_sector_back_map() -> Dictionary:
+	var result: Dictionary = {}
+	var dir: DirAccess = DirAccess.open("res://assets/cards/sector/")
+	if not dir:
+		return result
+	dir.list_dir_begin()
+	var fname: String = dir.get_next()
+	while fname != "":
+		if "Back" in fname and fname.ends_with(".png"):
+			# Filename format: "GS Sector {N} Back ..." — sector number is word 3
+			var parts: PackedStringArray = fname.split(" ")
+			if parts.size() > 2:
+				var num: int = parts[2].to_int()
+				if num > 0:
+					result[num] = "res://assets/cards/sector/" + fname
+		fname = dir.get_next()
+	dir.list_dir_end()
+	return result
+
+func _cache_sector_dust_url(url: String, sector_backs: Dictionary) -> void:
+	if url.is_empty() or _memory.has(url):
+		return
+	# Derive sector column number from the URL filename (e.g. "GS Sector 1 67x44mm6.png")
+	var fname: String = _url_to_local(url).get_file()
+	var parts: PackedStringArray = fname.split(" ")
+	if parts.size() > 2:
+		var num: int = parts[2].to_int()
+		if sector_backs.has(num):
+			var tex: Texture2D = load(sector_backs[num]) as Texture2D
+			if tex:
+				_memory[url] = tex
+				return
+	_cache_url(url)
 
 func _cache_url(url: String) -> void:
 	if url.is_empty() or _memory.has(url):
