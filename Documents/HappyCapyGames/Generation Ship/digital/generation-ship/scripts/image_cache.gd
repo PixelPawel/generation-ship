@@ -13,7 +13,6 @@ var _queue: Array[String] = []
 var _active: int = 0
 var _total: int = 0
 var _loaded: int = 0
-var _pump_scheduled: bool = false
 
 func _ready() -> void:
 	_ensure_cache_dir()
@@ -63,48 +62,20 @@ func _pump() -> void:
 func _fetch(url: String) -> void:
 	_active += 1
 	var entry: Variant = _meta.get(url, null)
+	var etag: String = ""
+	var file_path: String = ""
 	if entry != null:
-		var file_path: String = entry.get("file", "")
-		if not file_path.is_empty() and FileAccess.file_exists(file_path):
-			# Load from disk on a worker thread — PNG decode is CPU-heavy and
-			# blocking 193 images on the main thread causes visible freezes.
-			var captured_url: String = url
-			var captured_path: String = file_path
-			WorkerThreadPool.add_task(func() -> void:
-				var file: FileAccess = FileAccess.open(captured_path, FileAccess.READ)
-				if not file:
-					call_deferred("_finish_disk_load", captured_url, null)
-					return
-				var data: PackedByteArray = file.get_buffer(file.get_length())
-				file.close()
-				var img: Image = Image.new()
-				if img.load_png_from_buffer(data) == OK:
-					call_deferred("_finish_disk_load", captured_url, img)
-				else:
-					call_deferred("_finish_disk_load", captured_url, null)
-			)
-			return  # _active held at 1 until _finish_disk_load fires
+		file_path = entry.get("file", "")
+		etag = entry.get("etag", "")
+
+	var headers: PackedStringArray = PackedStringArray()
+	if not etag.is_empty() and not file_path.is_empty() and FileAccess.file_exists(file_path):
+		headers.append("If-None-Match: " + etag)
 
 	var http: HTTPRequest = HTTPRequest.new()
 	add_child(http)
 	http.request_completed.connect(_on_response.bind(url, http))
-	http.request(url)
-
-func _finish_disk_load(url: String, img: Image) -> void:
-	if img:
-		_memory[url] = ImageTexture.create_from_image(img)
-	_active -= 1
-	_loaded += 1
-	progress_updated.emit(_loaded, _total)
-	if _loaded >= _total:
-		all_loaded.emit()
-	elif not _pump_scheduled:
-		_pump_scheduled = true
-		call_deferred("_do_pump")
-
-func _do_pump() -> void:
-	_pump_scheduled = false
-	_pump()
+	http.request(url, headers)
 
 func _on_response(_result: int, code: int, response_headers: PackedStringArray, body: PackedByteArray, url: String, http: HTTPRequest) -> void:
 	_active -= 1
@@ -138,13 +109,24 @@ func _load_from_disk(url: String) -> void:
 	var file_path: String = entry.get("file", "")
 	if file_path.is_empty() or not FileAccess.file_exists(file_path):
 		return
-	var file: FileAccess = FileAccess.open(file_path, FileAccess.READ)
-	if not file:
-		return
-	var data: PackedByteArray = file.get_buffer(file.get_length())
-	file.close()
-	var img: Image = Image.new()
-	if img.load_png_from_buffer(data) == OK:
+	var captured_url: String = url
+	var captured_path: String = file_path
+	WorkerThreadPool.add_task(func() -> void:
+		var file: FileAccess = FileAccess.open(captured_path, FileAccess.READ)
+		if not file:
+			call_deferred("_finish_disk_load", captured_url, null)
+			return
+		var data: PackedByteArray = file.get_buffer(file.get_length())
+		file.close()
+		var img: Image = Image.new()
+		if img.load_png_from_buffer(data) == OK:
+			call_deferred("_finish_disk_load", captured_url, img)
+		else:
+			call_deferred("_finish_disk_load", captured_url, null)
+	)
+
+func _finish_disk_load(url: String, img: Image) -> void:
+	if img:
 		_memory[url] = ImageTexture.create_from_image(img)
 
 func _save_to_disk(file_path: String, data: PackedByteArray) -> void:
