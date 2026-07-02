@@ -41,7 +41,6 @@ var _elev_rest_rotation: Vector3 = Vector3.ZERO
 var _elev_rest_sort_order: float = 0.0
 var _tween: Tween
 var _placed_elevated: bool = false
-var _pending_url: String = ""
 var _drag_armed: bool = false
 var _drag_arm_pos: Vector2 = Vector2.ZERO
 var _card_glb: Node3D = null
@@ -69,18 +68,14 @@ func set_card_data(data: CardData) -> void:
 	var child_scale := _LANDSCAPE_CHILD_SCALE if is_landscape else Vector3.ONE
 	card_mesh.scale = child_scale
 	collider.scale = child_scale
-	var url := data.adv_image_url if is_advanced else data.image_url
-	if url.is_empty():
+	var art_path: String = data.adv_local_art_path if is_advanced else data.local_art_path
+	if art_path.is_empty():
 		return
-	var cached := ImageCache.get_texture(url)
-	if cached:
-		_apply_texture(cached)
-		return
-	_pending_url = url
-	var http := HTTPRequest.new()
-	add_child(http)
-	http.request_completed.connect(_on_texture_loaded.bind(url, http))
-	http.request(url)
+	var tex: Texture2D = ImageCache.get_texture(art_path)
+	if not tex:
+		tex = load(art_path) as Texture2D
+	if tex:
+		_apply_texture(tex)
 
 func _instantiate_glb(card_type: CardData.CardType) -> void:
 	if _card_glb:
@@ -99,7 +94,6 @@ func _instantiate_glb(card_type: CardData.CardType) -> void:
 	_card_glb.visible = false
 	add_child(_card_glb)
 	_face_surface = _card_glb.find_child("*screen_image*", true, false) as MeshInstance3D
-	_apply_local_art_to_glb()
 
 func _apply_local_art_to_glb() -> void:
 	if not _face_surface or not card_data:
@@ -117,31 +111,10 @@ func _apply_local_art_to_glb() -> void:
 	face_mat.render_priority = 1
 	_face_surface.set_surface_override_material(0, face_mat)
 
-func _on_texture_loaded(_result: int, code: int, _headers: PackedStringArray, body: PackedByteArray, url: String, http: HTTPRequest) -> void:
-	http.queue_free()
-	if code != 200 or url != _pending_url:
-		return
-	var img := Image.new()
-	if img.load_png_from_buffer(body) != OK:
-		return
-	img.generate_mipmaps()
-	var tex := ImageTexture.create_from_image(img)
-	_apply_texture(tex)
-
-func _apply_texture(tex: ImageTexture) -> void:
-	var mat := card_mesh.get_surface_override_material(0) as ShaderMaterial
+func _apply_texture(tex: Texture2D) -> void:
+	var mat: ShaderMaterial = card_mesh.get_surface_override_material(0) as ShaderMaterial
 	if mat:
 		mat.set_shader_parameter("card_texture", tex)
-	var art_path: String = ""
-	if card_data:
-		art_path = card_data.adv_local_art_path if is_advanced else card_data.local_art_path
-	if _face_surface and art_path.is_empty():
-		var face_mat := StandardMaterial3D.new()
-		face_mat.albedo_texture = tex
-		face_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		face_mat.no_depth_test = true
-		face_mat.render_priority = 1
-		_face_surface.set_surface_override_material(0, face_mat)
 
 func _on_input_event(_camera: Node, event: InputEvent, _pos: Vector3, _normal: Vector3, _idx: int) -> void:
 	if not (event is InputEventMouseButton):
@@ -238,21 +211,16 @@ func collapse_if_elevated() -> void:
 func is_elevated() -> bool:
 	return _placed_elevated
 
-func set_face_down(back_url: String) -> void:
+func set_face_down(back_path: String) -> void:
 	can_drag = false
 	collider.input_ray_pickable = false
-	if back_url.is_empty():
+	if back_path.is_empty():
 		return
-	var cached: ImageTexture = ImageCache.get_texture(back_url)
-	if cached:
-		_apply_texture(cached)
-		return
-	_pending_url = back_url
-	ImageCache.all_loaded.connect(func() -> void:
-		var tex: ImageTexture = ImageCache.get_texture(back_url)
-		if tex and is_instance_valid(self):
-			_apply_texture(tex)
-	, CONNECT_ONE_SHOT)
+	var tex: Texture2D = ImageCache.get_texture(back_path)
+	if not tex:
+		tex = load(back_path) as Texture2D
+	if tex:
+		_apply_texture(tex)
 
 func place() -> void:
 	is_dragging = false

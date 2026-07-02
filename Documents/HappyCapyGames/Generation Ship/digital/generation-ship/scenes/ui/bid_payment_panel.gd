@@ -131,7 +131,7 @@ func show_bid_payment(card_name: String, amount: int, valid_colors: Array[CardDa
 	if card_data and _card_image_rect:
 		var url: String = card_data.adv_image_url if (is_advanced and not card_data.adv_image_url.is_empty()) else card_data.image_url
 		if not url.is_empty():
-			var tex: ImageTexture = ImageCache.get_texture(url)
+			var tex: Texture2D = ImageCache.get_texture(url)
 			_card_image_rect.texture = tex
 			_card_image_rect.visible = tex != null
 		else:

@@ -59,7 +59,6 @@ func _ready() -> void:
 	_load_saved_name()
 	_request_lobby_list()
 	_lobby_refresh_timer = LOBBY_REFRESH_INTERVAL
-	_preload_card_images()
 
 func _process(delta: float) -> void:
 	if _spinner_active:
@@ -115,23 +114,9 @@ func _show_staging() -> void:
 		bot_row.add_child(_diff_btn)
 	staging_requested.emit()
 
-func _preload_card_images() -> void:
-	ImageCache.preload_urls(CardDatabase.get_all_image_urls())
-
 func _start_preload() -> void:
-	var vbox: VBoxContainer = $StagingPanel/VBox
-	if not _loading_label:
-		_loading_label = Label.new()
-		_loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_loading_label.add_theme_font_size_override("font_size", 13)
-		_loading_label.add_theme_color_override("font_color", Color(0.6, 0.75, 1.0))
-		vbox.add_child(_loading_label)
-	_loading_label.text = "Loading card images…"
-	if not ImageCache.progress_updated.is_connected(_on_preload_progress):
-		ImageCache.progress_updated.connect(_on_preload_progress)
-	if not ImageCache.all_loaded.is_connected(_on_preload_done):
-		ImageCache.all_loaded.connect(_on_preload_done)
-	ImageCache.preload_urls(CardDatabase.get_all_image_urls())
+	ImageCache.preload_local_art()
+	_on_preload_done()
 
 func _on_preload_progress(loaded: int, total: int) -> void:
 	if _loading_label:

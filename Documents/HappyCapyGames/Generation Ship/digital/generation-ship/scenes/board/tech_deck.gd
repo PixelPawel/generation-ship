@@ -6,7 +6,6 @@ const CARD_H := 0.88
 var _cards: Array[CardData] = []
 var _count_label: Label3D = null
 var _mat: StandardMaterial3D = null
-var _back_url: String = ""
 
 func _ready() -> void:
 	var mesh_inst := MeshInstance3D.new()
@@ -38,12 +37,7 @@ func setup(cards: Array[CardData], back_url: String = "") -> void:
 	_update_label()
 	_apply_back_url(back_url)
 
-func _on_cache_loaded() -> void:
-	var tex: ImageTexture = ImageCache.get_texture(_back_url)
-	if tex:
-		_apply_back_texture(tex)
-
-func _apply_back_texture(tex: ImageTexture) -> void:
+func _apply_back_texture(tex: Texture2D) -> void:
 	if _mat:
 		_mat.albedo_texture = tex
 		_mat.albedo_color = Color.WHITE
@@ -58,15 +52,12 @@ func setup_ordered(cards: Array[CardData], order: Array, back_url: String = "") 
 	_update_label()
 	_apply_back_url(back_url)
 
-func _apply_back_url(url: String) -> void:
-	if url.is_empty():
+func _apply_back_url(path: String) -> void:
+	if path.is_empty():
 		return
-	_back_url = url
-	var cached: ImageTexture = ImageCache.get_texture(url)
-	if cached:
-		_apply_back_texture(cached)
-	else:
-		ImageCache.all_loaded.connect(_on_cache_loaded, CONNECT_ONE_SHOT)
+	var tex: Texture2D = load(path) as Texture2D
+	if tex:
+		_apply_back_texture(tex)
 
 func refill(cards: Array[CardData]) -> void:
 	_cards = cards.duplicate()

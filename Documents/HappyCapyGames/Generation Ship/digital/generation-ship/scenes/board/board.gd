@@ -2,8 +2,8 @@ extends Node3D
 
 const DRAG_Y := 0.55
 const HAND_CARD_SCALE := 0.392
-const TECH_BACK_URL := "https://generationship.s3.eu-central-1.amazonaws.com/TTS/Tech/GS+Techs+44x67mm138.png"
-const EXPEDITION_BACK_URL := "https://generationship.s3.eu-central-1.amazonaws.com/TTS/Expedition/GS+Expeditions++44x67mm27.png"
+const TECH_BACK_PATH := "res://assets/art/tech_back.png"
+const EXPEDITION_BACK_PATH := "res://assets/art/expedition_back.png"
 const DROP_RADIUS := 0.4
 const TECH_COLUMN_HALF_X := 0.1
 const DISCARD_RADIUS := 0.65
@@ -121,17 +121,17 @@ func set_card_scene(scene: PackedScene) -> void:
 	_card_scene = scene
 
 func setup_tech_deck(cards: Array[CardData]) -> void:
-	_tech_deck.setup(cards, TECH_BACK_URL)
+	_tech_deck.setup(cards, TECH_BACK_PATH)
 
 func setup_expedition_deck(cards: Array[CardData]) -> void:
-	_expedition_deck.setup(cards, EXPEDITION_BACK_URL)
+	_expedition_deck.setup(cards, EXPEDITION_BACK_PATH)
 
 func setup_market_ordered(sector_order: Array) -> void:
 	_market.setup_ordered(_card_scene, CardDatabase.sectors, sector_order)
 	_connect_market_signals()
 
 func setup_expedition_deck_ordered(exp_order: Array) -> void:
-	_expedition_deck.setup_ordered(CardDatabase.expeditions, exp_order, EXPEDITION_BACK_URL)
+	_expedition_deck.setup_ordered(CardDatabase.expeditions, exp_order, EXPEDITION_BACK_PATH)
 
 func setup_sector_deck(cards: Array[CardData]) -> void:
 	_sector_deck.setup(cards)

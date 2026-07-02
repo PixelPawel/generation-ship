@@ -500,8 +500,8 @@ func _build_opponent_widget() -> void:
 
 func _collect_urls() -> Array[String]:
 	var urls: Array[String] = CardDatabase.get_all_image_urls()
-	urls.append($Board.TECH_BACK_URL)
-	urls.append($Board.EXPEDITION_BACK_URL)
+	urls.append($Board.TECH_BACK_PATH)
+	urls.append($Board.EXPEDITION_BACK_PATH)
 	return urls
 
 # ── Cache / start ─────────────────────────────────────────────────────────────
@@ -1900,7 +1900,7 @@ func _show_won_card_popup() -> void:
 
 	var image_url: String = cd.adv_image_url if _pending_won_is_adv else cd.image_url
 	if not image_url.is_empty():
-		var tex: ImageTexture = ImageCache.get_texture(image_url)
+		var tex: Texture2D = ImageCache.get_texture(image_url)
 		if tex:
 			var img := TextureRect.new()
 			img.texture = tex
@@ -3556,7 +3556,7 @@ func _build_opp_sector_widget(slot: Dictionary) -> Control:
 	var img_url: String = ""
 	if cd:
 		img_url = cd.adv_image_url if is_adv else cd.image_url
-	var tex: ImageTexture = ImageCache.get_texture(img_url) if not img_url.is_empty() else null
+	var tex: Texture2D = ImageCache.get_texture(img_url) if not img_url.is_empty() else null
 
 	if tex:
 		var art: TextureRect = TextureRect.new()
@@ -3724,7 +3724,7 @@ func _build_detail_card(cd: CardData, is_adv: bool, fallback_name: String) -> Co
 	var img_url: String = ""
 	if cd:
 		img_url = cd.adv_image_url if is_adv else cd.image_url
-	var tex: ImageTexture = ImageCache.get_texture(img_url) if not img_url.is_empty() else null
+	var tex: Texture2D = ImageCache.get_texture(img_url) if not img_url.is_empty() else null
 
 	if tex:
 		var art: TextureRect = TextureRect.new()

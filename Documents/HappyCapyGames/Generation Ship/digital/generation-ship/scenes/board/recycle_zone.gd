@@ -46,7 +46,7 @@ func add_discard(card_data: CardData = null) -> void:
 	var url: String = card_data.image_url
 	if url.is_empty():
 		return
-	var tex: ImageTexture = ImageCache.get_texture(url)
+	var tex: Texture2D = ImageCache.get_texture(url)
 	if tex:
 		_apply_texture(tex)
 
@@ -63,7 +63,7 @@ func take_all_cards() -> Array[CardData]:
 	_mat.albedo_color = Color(0.12, 0.06, 0.06, 1.0)
 	return result
 
-func _apply_texture(tex: ImageTexture) -> void:
+func _apply_texture(tex: Texture2D) -> void:
 	_has_texture = true
 	_mat.albedo_texture = tex
 	_mat.albedo_color = Color.WHITE

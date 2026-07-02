@@ -10,7 +10,7 @@ const SUPPLY_ICON_PATHS: Array[String] = [
 	"res://assets/ui/supply/Thrust.png",
 ]
 const SUPPLY_NAMES: Array[String] = ["Dust", "Metals", "Liquids", "Organix", "Electrix", "Thrust"]
-const TECH_BACK_URL := "https://generationship.s3.eu-central-1.amazonaws.com/TTS/Tech/GS+Techs+44x67mm138.png"
+const TECH_BACK_PATH := "res://assets/art/tech_back.png"
 
 signal cargo_move_requested(slot: SectorSlot, supplies: Dictionary, tucked_indices: Array[int])
 signal cargo_cancelled
@@ -180,8 +180,8 @@ func _make_card_row(cards: Array, face_up: bool) -> Control:
 	for idx: int in cards.size():
 		var tuck: Dictionary = cards[idx]
 		var cd: CardData = tuck.get("data") as CardData
-		var url: String = (cd.image_url if cd else "") if face_up else TECH_BACK_URL
-		var tex: ImageTexture = ImageCache.get_texture(url) if not url.is_empty() else null
+		var url: String = (cd.image_url if cd else "") if face_up else TECH_BACK_PATH
+		var tex: Texture2D = ImageCache.get_texture(url) if not url.is_empty() else null
 
 		var card_vbox := VBoxContainer.new()
 		card_vbox.add_theme_constant_override("separation", 4)
@@ -316,8 +316,8 @@ func _rebuild_cargo(slot: SectorSlot) -> void:
 			var entry: Dictionary = slot.tucked_cards[i]
 			var cd: CardData = entry.get("data") as CardData
 			var face_up: bool = entry.get("face_up", false)
-			var url: String = (cd.image_url if cd else "") if face_up else TECH_BACK_URL
-			var tex: ImageTexture = ImageCache.get_texture(url) if not url.is_empty() else null
+			var url: String = (cd.image_url if cd else "") if face_up else TECH_BACK_PATH
+			var tex: Texture2D = ImageCache.get_texture(url) if not url.is_empty() else null
 
 			var row := HBoxContainer.new()
 			row.add_theme_constant_override("separation", 8)

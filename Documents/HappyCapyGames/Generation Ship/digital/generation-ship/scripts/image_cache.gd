@@ -152,5 +152,31 @@ func _extract_etag(headers: PackedStringArray) -> String:
 			return header.substr(5).strip_edges()
 	return ""
 
-func get_texture(url: String) -> ImageTexture:
-	return _memory.get(url, null) as ImageTexture
+func get_texture(url: String) -> Texture2D:
+	return _memory.get(url, null) as Texture2D
+
+func preload_local_art() -> void:
+	var cards: Array = []
+	cards.append_array(CardDatabase.sectors)
+	cards.append_array(CardDatabase.techs)
+	cards.append_array(CardDatabase.expeditions)
+	for cd: CardData in cards:
+		_cache_local(cd.image_url, cd.local_art_path)
+		_cache_local(cd.adv_image_url, cd.adv_local_art_path)
+	for path: String in ["res://assets/art/tech_back.png", "res://assets/art/expedition_back.png"]:
+		if not _memory.has(path) and ResourceLoader.exists(path):
+			_memory[path] = load(path) as Texture2D
+
+func _cache_local(url: String, art_path: String) -> void:
+	if art_path.is_empty():
+		return
+	var tex: Texture2D
+	if _memory.has(art_path):
+		tex = _memory.get(art_path) as Texture2D
+	else:
+		if ResourceLoader.exists(art_path):
+			tex = load(art_path) as Texture2D
+		if tex:
+			_memory[art_path] = tex
+	if not url.is_empty() and tex:
+		_memory[url] = tex
