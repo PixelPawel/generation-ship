@@ -499,10 +499,7 @@ func _build_opponent_widget() -> void:
 	outer_vbox.add_child(_es_back_btn)
 
 func _collect_urls() -> Array[String]:
-	var urls: Array[String] = CardDatabase.get_all_image_urls()
-	urls.append($Board.TECH_BACK_PATH)
-	urls.append($Board.EXPEDITION_BACK_PATH)
-	return urls
+	return CardDatabase.get_all_image_urls()
 
 # ── Cache / start ─────────────────────────────────────────────────────────────
 
