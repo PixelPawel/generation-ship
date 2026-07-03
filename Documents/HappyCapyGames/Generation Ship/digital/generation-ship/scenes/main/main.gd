@@ -552,7 +552,7 @@ func _do_game_setup(sector_order: Array, exp_order: Array) -> void:
 	_show_end_turn_button(true)
 	_set_end_turn_button_disabled(true)
 	_refresh_vp()
-	_update_turn_ui()
+	_update_turn_ui(false)
 	if GameNetwork.is_multiplayer:
 		_build_opponent_widget()
 	_log_action("─── Round 1 / %d ───" % MAX_ROUNDS, Color(0.6, 0.82, 1.0))
@@ -1333,6 +1333,9 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	$Board.deal_opening_hand()
 	if GameNetwork.is_multiplayer:
 		_broadcast_my_state()
+	await get_tree().create_timer(2.0).timeout
+	if GameNetwork.is_my_turn():
+		_show_your_turn_banner()
 	if multiplayer.is_server() and GameNetwork.is_bot(GameNetwork.active_peer_id):
 		_run_bot_turn(GameNetwork.active_peer_id)
 
@@ -1445,14 +1448,14 @@ func _update_round_label() -> void:
 
 # ── Multiplayer turn management ───────────────────────────────────────────────
 
-func _update_turn_ui() -> void:
+func _update_turn_ui(show_banner: bool = true) -> void:
 	if not GameNetwork.is_multiplayer:
 		_cs_display.show_turn_indicator(false)
 		return
 	_cs_display.show_turn_indicator(true)
 	var my_turn: bool = GameNetwork.is_my_turn()
 	_cs_display.set_my_turn(my_turn)
-	if my_turn and _round > 0:
+	if show_banner and my_turn and _round > 0:
 		_show_your_turn_banner()
 	_set_action_buttons_disabled(not my_turn)
 
