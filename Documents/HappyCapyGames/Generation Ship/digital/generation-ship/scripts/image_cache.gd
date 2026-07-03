@@ -181,40 +181,25 @@ func preload_local_art() -> void:
 			_cache_url(cd.image_url)
 			_cache_url(cd.adv_image_url)
 
-	# Load deck-back images for tech and expedition (sector "Back" files are
-	# dust faces, not deck backs, so we skip that directory here)
-	for dir_path: String in ["res://assets/cards/tech/", "res://assets/cards/expedition/"]:
-		var dir: DirAccess = DirAccess.open(dir_path)
-		if not dir:
-			continue
-		dir.list_dir_begin()
-		var fname: String = dir.get_next()
-		while fname != "":
-			if "Back" in fname and fname.ends_with(".png"):
-				var path: String = dir_path + fname
-				if not _memory.has(path):
-					var tex: Texture2D = load(path) as Texture2D
-					if tex:
-						_memory[path] = tex
-			fname = dir.get_next()
-		dir.list_dir_end()
+	# Deck-back images for tech and expedition have a load() fallback in
+	# set_face_down() so no DirAccess scan needed here.
 
 func _build_sector_back_map() -> Dictionary:
 	var result: Dictionary = {}
-	var dir: DirAccess = DirAccess.open("res://assets/cards/sector/")
-	if not dir:
-		return result
-	dir.list_dir_begin()
-	var fname: String = dir.get_next()
-	while fname != "":
-		if "Back" in fname and fname.ends_with(".png"):
-			var parts: PackedStringArray = fname.split("_")
-			if parts.size() > 2:
-				var num: int = parts[2].to_int()
-				if num > 0:
-					result[num] = "res://assets/cards/sector/" + fname
-		fname = dir.get_next()
-	dir.list_dir_end()
+	var base: String = "res://assets/cards/sector/"
+	# After space→_ rename, sector backs have varying underscore counts from
+	# original double-space filenames. Try all known patterns per sector.
+	var patterns: Array[String] = [
+		base + "GS_Sector_%d_Back_67x44mm.png",
+		base + "GS_Sector_%d_Back__67x44mm.png",
+		base + "GS_Sector_%d__Back__67x44mm.png",
+	]
+	for n: int in range(1, 7):
+		for pattern: String in patterns:
+			var path: String = pattern % n
+			if ResourceLoader.exists(path):
+				result[n] = path
+				break
 	return result
 
 func _cache_sector_dust_url(url: String, sector_backs: Dictionary) -> void:
