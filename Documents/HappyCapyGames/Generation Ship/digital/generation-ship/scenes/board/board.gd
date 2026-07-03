@@ -2,8 +2,8 @@ extends Node3D
 
 const DRAG_Y := 0.55
 const HAND_CARD_SCALE := 0.392
-const TECH_BACK_PATH := "res://assets/cards/tech/GS Techs Back 44x67mm.png"
-const EXPEDITION_BACK_PATH := "res://assets/cards/expedition/GS Expeditions Back 44x67mm.png"
+const TECH_BACK_PATH := "res://assets/cards/tech/GS_Techs_Back_44x67mm.png"
+const EXPEDITION_BACK_PATH := "res://assets/cards/expedition/GS_Expeditions_Back_44x67mm.png"
 const DROP_RADIUS := 0.4
 const TECH_COLUMN_HALF_X := 0.1
 const DISCARD_RADIUS := 0.65

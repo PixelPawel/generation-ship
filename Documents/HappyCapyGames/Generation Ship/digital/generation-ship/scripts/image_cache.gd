@@ -208,8 +208,7 @@ func _build_sector_back_map() -> Dictionary:
 	var fname: String = dir.get_next()
 	while fname != "":
 		if "Back" in fname and fname.ends_with(".png"):
-			# Filename format: "GS Sector {N} Back ..." — sector number is word 3
-			var parts: PackedStringArray = fname.split(" ")
+			var parts: PackedStringArray = fname.split("_")
 			if parts.size() > 2:
 				var num: int = parts[2].to_int()
 				if num > 0:
@@ -221,9 +220,8 @@ func _build_sector_back_map() -> Dictionary:
 func _cache_sector_dust_url(url: String, sector_backs: Dictionary) -> void:
 	if url.is_empty() or _memory.has(url):
 		return
-	# Derive sector column number from the URL filename (e.g. "GS Sector 1 67x44mm6.png")
 	var fname: String = _url_to_local(url).get_file()
-	var parts: PackedStringArray = fname.split(" ")
+	var parts: PackedStringArray = fname.split("_")
 	if parts.size() > 2:
 		var num: int = parts[2].to_int()
 		if sector_backs.has(num):
@@ -249,6 +247,6 @@ func _url_to_local(url: String) -> String:
 	var rel: String = url.substr(_S3_PREFIX.length())
 	for sub: String in _DIR_MAP:
 		if rel.begins_with(sub):
-			var fname: String = rel.substr(sub.length()).replace("+", " ")
+			var fname: String = rel.substr(sub.length()).replace("+", "_")
 			return _DIR_MAP[sub] + fname
 	return ""
