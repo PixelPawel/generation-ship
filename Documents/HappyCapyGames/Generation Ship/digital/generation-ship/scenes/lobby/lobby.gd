@@ -19,6 +19,7 @@ var _is_host: bool = false
 var _spinner_active: bool = false
 var _spinner_time: float = 0.0
 var _bot_count: int = 0
+var _manual: Control = null
 var _add_bot_btn: Button = null
 var _remove_bot_btn: Button = null
 var _diff_btn: OptionButton = null
@@ -56,6 +57,8 @@ func _ready() -> void:
 	Steam.join_requested.connect(_on_lobby_join_requested)
 	_staging_ip_row.visible = false
 	($LobbyPanel/DirectRow as Control).visible = false
+	_manual = load("res://scenes/ui/manual_popup.gd").new()
+	add_child(_manual)
 	_load_saved_name()
 	_request_lobby_list()
 	_lobby_refresh_timer = LOBBY_REFRESH_INTERVAL
@@ -250,6 +253,9 @@ func _on_leave_pressed() -> void:
 	_add_bot_btn = null
 	_remove_bot_btn = null
 	_show_lobby()
+
+func _on_rule_book_pressed() -> void:
+	_manual.open()
 
 func _on_back_pressed() -> void:
 	if _steam_lobby_id > 0:
