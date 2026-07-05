@@ -44,12 +44,12 @@ func _build_ui() -> void:
 	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	panel.custom_minimum_size = Vector2(560, 860)
+	panel.custom_minimum_size = Vector2(830, 860)
 	add_child(panel)
 
 	var vbox: VBoxContainer = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 8)
-	vbox.custom_minimum_size = Vector2(536, 0)
+	vbox.custom_minimum_size = Vector2(804, 0)
 	panel.add_child(vbox)
 
 	# — Title bar —
