@@ -73,10 +73,7 @@ var _cargo_source_slot: SectorSlot = null
 var _cargo_pending_supplies: Dictionary = {}
 var _cargo_pending_tucked: Array[int] = []
 var _caldera_slots: Array[SectorSlot] = []
-var _music_player_a: AudioStreamPlayer = null
-var _music_player_b: AudioStreamPlayer = null
-var _music_use_a: bool = true
-const MUSIC_CROSSFADE_SEC: float = 2.0
+var _music_player: AudioStreamPlayer = null
 var _pending_store_color: CardData.SupplyColor = CardData.SupplyColor.DUST
 var _pending_store_amount: int = 0
 var _pending_tuck_card_data: CardData = null
@@ -3813,32 +3810,11 @@ func _setup_music() -> void:
 	var music_stream: AudioStreamWAV = load("res://assets/music/ambience.wav") as AudioStreamWAV
 	if not music_stream:
 		return
-	_music_player_a = AudioStreamPlayer.new()
-	_music_player_a.stream = music_stream
-	_music_player_a.bus = &"Music"
-	add_child(_music_player_a)
-	_music_player_b = AudioStreamPlayer.new()
-	_music_player_b.stream = music_stream
-	_music_player_b.bus = &"Music"
-	_music_player_b.volume_db = -80.0
-	add_child(_music_player_b)
-	_music_player_a.play()
-	var length: float = music_stream.get_length()
-	get_tree().create_timer(length - MUSIC_CROSSFADE_SEC).timeout.connect(_crossfade_music)
-
-func _crossfade_music() -> void:
-	if not _music_player_a or not _music_player_b:
-		return
-	var outgoing: AudioStreamPlayer = _music_player_a if _music_use_a else _music_player_b
-	var incoming: AudioStreamPlayer = _music_player_b if _music_use_a else _music_player_a
-	_music_use_a = not _music_use_a
-	incoming.volume_db = -80.0
-	incoming.play()
-	var t: Tween = create_tween()
-	t.tween_property(incoming, "volume_db", 0.0, MUSIC_CROSSFADE_SEC)
-	t.parallel().tween_property(outgoing, "volume_db", -80.0, MUSIC_CROSSFADE_SEC)
-	var length: float = incoming.stream.get_length()
-	get_tree().create_timer(length - MUSIC_CROSSFADE_SEC).timeout.connect(_crossfade_music)
+	_music_player = AudioStreamPlayer.new()
+	_music_player.stream = music_stream
+	_music_player.bus = &"Music"
+	add_child(_music_player)
+	_music_player.play()
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
