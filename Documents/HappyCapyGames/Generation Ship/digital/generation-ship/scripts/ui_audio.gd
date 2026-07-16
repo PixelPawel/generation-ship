@@ -7,30 +7,30 @@ var _auction_player: AudioStreamPlayer = null
 var _supply_players: Dictionary = {}
 
 func _ready() -> void:
-	var fuse_stream: AudioStream = load("res://assets/effects/fuse.ogg") as AudioStream
+	var fuse_stream: AudioStream = load("res://assets/effects/fuse.wav") as AudioStream
 	if fuse_stream:
 		_fuse_player = AudioStreamPlayer.new()
 		_fuse_player.stream = fuse_stream
 		_fuse_player.bus = &"SFX"
 		add_child(_fuse_player)
 
-	var gavel_stream: AudioStream = load("res://assets/effects/gavel.ogg") as AudioStream
+	var gavel_stream: AudioStream = load("res://assets/effects/gavel.wav") as AudioStream
 	if gavel_stream:
 		_gavel_player = AudioStreamPlayer.new()
 		_gavel_player.stream = gavel_stream
 		_gavel_player.bus = &"SFX"
 		add_child(_gavel_player)
 
-	var recycle_stream: AudioStream = load("res://assets/effects/recycle.ogg") as AudioStream
+	var recycle_stream: AudioStream = load("res://assets/effects/recycle.wav") as AudioStream
 	if recycle_stream:
 		_recycle_player = AudioStreamPlayer.new()
 		_recycle_player.stream = recycle_stream
 		_recycle_player.bus = &"SFX"
 		add_child(_recycle_player)
 
-	var auction_stream: AudioStreamOggVorbis = load("res://assets/music/auction.ogg") as AudioStreamOggVorbis
+	var auction_stream: AudioStreamWAV = load("res://assets/music/auction.wav") as AudioStreamWAV
 	if auction_stream:
-		auction_stream.loop = true
+		auction_stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
 		_auction_player = AudioStreamPlayer.new()
 		_auction_player.stream = auction_stream
 		_auction_player.bus = &"Music"

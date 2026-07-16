@@ -3815,7 +3815,7 @@ func _setup_sfx() -> void:
 	var randomizer: AudioStreamRandomizer = AudioStreamRandomizer.new()
 	randomizer.playback_mode = AudioStreamRandomizer.PLAYBACK_RANDOM_NO_REPEATS
 	for i: int in range(1, 4):
-		var s: AudioStream = load("res://assets/effects/drill%d.ogg" % i) as AudioStream
+		var s: AudioStream = load("res://assets/effects/drill%d.wav" % i) as AudioStream
 		if s:
 			randomizer.add_stream(randomizer.streams_count, s)
 	if randomizer.streams_count == 0:
@@ -3825,9 +3825,8 @@ func _setup_sfx() -> void:
 	_sfx_player.bus = &"SFX"
 	add_child(_sfx_player)
 
-	var music_stream: AudioStreamOggVorbis = load("res://assets/music/ambience.ogg") as AudioStreamOggVorbis
+	var music_stream: AudioStreamWAV = load("res://assets/music/ambience.wav") as AudioStreamWAV
 	if music_stream:
-		music_stream.loop = false
 		_music_player_a = AudioStreamPlayer.new()
 		_music_player_a.stream = music_stream
 		_music_player_a.bus = &"Music"
