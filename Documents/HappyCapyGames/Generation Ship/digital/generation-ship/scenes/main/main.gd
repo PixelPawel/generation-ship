@@ -73,7 +73,6 @@ var _cargo_source_slot: SectorSlot = null
 var _cargo_pending_supplies: Dictionary = {}
 var _cargo_pending_tucked: Array[int] = []
 var _caldera_slots: Array[SectorSlot] = []
-var _sfx_player: AudioStreamPlayer = null
 var _music_player_a: AudioStreamPlayer = null
 var _music_player_b: AudioStreamPlayer = null
 var _music_use_a: bool = true
@@ -266,7 +265,6 @@ func _ready() -> void:
 
 	$Board.sector_info_requested.connect(_on_sector_info_requested)
 
-	_setup_sfx()
 	_setup_control_screen_display()
 	_setup_enemy_screen_display()
 	_setup_log_screen_display()
@@ -2486,7 +2484,6 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	var _pname: String = GameNetwork.player_names.get(multiplayer.get_unique_id(), "You")
 	var _supply: CardData.SupplyColor = _cd.adv_color if _is_adv else _cd.color
 	_broadcast_log("%s: placed %s" % [_pname, _cname], CardData.color_tint(_supply))
-	_play_drill_sfx()
 	UIAudio.play_supply_sfx(_supply)
 	$Board.refresh_discount_glow()
 	if _effect_mode != EffectMode.NONE:
@@ -3811,20 +3808,6 @@ func _on_peer_disconnected(peer_id: int) -> void:
 
 # ── SFX ───────────────────────────────────────────────────────────────────────
 
-func _setup_sfx() -> void:
-	var randomizer: AudioStreamRandomizer = AudioStreamRandomizer.new()
-	randomizer.playback_mode = AudioStreamRandomizer.PLAYBACK_RANDOM_NO_REPEATS
-	for i: int in range(1, 4):
-		var s: AudioStream = load("res://assets/effects/drill%d.wav" % i) as AudioStream
-		if s:
-			randomizer.add_stream(randomizer.streams_count, s)
-	if randomizer.streams_count == 0:
-		return
-	_sfx_player = AudioStreamPlayer.new()
-	_sfx_player.stream = randomizer
-	_sfx_player.bus = &"SFX"
-	add_child(_sfx_player)
-
 	var music_stream: AudioStreamWAV = load("res://assets/music/ambience.wav") as AudioStreamWAV
 	if music_stream:
 		_music_player_a = AudioStreamPlayer.new()
@@ -3839,11 +3822,6 @@ func _setup_sfx() -> void:
 		_music_player_a.play()
 		var length: float = music_stream.get_length()
 		get_tree().create_timer(length - MUSIC_CROSSFADE_SEC).timeout.connect(_crossfade_music)
-
-func _play_drill_sfx() -> void:
-	if not _sfx_player or _sfx_player.playing:
-		return
-	_sfx_player.play()
 
 func _crossfade_music() -> void:
 	if not _music_player_a or not _music_player_b:
