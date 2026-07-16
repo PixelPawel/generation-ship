@@ -2487,6 +2487,7 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	var _supply: CardData.SupplyColor = _cd.adv_color if _is_adv else _cd.color
 	_broadcast_log("%s: placed %s" % [_pname, _cname], CardData.color_tint(_supply))
 	_play_drill_sfx()
+	UIAudio.play_supply_sfx(_supply)
 	$Board.refresh_discount_glow()
 	if _effect_mode != EffectMode.NONE:
 		_reset_effect_state()

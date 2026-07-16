@@ -4,6 +4,7 @@ var _fuse_player: AudioStreamPlayer = null
 var _gavel_player: AudioStreamPlayer = null
 var _recycle_player: AudioStreamPlayer = null
 var _auction_player: AudioStreamPlayer = null
+var _supply_players: Dictionary = {}
 
 func _ready() -> void:
 	var fuse_stream: AudioStream = load("res://assets/effects/fuse.ogg") as AudioStream
@@ -35,6 +36,22 @@ func _ready() -> void:
 		_auction_player.bus = &"Music"
 		add_child(_auction_player)
 
+	var supply_files: Dictionary = {
+		CardData.SupplyColor.METALS:   "res://assets/effects/metals.wav",
+		CardData.SupplyColor.LIQUIDS:  "res://assets/effects/liquids.wav",
+		CardData.SupplyColor.ORGANIX:  "res://assets/effects/organix.wav",
+		CardData.SupplyColor.ELECTRIX: "res://assets/effects/electrix.wav",
+		CardData.SupplyColor.THRUST:   "res://assets/effects/thrust.wav",
+	}
+	for color: CardData.SupplyColor in supply_files:
+		var stream: AudioStream = load(supply_files[color]) as AudioStream
+		if stream:
+			var player: AudioStreamPlayer = AudioStreamPlayer.new()
+			player.stream = stream
+			player.bus = &"SFX"
+			add_child(player)
+			_supply_players[color] = player
+
 func play_fuse_sfx() -> void:
 	if not _fuse_player:
 		return
@@ -59,3 +76,8 @@ func stop_auction_music() -> void:
 	if not _auction_player:
 		return
 	_auction_player.stop()
+
+func play_supply_sfx(color: CardData.SupplyColor) -> void:
+	var player: AudioStreamPlayer = _supply_players.get(color) as AudioStreamPlayer
+	if player:
+		player.play()
