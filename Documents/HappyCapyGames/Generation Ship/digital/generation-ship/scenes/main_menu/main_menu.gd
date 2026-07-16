@@ -57,6 +57,8 @@ func _setup_video() -> void:
 	vp.enable_audio = false
 	vp.loop = true
 	vp.enable_auto_play = true
+	vp.playback_speed_override = Vector2(0.1, 2.0)
+	vp.playback_speed = 0.2
 	vp.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(vp)
 	move_child(vp, $Background.get_index())
