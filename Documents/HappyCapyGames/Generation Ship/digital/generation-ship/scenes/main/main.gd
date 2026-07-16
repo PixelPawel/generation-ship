@@ -265,6 +265,7 @@ func _ready() -> void:
 
 	$Board.sector_info_requested.connect(_on_sector_info_requested)
 
+	_setup_music()
 	_setup_control_screen_display()
 	_setup_enemy_screen_display()
 	_setup_log_screen_display()
@@ -3806,22 +3807,24 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	panel.add_child(vbox)
 	$UILayer.add_child(panel)
 
-# ── SFX ───────────────────────────────────────────────────────────────────────
+# ── Music ─────────────────────────────────────────────────────────────────────
 
+func _setup_music() -> void:
 	var music_stream: AudioStreamWAV = load("res://assets/music/ambience.wav") as AudioStreamWAV
-	if music_stream:
-		_music_player_a = AudioStreamPlayer.new()
-		_music_player_a.stream = music_stream
-		_music_player_a.bus = &"Music"
-		add_child(_music_player_a)
-		_music_player_b = AudioStreamPlayer.new()
-		_music_player_b.stream = music_stream
-		_music_player_b.bus = &"Music"
-		_music_player_b.volume_db = -80.0
-		add_child(_music_player_b)
-		_music_player_a.play()
-		var length: float = music_stream.get_length()
-		get_tree().create_timer(length - MUSIC_CROSSFADE_SEC).timeout.connect(_crossfade_music)
+	if not music_stream:
+		return
+	_music_player_a = AudioStreamPlayer.new()
+	_music_player_a.stream = music_stream
+	_music_player_a.bus = &"Music"
+	add_child(_music_player_a)
+	_music_player_b = AudioStreamPlayer.new()
+	_music_player_b.stream = music_stream
+	_music_player_b.bus = &"Music"
+	_music_player_b.volume_db = -80.0
+	add_child(_music_player_b)
+	_music_player_a.play()
+	var length: float = music_stream.get_length()
+	get_tree().create_timer(length - MUSIC_CROSSFADE_SEC).timeout.connect(_crossfade_music)
 
 func _crossfade_music() -> void:
 	if not _music_player_a or not _music_player_b:
