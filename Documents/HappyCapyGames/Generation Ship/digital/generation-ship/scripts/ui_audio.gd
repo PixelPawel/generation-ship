@@ -37,6 +37,7 @@ func _ready() -> void:
 		add_child(_auction_player)
 
 	var supply_files: Dictionary = {
+		CardData.SupplyColor.DUST:     "res://assets/effects/dust.wav",
 		CardData.SupplyColor.METALS:   "res://assets/effects/metals.wav",
 		CardData.SupplyColor.LIQUIDS:  "res://assets/effects/liquids.wav",
 		CardData.SupplyColor.ORGANIX:  "res://assets/effects/organix.wav",
