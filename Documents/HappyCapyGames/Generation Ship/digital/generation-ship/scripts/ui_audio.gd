@@ -30,7 +30,6 @@ func _ready() -> void:
 
 	var auction_stream: AudioStreamWAV = load("res://assets/music/auction.wav") as AudioStreamWAV
 	if auction_stream:
-		auction_stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
 		_auction_player = AudioStreamPlayer.new()
 		_auction_player.stream = auction_stream
 		_auction_player.bus = &"Music"

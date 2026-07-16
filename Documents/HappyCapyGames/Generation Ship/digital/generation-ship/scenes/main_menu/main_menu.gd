@@ -68,7 +68,6 @@ func _setup_music() -> void:
 	var stream: AudioStreamWAV = load("res://assets/music/ambience.wav") as AudioStreamWAV
 	if not stream:
 		return
-	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
 	_music_player = AudioStreamPlayer.new()
 	_music_player.stream = stream
 	_music_player.bus = &"Music"
