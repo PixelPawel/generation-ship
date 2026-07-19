@@ -487,7 +487,10 @@ static func setup_log_screen_display(main: Main) -> void:
 	main._log_tooltip_panel = lt_panel
 
 static func start_rumble_timer(main: Main) -> void:
-	main.get_tree().create_timer(randf_range(30.0, 60.0)).timeout.connect(func() -> void: play_rumble(main))
+	main.get_tree().create_timer(randf_range(30.0, 60.0)).timeout.connect(func() -> void:
+		if is_instance_valid(main):
+			play_rumble(main)
+	)
 
 static func play_rumble(main: Main) -> void:
 	const JOLT_SEC: float = 0.10
@@ -511,4 +514,7 @@ static func play_rumble(main: Main) -> void:
 			tw.parallel().tween_property(node, "rotation", dr, JOLT_SEC).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
 		tw.tween_property(node, "position", base_pos, 0.40).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		tw.parallel().tween_property(node, "rotation", base_rot, 0.40).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	main._rumble_tweens[ui_cockpit].tween_callback(func() -> void: start_rumble_timer(main))
+	main._rumble_tweens[ui_cockpit].tween_callback(func() -> void:
+		if is_instance_valid(main):
+			start_rumble_timer(main)
+	)
