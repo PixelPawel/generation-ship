@@ -610,6 +610,7 @@ func confirm_recycle() -> void:
 	_pending_recycle_card = null
 	add_to_discard(card.card_data)
 	card_recycled.emit(color)
+	card.collider.monitoring = false
 	var t: Tween = card.create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
 	t.tween_property(card, "scale", Vector3.ZERO, 0.25)
 	t.tween_callback(func() -> void:
@@ -1289,6 +1290,7 @@ func _handle_failed_drop() -> void:
 			t.tween_callback(func() -> void: _hand.add_card(card, false))
 		DragOrigin.MARKET:
 			market_card_drag_failed.emit(card)
+			card.collider.monitoring = false
 			var t: Tween = card.create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
 			t.tween_property(card, "scale", Vector3.ZERO, 0.25)
 			t.tween_callback(func() -> void:

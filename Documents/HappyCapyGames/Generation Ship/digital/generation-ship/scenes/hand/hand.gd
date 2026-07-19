@@ -57,6 +57,7 @@ func _disconnect_card_signals(card: Node3D) -> void:
 		card.right_clicked.disconnect(_on_card_right_clicked)
 
 func _fly_out_card(card: Node3D, on_done: Callable = Callable()) -> void:
+	card.collider.monitoring = false
 	var t: Tween = card.create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
 	t.tween_property(card, "scale", Vector3.ZERO, 0.28)
 	t.tween_callback(func() -> void:
