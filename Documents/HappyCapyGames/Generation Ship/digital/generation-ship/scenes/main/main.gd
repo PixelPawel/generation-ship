@@ -1780,17 +1780,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_show_hand_popup("Tuck %d card(s) %s under this sector" % [_effect_remaining, face_str_t], false)
 
 		"tuck_optional":
-			_effect_mode = EffectMode.EFFECT_TUCK_OPTIONAL
-			_effect_remaining = int(step.get("max", 1))
-			_effect_face_up = bool(step.get("face_up", false))
-			_restrict_picks_to_drawn = bool(step.get("restrict_to_drawn", false))
-			var face_str_to: String = "faceup" if _effect_face_up else "facedown"
-			var prompt_to: String
-			if _restrict_picks_to_drawn:
-				prompt_to = "Tuck up to %d of the drawn cards %s" % [_effect_remaining, face_str_to]
-			else:
-				prompt_to = "Tuck up to %d card(s) %s — draw 1 per tucked" % [_effect_remaining, face_str_to]
-			_show_hand_multiselect(prompt_to)
+			_effect_step_tuck_optional(step)
 
 		"tuck_any_sector_optional":
 			_effect_mode = EffectMode.EFFECT_TUCK_ANY_SECTOR
@@ -1828,98 +1818,19 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_market_panel.set_expedition_reveal_mode(true)
 
 		"reveal_expedition_slot":
-			var exp_slot: int = int(step.get("slot", 0))
-			var revealed: CardData = $Board.reveal_expedition_to_slot(exp_slot)
-			if bool(step.get("gain_supply", false)) and revealed:
-				_cs_display.add_supply(revealed.color, 1)
-			if bool(step.get("may_bid", false)) and revealed:
-				_reveal_bid_pool.append(revealed)
-			if GameNetwork.is_multiplayer:
-				if GameNetwork.is_host:
-					_rpc_sync_expedition_reveal.rpc(exp_slot)
-				else:
-					_rpc_notify_expedition_reveal.rpc_id(1, exp_slot)
-			_process_next_effect()
+			_effect_step_reveal_expedition_slot(step)
 
 		"choice":
-			_effect_mode = EffectMode.EFFECT_CHOICE
-			_pending_choice_options = step.get("options", [])
-			var labels: Array[String] = []
-			var tints: Array[Color] = []
-			for opt: Dictionary in _pending_choice_options:
-				labels.append(str(opt.get("label", "?")))
-				if opt.has("tint"):
-					tints.append(opt["tint"] as Color)
-			var choice_cd: CardData = null
-			var choice_is_adv: bool = false
-			if _effect_slot and is_instance_valid(_effect_slot) and _effect_slot.placed_card:
-				choice_cd = _effect_slot.placed_card.card_data
-				choice_is_adv = bool(_effect_slot.placed_card.get("is_advanced"))
-			_choice_popup.show_choices(
-				str(step.get("prompt", "Choose:")),
-				labels,
-				bool(step.get("skippable", false)),
-				tints,
-				choice_cd,
-				choice_is_adv
-			)
+			_effect_step_choice(step)
 
 		"reflectors_choice":
-			if not _effect_slot:
-				_process_next_effect()
-				return
-			var eligible_cards: Array[CardData] = []
-			var eligible_steps: Array = []
-			for card_node: Node3D in _effect_slot.get_all_placed_cards():
-				var cd: CardData = card_node.get("card_data")
-				if not cd or cd.card_type != CardData.CardType.TECH or cd.card_name == "Reflectors":
-					continue
-				var copied: Array[Dictionary] = PlaceEffects.get_steps(cd, _effect_slot)
-				if copied.is_empty():
-					continue
-				eligible_cards.append(cd)
-				eligible_steps.append(copied)
-			if eligible_cards.is_empty():
-				_process_next_effect()
-				return
-			_pending_choice_options = []
-			for i: int in eligible_cards.size():
-				_pending_choice_options.append({steps = eligible_steps[i]})
-			_effect_mode = EffectMode.EFFECT_CHOICE
-			_choice_popup.show_card_choices("Reflectors — copy which effect?", eligible_cards, true)
+			_effect_step_reflectors_choice()
 
 		"offer_bid_pool":
-			if _reveal_bid_pool.is_empty():
-				_process_next_effect()
-				return
-			var pool: Array[CardData] = _reveal_bid_pool.duplicate()
-			_reveal_bid_pool.clear()
-			_pending_choice_options = []
-			for cd: CardData in pool:
-				_pending_choice_options.append({steps = [{type = "initiate_market_bid", card_data = cd}]})
-			_effect_mode = EffectMode.EFFECT_CHOICE
-			_choice_popup.show_card_choices("Bid on a revealed card?", pool, true)
+			_effect_step_offer_bid_pool()
 
 		"offer_free_sector_gain":
-			var eligible: Array[CardData] = []
-			var eligible_adv: Array[bool] = []
-			for cd: CardData in _reveal_free_pool:
-				if cd.adv_color == CardData.SupplyColor.DUST or cd.adv_color == CardData.SupplyColor.LIQUIDS:
-					eligible.append(cd)
-					eligible_adv.append(true)
-			_reveal_free_pool.clear()
-			for cd: CardData in $Board.get_available_dust_sectors():
-				if not eligible.has(cd):
-					eligible.append(cd)
-					eligible_adv.append(false)
-			if eligible.is_empty():
-				_process_next_effect()
-				return
-			_pending_choice_options = []
-			for cd: CardData in eligible:
-				_pending_choice_options.append({steps = [{type = "free_sector_gain", card_data = cd}]})
-			_effect_mode = EffectMode.EFFECT_CHOICE
-			_choice_popup.show_card_choices("Inflatable Hull — gain which sector for free?", eligible, false, eligible_adv)
+			_effect_step_offer_free_sector_gain()
 
 		"free_sector_gain":
 			var cd: CardData = step.get("card_data") as CardData
@@ -1947,34 +1858,10 @@ func _execute_effect_step(step: Dictionary) -> void:
 			$Board.begin_drag_card(card_node)
 
 		"seedbanks":
-			_effect_mode = EffectMode.EFFECT_SEEDBANKS
-			var all_cards: Array[Node3D] = $Hand.get_cards()
-			_pending_recycle_cards = []
-			var card_data: Array[CardData] = []
-			for c: Node3D in all_cards:
-				var cd: CardData = c.get("card_data") as CardData
-				if cd:
-					_pending_recycle_cards.append(c)
-					card_data.append(cd)
-			if card_data.is_empty():
-				_finish_interactive_step()
-			else:
-				_choice_popup.show_multiselect_card_choices(
-					"Seedbanks — select cards to recycle (supplies stored on sector)", card_data)
+			_effect_step_seedbanks()
 
 		"caldera_colony":
-			_caldera_slots = []
-			var caldera_cards: Array[CardData] = []
-			for slot: SectorSlot in $Board.get_all_sector_slots():
-				if not slot.occupied or not slot.placed_card or not slot.placed_card.card_data:
-					continue
-				_caldera_slots.append(slot)
-				caldera_cards.append(slot.placed_card.card_data as CardData)
-			if caldera_cards.is_empty():
-				_finish_interactive_step()
-				return
-			_effect_mode = EffectMode.EFFECT_CALDERA_SELECT_SECTOR
-			_choice_popup.show_card_choices("Caldera Colony — choose a sector:", caldera_cards, true)
+			_effect_step_caldera_colony()
 
 		"cargo_drones":
 			_effect_mode = EffectMode.EFFECT_CARGO_DRONES
@@ -1982,16 +1869,158 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_sector_picker.setup("Cargo Drones — pick a source sector", $Board.get_all_sector_slots())
 
 		"black_hole_encounter":
-			_effect_mode = EffectMode.EFFECT_EXPEDITION_SHUFFLE
-			_effect_remaining = 3
-			_shuffle_count = 0
-			_show_effect_hint("Click up to 3 expeditions to shuffle back — then click Done")
-			_effect_done_btn.show()
-			$Board.set_expedition_shuffle_mode(true)
-			_market_panel.set_expedition_shuffle_mode(true)
+			_effect_step_black_hole_encounter()
 
 		_:
 			_process_next_effect()
+
+# ── Effect step handlers (complex cases) ─────────────────────────────────────────
+
+func _effect_step_tuck_optional(step: Dictionary) -> void:
+	_effect_mode = EffectMode.EFFECT_TUCK_OPTIONAL
+	_effect_remaining = int(step.get("max", 1))
+	_effect_face_up = bool(step.get("face_up", false))
+	_restrict_picks_to_drawn = bool(step.get("restrict_to_drawn", false))
+	var face_str_to: String = "faceup" if _effect_face_up else "facedown"
+	var prompt_to: String
+	if _restrict_picks_to_drawn:
+		prompt_to = "Tuck up to %d of the drawn cards %s" % [_effect_remaining, face_str_to]
+	else:
+		prompt_to = "Tuck up to %d card(s) %s — draw 1 per tucked" % [_effect_remaining, face_str_to]
+	_show_hand_multiselect(prompt_to)
+
+func _effect_step_reveal_expedition_slot(step: Dictionary) -> void:
+	var exp_slot: int = int(step.get("slot", 0))
+	var revealed: CardData = $Board.reveal_expedition_to_slot(exp_slot)
+	if bool(step.get("gain_supply", false)) and revealed:
+		_cs_display.add_supply(revealed.color, 1)
+	if bool(step.get("may_bid", false)) and revealed:
+		_reveal_bid_pool.append(revealed)
+	if GameNetwork.is_multiplayer:
+		if GameNetwork.is_host:
+			_rpc_sync_expedition_reveal.rpc(exp_slot)
+		else:
+			_rpc_notify_expedition_reveal.rpc_id(1, exp_slot)
+	_process_next_effect()
+
+func _effect_step_choice(step: Dictionary) -> void:
+	_effect_mode = EffectMode.EFFECT_CHOICE
+	_pending_choice_options = step.get("options", [])
+	var labels: Array[String] = []
+	var tints: Array[Color] = []
+	for opt: Dictionary in _pending_choice_options:
+		labels.append(str(opt.get("label", "?")))
+		if opt.has("tint"):
+			tints.append(opt["tint"] as Color)
+	var choice_cd: CardData = null
+	var choice_is_adv: bool = false
+	if _effect_slot and is_instance_valid(_effect_slot) and _effect_slot.placed_card:
+		choice_cd = _effect_slot.placed_card.card_data
+		choice_is_adv = bool(_effect_slot.placed_card.get("is_advanced"))
+	_choice_popup.show_choices(
+		str(step.get("prompt", "Choose:")),
+		labels,
+		bool(step.get("skippable", false)),
+		tints,
+		choice_cd,
+		choice_is_adv
+	)
+
+func _effect_step_reflectors_choice() -> void:
+	if not _effect_slot:
+		_process_next_effect()
+		return
+	var eligible_cards: Array[CardData] = []
+	var eligible_steps: Array = []
+	for card_node: Node3D in _effect_slot.get_all_placed_cards():
+		var cd: CardData = card_node.get("card_data")
+		if not cd or cd.card_type != CardData.CardType.TECH or cd.card_name == "Reflectors":
+			continue
+		var copied: Array[Dictionary] = PlaceEffects.get_steps(cd, _effect_slot)
+		if copied.is_empty():
+			continue
+		eligible_cards.append(cd)
+		eligible_steps.append(copied)
+	if eligible_cards.is_empty():
+		_process_next_effect()
+		return
+	_pending_choice_options = []
+	for i: int in eligible_cards.size():
+		_pending_choice_options.append({steps = eligible_steps[i]})
+	_effect_mode = EffectMode.EFFECT_CHOICE
+	_choice_popup.show_card_choices("Reflectors — copy which effect?", eligible_cards, true)
+
+func _effect_step_offer_bid_pool() -> void:
+	if _reveal_bid_pool.is_empty():
+		_process_next_effect()
+		return
+	var pool: Array[CardData] = _reveal_bid_pool.duplicate()
+	_reveal_bid_pool.clear()
+	_pending_choice_options = []
+	for cd: CardData in pool:
+		_pending_choice_options.append({steps = [{type = "initiate_market_bid", card_data = cd}]})
+	_effect_mode = EffectMode.EFFECT_CHOICE
+	_choice_popup.show_card_choices("Bid on a revealed card?", pool, true)
+
+func _effect_step_offer_free_sector_gain() -> void:
+	var eligible: Array[CardData] = []
+	var eligible_adv: Array[bool] = []
+	for cd: CardData in _reveal_free_pool:
+		if cd.adv_color == CardData.SupplyColor.DUST or cd.adv_color == CardData.SupplyColor.LIQUIDS:
+			eligible.append(cd)
+			eligible_adv.append(true)
+	_reveal_free_pool.clear()
+	for cd: CardData in $Board.get_available_dust_sectors():
+		if not eligible.has(cd):
+			eligible.append(cd)
+			eligible_adv.append(false)
+	if eligible.is_empty():
+		_process_next_effect()
+		return
+	_pending_choice_options = []
+	for cd: CardData in eligible:
+		_pending_choice_options.append({steps = [{type = "free_sector_gain", card_data = cd}]})
+	_effect_mode = EffectMode.EFFECT_CHOICE
+	_choice_popup.show_card_choices("Inflatable Hull — gain which sector for free?", eligible, false, eligible_adv)
+
+func _effect_step_seedbanks() -> void:
+	_effect_mode = EffectMode.EFFECT_SEEDBANKS
+	var all_cards: Array[Node3D] = $Hand.get_cards()
+	_pending_recycle_cards = []
+	var card_data: Array[CardData] = []
+	for c: Node3D in all_cards:
+		var cd: CardData = c.get("card_data") as CardData
+		if cd:
+			_pending_recycle_cards.append(c)
+			card_data.append(cd)
+	if card_data.is_empty():
+		_finish_interactive_step()
+	else:
+		_choice_popup.show_multiselect_card_choices(
+			"Seedbanks — select cards to recycle (supplies stored on sector)", card_data)
+
+func _effect_step_caldera_colony() -> void:
+	_caldera_slots = []
+	var caldera_cards: Array[CardData] = []
+	for slot: SectorSlot in $Board.get_all_sector_slots():
+		if not slot.occupied or not slot.placed_card or not slot.placed_card.card_data:
+			continue
+		_caldera_slots.append(slot)
+		caldera_cards.append(slot.placed_card.card_data as CardData)
+	if caldera_cards.is_empty():
+		_finish_interactive_step()
+		return
+	_effect_mode = EffectMode.EFFECT_CALDERA_SELECT_SECTOR
+	_choice_popup.show_card_choices("Caldera Colony — choose a sector:", caldera_cards, true)
+
+func _effect_step_black_hole_encounter() -> void:
+	_effect_mode = EffectMode.EFFECT_EXPEDITION_SHUFFLE
+	_effect_remaining = 3
+	_shuffle_count = 0
+	_show_effect_hint("Click up to 3 expeditions to shuffle back — then click Done")
+	_effect_done_btn.show()
+	$Board.set_expedition_shuffle_mode(true)
+	_market_panel.set_expedition_shuffle_mode(true)
 
 # ── Bid / payment flow ────────────────────────────────────────────────────────
 
