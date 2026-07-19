@@ -64,7 +64,6 @@ func _ready() -> void:
 		slot.slot_clicked.connect(_on_sector_slot_clicked)
 	_market.position.x += 15.0
 	_expedition_market.position.x += 15.0
-	call_deferred("_refresh_slot_availability")
 	var arrow_canvas: CanvasLayer = CanvasLayer.new()
 	arrow_canvas.layer = 10
 	add_child(arrow_canvas)
@@ -87,25 +86,10 @@ func add_sector_slot(slot: SectorSlot) -> void:
 	if not slot.slot_clicked.is_connected(_on_sector_slot_clicked):
 		slot.slot_clicked.connect(_on_sector_slot_clicked)
 
-func _find_nearest_empty_sector_slot() -> SectorSlot:
+func _find_nearest_empty_sector_slot(max_dist: float = DROP_RADIUS) -> SectorSlot:
 	var pos: Vector3 = _dragged_card.global_position
 	var best: SectorSlot = null
-	var best_dist: float = DROP_RADIUS
-	for slot: SectorSlot in _sector_row.get_children():
-		if slot.occupied or not slot.is_available:
-			continue
-		var dx: float = pos.x - slot.global_position.x
-		var dz: float = pos.z - slot.global_position.z
-		var dist: float = sqrt(dx * dx + dz * dz)
-		if dist < best_dist:
-			best_dist = dist
-			best = slot
-	return best
-
-func _find_nearest_empty_sector_slot_any_dist() -> SectorSlot:
-	var pos: Vector3 = _dragged_card.global_position
-	var best: SectorSlot = null
-	var best_dist: float = INF
+	var best_dist: float = max_dist
 	for slot: SectorSlot in _sector_row.get_children():
 		if slot.occupied or not slot.is_available:
 			continue
@@ -541,7 +525,7 @@ func _process(_delta: float) -> void:
 		var cam: Camera3D = get_viewport().get_camera_3d()
 		var snap_slot: SectorSlot = _find_nearest_empty_sector_slot() if _is_sector_card() else _find_nearest_tech_slot()
 		if snap_slot == null:
-			snap_slot = _find_nearest_empty_sector_slot_any_dist()
+			snap_slot = _find_nearest_empty_sector_slot(INF)
 		var to_2d: Vector2 = cam.unproject_position(snap_slot.global_position) if snap_slot else get_viewport().get_mouse_position()
 		_drag_arrow.update_to(to_2d)
 	_update_slot_highlights()
@@ -690,20 +674,12 @@ func _try_drop_sector() -> void:
 		_handle_failed_drop()
 		return
 	var placed: Node3D = _dragged_card
-	if _is_free_gain:
+	if _is_free_gain or _is_auction_win:
 		_dragged_card = null
 		_drag_origin = DragOrigin.NONE
-		_is_free_gain = false
-		action_committed.emit()
-		target_slot.accept_card(placed)
-		placed.place()
-		card_placed.emit(placed, target_slot)
-		if placed.card_data:
-			market_card_taken.emit(placed.card_data)
-		return
-	if _is_auction_win:
-		_dragged_card = null
-		_drag_origin = DragOrigin.NONE
+		if _is_free_gain:
+			_is_free_gain = false
+			action_committed.emit()
 		_is_auction_win = false
 		target_slot.accept_card(placed)
 		placed.place()
@@ -831,7 +807,6 @@ func complete_purchase() -> void:
 		if not sector_slot.occupied:
 			sector_slot.accept_card(card)
 			card.place()
-			_refresh_slot_availability()
 			card_placed.emit(card, sector_slot)
 			if drag_origin == DragOrigin.MARKET and card.card_data:
 				market_card_taken.emit(card.card_data)
@@ -912,7 +887,6 @@ func _end_pending_purchase(return_to_market: bool) -> void:
 			_market.return_card(card)
 	else:
 		card.queue_free()
-	_refresh_slot_availability()
 
 func remove_market_card(cd: CardData) -> void:
 	if cd.card_type == CardData.CardType.EXPEDITION:
@@ -993,7 +967,6 @@ func confirm_payment() -> void:
 	else:
 		slot.accept_card(card)
 		card.place()
-		_refresh_slot_availability()
 		card_placed.emit(card, slot)
 	if pay_origin == DragOrigin.MARKET and card.card_data:
 		market_card_taken.emit(card.card_data)
@@ -1299,9 +1272,6 @@ func _handle_failed_drop() -> void:
 				else:
 					_market.return_card(card)
 					)
-
-func _refresh_slot_availability() -> void:
-	pass
 
 func _update_slot_highlights() -> void:
 	if _discard_pile:

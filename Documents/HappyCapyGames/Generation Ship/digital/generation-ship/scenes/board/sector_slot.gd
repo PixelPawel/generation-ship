@@ -254,18 +254,6 @@ func accept_tech_card(card: Node3D) -> void:
 		if card.card_data:
 			last_placed_tech_cost = card.card_data.cost
 
-func can_optimize() -> bool:
-	return occupied and optimize_count < max_optimizations
-
-func do_optimize() -> void:
-	for i: int in triggered_levels.size():
-		if not triggered_levels[i]:
-			triggered_levels[i] = true
-			optimize_count += 1
-			break
-	if optimize_count >= max_optimizations:
-		is_optimized = true
-
 func reset_optimize() -> void:
 	optimize_count = 0
 	is_optimized = false

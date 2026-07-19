@@ -11,7 +11,6 @@ const LOBBY_REFRESH_INTERVAL: float = 5.0
 var _player_name: String = ""
 var _players: Dictionary = {}      # peer_id (int) -> name (String)
 var _preload_done: bool = false
-var _loading_label: Label = null
 var _players_ready: Dictionary = {}   # peer_id (int) -> true, tracked on host only
 var _steam_lobby_id: int = 0
 var _lobby_refresh_timer: float = 0.0
@@ -121,16 +120,8 @@ func _start_preload() -> void:
 	ImageCache.preload_local_art()
 	_on_preload_done()
 
-func _on_preload_progress(loaded: int, total: int) -> void:
-	if _loading_label:
-		_loading_label.text = "Loading card images… %d / %d" % [loaded, total]
-
 func _on_preload_done() -> void:
 	_preload_done = true
-	if _loading_label:
-		_loading_label.text = "Card images ready"
-	if ImageCache.progress_updated.is_connected(_on_preload_progress):
-		ImageCache.progress_updated.disconnect(_on_preload_progress)
 	if ImageCache.all_loaded.is_connected(_on_preload_done):
 		ImageCache.all_loaded.disconnect(_on_preload_done)
 	if multiplayer.is_server():

@@ -21,9 +21,6 @@ const _SUPPLY_PATHS: Array[String] = [
 
 var _sector_market: Node = null
 var _expedition_market: Node = null
-var _sector_reveal_mode: bool = false
-var _exp_reveal_mode: bool = false
-var _exp_shuffle_mode: bool = false
 
 var _adv_rects:       Array[TextureRect] = []
 var _adv_counts:      Array[Label]       = []
@@ -414,9 +411,6 @@ func _make_slot(slot_size: Vector2, rect: TextureRect, count_lbl: Label, highlig
 
 	return root
 
-func refresh() -> void:
-	_refresh()
-
 func _refresh() -> void:
 	if not _sector_market or not _expedition_market:
 		return
@@ -460,13 +454,3 @@ func _on_reveal_mode_changed(active: bool) -> void:
 func _on_expedition_reveal_mode_changed(active: bool) -> void:
 	for highlight: ColorRect in _exp_highlights:
 		highlight.visible = active
-
-
-func set_sector_reveal_mode(active: bool) -> void:
-	_sector_reveal_mode = active
-
-func set_expedition_reveal_mode(active: bool) -> void:
-	_exp_reveal_mode = active
-
-func set_expedition_shuffle_mode(active: bool) -> void:
-	_exp_shuffle_mode = active

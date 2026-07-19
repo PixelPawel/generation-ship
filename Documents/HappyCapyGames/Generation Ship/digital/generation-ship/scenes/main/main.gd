@@ -1328,8 +1328,6 @@ func _reset_effect_state() -> void:
 	$Board.set_expedition_reveal_mode(false)
 	$Board.set_expedition_shuffle_mode(false)
 	$Board.set_cargo_click_mode(false)
-	_market_panel.set_sector_reveal_mode(false)
-	_market_panel.set_expedition_reveal_mode(false)
 
 func _finish_interactive_step() -> void:
 	_reset_effect_state()
@@ -1612,7 +1610,6 @@ func _on_sector_revealed(card_data: CardData, slot_idx: int) -> void:
 	_hide_effect_hint()
 	_effect_mode = EffectMode.NONE
 	$Board.set_sector_reveal_mode(false)
-	_market_panel.set_sector_reveal_mode(false)
 	if _pending_reveal_gain_supply and card_data:
 		_cs_display.add_supply(card_data.adv_color, 1)
 	if _pending_reveal_may_bid and card_data:
@@ -1807,7 +1804,6 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_effect_mode = EffectMode.EFFECT_REVEAL_SECTOR
 			_show_effect_hint("Click a free sector slot in the Market panel to reveal it")
 			$Board.set_sector_reveal_mode(true)
-			_market_panel.set_sector_reveal_mode(true)
 
 		"reveal_expedition":
 			_pending_expedition_reveal_gain_supply = bool(step.get("gain_supply", false))
@@ -1815,7 +1811,6 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_effect_mode = EffectMode.EFFECT_REVEAL_EXPEDITION
 			_show_effect_hint("Click an expedition slot in the Market panel to reveal it")
 			$Board.set_expedition_reveal_mode(true)
-			_market_panel.set_expedition_reveal_mode(true)
 
 		"reveal_expedition_slot":
 			_effect_step_reveal_expedition_slot(step)
@@ -2020,7 +2015,6 @@ func _effect_step_black_hole_encounter() -> void:
 	_show_effect_hint("Click up to 3 expeditions to shuffle back — then click Done")
 	_effect_done_btn.show()
 	$Board.set_expedition_shuffle_mode(true)
-	_market_panel.set_expedition_shuffle_mode(true)
 
 # ── Bid / payment flow ────────────────────────────────────────────────────────
 
@@ -2407,7 +2401,6 @@ func _on_expedition_shuffled_back(card_data: CardData, deck_insert_idx: int) -> 
 
 func _finish_expedition_shuffle() -> void:
 	$Board.set_expedition_shuffle_mode(false)
-	_market_panel.set_expedition_shuffle_mode(false)
 	_effect_mode = EffectMode.NONE
 	_effect_remaining = 0
 	_hide_effect_hint()
