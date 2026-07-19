@@ -1,3 +1,4 @@
+class_name Main
 extends Node3D
 
 @export var card_scene: PackedScene
@@ -168,7 +169,7 @@ func _ready() -> void:
 	for node: Node3D in [$UiControl, $UiInfo, $UiLog, $UiCockpit]:
 		_rumble_base_pos[node] = node.position
 		_rumble_base_rot[node] = node.rotation
-	_start_rumble_timer()
+	CockpitRig.start_rumble_timer(self)
 	$UILayer/StartButton.queue_free()
 	var hand: Node3D = $Hand
 	$Board.set_hand(hand)
@@ -205,12 +206,12 @@ func _ready() -> void:
 	ImageCache.all_loaded.connect(_on_cache_ready)
 	ImageCache.preload_urls(_collect_urls())
 
-	_setup_info_screen_display()
+	CockpitRig.setup_info_screen_display(self)
 
 
 	_bid_payment_panel = load("res://scenes/ui/bid_payment_panel.gd").new()
 	_info_viewport.add_child(_bid_payment_panel)
-	_register_info_panel(_bid_payment_panel)
+	CockpitRig.register_info_panel(self, _bid_payment_panel)
 	_bid_payment_panel.confirmed.connect(_on_bid_payment_confirmed)
 	_bid_payment_panel.forfeited.connect(_on_bid_payment_forfeited)
 
@@ -233,40 +234,40 @@ func _ready() -> void:
 	_choice_popup.skipped.connect(_on_choice_skipped)
 	_choice_popup.multiselect_confirmed.connect(_on_multiselect_confirmed)
 	_info_viewport.add_child(_choice_popup)
-	_register_info_panel(_choice_popup)
+	CockpitRig.register_info_panel(self, _choice_popup)
 
 	_supply_cost_panel = SupplyCostPanel.new()
 	_supply_cost_panel.supply_chosen.connect(_on_supply_chosen)
 	_supply_cost_panel.cancelled.connect(_on_supply_choice_cancelled)
 	_info_viewport.add_child(_supply_cost_panel)
-	_register_info_panel(_supply_cost_panel)
+	CockpitRig.register_info_panel(self, _supply_cost_panel)
 
 	_sector_info_popup = SectorInfoPopup.new()
 	_info_viewport.add_child(_sector_info_popup)
-	_register_info_panel(_sector_info_popup)
+	CockpitRig.register_info_panel(self, _sector_info_popup)
 	_sector_info_popup.cargo_move_requested.connect(_on_cargo_move_requested)
 	_sector_info_popup.cargo_cancelled.connect(_on_cargo_cancelled)
 	_sector_info_popup.effect_done.connect(_on_effect_done_pressed)
 
 	_recycle_panel = load("res://scenes/ui/recycle_panel.gd").new()
 	_info_viewport.add_child(_recycle_panel)
-	_register_info_panel(_recycle_panel)
+	CockpitRig.register_info_panel(self, _recycle_panel)
 	_recycle_panel.confirmed.connect(_on_recycle_panel_confirmed)
 	_recycle_panel.cancelled.connect(_on_recycle_panel_cancelled)
 
 	_sector_picker = load("res://scenes/ui/sector_picker_panel.gd").new()
 	_info_viewport.add_child(_sector_picker)
-	_register_info_panel(_sector_picker)
+	CockpitRig.register_info_panel(self, _sector_picker)
 	_sector_picker.sector_selected.connect(_on_sector_selected_from_picker)
 	_sector_picker.skipped.connect(_on_sector_picker_skipped)
 
 	$Board.sector_info_requested.connect(_on_sector_info_requested)
 
 	_setup_music()
-	_setup_control_screen_display()
+	CockpitRig.setup_control_screen_display(self)
 	_setup_enemy_screen_display()
-	_setup_log_screen_display()
-	_setup_cockpit_switches()
+	CockpitRig.setup_log_screen_display(self)
+	CockpitRig.setup_cockpit_switches(self)
 
 	_wire_sector_slots_to_board()
 
@@ -549,483 +550,6 @@ func _do_game_setup(sector_order: Array, exp_order: Array) -> void:
 	if GameNetwork.is_multiplayer:
 		_build_opponent_widget()
 	_log_action("─── Round 1 / %d ───" % MAX_ROUNDS, Color(0.6, 0.82, 1.0))
-
-func _setup_control_screen_display() -> void:
-	_cs_viewport = SubViewport.new()
-	_cs_viewport.size = Vector2i(360, 460)
-	_cs_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	_cs_viewport.transparent_bg = true
-	_cs_viewport.gui_disable_input = false
-	$UiControl.add_child(_cs_viewport)
-
-	_cs_display = SupplyUI.new()
-	_cs_viewport.add_child(_cs_display)
-
-	var panel: Control = _cs_display.get_child(0) as Control
-	if panel:
-		panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-		panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-
-	_cs_display.supply_changed.connect(_on_supply_changed)
-	_cs_display.fuse_1to1_changed.connect(_try_auto_end_turn)
-
-	var screen_mesh: MeshInstance3D = $UiControl.find_child("gs_ui_control_screen", true, false) as MeshInstance3D
-	if screen_mesh:
-		var aabb: AABB = screen_mesh.mesh.get_aabb()
-		var shader: Shader = load("res://shaders/screen_display.gdshader") as Shader
-		var mat: ShaderMaterial = ShaderMaterial.new()
-		mat.shader = shader
-		mat.set_shader_parameter("viewport_tex", _cs_viewport.get_texture())
-		mat.set_shader_parameter("aabb_min", aabb.position)
-		mat.set_shader_parameter("aabb_max", aabb.position + aabb.size)
-		mat.set_shader_parameter("emission_strength", 1.3)
-		mat.set_shader_parameter("scanline_count", 120.0)
-		mat.set_shader_parameter("scanline_depth", 0.08)
-		mat.set_shader_parameter("vignette_strength", 0.35)
-		mat.set_shader_parameter("vignette_falloff", 3.0)
-		screen_mesh.set_surface_override_material(0, mat)
-		_setup_screen_input(screen_mesh)
-
-	var btn_callbacks: Array[Callable] = [_on_research_pressed, _on_pass_pressed, _on_end_turn_pressed]
-	var btn_tooltip_titles: Array[String] = ["Research", "Pass", "End Turn"]
-	var btn_tooltip_descs: Array[String] = [
-		"Discard a hand card and draw a replacement, once this Action is taken, you can only Research or Pass.",
-		"End your turn. Once all players pass the Generation is over.",
-		"Finish your turn manually, after buying or placing a card. Mostly automated",
-	]
-	for i: int in 3:
-		var btn_mesh: MeshInstance3D = $UiControl.find_child("gs_ui_control_button%d" % (i + 1), true, false) as MeshInstance3D
-		if btn_mesh:
-			_setup_button_input(btn_mesh, btn_callbacks[i], btn_tooltip_titles[i], btn_tooltip_descs[i])
-			if i == 2:
-				_end_turn_btn_mesh = btn_mesh
-
-	$UILayer/SupplyUI.hide()
-	$Board.set_supply_ui(_cs_display)
-
-func _setup_screen_input(screen_mesh: MeshInstance3D) -> void:
-	_setup_viewport_input(screen_mesh, _cs_viewport)
-
-func _setup_button_input(btn_mesh: MeshInstance3D, callback: Callable, tooltip_title: String = "", tooltip_desc: String = "") -> void:
-	var area: Area3D = Area3D.new()
-	area.input_ray_pickable = true
-	btn_mesh.add_child(area)
-	var cshape: CollisionShape3D = CollisionShape3D.new()
-	var box: BoxShape3D = BoxShape3D.new()
-	var aabb: AABB = btn_mesh.mesh.get_aabb()
-	box.size = Vector3(aabb.size.x, aabb.size.y, aabb.size.z + 0.01)
-	cshape.shape = box
-	cshape.position = aabb.get_center()
-	area.add_child(cshape)
-	area.input_event.connect(func(_cam: Node, event: InputEvent, _pos: Vector3, _norm: Vector3, _idx: int) -> void:
-		if event is InputEventMouseButton:
-			var mb: InputEventMouseButton = event as InputEventMouseButton
-			if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
-				_animate_button_press(btn_mesh)
-				callback.call()
-	)
-	area.mouse_entered.connect(func() -> void:
-		var base: Material = btn_mesh.mesh.surface_get_material(0)
-		var mat: StandardMaterial3D = (base as StandardMaterial3D).duplicate() as StandardMaterial3D if base is StandardMaterial3D else StandardMaterial3D.new()
-		mat.emission_enabled = true
-		mat.emission = Color(0.8, 0.9, 1.0)
-		mat.emission_energy_multiplier = 0.3
-		btn_mesh.set_surface_override_material(0, mat)
-		if not tooltip_title.is_empty():
-			_show_log_tooltip(tooltip_title, tooltip_desc)
-	)
-	area.mouse_exited.connect(func() -> void:
-		if btn_mesh == _end_turn_btn_mesh and _end_turn_flash_mat != null:
-			btn_mesh.set_surface_override_material(0, _end_turn_flash_mat)
-		else:
-			btn_mesh.set_surface_override_material(0, null)
-		_hide_log_tooltip()
-	)
-
-func _animate_button_press(btn_mesh: MeshInstance3D) -> void:
-	var press_depth: float = btn_mesh.mesh.get_aabb().size.z * 0.35
-	var rest_pos: Vector3 = btn_mesh.position
-	var tween: Tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tween.tween_property(btn_mesh, "position", rest_pos + Vector3(0.0, 0.0, -press_depth), 0.07)
-	tween.tween_property(btn_mesh, "position", rest_pos, 0.14)
-
-func _setup_cockpit_switches() -> void:
-	var cockpit_anim: AnimationPlayer = $UiCockpit.find_child("AnimationPlayer", true, false) as AnimationPlayer
-
-	var switch1: MeshInstance3D = $UiCockpit.find_child("gs_ui_switch_flat1", true, false) as MeshInstance3D
-	if switch1:
-		_setup_switch_input(switch1, func() -> void:
-			_ui_control_shown = not _ui_control_shown
-			if cockpit_anim:
-				if _ui_control_shown:
-					cockpit_anim.play_backwards("gs_ui_switch_flat1_on")
-				else:
-					cockpit_anim.play("gs_ui_switch_flat1_on")
-			var ctrl_anim: AnimationPlayer = $UiControl.find_child("AnimationPlayer", true, false) as AnimationPlayer
-			if ctrl_anim:
-				if _ui_control_shown:
-					ctrl_anim.play("intro")
-				else:
-					ctrl_anim.play_backwards("intro")
-			var log_anim: AnimationPlayer = $UiLog.find_child("AnimationPlayer", true, false) as AnimationPlayer
-			if log_anim:
-				if _ui_control_shown:
-					log_anim.play("intro")
-				else:
-					log_anim.play_backwards("intro")
-		)
-
-	var switch2: MeshInstance3D = $UiCockpit.find_child("gs_ui_switch_flat2", true, false) as MeshInstance3D
-	if switch2:
-		_setup_switch_input(switch2, func() -> void:
-			_ui_info_shown = not _ui_info_shown
-			if cockpit_anim:
-				if _ui_info_shown:
-					cockpit_anim.play_backwards("gs_ui_switch_flat2_on")
-				else:
-					cockpit_anim.play("gs_ui_switch_flat2_on")
-			var anim: AnimationPlayer = $UiInfo.find_child("AnimationPlayer", true, false) as AnimationPlayer
-			if anim:
-				if _ui_info_shown:
-					anim.play("intro")
-				else:
-					anim.play_backwards("intro")
-		)
-
-func _setup_switch_input(switch_mesh: MeshInstance3D, callback: Callable) -> void:
-	var area: Area3D = Area3D.new()
-	area.input_ray_pickable = true
-	switch_mesh.add_child(area)
-	var cshape: CollisionShape3D = CollisionShape3D.new()
-	var box: BoxShape3D = BoxShape3D.new()
-	var aabb: AABB = switch_mesh.mesh.get_aabb()
-	box.size = Vector3(aabb.size.x, aabb.size.y, aabb.size.z + 0.01)
-	cshape.shape = box
-	cshape.position = aabb.get_center()
-	area.add_child(cshape)
-	area.input_event.connect(func(_cam: Node, event: InputEvent, _pos: Vector3, _norm: Vector3, _idx: int) -> void:
-		if event is InputEventMouseButton:
-			var mb: InputEventMouseButton = event as InputEventMouseButton
-			if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
-				callback.call()
-	)
-
-func _setup_viewport_input(screen_mesh: MeshInstance3D, vp: SubViewport) -> void:
-	var area: Area3D = Area3D.new()
-	area.input_ray_pickable = true
-	screen_mesh.add_child(area)
-	var cshape: CollisionShape3D = CollisionShape3D.new()
-	var box: BoxShape3D = BoxShape3D.new()
-	var aabb: AABB = screen_mesh.mesh.get_aabb()
-	box.size = Vector3(aabb.size.x, aabb.size.y, 0.002)
-	cshape.shape = box
-	cshape.position = aabb.get_center()
-	area.add_child(cshape)
-	area.input_event.connect(func(_cam: Node, event: InputEvent, pos: Vector3, _norm: Vector3, _idx: int) -> void:
-		_forward_to_viewport(event, pos, screen_mesh, vp)
-	)
-	area.mouse_exited.connect(func() -> void:
-		if _vp_button_held:
-			return
-		_vp_prev_pos.erase(vp)
-		var mm: InputEventMouseMotion = InputEventMouseMotion.new()
-		mm.position = Vector2(-1.0, -1.0)
-		vp.push_input(mm, true)
-	)
-
-func _forward_to_viewport(event: InputEvent, world_pos: Vector3, mesh: MeshInstance3D, vp: SubViewport) -> void:
-	var local_pos: Vector3 = mesh.to_local(world_pos)
-	var aabb: AABB = mesh.mesh.get_aabb()
-	var u: float = (local_pos.x - aabb.position.x) / aabb.size.x
-	var v: float = 1.0 - (local_pos.y - aabb.position.y) / aabb.size.y
-	var vp_pos: Vector2 = Vector2(u * float(vp.size.x), v * float(vp.size.y))
-	if event is InputEventMouseButton:
-		var src: InputEventMouseButton = event as InputEventMouseButton
-		_vp_button_held = src.pressed
-		var mb: InputEventMouseButton = InputEventMouseButton.new()
-		mb.button_index = src.button_index
-		mb.pressed = src.pressed
-		mb.button_mask = src.button_mask
-		mb.position = vp_pos
-		vp.push_input(mb, true)
-	elif event is InputEventMouseMotion:
-		var prev: Vector2 = _vp_prev_pos.get(vp, vp_pos)
-		_vp_prev_pos[vp] = vp_pos
-		var mm: InputEventMouseMotion = InputEventMouseMotion.new()
-		mm.position = vp_pos
-		mm.relative = vp_pos - prev
-		vp.push_input(mm, true)
-
-func _setup_info_screen_display() -> void:
-	_info_viewport = SubViewport.new()
-	_info_viewport.size = Vector2i(1200, 572)
-	_info_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	_info_viewport.transparent_bg = true
-	_info_viewport.gui_disable_input = false
-	$UiInfo.add_child(_info_viewport)
-
-	var info_bg: ColorRect = ColorRect.new()
-	info_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	info_bg.color = Color(0.03, 0.04, 0.09, 0.93)
-	info_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_info_viewport.add_child(info_bg)
-
-	_market_panel = load("res://scenes/ui/market_panel.gd").new()
-	_info_viewport.add_child(_market_panel)
-	_market_panel.scale = Vector2(1.68, 1.68)
-
-	_market_panel.sector_advanced_pressed.connect(_on_market_sector_advanced_pressed)
-	_market_panel.sector_dust_pressed.connect(_on_market_sector_dust_pressed)
-	_market_panel.expedition_pressed.connect(_on_market_expedition_pressed)
-	_market_panel.opponent_pressed.connect(_show_opponent_board)
-	_market_panel.card_hovered.connect(_on_market_card_hovered)
-	_market_panel.card_unhovered.connect(_on_market_card_unhovered)
-
-	var screen_mesh: MeshInstance3D = $UiInfo.find_child("gs_ui_info_screen", true, false) as MeshInstance3D
-	if screen_mesh:
-		_info_screen_mesh = screen_mesh
-		var aabb: AABB = screen_mesh.mesh.get_aabb()
-		var shader: Shader = load("res://shaders/screen_display.gdshader") as Shader
-		var mat: ShaderMaterial = ShaderMaterial.new()
-		mat.shader = shader
-		mat.set_shader_parameter("viewport_tex", _info_viewport.get_texture())
-		mat.set_shader_parameter("aabb_min", aabb.position)
-		mat.set_shader_parameter("aabb_max", aabb.position + aabb.size)
-		mat.set_shader_parameter("emission_strength", 0.45)
-		mat.set_shader_parameter("exposure", 0.6)
-		mat.set_shader_parameter("scanline_count", 60.0)
-		mat.set_shader_parameter("scanline_depth", 0.06)
-		mat.set_shader_parameter("vignette_strength", 0.25)
-		mat.set_shader_parameter("vignette_falloff", 2.5)
-		mat.set_shader_parameter("bloom_threshold", 0.7)
-		screen_mesh.set_surface_override_material(0, mat)
-		_setup_info_screen_input(screen_mesh)
-	for p: Control in [_bid_popup, _payment_panel, _scoreboard]:
-		p.reparent(_info_viewport, false)
-		_register_info_panel(p)
-
-	var hint_root := Control.new()
-	hint_root.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	hint_root.offset_bottom = 56.0
-	hint_root.z_index = 10
-	hint_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var hint_bg := ColorRect.new()
-	hint_bg.color = Color(0.03, 0.04, 0.09, 0.92)
-	hint_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	hint_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hint_root.add_child(hint_bg)
-	var hint_border := ColorRect.new()
-	hint_border.color = Color(0.3, 0.6, 1.0, 0.55)
-	hint_border.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	hint_border.offset_top = -2.0
-	hint_border.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hint_root.add_child(hint_border)
-	var hint_label := Label.new()
-	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	hint_label.add_theme_font_size_override("font_size", 22)
-	hint_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.55))
-	hint_label.add_theme_constant_override("outline_size", 2)
-	hint_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.7))
-	hint_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hint_root.add_child(hint_label)
-	_effect_hint_panel = hint_root
-	_effect_hint_label = hint_label
-	_effect_hint_panel.hide()
-	_info_viewport.add_child(hint_root)
-
-func _setup_info_screen_input(screen_mesh: MeshInstance3D) -> void:
-	_setup_viewport_input(screen_mesh, _info_viewport)
-
-func _effect_card_origin(card_node: Node3D, cd: CardData) -> Vector3:
-	if not _market_panel:
-		return $UiInfo.global_position
-	var slot_idx: int = card_node.get_meta("market_slot", 0)
-	var slot_type: String
-	if cd.card_type == CardData.CardType.EXPEDITION:
-		slot_type = "expedition"
-	elif bool(card_node.get("is_advanced")):
-		slot_type = "advanced"
-	else:
-		slot_type = "dust"
-	return _viewport_to_world(_market_panel.get_slot_center(slot_type, slot_idx))
-
-func _viewport_to_world(vp_pos: Vector2) -> Vector3:
-	if not _info_screen_mesh:
-		return $UiInfo.global_position
-	var aabb: AABB = _info_screen_mesh.mesh.get_aabb()
-	var u: float = vp_pos.x / float(_info_viewport.size.x)
-	var v: float = vp_pos.y / float(_info_viewport.size.y)
-	var local_x: float = u * aabb.size.x + aabb.position.x
-	var local_y: float = (1.0 - v) * aabb.size.y + aabb.position.y
-	return _info_screen_mesh.to_global(Vector3(local_x, local_y, 0.0))
-
-func _register_info_panel(panel: Control) -> void:
-	_info_panels.append(panel)
-	panel.visibility_changed.connect(func() -> void:
-		if not _market_panel:
-			return
-		if panel.visible:
-			_market_panel.visible = false
-		else:
-			var any_active: bool = false
-			for p: Control in _info_panels:
-				if p != panel and p.is_inside_tree() and p.visible:
-					any_active = true
-					break
-			_market_panel.visible = not any_active
-	)
-
-func _setup_log_screen_display() -> void:
-	var myriad: FontFile = load("res://assets/fonts/Myriad Variable Concept.ttf") as FontFile
-	if myriad:
-		_log_font = FontVariation.new()
-		_log_font.base_font = myriad
-		_log_font.variation_opentype = {"wght": 500}
-
-	_log_viewport = SubViewport.new()
-	# 686×408 viewport: 686 = 980 × 0.7 compensates for UiLog non-uniform world scale
-	# so all content pixels are square in world space without per-element correction.
-	# Canvas is portrait (408×686) rotated 90° CW to fill the landscape viewport.
-	_log_viewport.size = Vector2i(686, 408)
-	_log_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	_log_viewport.transparent_bg = true
-	_log_viewport.gui_disable_input = false
-	$UiLog.add_child(_log_viewport)
-
-	var canvas: Control = Control.new()
-	canvas.size = Vector2(408.0, 686.0)
-	canvas.rotation_degrees = 90.0
-	canvas.position = Vector2(686.0, 0.0)
-	canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_log_viewport.add_child(canvas)
-	_log_canvas = canvas
-
-	var bg: ColorRect = ColorRect.new()
-	bg.color = Color(0.03, 0.04, 0.09, 0.93)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	canvas.add_child(bg)
-
-	var header: Label = Label.new()
-	header.text = "Event Log"
-	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	header.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	header.add_theme_font_size_override("font_size", 24)
-	header.add_theme_color_override("font_color", Color(0.65, 0.80, 1.0))
-	header.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	header.offset_top = 12.0
-	header.offset_bottom = 64.0
-	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	canvas.add_child(header)
-
-	var sep: ColorRect = ColorRect.new()
-	sep.color = Color(0.25, 0.45, 0.80, 0.5)
-	sep.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	sep.offset_top = 64.0
-	sep.offset_bottom = 66.0
-	sep.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	canvas.add_child(sep)
-
-	_log_scroll = ScrollContainer.new()
-	_log_scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_log_scroll.offset_top = 68.0
-	_log_scroll.follow_focus = false
-	_log_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
-	canvas.add_child(_log_scroll)
-
-	_log_vbox = VBoxContainer.new()
-	_log_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_log_vbox.add_theme_constant_override("separation", 2)
-	_log_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_log_scroll.add_child(_log_vbox)
-
-	var screen_mesh: MeshInstance3D = $UiLog.find_child("gs_ui_log_screen", true, false) as MeshInstance3D
-	if screen_mesh:
-		var aabb: AABB = screen_mesh.mesh.get_aabb()
-		var shader: Shader = load("res://shaders/screen_display.gdshader") as Shader
-		var mat: ShaderMaterial = ShaderMaterial.new()
-		mat.shader = shader
-		mat.set_shader_parameter("viewport_tex", _log_viewport.get_texture())
-		mat.set_shader_parameter("aabb_min", aabb.position)
-		mat.set_shader_parameter("aabb_max", aabb.position + aabb.size)
-		mat.set_shader_parameter("emission_strength", 0.45)
-		mat.set_shader_parameter("exposure", 0.6)
-		mat.set_shader_parameter("scanline_count", 80.0)
-		mat.set_shader_parameter("scanline_depth", 0.05)
-		mat.set_shader_parameter("vignette_strength", 0.2)
-		mat.set_shader_parameter("vignette_falloff", 2.5)
-		mat.set_shader_parameter("bloom_threshold", 0.7)
-		screen_mesh.set_surface_override_material(0, mat)
-		_setup_viewport_input(screen_mesh, _log_viewport)
-
-	# Preview panel – hidden until hover. Size is set in _on_market_card_hovered.
-	var preview_wrap: Control = Control.new()
-	preview_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	preview_wrap.visible = false
-	_log_canvas.add_child(preview_wrap)
-	_log_preview_panel = preview_wrap
-
-	var pp: PanelContainer = PanelContainer.new()
-	var preview_style: StyleBoxFlat = StyleBoxFlat.new()
-	preview_style.bg_color = Color(0.04, 0.04, 0.09, 0.97)
-	preview_style.border_color = Color(0.3, 0.55, 0.85, 0.55)
-	preview_style.set_border_width_all(1)
-	preview_style.set_corner_radius_all(6)
-	pp.add_theme_stylebox_override("panel", preview_style)
-	pp.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	preview_wrap.add_child(pp)
-	pp.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-
-	_log_preview_image = TextureRect.new()
-	_log_preview_image.stretch_mode = TextureRect.STRETCH_SCALE
-	_log_preview_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_log_preview_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var preview_mat: ShaderMaterial = ShaderMaterial.new()
-	preview_mat.shader = load("res://shaders/card_rounded.gdshader")
-	_log_preview_image.material = preview_mat
-	preview_wrap.add_child(_log_preview_image)
-
-	var lt_panel: PanelContainer = PanelContainer.new()
-	lt_panel.visible = false
-	lt_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	lt_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	lt_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	lt_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	lt_panel.scale = Vector2(1.5, 1.5)
-	lt_panel.resized.connect(func() -> void: lt_panel.pivot_offset = lt_panel.size / 2.0)
-	var lt_style: StyleBoxFlat = StyleBoxFlat.new()
-	lt_style.bg_color = Color(0.05, 0.07, 0.15, 0.94)
-	lt_style.border_color = Color(0.3, 0.55, 0.85, 0.55)
-	lt_style.set_border_width_all(1)
-	lt_style.set_corner_radius_all(4)
-	lt_style.content_margin_left = 12.0
-	lt_style.content_margin_right = 12.0
-	lt_style.content_margin_top = 8.0
-	lt_style.content_margin_bottom = 8.0
-	lt_panel.add_theme_stylebox_override("panel", lt_style)
-	var lt_vbox: VBoxContainer = VBoxContainer.new()
-	lt_vbox.add_theme_constant_override("separation", 3)
-	lt_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	lt_panel.add_child(lt_vbox)
-	_log_tooltip_title = Label.new()
-	_log_tooltip_title.add_theme_font_size_override("font_size", 20)
-	_log_tooltip_title.add_theme_color_override("font_color", Color(0.82, 0.93, 1.0))
-	_log_tooltip_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_log_tooltip_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	lt_vbox.add_child(_log_tooltip_title)
-	_log_tooltip_desc = Label.new()
-	_log_tooltip_desc.add_theme_font_size_override("font_size", 20)
-	_log_tooltip_desc.add_theme_color_override("font_color", Color(0.60, 0.68, 0.82))
-	_log_tooltip_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_log_tooltip_desc.autowrap_mode = TextServer.AUTOWRAP_WORD
-	_log_tooltip_desc.custom_minimum_size = Vector2(230, 0)
-	_log_tooltip_desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	lt_vbox.add_child(_log_tooltip_desc)
-	_log_canvas.add_child(lt_panel)
-	_log_tooltip_panel = lt_panel
 
 func _show_log_tooltip(title: String, desc: String) -> void:
 	if not _log_tooltip_panel:
@@ -2777,7 +2301,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 			if not card_node:
 				_process_next_effect()
 				return
-			$Board.market_origin_3d = _effect_card_origin(card_node, cd)
+			$Board.market_origin_3d = CockpitRig.effect_card_origin(self, card_node, cd)
 			$Board.begin_free_sector_gain(card_node)
 
 		"initiate_market_bid":
@@ -2790,7 +2314,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 				_process_next_effect()
 				return
 			_bid_is_from_effect = true
-			$Board.market_origin_3d = _effect_card_origin(card_node, cd)
+			$Board.market_origin_3d = CockpitRig.effect_card_origin(self, card_node, cd)
 			$Board.begin_drag_card(card_node)
 
 		"seedbanks":
@@ -3123,14 +2647,14 @@ func _on_market_card_unhovered() -> void:
 func _on_market_sector_advanced_pressed(slot_idx: int) -> void:
 	if _effect_mode != EffectMode.NONE:
 		return
-	$Board.market_origin_3d = _viewport_to_world(_market_panel.get_slot_center("advanced", slot_idx))
+	$Board.market_origin_3d = CockpitRig.viewport_to_world(self, _market_panel.get_slot_center("advanced", slot_idx))
 	$Board.begin_panel_sector_drag(slot_idx, true)
 
 func _on_market_sector_dust_pressed(slot_idx: int) -> void:
 	if _effect_mode == EffectMode.EFFECT_REVEAL_SECTOR:
 		$Board.reveal_sector_panel_slot(slot_idx)
 	elif _effect_mode == EffectMode.NONE:
-		$Board.market_origin_3d = _viewport_to_world(_market_panel.get_slot_center("dust", slot_idx))
+		$Board.market_origin_3d = CockpitRig.viewport_to_world(self, _market_panel.get_slot_center("dust", slot_idx))
 		$Board.begin_panel_sector_drag(slot_idx, false)
 
 func _on_market_expedition_pressed(slot_idx: int) -> void:
@@ -3139,7 +2663,7 @@ func _on_market_expedition_pressed(slot_idx: int) -> void:
 	elif _effect_mode == EffectMode.EFFECT_REVEAL_EXPEDITION:
 		_execute_expedition_reveal(slot_idx)
 	elif _effect_mode == EffectMode.NONE:
-		$Board.market_origin_3d = _viewport_to_world(_market_panel.get_slot_center("expedition", slot_idx))
+		$Board.market_origin_3d = CockpitRig.viewport_to_world(self, _market_panel.get_slot_center("expedition", slot_idx))
 		$Board.begin_panel_expedition_drag(slot_idx)
 
 func _execute_expedition_reveal(slot_idx: int) -> void:
@@ -3890,31 +3414,3 @@ func _stop_end_turn_3d_flash() -> void:
 	_end_turn_flash_mat = null
 	if _end_turn_btn_mesh:
 		_end_turn_btn_mesh.set_surface_override_material(0, null)
-
-# ── Cockpit rumble ────────────────────────────────────────────────────────────
-
-func _start_rumble_timer() -> void:
-	get_tree().create_timer(randf_range(30.0, 60.0)).timeout.connect(_play_rumble)
-
-func _play_rumble() -> void:
-	const JOLT_SEC: float = 0.10
-	const JOLT_COUNT: int = 15  # 15 × 0.10 s = 1.5 s
-	var targets: Array[Node3D] = [$UiCockpit, $UiControl, $UiInfo, $UiLog]
-	for slot: SectorSlot in $Board.get_all_sector_slots():
-		targets.append(slot)
-	for node: Node3D in targets:
-		var tw: Tween = _rumble_tweens.get(node) as Tween
-		if tw and tw.is_valid():
-			tw.kill()
-		tw = create_tween()
-		_rumble_tweens[node] = tw
-		var base_pos: Vector3 = _rumble_base_pos.get(node, node.position)
-		var base_rot: Vector3 = _rumble_base_rot.get(node, node.rotation)
-		for _i: int in JOLT_COUNT:
-			var dp: Vector3 = Vector3(randf_range(-0.003, 0.003), randf_range(-0.0015, 0.0015), randf_range(-0.0024, 0.0024))
-			var dr: Vector3 = base_rot + Vector3(randf_range(-0.0015, 0.0015), randf_range(-0.0009, 0.0009), randf_range(-0.0015, 0.0015))
-			tw.tween_property(node, "position", base_pos + dp, JOLT_SEC).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
-			tw.parallel().tween_property(node, "rotation", dr, JOLT_SEC).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
-		tw.tween_property(node, "position", base_pos, 0.40).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-		tw.parallel().tween_property(node, "rotation", base_rot, 0.40).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	_rumble_tweens[$UiCockpit].tween_callback(_start_rumble_timer)
