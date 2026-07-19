@@ -153,6 +153,8 @@ func _extract_etag(headers: PackedStringArray) -> String:
 	return ""
 
 func get_texture(url: String) -> Texture2D:
+	if url.begins_with("res://"):
+		return load(url) as Texture2D
 	return _memory.get(url, null) as Texture2D
 
 const _S3_PREFIX := "https://generationship.s3.eu-central-1.amazonaws.com/TTS/"
