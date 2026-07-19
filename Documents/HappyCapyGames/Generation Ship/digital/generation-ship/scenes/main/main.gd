@@ -364,7 +364,7 @@ func _do_game_setup(sector_order: Array, exp_order: Array) -> void:
 		$Board.setup_expedition_deck_ordered(exp_order)
 	$Board.setup_expedition_market()
 	if multiplayer.is_server() and not GameNetwork.bot_ids.is_empty():
-		_init_bot_state()
+		BotTurn.init_bot_state(self)
 	$Board.refresh_discount_glow()
 	_market_panel.setup($Board.get_market(), $Board.get_expedition_market())
 	_show_action_buttons(true)
@@ -423,193 +423,6 @@ func _broadcast_log(text: String, color: Color = Color(0.80, 0.88, 1.0)) -> void
 			_rpc_request_log_event.rpc_id(1, text, color.r, color.g, color.b)
 	else:
 		_log_action(text, color)
-
-func _init_bot_state() -> void:
-	for bot_id: int in GameNetwork.bot_ids:
-		var supply: Dictionary = {
-			int(CardData.SupplyColor.DUST):     4,
-			int(CardData.SupplyColor.METALS):   2,
-			int(CardData.SupplyColor.LIQUIDS):  2,
-			int(CardData.SupplyColor.ORGANIX):  1,
-			int(CardData.SupplyColor.ELECTRIX): 1,
-			int(CardData.SupplyColor.THRUST):   0,
-		}
-		_bot_supplies[bot_id] = supply
-		_bot_hands[bot_id] = $Board.draw_card_data(6)
-		_bot_boards[bot_id] = []
-
-func _update_bots_for_new_round() -> void:
-	for bot_id: int in GameNetwork.bot_ids:
-		var old_hand: Array = _bot_hands.get(bot_id, [])
-		for cd: Variant in old_hand:
-			$Board.add_to_discard(cd as CardData)
-		_bot_hands[bot_id] = $Board.draw_card_data(6)
-		var supply: Dictionary = _bot_supplies.get(bot_id, {})
-		for color: CardData.SupplyColor in CardData.SupplyColor.values():
-			supply[int(color)] = supply.get(int(color), 0) + 1
-		_bot_supplies[bot_id] = supply
-
-func _get_bot_snapshot(bot_id: int) -> Dictionary:
-	var hand_arr: Array = _bot_hands.get(bot_id, []) as Array
-	var board: Array = _bot_boards.get(bot_id, []) as Array
-	var slot_snaps: Array = []
-	for entry_v: Variant in board:
-		var entry: Dictionary = entry_v as Dictionary
-		var sector: CardData = entry.get("sector") as CardData
-		if sector == null:
-			continue
-		var is_adv: bool = bool(entry.get("is_advanced", false))
-		var techs: Array = entry.get("techs", []) as Array
-		var tech_names: Array[String] = []
-		for t: Variant in techs:
-			var tc: CardData = t as CardData
-			if tc:
-				tech_names.append(tc.card_name)
-		slot_snaps.append({
-			"occupied": true,
-			"optimize_count": 0,
-			"max_optimizations": 0,
-			"is_optimized": false,
-			"tech_count": techs.size(),
-			"sector_name": sector.adv_name if (is_adv and not sector.adv_name.is_empty()) else sector.card_name,
-			"sector_advanced": is_adv,
-			"tech_names": tech_names,
-			"position": {"x": 0.0, "z": 0.0},
-		})
-	return {
-		"peer_id": bot_id,
-		"supply": _bot_supplies.get(bot_id, {}),
-		"hand_size": hand_arr.size(),
-		"vp": 0,
-		"vp_lines": [],
-		"slots": slot_snaps,
-	}
-
-# ── Bot AI turn engine ────────────────────────────────────────────────────────
-
-func _run_bot_turn(bot_id: int) -> void:
-	await get_tree().create_timer(1.0 + randf() * 0.5).timeout
-	if GameNetwork.active_peer_id != bot_id:
-		return
-	if _bots_passed_this_round.has(bot_id):
-		_server_handle_end_turn()
-		return
-	var difficulty: int = GameNetwork.bot_difficulty.get(bot_id, BotAI.Difficulty.EASY)
-	var market_sectors: Array[CardData] = $Board.get_available_dust_sectors()
-	var action: Dictionary = BotAI.decide_action(
-		difficulty, _bot_hand(bot_id), _bot_supplies.get(bot_id, {}) as Dictionary,
-		_bot_boards.get(bot_id, []) as Array, _round, market_sectors)
-	match action.get("type", "pass"):
-		"buy_sector":
-			_bot_buy_sector(bot_id, action["card"] as CardData)
-			_broadcast_bot_states()
-			await get_tree().create_timer(0.5).timeout
-			_server_handle_end_turn()
-		"place_tech":
-			_bot_place_tech(bot_id, action["card"] as CardData, action["slot_idx"] as int)
-			_broadcast_bot_states()
-			await get_tree().create_timer(0.5).timeout
-			_server_handle_end_turn()
-		"research":
-			_bot_do_research(bot_id)
-			_broadcast_bot_states()
-			var _rname: String = GameNetwork.player_names.get(bot_id, "Bot")
-			_broadcast_log("%s: researching…" % _rname, Color(0.50, 0.78, 1.0))
-			await get_tree().create_timer(0.3).timeout
-			_bot_pass(bot_id)
-		_:
-			_bot_pass(bot_id)
-
-
-func _bot_hand(bot_id: int) -> Array[CardData]:
-	var result: Array[CardData] = []
-	for item: Variant in (_bot_hands.get(bot_id, []) as Array):
-		if item is CardData:
-			result.append(item as CardData)
-	return result
-
-func _bot_set_hand(bot_id: int, hand: Array[CardData]) -> void:
-	_bot_hands[bot_id] = hand
-
-
-func _bot_buy_sector(bot_id: int, card_data: CardData) -> void:
-	var color: int = int(card_data.color)
-	_bot_supplies[bot_id][color] = max(0, _bot_supplies[bot_id].get(color, 0) - max(0, card_data.cost))
-	$Board.get_market().remove_card(card_data)
-	_bot_boards[bot_id].append({"sector": card_data, "is_advanced": false, "techs": [], "stored": {}})
-	_apply_bot_effect_steps(bot_id, _simple_bot_card_steps(card_data))
-	var _bname: String = GameNetwork.player_names.get(bot_id, "Bot")
-	_broadcast_log("%s: bought %s" % [_bname, card_data.card_name], CardData.color_tint(card_data.color))
-
-
-func _bot_place_tech(bot_id: int, card_data: CardData, slot_idx: int) -> void:
-	var hand: Array[CardData] = _bot_hand(bot_id)
-	hand.erase(card_data)
-	_bot_set_hand(bot_id, hand)
-	var color: int = int(card_data.color)
-	_bot_supplies[bot_id][color] = max(0, _bot_supplies[bot_id].get(color, 0) - max(0, card_data.cost))
-	(_bot_boards[bot_id][slot_idx]["techs"] as Array).append(card_data)
-	_apply_bot_effect_steps(bot_id, _simple_bot_card_steps(card_data))
-	var _bname: String = GameNetwork.player_names.get(bot_id, "Bot")
-	_broadcast_log("%s: placed %s" % [_bname, card_data.card_name], CardData.color_tint(card_data.color))
-
-
-func _bot_do_research(bot_id: int) -> void:
-	var hand: Array[CardData] = _bot_hand(bot_id)
-	if hand.is_empty():
-		return
-	hand.sort_custom(func(a: CardData, b: CardData) -> bool: return a.cost < b.cost)
-	$Board.add_to_discard(hand.pop_front())
-	hand.append_array($Board.draw_card_data(1))
-	_bot_set_hand(bot_id, hand)
-
-
-func _bot_pass(bot_id: int) -> void:
-	_bots_passed_this_round.append(bot_id)
-	_server_handle_pass()
-
-
-func _broadcast_bot_states() -> void:
-	for bot_id: int in GameNetwork.bot_ids:
-		var bot_state: Dictionary = _get_bot_snapshot(bot_id)
-		_apply_opponent_state(bot_state)
-		for peer_id: int in GameNetwork.player_order:
-			if peer_id != 1 and not GameNetwork.is_bot(peer_id):
-				_rpc_recv_board_state.rpc_id(peer_id, bot_state)
-
-
-func _simple_bot_card_steps(_card_data: CardData) -> Array[Dictionary]:
-	return []
-
-
-func _apply_bot_effect_steps(bot_id: int, steps: Array[Dictionary]) -> void:
-	for step: Dictionary in steps:
-		match step.get("type"):
-			"draw":
-				var hand: Array[CardData] = _bot_hand(bot_id)
-				hand.append_array($Board.draw_card_data(int(step.get("count", 1))))
-				_bot_set_hand(bot_id, hand)
-			"gain_supply":
-				var c: int = int(step.get("color", 0))
-				_bot_supplies[bot_id][c] = _bot_supplies[bot_id].get(c, 0) + int(step.get("amount", 1))
-			"choice":
-				var opts: Array = step.get("options", []) as Array
-				if not opts.is_empty():
-					_apply_bot_effect_steps(bot_id, opts[0].get("steps", []) as Array[Dictionary])
-
-
-func _bot_decide_bid(bot_id: int) -> void:
-	var cd: CardData = CardRef.from_ref(_auction_card_ref)
-	if cd == null:
-		_server_handle_pass_bid(bot_id)
-		return
-	var new_bid: int = BotAI.decide_bid(
-		GameNetwork.bot_difficulty.get(bot_id, BotAI.Difficulty.EASY),
-		_auction_current_bid, _bot_supplies.get(bot_id, {}), cd, _auction_is_adv)
-	if new_bid > 0:
-		_server_handle_raise(bot_id, new_bid)
-	else:
-		_server_handle_pass_bid(bot_id)
 
 func _generate_shuffled_order(size: int) -> Array:
 	var order: Array = []
@@ -670,7 +483,7 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 	if GameNetwork.is_my_turn():
 		_show_your_turn_banner()
 	if multiplayer.is_server() and GameNetwork.is_bot(GameNetwork.active_peer_id):
-		_run_bot_turn(GameNetwork.active_peer_id)
+		BotTurn.run_bot_turn(self, GameNetwork.active_peer_id)
 
 # ── Round flow ────────────────────────────────────────────────────────────────
 
@@ -769,7 +582,7 @@ func _end_round() -> void:
 	_update_round_label()
 	$Board.draw_cards(6)
 	if multiplayer.is_server() and not GameNetwork.bot_ids.is_empty():
-		_update_bots_for_new_round()
+		BotTurn.update_bots_for_new_round(self)
 	$Board.reveal_sector_round_cards()
 	$Board.add_expedition_round_cards()
 	_show_action_buttons(true)
@@ -840,7 +653,7 @@ func _rpc_sync_active_player(peer_id: int) -> void:
 		_process_next_effect()
 	_refresh_all_opp_status_labels()
 	if multiplayer.is_server() and GameNetwork.is_bot(peer_id):
-		_run_bot_turn(peer_id)
+		BotTurn.run_bot_turn(self, peer_id)
 
 # Host → All: all players passed — end the round and start the next.
 @rpc("authority", "reliable", "call_local")
@@ -855,7 +668,7 @@ func _rpc_sync_end_round() -> void:
 				GameNetwork.active_peer_id = GameNetwork.player_order[first_idx]
 				_update_turn_ui()
 				if multiplayer.is_server() and GameNetwork.is_bot(GameNetwork.active_peer_id):
-					_run_bot_turn(GameNetwork.active_peer_id)
+					BotTurn.run_bot_turn(self, GameNetwork.active_peer_id)
 			_broadcast_my_state()))
 
 # ── Multiplayer state broadcast ───────────────────────────────────────────────
@@ -909,7 +722,7 @@ func _broadcast_my_state() -> void:
 			if peer_id != 1 and not GameNetwork.is_bot(peer_id):
 				_rpc_recv_board_state.rpc_id(peer_id, state)
 		for bot_id: int in GameNetwork.bot_ids:
-			var bot_state: Dictionary = _get_bot_snapshot(bot_id)
+			var bot_state: Dictionary = BotTurn.get_bot_snapshot(self, bot_id)
 			_apply_opponent_state(bot_state)
 			for peer_id: int in GameNetwork.player_order:
 				if peer_id != 1 and not GameNetwork.is_bot(peer_id):
@@ -1077,7 +890,7 @@ func _rpc_sync_auction_started(card_ref: Dictionary, slot_idx: int, is_tech: boo
 	UIAudio.play_auction_music()
 	if multiplayer.is_server() and GameNetwork.is_bot(active_id):
 		var _ab1: int = active_id
-		get_tree().create_timer(0.6).timeout.connect(func() -> void: _bot_decide_bid(_ab1))
+		get_tree().create_timer(0.6).timeout.connect(func() -> void: BotTurn.bot_decide_bid(self, _ab1))
 
 # Host → All: bid state has changed.
 @rpc("authority", "reliable", "call_local")
@@ -1090,7 +903,7 @@ func _rpc_sync_auction_state(current_bid: int, leader_id: int, active_id: int, l
 	_bid_popup.update_auction(current_bid, leader_name, is_active, can_pass)
 	if multiplayer.is_server() and GameNetwork.is_bot(active_id):
 		var _ab2: int = active_id
-		get_tree().create_timer(0.6).timeout.connect(func() -> void: _bot_decide_bid(_ab2))
+		get_tree().create_timer(0.6).timeout.connect(func() -> void: BotTurn.bot_decide_bid(self, _ab2))
 
 # Host → All: auction resolved — winner places the card.
 @rpc("authority", "reliable", "call_local")
