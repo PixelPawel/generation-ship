@@ -237,7 +237,7 @@ static func setup_info_screen_display(main: Main) -> void:
 	main._market_panel.sector_advanced_pressed.connect(main._on_market_sector_advanced_pressed)
 	main._market_panel.sector_dust_pressed.connect(main._on_market_sector_dust_pressed)
 	main._market_panel.expedition_pressed.connect(main._on_market_expedition_pressed)
-	main._market_panel.opponent_pressed.connect(main._show_opponent_board)
+	main._market_panel.opponent_pressed.connect(func(peer_id: int) -> void: OpponentBoardView.show_opponent_board(main, peer_id))
 	main._market_panel.card_hovered.connect(main._on_market_card_hovered)
 	main._market_panel.card_unhovered.connect(main._on_market_card_unhovered)
 
