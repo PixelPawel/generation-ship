@@ -272,14 +272,16 @@ func inspect_market_card(slot_type: String, slot_idx: int, world_pos: Vector3) -
 		var away_dir: Vector3 = (world_pos - cam.global_position).normalized()
 		var dist: float = cam.global_position.distance_to(world_pos)
 		vanish = world_pos + away_dir * (dist * INSPECT_VANISH_PULL)
-	clone.enlarge_from(world_pos, target, vanish, Vector3.ONE * Card.PLACED_LIFT_SCALE * _placed_card_enlarge_scale())
+	clone.enlarge_from(world_pos, target, vanish, Vector3.ONE * _placed_card_enlarge_scale())
 	_inspecting_card = clone
 
 # Placed cards are children of a SectorSlot, which carries a ~0.15x scale
-# baked into its transform (see SectorSlot1-6 in main.tscn) — that's what
-# actually keeps an enlarged placed card at a sane size. The inspect clone is
-# parented directly under Board (no such reduction), so its enlarge target
-# needs the same factor multiplied in explicitly to end up the same size.
+# baked into its transform (see SectorSlot1-6 in main.tscn) — an enlarged
+# placed card ends up at that slot scale, not at the raw PLACED_LIFT_SCALE
+# local value (Card.toggle_elevation's target scale is relative to the
+# card's own parent). The inspect clone is parented directly under Board
+# (no such reduction), so it needs this factor applied explicitly as its
+# own target scale to end up the same size.
 func _placed_card_enlarge_scale() -> float:
 	if _sector_row.get_child_count() == 0:
 		return 1.0
