@@ -240,6 +240,7 @@ static func setup_info_screen_display(main: Main) -> void:
 	main._market_panel.opponent_pressed.connect(func(peer_id: int) -> void: OpponentBoardView.show_opponent_board(main, peer_id))
 	main._market_panel.card_hovered.connect(main._on_market_card_hovered)
 	main._market_panel.card_unhovered.connect(main._on_market_card_unhovered)
+	main._market_panel.card_inspect_requested.connect(main._on_market_card_inspect_requested)
 
 	var screen_mesh: MeshInstance3D = main.get_node("UiInfo").find_child("gs_ui_info_screen", true, false) as MeshInstance3D
 	if screen_mesh:

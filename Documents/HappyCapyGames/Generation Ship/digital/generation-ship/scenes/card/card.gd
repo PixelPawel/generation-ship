@@ -136,14 +136,9 @@ func _on_input_event(_camera: Node, event: InputEvent, _pos: Vector3, _normal: V
 	elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 		if is_placed:
 			if can_elevate and not _any_dragging:
-				var g: Vector3 = global_position
-				var elev_global := Vector3(
-					lerpf(g.x, 0.0, PLACED_LIFT_CENTER_PULL),
-					PLACED_LIFT_HEIGHT,
-					lerpf(g.z, 0.0, PLACED_LIFT_CENTER_PULL)
-				)
-				var local_target: Vector3 = (get_parent() as Node3D).to_local(elev_global)
-				toggle_elevation(local_target, Vector3.ONE * PLACED_LIFT_SCALE, 0.0)
+				toggle_elevation(_elevate_target_local(global_position), Vector3.ONE * PLACED_LIFT_SCALE, 0.0)
+		elif _placed_elevated:
+			toggle_elevation(Vector3.ZERO, Vector3.ONE, 0.0)
 		else:
 			right_clicked.emit(self)
 
@@ -156,6 +151,27 @@ func _input(event: InputEvent) -> void:
 			is_dragging = true
 			_any_dragging = true
 			drag_started.emit(self)
+
+func _elevate_target_local(from_world_pos: Vector3) -> Vector3:
+	var elev_global := Vector3(
+		lerpf(from_world_pos.x, 0.0, PLACED_LIFT_CENTER_PULL),
+		PLACED_LIFT_HEIGHT,
+		lerpf(from_world_pos.z, 0.0, PLACED_LIFT_CENTER_PULL)
+	)
+	return (get_parent() as Node3D).to_local(elev_global)
+
+# Enlarges a card that isn't placed on the board (e.g. a market card) so it
+# appears to fly in from world_pos. Unlike the right-click-on-placed-card path,
+# the rest position/scale aren't assumed to be the parent's local origin, so
+# they're captured here before moving the card.
+func enlarge_from(world_pos: Vector3) -> void:
+	if _placed_elevated:
+		return
+	_elev_rest_pos = position
+	_elev_rest_scale = scale
+	var parent: Node3D = get_parent() as Node3D
+	position = parent.to_local(world_pos) if parent else world_pos
+	toggle_elevation(_elevate_target_local(world_pos), Vector3.ONE * PLACED_LIFT_SCALE, 0.0)
 
 func toggle_elevation(elev_pos: Vector3, elev_scale: Vector3, grace_sec: float) -> void:
 	if _placed_elevated:

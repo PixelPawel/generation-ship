@@ -2323,6 +2323,10 @@ func _on_market_expedition_pressed(slot_idx: int) -> void:
 		$Board.market_origin_3d = CockpitRig.viewport_to_world(self, _market_panel.get_slot_center("expedition", slot_idx))
 		$Board.begin_panel_expedition_drag(slot_idx)
 
+func _on_market_card_inspect_requested(slot_type: String, slot_idx: int) -> void:
+	var origin: Vector3 = CockpitRig.viewport_to_world(self, _market_panel.get_slot_center(slot_type, slot_idx))
+	$Board.inspect_market_card(slot_type, slot_idx, origin)
+
 func _execute_expedition_reveal(slot_idx: int) -> void:
 	_effect_mode = EffectMode.NONE
 	$Board.set_expedition_reveal_mode(false)

@@ -225,6 +225,10 @@ func get_card_data(slot_idx: int) -> CardData:
 func get_count(slot_idx: int) -> int:
 	return _stacks[slot_idx].size()
 
+func get_top_node(slot_idx: int) -> Node3D:
+	var stack: Array = _stacks[slot_idx]
+	return stack.back() as Node3D if not stack.is_empty() else null
+
 func detach_top_card(slot_idx: int) -> Node3D:
 	var stack: Array = _stacks[slot_idx]
 	if stack.is_empty():

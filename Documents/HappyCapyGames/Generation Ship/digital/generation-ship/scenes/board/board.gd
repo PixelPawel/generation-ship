@@ -230,6 +230,19 @@ func begin_panel_expedition_drag(slot_idx: int) -> void:
 	_drag_origin = DragOrigin.MARKET
 	_begin_drag(card)
 
+func inspect_market_card(slot_type: String, slot_idx: int, world_pos: Vector3) -> void:
+	var card: Node3D
+	match slot_type:
+		"dust":
+			card = _market.get_dust_display_node(slot_idx)
+		"advanced":
+			card = _market.get_advanced_top_node(slot_idx)
+		"expedition":
+			card = _expedition_market.get_top_node(slot_idx)
+	if not card:
+		return
+	card.enlarge_from(world_pos)
+
 func reveal_sector_panel_slot(slot_idx: int) -> void:
 	_market.reveal_slot_panel(slot_idx)
 

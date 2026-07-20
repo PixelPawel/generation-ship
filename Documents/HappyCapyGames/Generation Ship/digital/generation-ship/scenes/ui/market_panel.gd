@@ -6,6 +6,7 @@ signal expedition_pressed(slot_idx: int)
 signal opponent_pressed(peer_id: int)
 signal card_hovered(url: String, scale: float)
 signal card_unhovered()
+signal card_inspect_requested(slot_type: String, slot_idx: int)
 
 const CARD_W: int = 112
 const CARD_H: int = 104
@@ -270,6 +271,8 @@ func _build_ui() -> void:
 				var mb: InputEventMouseButton = ev as InputEventMouseButton
 				if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
 					sector_dust_pressed.emit(idx)
+				elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+					card_inspect_requested.emit("dust", idx)
 		)
 		slot.mouse_entered.connect(func() -> void:
 			CursorManager.set_hover()
@@ -307,6 +310,8 @@ func _build_ui() -> void:
 				var mb: InputEventMouseButton = ev as InputEventMouseButton
 				if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
 					sector_advanced_pressed.emit(idx)
+				elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+					card_inspect_requested.emit("advanced", idx)
 		)
 		slot.mouse_entered.connect(func() -> void:
 			CursorManager.set_hover()
@@ -348,6 +353,8 @@ func _build_ui() -> void:
 				var mb: InputEventMouseButton = ev as InputEventMouseButton
 				if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
 					expedition_pressed.emit(idx)
+				elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+					card_inspect_requested.emit("expedition", idx)
 		)
 		slot.mouse_entered.connect(func() -> void:
 			CursorManager.set_hover()

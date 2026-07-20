@@ -266,6 +266,9 @@ func get_dust_card_data(slot_idx: int) -> CardData:
 func get_dust_count(slot_idx: int) -> int:
 	return _dust_decks[slot_idx].size()
 
+func get_dust_display_node(slot_idx: int) -> Node3D:
+	return _dust_display_cards[slot_idx] as Node3D
+
 func get_advanced_card_data(slot_idx: int) -> CardData:
 	var stack: Array = _advanced_stacks[slot_idx]
 	if stack.is_empty():
