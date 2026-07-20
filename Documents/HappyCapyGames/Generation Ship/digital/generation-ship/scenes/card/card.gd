@@ -41,6 +41,7 @@ var _elev_rest_rotation: Vector3 = Vector3.ZERO
 var _elev_rest_sort_order: float = 0.0
 var _tween: Tween
 var _placed_elevated: bool = false
+var _destroy_on_collapse: bool = false
 var _drag_armed: bool = false
 var _drag_arm_pos: Vector2 = Vector2.ZERO
 var _card_glb: Node3D = null
@@ -160,17 +161,17 @@ func _elevate_target_local(from_world_pos: Vector3) -> Vector3:
 	)
 	return (get_parent() as Node3D).to_local(elev_global)
 
-# Enlarges a card that isn't placed on the board (e.g. a market card) so it
-# appears to fly in from world_pos. Unlike the right-click-on-placed-card path,
-# the rest position/scale aren't assumed to be the parent's local origin, so
-# they're captured here before moving the card.
+# Enlarges a standalone card (e.g. a disposable market-inspect clone, parented
+# under a node that's actually visible) so it appears to fly in from world_pos
+# and self-destructs once collapsed again, rather than returning to a "rest"
+# position that only makes sense for a card that's staying around.
 func enlarge_from(world_pos: Vector3) -> void:
 	if _placed_elevated:
 		return
+	_destroy_on_collapse = true
+	global_position = world_pos
 	_elev_rest_pos = position
 	_elev_rest_scale = scale
-	var parent: Node3D = get_parent() as Node3D
-	position = parent.to_local(world_pos) if parent else world_pos
 	toggle_elevation(_elevate_target_local(world_pos), Vector3.ONE * PLACED_LIFT_SCALE, 0.0)
 
 func toggle_elevation(elev_pos: Vector3, elev_scale: Vector3, grace_sec: float) -> void:
@@ -202,6 +203,8 @@ func _collapse_elevation() -> void:
 	_tween.tween_property(self, "position", _elev_rest_pos, PLACED_LIFT_DURATION)
 	_tween.parallel().tween_property(self, "scale", _elev_rest_scale, PLACED_LIFT_DURATION)
 	_tween.parallel().tween_property(self, "global_rotation", _elev_rest_rotation, PLACED_LIFT_DURATION)
+	if _destroy_on_collapse:
+		_tween.tween_callback(queue_free)
 	elevation_ended.emit(self)
 
 func set_discount_glow(active: bool) -> void:
