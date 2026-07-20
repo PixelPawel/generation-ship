@@ -91,14 +91,14 @@ static func setup_button_input(main: Main, btn_mesh: MeshInstance3D, callback: C
 		mat.emission_energy_multiplier = 0.3
 		btn_mesh.set_surface_override_material(0, mat)
 		if not tooltip_title.is_empty():
-			main._show_log_tooltip(tooltip_title, tooltip_desc)
+			main._show_tooltip(tooltip_title, tooltip_desc)
 	)
 	area.mouse_exited.connect(func() -> void:
 		if btn_mesh == main._end_turn_btn_mesh and main._end_turn_flash_mat != null:
 			btn_mesh.set_surface_override_material(0, main._end_turn_flash_mat)
 		else:
 			btn_mesh.set_surface_override_material(0, null)
-		main._hide_log_tooltip()
+		main._hide_tooltip()
 	)
 
 static func animate_button_press(main: Main, btn_mesh: MeshInstance3D) -> void:
@@ -419,44 +419,44 @@ static func setup_log_screen_display(main: Main) -> void:
 		screen_mesh.set_surface_override_material(0, mat)
 		setup_viewport_input(main, screen_mesh, main.log_viewport)
 
-	var lt_panel: PanelContainer = PanelContainer.new()
-	lt_panel.visible = false
-	lt_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	lt_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	lt_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	lt_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	lt_panel.scale = Vector2(1.5, 1.5)
-	lt_panel.resized.connect(func() -> void: lt_panel.pivot_offset = lt_panel.size / 2.0)
-	var lt_style: StyleBoxFlat = StyleBoxFlat.new()
-	lt_style.bg_color = Color(0.05, 0.07, 0.15, 0.94)
-	lt_style.border_color = Color(0.3, 0.55, 0.85, 0.55)
-	lt_style.set_border_width_all(1)
-	lt_style.set_corner_radius_all(4)
-	lt_style.content_margin_left = 12.0
-	lt_style.content_margin_right = 12.0
-	lt_style.content_margin_top = 8.0
-	lt_style.content_margin_bottom = 8.0
-	lt_panel.add_theme_stylebox_override("panel", lt_style)
-	var lt_vbox: VBoxContainer = VBoxContainer.new()
-	lt_vbox.add_theme_constant_override("separation", 3)
-	lt_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	lt_panel.add_child(lt_vbox)
-	main._log_tooltip_title = Label.new()
-	main._log_tooltip_title.add_theme_font_size_override("font_size", 20)
-	main._log_tooltip_title.add_theme_color_override("font_color", Color(0.82, 0.93, 1.0))
-	main._log_tooltip_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	main._log_tooltip_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	lt_vbox.add_child(main._log_tooltip_title)
-	main._log_tooltip_desc = Label.new()
-	main._log_tooltip_desc.add_theme_font_size_override("font_size", 20)
-	main._log_tooltip_desc.add_theme_color_override("font_color", Color(0.60, 0.68, 0.82))
-	main._log_tooltip_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	main._log_tooltip_desc.autowrap_mode = TextServer.AUTOWRAP_WORD
-	main._log_tooltip_desc.custom_minimum_size = Vector2(230, 0)
-	main._log_tooltip_desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	lt_vbox.add_child(main._log_tooltip_desc)
-	main.log_canvas.add_child(lt_panel)
-	main._log_tooltip_panel = lt_panel
+# Free-floating screen-space tooltip, parented directly to UILayer (not any
+# in-world SubViewport) so it can size itself to its text and be positioned
+# anywhere on screen instead of being confined to a small fixed-resolution
+# viewport.
+static func setup_floating_tooltip(main: Main) -> void:
+	var panel: PanelContainer = PanelContainer.new()
+	panel.visible = false
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = Color(0.05, 0.07, 0.15, 0.94)
+	style.border_color = Color(0.3, 0.55, 0.85, 0.55)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 12.0
+	style.content_margin_right = 12.0
+	style.content_margin_top = 8.0
+	style.content_margin_bottom = 8.0
+	panel.add_theme_stylebox_override("panel", style)
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 3)
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(vbox)
+	main._tooltip_title = Label.new()
+	main._tooltip_title.add_theme_font_size_override("font_size", 18)
+	main._tooltip_title.add_theme_color_override("font_color", Color(0.82, 0.93, 1.0))
+	main._tooltip_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	main._tooltip_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.add_child(main._tooltip_title)
+	main._tooltip_desc = Label.new()
+	main._tooltip_desc.add_theme_font_size_override("font_size", 16)
+	main._tooltip_desc.add_theme_color_override("font_color", Color(0.60, 0.68, 0.82))
+	main._tooltip_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	main._tooltip_desc.autowrap_mode = TextServer.AUTOWRAP_WORD
+	main._tooltip_desc.custom_minimum_size = Vector2(280, 0)
+	main._tooltip_desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.add_child(main._tooltip_desc)
+	main.get_node("UILayer").add_child(panel)
+	main._tooltip_panel = panel
 
 static func start_rumble_timer(main: Main) -> void:
 	main.get_tree().create_timer(randf_range(30.0, 60.0)).timeout.connect(func() -> void:

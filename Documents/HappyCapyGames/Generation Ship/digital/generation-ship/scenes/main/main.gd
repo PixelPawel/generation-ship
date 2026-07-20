@@ -133,9 +133,9 @@ var log_canvas: Control = null
 var _log_vbox: VBoxContainer = null
 var _log_scroll: ScrollContainer = null
 var _log_font: FontVariation = null
-var _log_tooltip_panel: Control = null
-var _log_tooltip_title: Label = null
-var _log_tooltip_desc: Label = null
+var _tooltip_panel: Control = null
+var _tooltip_title: Label = null
+var _tooltip_desc: Label = null
 var _sun_elevated_count: int = 0
 
 var rumble_tweens: Dictionary = {}   # Node3D -> Tween
@@ -266,6 +266,7 @@ func _ready() -> void:
 	CockpitRig.setup_control_screen_display(self)
 	OpponentBoardView.setup_enemy_screen_display(self)
 	CockpitRig.setup_log_screen_display(self)
+	CockpitRig.setup_floating_tooltip(self)
 	CockpitRig.setup_cockpit_switches(self)
 
 	_wire_sector_slots_to_board()
@@ -294,10 +295,10 @@ func _on_any_card_hovered(card_node: Node3D) -> void:
 			CardData.CardType.SECTOR:
 				desc = "Left-click and drag onto a blue sector slot to start a bid." if card.is_advanced else "Left-click and drag onto a blue sector slot to buy sector. Base card to place other cards onto."
 	if not desc.is_empty():
-		_show_log_tooltip("", desc)
+		_show_tooltip("", desc)
 
 func _on_any_card_unhovered(_card: Node3D) -> void:
-	_hide_log_tooltip()
+	_hide_tooltip()
 
 func _on_card_elevation_started(_card: Node3D) -> void:
 	_sun_elevated_count += 1
@@ -375,17 +376,30 @@ func _do_game_setup(sector_order: Array, exp_order: Array) -> void:
 		OpponentBoardView.build_opponent_widget(self)
 	_log_action("─── Round 1 / %d ───" % MAX_ROUNDS, Color(0.6, 0.82, 1.0))
 
-func _show_log_tooltip(title: String, desc: String) -> void:
-	if not _log_tooltip_panel:
+func _show_tooltip(title: String, desc: String) -> void:
+	if not _tooltip_panel:
 		return
-	_log_tooltip_title.text = title
-	_log_tooltip_title.visible = not title.is_empty()
-	_log_tooltip_desc.text = desc
-	_log_tooltip_panel.visible = true
+	_tooltip_title.text = title
+	_tooltip_title.visible = not title.is_empty()
+	_tooltip_desc.text = desc
+	_tooltip_panel.visible = true
+	_tooltip_panel.reset_size()
+	_update_tooltip_position()
 
-func _hide_log_tooltip() -> void:
-	if _log_tooltip_panel:
-		_log_tooltip_panel.visible = false
+func _hide_tooltip() -> void:
+	if _tooltip_panel:
+		_tooltip_panel.visible = false
+
+func _process(_delta: float) -> void:
+	if _tooltip_panel and _tooltip_panel.visible:
+		_update_tooltip_position()
+
+func _update_tooltip_position() -> void:
+	var vp_size: Vector2 = get_viewport().get_visible_rect().size
+	var target: Vector2 = get_viewport().get_mouse_position() + Vector2(20.0, 24.0)
+	target.x = clamp(target.x, 8.0, max(8.0, vp_size.x - _tooltip_panel.size.x - 8.0))
+	target.y = clamp(target.y, 8.0, max(8.0, vp_size.y - _tooltip_panel.size.y - 8.0))
+	_tooltip_panel.position = target
 
 func _log_action(text: String, color: Color = Color(0.80, 0.88, 1.0)) -> void:
 	if not _log_vbox:
