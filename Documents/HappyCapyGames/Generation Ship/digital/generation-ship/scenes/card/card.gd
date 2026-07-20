@@ -18,6 +18,10 @@ const PLACED_LIFT_SCALE: float = 3.0
 const PLACED_LIFT_DURATION: float = 0.35
 const PLACED_LIFT_CENTER_PULL: float = 0.9
 const DRAG_THRESHOLD_PX: float = 8.0
+# Jolt rejects an exactly-zero scale on a node with an Area3D collider (a
+# singular transform basis) — used instead of Vector3.ZERO wherever a
+# market-inspect clone needs to read as "vanished".
+const _NEGLIGIBLE_SCALE: float = 0.001
 const _LANDSCAPE_CHILD_SCALE := Vector3(0.88 / 0.63, 0.63 / 0.88, 1.0)
 
 const _TECH_GLB := preload("res://assets/3d/gs_card_tech.glb")
@@ -175,9 +179,9 @@ func enlarge_from(elev_target_world: Vector3, vanish_target_world: Vector3, elev
 	_destroy_on_collapse = true
 	var parent: Node3D = get_parent() as Node3D
 	global_position = vanish_target_world
-	scale = Vector3.ZERO
+	scale = Vector3.ONE * _NEGLIGIBLE_SCALE
 	_elev_rest_pos = parent.to_local(vanish_target_world) if parent else vanish_target_world
-	_elev_rest_scale = Vector3.ZERO
+	_elev_rest_scale = Vector3.ONE * _NEGLIGIBLE_SCALE
 	var target_local: Vector3 = parent.to_local(elev_target_world) if parent else elev_target_world
 	toggle_elevation(target_local, elev_scale, 0.0)
 
