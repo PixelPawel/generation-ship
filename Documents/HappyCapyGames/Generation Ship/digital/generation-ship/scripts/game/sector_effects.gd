@@ -18,7 +18,7 @@ static func get_optimize_steps(slot: SectorSlot) -> Array[Dictionary]:
 	var name: String = cd.adv_name if is_adv else cd.card_name
 	var steps: Array[Dictionary] = []
 	_build(name, slot, steps)
-	return steps
+	return CardData.tag_effect_source(steps, name)
 
 static func _build(name: String, slot: SectorSlot, steps: Array[Dictionary]) -> void:
 	match name:

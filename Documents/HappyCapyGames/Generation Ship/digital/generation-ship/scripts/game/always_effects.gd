@@ -24,16 +24,16 @@ static func get_colocated_steps(placed_card: CardData, slot: SectorSlot) -> Arra
 		match cd.card_name:
 			"Insects":
 				if _is_new_color(placed_card, slot):
-					steps.append({type = "store_on_slot", color = placed_card.color, amount = 1})
+					steps.append({type = "store_on_slot", color = placed_card.color, amount = 1, _source_name = "Insects"})
 			"Crops":
 				if placed_card.stars > 0:
-					steps.append({type = "gain_supply", color = CardData.SupplyColor.ORGANIX, amount = placed_card.stars})
+					steps.append({type = "gain_supply", color = CardData.SupplyColor.ORGANIX, amount = placed_card.stars, _source_name = "Crops"})
 			"Living Hull":
 				if placed_card.stars > 0:
-					steps.append({type = "draw", count = placed_card.stars})
+					steps.append({type = "draw", count = placed_card.stars, _source_name = "Living Hull"})
 			"Quantum Archives":
 				for _i: int in placed_card.stars:
-					steps.append(CardData.color_store_choice("Quantum Archives — store which supply?", true))
+					steps.append(CardData.tag_step_source(CardData.color_store_choice("Quantum Archives — store which supply?", true), "Quantum Archives"))
 	return steps
 
 # Checks all sector slots for board-wide Always triggers when a sector completes.
@@ -46,7 +46,7 @@ static func get_board_wide_steps(completed_slot: SectorSlot, all_slots: Array[Se
 		for card_node: Node3D in s.get_all_placed_cards():
 			var cd: CardData = card_node.get("card_data")
 			if cd and cd.card_name == "1-G Thrust":
-				steps.append({type = "gain_supply", color = CardData.SupplyColor.THRUST, amount = 1})
+				steps.append({type = "gain_supply", color = CardData.SupplyColor.THRUST, amount = 1, _source_name = "1-G Thrust"})
 	return steps
 
 # Checks the entire board for Biodomes when any card is placed anywhere.
@@ -62,7 +62,7 @@ static func get_board_wide_placement_steps(placed_node: Node3D, all_slots: Array
 			if cd and cd.card_name == "Biodomes":
 				biodome_count += 1
 	for _i: int in biodome_count:
-		steps.append({type = "draw", count = 1})
+		steps.append({type = "draw", count = 1, _source_name = "Biodomes"})
 	return steps
 
 static func _is_liquids_card(card_node: Node3D) -> bool:
@@ -84,26 +84,26 @@ static func get_global_expedition_steps(placed_card: CardData, placed_expedition
 				# Store 1 supply of the placed card's color on its sector (handled via _effect_slot)
 				if placed_card.is_star_card:
 					var portal_color: CardData.SupplyColor = placed_card.adv_color if placed_card.card_type == CardData.CardType.SECTOR else placed_card.color
-					steps.append({type = "store_on_slot", color = portal_color, amount = 1})
+					steps.append({type = "store_on_slot", color = portal_color, amount = 1, _source_name = "Einstein-Rosen Portal"})
 			"Galactic Capital":
 				# Draw 1 when you buy an expedition
 				if placed_card.card_type == CardData.CardType.EXPEDITION:
-					steps.append({type = "draw", count = 1})
+					steps.append({type = "draw", count = 1, _source_name = "Galactic Capital"})
 			"Galacttic Museum":
 				# Tuck 1 card faceup or facedown when you buy an expedition
 				if placed_card.card_type == CardData.CardType.EXPEDITION:
-					steps.append({
+					steps.append(CardData.tag_step_source({
 						type = "choice",
 						prompt = "Tuck 1 card — choose face direction:",
 						options = [
 							{label = "Faceup",   steps = [{type = "tuck", count = 1, face_up = true}]},
 							{label = "Facedown", steps = [{type = "tuck", count = 1, face_up = false}]},
 						],
-					})
+					}, "Galacttic Museum"))
 			"Industrial Cradle":
 				# Gain 1 Electrix when you buy an expedition
 				if placed_card.card_type == CardData.CardType.EXPEDITION:
-					steps.append({type = "gain_supply", color = CardData.SupplyColor.ELECTRIX, amount = 1})
+					steps.append({type = "gain_supply", color = CardData.SupplyColor.ELECTRIX, amount = 1, _source_name = "Industrial Cradle"})
 	return steps
 
 static func _is_new_color(placed_card: CardData, slot: SectorSlot) -> bool:

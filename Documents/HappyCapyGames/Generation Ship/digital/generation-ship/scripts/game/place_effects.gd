@@ -23,7 +23,7 @@ static func get_steps(cd: CardData, slot: SectorSlot) -> Array[Dictionary]:
 	var is_opt: bool = slot.is_optimized
 	var steps: Array[Dictionary] = []
 	_build(cd.card_name, cd, slot, is_new, is_complete, is_opt, steps)
-	return steps
+	return CardData.tag_effect_source(steps, cd.card_name)
 
 static func _build(name: String, _cd: CardData, slot: SectorSlot,
 		is_new: bool, is_complete: bool, is_opt: bool,

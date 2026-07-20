@@ -53,6 +53,24 @@ static func color_store_choice(prompt: String, any_sector: bool = false) -> Dict
 		})
 	return {type = "choice", prompt = prompt, options = options}
 
+# Tags a step (and, recursively, every nested step inside a "choice" step's
+# options) with the name of the card whose effect produced it, so main.gd's
+# effect interpreter can log outcomes by card even for steps that get
+# re-queued later (e.g. a choice's chosen option, resolved long after the
+# original card that offered the choice is out of scope).
+static func tag_step_source(step: Dictionary, source_name: String) -> Dictionary:
+	step["_source_name"] = source_name
+	if step.get("type") == "choice":
+		for option: Dictionary in (step.get("options", []) as Array):
+			for s: Dictionary in (option.get("steps", []) as Array):
+				tag_step_source(s, source_name)
+	return step
+
+static func tag_effect_source(steps: Array[Dictionary], source_name: String) -> Array[Dictionary]:
+	for step: Dictionary in steps:
+		tag_step_source(step, source_name)
+	return steps
+
 static func effective_color(cd: CardData, is_advanced: bool) -> SupplyColor:
 	if cd.card_type == CardType.SECTOR and is_advanced:
 		return cd.adv_color

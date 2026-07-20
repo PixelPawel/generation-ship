@@ -46,6 +46,7 @@ enum EffectMode {
 var _effect_mode: EffectMode = EffectMode.NONE
 var _effect_queue: Array[Dictionary] = []
 var _effect_slot: SectorSlot = null
+var _effect_source_name: String = ""
 var _effect_remaining: int = 0
 var _effect_face_up: bool = false
 var _effect_done_btn: Button = null
@@ -421,6 +422,13 @@ func _broadcast_log(text: String, color: Color = Color(0.80, 0.88, 1.0)) -> void
 			_rpc_request_log_event.rpc_id(1, text, color.r, color.g, color.b)
 	else:
 		_log_action(text, color)
+
+# Logs the concrete outcome of a card effect step, named after the card whose
+# effect (sector place, tech Always, or sector optimize) produced the step —
+# see _effect_source_name, set once per step in _execute_effect_step.
+func _log_effect(message: String) -> void:
+	var source: String = _effect_source_name if not _effect_source_name.is_empty() else "Effect"
+	_broadcast_log("%s: %s" % [source, message], Color(0.6, 0.85, 0.75))
 
 func _generate_shuffled_order(size: int) -> Array:
 	var order: Array = []
@@ -1220,10 +1228,12 @@ func _process_hand_choice(index: int) -> void:
 	match _effect_mode:
 		EffectMode.EFFECT_RECYCLE:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
+			var recycled_name: String = card.card_data.card_name if card.card_data else "a card"
 			_cs_display.add_supply(color, 1)
 			_apply_recycle_bonus(color)
 			$Board.add_to_discard(card.card_data)
 			_recycle_card_to_supply(card, color)
+			_log_effect("recycled %s, gained 1 %s" % [recycled_name, CardData.color_name(color)])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				_finish_interactive_step()
@@ -1232,11 +1242,13 @@ func _process_hand_choice(index: int) -> void:
 
 		EffectMode.EFFECT_RECYCLE_OPTIONAL:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
+			var recycled_name: String = card.card_data.card_name if card.card_data else "a card"
 			_cs_display.add_supply(color, 1)
 			_apply_recycle_bonus(color)
 			$Board.add_to_discard(card.card_data)
 			_recycle_card_to_supply(card, color)
 			$Board.draw_cards(1)
+			_log_effect("recycled %s, gained 1 %s, drew 1" % [recycled_name, CardData.color_name(color)])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				_finish_interactive_step()
@@ -1244,9 +1256,12 @@ func _process_hand_choice(index: int) -> void:
 				_show_hand_popup("Recycle up to %d more card(s)" % _effect_remaining, true)
 
 		EffectMode.EFFECT_TUCK:
+			var tucked_name: String = card.card_data.card_name if card.card_data else "a card"
 			if _effect_slot and card.card_data:
 				_effect_slot.add_tucked_card(card.card_data, _effect_face_up)
 			$Hand.remove_card_fly_out(card)
+			var face_str_log: String = "faceup" if _effect_face_up else "facedown"
+			_log_effect("tucked %s %s under the sector" % [tucked_name, face_str_log])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				_finish_interactive_step()
@@ -1255,10 +1270,13 @@ func _process_hand_choice(index: int) -> void:
 				_show_hand_popup("Tuck %d more card(s) %s" % [_effect_remaining, face_str], false)
 
 		EffectMode.EFFECT_TUCK_OPTIONAL:
+			var tucked_name: String = card.card_data.card_name if card.card_data else "a card"
 			if _effect_slot and card.card_data:
 				_effect_slot.add_tucked_card(card.card_data, _effect_face_up)
 			$Hand.remove_card_fly_out(card)
 			$Board.draw_cards(1)
+			var face_str_log_opt: String = "faceup" if _effect_face_up else "facedown"
+			_log_effect("tucked %s %s under the sector, drew 1" % [tucked_name, face_str_log_opt])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				_finish_interactive_step()
@@ -1277,24 +1295,30 @@ func _process_hand_choice(index: int) -> void:
 
 		EffectMode.EFFECT_RECYCLE_TUCK:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
+			var rt_name: String = card.card_data.card_name if card.card_data else "a card"
 			_cs_display.add_supply(color, 1)
 			_apply_recycle_bonus(color)
 			if _effect_slot and card.card_data:
 				_effect_slot.add_tucked_card(card.card_data, false)
 			_recycle_card_to_supply(card, color)
+			_log_effect("recycled & tucked %s facedown, gained 1 %s" % [rt_name, CardData.color_name(color)])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
-				$Board.draw_cards(int(_effect_slot.tucked_cards.size()) if _effect_slot else 0)
+				var tucked_count: int = int(_effect_slot.tucked_cards.size()) if _effect_slot else 0
+				$Board.draw_cards(tucked_count)
+				_log_effect("drew %d card(s)" % tucked_count)
 				_finish_interactive_step()
 			else:
 				_show_hand_popup("Recycle & tuck %d more card(s) facedown" % _effect_remaining, false)
 
 		EffectMode.EFFECT_RECYCLE_DOUBLE:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
+			var rd_name: String = card.card_data.card_name if card.card_data else "a card"
 			_cs_display.add_supply(color, 2)
 			_apply_recycle_bonus(color)
 			$Board.add_to_discard(card.card_data)
 			_recycle_card_to_supply(card, color)
+			_log_effect("recycled %s, gained 2 %s" % [rd_name, CardData.color_name(color)])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				_finish_interactive_step()
@@ -1374,6 +1398,7 @@ func _on_multiselect_confirmed(indices: Array[int]) -> void:
 			_apply_recycle_tuck_store_multiselect(indices)
 
 func _apply_seedbanks(indices: Array[int]) -> void:
+	var count: int = 0
 	for i: int in indices:
 		if i >= _pending_recycle_cards.size():
 			continue
@@ -1382,7 +1407,10 @@ func _apply_seedbanks(indices: Array[int]) -> void:
 		if _effect_slot:
 			_effect_slot.add_stored_supply(color, 1)
 		$Hand.remove_card_fly_out(card)
+		count += 1
 	_pending_recycle_cards = []
+	if count > 0:
+		_log_effect("recycled %d card(s), stored their supplies on the sector" % count)
 	_finish_interactive_step()
 
 func _apply_recycle_optional_multiselect(indices: Array[int]) -> void:
@@ -1400,6 +1428,7 @@ func _apply_recycle_optional_multiselect(indices: Array[int]) -> void:
 	_pending_recycle_cards = []
 	if count > 0:
 		$Board.draw_cards(count)
+		_log_effect("recycled %d card(s), drew %d" % [count, count])
 	_finish_interactive_step()
 
 func _apply_tuck_optional_multiselect(indices: Array[int]) -> void:
@@ -1413,8 +1442,12 @@ func _apply_tuck_optional_multiselect(indices: Array[int]) -> void:
 		$Hand.remove_card_fly_out(card)
 		count += 1
 	_pending_recycle_cards = []
-	if count > 0 and not _restrict_picks_to_drawn:
+	if count > 0:
+		if not _restrict_picks_to_drawn:
 			$Board.draw_cards(count)
+			_log_effect("tucked %d card(s), drew %d" % [count, count])
+		else:
+			_log_effect("tucked %d card(s)" % count)
 	_finish_interactive_step()
 
 func _apply_recycle_tuck_multiselect(indices: Array[int]) -> void:
@@ -1432,7 +1465,8 @@ func _apply_recycle_tuck_multiselect(indices: Array[int]) -> void:
 		count += 1
 	_pending_recycle_cards = []
 	if count > 0:
-			$Board.draw_cards(count)
+		$Board.draw_cards(count)
+		_log_effect("recycled & tucked %d card(s) facedown, drew %d" % [count, count])
 	_finish_interactive_step()
 
 func _apply_recycle_tuck_store_multiselect(indices: Array[int]) -> void:
@@ -1450,6 +1484,7 @@ func _apply_recycle_tuck_store_multiselect(indices: Array[int]) -> void:
 
 func _apply_recycle_tuck_store_decision(store_on_sector: bool) -> void:
 	var target: SectorSlot = _pending_target_slot if _pending_target_slot else _effect_slot
+	var count: int = _pending_store_nodes.size()
 	for card: Node3D in _pending_store_nodes:
 		var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
 		var screen_pos: Vector2 = $Camera3D.unproject_position(card.global_position)
@@ -1463,6 +1498,9 @@ func _apply_recycle_tuck_store_decision(store_on_sector: bool) -> void:
 			target.add_tucked_card(card.card_data, false)
 		$Hand.remove_card_fly_out(card)
 	_pending_store_nodes = []
+	if count > 0:
+		var dest_str: String = "stored their supply on the sector" if store_on_sector else "gained their supply as currency"
+		_log_effect("recycled & tucked %d card(s) facedown, %s" % [count, dest_str])
 	_finish_interactive_step()
 
 func _on_caldera_sector_chosen(index: int) -> void:
@@ -1490,6 +1528,7 @@ func _apply_caldera_recycle(indices: Array[int]) -> void:
 		_pending_recycle_cards = []
 		_finish_interactive_step()
 		return
+	var count: int = 0
 	for i: int in indices:
 		if i >= _pending_recycle_cards.size():
 			continue
@@ -1499,10 +1538,13 @@ func _apply_caldera_recycle(indices: Array[int]) -> void:
 			_pending_target_slot.add_stored_supply(cd.color, 1)
 		_pending_target_slot.remove_tech_card(card)
 		card.queue_free()
+		count += 1
 	_pending_recycle_cards = []
 	_pending_target_slot.compact_tech_cards()
 	_pending_target_slot.refresh_display()
 	_pending_target_slot = null
+	if count > 0:
+		_log_effect("recycled %d card(s) on the chosen sector, stored their supplies" % count)
 	_finish_interactive_step()
 
 func _on_choice_skipped() -> void:
@@ -1534,6 +1576,7 @@ func _on_sector_info_requested(slot: SectorSlot) -> void:
 			if slot.occupied:
 				_sector_picker.hide()
 				slot.add_stored_supply(_pending_store_color, _pending_store_amount)
+				_log_effect("stored %d %s on the chosen sector" % [_pending_store_amount, CardData.color_name(_pending_store_color)])
 				_finish_interactive_step()
 		EffectMode.EFFECT_RECYCLE_TUCK_STORE_SECTOR:
 			if slot.occupied:
@@ -1549,6 +1592,8 @@ func _on_sector_info_requested(slot: SectorSlot) -> void:
 				_sector_picker.hide()
 				if _pending_tuck_card_data:
 					slot.add_tucked_card(_pending_tuck_card_data, _effect_face_up)
+					var face_str_any_log: String = "faceup" if _effect_face_up else "facedown"
+					_log_effect("tucked %s %s on the chosen sector" % [_pending_tuck_card_data.card_name, face_str_any_log])
 				_pending_tuck_card_data = null
 				$Board.set_cargo_click_mode(false)
 				_hide_effect_hint()
@@ -1596,6 +1641,16 @@ func _apply_cargo_move(dest: SectorSlot) -> void:
 			dest.tucked_cards.append(entry)
 	_cargo_source_slot.refresh_display()
 	dest.refresh_display()
+	var moved_supply_parts: Array[String] = []
+	for color: int in _cargo_pending_supplies:
+		moved_supply_parts.append("%d %s" % [_cargo_pending_supplies[color], CardData.color_name(color as CardData.SupplyColor)])
+	var move_desc: String = ", ".join(moved_supply_parts) if not moved_supply_parts.is_empty() else ""
+	if not move_desc.is_empty() and sorted_tucked.size() > 0:
+		_log_effect("moved %s and %d tucked card(s) between sectors" % [move_desc, sorted_tucked.size()])
+	elif not move_desc.is_empty():
+		_log_effect("moved %s between sectors" % move_desc)
+	elif sorted_tucked.size() > 0:
+		_log_effect("moved %d tucked card(s) between sectors" % sorted_tucked.size())
 	_cargo_source_slot = null
 	_cargo_pending_supplies = {}
 	_cargo_pending_tucked = []
@@ -1611,12 +1666,18 @@ func _on_sector_revealed(card_data: CardData, slot_idx: int) -> void:
 	_hide_effect_hint()
 	_effect_mode = EffectMode.NONE
 	$Board.set_sector_reveal_mode(false)
+	var reveal_name: String = card_data.card_name if card_data else "a card"
+	var reveal_outcome_parts: Array[String] = ["revealed %s" % reveal_name]
 	if _pending_reveal_gain_supply and card_data:
 		_cs_display.add_supply(card_data.adv_color, 1)
+		reveal_outcome_parts.append("gained 1 %s" % CardData.color_name(card_data.adv_color))
 	if _pending_reveal_may_bid and card_data:
 		_reveal_bid_pool.append(card_data)
+		reveal_outcome_parts.append("added it to the bid pool")
 	if _pending_reveal_may_free_gain and card_data:
 		_reveal_free_pool.append(card_data)
+		reveal_outcome_parts.append("added it to the free-gain pool")
+	_log_effect(", ".join(reveal_outcome_parts))
 	_pending_reveal_gain_supply = false
 	_pending_reveal_may_bid = false
 	_pending_reveal_may_free_gain = false
@@ -1686,6 +1747,7 @@ func _process_next_effect() -> void:
 	_execute_effect_step(step)
 
 func _execute_effect_step(step: Dictionary) -> void:
+	_effect_source_name = str(step.get("_source_name", "Effect"))
 	match step.get("type", ""):
 
 		"draw":
@@ -1693,19 +1755,35 @@ func _execute_effect_step(step: Dictionary) -> void:
 			$Board.draw_cards(int(step.get("count", 0)))
 			var _after: Array[Node3D] = $Hand.get_cards()
 			_last_drawn_cards = _after.filter(func(c: Node3D) -> bool: return not _before.has(c))
+			_log_effect("drew %d card(s)" % _last_drawn_cards.size())
 			_process_next_effect()
 
 		"draw_recycle_top":
+			var recycled_color: Variant = null
+			var capture_color: Callable = func(c: CardData.SupplyColor) -> void: recycled_color = c
+			$Board.card_recycled.connect(capture_color, CONNECT_ONE_SHOT)
 			$Board.draw_and_recycle_top()
+			if $Board.card_recycled.is_connected(capture_color):
+				$Board.card_recycled.disconnect(capture_color)
+			if recycled_color != null:
+				_log_effect("drew and recycled the top card, gained 1 %s" % CardData.color_name(recycled_color as CardData.SupplyColor))
+			else:
+				_log_effect("drew and recycled the top card")
 			_process_next_effect()
 
 		"gain_supply":
-			_cs_display.add_supply(step["color"] as CardData.SupplyColor, int(step.get("amount", 0)))
+			var gs_color: CardData.SupplyColor = step["color"] as CardData.SupplyColor
+			var gs_amount: int = int(step.get("amount", 0))
+			_cs_display.add_supply(gs_color, gs_amount)
+			_log_effect("gained %d %s" % [gs_amount, CardData.color_name(gs_color)])
 			_process_next_effect()
 
 		"store_on_slot":
 			if _effect_slot:
-				_effect_slot.add_stored_supply(step["color"] as CardData.SupplyColor, int(step.get("amount", 0)))
+				var ss_color: CardData.SupplyColor = step["color"] as CardData.SupplyColor
+				var ss_amount: int = int(step.get("amount", 0))
+				_effect_slot.add_stored_supply(ss_color, ss_amount)
+				_log_effect("stored %d %s on the sector" % [ss_amount, CardData.color_name(ss_color)])
 			_process_next_effect()
 
 		"store_on_any_sector":
@@ -1740,15 +1818,18 @@ func _execute_effect_step(step: Dictionary) -> void:
 			else:
 				count = $Board.get_sector_count()
 			_cs_display.add_supply(color, count)
+			_log_effect("gained %d %s" % [count, CardData.color_name(color)])
 			_process_next_effect()
 
 		"fuse_notice":
 			var count: int = int(step.get("count", 0))
 			_cs_display.add_fuse_1to1(count)
+			_log_effect("granted %d fuse action(s)" % count)
 			_process_next_effect()
 
 		"fuse_dust_1to1":
 			_cs_display.set_dust_fuse_1to1(true)
+			_log_effect("granted a Dust fuse action")
 			_process_next_effect()
 
 		"recycle":
@@ -2297,10 +2378,14 @@ func _execute_expedition_reveal(slot_idx: int) -> void:
 	$Board.set_expedition_reveal_mode(false)
 	_hide_effect_hint()
 	var revealed: CardData = $Board.reveal_expedition_to_slot(slot_idx)
+	var exp_reveal_parts: Array[String] = ["revealed %s" % (revealed.card_name if revealed else "a card")]
 	if _pending_expedition_reveal_gain_supply and revealed:
 		_cs_display.add_supply(revealed.color, 1)
+		exp_reveal_parts.append("gained 1 %s" % CardData.color_name(revealed.color))
 	if _pending_expedition_reveal_may_bid and revealed:
 		_reveal_bid_pool.append(revealed)
+		exp_reveal_parts.append("added it to the bid pool")
+	_log_effect(", ".join(exp_reveal_parts))
 	_pending_expedition_reveal_gain_supply = false
 	_pending_expedition_reveal_may_bid = false
 	if GameNetwork.is_multiplayer:
@@ -2379,8 +2464,10 @@ func _finish_expedition_shuffle() -> void:
 	_effect_remaining = 0
 	_hide_effect_hint()
 	_effect_done_btn.hide()
+	if _shuffle_count > 0:
+		_log_effect("shuffled %d expedition(s) back into the deck" % _shuffle_count)
 	for _i: int in _shuffle_count:
-		_effect_queue.insert(0, {type = "reveal_expedition"})
+		_effect_queue.insert(0, {type = "reveal_expedition", _source_name = _effect_source_name})
 	_shuffle_count = 0
 	_process_next_effect()
 
