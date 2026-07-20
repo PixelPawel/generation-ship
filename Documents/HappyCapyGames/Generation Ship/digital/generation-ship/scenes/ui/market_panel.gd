@@ -5,6 +5,10 @@ signal sector_dust_pressed(slot_idx: int)
 signal expedition_pressed(slot_idx: int)
 signal opponent_pressed(peer_id: int)
 signal card_inspect_requested(slot_type: String, slot_idx: int)
+signal card_hover_started(slot_type: String, slot_idx: int)
+signal card_hover_ended
+signal opponent_hover_started(player_name: String)
+signal opponent_hover_ended
 
 const CARD_W: int = 112
 const CARD_H: int = 104
@@ -188,8 +192,14 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 			opponent_pressed.emit(pid)
 		entry.accept_event()
 	)
-	entry.mouse_entered.connect(func() -> void: CursorManager.set_hover())
-	entry.mouse_exited.connect(func() -> void: CursorManager.set_default())
+	entry.mouse_entered.connect(func() -> void:
+		CursorManager.set_hover()
+		opponent_hover_started.emit(player_name)
+	)
+	entry.mouse_exited.connect(func() -> void:
+		CursorManager.set_default()
+		opponent_hover_ended.emit()
+	)
 
 	_opp_refs[peer_id] = {
 		"status_lbl": slot["status_lbl"],
@@ -274,9 +284,11 @@ func _build_ui() -> void:
 		)
 		slot.mouse_entered.connect(func() -> void:
 			CursorManager.set_hover()
+			card_hover_started.emit("dust", idx)
 		)
 		slot.mouse_exited.connect(func() -> void:
 			CursorManager.set_default()
+			card_hover_ended.emit()
 		)
 		basic_vbox.add_child(slot)
 		_dust_slots.append(slot)
@@ -309,9 +321,11 @@ func _build_ui() -> void:
 		)
 		slot.mouse_entered.connect(func() -> void:
 			CursorManager.set_hover()
+			card_hover_started.emit("advanced", idx)
 		)
 		slot.mouse_exited.connect(func() -> void:
 			CursorManager.set_default()
+			card_hover_ended.emit()
 		)
 		adv_vbox.add_child(slot)
 		_adv_slots.append(slot)
@@ -346,9 +360,11 @@ func _build_ui() -> void:
 		)
 		slot.mouse_entered.connect(func() -> void:
 			CursorManager.set_hover()
+			card_hover_started.emit("expedition", idx)
 		)
 		slot.mouse_exited.connect(func() -> void:
 			CursorManager.set_default()
+			card_hover_ended.emit()
 		)
 		exp_vbox.add_child(slot)
 		_exp_slots.append(slot)

@@ -86,6 +86,9 @@ static func build_opponent_widget(main: Main) -> void:
 				show_opponent_board(main, pid)
 			entry.accept_event()
 		)
+		var opp_name: String = GameNetwork.player_names.get(pid, "Player")
+		entry.mouse_entered.connect(func() -> void: main._show_tooltip("", "Click to view %s's board." % opp_name))
+		entry.mouse_exited.connect(func() -> void: main._hide_tooltip())
 		outer_vbox.add_child(entry)
 
 		var entry_vbox: VBoxContainer = VBoxContainer.new()

@@ -27,6 +27,8 @@ static func setup_control_screen_display(main: Main) -> void:
 
 	main._cs_display.supply_changed.connect(main._on_supply_changed)
 	main._cs_display.fuse_1to1_changed.connect(main._try_auto_end_turn)
+	main._cs_display.icon_hovered.connect(main._on_supply_icon_hovered)
+	main._cs_display.icon_unhovered.connect(main._hide_tooltip)
 
 	var screen_mesh: MeshInstance3D = ui_control.find_child("gs_ui_control_screen", true, false) as MeshInstance3D
 	if screen_mesh:
@@ -239,6 +241,10 @@ static func setup_info_screen_display(main: Main) -> void:
 	main._market_panel.expedition_pressed.connect(main._on_market_expedition_pressed)
 	main._market_panel.opponent_pressed.connect(func(peer_id: int) -> void: OpponentBoardView.show_opponent_board(main, peer_id))
 	main._market_panel.card_inspect_requested.connect(main._on_market_card_inspect_requested)
+	main._market_panel.card_hover_started.connect(main._on_market_card_hover_started)
+	main._market_panel.card_hover_ended.connect(main._hide_tooltip)
+	main._market_panel.opponent_hover_started.connect(func(player_name: String) -> void: main._show_tooltip("", "Click to view %s's board." % player_name))
+	main._market_panel.opponent_hover_ended.connect(main._hide_tooltip)
 
 	var screen_mesh: MeshInstance3D = main.get_node("UiInfo").find_child("gs_ui_info_screen", true, false) as MeshInstance3D
 	if screen_mesh:

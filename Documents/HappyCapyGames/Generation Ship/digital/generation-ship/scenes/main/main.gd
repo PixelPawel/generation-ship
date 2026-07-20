@@ -2387,6 +2387,37 @@ func _on_market_card_inspect_requested(slot_type: String, slot_idx: int) -> void
 	var screen_center: Vector3 = CockpitRig.viewport_to_world(self, Vector2(_info_viewport.size) * 0.5)
 	$Board.inspect_market_card(slot_type, slot_idx, origin, screen_center)
 
+func _on_market_card_hover_started(slot_type: String, slot_idx: int) -> void:
+	var cd: CardData = null
+	var is_adv: bool = false
+	match slot_type:
+		"dust":
+			cd = $Board.get_market().get_dust_card_data(slot_idx)
+		"advanced":
+			cd = $Board.get_market().get_advanced_card_data(slot_idx)
+			is_adv = true
+		"expedition":
+			cd = $Board.get_expedition_market().get_card_data(slot_idx)
+	if not cd:
+		return
+	var card_name: String = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
+	var cost: int = CardData.effective_cost(cd, is_adv)
+	var cost_color: CardData.SupplyColor = cd.adv_color if is_adv else cd.color
+	var effect: String = cd.adv_effect_text if is_adv and not cd.adv_effect_text.is_empty() else cd.effect_text
+	_show_tooltip("%s — %d %s" % [card_name, cost, CardData.color_name(cost_color)], effect)
+
+func _on_supply_icon_hovered(color: int) -> void:
+	var supply_color: CardData.SupplyColor = color as CardData.SupplyColor
+	var count: int = _cs_display.get_supply(supply_color)
+	var desc: String = "You have %d." % count
+	var fuses_into: Array = SupplyUI.FUSE_MAP.get(color, [])
+	if not fuses_into.is_empty():
+		var dest_names: Array[String] = []
+		for dst: int in fuses_into:
+			dest_names.append(CardData.color_name(dst as CardData.SupplyColor))
+		desc += " Fuses into %s." % ", ".join(dest_names)
+	_show_tooltip(CardData.color_name(supply_color), desc)
+
 func _execute_expedition_reveal(slot_idx: int) -> void:
 	_effect_mode = EffectMode.NONE
 	$Board.set_expedition_reveal_mode(false)

@@ -1,6 +1,8 @@
 extends Control
 
 signal fuse_clicked(src: int, dst: int)
+signal icon_hovered(color: int)
+signal icon_unhovered
 
 const ICON_SZ    := 52.0
 const ICON_HALF  := ICON_SZ * 0.5
@@ -19,6 +21,7 @@ var _pos: Dictionary = {}     # int (SupplyColor) -> Vector2 centre
 var _arrows: Array = []       # Array[Dictionary] { src, dst, hovered, disabled }
 var _labels: Dictionary = {}  # int -> Label
 var _time: float = 0.0
+var _hovered_icon: int = -1
 
 func setup(positions: Dictionary, fuse_map: Dictionary, icon_textures: Dictionary) -> void:
 	_pos = positions
@@ -27,6 +30,12 @@ func setup(positions: Dictionary, fuse_map: Dictionary, icon_textures: Dictionar
 			_arrows.append({ "src": src, "dst": dst, "hovered": false, "disabled": true, "is_1to1": false })
 	_build_icons(icon_textures)
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_exited.connect(_on_mouse_exited)
+
+func _on_mouse_exited() -> void:
+	if _hovered_icon != -1:
+		_hovered_icon = -1
+		icon_unhovered.emit()
 
 func _build_icons(icon_textures: Dictionary) -> void:
 	for color: int in _pos:
@@ -161,6 +170,18 @@ func _gui_input(event: InputEvent) -> void:
 				any_hovered = true
 				break
 		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if any_hovered else Control.CURSOR_ARROW
+
+		var new_hovered_icon: int = -1
+		for color: int in _pos:
+			if event.position.distance_to(_pos[color]) < ICON_HALF:
+				new_hovered_icon = color
+				break
+		if new_hovered_icon != _hovered_icon:
+			_hovered_icon = new_hovered_icon
+			if _hovered_icon != -1:
+				icon_hovered.emit(_hovered_icon)
+			else:
+				icon_unhovered.emit()
 
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		for arrow: Dictionary in _arrows:
