@@ -607,6 +607,7 @@ func _update_turn_ui(show_banner: bool = true) -> void:
 	_set_action_buttons_disabled(not my_turn)
 
 func _show_your_turn_banner() -> void:
+	UIAudio.play_shift_change_sfx()
 	var lbl: Label = _make_banner_label("Your Turn", 56, Color(0.45, 1.0, 0.55))
 	var t: Tween = create_tween()
 	t.tween_property(lbl, "modulate:a", 1.0, 0.22).set_ease(Tween.EASE_OUT)

@@ -4,6 +4,7 @@ var _fuse_player: AudioStreamPlayer = null
 var _gavel_player: AudioStreamPlayer = null
 var _recycle_player: AudioStreamPlayer = null
 var _auction_player: AudioStreamPlayer = null
+var _shift_change_player: AudioStreamPlayer = null
 var _supply_players: Dictionary = {}
 
 func _ready() -> void:
@@ -34,6 +35,13 @@ func _ready() -> void:
 		_auction_player.stream = auction_stream
 		_auction_player.bus = &"Music"
 		add_child(_auction_player)
+
+	var shift_change_stream: AudioStream = load("res://assets/effects/computery-shift-change.wav") as AudioStream
+	if shift_change_stream:
+		_shift_change_player = AudioStreamPlayer.new()
+		_shift_change_player.stream = shift_change_stream
+		_shift_change_player.bus = &"SFX"
+		add_child(_shift_change_player)
 
 	var supply_files: Dictionary = {
 		CardData.SupplyColor.DUST:     "res://assets/effects/dust.wav",
@@ -76,6 +84,11 @@ func stop_auction_music() -> void:
 	if not _auction_player:
 		return
 	_auction_player.stop()
+
+func play_shift_change_sfx() -> void:
+	if not _shift_change_player:
+		return
+	_shift_change_player.play()
 
 func play_supply_sfx(color: CardData.SupplyColor) -> void:
 	var player: AudioStreamPlayer = _supply_players.get(color) as AudioStreamPlayer
