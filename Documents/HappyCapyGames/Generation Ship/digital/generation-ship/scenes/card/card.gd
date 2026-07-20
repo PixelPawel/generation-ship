@@ -165,14 +165,14 @@ func _elevate_target_local(from_world_pos: Vector3) -> Vector3:
 # under a node that's actually visible) so it appears to fly in from world_pos
 # and self-destructs once collapsed again, rather than returning to a "rest"
 # position that only makes sense for a card that's staying around.
-func enlarge_from(world_pos: Vector3) -> void:
+func enlarge_from(world_pos: Vector3, elev_scale: Vector3 = Vector3.ONE * PLACED_LIFT_SCALE) -> void:
 	if _placed_elevated:
 		return
 	_destroy_on_collapse = true
 	global_position = world_pos
 	_elev_rest_pos = position
 	_elev_rest_scale = scale
-	toggle_elevation(_elevate_target_local(world_pos), Vector3.ONE * PLACED_LIFT_SCALE, 0.0)
+	toggle_elevation(_elevate_target_local(world_pos), elev_scale, 0.0)
 
 func toggle_elevation(elev_pos: Vector3, elev_scale: Vector3, grace_sec: float) -> void:
 	if _placed_elevated:

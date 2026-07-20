@@ -255,7 +255,18 @@ func inspect_market_card(slot_type: String, slot_idx: int, world_pos: Vector3) -
 	clone.set_card_data(source_card.card_data)
 	clone.rotation = _MARKET_CARD_ROTATION
 	clone.can_drag = false
-	clone.enlarge_from(world_pos)
+	clone.enlarge_from(world_pos, Vector3.ONE * Card.PLACED_LIFT_SCALE * _placed_card_enlarge_scale())
+
+# Placed cards are children of a SectorSlot, which carries a ~0.15x scale
+# baked into its transform (see SectorSlot1-6 in main.tscn) — that's what
+# actually keeps an enlarged placed card at a sane size. The inspect clone is
+# parented directly under Board (no such reduction), so its enlarge target
+# needs the same factor multiplied in explicitly to end up the same size.
+func _placed_card_enlarge_scale() -> float:
+	if _sector_row.get_child_count() == 0:
+		return 1.0
+	var reference_slot: Node3D = _sector_row.get_child(0) as Node3D
+	return reference_slot.global_transform.basis.get_scale().x
 
 func reveal_sector_panel_slot(slot_idx: int) -> void:
 	_market.reveal_slot_panel(slot_idx)
