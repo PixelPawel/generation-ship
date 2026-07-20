@@ -288,7 +288,7 @@ func _shake_camera() -> void:
 func _on_hover_enter() -> void:
 	CursorManager.set_hover()
 	hovered.emit(self)
-	if is_placed:
+	if is_placed or _destroy_on_collapse:
 		return
 	if not managed_by_hand and not is_dragging:
 		_kill_tween()
@@ -299,7 +299,7 @@ func _on_hover_exit() -> void:
 	CursorManager.set_default()
 	if not is_dragging:
 		unhovered.emit(self)
-	if is_placed:
+	if is_placed or _destroy_on_collapse:
 		return
 	_kill_tween()
 	if not managed_by_hand and not is_dragging:
