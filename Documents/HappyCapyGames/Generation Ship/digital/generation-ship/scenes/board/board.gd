@@ -245,7 +245,7 @@ func begin_panel_expedition_drag(slot_idx: int) -> void:
 # disposable clone parented directly under Board (which is visible) with the
 # same data/art, and enlarge that; it self-destructs on collapse via
 # Card.enlarge_from's _destroy_on_collapse flag. The real card never moves.
-func inspect_market_card(slot_type: String, slot_idx: int, world_pos: Vector3) -> void:
+func inspect_market_card(slot_type: String, slot_idx: int, world_pos: Vector3, screen_center: Vector3) -> void:
 	if _inspecting_card and is_instance_valid(_inspecting_card):
 		return
 	var source_card: Node3D
@@ -264,18 +264,15 @@ func inspect_market_card(slot_type: String, slot_idx: int, world_pos: Vector3) -
 	clone.set_card_data(source_card.card_data)
 	clone.rotation = _MARKET_CARD_ROTATION
 	clone.can_drag = false
-	var target: Vector3 = world_pos
+	# The card emerges from wherever was actually clicked (world_pos), but
+	# settles into a consistent reading spot centered in front of the screen
+	# as a whole (screen_center) rather than centered on the camera's own
+	# view axis, which wouldn't necessarily line up with the screen itself.
+	var target: Vector3 = screen_center
 	var vanish: Vector3 = world_pos
 	var cam: Camera3D = get_viewport().get_camera_3d()
 	if cam:
-		# Pull toward the camera along its own forward ray (not straight-line
-		# toward its exact eye position) so the card stays centered in view as
-		# it grows, instead of drifting toward whichever edge the eye point
-		# happens to be offset to.
-		var cam_forward: Vector3 = -cam.global_transform.basis.z.normalized()
-		var depth: float = (world_pos - cam.global_position).dot(cam_forward)
-		var ray_point: Vector3 = cam.global_position + cam_forward * depth
-		target = ray_point.lerp(cam.global_position, INSPECT_CAMERA_PULL)
+		target = screen_center.lerp(cam.global_position, INSPECT_CAMERA_PULL)
 		var away_dir: Vector3 = (world_pos - cam.global_position).normalized()
 		var dist: float = cam.global_position.distance_to(world_pos)
 		vanish = world_pos + away_dir * (dist * INSPECT_VANISH_PULL)
