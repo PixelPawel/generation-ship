@@ -185,6 +185,8 @@ func return_card(card: Node3D) -> void:
 	if slot_idx < 0:
 		return
 	_stacks[slot_idx].append(card)
+	card.scale = Vector3.ONE
+	card.collider.monitoring = true
 	card.reparent(self, true)
 	_update_slot_visuals(slot_idx)
 	market_changed.emit()

@@ -190,6 +190,8 @@ func return_card(card: Node3D) -> void:
 	var slot_idx: int = card.get_meta("market_slot", -1)
 	if slot_idx < 0:
 		return
+	card.scale = Vector3.ONE
+	card.collider.monitoring = true
 	card.reparent(self, true)
 	if card.is_advanced:
 		_advanced_stacks[slot_idx].append(card)
