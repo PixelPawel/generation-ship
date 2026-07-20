@@ -132,9 +132,6 @@ var log_canvas: Control = null
 var _log_vbox: VBoxContainer = null
 var _log_scroll: ScrollContainer = null
 var _log_font: FontVariation = null
-var _log_preview_panel: Control = null
-var _log_preview_image: TextureRect = null
-var _log_preview_pending_hide: bool = false
 var _log_tooltip_panel: Control = null
 var _log_tooltip_title: Label = null
 var _log_tooltip_desc: Label = null
@@ -2267,39 +2264,6 @@ func _on_market_card_drag_failed(_card: Node3D) -> void:
 	if _bid_is_from_effect:
 		_bid_is_from_effect = false
 		_process_next_effect()
-
-func _on_market_card_hovered(url: String, card_scale: float) -> void:
-	if not _log_preview_panel:
-		return
-	_log_preview_pending_hide = false
-	var tex: Texture2D = ImageCache.get_texture(url) if not url.is_empty() else null
-	_log_preview_image.texture = tex
-	if tex == null:
-		_log_preview_panel.visible = false
-		return
-	var img: Vector2i = tex.get_size()
-	var pad: float = 6.0
-	var lx: float = 408.0
-	var ly: float = lx * float(img.y) / float(img.x)
-	if card_scale > 1.0:  # expedition slot
-		lx *= 0.65
-		ly *= 0.95
-	else:  # sector
-		ly *= 1.5
-	_log_preview_panel.size     = Vector2(lx + 2.0 * pad, ly + 2.0 * pad)
-	_log_preview_panel.position = Vector2((408.0 - lx - 2.0 * pad) / 2.0, (686.0 - ly - 2.0 * pad) / 2.0)
-	_log_preview_image.size     = Vector2(lx, ly)
-	_log_preview_image.position = Vector2(pad, pad)
-	_log_preview_panel.visible = true
-
-func _on_market_card_unhovered() -> void:
-	if not _log_preview_panel:
-		return
-	_log_preview_pending_hide = true
-	get_tree().create_timer(0.08).timeout.connect(func() -> void:
-		if _log_preview_pending_hide:
-			_log_preview_panel.visible = false
-	)
 
 func _on_market_sector_advanced_pressed(slot_idx: int) -> void:
 	if _effect_mode != EffectMode.NONE:

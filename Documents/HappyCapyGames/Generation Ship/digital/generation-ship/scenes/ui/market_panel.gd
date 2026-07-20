@@ -4,8 +4,6 @@ signal sector_advanced_pressed(slot_idx: int)
 signal sector_dust_pressed(slot_idx: int)
 signal expedition_pressed(slot_idx: int)
 signal opponent_pressed(peer_id: int)
-signal card_hovered(url: String, scale: float)
-signal card_unhovered()
 signal card_inspect_requested(slot_type: String, slot_idx: int)
 
 const CARD_W: int = 112
@@ -276,13 +274,9 @@ func _build_ui() -> void:
 		)
 		slot.mouse_entered.connect(func() -> void:
 			CursorManager.set_hover()
-			var hcd: CardData = _sector_market.get_dust_card_data(idx) if _sector_market else null
-			if hcd and not hcd.image_url.is_empty():
-				card_hovered.emit(hcd.image_url, 1.0)
 		)
 		slot.mouse_exited.connect(func() -> void:
 			CursorManager.set_default()
-			card_unhovered.emit()
 		)
 		basic_vbox.add_child(slot)
 		_dust_slots.append(slot)
@@ -315,15 +309,9 @@ func _build_ui() -> void:
 		)
 		slot.mouse_entered.connect(func() -> void:
 			CursorManager.set_hover()
-			var hcd: CardData = _sector_market.get_advanced_card_data(idx) if _sector_market else null
-			if hcd:
-				var hurl: String = hcd.adv_image_url if not hcd.adv_image_url.is_empty() else hcd.image_url
-				if not hurl.is_empty():
-					card_hovered.emit(hurl, 1.0)
 		)
 		slot.mouse_exited.connect(func() -> void:
 			CursorManager.set_default()
-			card_unhovered.emit()
 		)
 		adv_vbox.add_child(slot)
 		_adv_slots.append(slot)
@@ -358,13 +346,9 @@ func _build_ui() -> void:
 		)
 		slot.mouse_entered.connect(func() -> void:
 			CursorManager.set_hover()
-			var hcd: CardData = _expedition_market.get_card_data(idx) if _expedition_market else null
-			if hcd and not hcd.image_url.is_empty():
-				card_hovered.emit(hcd.image_url, 1.4)
 		)
 		slot.mouse_exited.connect(func() -> void:
 			CursorManager.set_default()
-			card_unhovered.emit()
 		)
 		exp_vbox.add_child(slot)
 		_exp_slots.append(slot)

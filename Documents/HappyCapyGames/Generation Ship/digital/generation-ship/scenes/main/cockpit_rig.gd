@@ -238,8 +238,6 @@ static func setup_info_screen_display(main: Main) -> void:
 	main._market_panel.sector_dust_pressed.connect(main._on_market_sector_dust_pressed)
 	main._market_panel.expedition_pressed.connect(main._on_market_expedition_pressed)
 	main._market_panel.opponent_pressed.connect(func(peer_id: int) -> void: OpponentBoardView.show_opponent_board(main, peer_id))
-	main._market_panel.card_hovered.connect(main._on_market_card_hovered)
-	main._market_panel.card_unhovered.connect(main._on_market_card_unhovered)
 	main._market_panel.card_inspect_requested.connect(main._on_market_card_inspect_requested)
 
 	var screen_mesh: MeshInstance3D = main.get_node("UiInfo").find_child("gs_ui_info_screen", true, false) as MeshInstance3D
@@ -420,33 +418,6 @@ static func setup_log_screen_display(main: Main) -> void:
 		mat.set_shader_parameter("bloom_threshold", 0.7)
 		screen_mesh.set_surface_override_material(0, mat)
 		setup_viewport_input(main, screen_mesh, main.log_viewport)
-
-	# Preview panel – hidden until hover. Size is set in _on_market_card_hovered.
-	var preview_wrap: Control = Control.new()
-	preview_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	preview_wrap.visible = false
-	main.log_canvas.add_child(preview_wrap)
-	main._log_preview_panel = preview_wrap
-
-	var pp: PanelContainer = PanelContainer.new()
-	var preview_style: StyleBoxFlat = StyleBoxFlat.new()
-	preview_style.bg_color = Color(0.04, 0.04, 0.09, 0.97)
-	preview_style.border_color = Color(0.3, 0.55, 0.85, 0.55)
-	preview_style.set_border_width_all(1)
-	preview_style.set_corner_radius_all(6)
-	pp.add_theme_stylebox_override("panel", preview_style)
-	pp.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	preview_wrap.add_child(pp)
-	pp.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-
-	main._log_preview_image = TextureRect.new()
-	main._log_preview_image.stretch_mode = TextureRect.STRETCH_SCALE
-	main._log_preview_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	main._log_preview_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var preview_mat: ShaderMaterial = ShaderMaterial.new()
-	preview_mat.shader = load("res://shaders/card_rounded.gdshader")
-	main._log_preview_image.material = preview_mat
-	preview_wrap.add_child(main._log_preview_image)
 
 	var lt_panel: PanelContainer = PanelContainer.new()
 	lt_panel.visible = false
