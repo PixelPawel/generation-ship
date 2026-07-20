@@ -284,7 +284,9 @@ func _on_any_card_hovered(card_node: Node3D) -> void:
 	if not card:
 		return
 	var desc: String = ""
-	if card.is_placed:
+	if card.is_market_inspecting():
+		desc = "Right-click to shrink."
+	elif card.is_placed:
 		desc = "Right-click to shrink card." if card.is_elevated() else "Right-click to enlarge card."
 	elif card.managed_by_hand:
 		desc = "Left-click and drag onto sector to buy or Right-click to Recycle."
@@ -2404,7 +2406,12 @@ func _on_market_card_hover_started(slot_type: String, slot_idx: int) -> void:
 	var cost: int = CardData.effective_cost(cd, is_adv)
 	var cost_color: CardData.SupplyColor = cd.adv_color if is_adv else cd.color
 	var effect: String = cd.adv_effect_text if is_adv and not cd.adv_effect_text.is_empty() else cd.effect_text
-	_show_tooltip("%s — %d %s" % [card_name, cost, CardData.color_name(cost_color)], effect)
+	var desc_parts: Array[String] = []
+	if not effect.is_empty():
+		desc_parts.append(effect)
+	desc_parts.append("Left-click to buy.")
+	desc_parts.append("Right-click to enlarge.")
+	_show_tooltip("%s — %d %s" % [card_name, cost, CardData.color_name(cost_color)], "\n".join(desc_parts))
 
 func _on_supply_icon_hovered(color: int) -> void:
 	var supply_color: CardData.SupplyColor = color as CardData.SupplyColor

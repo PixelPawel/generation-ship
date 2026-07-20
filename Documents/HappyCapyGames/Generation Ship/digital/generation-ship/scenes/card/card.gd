@@ -239,6 +239,12 @@ func collapse_if_elevated() -> void:
 func is_elevated() -> bool:
 	return _placed_elevated
 
+# True while this card is showing as a market-inspect enlargement (right-click
+# from the market screen) rather than a normal placed-card elevation — see
+# enlarge_from(), which is the only place _destroy_on_collapse gets set.
+func is_market_inspecting() -> bool:
+	return _destroy_on_collapse
+
 func set_face_down(back_path: String) -> void:
 	can_drag = false
 	collider.input_ray_pickable = false
