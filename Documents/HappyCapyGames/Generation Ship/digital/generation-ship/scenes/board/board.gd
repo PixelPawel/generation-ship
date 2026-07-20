@@ -55,7 +55,7 @@ var _pending_pay_amounts: Dictionary = {}
 var _pending_drag_origin: DragOrigin = DragOrigin.NONE
 var _pending_cost: int = 0
 var _is_free_gain: bool = false
-var _is_auction_win: bool = false
+var _is_prepaid_placement: bool = false
 var _pending_dynamic_slot: SectorSlot = null
 var _drag_arrow: DragArrow = null
 var _is_arrow_drag: bool = false
@@ -211,7 +211,7 @@ func get_market() -> Node3D:
 func get_expedition_market() -> Node3D:
 	return _expedition_market
 
-func begin_panel_sector_drag(slot_idx: int, is_advanced: bool) -> void:
+func begin_panel_sector_purchase(slot_idx: int, is_advanced: bool) -> void:
 	if not GameNetwork.is_my_turn():
 		return
 	if _major_action_taken:
@@ -227,16 +227,28 @@ func begin_panel_sector_drag(slot_idx: int, is_advanced: bool) -> void:
 		if not card:
 			return
 	_drag_origin = DragOrigin.MARKET
-	_begin_drag(card)
+	_begin_market_purchase(card, false)
 
-func begin_panel_expedition_drag(slot_idx: int) -> void:
+func begin_panel_expedition_purchase(slot_idx: int) -> void:
 	if not GameNetwork.is_my_turn() or _major_action_taken:
 		return
 	var card: Node3D = _expedition_market.detach_top_card(slot_idx)
 	if not card:
 		return
 	_drag_origin = DragOrigin.MARKET
-	_begin_drag(card)
+	_begin_market_purchase(card, true)
+
+# Left-click entry point for market-panel purchases. No destination slot is
+# known yet: bid/payment resolves first (slot=null throughout), and only once
+# that's settled does _begin_prepaid_drag() let the player drag the card onto
+# their board.
+func _begin_market_purchase(card: Node3D, is_tech: bool) -> void:
+	if _should_bid(card):
+		_start_bid(card, null, is_tech)
+		return
+	if not _resolve_card_payment(card, null, is_tech):
+		return
+	_begin_prepaid_drag(card)
 
 # The real market/deck nodes sit far offscreen and are hidden (see
 # SectorMarket/ExpeditionMarket in board.tscn) — moving the actual card would
@@ -543,6 +555,13 @@ func set_major_action_taken() -> void:
 func is_major_action_taken() -> bool:
 	return _major_action_taken
 
+# True whenever a card is following the mouse awaiting placement — including
+# the post-payment placement drag for a market purchase, where the card is
+# already paid for but not yet on the board. Used to keep the turn from
+# ending mid-placement.
+func is_card_drag_pending() -> bool:
+	return _dragged_card != null
+
 func _on_hand_card_drag_started(card: Node3D) -> void:
 	if not GameNetwork.is_my_turn() or _pending_card or _pending_recycle_card:
 		card.end_drag()
@@ -612,10 +631,28 @@ func _end_arrow_drag() -> void:
 		if ctype != CardData.CardType.SECTOR and ctype != CardData.CardType.EXPEDITION:
 			_dragged_card.visible = true
 
+# Re-arms the drag-arrow visual after a placement click that missed every
+# slot. Only used for prepaid (already-paid-for) market cards: money's
+# already spent and market_card_taken has already fired, so there's no
+# "cancel" here — only "keep dragging and try again."
+func _resume_prepaid_drag_arrow() -> void:
+	if _drag_arrow == null:
+		return
+	_is_arrow_drag = true
+	var cam: Camera3D = get_viewport().get_camera_3d()
+	if not cam:
+		return
+	var from_2d: Vector2 = cam.unproject_position(market_origin_3d)
+	var snap_slot: SectorSlot = _find_nearest_empty_sector_slot() if _is_sector_card() else _find_nearest_tech_slot()
+	if snap_slot == null:
+		snap_slot = _find_nearest_empty_sector_slot(INF)
+	var to_2d: Vector2 = cam.unproject_position(snap_slot.global_position) if snap_slot else get_viewport().get_mouse_position()
+	_drag_arrow.show_arrow(from_2d, to_2d)
+
 func _try_drop() -> void:
 	_end_arrow_drag()
 	_clear_slot_highlights()
-	if _is_near_discard_pile():
+	if not _is_prepaid_placement and _is_near_discard_pile():
 		_do_recycle()
 	elif _is_sector_card():
 		_try_drop_sector()
@@ -733,20 +770,24 @@ func _resolve_card_payment(placed: Node3D, slot: SectorSlot, is_tech: bool) -> b
 func _try_drop_sector() -> void:
 	var target_slot: SectorSlot = _find_nearest_empty_sector_slot()
 	if not target_slot:
+		if _is_prepaid_placement:
+			_resume_prepaid_drag_arrow()
+			return
 		_handle_failed_drop()
 		return
 	var placed: Node3D = _dragged_card
-	if _is_free_gain or _is_auction_win:
+	if _is_free_gain or _is_prepaid_placement:
 		_dragged_card = null
 		_drag_origin = DragOrigin.NONE
+		var was_free_gain: bool = _is_free_gain
 		if _is_free_gain:
 			_is_free_gain = false
 			action_committed.emit()
-		_is_auction_win = false
+		_is_prepaid_placement = false
 		target_slot.accept_card(placed)
 		placed.place()
 		card_placed.emit(placed, target_slot)
-		if placed.card_data:
+		if was_free_gain and placed.card_data:
 			market_card_taken.emit(placed.card_data)
 		return
 	_pending_dynamic_slot = null
@@ -771,13 +812,16 @@ func _try_drop_tech() -> void:
 		return
 	var best_sector: SectorSlot = _find_nearest_tech_slot()
 	if not best_sector:
+		if _is_prepaid_placement:
+			_resume_prepaid_drag_arrow()
+			return
 		_handle_failed_drop()
 		return
 	var placed: Node3D = _dragged_card
-	if _is_auction_win:
+	if _is_prepaid_placement:
 		_dragged_card = null
 		_drag_origin = DragOrigin.NONE
-		_is_auction_win = false
+		_is_prepaid_placement = false
 		best_sector.accept_tech_card(placed)
 		placed.place()
 		var auction_opt_levels: Array[int] = _update_optimize_state(best_sector)
@@ -820,8 +864,9 @@ func _start_bid(card: Node3D, slot: Node3D, is_tech: bool) -> void:
 	_dragged_card = null
 	_drag_origin = DragOrigin.NONE
 	card.end_drag()
+	var hover_target: Vector3 = (slot.global_position if slot else card.global_position) + Vector3(0.0, PENDING_HOVER_Y, 0.0)
 	var t: Tween = card.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	t.tween_property(card, "global_position", slot.global_position + Vector3(0.0, PENDING_HOVER_Y, 0.0), 0.2)
+	t.tween_property(card, "global_position", hover_target, 0.2)
 	var min_cost: int
 	var cost_color: CardData.SupplyColor
 	if card.card_data.card_type == CardData.CardType.EXPEDITION:
@@ -833,7 +878,7 @@ func _start_bid(card: Node3D, slot: Node3D, is_tech: bool) -> void:
 	bid_required.emit(card, slot, min_cost, cost_color, is_tech)
 
 func complete_purchase() -> void:
-	if not _pending_card or not _pending_slot:
+	if not _pending_card:
 		return
 	_pending_dynamic_slot = null
 	set_major_action_taken()
@@ -845,6 +890,9 @@ func complete_purchase() -> void:
 	_pending_slot = null
 	_pending_is_tech = false
 	_pending_drag_origin = DragOrigin.NONE
+	if not slot:
+		_begin_prepaid_drag(card)
+		return
 	var sector_slot: SectorSlot = slot as SectorSlot
 	if not sector_slot:
 		card_recycled.emit(card.card_data.color)
@@ -913,6 +961,20 @@ func accept_auction_win(card_data: CardData, slot_idx: int, is_tech: bool) -> bo
 	card.global_position = slot.global_position + Vector3(0.0, PENDING_HOVER_Y, 0.0)
 	return true
 
+# Kicks off the drag-to-place step for a market card whose payment/bid has
+# already resolved (a direct dust-sector buy, or an advanced-sector/expedition
+# auction win — whether by the auction's initiator or another player). The
+# card already belongs to the buyer at this point, so this is also where
+# market_card_taken fires — removing it from every client's market view as
+# soon as ownership is settled, rather than waiting for the physical
+# placement to land.
+func _begin_prepaid_drag(card: Node3D) -> void:
+	if card.card_data:
+		market_card_taken.emit(card.card_data)
+	_is_prepaid_placement = true
+	_drag_origin = DragOrigin.MARKET
+	_begin_drag(card)
+
 func begin_auction_win_drag(cd: CardData) -> bool:
 	var card: Node3D = find_market_card(cd)
 	if not card:
@@ -921,9 +983,7 @@ func begin_auction_win_drag(cd: CardData) -> bool:
 		_expedition_market.detach_card(card)
 	else:
 		_market.detach_advanced_card(card)
-	_is_auction_win = true
-	_drag_origin = DragOrigin.MARKET
-	_begin_drag(card)
+	_begin_prepaid_drag(card)
 	return true
 
 func cancel_purchase() -> void:
@@ -1000,7 +1060,7 @@ func confirm_payment_with_allocations(allocations: Dictionary) -> void:
 	confirm_payment()
 
 func confirm_payment() -> void:
-	if not _pending_card or not _pending_slot:
+	if not _pending_card:
 		return
 	_pending_dynamic_slot = null
 	var card: Node3D = _pending_card
@@ -1013,12 +1073,12 @@ func confirm_payment() -> void:
 	_pending_is_tech = false
 	_pending_pay_amounts = {}
 	_pending_drag_origin = DragOrigin.NONE
-	if not slot:
-		card.end_drag()
-		return
 	action_committed.emit()
 	for col: CardData.SupplyColor in pay_amounts:
 		_supply_ui.spend_supply(col, pay_amounts[col])
+	if not slot:
+		_begin_prepaid_drag(card)
+		return
 	if is_tech:
 		slot.accept_tech_card(card)
 		card.place()

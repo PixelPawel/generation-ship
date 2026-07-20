@@ -2366,14 +2366,14 @@ func _on_market_sector_advanced_pressed(slot_idx: int) -> void:
 	if _effect_mode != EffectMode.NONE:
 		return
 	$Board.market_origin_3d = CockpitRig.viewport_to_world(self, _market_panel.get_slot_center("advanced", slot_idx))
-	$Board.begin_panel_sector_drag(slot_idx, true)
+	$Board.begin_panel_sector_purchase(slot_idx, true)
 
 func _on_market_sector_dust_pressed(slot_idx: int) -> void:
 	if _effect_mode == EffectMode.EFFECT_REVEAL_SECTOR:
 		$Board.reveal_sector_panel_slot(slot_idx)
 	elif _effect_mode == EffectMode.NONE:
 		$Board.market_origin_3d = CockpitRig.viewport_to_world(self, _market_panel.get_slot_center("dust", slot_idx))
-		$Board.begin_panel_sector_drag(slot_idx, false)
+		$Board.begin_panel_sector_purchase(slot_idx, false)
 
 func _on_market_expedition_pressed(slot_idx: int) -> void:
 	if _effect_mode == EffectMode.EFFECT_EXPEDITION_SHUFFLE:
@@ -2382,7 +2382,7 @@ func _on_market_expedition_pressed(slot_idx: int) -> void:
 		_execute_expedition_reveal(slot_idx)
 	elif _effect_mode == EffectMode.NONE:
 		$Board.market_origin_3d = CockpitRig.viewport_to_world(self, _market_panel.get_slot_center("expedition", slot_idx))
-		$Board.begin_panel_expedition_drag(slot_idx)
+		$Board.begin_panel_expedition_purchase(slot_idx)
 
 func _on_market_card_inspect_requested(slot_type: String, slot_idx: int) -> void:
 	var origin: Vector3 = CockpitRig.viewport_to_world(self, _market_panel.get_slot_center(slot_type, slot_idx))
@@ -2576,6 +2576,8 @@ func _try_auto_end_turn() -> void:
 		return
 	if _cs_display.has_fuse_1to1_active():
 		return
+	if $Board.is_card_drag_pending():
+		return
 	_on_end_turn_pressed()
 
 func _on_end_turn_pressed() -> void:
@@ -2584,6 +2586,8 @@ func _on_end_turn_pressed() -> void:
 	if not $Board.is_major_action_taken():
 		return
 	if _runner_up_phase:
+		return
+	if $Board.is_card_drag_pending():
 		return
 	_ending_turn = true
 	_effect_queue.clear()
