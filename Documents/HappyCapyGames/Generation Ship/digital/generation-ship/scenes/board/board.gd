@@ -16,6 +16,9 @@ const _MARKET_CARD_ROTATION := Vector3(-PI / 2.0, 0.0, 0.0)
 # How far the market-inspect clone travels from the clicked screen point
 # toward the camera (0 = stays at the screen, 1 = ends up at the camera).
 const INSPECT_CAMERA_PULL := 0.5
+# How far past the screen (away from the camera) the clone travels while
+# shrinking away on collapse, as a fraction of the camera-to-screen distance.
+const INSPECT_VANISH_PULL := 0.4
 
 signal card_recycled(supply_color: CardData.SupplyColor)
 signal recycle_confirm_required(card: Node3D, color: CardData.SupplyColor)
@@ -43,6 +46,7 @@ var _drag_start_scale: Vector3 = Vector3.ONE
 var _major_action_taken: bool = false
 var _supply_ui: Control = null
 var _card_scene: PackedScene = null
+var _inspecting_card: Node3D = null
 var _pending_card: Node3D = null
 var _pending_recycle_card: Node3D = null
 var _pending_slot: Node3D = null
@@ -242,6 +246,8 @@ func begin_panel_expedition_drag(slot_idx: int) -> void:
 # same data/art, and enlarge that; it self-destructs on collapse via
 # Card.enlarge_from's _destroy_on_collapse flag. The real card never moves.
 func inspect_market_card(slot_type: String, slot_idx: int, world_pos: Vector3) -> void:
+	if _inspecting_card and is_instance_valid(_inspecting_card):
+		return
 	var source_card: Node3D
 	match slot_type:
 		"dust":
@@ -258,9 +264,16 @@ func inspect_market_card(slot_type: String, slot_idx: int, world_pos: Vector3) -
 	clone.set_card_data(source_card.card_data)
 	clone.rotation = _MARKET_CARD_ROTATION
 	clone.can_drag = false
+	var target: Vector3 = world_pos
+	var vanish: Vector3 = world_pos
 	var cam: Camera3D = get_viewport().get_camera_3d()
-	var target: Vector3 = world_pos.lerp(cam.global_position, INSPECT_CAMERA_PULL) if cam else world_pos
-	clone.enlarge_from(world_pos, target, Vector3.ONE * Card.PLACED_LIFT_SCALE * _placed_card_enlarge_scale())
+	if cam:
+		target = world_pos.lerp(cam.global_position, INSPECT_CAMERA_PULL)
+		var away_dir: Vector3 = (world_pos - cam.global_position).normalized()
+		var dist: float = cam.global_position.distance_to(world_pos)
+		vanish = world_pos + away_dir * (dist * INSPECT_VANISH_PULL)
+	clone.enlarge_from(world_pos, target, vanish, Vector3.ONE * Card.PLACED_LIFT_SCALE * _placed_card_enlarge_scale())
+	_inspecting_card = clone
 
 # Placed cards are children of a SectorSlot, which carries a ~0.15x scale
 # baked into its transform (see SectorSlot1-6 in main.tscn) — that's what
