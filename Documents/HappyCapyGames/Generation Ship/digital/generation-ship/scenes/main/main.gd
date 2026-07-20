@@ -119,6 +119,7 @@ var _won_popup: Control = null
 var _pending_auction_win: bool = false
 var _auction_win_is_initiator: bool = false
 var _auction_active: bool = false
+var _auction_starting: bool = false  # true from bid-confirm until _auction_active (or a same-peer instant win) — closes the auto-end-turn race for the client that requested the auction
 var _is_runner_up_offer: bool = false
 var _runner_up_phase: bool = false
 var _bots_passed_this_round: Array[int] = []
@@ -886,6 +887,7 @@ func _rpc_sync_auction_started(card_ref: Dictionary, slot_idx: int, is_tech: boo
 	_log_action("%s: auction for %s" % [_initiator_name, card_name], Color(1.0, 0.72, 0.28))
 	_bid_popup.show_auction(cd, is_adv, min_bid, leader_name, _auction_cost_color, is_active, can_pass)
 	_auction_active = true
+	_auction_starting = false
 	_show_action_buttons(false)
 	UIAudio.play_auction_music()
 	if multiplayer.is_server() and GameNetwork.is_bot(active_id):
@@ -909,6 +911,7 @@ func _rpc_sync_auction_state(current_bid: int, leader_id: int, active_id: int, l
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, card_ref: Dictionary, _slot_idx: int, _is_tech: bool, cost_color_int: int) -> void:
 	_auction_active = false
+	_auction_starting = false
 	_is_runner_up_offer = false
 	_bid_popup.hide()
 	UIAudio.stop_auction_music()
@@ -2179,6 +2182,7 @@ func _rpc_sync_sector_revealed(slot_idx: int) -> void:
 func _on_bid_confirmed(amount: int) -> void:
 	if _pending_auction:
 		_pending_auction = false
+		_auction_starting = true
 		$Board.set_major_action_taken()
 		var my_id: int = multiplayer.get_unique_id()
 		if GameNetwork.is_host:
@@ -2457,7 +2461,7 @@ func _try_auto_end_turn() -> void:
 		return
 	if not _effect_queue.is_empty():
 		return
-	if _auction_active or _runner_up_phase or _pending_auction or _pending_auction_win or _pending_won:
+	if _auction_active or _auction_starting or _runner_up_phase or _pending_auction or _pending_auction_win or _pending_won:
 		return
 	if _pending_reveal_gain_supply or _pending_reveal_may_bid or _pending_reveal_may_free_gain:
 		return
