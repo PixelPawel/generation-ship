@@ -272,7 +272,7 @@ func inspect_market_card(slot_type: String, slot_idx: int, world_pos: Vector3) -
 		var away_dir: Vector3 = (world_pos - cam.global_position).normalized()
 		var dist: float = cam.global_position.distance_to(world_pos)
 		vanish = world_pos + away_dir * (dist * INSPECT_VANISH_PULL)
-	clone.enlarge_from(world_pos, target, vanish, Vector3.ONE * _placed_card_enlarge_scale())
+	clone.enlarge_from(target, vanish, Vector3.ONE * _placed_card_enlarge_scale())
 	_inspecting_card = clone
 
 # Placed cards are children of a SectorSlot, which carries a ~0.15x scale

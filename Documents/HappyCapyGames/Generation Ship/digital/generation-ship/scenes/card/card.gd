@@ -162,19 +162,20 @@ func _elevate_target_local(from_world_pos: Vector3) -> Vector3:
 	return (get_parent() as Node3D).to_local(elev_global)
 
 # Enlarges a standalone card (e.g. a disposable market-inspect clone, parented
-# under a node that's actually visible) so it appears to fly in from world_pos
-# toward elev_target_world (caller-supplied, e.g. partway to the camera so it
-# reads as popping out of a screen rather than the fixed board-reading spot
-# _elevate_target_local uses). Collapsing tweens it toward vanish_target_world
-# (e.g. a point behind the screen it came from) while shrinking to nothing,
-# then self-destructs, rather than returning to a "rest" position that only
-# makes sense for a card that's staying around.
-func enlarge_from(world_pos: Vector3, elev_target_world: Vector3, vanish_target_world: Vector3, elev_scale: Vector3 = Vector3.ONE * PLACED_LIFT_SCALE) -> void:
+# under a node that's actually visible). Starts at zero scale at
+# vanish_target_world (e.g. a point behind the screen it's inspecting) and
+# grows toward elev_target_world (e.g. partway to the camera), so it reads as
+# emerging from the screen — the exact time-reversal of collapsing, which
+# shrinks back down to that same vanish point before self-destructing, rather
+# than returning to a "rest" position that only makes sense for a card that's
+# staying around.
+func enlarge_from(elev_target_world: Vector3, vanish_target_world: Vector3, elev_scale: Vector3 = Vector3.ONE * PLACED_LIFT_SCALE) -> void:
 	if _placed_elevated:
 		return
 	_destroy_on_collapse = true
-	global_position = world_pos
 	var parent: Node3D = get_parent() as Node3D
+	global_position = vanish_target_world
+	scale = Vector3.ZERO
 	_elev_rest_pos = parent.to_local(vanish_target_world) if parent else vanish_target_world
 	_elev_rest_scale = Vector3.ZERO
 	var target_local: Vector3 = parent.to_local(elev_target_world) if parent else elev_target_world
