@@ -1948,7 +1948,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 				return
 			_bid_is_from_effect = true
 			$Board.market_origin_3d = CockpitRig.effect_card_origin(self, card_node, cd)
-			$Board.begin_drag_card(card_node)
+			$Board.begin_revealed_card_bid(card_node)
 
 		"seedbanks":
 			_effect_step_seedbanks()

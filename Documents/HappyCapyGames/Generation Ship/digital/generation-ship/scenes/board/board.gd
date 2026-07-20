@@ -184,13 +184,19 @@ func get_available_dust_sectors() -> Array[CardData]:
 			result.append(cd)
 	return result
 
-func begin_drag_card(card: Node3D) -> void:
+# Entry point for a card offered via an effect's bid pool (e.g. Ancient
+# Airlock, Deep Space Radar, Cargo Bays) — these are always advanced sectors
+# or expeditions, so always bid. Same left-click-then-bid, drag-to-place-after
+# rule as the market panel: no destination slot is known yet.
+func begin_revealed_card_bid(card: Node3D) -> void:
+	var is_tech: bool = false
 	if card.card_data and card.card_data.card_type == CardData.CardType.EXPEDITION:
 		_expedition_market.detach_card(card)
+		is_tech = true
 	elif card.card_data and card.card_data.card_type == CardData.CardType.SECTOR:
 		_market.detach_advanced_card(card)
 	_drag_origin = DragOrigin.MARKET
-	_begin_drag(card)
+	_begin_market_purchase(card, is_tech)
 
 func begin_free_sector_gain(card: Node3D) -> void:
 	if not GameNetwork.is_my_turn():
