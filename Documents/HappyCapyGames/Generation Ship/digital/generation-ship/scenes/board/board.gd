@@ -13,6 +13,9 @@ const TECH_ZONE_Z_BACK := 0.3
 const MIN_SLOT_DISTANCE := 0.075
 const _SLOT_SCENE := preload("res://scenes/board/sector_slot.tscn")
 const _MARKET_CARD_ROTATION := Vector3(-PI / 2.0, 0.0, 0.0)
+# How far the market-inspect clone travels from the clicked screen point
+# toward the camera (0 = stays at the screen, 1 = ends up at the camera).
+const INSPECT_CAMERA_PULL := 0.5
 
 signal card_recycled(supply_color: CardData.SupplyColor)
 signal recycle_confirm_required(card: Node3D, color: CardData.SupplyColor)
@@ -255,7 +258,9 @@ func inspect_market_card(slot_type: String, slot_idx: int, world_pos: Vector3) -
 	clone.set_card_data(source_card.card_data)
 	clone.rotation = _MARKET_CARD_ROTATION
 	clone.can_drag = false
-	clone.enlarge_from(world_pos, Vector3.ONE * Card.PLACED_LIFT_SCALE * _placed_card_enlarge_scale())
+	var cam: Camera3D = get_viewport().get_camera_3d()
+	var target: Vector3 = world_pos.lerp(cam.global_position, INSPECT_CAMERA_PULL) if cam else world_pos
+	clone.enlarge_from(world_pos, target, Vector3.ONE * Card.PLACED_LIFT_SCALE * _placed_card_enlarge_scale())
 
 # Placed cards are children of a SectorSlot, which carries a ~0.15x scale
 # baked into its transform (see SectorSlot1-6 in main.tscn) — that's what
