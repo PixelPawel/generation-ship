@@ -93,7 +93,7 @@ static func build_opponent_widget(main: Main) -> void:
 		entry_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		entry.add_child(entry_vbox)
 
-		# Row 1: name (expand) + ♠ N
+		# Row 1: name (expand) + ♠ N + ⭐ N
 		var row1: HBoxContainer = HBoxContainer.new()
 		row1.add_theme_constant_override("separation", 4)
 		row1.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -108,18 +108,19 @@ static func build_opponent_widget(main: Main) -> void:
 		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row1.add_child(name_lbl)
 
-		var status_lbl: Label = Label.new()
-		status_lbl.add_theme_font_size_override("font_size", 11)
-		status_lbl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		status_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row1.add_child(status_lbl)
-
 		var hand_lbl: Label = Label.new()
 		hand_lbl.text = "♠ 0"
 		hand_lbl.add_theme_font_size_override("font_size", 13)
 		hand_lbl.add_theme_color_override("font_color", Color(0.70, 0.82, 1.0))
 		hand_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row1.add_child(hand_lbl)
+
+		var vp_lbl: Label = Label.new()
+		vp_lbl.text = "⭐ 0"
+		vp_lbl.add_theme_font_size_override("font_size", 12)
+		vp_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
+		vp_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row1.add_child(vp_lbl)
 
 		# Row 2: 6 supply columns (icon above count)
 		var row2: HBoxContainer = HBoxContainer.new()
@@ -153,22 +154,17 @@ static func build_opponent_widget(main: Main) -> void:
 			col.add_child(s_lbl)
 			supply_lbls.append(s_lbl)
 
-		# Row 3: VP right-aligned
+		# Row 3: status, centered
 		var row3: HBoxContainer = HBoxContainer.new()
 		row3.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		entry_vbox.add_child(row3)
 
-		var spacer: Control = Control.new()
-		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row3.add_child(spacer)
-
-		var vp_lbl: Label = Label.new()
-		vp_lbl.text = "⭐ 0"
-		vp_lbl.add_theme_font_size_override("font_size", 12)
-		vp_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
-		vp_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row3.add_child(vp_lbl)
+		var status_lbl: Label = Label.new()
+		status_lbl.add_theme_font_size_override("font_size", 11)
+		status_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		status_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		status_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row3.add_child(status_lbl)
 
 		main._opp_panels[peer_id] = {
 			"hand_lbl": hand_lbl,
