@@ -13,13 +13,13 @@ static func setup_enemy_screen_display(main: Main) -> void:
 	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	panel.visible = false
 	main.get_node("UILayer").add_child(panel)
-	main._es_viewport = panel
+	main.es_viewport = panel
 
 static func build_opponent_widget(main: Main) -> void:
-	if main._opp_widget:
-		main._opp_widget.queue_free()
+	if main.opp_widget:
+		main.opp_widget.queue_free()
 	main._opp_panels.clear()
-	main._es_back_btn = null
+	main.es_back_btn = null
 
 	var supply_paths: Array = [
 		"res://assets/ui/supply/Dust.png",
@@ -33,9 +33,9 @@ static func build_opponent_widget(main: Main) -> void:
 	var widget: ScifiPanel = ScifiPanel.new()
 	widget.set_content_margin(14)
 	widget.theme = GameTheme.get_theme()
-	main._opp_widget = widget
+	main.opp_widget = widget
 	widget.mouse_filter = Control.MOUSE_FILTER_STOP
-	main._es_viewport.add_child(widget)
+	main.es_viewport.add_child(widget)
 	widget.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	widget.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	widget.grow_vertical = Control.GROW_DIRECTION_BOTH
@@ -181,34 +181,34 @@ static func build_opponent_widget(main: Main) -> void:
 	bottom_sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
 	outer_vbox.add_child(bottom_sep)
 
-	main._es_back_btn = Button.new()
-	main._es_back_btn.text = "← Back to my board"
-	main._es_back_btn.visible = false
-	main._es_back_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	main._es_back_btn.add_theme_font_size_override("font_size", 15)
-	GameTheme.apply_to_button(main._es_back_btn)
-	main._es_back_btn.pressed.connect(func() -> void: close_opponent_board_view(main))
-	outer_vbox.add_child(main._es_back_btn)
+	main.es_back_btn = Button.new()
+	main.es_back_btn.text = "← Back to my board"
+	main.es_back_btn.visible = false
+	main.es_back_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main.es_back_btn.add_theme_font_size_override("font_size", 15)
+	GameTheme.apply_to_button(main.es_back_btn)
+	main.es_back_btn.pressed.connect(func() -> void: close_opponent_board_view(main))
+	outer_vbox.add_child(main.es_back_btn)
 
 static func show_opponent_board(main: Main, peer_id: int) -> void:
 	if not main._opp_snapshots.has(peer_id):
 		return
-	if main._opp_info_panel:
+	if main.opp_info_panel:
 		close_opponent_board_view(main)
 	if main._market_panel:
 		main._market_panel.visible = false
 	build_opp_info_panel(main, peer_id)
 
 static func build_opp_info_panel(main: Main, peer_id: int) -> void:
-	if main._opp_info_panel:
-		main._opp_info_panel.queue_free()
+	if main.opp_info_panel:
+		main.opp_info_panel.queue_free()
 	var snap: Dictionary = main._opp_snapshots.get(peer_id, {})
 	var player_name: String = GameNetwork.player_names.get(peer_id, "Opponent")
 
 	var root: Control = Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	main._info_viewport.add_child(root)
-	main._opp_info_panel = root
+	main.opp_info_panel = root
 
 	var scifi: ScifiPanel = load("res://scenes/ui/scifi_panel.gd").new()
 	scifi.set_content_margin(20)
@@ -415,7 +415,7 @@ static func build_opp_sector_widget(main: Main, slot: Dictionary) -> Control:
 
 
 static func show_opp_sector_detail(main: Main, slot: Dictionary) -> void:
-	var existing: Node = main._opp_info_panel.get_node_or_null("SectorDetail")
+	var existing: Node = main.opp_info_panel.get_node_or_null("SectorDetail")
 	if existing:
 		existing.queue_free()
 
@@ -432,7 +432,7 @@ static func show_opp_sector_detail(main: Main, slot: Dictionary) -> void:
 	var overlay: Control = Control.new()
 	overlay.name = "SectorDetail"
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	main._opp_info_panel.add_child(overlay)
+	main.opp_info_panel.add_child(overlay)
 
 	var dim: ColorRect = ColorRect.new()
 	dim.color = Color(0.0, 0.0, 0.0, 0.78)
@@ -573,8 +573,8 @@ static func build_detail_card(cd: CardData, is_adv: bool, fallback_name: String)
 
 
 static func close_opponent_board_view(main: Main) -> void:
-	if main._opp_info_panel:
-		main._opp_info_panel.queue_free()
-		main._opp_info_panel = null
+	if main.opp_info_panel:
+		main.opp_info_panel.queue_free()
+		main.opp_info_panel = null
 	if main._market_panel:
 		main._market_panel.visible = true

@@ -9,15 +9,15 @@ extends RefCounted
 
 static func setup_control_screen_display(main: Main) -> void:
 	var ui_control: Node3D = main.get_node("UiControl")
-	main._cs_viewport = SubViewport.new()
-	main._cs_viewport.size = Vector2i(360, 460)
-	main._cs_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	main._cs_viewport.transparent_bg = true
-	main._cs_viewport.gui_disable_input = false
-	ui_control.add_child(main._cs_viewport)
+	main.cs_viewport = SubViewport.new()
+	main.cs_viewport.size = Vector2i(360, 460)
+	main.cs_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	main.cs_viewport.transparent_bg = true
+	main.cs_viewport.gui_disable_input = false
+	ui_control.add_child(main.cs_viewport)
 
 	main._cs_display = SupplyUI.new()
-	main._cs_viewport.add_child(main._cs_display)
+	main.cs_viewport.add_child(main._cs_display)
 
 	var panel: Control = main._cs_display.get_child(0) as Control
 	if panel:
@@ -34,7 +34,7 @@ static func setup_control_screen_display(main: Main) -> void:
 		var shader: Shader = load("res://shaders/screen_display.gdshader") as Shader
 		var mat: ShaderMaterial = ShaderMaterial.new()
 		mat.shader = shader
-		mat.set_shader_parameter("viewport_tex", main._cs_viewport.get_texture())
+		mat.set_shader_parameter("viewport_tex", main.cs_viewport.get_texture())
 		mat.set_shader_parameter("aabb_min", aabb.position)
 		mat.set_shader_parameter("aabb_max", aabb.position + aabb.size)
 		mat.set_shader_parameter("emission_strength", 1.3)
@@ -63,7 +63,7 @@ static func setup_control_screen_display(main: Main) -> void:
 	main.get_node("Board").set_supply_ui(main._cs_display)
 
 static func setup_screen_input(main: Main, screen_mesh: MeshInstance3D) -> void:
-	setup_viewport_input(main, screen_mesh, main._cs_viewport)
+	setup_viewport_input(main, screen_mesh, main.cs_viewport)
 
 static func setup_button_input(main: Main, btn_mesh: MeshInstance3D, callback: Callable, tooltip_title: String = "", tooltip_desc: String = "") -> void:
 	var area: Area3D = Area3D.new()
@@ -185,9 +185,9 @@ static func setup_viewport_input(main: Main, screen_mesh: MeshInstance3D, vp: Su
 		forward_to_viewport(main, event, pos, screen_mesh, vp)
 	)
 	area.mouse_exited.connect(func() -> void:
-		if main._vp_button_held:
+		if main.vp_button_held:
 			return
-		main._vp_prev_pos.erase(vp)
+		main.vp_prev_pos.erase(vp)
 		var mm: InputEventMouseMotion = InputEventMouseMotion.new()
 		mm.position = Vector2(-1.0, -1.0)
 		vp.push_input(mm, true)
@@ -201,7 +201,7 @@ static func forward_to_viewport(main: Main, event: InputEvent, world_pos: Vector
 	var vp_pos: Vector2 = Vector2(u * float(vp.size.x), v * float(vp.size.y))
 	if event is InputEventMouseButton:
 		var src: InputEventMouseButton = event as InputEventMouseButton
-		main._vp_button_held = src.pressed
+		main.vp_button_held = src.pressed
 		var mb: InputEventMouseButton = InputEventMouseButton.new()
 		mb.button_index = src.button_index
 		mb.pressed = src.pressed
@@ -209,8 +209,8 @@ static func forward_to_viewport(main: Main, event: InputEvent, world_pos: Vector
 		mb.position = vp_pos
 		vp.push_input(mb, true)
 	elif event is InputEventMouseMotion:
-		var prev: Vector2 = main._vp_prev_pos.get(vp, vp_pos)
-		main._vp_prev_pos[vp] = vp_pos
+		var prev: Vector2 = main.vp_prev_pos.get(vp, vp_pos)
+		main.vp_prev_pos[vp] = vp_pos
 		var mm: InputEventMouseMotion = InputEventMouseMotion.new()
 		mm.position = vp_pos
 		mm.relative = vp_pos - prev
@@ -322,7 +322,7 @@ static func viewport_to_world(main: Main, vp_pos: Vector2) -> Vector3:
 	return main._info_screen_mesh.to_global(Vector3(local_x, local_y, 0.0))
 
 static func register_info_panel(main: Main, panel: Control) -> void:
-	main._info_panels.append(panel)
+	main.info_panels.append(panel)
 	panel.visibility_changed.connect(func() -> void:
 		if not main._market_panel:
 			return
@@ -330,7 +330,7 @@ static func register_info_panel(main: Main, panel: Control) -> void:
 			main._market_panel.visible = false
 		else:
 			var any_active: bool = false
-			for p: Control in main._info_panels:
+			for p: Control in main.info_panels:
 				if p != panel and p.is_inside_tree() and p.visible:
 					any_active = true
 					break
@@ -344,23 +344,23 @@ static func setup_log_screen_display(main: Main) -> void:
 		main._log_font.base_font = myriad
 		main._log_font.variation_opentype = {"wght": 500}
 
-	main._log_viewport = SubViewport.new()
+	main.log_viewport = SubViewport.new()
 	# 686×408 viewport: 686 = 980 × 0.7 compensates for UiLog non-uniform world scale
 	# so all content pixels are square in world space without per-element correction.
 	# Canvas is portrait (408×686) rotated 90° CW to fill the landscape viewport.
-	main._log_viewport.size = Vector2i(686, 408)
-	main._log_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	main._log_viewport.transparent_bg = true
-	main._log_viewport.gui_disable_input = false
-	main.get_node("UiLog").add_child(main._log_viewport)
+	main.log_viewport.size = Vector2i(686, 408)
+	main.log_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	main.log_viewport.transparent_bg = true
+	main.log_viewport.gui_disable_input = false
+	main.get_node("UiLog").add_child(main.log_viewport)
 
 	var canvas: Control = Control.new()
 	canvas.size = Vector2(408.0, 686.0)
 	canvas.rotation_degrees = 90.0
 	canvas.position = Vector2(686.0, 0.0)
 	canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	main._log_viewport.add_child(canvas)
-	main._log_canvas = canvas
+	main.log_viewport.add_child(canvas)
+	main.log_canvas = canvas
 
 	var bg: ColorRect = ColorRect.new()
 	bg.color = Color(0.03, 0.04, 0.09, 0.93)
@@ -407,7 +407,7 @@ static func setup_log_screen_display(main: Main) -> void:
 		var shader: Shader = load("res://shaders/screen_display.gdshader") as Shader
 		var mat: ShaderMaterial = ShaderMaterial.new()
 		mat.shader = shader
-		mat.set_shader_parameter("viewport_tex", main._log_viewport.get_texture())
+		mat.set_shader_parameter("viewport_tex", main.log_viewport.get_texture())
 		mat.set_shader_parameter("aabb_min", aabb.position)
 		mat.set_shader_parameter("aabb_max", aabb.position + aabb.size)
 		mat.set_shader_parameter("emission_strength", 0.45)
@@ -418,13 +418,13 @@ static func setup_log_screen_display(main: Main) -> void:
 		mat.set_shader_parameter("vignette_falloff", 2.5)
 		mat.set_shader_parameter("bloom_threshold", 0.7)
 		screen_mesh.set_surface_override_material(0, mat)
-		setup_viewport_input(main, screen_mesh, main._log_viewport)
+		setup_viewport_input(main, screen_mesh, main.log_viewport)
 
 	# Preview panel – hidden until hover. Size is set in _on_market_card_hovered.
 	var preview_wrap: Control = Control.new()
 	preview_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	preview_wrap.visible = false
-	main._log_canvas.add_child(preview_wrap)
+	main.log_canvas.add_child(preview_wrap)
 	main._log_preview_panel = preview_wrap
 
 	var pp: PanelContainer = PanelContainer.new()
@@ -483,7 +483,7 @@ static func setup_log_screen_display(main: Main) -> void:
 	main._log_tooltip_desc.custom_minimum_size = Vector2(230, 0)
 	main._log_tooltip_desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	lt_vbox.add_child(main._log_tooltip_desc)
-	main._log_canvas.add_child(lt_panel)
+	main.log_canvas.add_child(lt_panel)
 	main._log_tooltip_panel = lt_panel
 
 static func start_rumble_timer(main: Main) -> void:
@@ -500,11 +500,11 @@ static func play_rumble(main: Main) -> void:
 	for slot: SectorSlot in main.get_node("Board").get_all_sector_slots():
 		targets.append(slot)
 	for node: Node3D in targets:
-		var tw: Tween = main._rumble_tweens.get(node) as Tween
+		var tw: Tween = main.rumble_tweens.get(node) as Tween
 		if tw and tw.is_valid():
 			tw.kill()
 		tw = main.create_tween()
-		main._rumble_tweens[node] = tw
+		main.rumble_tweens[node] = tw
 		var base_pos: Vector3 = main._rumble_base_pos.get(node, node.position)
 		var base_rot: Vector3 = main._rumble_base_rot.get(node, node.rotation)
 		for _i: int in JOLT_COUNT:
@@ -514,7 +514,7 @@ static func play_rumble(main: Main) -> void:
 			tw.parallel().tween_property(node, "rotation", dr, JOLT_SEC).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
 		tw.tween_property(node, "position", base_pos, 0.40).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		tw.parallel().tween_property(node, "rotation", base_rot, 0.40).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	main._rumble_tweens[ui_cockpit].tween_callback(func() -> void:
+	main.rumble_tweens[ui_cockpit].tween_callback(func() -> void:
 		if is_instance_valid(main):
 			start_rumble_timer(main)
 	)
