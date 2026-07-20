@@ -411,7 +411,7 @@ func _log_action(text: String, color: Color = Color(0.80, 0.88, 1.0)) -> void:
 	lbl.add_theme_font_size_override("font_size", 32)
 	lbl.add_theme_color_override("font_color", color)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.clip_text = true
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
 	if _log_font:
 		lbl.add_theme_font_override("font", _log_font)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE

@@ -398,6 +398,7 @@ static func setup_log_screen_display(main: Main) -> void:
 	main._log_scroll.offset_top = 68.0
 	main._log_scroll.follow_focus = false
 	main._log_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+	main._log_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	canvas.add_child(main._log_scroll)
 
 	main._log_vbox = VBoxContainer.new()
