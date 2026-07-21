@@ -242,9 +242,9 @@ func _make_discount_badge() -> Label3D:
 	lbl.render_priority = 2
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.modulate = Color(0.35, 1.0, 0.45)
-	lbl.outline_size = 34
+	lbl.outline_size = 6
 	lbl.outline_modulate = Color.BLACK
-	lbl.position = Vector3(-0.24, 0.35, 0.015)
+	lbl.position = Vector3(-0.15, 0.35, 0.015)
 	add_child(lbl)
 	return lbl
 
@@ -288,6 +288,7 @@ func place() -> void:
 	_kill_tween()
 	_spawn_sparkle()
 	_shake_camera()
+	set_discount(0)
 
 func _spawn_sparkle() -> void:
 	var fx: CPUParticles3D = load("res://scenes/card/card_sparkle.gd").new()
