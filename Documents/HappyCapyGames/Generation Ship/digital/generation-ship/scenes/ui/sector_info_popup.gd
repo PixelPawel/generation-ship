@@ -362,15 +362,15 @@ func _rebuild_cargo(slot: SectorSlot) -> void:
 	move_btn.pressed.connect(_on_cargo_move_pressed)
 	btn_row.add_child(move_btn)
 	var cancel_btn := Button.new()
-	cancel_btn.text = "Cancel"
+	cancel_btn.text = "Choose Different Sector"
 	cancel_btn.add_theme_font_size_override("font_size", 20)
 	cancel_btn.pressed.connect(func() -> void: hide(); cargo_cancelled.emit())
 	btn_row.add_child(cancel_btn)
-	var cancel_effect_btn := Button.new()
-	cancel_effect_btn.text = "Cancel effect"
-	cancel_effect_btn.add_theme_font_size_override("font_size", 20)
-	cancel_effect_btn.pressed.connect(func() -> void: hide(); effect_done.emit())
-	btn_row.add_child(cancel_effect_btn)
+	var done_btn := Button.new()
+	done_btn.text = "Done"
+	done_btn.add_theme_font_size_override("font_size", 20)
+	done_btn.pressed.connect(func() -> void: hide(); effect_done.emit())
+	btn_row.add_child(done_btn)
 	_content_vbox.add_child(btn_row)
 	_fit_scroll_height()
 

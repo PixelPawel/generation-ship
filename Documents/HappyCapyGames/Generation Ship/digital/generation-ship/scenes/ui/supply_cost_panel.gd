@@ -46,7 +46,7 @@ func _ready() -> void:
 	vbox.add_child(_buttons_row)
 
 	var cancel_btn := Button.new()
-	cancel_btn.text = "Skip"
+	cancel_btn.text = "Cancel"
 	cancel_btn.add_theme_font_size_override("font_size", 22)
 	cancel_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	cancel_btn.pressed.connect(func() -> void: hide(); cancelled.emit())
