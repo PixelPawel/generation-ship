@@ -67,6 +67,11 @@ func _ready() -> void:
 	_buttons_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll_container.add_child(_buttons_row)
 
+	var footer_row := HBoxContainer.new()
+	footer_row.add_theme_constant_override("separation", 16)
+	footer_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(footer_row)
+
 	_skip_btn = Button.new()
 	_skip_btn.text = "Skip"
 	_skip_btn.add_theme_font_size_override("font_size", 40)
@@ -74,7 +79,7 @@ func _ready() -> void:
 	_skip_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_skip_btn.pressed.connect(func(): hide(); skipped.emit())
 	_skip_btn.visible = false
-	vbox.add_child(_skip_btn)
+	footer_row.add_child(_skip_btn)
 
 	_multiselect_done_btn = Button.new()
 	_multiselect_done_btn.text = "Done"
@@ -83,7 +88,7 @@ func _ready() -> void:
 	_multiselect_done_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_multiselect_done_btn.pressed.connect(_on_multiselect_done)
 	_multiselect_done_btn.visible = false
-	vbox.add_child(_multiselect_done_btn)
+	footer_row.add_child(_multiselect_done_btn)
 
 	GameTheme.add_hide_button(self, "Options", [panel], true)
 
@@ -118,6 +123,7 @@ func show_choices(prompt: String, option_labels: Array, skippable: bool = false,
 		btn.pressed.connect(func(): _on_pressed(idx))
 		_buttons_row.add_child(btn)
 	_skip_btn.visible = skippable
+	_multiselect_done_btn.visible = false
 	_fit_scroll_width()
 	if _card_image_rect:
 		if card_data:
@@ -138,6 +144,7 @@ func show_card_choices(prompt: String, cards: Array[CardData], skippable: bool =
 		_card_image_rect.visible = false
 	_build_card_rows(cards, func(idx: int, _btn: Button) -> void: _on_pressed(idx), advanced_flags)
 	_skip_btn.visible = skippable
+	_multiselect_done_btn.visible = false
 	show()
 
 func show_multiselect_card_choices(prompt: String, cards: Array[CardData], max_select: int = 0) -> void:
@@ -152,6 +159,7 @@ func show_multiselect_card_choices(prompt: String, cards: Array[CardData], max_s
 		_selected_flags.append(false)
 	_build_card_rows(cards, func(idx: int, btn: Button) -> void: _on_multiselect_toggle(idx, btn))
 	_multiselect_done_btn.visible = true
+	_skip_btn.visible = false
 	show()
 
 func _build_card_rows(cards: Array[CardData], on_click: Callable, advanced_flags: Array[bool] = []) -> void:
