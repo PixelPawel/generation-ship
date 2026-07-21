@@ -1827,14 +1827,17 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_process_next_effect()
 
 		"draw_recycle_top":
-			var recycled_color: Variant = null
-			var capture_color: Callable = func(c: CardData.SupplyColor) -> void: recycled_color = c
+			# Lambdas capture locals by value, so plain reassignment inside one
+			# never reaches the outer variable — box it in an Array (captured by
+			# reference) so the connected callback can actually report back.
+			var recycled_color_box: Array = [null]
+			var capture_color: Callable = func(c: CardData.SupplyColor) -> void: recycled_color_box[0] = c
 			$Board.card_recycled.connect(capture_color, CONNECT_ONE_SHOT)
 			$Board.draw_and_recycle_top()
 			if $Board.card_recycled.is_connected(capture_color):
 				$Board.card_recycled.disconnect(capture_color)
-			if recycled_color != null:
-				_log_effect("drew and recycled the top card, gained 1 %s" % CardData.color_name(recycled_color as CardData.SupplyColor))
+			if recycled_color_box[0] != null:
+				_log_effect("drew and recycled the top card, gained 1 %s" % CardData.color_name(recycled_color_box[0] as CardData.SupplyColor))
 			else:
 				_log_effect("drew and recycled the top card")
 			_process_next_effect()
