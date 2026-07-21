@@ -581,7 +581,7 @@ func is_card_drag_pending() -> bool:
 	return _dragged_card != null
 
 func _on_hand_card_drag_started(card: Node3D) -> void:
-	if _pending_card or _pending_recycle_card:
+	if not GameNetwork.is_my_turn() or _pending_card or _pending_recycle_card:
 		card.end_drag()
 		_hand.add_card(card, true)
 		return
@@ -825,7 +825,7 @@ func _try_drop_sector() -> void:
 		market_card_taken.emit(cd)
 
 func _try_drop_tech() -> void:
-	if _drag_origin == DragOrigin.HAND and (_major_action_taken or not GameNetwork.is_my_turn()):
+	if _drag_origin == DragOrigin.HAND and _major_action_taken:
 		_handle_failed_drop()
 		return
 	var best_sector: SectorSlot = _find_nearest_tech_slot()
