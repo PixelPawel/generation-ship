@@ -236,7 +236,7 @@ func set_discount(amount: int) -> void:
 func _make_discount_badge() -> Label3D:
 	var lbl := Label3D.new()
 	lbl.font_size = 32
-	lbl.pixel_size = 0.005
+	lbl.pixel_size = 0.003
 	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	lbl.no_depth_test = true
 	lbl.render_priority = 2
@@ -244,7 +244,7 @@ func _make_discount_badge() -> Label3D:
 	lbl.modulate = Color(0.35, 1.0, 0.45)
 	lbl.outline_size = 6
 	lbl.outline_modulate = Color.BLACK
-	lbl.position = Vector3(-0.15, 0.35, 0.015)
+	lbl.position = Vector3(-0.195, 0.35, 0.015)
 	add_child(lbl)
 	return lbl
 
