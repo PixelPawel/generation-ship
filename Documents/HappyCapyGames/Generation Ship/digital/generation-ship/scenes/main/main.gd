@@ -1194,8 +1194,6 @@ func _recycle_card_to_supply(card: Node3D, color: CardData.SupplyColor) -> void:
 func _on_card_right_clicked_free_recycle(card: Node3D) -> void:
 	if _effect_mode != EffectMode.NONE:
 		return
-	if not GameNetwork.is_my_turn():
-		return
 	$Board.request_recycle(card)
 
 func _on_recycle_confirm_required(card: Node3D, color: CardData.SupplyColor) -> void:
