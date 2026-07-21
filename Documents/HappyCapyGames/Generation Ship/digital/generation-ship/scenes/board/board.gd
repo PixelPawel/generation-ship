@@ -22,8 +22,10 @@ const INSPECT_VANISH_PULL := 0.4
 # portrait for tech/expedition cards, landscape (swapped) for sector cards.
 const _CARD_PORTRAIT_SIZE := Vector2(0.63, 0.88)
 # Leaves a small gap so an auto-revealed card's corners don't exactly touch
-# the physical screen's edges when scaled up to fill it.
-const _REVEAL_FILL_MARGIN := 0.92
+# the physical screen's edges when scaled up to fill it. Also folds in a 66%
+# reduction from the true max-fill size — filling the whole screen read as
+# way too large in practice.
+const _REVEAL_FILL_MARGIN := 0.92 * 0.34
 
 signal card_recycled(supply_color: CardData.SupplyColor)
 signal recycle_confirm_required(card: Node3D, color: CardData.SupplyColor)
