@@ -219,8 +219,9 @@ func _collapse_elevation() -> void:
 		_tween.tween_callback(queue_free)
 	elevation_ended.emit(self)
 
-# Shows a "-N" badge (cost reductions only ever apply to tech cards, so this
-# is only ever called for hand cards — see Board.refresh_hand_discounts()).
+# Shows the discounted price in place of the printed cost (cost reductions
+# only ever apply to tech cards, so this is only ever called for hand cards —
+# see Board.refresh_hand_discounts()).
 func set_discount(amount: int) -> void:
 	if amount <= 0:
 		if _discount_badge:
@@ -228,7 +229,8 @@ func set_discount(amount: int) -> void:
 		return
 	if not _discount_badge:
 		_discount_badge = _make_discount_badge()
-	_discount_badge.text = "-%d" % amount
+	var new_price: int = max(0, (card_data.cost if card_data else 0) - amount)
+	_discount_badge.text = str(new_price)
 	_discount_badge.visible = true
 
 func _make_discount_badge() -> Label3D:
