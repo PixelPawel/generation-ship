@@ -182,7 +182,13 @@ func _build_card_rows(cards: Array[CardData], on_click: Callable, advanced_flags
 	for i: int in cards.size():
 		var cd: CardData = cards[i]
 		var is_adv: bool = advanced_flags[i] if i < advanced_flags.size() else cd.card_type == CardData.CardType.SECTOR
-		var base_sz: Vector2 = _CARD_SIZE_LANDSCAPE if is_adv else _CARD_SIZE_PORTRAIT
+		# Box aspect must track the card's physical shape (all sectors are
+		# landscape, dust or advanced — see Card.set_card_data's landscape
+		# swap), not is_adv, which only picks which face's art/name to show.
+		# Using is_adv here left dust sectors in a portrait box that didn't
+		# match their landscape art, letterboxing them.
+		var is_landscape: bool = cd.card_type == CardData.CardType.SECTOR
+		var base_sz: Vector2 = _CARD_SIZE_LANDSCAPE if is_landscape else _CARD_SIZE_PORTRAIT
 		var card_sz: Vector2 = base_sz * _card_row_grow_scale(cards.size(), base_sz)
 		var url: String = cd.adv_image_url if (is_adv and not cd.adv_image_url.is_empty()) else cd.image_url
 		var tex: Texture2D = ImageCache.get_texture(url) if not url.is_empty() else null
