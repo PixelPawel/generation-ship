@@ -1757,7 +1757,7 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 
 	if not always_steps.is_empty() and not place_steps.is_empty():
 		var cd: CardData = card.card_data
-		var card_name: String = cd.adv_name if bool(card.get("is_advanced")) and not cd.adv_name.is_empty() else cd.card_name
+		var is_adv: bool = bool(card.get("is_advanced"))
 		var always_first: Array = []; always_first.append_array(always_steps); always_first.append_array(place_steps)
 		var card_first: Array = []; card_first.append_array(place_steps); card_first.append_array(always_steps)
 		_pending_choice_options = [
@@ -1765,12 +1765,32 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 			{steps = card_first},
 		]
 		_effect_mode = EffectMode.EFFECT_CHOICE
-		_choice_popup.show_choices("Two effects triggered — resolve which first?", ["Sector effects", card_name], false)
+		var always_source_name: String = str(always_steps[0].get("_source_name", ""))
+		var always_cd: CardData = _find_card_data_by_name(always_source_name)
+		if always_cd:
+			_choice_popup.show_card_choices("Two effects triggered — resolve which first?",
+				[always_cd, cd], false, [false, is_adv])
+		else:
+			var card_name: String = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
+			_choice_popup.show_choices("Two effects triggered — resolve which first?", ["Sector effects", card_name], false)
 		return
 
 	_effect_queue.append_array(always_steps)
 	_effect_queue.append_array(place_steps)
 	_process_next_effect()
+
+# Always-effect source cards (Insects, Crops, 1-G Thrust, Einstein-Rosen
+# Portal, etc.) are always techs or expeditions, never sectors.
+func _find_card_data_by_name(card_name: String) -> CardData:
+	if card_name.is_empty():
+		return null
+	for cd: CardData in CardDatabase.techs:
+		if cd.card_name == card_name:
+			return cd
+	for cd: CardData in CardDatabase.expeditions:
+		if cd.card_name == card_name:
+			return cd
+	return null
 
 func _process_next_effect() -> void:
 	if _effect_queue.is_empty():
