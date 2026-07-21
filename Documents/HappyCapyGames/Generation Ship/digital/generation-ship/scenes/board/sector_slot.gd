@@ -30,11 +30,6 @@ static var TECH_OFFSETS_EXPANDED: Array[Vector3] = [
 	Vector3(0, 0.030, -3.12),
 ]
 
-# How far the main placed card slides out of the way (opposite the tech
-# stack, which extends toward negative Z) so it doesn't crowd the fanned-out
-# tech cards.
-const MAIN_CARD_FANOUT_Z: float = 0.35
-
 
 signal slot_clicked(slot: SectorSlot)
 
@@ -303,12 +298,6 @@ func _fan_tech_slots(expanded: bool) -> void:
 		var ts: Node3D = _tech_slots[i]
 		var tw: Tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		tw.tween_property(ts, "position", offsets[i], 0.20)
-	if placed_card:
-		# Only Z is tweened here (not the whole "position") so this never
-		# fights the per-frame idle-float override in _process(), which owns
-		# position.y independently every frame.
-		var main_tw: Tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-		main_tw.tween_property(placed_card, "position:z", MAIN_CARD_FANOUT_Z if expanded else 0.0, 0.20)
 
 func highlight(on: bool) -> void:
 	if _highlighted == on:
