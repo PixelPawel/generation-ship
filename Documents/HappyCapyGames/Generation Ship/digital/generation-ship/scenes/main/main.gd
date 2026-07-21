@@ -286,7 +286,7 @@ func _on_any_card_hovered(card_node: Node3D) -> void:
 		return
 	var desc: String = ""
 	if card.is_market_inspecting():
-		desc = "Right-click to shrink."
+		desc = "Left-click to buy.\nRight-click to shrink."
 	elif card.is_placed:
 		desc = "Right-click to shrink card." if card.is_elevated() else "Right-click to enlarge card."
 	elif card.managed_by_hand:
