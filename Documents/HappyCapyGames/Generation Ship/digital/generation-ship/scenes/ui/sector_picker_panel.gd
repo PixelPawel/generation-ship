@@ -18,6 +18,20 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hide()
 
+	var panel: ScifiPanel = load("res://scenes/ui/scifi_panel.gd").new()
+	panel.set_content_margin(0)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(panel)
+
+	# Plain Control, not a Container — the content below relies on absolute
+	# pixel positioning (matching the 1200×572 info viewport), and a real
+	# Container child would fight that by resizing everything to fill itself.
+	var content: Control = Control.new()
+	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(content)
+
 	_title_label = Label.new()
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title_label.add_theme_font_size_override("font_size", 28)
@@ -25,13 +39,13 @@ func _ready() -> void:
 	_title_label.position = Vector2(0.0, 10.0)
 	_title_label.size = Vector2(1200.0, TITLE_H)
 	_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_title_label)
+	content.add_child(_title_label)
 
 	_card_container = Control.new()
 	_card_container.position = Vector2(0.0, TITLE_H + 10.0)
 	_card_container.size = Vector2(1200.0, 572.0 - TITLE_H - 10.0 - SKIP_BTN_H)
 	_card_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_card_container)
+	content.add_child(_card_container)
 
 	var skip_btn: Button = Button.new()
 	skip_btn.text = "Skip"
@@ -46,7 +60,7 @@ func _ready() -> void:
 	skip_btn.offset_top = -SKIP_BTN_H + 12.0
 	skip_btn.offset_bottom = -12.0
 	skip_btn.pressed.connect(func() -> void: hide(); skipped.emit())
-	add_child(skip_btn)
+	content.add_child(skip_btn)
 
 func setup(title: String, all_slots: Array[SectorSlot], exclude: SectorSlot = null) -> void:
 	_title_label.text = title
