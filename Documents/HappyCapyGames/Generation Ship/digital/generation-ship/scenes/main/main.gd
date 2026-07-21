@@ -29,7 +29,6 @@ enum EffectMode {
 	EFFECT_EXPEDITION_SHUFFLE,
 	EFFECT_SEEDBANKS,
 	EFFECT_CARGO_DRONES,
-	EFFECT_CARGO_DRONES_DEST,
 	EFFECT_CALDERA_SELECT_SECTOR,
 	EFFECT_CALDERA_SELECT_CARDS,
 	EFFECT_STORE_ON_SECTOR,
@@ -71,9 +70,7 @@ var _sector_picker: SectorPickerPanel = null
 var _supply_cost_panel: SupplyCostPanel = null
 var _market_panel: Control = null
 var _bid_payment_panel: Control = null
-var _cargo_source_slot: SectorSlot = null
-var _cargo_pending_supplies: Dictionary = {}
-var _cargo_pending_tucked: Array[int] = []
+var _cargo_drones_panel: CargoDronesPanel = null
 var _caldera_slots: Array[SectorSlot] = []
 var _music_player: AudioStreamPlayer = null
 var _pending_store_color: CardData.SupplyColor = CardData.SupplyColor.DUST
@@ -240,9 +237,13 @@ func _ready() -> void:
 	_sector_info_popup = SectorInfoPopup.new()
 	_info_viewport.add_child(_sector_info_popup)
 	CockpitRig.register_info_panel(self, _sector_info_popup)
-	_sector_info_popup.cargo_move_requested.connect(_on_cargo_move_requested)
-	_sector_info_popup.cargo_cancelled.connect(_on_cargo_cancelled)
 	_sector_info_popup.effect_done.connect(_on_effect_done_pressed)
+
+	_cargo_drones_panel = CargoDronesPanel.new()
+	_info_viewport.add_child(_cargo_drones_panel)
+	CockpitRig.register_info_panel(self, _cargo_drones_panel)
+	_cargo_drones_panel.move_requested.connect(_on_cargo_move_requested)
+	_cargo_drones_panel.finished.connect(_finish_interactive_step)
 
 	_recycle_panel = load("res://scenes/ui/recycle_panel.gd").new()
 	_info_viewport.add_child(_recycle_panel)
@@ -1364,9 +1365,6 @@ func _reset_effect_state() -> void:
 	_pending_tuck_card_data = null
 	_pending_target_slot = null
 	_effect_label = ""
-	_cargo_source_slot = null
-	_cargo_pending_supplies = {}
-	_cargo_pending_tucked = []
 	_caldera_slots = []
 	_effect_done_btn.hide()
 	_choice_popup.hide()
@@ -1588,13 +1586,6 @@ func _on_sector_picker_skipped() -> void:
 
 func _on_sector_info_requested(slot: SectorSlot) -> void:
 	match _effect_mode:
-		EffectMode.EFFECT_CARGO_DRONES:
-			_sector_info_popup.show_sector_for_cargo(slot)
-			_sector_picker.hide()
-		EffectMode.EFFECT_CARGO_DRONES_DEST:
-			if slot != _cargo_source_slot and slot.occupied:
-				_sector_picker.hide()
-				_apply_cargo_move(slot)
 		EffectMode.EFFECT_STORE_ON_SECTOR:
 			if slot.occupied:
 				_sector_picker.hide()
@@ -1630,43 +1621,30 @@ func _on_sector_info_requested(slot: SectorSlot) -> void:
 		_:
 			_sector_info_popup.show_sector(slot)
 
-func _on_cargo_move_requested(source: SectorSlot, supplies: Dictionary, tucked_indices: Array[int]) -> void:
-	if supplies.is_empty() and tucked_indices.is_empty():
-		return
-	_cargo_source_slot = source
-	_cargo_pending_supplies = supplies
-	_cargo_pending_tucked = tucked_indices
-	_effect_mode = EffectMode.EFFECT_CARGO_DRONES_DEST
-	_sector_picker.setup("Cargo Drones — pick the destination sector", $Board.get_all_sector_slots(), _cargo_source_slot)
-
-func _on_cargo_cancelled() -> void:
-	_effect_mode = EffectMode.EFFECT_CARGO_DRONES
-	_sector_picker.setup("Cargo Drones — pick a source sector", $Board.get_all_sector_slots())
-
-func _apply_cargo_move(dest: SectorSlot) -> void:
-	for color: int in _cargo_pending_supplies:
-		var amount: int = _cargo_pending_supplies[color]
-		var cur: int = _cargo_source_slot.stored_supply.get(color, 0)
+func _on_cargo_move_requested(source: SectorSlot, dest: SectorSlot, supplies: Dictionary, tucked_indices: Array[int]) -> void:
+	for color: int in supplies:
+		var amount: int = supplies[color]
+		var cur: int = source.stored_supply.get(color, 0)
 		var remaining: int = cur - amount
 		if remaining <= 0:
-			_cargo_source_slot.stored_supply.erase(color)
+			source.stored_supply.erase(color)
 		else:
-			_cargo_source_slot.stored_supply[color] = remaining
+			source.stored_supply[color] = remaining
 		dest.add_stored_supply(color as CardData.SupplyColor, amount)
-	_cargo_source_slot.refresh_display()
-	var sorted_tucked: Array[int] = _cargo_pending_tucked.duplicate()
+	source.refresh_display()
+	var sorted_tucked: Array[int] = tucked_indices.duplicate()
 	sorted_tucked.sort()
 	sorted_tucked.reverse()
 	for idx: int in sorted_tucked:
-		if idx < _cargo_source_slot.tucked_cards.size():
-			var entry: Dictionary = _cargo_source_slot.tucked_cards[idx]
-			_cargo_source_slot.tucked_cards.remove_at(idx)
+		if idx < source.tucked_cards.size():
+			var entry: Dictionary = source.tucked_cards[idx]
+			source.tucked_cards.remove_at(idx)
 			dest.tucked_cards.append(entry)
-	_cargo_source_slot.refresh_display()
+	source.refresh_display()
 	dest.refresh_display()
 	var moved_supply_parts: Array[String] = []
-	for color: int in _cargo_pending_supplies:
-		moved_supply_parts.append("%d %s" % [_cargo_pending_supplies[color], CardData.color_name(color as CardData.SupplyColor)])
+	for color: int in supplies:
+		moved_supply_parts.append("%d %s" % [supplies[color], CardData.color_name(color as CardData.SupplyColor)])
 	var move_desc: String = ", ".join(moved_supply_parts) if not moved_supply_parts.is_empty() else ""
 	if not move_desc.is_empty() and sorted_tucked.size() > 0:
 		_log_effect("moved %s and %d tucked card(s) between sectors" % [move_desc, sorted_tucked.size()])
@@ -1674,11 +1652,6 @@ func _apply_cargo_move(dest: SectorSlot) -> void:
 		_log_effect("moved %s between sectors" % move_desc)
 	elif sorted_tucked.size() > 0:
 		_log_effect("moved %d tucked card(s) between sectors" % sorted_tucked.size())
-	_cargo_source_slot = null
-	_cargo_pending_supplies = {}
-	_cargo_pending_tucked = []
-	_effect_mode = EffectMode.EFFECT_CARGO_DRONES
-	_sector_picker.setup("Cargo Drones — pick a source sector", $Board.get_all_sector_slots())
 
 # Auto-revealed cards (Ice Mining, Ancient Airlock, Cargo Bays, etc.) only
 # ever show as a tiny market-panel icon otherwise — this shows the just-
@@ -2013,8 +1986,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 
 		"cargo_drones":
 			_effect_mode = EffectMode.EFFECT_CARGO_DRONES
-			$Board.set_cargo_click_mode(true)
-			_sector_picker.setup("Cargo Drones — pick a source sector", $Board.get_all_sector_slots())
+			_cargo_drones_panel.start($Board.get_all_sector_slots())
 
 		"black_hole_encounter":
 			_effect_step_black_hole_encounter()
