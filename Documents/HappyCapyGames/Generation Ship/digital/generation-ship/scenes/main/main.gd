@@ -261,6 +261,7 @@ func _ready() -> void:
 	_sector_picker.skipped.connect(_on_sector_picker_skipped)
 
 	$Board.sector_info_requested.connect(_on_sector_info_requested)
+	$Board.market_card_inspect_bought.connect(_on_market_card_inspect_bought)
 
 	_setup_music()
 	CockpitRig.setup_control_screen_display(self)
@@ -2388,6 +2389,21 @@ func _on_market_card_inspect_requested(slot_type: String, slot_idx: int) -> void
 	var origin: Vector3 = CockpitRig.viewport_to_world(self, _market_panel.get_slot_center(slot_type, slot_idx))
 	var screen_center: Vector3 = CockpitRig.viewport_to_world(self, Vector2(_info_viewport.size) * 0.5)
 	$Board.inspect_market_card(slot_type, slot_idx, origin, screen_center)
+
+# Left-clicking the enlarged inspect card shrinks it, then buys it — same
+# entry points and effect_mode/market_origin_3d handling as a direct
+# market-panel click.
+func _on_market_card_inspect_bought(slot_type: String, slot_idx: int) -> void:
+	if _effect_mode != EffectMode.NONE:
+		return
+	$Board.market_origin_3d = CockpitRig.viewport_to_world(self, _market_panel.get_slot_center(slot_type, slot_idx))
+	match slot_type:
+		"dust":
+			$Board.begin_panel_sector_purchase(slot_idx, false)
+		"advanced":
+			$Board.begin_panel_sector_purchase(slot_idx, true)
+		"expedition":
+			$Board.begin_panel_expedition_purchase(slot_idx)
 
 func _on_market_card_hover_started(slot_type: String, slot_idx: int) -> void:
 	var cd: CardData = null
