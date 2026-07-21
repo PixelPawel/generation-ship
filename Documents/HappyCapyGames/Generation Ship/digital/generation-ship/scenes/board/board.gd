@@ -250,6 +250,7 @@ func begin_panel_expedition_purchase(slot_idx: int) -> void:
 # that's settled does _begin_prepaid_drag() let the player drag the card onto
 # their board.
 func _begin_market_purchase(card: Node3D, is_tech: bool) -> void:
+	_dismiss_inspecting_card()
 	if _should_bid(card):
 		_start_bid(card, null, is_tech)
 		return
@@ -308,6 +309,13 @@ func _on_inspecting_card_clicked(card: Node3D, slot_type: String, slot_idx: int)
 	card.tree_exited.connect(func() -> void:
 		market_card_inspect_bought.emit(slot_type, slot_idx)
 	)
+
+# Shrinks whatever card is currently enlarged from a market inspect, if any —
+# called when the player's attention moves elsewhere (e.g. buying a
+# different market card) so the old enlarged card doesn't get left stuck.
+func _dismiss_inspecting_card() -> void:
+	if _inspecting_card and is_instance_valid(_inspecting_card):
+		_inspecting_card.collapse_if_elevated()
 
 # Placed cards are children of a SectorSlot, which carries a ~0.15x scale
 # baked into its transform (see SectorSlot1-6 in main.tscn) — an enlarged
