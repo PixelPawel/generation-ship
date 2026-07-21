@@ -50,6 +50,7 @@ var _drag_armed: bool = false
 var _drag_arm_pos: Vector2 = Vector2.ZERO
 var _card_glb: Node3D = null
 var _face_surface: MeshInstance3D = null
+var _discount_badge: Label3D = null
 
 @onready var card_mesh: MeshInstance3D = $CardMesh
 @onready var collider: Area3D = $Collider
@@ -218,11 +219,32 @@ func _collapse_elevation() -> void:
 		_tween.tween_callback(queue_free)
 	elevation_ended.emit(self)
 
-func set_discount_glow(active: bool) -> void:
-	var mat: ShaderMaterial = card_mesh.get_surface_override_material(0) as ShaderMaterial
-	if mat:
-		mat.set_shader_parameter("discount_glow_color",
-			Vector3(1.0, 0.82, 0.15) if active else Vector3.ZERO)
+# Shows a "-N" badge (cost reductions only ever apply to tech cards, so this
+# is only ever called for hand cards — see Board.refresh_hand_discounts()).
+func set_discount(amount: int) -> void:
+	if amount <= 0:
+		if _discount_badge:
+			_discount_badge.visible = false
+		return
+	if not _discount_badge:
+		_discount_badge = _make_discount_badge()
+	_discount_badge.text = "-%d" % amount
+	_discount_badge.visible = true
+
+func _make_discount_badge() -> Label3D:
+	var lbl := Label3D.new()
+	lbl.font_size = 32
+	lbl.pixel_size = 0.005
+	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lbl.no_depth_test = true
+	lbl.render_priority = 2
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.modulate = Color(0.35, 1.0, 0.45)
+	lbl.outline_size = 34
+	lbl.outline_modulate = Color.BLACK
+	lbl.position = Vector3(-0.24, 0.35, 0.015)
+	add_child(lbl)
+	return lbl
 
 func set_sort_order(priority: float) -> void:
 	card_mesh.sorting_offset = priority

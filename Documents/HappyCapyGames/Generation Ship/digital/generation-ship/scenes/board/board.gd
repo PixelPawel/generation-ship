@@ -395,20 +395,15 @@ func get_sector_count() -> int:
 			count += 1
 	return count
 
-func refresh_discount_glow() -> void:
-	for card: Node3D in _market.get_all_visible_cards():
+# Cost reductions only ever apply to tech cards (see get_purchase_discount),
+# and tech cards only ever sit in hand — never in the market.
+func refresh_hand_discounts() -> void:
+	if not _hand:
+		return
+	for card: Node3D in _hand.get_cards():
 		var cd: CardData = card.get("card_data") as CardData
 		if cd:
-			card.set_discount_glow(get_purchase_discount(cd, null) > 0)
-	for card: Node3D in _expedition_market.get_all_visible_cards():
-		var cd: CardData = card.get("card_data") as CardData
-		if cd:
-			card.set_discount_glow(get_purchase_discount(cd, null) > 0)
-	if _hand:
-		for card: Node3D in _hand.get_cards():
-			var cd: CardData = card.get("card_data") as CardData
-			if cd:
-				card.set_discount_glow(get_purchase_discount(cd, null) > 0)
+			card.set_discount(get_purchase_discount(cd, null))
 
 func get_all_sector_slots() -> Array[SectorSlot]:
 	var result: Array[SectorSlot] = []

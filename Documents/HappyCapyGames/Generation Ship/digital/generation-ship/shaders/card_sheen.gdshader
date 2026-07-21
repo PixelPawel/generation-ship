@@ -4,7 +4,6 @@ render_mode blend_mix, depth_draw_never, depth_test_disabled, cull_back, unshade
 uniform sampler2D card_texture : source_color, filter_linear_mipmap, repeat_disable;
 uniform vec2 tilt = vec2(0.0, 0.0);
 uniform float sheen_strength : hint_range(0.0, 1.0) = 0.22;
-uniform vec3 discount_glow_color = vec3(0.0);
 uniform float corner_radius : hint_range(0.0, 0.2) = 0.06;
 void fragment() {
 	vec4 face = texture(card_texture, UV);
@@ -25,8 +24,4 @@ void fragment() {
 		alpha *= smoothstep(corner_radius, corner_radius - 0.01, d);
 	}
 	ALPHA = alpha;
-
-	float edge = min(c.x, c.y);
-	float rim = 1.0 - smoothstep(0.0, 0.04, edge);
-	EMISSION = discount_glow_color * rim * 1.8;
 }

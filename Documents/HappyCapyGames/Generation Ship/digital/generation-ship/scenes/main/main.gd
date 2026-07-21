@@ -373,7 +373,7 @@ func _do_game_setup(sector_order: Array, exp_order: Array) -> void:
 	$Board.setup_expedition_market()
 	if multiplayer.is_server() and not GameNetwork.bot_ids.is_empty():
 		BotTurn.init_bot_state(self)
-	$Board.refresh_discount_glow()
+	$Board.refresh_hand_discounts()
 	_market_panel.setup($Board.get_market(), $Board.get_expedition_market())
 	_show_action_buttons(true)
 	_show_end_turn_button(true)
@@ -609,6 +609,7 @@ func _end_round() -> void:
 	_log_action("─── Round %d / %d ───" % [_round, MAX_ROUNDS], Color(0.6, 0.82, 1.0))
 	_update_round_label()
 	$Board.draw_cards(6)
+	$Board.refresh_hand_discounts()
 	if multiplayer.is_server() and not GameNetwork.bot_ids.is_empty():
 		BotTurn.update_bots_for_new_round(self)
 	$Board.reveal_sector_round_cards()
@@ -1731,7 +1732,7 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	var _supply: CardData.SupplyColor = _cd.adv_color if _is_adv else _cd.color
 	_broadcast_log("%s: placed %s" % [_pname, _cname], CardData.color_tint(_supply))
 	UIAudio.play_supply_sfx(_supply)
-	$Board.refresh_discount_glow()
+	$Board.refresh_hand_discounts()
 	if _effect_mode != EffectMode.NONE:
 		_reset_effect_state()
 	_effect_slot = slot
