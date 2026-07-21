@@ -7,33 +7,6 @@ static func get_theme() -> Theme:
 		_cached = _build()
 	return _cached
 
-# Adds a persistent hide/show tab to a popup root Control.
-# contents: nodes to hide/show (panel, backdrop, etc.)
-# modal: if true, also toggles root mouse_filter so interaction passes through when hidden.
-static func add_hide_button(root: Control, label: String, contents: Array, modal: bool = false) -> void:
-	var tab := Button.new()
-	tab.text = label
-	tab.z_index = 100
-	tab.anchor_left = 0.5
-	tab.anchor_right = 0.5
-	tab.anchor_top = 1.0
-	tab.anchor_bottom = 1.0
-	tab.offset_left = -65.0
-	tab.offset_right = 65.0
-	tab.offset_top = 8.0
-	tab.offset_bottom = 38.0
-	root.add_child(tab)
-	apply_to_button(tab)
-
-	tab.pressed.connect(func() -> void:
-		var showing: bool = not (contents[0] as CanvasItem).visible
-		for c: Variant in contents:
-			(c as CanvasItem).visible = showing
-		if modal:
-			root.mouse_filter = Control.MOUSE_FILTER_STOP if showing else Control.MOUSE_FILTER_IGNORE
-		tab.text = "Hide Panel" if showing else "Reveal Panel"
-	)
-
 static func apply_to_button(btn: Button) -> void:
 	var t: Theme = get_theme()
 	for state: String in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:

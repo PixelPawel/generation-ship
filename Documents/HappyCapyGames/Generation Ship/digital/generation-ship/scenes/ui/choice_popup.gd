@@ -90,8 +90,6 @@ func _ready() -> void:
 	_multiselect_done_btn.visible = false
 	footer_row.add_child(_multiselect_done_btn)
 
-	GameTheme.add_hide_button(self, "Options", [panel], true)
-
 func _fit_scroll_width() -> void:
 	if not _scroll_container:
 		return
