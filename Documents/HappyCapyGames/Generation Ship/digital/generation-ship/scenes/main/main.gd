@@ -166,6 +166,7 @@ func _ready() -> void:
 	$Board.set_hand(hand)
 	$Board.set_card_scene(card_scene)
 	$Board.card_recycled.connect(_on_card_recycled)
+	$Board.unplaceable_card_recycled.connect(_on_unplaceable_card_recycled)
 	$Board.recycle_confirm_required.connect(_on_recycle_confirm_required)
 	$Board.setup_tech_deck(CardDatabase.techs)
 	$Board.setup_sector_deck(CardDatabase.sectors)
@@ -2699,6 +2700,16 @@ func _on_card_recycled(color: CardData.SupplyColor) -> void:
 	UIAudio.play_recycle_sfx()
 	_cs_display.add_supply(color, 1)
 	_apply_recycle_bonus(color)
+
+# A bought/won tech or expedition card had nowhere to go (every sector's tech
+# slots were full) — Board already recycled it and card_recycled will credit
+# its supply as usual; this just explains to the player why it vanished
+# instead of asking them to place it.
+func _on_unplaceable_card_recycled(card_data: CardData) -> void:
+	var c_name: String = card_data.card_name if card_data else "Card"
+	_show_auction_toast("No room to place %s — recycled instead" % c_name)
+	_log_action("No room to place %s, recycled instead" % c_name, Color(1.0, 0.6, 0.4))
+	_broadcast_my_state()
 
 func _apply_recycle_bonus(color: CardData.SupplyColor) -> void:
 	if color != CardData.SupplyColor.DUST:

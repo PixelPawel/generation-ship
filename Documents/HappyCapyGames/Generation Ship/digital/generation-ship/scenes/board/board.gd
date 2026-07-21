@@ -28,6 +28,7 @@ const _CARD_PORTRAIT_SIZE := Vector2(0.63, 0.88)
 const _REVEAL_FILL_MARGIN := 0.92 * 0.34
 
 signal card_recycled(supply_color: CardData.SupplyColor)
+signal unplaceable_card_recycled(card_data: CardData)
 signal recycle_confirm_required(card: Node3D, color: CardData.SupplyColor)
 signal major_action_changed(taken: bool)
 signal market_card_taken(card_data: CardData)
@@ -741,8 +742,14 @@ func confirm_recycle() -> void:
 		_pending_recycle_card = null
 		return
 	var card: Node3D = _pending_recycle_card
-	var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
 	_pending_recycle_card = null
+	_recycle_card_node(card)
+
+# Shared by confirm_recycle() (player-chosen) and _begin_prepaid_drag()'s
+# no-room-to-place fallback (forced) — adds the card's supply, discards it,
+# and plays the same shrink-away animation either way.
+func _recycle_card_node(card: Node3D) -> void:
+	var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
 	add_to_discard(card.card_data)
 	card_recycled.emit(color)
 	card.collider.monitoring = false
@@ -754,6 +761,13 @@ func confirm_recycle() -> void:
 		if is_instance_valid(card):
 			card.queue_free()
 	)
+
+# True if any occupied sector still has room for a tech/expedition card.
+func _any_tech_slot_available() -> bool:
+	for slot: SectorSlot in _sector_row.get_children():
+		if slot.occupied and slot.has_tech_space():
+			return true
+	return false
 
 func cancel_recycle() -> void:
 	if not is_instance_valid(_pending_recycle_card):
@@ -981,40 +995,6 @@ func complete_purchase() -> void:
 func get_slot_index(slot: SectorSlot) -> int:
 	return _sector_row.get_children().find(slot)
 
-func accept_auction_win(card_data: CardData, slot_idx: int, is_tech: bool) -> bool:
-	var card: Node3D = find_market_card(card_data)
-	if not card:
-		return false
-	var slots: Array[SectorSlot] = get_all_sector_slots()
-	var slot: SectorSlot = null
-	if slot_idx >= 0 and slot_idx < slots.size():
-		var candidate: SectorSlot = slots[slot_idx]
-		if is_tech:
-			if candidate.occupied and candidate.has_tech_space():
-				slot = candidate
-		else:
-			if not candidate.occupied:
-				slot = candidate
-	if not slot:
-		for s: SectorSlot in slots:
-			if is_tech:
-				if s.occupied and s.has_tech_space():
-					slot = s
-					break
-			else:
-				if not s.occupied:
-					slot = s
-					break
-	if not slot:
-		return false
-	_pending_card = card
-	_pending_slot = slot
-	_pending_is_tech = is_tech
-	_pending_drag_origin = DragOrigin.MARKET
-	card.reparent(self, true)
-	card.global_position = slot.global_position + Vector3(0.0, PENDING_HOVER_Y, 0.0)
-	return true
-
 # Kicks off the drag-to-place step for a market card whose payment/bid has
 # already resolved (a direct dust-sector buy, or an advanced-sector/expedition
 # auction win — whether by the auction's initiator or another player). The
@@ -1025,6 +1005,18 @@ func accept_auction_win(card_data: CardData, slot_idx: int, is_tech: bool) -> bo
 func _begin_prepaid_drag(card: Node3D) -> void:
 	if card.card_data:
 		market_card_taken.emit(card.card_data)
+	# Tech/expedition cards need an occupied sector with a free tech slot;
+	# unlike sector cards (which can always spawn a fresh empty slot), that
+	# space is capped, so a bought/won card can end up with nowhere to go.
+	# The physical game's rule for this is to recycle it instead of leaving
+	# the buyer stuck holding an unplaceable card forever.
+	var ctype: CardData.CardType = card.card_data.card_type if card.card_data else CardData.CardType.TECH
+	if ctype != CardData.CardType.SECTOR and not _any_tech_slot_available():
+		card.reparent(self, true)
+		card.global_position = market_origin_3d
+		unplaceable_card_recycled.emit(card.card_data)
+		_recycle_card_node(card)
+		return
 	_is_prepaid_placement = true
 	_drag_origin = DragOrigin.MARKET
 	_begin_drag(card)
