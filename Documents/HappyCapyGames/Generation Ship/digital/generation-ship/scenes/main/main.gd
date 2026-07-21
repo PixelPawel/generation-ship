@@ -38,6 +38,7 @@ enum EffectMode {
 	EFFECT_RECYCLE_TUCK_STORE_SECTOR,
 	EFFECT_TUCK_ANY_SECTOR,
 	EFFECT_TUCK_ANY_SECTOR_SLOT,
+	EFFECT_INTERFLEET_PICK,
 	PAYMENT_CONFIRM,
 	SUPPLY_CHOICE,
 }
@@ -117,6 +118,12 @@ var _auction_starting: bool = false  # true from bid-confirm until _auction_acti
 var _is_runner_up_offer: bool = false
 var _runner_up_phase: bool = false
 var _bots_passed_this_round: Array[int] = []
+
+var _interfleet_active: bool = false
+var _interfleet_initiator_id: int = 0
+var _interfleet_remaining_order: Array[int] = []   # front = current active picker
+var _interfleet_pool_refs: Array = []
+var _interfleet_awaiting_pick: bool = false        # true only on the client currently showing the pick popup
 var cs_viewport: SubViewport = null
 var vp_button_held: bool = false
 var vp_prev_pos: Dictionary = {}  # SubViewport -> Vector2
@@ -1001,6 +1008,167 @@ func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, ca
 		_process_next_effect()
 	_broadcast_my_state()
 
+# ── Interfleet Comms RPCs ─────────────────────────────────────────────────────
+# Host-authoritative pass-around: draw N (N = player count) into a shared
+# pool, each player in turn order (starting at whoever placed the card)
+# picks one, the last player automatically gets whatever's left. Mirrors the
+# auction RPC pattern above — a rotating mini-sequence independent of whose
+# real game-turn it is.
+
+# Client → Host: I placed Interfleet Comms; draw the shared pool and start.
+@rpc("any_peer", "reliable")
+func _rpc_request_interfleet() -> void:
+	if not multiplayer.is_server():
+		return
+	_server_start_interfleet(multiplayer.get_remote_sender_id())
+
+# Client → Host: I'm keeping the pool card at this index.
+@rpc("any_peer", "reliable")
+func _rpc_request_interfleet_pick(idx: int) -> void:
+	if not multiplayer.is_server():
+		return
+	_server_handle_interfleet_pick(multiplayer.get_remote_sender_id(), idx)
+
+# Host → All: sequence started — full pool, full pick order, who triggered it.
+@rpc("authority", "reliable", "call_local")
+func _rpc_sync_interfleet_started(pool_refs: Array, order: Array, initiator_id: int) -> void:
+	_interfleet_pool_refs = pool_refs.duplicate()
+	_interfleet_remaining_order = []
+	for v: Variant in order:
+		_interfleet_remaining_order.append(int(v))
+	_interfleet_initiator_id = initiator_id
+	_interfleet_active = true
+	_effect_mode = EffectMode.EFFECT_INTERFLEET_PICK
+	var iname: String = GameNetwork.player_names.get(initiator_id, "Player")
+	_log_action("%s: Interfleet Comms — drew %d card(s) to pass around" % [iname, _interfleet_pool_refs.size()], Color(0.6, 0.85, 1.0))
+	if not _interfleet_remaining_order.is_empty():
+		_update_interfleet_ui(_interfleet_remaining_order[0])
+
+# Host → All: pool/order changed after a pick (still 2+ players left to serve).
+@rpc("authority", "reliable", "call_local")
+func _rpc_sync_interfleet_state(pool_refs: Array, order: Array) -> void:
+	_interfleet_pool_refs = pool_refs.duplicate()
+	_interfleet_remaining_order = []
+	for v: Variant in order:
+		_interfleet_remaining_order.append(int(v))
+	if not _interfleet_remaining_order.is_empty():
+		_update_interfleet_ui(_interfleet_remaining_order[0])
+
+# Host → All: a specific player kept a specific card.
+@rpc("authority", "reliable", "call_local")
+func _rpc_sync_interfleet_pick_result(peer_id: int, card_ref: Dictionary) -> void:
+	var my_id: int = multiplayer.get_unique_id()
+	var cd: CardData = CardRef.from_ref(card_ref)
+	if my_id == peer_id:
+		if cd:
+			$Board.add_specific_card_to_hand(cd)
+			_log_action("You kept %s (Interfleet Comms)" % cd.card_name, Color(0.6, 1.0, 0.6))
+		_broadcast_my_state()
+	elif multiplayer.is_server() and GameNetwork.is_bot(peer_id):
+		if cd:
+			var hand: Array[CardData] = BotTurn.bot_hand(self, peer_id)
+			hand.append(cd)
+			BotTurn.bot_set_hand(self, peer_id, hand)
+	else:
+		var pname: String = GameNetwork.player_names.get(peer_id, "Player")
+		_log_action("%s kept a card (Interfleet Comms)" % pname, Color(0.6, 0.85, 1.0))
+
+# Host → All: sequence complete — the last player auto-received the final
+# card; resumes the initiator's own effect queue.
+@rpc("authority", "reliable", "call_local")
+func _rpc_sync_interfleet_finished(recipient_id: int, card_ref: Dictionary, initiator_id: int) -> void:
+	_interfleet_active = false
+	_interfleet_awaiting_pick = false
+	_hide_effect_hint()
+	_choice_popup.hide()
+	if _effect_mode == EffectMode.EFFECT_INTERFLEET_PICK:
+		_effect_mode = EffectMode.NONE
+	var my_id: int = multiplayer.get_unique_id()
+	var cd: CardData = CardRef.from_ref(card_ref)
+	if my_id == recipient_id:
+		if cd:
+			$Board.add_specific_card_to_hand(cd)
+		_broadcast_my_state()
+	elif multiplayer.is_server() and GameNetwork.is_bot(recipient_id):
+		if cd:
+			var hand: Array[CardData] = BotTurn.bot_hand(self, recipient_id)
+			hand.append(cd)
+			BotTurn.bot_set_hand(self, recipient_id, hand)
+	var rname: String = GameNetwork.player_names.get(recipient_id, "Player")
+	_log_action("%s automatically received the last Interfleet Comms card" % rname, Color(0.6, 0.85, 1.0))
+	if my_id == initiator_id:
+		_process_next_effect()
+
+func _server_start_interfleet(initiator_id: int) -> void:
+	var order: Array[int] = GameNetwork.player_order.duplicate()
+	var start_pos: int = maxi(order.find(initiator_id), 0)
+	var n: int = order.size()
+	var rotated: Array[int] = []
+	for j: int in n:
+		rotated.append(order[(start_pos + j) % n])
+	var drawn: Array[CardData] = $Board.draw_card_data(n)
+	if drawn.size() < n:
+		rotated = rotated.slice(0, drawn.size())
+	var pool_refs: Array = []
+	for cd: CardData in drawn:
+		pool_refs.append(CardRef.to_ref(cd))
+	_interfleet_initiator_id = initiator_id
+	_interfleet_remaining_order = rotated
+	_interfleet_pool_refs = pool_refs
+	_interfleet_active = true
+	_rpc_sync_interfleet_started.rpc(pool_refs, rotated, initiator_id)
+	_server_interfleet_advance()
+
+func _server_interfleet_advance() -> void:
+	if _interfleet_remaining_order.size() <= 1:
+		_server_finish_interfleet()
+		return
+	var active_id: int = _interfleet_remaining_order[0]
+	_rpc_sync_interfleet_state.rpc(_interfleet_pool_refs, _interfleet_remaining_order)
+	if GameNetwork.is_bot(active_id):
+		var _bid: int = active_id
+		get_tree().create_timer(0.6).timeout.connect(func() -> void: BotTurn.bot_decide_interfleet_pick(self, _bid))
+
+func _server_handle_interfleet_pick(peer_id: int, idx: int) -> void:
+	if _interfleet_remaining_order.is_empty() or peer_id != _interfleet_remaining_order[0]:
+		return
+	if idx < 0 or idx >= _interfleet_pool_refs.size():
+		return
+	var chosen_ref: Dictionary = _interfleet_pool_refs[idx]
+	_interfleet_pool_refs.remove_at(idx)
+	_interfleet_remaining_order.remove_at(0)
+	_rpc_sync_interfleet_pick_result.rpc(peer_id, chosen_ref)
+	_server_interfleet_advance()
+
+func _server_finish_interfleet() -> void:
+	var recipient_id: int = _interfleet_remaining_order[0] if not _interfleet_remaining_order.is_empty() else _interfleet_initiator_id
+	var card_ref: Dictionary = _interfleet_pool_refs[0] if not _interfleet_pool_refs.is_empty() else {}
+	var initiator_id: int = _interfleet_initiator_id
+	_interfleet_remaining_order = []
+	_interfleet_pool_refs = []
+	_interfleet_active = false
+	_rpc_sync_interfleet_finished.rpc(recipient_id, card_ref, initiator_id)
+
+# Shown only to the active picker (a mandatory choice, no skip); everyone
+# else sees the existing effect-hint panel — same "your turn" vs. "waiting"
+# framing the sector-reveal flow already uses, no new UI nodes needed.
+func _update_interfleet_ui(active_id: int) -> void:
+	var my_id: int = multiplayer.get_unique_id()
+	if my_id == active_id:
+		var pool: Array[CardData] = []
+		for ref: Dictionary in _interfleet_pool_refs:
+			var cd: CardData = CardRef.from_ref(ref)
+			if cd:
+				pool.append(cd)
+		_interfleet_awaiting_pick = true
+		_hide_effect_hint()
+		_choice_popup.show_card_choices("Interfleet Comms — keep one card:", pool, false)
+	else:
+		_interfleet_awaiting_pick = false
+		_choice_popup.hide()
+		var pname: String = GameNetwork.player_names.get(active_id, "Player")
+		_show_effect_hint("Waiting for %s to pick a card (Interfleet Comms)…" % pname)
+
 func _show_auction_toast(message: String) -> void:
 	var panel := PanelContainer.new()
 	panel.anchor_left = 0.5
@@ -1301,6 +1469,7 @@ func _reset_effect_state() -> void:
 	_pending_target_slot = null
 	_effect_label = ""
 	_caldera_slots = []
+	_interfleet_awaiting_pick = false
 	_effect_done_btn.hide()
 	_choice_popup.hide()
 	_hide_effect_hint()
@@ -1321,6 +1490,13 @@ func _on_effect_done_pressed() -> void:
 		_finish_interactive_step()
 
 func _on_choice_made(index: int) -> void:
+	if _interfleet_awaiting_pick:
+		_interfleet_awaiting_pick = false
+		if GameNetwork.is_host:
+			_server_handle_interfleet_pick(multiplayer.get_unique_id(), index)
+		else:
+			_rpc_request_interfleet_pick.rpc_id(1, index)
+		return
 	if _effect_mode == EffectMode.EFFECT_RECYCLE_TUCK_STORE_DECIDE:
 		_apply_recycle_tuck_store_decision(index == 0)
 		return
@@ -1923,6 +2099,9 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_effect_mode = EffectMode.EFFECT_CARGO_DRONES
 			_cargo_drones_panel.start($Board.get_all_sector_slots())
 
+		"interfleet_comms":
+			_effect_step_interfleet_comms()
+
 		"black_hole_encounter":
 			_effect_step_black_hole_encounter()
 
@@ -2069,6 +2248,23 @@ func _effect_step_caldera_colony() -> void:
 		return
 	_effect_mode = EffectMode.EFFECT_CALDERA_SELECT_SECTOR
 	_choice_popup.show_card_choices("Caldera Colony — choose a sector:", caldera_cards, true, caldera_advanced_flags)
+
+# "Draw 1 per player, keep 1, then pass cards left" — needs real network sync
+# since every other player must see and pick from the same shared pool. Async
+# like reveal_sector/cargo_drones: does not call _process_next_effect() itself,
+# that happens once the whole pass-around sequence resolves (see
+# _rpc_sync_interfleet_finished).
+func _effect_step_interfleet_comms() -> void:
+	if not GameNetwork.is_multiplayer:
+		$Board.draw_cards(1)
+		_log_effect("drew 1 card (Interfleet Comms, solo)")
+		_process_next_effect()
+		return
+	_effect_mode = EffectMode.EFFECT_INTERFLEET_PICK
+	if GameNetwork.is_host:
+		_server_start_interfleet(multiplayer.get_unique_id())
+	else:
+		_rpc_request_interfleet.rpc_id(1)
 
 func _effect_step_black_hole_encounter() -> void:
 	_effect_mode = EffectMode.EFFECT_EXPEDITION_SHUFFLE
@@ -2559,6 +2755,8 @@ func _on_end_turn_pressed() -> void:
 	if not $Board.is_major_action_taken():
 		return
 	if _runner_up_phase:
+		return
+	if _effect_mode == EffectMode.EFFECT_INTERFLEET_PICK:
 		return
 	if $Board.is_card_drag_pending():
 		return

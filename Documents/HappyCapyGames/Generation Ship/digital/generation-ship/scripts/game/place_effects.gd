@@ -16,6 +16,7 @@ extends RefCounted
 #   tuck(count, face_up)         — player picks exactly N hand cards to tuck on slot
 #   tuck_optional(max, face_up)  — player picks 0-max, draws 1 per tuck
 #   recycle_tuck(count)          — recycle N cards AND tuck them facedown, then draw N
+#   interfleet_comms             — draw 1/player, pass-left pick sequence (network-synced); solo collapses to draw 1
 
 static func get_steps(cd: CardData, slot: SectorSlot) -> Array[Dictionary]:
 	var is_new: bool = slot.get_tech_count() == 1
@@ -197,8 +198,7 @@ static func _build(name: String, _cd: CardData, slot: SectorSlot,
 			steps.append({type = "fuse_notice", count = 4})
 
 		"Interfleet Comms":
-			# "Draw 1 per player, keep 1" → solo: draw 1
-			steps.append({type = "draw", count = 1})
+			steps.append({type = "interfleet_comms"})
 
 		"Nanoassembly":
 			steps.append({type = "fuse_notice", count = 6 if is_complete else 3})

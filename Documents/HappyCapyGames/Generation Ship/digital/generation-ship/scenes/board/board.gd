@@ -584,6 +584,17 @@ func draw_cards(count: int) -> void:
 	if not new_cards.is_empty():
 		_hand.animate_draw_cards(new_cards)
 
+# Adds a specific, externally-sourced CardData (e.g. one won from another
+# player's Interfleet Comms pool) directly into hand — unlike draw_cards(),
+# this doesn't pop from the local tech deck.
+func add_specific_card_to_hand(cd: CardData) -> void:
+	if not cd:
+		return
+	var card: Node3D = _card_scene.instantiate()
+	_hand.add_card(card)
+	card.set_card_data(cd)
+	_hand.animate_draw_cards([card])
+
 func clear_hand() -> void:
 	_hand.clear()
 

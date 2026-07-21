@@ -189,3 +189,12 @@ static func bot_decide_bid(main: Main, bot_id: int) -> void:
 		main._server_handle_raise(bot_id, new_bid)
 	else:
 		main._server_handle_pass_bid(bot_id)
+
+
+# A random pick is the entire "AI" here — Interfleet Comms is a minor tech
+# effect, not worth a BotAI.decide_* heuristic.
+static func bot_decide_interfleet_pick(main: Main, bot_id: int) -> void:
+	if main._interfleet_pool_refs.is_empty():
+		return
+	var idx: int = randi() % main._interfleet_pool_refs.size()
+	main._server_handle_interfleet_pick(bot_id, idx)
