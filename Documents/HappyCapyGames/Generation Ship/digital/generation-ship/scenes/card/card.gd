@@ -19,13 +19,14 @@ const PLACED_LIFT_DURATION: float = 0.35
 const PLACED_LIFT_CENTER_PULL: float = 0.9
 const DRAG_THRESHOLD_PX: float = 8.0
 # Jolt rejects a near-zero scale on a node with an Area3D collider (treats
-# the transform's basis as singular) — used instead of Vector3.ZERO wherever
-# a market-inspect/reveal-display clone needs to read as "vanished". 0.001
-# turned out to still be within Jolt's near-zero tolerance (it started
-# logging warnings once the auto-reveal-display made this vanish state
-# happen far more often); 0.02 is comfortably clear of it and still reads as
-# invisible at normal viewing distance.
-const _NEGLIGIBLE_SCALE: float = 0.02
+# the transform's basis as singular) — use this instead of Vector3.ZERO
+# anywhere a card needs to read as "vanished" (market-inspect/reveal-display
+# clones here, and hand.gd's fly-out-and-remove animation). 0.001 turned out
+# to still be within Jolt's near-zero tolerance; 0.02 is comfortably clear of
+# it and still reads as invisible at normal viewing distance. Public (no
+# leading underscore) so other scripts share this exact tuned value instead
+# of re-guessing their own.
+const NEGLIGIBLE_SCALE: float = 0.02
 const _LANDSCAPE_CHILD_SCALE := Vector3(0.88 / 0.63, 0.63 / 0.88, 1.0)
 
 const _TECH_GLB := preload("res://assets/3d/gs_card_tech.glb")
@@ -184,9 +185,9 @@ func enlarge_from(elev_target_world: Vector3, vanish_target_world: Vector3, elev
 	_destroy_on_collapse = true
 	var parent: Node3D = get_parent() as Node3D
 	global_position = vanish_target_world
-	scale = Vector3.ONE * _NEGLIGIBLE_SCALE
+	scale = Vector3.ONE * NEGLIGIBLE_SCALE
 	_elev_rest_pos = parent.to_local(vanish_target_world) if parent else vanish_target_world
-	_elev_rest_scale = Vector3.ONE * _NEGLIGIBLE_SCALE
+	_elev_rest_scale = Vector3.ONE * NEGLIGIBLE_SCALE
 	var target_local: Vector3 = parent.to_local(elev_target_world) if parent else elev_target_world
 	toggle_elevation(target_local, elev_scale, 0.0)
 

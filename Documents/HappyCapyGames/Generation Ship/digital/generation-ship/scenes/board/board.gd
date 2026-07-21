@@ -747,7 +747,9 @@ func confirm_recycle() -> void:
 	card_recycled.emit(color)
 	card.collider.monitoring = false
 	var t: Tween = card.create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
-	t.tween_property(card, "scale", Vector3.ZERO, 0.25)
+	# Vector3.ZERO here would leave the Collider Area3D with a singular basis,
+	# which Jolt logs a warning about — see Card.NEGLIGIBLE_SCALE.
+	t.tween_property(card, "scale", Vector3.ONE * Card.NEGLIGIBLE_SCALE, 0.25)
 	t.tween_callback(func() -> void:
 		if is_instance_valid(card):
 			card.queue_free()
@@ -1439,7 +1441,9 @@ func _handle_failed_drop() -> void:
 			market_card_drag_failed.emit(card)
 			card.collider.monitoring = false
 			var t: Tween = card.create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
-			t.tween_property(card, "scale", Vector3.ZERO, 0.25)
+			# Vector3.ZERO here would leave the Collider Area3D with a singular
+			# basis, which Jolt logs a warning about — see Card.NEGLIGIBLE_SCALE.
+			t.tween_property(card, "scale", Vector3.ONE * Card.NEGLIGIBLE_SCALE, 0.25)
 			t.tween_callback(func() -> void:
 				if card.card_data and card.card_data.card_type == CardData.CardType.EXPEDITION:
 					_expedition_market.return_card(card)
