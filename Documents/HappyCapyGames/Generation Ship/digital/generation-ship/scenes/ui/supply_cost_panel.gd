@@ -7,7 +7,6 @@ signal cancelled
 var _title: Label
 var _hint: Label
 var _buttons_row: HBoxContainer
-var _supply_chosen_fired: bool = false
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -50,15 +49,8 @@ func _ready() -> void:
 	cancel_btn.text = "Skip"
 	cancel_btn.add_theme_font_size_override("font_size", 22)
 	cancel_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	cancel_btn.pressed.connect(func() -> void: hide())
+	cancel_btn.pressed.connect(func() -> void: hide(); cancelled.emit())
 	vbox.add_child(cancel_btn)
-
-	visibility_changed.connect(func() -> void:
-		if not visible:
-			if not _supply_chosen_fired:
-				cancelled.emit()
-			_supply_chosen_fired = false
-	)
 
 func show_cost(card_name: String, cost: int, affordable: Array) -> void:
 	_title.text = card_name
@@ -76,7 +68,6 @@ func _make_btn(color: CardData.SupplyColor, cost: int) -> Button:
 	btn.add_theme_color_override("font_color", CardData.color_tint(color))
 	btn.custom_minimum_size = Vector2(200, 64)
 	btn.pressed.connect(func() -> void:
-		_supply_chosen_fired = true
 		supply_chosen.emit(color)
 		hide()
 	)
