@@ -2147,16 +2147,18 @@ func _effect_step_seedbanks() -> void:
 func _effect_step_caldera_colony() -> void:
 	_caldera_slots = []
 	var caldera_cards: Array[CardData] = []
+	var caldera_advanced_flags: Array[bool] = []
 	for slot: SectorSlot in $Board.get_all_sector_slots():
 		if not slot.occupied or not slot.placed_card or not slot.placed_card.card_data:
 			continue
 		_caldera_slots.append(slot)
 		caldera_cards.append(slot.placed_card.card_data as CardData)
+		caldera_advanced_flags.append(bool(slot.placed_card.get("is_advanced")))
 	if caldera_cards.is_empty():
 		_finish_interactive_step()
 		return
 	_effect_mode = EffectMode.EFFECT_CALDERA_SELECT_SECTOR
-	_choice_popup.show_card_choices("Caldera Colony — choose a sector:", caldera_cards, true)
+	_choice_popup.show_card_choices("Caldera Colony — choose a sector:", caldera_cards, true, caldera_advanced_flags)
 
 func _effect_step_black_hole_encounter() -> void:
 	_effect_mode = EffectMode.EFFECT_EXPEDITION_SHUFFLE
