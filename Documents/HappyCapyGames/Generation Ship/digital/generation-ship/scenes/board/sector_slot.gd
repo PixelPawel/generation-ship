@@ -24,9 +24,9 @@ static var TECH_OFFSETS_COMPACT: Array[Vector3] = [
 
 static var TECH_OFFSETS_EXPANDED: Array[Vector3] = [
 	Vector3(0, 0.070, -0.55),
-	Vector3(0, 0.060, -1.02),
-	Vector3(0, 0.050, -1.72),
-	Vector3(0, 0.040, -2.42),
+	Vector3(0, 0.060, -1.1925),
+	Vector3(0, 0.050, -1.835),
+	Vector3(0, 0.040, -2.4775),
 	Vector3(0, 0.030, -3.12),
 ]
 
