@@ -39,6 +39,7 @@ enum EffectMode {
 	EFFECT_TUCK_ANY_SECTOR,
 	EFFECT_TUCK_ANY_SECTOR_SLOT,
 	EFFECT_INTERFLEET_PICK,
+	EFFECT_AWAITING_ALL_DRAW,
 	PAYMENT_CONFIRM,
 	SUPPLY_CHOICE,
 }
@@ -1099,6 +1100,31 @@ func _rpc_sync_interfleet_finished(recipient_id: int, card_ref: Dictionary, init
 	if my_id == initiator_id:
 		_process_next_effect()
 
+# ── "Every player draws" RPCs (Gas Cloud) ─────────────────────────────────────
+# No shared pool or turn order needed — just tell every client (and the host,
+# for its bots) to draw independently from their own deck.
+
+# Client → Host: I placed a "draw_all_players" card; tell everyone to draw.
+@rpc("any_peer", "reliable")
+func _rpc_request_draw_all_players(count: int, source: String) -> void:
+	if not multiplayer.is_server():
+		return
+	_rpc_sync_draw_all_players.rpc(count, multiplayer.get_remote_sender_id(), source)
+
+# Host → All: everyone draws N cards from their own local deck.
+@rpc("authority", "reliable", "call_local")
+func _rpc_sync_draw_all_players(count: int, initiator_id: int, source: String) -> void:
+	$Board.draw_cards(count)
+	_log_action("%s: everyone draws %d card(s)" % [source, count], Color(0.6, 0.85, 0.75))
+	_broadcast_my_state()
+	if multiplayer.is_server():
+		for bot_id: int in GameNetwork.bot_ids:
+			BotTurn.apply_bot_effect_steps(self, bot_id, [{type = "draw", count = count}])
+		BotTurn.broadcast_bot_states(self)
+	if _effect_mode == EffectMode.EFFECT_AWAITING_ALL_DRAW and multiplayer.get_unique_id() == initiator_id:
+		_effect_mode = EffectMode.NONE
+		_process_next_effect()
+
 func _server_start_interfleet(initiator_id: int) -> void:
 	var order: Array[int] = GameNetwork.player_order.duplicate()
 	var start_pos: int = maxi(order.find(initiator_id), 0)
@@ -2102,6 +2128,9 @@ func _execute_effect_step(step: Dictionary) -> void:
 		"interfleet_comms":
 			_effect_step_interfleet_comms()
 
+		"draw_all_players":
+			_effect_step_draw_all_players(int(step.get("count", 1)))
+
 		"black_hole_encounter":
 			_effect_step_black_hole_encounter()
 
@@ -2265,6 +2294,25 @@ func _effect_step_interfleet_comms() -> void:
 		_server_start_interfleet(multiplayer.get_unique_id())
 	else:
 		_rpc_request_interfleet.rpc_id(1)
+
+# "Every player draws 1" (Gas Cloud) — unlike Interfleet Comms there's no
+# shared pool or picking, each player just draws from their own independent
+# deck, but since a placed card's effect queue only ever runs on the placing
+# player's own client, every other client still needs an explicit RPC to
+# know to draw at all. Async like _effect_step_interfleet_comms: resumes via
+# _rpc_sync_draw_all_players once the round trip reaches the initiator.
+func _effect_step_draw_all_players(count: int) -> void:
+	if not GameNetwork.is_multiplayer:
+		$Board.draw_cards(count)
+		_log_effect("everyone draws %d card(s), solo" % count)
+		_process_next_effect()
+		return
+	_effect_mode = EffectMode.EFFECT_AWAITING_ALL_DRAW
+	var source: String = _effect_source_name if not _effect_source_name.is_empty() else "Effect"
+	if GameNetwork.is_host:
+		_rpc_sync_draw_all_players.rpc(count, multiplayer.get_unique_id(), source)
+	else:
+		_rpc_request_draw_all_players.rpc_id(1, count, source)
 
 func _effect_step_black_hole_encounter() -> void:
 	_effect_mode = EffectMode.EFFECT_EXPEDITION_SHUFFLE
@@ -2757,6 +2805,8 @@ func _on_end_turn_pressed() -> void:
 	if _runner_up_phase:
 		return
 	if _effect_mode == EffectMode.EFFECT_INTERFLEET_PICK:
+		return
+	if _effect_mode == EffectMode.EFFECT_AWAITING_ALL_DRAW:
 		return
 	if $Board.is_card_drag_pending():
 		return
