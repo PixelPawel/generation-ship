@@ -12,8 +12,6 @@ const SUPPLY_ICON_PATHS: Array[String] = [
 const SUPPLY_NAMES: Array[String] = ["Dust", "Metals", "Liquids", "Organix", "Electrix", "Thrust"]
 const TECH_BACK_PATH := "res://assets/cards/tech/GS_Techs_Back_44x67mm.png"
 
-signal effect_done
-
 var _content_vbox: VBoxContainer = null
 var _scroll_container: ScrollContainer = null
 

@@ -237,7 +237,6 @@ func _ready() -> void:
 	_sector_info_popup = SectorInfoPopup.new()
 	_info_viewport.add_child(_sector_info_popup)
 	CockpitRig.register_info_panel(self, _sector_info_popup)
-	_sector_info_popup.effect_done.connect(_on_effect_done_pressed)
 
 	_cargo_drones_panel = CargoDronesPanel.new()
 	_info_viewport.add_child(_cargo_drones_panel)
