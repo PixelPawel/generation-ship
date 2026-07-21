@@ -109,10 +109,7 @@ var _pending_auction_card_ref: Dictionary = {}
 var _pending_auction_slot_idx: int = -1
 var _pending_auction_is_tech: bool = false
 var _pending_auction_is_adv: bool = false
-var _pending_won: bool = false
 var _pending_won_card_ref: Dictionary = {}
-var _pending_won_is_adv: bool = false
-var _won_popup: Control = null
 var _pending_auction_win: bool = false
 var _auction_win_is_initiator: bool = false
 var _auction_active: bool = false
@@ -979,7 +976,6 @@ func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, ca
 		_auction_win_is_initiator = (my_id == initiator_id)
 		if not _auction_win_is_initiator:
 			_pending_won_card_ref = card_ref
-			_pending_won_is_adv = _auction_is_adv
 		var cd: CardData = CardRef.from_ref(card_ref)
 		var c_name: String = ""
 		if cd:
@@ -1067,82 +1063,6 @@ func _flash_auction_warning() -> void:
 		if i == 2:
 			t.parallel().tween_property(lbl, "modulate:a", 0.0, 0.30)
 	t.tween_callback(overlay.queue_free)
-
-func _show_won_card_popup() -> void:
-	if _won_popup:
-		_won_popup.queue_free()
-		_won_popup = null
-	var cd: CardData = CardRef.from_ref(_pending_won_card_ref)
-	if not cd:
-		return
-	var root := Control.new()
-	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_won_popup = root
-	$UILayer.add_child(root)
-
-	var panel: ScifiPanel = load("res://scenes/ui/scifi_panel.gd").new()
-	panel.set_content_margin(20)
-	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	root.add_child(panel)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 12)
-	vbox.custom_minimum_size = Vector2(340, 0)
-	panel.add_child(vbox)
-
-	var title := Label.new()
-	title.text = "You won the auction!"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 20)
-	title.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
-	vbox.add_child(title)
-
-	var card_name: String = cd.adv_name if (_pending_won_is_adv and not cd.adv_name.is_empty()) else cd.card_name
-	var name_lbl := Label.new()
-	name_lbl.text = card_name
-	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_lbl.add_theme_font_size_override("font_size", 16)
-	vbox.add_child(name_lbl)
-
-	var image_url: String = cd.adv_image_url if _pending_won_is_adv else cd.image_url
-	if not image_url.is_empty():
-		var tex: Texture2D = ImageCache.get_texture(image_url)
-		if tex:
-			var img := TextureRect.new()
-			img.texture = tex
-			img.custom_minimum_size = Vector2(0, 200)
-			img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			img.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			img.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			var _place_mat: ShaderMaterial = ShaderMaterial.new()
-			_place_mat.shader = load("res://shaders/card_rounded.gdshader")
-			img.material = _place_mat
-			vbox.add_child(img)
-
-	var hint := Label.new()
-	hint.text = "Click below to place the card"
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_font_size_override("font_size", 13)
-	hint.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	vbox.add_child(hint)
-
-	var claim_btn := Button.new()
-	claim_btn.text = "Place Card"
-	claim_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	claim_btn.add_theme_font_size_override("font_size", 16)
-	GameTheme.apply_to_button(claim_btn)
-	claim_btn.pressed.connect(func() -> void:
-		_pending_won = false
-		_won_popup.queue_free()
-		_won_popup = null
-		var card: CardData = CardRef.from_ref(_pending_won_card_ref)
-		if not $Board.begin_auction_win_drag(card):
-			push_warning("AuctionWin: card not found in market"))
-	vbox.add_child(claim_btn)
 
 func _game_over() -> void:
 	_show_action_buttons(false)
@@ -2261,7 +2181,6 @@ func _on_runner_up_offer(card_ref: Dictionary, _slot_idx: int, _is_tech: bool, i
 	if not cd:
 		return
 	_pending_won_card_ref = card_ref
-	_pending_won_is_adv = is_adv
 	_pending_auction_win = true
 	_auction_win_is_initiator = false
 	_is_runner_up_offer = true
@@ -2345,8 +2264,9 @@ func _on_bid_payment_confirmed(allocations: Dictionary) -> void:
 		if _auction_win_is_initiator:
 			$Board.complete_purchase()
 		else:
-			_pending_won = true
-			_show_won_card_popup()
+			var card: CardData = CardRef.from_ref(_pending_won_card_ref)
+			if not $Board.begin_auction_win_drag(card):
+				push_warning("AuctionWin: card not found in market")
 		_show_action_buttons(true)
 		_broadcast_my_state()
 		return
@@ -2622,7 +2542,7 @@ func _try_auto_end_turn() -> void:
 		return
 	if not _effect_queue.is_empty():
 		return
-	if _auction_active or _auction_starting or _runner_up_phase or _pending_auction or _pending_auction_win or _pending_won:
+	if _auction_active or _auction_starting or _runner_up_phase or _pending_auction or _pending_auction_win:
 		return
 	if _pending_reveal_gain_supply or _pending_reveal_may_bid or _pending_reveal_may_free_gain:
 		return
