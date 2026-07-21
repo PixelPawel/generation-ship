@@ -81,7 +81,6 @@ var _pending_store_amount: int = 0
 var _pending_tuck_card_data: CardData = null
 var _pending_target_slot: SectorSlot = null
 var _effect_label: String = ""
-var _players_passed_this_round: int = 0
 var _has_passed: bool = false
 var _has_researched: bool = false
 var _opp_snapshots: Dictionary = {}      # peer_id (int) -> state Dictionary
@@ -643,11 +642,20 @@ func _show_your_turn_banner() -> void:
 	t.tween_property(lbl, "modulate:a", 0.0, 0.38).set_ease(Tween.EASE_IN)
 	t.tween_callback(lbl.queue_free)
 
+# True once every player's most recent status this round is "passed" or
+# "researching" — a player can research on multiple separate turns and still
+# get called on again, but the round itself is over the moment nobody has
+# anything left to do, without waiting for everyone to explicitly pass.
+func _all_players_done_this_round() -> bool:
+	for peer_id: int in GameNetwork.player_order:
+		var status: String = _opp_statuses.get(peer_id, "") as String
+		if status != "passed" and status != "researching":
+			return false
+	return true
+
 func _server_handle_pass() -> void:
 	_rpc_sync_opp_status.rpc(GameNetwork.active_peer_id, "passed")
-	_players_passed_this_round += 1
-	if _players_passed_this_round >= GameNetwork.player_order.size():
-		_players_passed_this_round = 0
+	if _all_players_done_this_round():
 		_rpc_sync_end_round.rpc()
 	else:
 		GameNetwork.advance_turn()
@@ -666,6 +674,13 @@ func _rpc_request_pass() -> void:
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_active_player(peer_id: int) -> void:
 	GameNetwork.active_peer_id = peer_id
+	# A "researching" status only reflects that player's most recent turn —
+	# unlike "passed" (permanent for the round), it must not stick around
+	# once they're back up to act again, or a stale status from a prior
+	# research could make _all_players_done_this_round() think this fresh
+	# turn is already done before they've decided anything on it.
+	if _opp_statuses.get(peer_id, "") == "researching":
+		_opp_statuses[peer_id] = ""
 	var already_passed: bool = GameNetwork.is_my_turn() and _has_passed
 	if not already_passed:
 		$Board.reset_turn()
@@ -2634,6 +2649,9 @@ func _do_end_turn() -> void:
 		_rpc_request_end_turn.rpc_id(1)
 
 func _server_handle_end_turn() -> void:
+	if _all_players_done_this_round():
+		_rpc_sync_end_round.rpc()
+		return
 	GameNetwork.advance_turn()
 	_rpc_sync_active_player.rpc(GameNetwork.active_peer_id)
 
