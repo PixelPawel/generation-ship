@@ -303,14 +303,20 @@ func _on_any_card_hovered(card_node: Node3D) -> void:
 func _on_any_card_unhovered(_card: Node3D) -> void:
 	_hide_tooltip()
 
-func _on_card_elevation_started(_card: Node3D) -> void:
+func _on_card_elevation_started(card_node: Node3D) -> void:
+	var card: Card = card_node as Card
+	if card and card.is_market_inspecting():
+		return
 	_sun_elevated_count += 1
 	get_tree().create_timer(0.15).timeout.connect(func() -> void:
 		if _sun_elevated_count > 0:
 			$SunLayer.visible = false
 	)
 
-func _on_card_elevation_ended(_card: Node3D) -> void:
+func _on_card_elevation_ended(card_node: Node3D) -> void:
+	var card: Card = card_node as Card
+	if card and card.is_market_inspecting():
+		return
 	_sun_elevated_count = max(0, _sun_elevated_count - 1)
 	get_tree().create_timer(0.15).timeout.connect(func() -> void:
 		if _sun_elevated_count == 0:
