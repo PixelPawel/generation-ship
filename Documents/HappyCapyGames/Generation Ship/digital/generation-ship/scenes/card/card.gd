@@ -18,10 +18,14 @@ const PLACED_LIFT_SCALE: float = 3.0
 const PLACED_LIFT_DURATION: float = 0.35
 const PLACED_LIFT_CENTER_PULL: float = 0.9
 const DRAG_THRESHOLD_PX: float = 8.0
-# Jolt rejects an exactly-zero scale on a node with an Area3D collider (a
-# singular transform basis) — used instead of Vector3.ZERO wherever a
-# market-inspect clone needs to read as "vanished".
-const _NEGLIGIBLE_SCALE: float = 0.001
+# Jolt rejects a near-zero scale on a node with an Area3D collider (treats
+# the transform's basis as singular) — used instead of Vector3.ZERO wherever
+# a market-inspect/reveal-display clone needs to read as "vanished". 0.001
+# turned out to still be within Jolt's near-zero tolerance (it started
+# logging warnings once the auto-reveal-display made this vanish state
+# happen far more often); 0.02 is comfortably clear of it and still reads as
+# invisible at normal viewing distance.
+const _NEGLIGIBLE_SCALE: float = 0.02
 const _LANDSCAPE_CHILD_SCALE := Vector3(0.88 / 0.63, 0.63 / 0.88, 1.0)
 
 const _TECH_GLB := preload("res://assets/3d/gs_card_tech.glb")
