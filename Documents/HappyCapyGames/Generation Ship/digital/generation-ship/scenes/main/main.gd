@@ -17,7 +17,6 @@ var _bid_is_advanced: bool = false
 enum EffectMode {
 	NONE,
 	RESEARCH,
-	PAYMENT_RECYCLE,
 	EFFECT_RECYCLE,
 	EFFECT_RECYCLE_OPTIONAL,
 	EFFECT_TUCK,
@@ -151,7 +150,6 @@ var _effect_hint_panel: Control = null
 var _effect_hint_label: Label = null
 var es_viewport: Control = null
 var _bid_popup: Control = null
-var _payment_panel: Control = null
 var _scoreboard: Control = null
 var _pause_menu: Control = null
 var info_panels: Array[Control] = []
@@ -191,7 +189,6 @@ func _ready() -> void:
 	$Board.market_card_taken.connect(_on_market_card_taken)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 	_bid_popup = $UILayer/BidPopup
-	_payment_panel = $UILayer/PaymentPanel
 	_scoreboard = $UILayer/Scoreboard
 	_pause_menu = $UILayer/PauseMenu
 	_pause_menu.main_menu_pressed.connect(_on_pause_main_menu)
@@ -199,7 +196,6 @@ func _ready() -> void:
 	_bid_popup.bid_cancelled.connect(_on_bid_cancelled)
 	_bid_popup.bid_raised.connect(_on_bid_raised)
 	_bid_popup.bid_passed.connect(_on_bid_passed)
-	_payment_panel.recycle_requested.connect(_on_payment_recycle_requested)
 	ImageCache.progress_updated.connect(_on_cache_progress)
 	ImageCache.all_loaded.connect(_on_cache_ready)
 	ImageCache.preload_urls(_collect_urls())
@@ -1189,17 +1185,6 @@ func _on_card_discarded(card: Node3D) -> void:
 				$Board.set_major_action_taken()
 				_show_action_buttons(true)
 				_set_action_buttons_disabled(false)
-
-		EffectMode.PAYMENT_RECYCLE:
-			_hide_effect_hint()
-			UIAudio.play_recycle_sfx()
-			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-			_cs_display.add_supply(color, 1)
-			_apply_recycle_bonus(color)
-			$Board.add_to_discard(card.card_data)
-			var screen_pos: Vector2 = $Camera3D.unproject_position(card.global_position)
-			_cs_display.animate_supply_incoming(screen_pos, color)
-			# card freed by fly-out animation in hand.gd
 
 
 func _recycle_card_to_supply(card: Node3D, color: CardData.SupplyColor) -> void:
@@ -2579,11 +2564,6 @@ func _finish_expedition_shuffle() -> void:
 	_shuffle_count = 0
 	_process_next_effect()
 
-func _on_payment_recycle_requested() -> void:
-	_effect_mode = EffectMode.PAYMENT_RECYCLE
-	_show_effect_hint("Click a card to recycle it for payment")
-	$Hand.set_discard_mode(true)
-
 func _on_major_action_changed(taken: bool) -> void:
 	_set_end_turn_button_disabled(not taken)
 	if taken:
@@ -2685,7 +2665,6 @@ func _rpc_request_end_turn() -> void:
 	_server_handle_end_turn()
 
 func _on_supply_changed() -> void:
-	_payment_panel.refresh()
 	_bid_payment_panel.refresh()
 
 func _refresh_vp() -> void:

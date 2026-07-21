@@ -265,7 +265,7 @@ static func setup_info_screen_display(main: Main) -> void:
 		mat.set_shader_parameter("bloom_threshold", 0.7)
 		screen_mesh.set_surface_override_material(0, mat)
 		setup_info_screen_input(main, screen_mesh)
-	for p: Control in [main._bid_popup, main._payment_panel, main._scoreboard]:
+	for p: Control in [main._bid_popup, main._scoreboard]:
 		p.reparent(main._info_viewport, false)
 		register_info_panel(main, p)
 

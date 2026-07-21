@@ -7,7 +7,6 @@
 [ext_resource type="Script" uid="uid://cmkd8e0vxrdss" path="res://scenes/ui/supply_ui.gd" id="5_supply_ui"]
 [ext_resource type="Script" uid="uid://ci3j3t2v7i38k" path="res://scenes/ui/scoreboard.gd" id="6_scoreboard"]
 [ext_resource type="Script" uid="uid://cskw62jg3e32u" path="res://scenes/ui/bid_popup.gd" id="7_bid_popup"]
-[ext_resource type="Script" uid="uid://dabxlmwrri6bs" path="res://scenes/ui/payment_panel.gd" id="8_payment_panel"]
 [ext_resource type="Script" uid="uid://ct67cx1lxa08t" path="res://scenes/ui/pause_menu.gd" id="9_pause_menu"]
 [ext_resource type="PackedScene" uid="uid://lr1fv7ps1enp" path="res://assets/3d/gs_ui_control.glb" id="16_ui_control"]
 [ext_resource type="PackedScene" uid="uid://bms2gw8qt2foq" path="res://assets/3d/gs_ui_info.glb" id="17_ui_info"]
@@ -151,12 +150,6 @@ visible = false
 layout_mode = 3
 anchors_preset = 0
 script = ExtResource("7_bid_popup")
-
-[node name="PaymentPanel" type="Control" parent="UILayer" unique_id=1847362518]
-visible = false
-layout_mode = 3
-anchors_preset = 0
-script = ExtResource("8_payment_panel")
 
 [node name="PauseMenu" type="Control" parent="UILayer" unique_id=1940283710]
 layout_mode = 3
