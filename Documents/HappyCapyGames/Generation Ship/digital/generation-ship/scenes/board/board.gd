@@ -6,7 +6,6 @@ const TECH_BACK_PATH := "res://assets/cards/tech/GS_Techs_Back_44x67mm.png"
 const EXPEDITION_BACK_PATH := "res://assets/cards/expedition/GS_Expeditions_Back_44x67mm.png"
 const DROP_RADIUS := 0.4
 const TECH_COLUMN_HALF_X := 0.1
-const DISCARD_RADIUS := 0.65
 const PENDING_HOVER_Y := 0.05
 const TECH_ZONE_Z_FRONT := 0.2
 const TECH_ZONE_Z_BACK := 0.3
@@ -673,28 +672,10 @@ func _resume_prepaid_drag_arrow() -> void:
 func _try_drop() -> void:
 	_end_arrow_drag()
 	_clear_slot_highlights()
-	if not _is_prepaid_placement and _is_near_discard_pile():
-		_do_recycle()
-	elif _is_sector_card():
+	if _is_sector_card():
 		_try_drop_sector()
 	else:
 		_try_drop_tech()
-
-func _is_near_discard_pile() -> bool:
-	if not _discard_pile or not _dragged_card:
-		return false
-	var dx: float = _dragged_card.global_position.x - _discard_pile.global_position.x
-	var dz: float = _dragged_card.global_position.z - _discard_pile.global_position.z
-	return sqrt(dx * dx + dz * dz) < DISCARD_RADIUS
-
-func _do_recycle() -> void:
-	var card: Node3D = _dragged_card
-	_dragged_card = null
-	_drag_origin = DragOrigin.NONE
-	card.end_drag()
-	var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-	_pending_recycle_card = card
-	recycle_confirm_required.emit(card, color)
 
 func request_recycle(card: Node3D) -> void:
 	if _pending_recycle_card or not is_instance_valid(card):
@@ -1417,8 +1398,6 @@ func _handle_failed_drop() -> void:
 					)
 
 func _update_slot_highlights() -> void:
-	if _discard_pile:
-		_discard_pile.highlight(_is_near_discard_pile())
 	var is_sector: bool = _is_sector_card()
 	if is_sector:
 		var snap_slot: SectorSlot = _find_nearest_empty_sector_slot()
@@ -1430,8 +1409,6 @@ func _update_slot_highlights() -> void:
 			slot.highlight(slot == best_tech_slot)
 
 func _clear_slot_highlights() -> void:
-	if _discard_pile:
-		_discard_pile.highlight(false)
 	for slot: SectorSlot in _sector_row.get_children():
 		slot.highlight(false)
 

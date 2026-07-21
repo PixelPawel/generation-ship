@@ -71,9 +71,3 @@ func _apply_texture(tex: Texture2D) -> void:
 	_count_label.font_size = 28
 	_count_label.modulate = Color(1.0, 1.0, 1.0, 0.85)
 	_count_label.position = Vector3(0, 0.035, 0.36)
-
-func highlight(on: bool) -> void:
-	if on:
-		_mat.albedo_color = Color(1.0, 0.5, 0.5) if _has_texture else Color(1.0, 0.25, 0.15)
-	else:
-		_mat.albedo_color = Color.WHITE if _has_texture else Color(0.12, 0.06, 0.06)
