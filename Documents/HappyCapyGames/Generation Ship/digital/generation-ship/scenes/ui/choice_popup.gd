@@ -99,6 +99,13 @@ func _fit_scroll_width() -> void:
 
 const _CARD_SIZE_PORTRAIT: Vector2 = Vector2(200, 280)
 const _CARD_SIZE_LANDSCAPE: Vector2 = Vector2(280, 200)
+# Fraction of the info-viewport reserved for the card row itself (the rest
+# goes to the prompt label and footer buttons above/below it).
+const _CARD_ROW_WIDTH_FRACTION := 0.90
+const _CARD_ROW_HEIGHT_FRACTION := 0.62
+# Approx. height of each card's name label + its separation from the image,
+# subtracted from the available height before fitting the image itself.
+const _CARD_LABEL_RESERVE := 24.0
 
 func _clear_options() -> void:
 	for child: Node in _buttons_row.get_children():
@@ -160,11 +167,23 @@ func show_multiselect_card_choices(prompt: String, cards: Array[CardData], max_s
 	_skip_btn.visible = false
 	show()
 
+# Grows each card image beyond its base size when there's room to spare —
+# few cards (e.g. a single revealed card) get to fill most of the available
+# screen space, while many-option choices stay at their current size instead
+# of being squeezed smaller (they fall back on the scroll container instead).
+func _card_row_grow_scale(count: int, base_sz: Vector2) -> float:
+	var separation: float = _buttons_row.get_theme_constant("separation")
+	var vp_size: Vector2 = get_viewport_rect().size
+	var avail_w: float = (vp_size.x * _CARD_ROW_WIDTH_FRACTION - separation * max(count - 1, 0)) / max(count, 1)
+	var avail_h: float = vp_size.y * _CARD_ROW_HEIGHT_FRACTION - _CARD_LABEL_RESERVE
+	return max(1.0, min(avail_w / base_sz.x, avail_h / base_sz.y))
+
 func _build_card_rows(cards: Array[CardData], on_click: Callable, advanced_flags: Array[bool] = []) -> void:
 	for i: int in cards.size():
 		var cd: CardData = cards[i]
 		var is_adv: bool = advanced_flags[i] if i < advanced_flags.size() else cd.card_type == CardData.CardType.SECTOR
-		var card_sz: Vector2 = _CARD_SIZE_LANDSCAPE if is_adv else _CARD_SIZE_PORTRAIT
+		var base_sz: Vector2 = _CARD_SIZE_LANDSCAPE if is_adv else _CARD_SIZE_PORTRAIT
+		var card_sz: Vector2 = base_sz * _card_row_grow_scale(cards.size(), base_sz)
 		var url: String = cd.adv_image_url if (is_adv and not cd.adv_image_url.is_empty()) else cd.image_url
 		var tex: Texture2D = ImageCache.get_texture(url) if not url.is_empty() else null
 		var display: String = cd.adv_name if is_adv else cd.card_name
