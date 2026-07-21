@@ -31,6 +31,7 @@ GameNetwork="*res://scripts/net/game_network.gd"
 SceneTransition="*res://scripts/scene_transition.gd"
 UIAudio="*res://scripts/ui_audio.gd"
 KeybindManager="*res://scripts/keybind_manager.gd"
+ThemeBootstrap="*res://scripts/theme_bootstrap.gd"
 
 [display]
 
