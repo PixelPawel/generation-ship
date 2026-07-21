@@ -285,6 +285,7 @@ func _on_any_card_hovered(card_node: Node3D) -> void:
 		desc = "Left-click to buy.\nRight-click to shrink."
 	elif card.is_placed:
 		desc = "Right-click to shrink card." if card.is_elevated() else "Right-click to enlarge card."
+		_set_containing_sector_hover(card, true)
 	elif card.managed_by_hand:
 		desc = "Left-click and drag onto sector to buy or Right-click to Recycle."
 	elif card.card_data:
@@ -296,8 +297,22 @@ func _on_any_card_hovered(card_node: Node3D) -> void:
 	if not desc.is_empty():
 		_show_tooltip("", desc)
 
-func _on_any_card_unhovered(_card: Node3D) -> void:
+func _on_any_card_unhovered(card_node: Node3D) -> void:
 	_hide_tooltip()
+	var card: Card = card_node as Card
+	if card and card.is_placed:
+		_set_containing_sector_hover(card, false)
+
+# A placed card's parent is either its SectorSlot directly (the main card)
+# or a tech slot node one level below the SectorSlot (a tech card) — walk up
+# to whichever it is and toggle that sector's tech-stack fan-out.
+func _set_containing_sector_hover(card: Node3D, on: bool) -> void:
+	var parent: Node = card.get_parent()
+	var slot: SectorSlot = parent as SectorSlot
+	if not slot:
+		slot = parent.get_parent() as SectorSlot if parent else null
+	if slot:
+		slot.set_hover_expand(on)
 
 func _on_card_elevation_started(card_node: Node3D) -> void:
 	var card: Card = card_node as Card

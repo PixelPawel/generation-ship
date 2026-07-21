@@ -45,6 +45,7 @@ var tucked_cards: Array = []   # Array of {data: CardData, face_up: bool}
 var stored_supply: Dictionary = {}  # SupplyColor (int) -> int count
 var _tech_slots: Array = []
 var _stack_expanded: bool = false
+var _hover_expand_requested: bool = false
 const FLOAT_AMP: float = 0.010
 const FLOAT_SPEED: float = 0.07
 const CARD_REST_Y: float = 0.085
@@ -272,8 +273,15 @@ func _process(_delta: float) -> void:
 		placed_card.position.y = CARD_REST_Y + sin(t * FLOAT_SPEED * TAU + _float_phase) * FLOAT_AMP
 		_check_stack_hover()
 
+# Called from main.gd whenever the mouse enters/exits any card belonging to
+# this sector (the main placed card or one of its tech cards) — lets a player
+# see every stacked card's color just by hovering, without needing to
+# right-click one to elevate it.
+func set_hover_expand(on: bool) -> void:
+	_hover_expand_requested = on
+
 func _check_stack_hover() -> void:
-	var want_expanded: bool = _any_tech_elevated()
+	var want_expanded: bool = _any_tech_elevated() or _hover_expand_requested
 	if want_expanded != _stack_expanded:
 		_fan_tech_slots(want_expanded)
 
