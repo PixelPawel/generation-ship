@@ -326,6 +326,19 @@ static func viewport_to_world(main: Main, vp_pos: Vector2) -> Vector3:
 	var local_y: float = (1.0 - v) * aabb.size.y + aabb.position.y
 	return main._info_screen_mesh.to_global(Vector3(local_x, local_y, 0.0))
 
+# Real-world width/height of the physical info-screen mesh, in meters.
+# Measured by transforming two local AABB edges through to_global() rather
+# than trusting the raw local AABB size directly, so any scale baked into the
+# mesh's own transform is accounted for.
+static func info_screen_world_size(main: Main) -> Vector2:
+	if not main._info_screen_mesh:
+		return Vector2.ZERO
+	var aabb: AABB = main._info_screen_mesh.mesh.get_aabb()
+	var origin: Vector3 = main._info_screen_mesh.to_global(Vector3(aabb.position.x, aabb.position.y, 0.0))
+	var right: Vector3 = main._info_screen_mesh.to_global(Vector3(aabb.position.x + aabb.size.x, aabb.position.y, 0.0))
+	var up: Vector3 = main._info_screen_mesh.to_global(Vector3(aabb.position.x, aabb.position.y + aabb.size.y, 0.0))
+	return Vector2(origin.distance_to(right), origin.distance_to(up))
+
 static func register_info_panel(main: Main, panel: Control) -> void:
 	main.info_panels.append(panel)
 	panel.visibility_changed.connect(func() -> void:

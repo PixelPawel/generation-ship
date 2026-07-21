@@ -18,6 +18,12 @@ const INSPECT_CAMERA_PULL := 0.5
 # How far past the screen (away from the camera) the clone travels while
 # shrinking away on collapse, as a fraction of the camera-to-screen distance.
 const INSPECT_VANISH_PULL := 0.4
+# Card footprint at scale 1.0 (see Card.set_card_data's landscape swap) —
+# portrait for tech/expedition cards, landscape (swapped) for sector cards.
+const _CARD_PORTRAIT_SIZE := Vector2(0.63, 0.88)
+# Leaves a small gap so an auto-revealed card's corners don't exactly touch
+# the physical screen's edges when scaled up to fill it.
+const _REVEAL_FILL_MARGIN := 0.92
 
 signal card_recycled(supply_color: CardData.SupplyColor)
 signal recycle_confirm_required(card: Node3D, color: CardData.SupplyColor)
@@ -47,6 +53,7 @@ var _major_action_taken: bool = false
 var _supply_ui: Control = null
 var _card_scene: PackedScene = null
 var _inspecting_card: Node3D = null
+var _reveal_display_card: Node3D = null
 var _pending_card: Node3D = null
 var _pending_recycle_card: Node3D = null
 var _pending_slot: Node3D = null
@@ -328,6 +335,47 @@ func _placed_card_enlarge_scale() -> float:
 		return 1.0
 	var reference_slot: Node3D = _sector_row.get_child(0) as Node3D
 	return reference_slot.global_transform.basis.get_scale().x
+
+# Automatically shows a just-revealed card (Ice Mining, Ancient Airlock, Cargo
+# Bays, etc.) enlarged as big as the physical info-screen can fit, so the
+# player actually gets a moment to read it instead of only seeing the tiny
+# market-panel icon update. Purely a visual moment — not clickable, unlike the
+# right-click market-inspect clone — dismiss_reveal_display() shrinks it away
+# again once the caller is ready to move on (e.g. right before the follow-up
+# bid-choice popup needs the screen).
+func show_revealed_card_big(cd: CardData, is_advanced: bool, world_pos: Vector3, screen_center: Vector3, screen_size: Vector2) -> void:
+	dismiss_reveal_display()
+	if not cd:
+		return
+	var clone: Node3D = _card_scene.instantiate()
+	add_child(clone)
+	clone.is_advanced = is_advanced
+	clone.set_card_data(cd)
+	clone.rotation = _MARKET_CARD_ROTATION
+	clone.can_drag = false
+	var target: Vector3 = screen_center
+	var vanish: Vector3 = world_pos
+	var cam: Camera3D = get_viewport().get_camera_3d()
+	if cam:
+		target = screen_center.lerp(cam.global_position, INSPECT_CAMERA_PULL)
+		var away_dir: Vector3 = (world_pos - cam.global_position).normalized()
+		var dist: float = cam.global_position.distance_to(world_pos)
+		vanish = world_pos + away_dir * (dist * INSPECT_VANISH_PULL)
+	var is_landscape: bool = cd.card_type == CardData.CardType.SECTOR
+	clone.enlarge_from(target, vanish, Vector3.ONE * _max_fill_scale(screen_size, is_landscape))
+	_reveal_display_card = clone
+
+func _max_fill_scale(screen_size: Vector2, is_landscape: bool) -> float:
+	if screen_size.x <= 0.0 or screen_size.y <= 0.0:
+		return _placed_card_enlarge_scale()
+	var card_size: Vector2 = Vector2(_CARD_PORTRAIT_SIZE.y, _CARD_PORTRAIT_SIZE.x) if is_landscape else _CARD_PORTRAIT_SIZE
+	return min(screen_size.x / card_size.x, screen_size.y / card_size.y) * _REVEAL_FILL_MARGIN
+
+# Shrinks the auto-revealed big-display card, if any is currently showing.
+func dismiss_reveal_display() -> void:
+	if _reveal_display_card and is_instance_valid(_reveal_display_card):
+		_reveal_display_card.collapse_if_elevated()
+	_reveal_display_card = null
 
 func reveal_sector_panel_slot(slot_idx: int) -> void:
 	_market.reveal_slot_panel(slot_idx)

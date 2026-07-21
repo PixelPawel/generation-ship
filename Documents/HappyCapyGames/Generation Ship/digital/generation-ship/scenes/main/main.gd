@@ -25,6 +25,7 @@ enum EffectMode {
 	EFFECT_RECYCLE_DOUBLE,
 	EFFECT_REVEAL_SECTOR,
 	EFFECT_REVEAL_EXPEDITION,
+	EFFECT_REVEAL_DISPLAY,
 	EFFECT_EXPEDITION_SHUFFLE,
 	EFFECT_SEEDBANKS,
 	EFFECT_CARGO_DRONES,
@@ -1679,6 +1680,32 @@ func _apply_cargo_move(dest: SectorSlot) -> void:
 	_effect_mode = EffectMode.EFFECT_CARGO_DRONES
 	_sector_picker.setup("Cargo Drones — pick a source sector", $Board.get_all_sector_slots())
 
+# Auto-revealed cards (Ice Mining, Ancient Airlock, Cargo Bays, etc.) only
+# ever show as a tiny market-panel icon otherwise — this shows the just-
+# revealed card enlarged to fill the info screen for a beat, then shrinks it
+# away and only then advances the effect queue, so it shrinks right before
+# the next thing needing the screen (another reveal prompt, or the follow-up
+# bid-choice popup) rather than fighting it for space. _effect_mode is held
+# at EFFECT_REVEAL_DISPLAY (not NONE) for the duration so the player can't
+# sneak in an unrelated market purchase while the big card is showing.
+const REVEAL_BIG_DISPLAY_DURATION := 1.4
+
+func _show_reveal_big_then_continue(slot_type: String, slot_idx: int, cd: CardData) -> void:
+	if not cd:
+		_effect_mode = EffectMode.NONE
+		_process_next_effect()
+		return
+	_effect_mode = EffectMode.EFFECT_REVEAL_DISPLAY
+	var origin: Vector3 = CockpitRig.viewport_to_world(self, _market_panel.get_slot_center(slot_type, slot_idx))
+	var screen_center: Vector3 = CockpitRig.viewport_to_world(self, Vector2(_info_viewport.size) * 0.5)
+	var screen_size: Vector2 = CockpitRig.info_screen_world_size(self)
+	$Board.show_revealed_card_big(cd, slot_type == "advanced", origin, screen_center, screen_size)
+	get_tree().create_timer(REVEAL_BIG_DISPLAY_DURATION).timeout.connect(func() -> void:
+		$Board.dismiss_reveal_display()
+		_effect_mode = EffectMode.NONE
+		_process_next_effect()
+	)
+
 func _on_sector_revealed(card_data: CardData, slot_idx: int) -> void:
 	if GameNetwork.is_multiplayer:
 		if GameNetwork.is_host:
@@ -1686,7 +1713,6 @@ func _on_sector_revealed(card_data: CardData, slot_idx: int) -> void:
 		else:
 			_rpc_notify_sector_revealed.rpc_id(1, slot_idx)
 	_hide_effect_hint()
-	_effect_mode = EffectMode.NONE
 	$Board.set_sector_reveal_mode(false)
 	var reveal_name: String = card_data.card_name if card_data else "a card"
 	var reveal_outcome_parts: Array[String] = ["revealed %s" % reveal_name]
@@ -1703,7 +1729,7 @@ func _on_sector_revealed(card_data: CardData, slot_idx: int) -> void:
 	_pending_reveal_gain_supply = false
 	_pending_reveal_may_bid = false
 	_pending_reveal_may_free_gain = false
-	_process_next_effect()
+	_show_reveal_big_then_continue("advanced", slot_idx, card_data)
 
 # ── Place effect processing ───────────────────────────────────────────────────
 
@@ -2467,7 +2493,6 @@ func _on_supply_icon_hovered(color: int) -> void:
 	_show_tooltip(CardData.color_name(supply_color), desc)
 
 func _execute_expedition_reveal(slot_idx: int) -> void:
-	_effect_mode = EffectMode.NONE
 	$Board.set_expedition_reveal_mode(false)
 	_hide_effect_hint()
 	var revealed: CardData = $Board.reveal_expedition_to_slot(slot_idx)
@@ -2486,7 +2511,7 @@ func _execute_expedition_reveal(slot_idx: int) -> void:
 			_rpc_sync_expedition_reveal.rpc(slot_idx)
 		else:
 			_rpc_notify_expedition_reveal.rpc_id(1, slot_idx)
-	_process_next_effect()
+	_show_reveal_big_then_continue("expedition", slot_idx, revealed)
 
 func _on_payment_confirm_required(card: Node3D, slot: SectorSlot, pay_amounts: Dictionary, _is_tech: bool) -> void:
 	_effect_mode = EffectMode.PAYMENT_CONFIRM
