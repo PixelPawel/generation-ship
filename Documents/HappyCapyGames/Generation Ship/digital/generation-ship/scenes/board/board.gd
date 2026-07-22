@@ -745,7 +745,7 @@ func _process(_delta: float) -> void:
 		var cam: Camera3D = get_viewport().get_camera_3d()
 		var snap_slot: SectorSlot = _find_nearest_empty_sector_slot() if _is_sector_card() else _find_nearest_tech_slot()
 		if snap_slot == null:
-			snap_slot = _find_nearest_empty_sector_slot(INF)
+			snap_slot = _find_nearest_empty_sector_slot(INF) if _is_sector_card() else _find_nearest_tech_slot(INF)
 		var to_2d: Vector2 = cam.unproject_position(snap_slot.global_position) if snap_slot else get_viewport().get_mouse_position()
 		_drag_arrow.update_to(to_2d)
 	_update_slot_highlights()
@@ -784,7 +784,7 @@ func _resume_prepaid_drag_arrow() -> void:
 	var from_2d: Vector2 = cam.unproject_position(market_origin_3d)
 	var snap_slot: SectorSlot = _find_nearest_empty_sector_slot() if _is_sector_card() else _find_nearest_tech_slot()
 	if snap_slot == null:
-		snap_slot = _find_nearest_empty_sector_slot(INF)
+		snap_slot = _find_nearest_empty_sector_slot(INF) if _is_sector_card() else _find_nearest_tech_slot(INF)
 	var to_2d: Vector2 = cam.unproject_position(snap_slot.global_position) if snap_slot else get_viewport().get_mouse_position()
 	_drag_arrow.show_arrow(from_2d, to_2d)
 
@@ -859,9 +859,9 @@ func _cleanup_pending_dynamic_slot() -> void:
 		_pending_dynamic_slot.queue_free()
 	_pending_dynamic_slot = null
 
-func _find_nearest_tech_slot() -> SectorSlot:
+func _find_nearest_tech_slot(max_dist: float = TECH_COLUMN_HALF_X) -> SectorSlot:
 	var best: SectorSlot = null
-	var best_dx: float = TECH_COLUMN_HALF_X
+	var best_dx: float = max_dist
 	for slot: SectorSlot in _sector_row.get_children():
 		if not slot.occupied or not slot.has_tech_space():
 			continue
