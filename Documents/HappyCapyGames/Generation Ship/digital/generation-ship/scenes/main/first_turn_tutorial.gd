@@ -87,8 +87,7 @@ func _apply_step(step: String) -> void:
 
 	match step:
 		"buy":
-			_main._show_effect_hint("Buy a Dust Sector from the Market")
-			_main._market_panel.set_tutorial_dust_highlight(true)
+			_apply_buy_step()
 		"place":
 			_main._show_effect_hint("Place a Tech card from your hand onto a Sector")
 			_highlight_tech_slots()
@@ -98,6 +97,27 @@ func _apply_step(step: String) -> void:
 			_main._show_effect_hint("Nothing left to do? Press Pass")
 			_main._start_pass_btn_3d_flash()
 	_current_step = step
+
+# "Buy a Sector" is really 3 sub-phases of one flow: click a market slot,
+# pay for it, then drag it onto a free Sector slot — the hint follows
+# whichever one is actually happening right now.
+func _apply_buy_step() -> void:
+	if _is_dragging_sector_card():
+		_main._market_panel.set_tutorial_dust_highlight(false)
+		_main._show_effect_hint("Place your Sector on a free Sector slot")
+	elif _main._bid_payment_panel and _main._bid_payment_panel.visible:
+		_main._market_panel.set_tutorial_dust_highlight(false)
+		_main._show_effect_hint("Pay 2 Dust to place your Dust Sector")
+	else:
+		_main._market_panel.set_tutorial_dust_highlight(true)
+		_main._show_effect_hint("Left-click a Dust Sector on the Market screen")
+
+func _is_dragging_sector_card() -> bool:
+	var dragged: Node3D = _board.get("_dragged_card") as Node3D
+	if not dragged:
+		return false
+	var cd: CardData = dragged.get("card_data")
+	return cd != null and cd.card_type == CardData.CardType.SECTOR
 
 func _highlight_tech_slots() -> void:
 	var eligible: Array[SectorSlot] = []
