@@ -19,6 +19,7 @@ var _spinner_active: bool = false
 var _spinner_time: float = 0.0
 var _bot_count: int = 0
 var _manual: Control = null
+var _bot_row: HBoxContainer = null
 var _add_bot_btn: Button = null
 var _remove_bot_btn: Button = null
 var _diff_btn: OptionButton = null
@@ -91,6 +92,7 @@ func _show_staging() -> void:
 		bot_row.add_theme_constant_override("separation", 8)
 		vbox.add_child(bot_row)
 		vbox.move_child(bot_row, insert_idx)
+		_bot_row = bot_row
 		_add_bot_btn = Button.new()
 		_add_bot_btn.text = tr("Add Bot")
 		_add_bot_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -241,8 +243,12 @@ func _on_leave_pressed() -> void:
 		multiplayer.multiplayer_peer = null
 	_players.clear()
 	_bot_count = 0
+	if is_instance_valid(_bot_row):
+		_bot_row.queue_free()
+	_bot_row = null
 	_add_bot_btn = null
 	_remove_bot_btn = null
+	_diff_btn = null
 	_show_lobby()
 
 func _on_rule_book_pressed() -> void:
