@@ -115,8 +115,8 @@ static func run_bot_turn(main: Main, bot_id: int) -> void:
 		"research":
 			bot_do_research(main, bot_id)
 			broadcast_bot_states(main)
-			var _rname: String = GameNetwork.player_names.get(bot_id, "Bot")
-			main._broadcast_log("%s: researching…" % _rname, Color(0.50, 0.78, 1.0))
+			var _rname: String = GameNetwork.player_names.get(bot_id, main.tr("Bot"))
+			main._broadcast_log(main.tr("%s: researching…") % _rname, Color(0.50, 0.78, 1.0))
 			await main.get_tree().create_timer(0.3).timeout
 			bot_pass(main, bot_id)
 		_:
@@ -152,8 +152,8 @@ static func bot_buy_sector(main: Main, bot_id: int, card_data: CardData) -> void
 	main.bot_supplies[bot_id][color] = max(0, main.bot_supplies[bot_id].get(color, 0) - max(0, card_data.cost))
 	main.get_node("Board").get_market().remove_card(card_data)
 	main.bot_boards[bot_id].append(_new_slot_entry(card_data, false))
-	var _bname: String = GameNetwork.player_names.get(bot_id, "Bot")
-	main._broadcast_log("%s: bought %s" % [_bname, card_data.card_name], CardData.color_tint(card_data.color))
+	var _bname: String = GameNetwork.player_names.get(bot_id, main.tr("Bot"))
+	main._broadcast_log(main.tr("%s: bought %s") % [_bname, card_data.card_name], CardData.color_tint(card_data.color))
 
 
 static func bot_place_tech(main: Main, bot_id: int, card_data: CardData, slot_idx: int) -> void:
@@ -163,8 +163,8 @@ static func bot_place_tech(main: Main, bot_id: int, card_data: CardData, slot_id
 	var color: int = int(card_data.color)
 	main.bot_supplies[bot_id][color] = max(0, main.bot_supplies[bot_id].get(color, 0) - max(0, card_data.cost))
 	_attach_stack_card(main, bot_id, slot_idx, card_data)
-	var _bname: String = GameNetwork.player_names.get(bot_id, "Bot")
-	main._broadcast_log("%s: placed %s" % [_bname, card_data.card_name], CardData.color_tint(card_data.color))
+	var _bname: String = GameNetwork.player_names.get(bot_id, main.tr("Bot"))
+	main._broadcast_log(main.tr("%s: placed %s") % [_bname, card_data.card_name], CardData.color_tint(card_data.color))
 
 
 # Attaches a Tech or Expedition card to a slot's 5-card stack, resolves its
@@ -225,9 +225,9 @@ static func bot_pass(main: Main, bot_id: int) -> void:
 static func bot_fuse(main: Main, bot_id: int, source: int, target: int) -> void:
 	main.bot_supplies[bot_id][source] = max(0, (main.bot_supplies[bot_id].get(source, 0) as int) - 2)
 	main.bot_supplies[bot_id][target] = (main.bot_supplies[bot_id].get(target, 0) as int) + 1
-	var _bname: String = GameNetwork.player_names.get(bot_id, "Bot")
+	var _bname: String = GameNetwork.player_names.get(bot_id, main.tr("Bot"))
 	main._broadcast_log(
-		"%s: fused %s → %s" % [_bname, CardData.color_name(source as CardData.SupplyColor), CardData.color_name(target as CardData.SupplyColor)],
+		main.tr("%s: fused %s → %s") % [_bname, CardData.color_name(source as CardData.SupplyColor), CardData.color_name(target as CardData.SupplyColor)],
 		Color(0.7, 0.85, 1.0))
 
 
@@ -238,8 +238,8 @@ static func bot_recycle(main: Main, bot_id: int, card: CardData) -> void:
 	var color: int = int(card.color)
 	main.bot_supplies[bot_id][color] = (main.bot_supplies[bot_id].get(color, 0) as int) + 1
 	main.get_node("Board").add_to_discard(card)
-	var _bname: String = GameNetwork.player_names.get(bot_id, "Bot")
-	main._broadcast_log("%s: recycled %s" % [_bname, card.card_name], CardData.color_tint(card.color))
+	var _bname: String = GameNetwork.player_names.get(bot_id, main.tr("Bot"))
+	main._broadcast_log(main.tr("%s: recycled %s") % [_bname, card.card_name], CardData.color_tint(card.color))
 
 
 static func broadcast_bot_states(main: Main) -> void:

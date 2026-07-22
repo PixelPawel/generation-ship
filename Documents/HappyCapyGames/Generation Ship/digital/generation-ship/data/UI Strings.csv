@@ -126,3 +126,7 @@ LANG_FR,French,Französisch,Francese,Francuski,Francés,Français
 "?","?","?","?","?","?","?"
 "Choose:","Choose:","Wähle:","Scegli:","Wybierz:","Elige:","Choisissez :"
 "%s: %s","%s: %s","%s: %s","%s: %s","%s: %s","%s: %s","%s: %s"
+"Bot","Bot","Bot","Bot","Bot","Bot","Bot"
+"%s: bought %s","%s: bought %s","%s: %s gekauft","%s: comprata %s","%s: kupiono %s","%s: compró %s","%s : a acheté %s"
+"%s: fused %s → %s","%s: fused %s → %s","%s: %s zu %s fusioniert","%s: fusa %s in %s","%s: połączono %s w %s","%s: fusionó %s en %s","%s : a fusionné %s en %s"
+"%s: recycled %s","%s: recycled %s","%s: %s recycelt","%s: riciclata %s","%s: poddano recyklingowi %s","%s: recicló %s","%s : a recyclé %s"
