@@ -9,7 +9,9 @@ extends Node
 # to whichever isn't done yet: Buy a Sector -> Place a Tech -> Fuse Supply
 # -> Bid on an Expedition -> Research -> Pass. No hard gating — the player
 # can do things in any order; the displayed hint just advances whenever its
-# matching real action fires.
+# matching real action fires. After Pass, a final closing tip about how to
+# win stays up until the player opens the Pause Menu (Escape), then the
+# tutorial ends for good.
 #
 # Re-asserts its current step every REFRESH_INTERVAL_SEC rather than
 # showing it once, because two other systems can silently undo it:
@@ -32,6 +34,7 @@ var _fused_supply: bool = false
 var _bid_expedition: bool = false
 var _researched: bool = false
 var _passed: bool = false
+var _dismissed: bool = false
 
 # Whether the player has recycled a card since the bid payment panel for
 # the current Expedition bid last opened — reset on every bid attempt so
@@ -61,6 +64,13 @@ func notify_passed() -> void:
 func notify_researched() -> void:
 	_researched = true
 
+# Only the closing step's own dismissal counts — an earlier Escape press
+# (opening the Pause Menu mid-game, before this final tip is even showing)
+# must not skip the tip once the player actually reaches it.
+func notify_escape_pressed() -> void:
+	if _current_step == "closing":
+		_dismissed = true
+
 func _on_card_recycled(_color: int) -> void:
 	_recycled_during_bid_payment = true
 
@@ -85,7 +95,7 @@ func _on_fused(_source: int, _target: int) -> void:
 	_fused_supply = true
 
 func _refresh() -> void:
-	if _bought_sector and _placed_tech and _fused_supply and _bid_expedition and _researched and _passed:
+	if _bought_sector and _placed_tech and _fused_supply and _bid_expedition and _researched and _passed and _dismissed:
 		_finish()
 		return
 	if _main._effect_mode != Main.EffectMode.NONE:
@@ -101,8 +111,10 @@ func _refresh() -> void:
 		step = "bid"
 	elif not _researched:
 		step = "research"
-	else:
+	elif not _passed:
 		step = "pass"
+	else:
+		step = "closing"
 	_apply_step(step)
 
 func _apply_step(step: String) -> void:
@@ -136,6 +148,8 @@ func _apply_step(step: String) -> void:
 		"pass":
 			_main._show_effect_hint("Nothing left to do? Press Pass")
 			_main._start_pass_btn_3d_flash()
+		"closing":
+			_main._show_effect_hint("To win, collect starts by placing cards, winning bids and optimizing your sectors. To learn more check out the Rulebook in the Pause Menu.")
 	_current_step = step
 
 # "Buy a Sector" is really 3 sub-phases of one flow: click a market slot,

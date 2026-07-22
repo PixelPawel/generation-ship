@@ -3017,6 +3017,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_info_viewport.push_input(event)
 	if event.is_action("pause_menu"):
 		_pause_menu.toggle()
+		if _tutorial:
+			_tutorial.notify_escape_pressed()
 	elif event.is_action("end_turn") and not _pause_menu.visible:
 		if _cs_display.can_end_turn():
 			_on_end_turn_pressed()
