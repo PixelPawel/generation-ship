@@ -692,12 +692,27 @@ func _all_players_done_this_round() -> bool:
 			return false
 	return true
 
+# GameNetwork.advance_turn() just cycles player_order by one position — it
+# doesn't know who's already passed, so left alone it can hand control right
+# back to a player who's done for the round (e.g. with only one other
+# player still going, it would just ping-pong between them). Skip anyone
+# whose status is "passed" until landing on someone still eligible to act;
+# _all_players_done_this_round() being false at the call site guarantees
+# at least one such player exists.
+func _advance_turn_skipping_passed() -> void:
+	var guard: int = GameNetwork.player_order.size()
+	while guard > 0:
+		GameNetwork.advance_turn()
+		if _opp_statuses.get(GameNetwork.active_peer_id, "") != "passed":
+			return
+		guard -= 1
+
 func _server_handle_pass() -> void:
 	_rpc_sync_opp_status.rpc(GameNetwork.active_peer_id, "passed")
 	if _all_players_done_this_round():
 		_rpc_sync_end_round.rpc()
 	else:
-		GameNetwork.advance_turn()
+		_advance_turn_skipping_passed()
 		_rpc_sync_active_player.rpc(GameNetwork.active_peer_id)
 
 # Client → Host: I have passed my turn.
@@ -3001,7 +3016,7 @@ func _server_handle_end_turn() -> void:
 	if _all_players_done_this_round():
 		_rpc_sync_end_round.rpc()
 		return
-	GameNetwork.advance_turn()
+	_advance_turn_skipping_passed()
 	_rpc_sync_active_player.rpc(GameNetwork.active_peer_id)
 
 @rpc("any_peer", "reliable")
