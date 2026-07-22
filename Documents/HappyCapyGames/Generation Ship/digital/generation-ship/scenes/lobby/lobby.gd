@@ -425,3 +425,12 @@ func _load_saved_name() -> void:
 		var saved: String = str(cfg.get_value("player", "name", ""))
 		if not saved.is_empty():
 			_name_input.text = saved
+			return
+	# No saved name yet (first launch, or it was cleared) — default to the
+	# Steam display name instead of leaving the field blank. Still just a
+	# starting value: typing over it and hosting/joining saves the edit via
+	# _read_name()/_save_name() same as before.
+	if SteamManager.is_initialized:
+		var steam_name: String = Steam.getPersonaName()
+		if not steam_name.is_empty():
+			_name_input.text = steam_name
