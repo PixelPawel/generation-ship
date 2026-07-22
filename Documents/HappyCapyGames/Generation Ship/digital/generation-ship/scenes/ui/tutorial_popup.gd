@@ -9,6 +9,7 @@ extends Control
 signal closed
 
 const PAGE_COUNT: int = 5
+const TECH_DECK_BACK_PATH: String = "res://assets/cards/tech/GS_Techs_Back_44x67mm.png"
 
 const PANELS: Array[Dictionary] = [
 	{
@@ -66,6 +67,11 @@ var _diagram_roots: Array[Control] = []
 var _page_label: Label = null
 
 func _ready() -> void:
+	# Synchronous, local-only (no network) — safe to call regardless of
+	# whether this popup is opened from the main menu/lobby (before the
+	# in-game network image cache has ever been warmed) or mid-game.
+	# Redundant with lobby.gd's own call; a no-op for anything already cached.
+	ImageCache.preload_local_art()
 	_build_ui()
 	_build_diagrams()
 	visible = false
@@ -220,12 +226,14 @@ func _make_button(label_text: String) -> Button:
 	return btn
 
 # ── Diagram-building helpers ──────────────────────────────────────────────
-# No new artwork: every "card" is a plain TextureRect rounded via the same
-# shader used for face-down tucked cards elsewhere
-# (scenes/ui/cargo_drones_panel.gd). That shader samples TEXTURE directly
-# and writes COLOR from scratch — it never reads the incoming (pre-modulate)
-# color, so a node's .modulate has no effect on the render at all. The tint
-# has to be baked into the source texture itself instead.
+# No new artwork: diagrams use the game's own real card art (via the local-
+# art cache ImageCache.preload_local_art() already warmed in _ready()) where
+# possible, rounded via the same shader used for face-down tucked cards
+# elsewhere (scenes/ui/cargo_drones_panel.gd). That shader samples TEXTURE
+# directly and writes COLOR from scratch — it never reads the incoming
+# (pre-modulate) color, so a node's .modulate has no effect on the render;
+# a solid-color fallback (for empty slots, or if a real texture can't be
+# found) has to bake its tint into the source texture itself instead.
 
 var _solid_tex_cache: Dictionary = {}
 
@@ -237,16 +245,35 @@ func _get_solid_texture(color: Color) -> ImageTexture:
 		_solid_tex_cache[key] = ImageTexture.create_from_image(img)
 	return _solid_tex_cache[key] as ImageTexture
 
-func _make_card_rect(rect_size: Vector2, color: Color) -> TextureRect:
+func _wrap_rounded(tex: Texture2D, rect_size: Vector2) -> TextureRect:
 	var img: TextureRect = TextureRect.new()
 	img.custom_minimum_size = rect_size
 	img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	img.texture = _get_solid_texture(color)
+	img.texture = tex
 	var mat: ShaderMaterial = ShaderMaterial.new()
 	mat.shader = load("res://shaders/card_rounded.gdshader")
 	img.material = mat
 	return img
+
+func _make_card_rect(rect_size: Vector2, color: Color) -> TextureRect:
+	return _wrap_rounded(_get_solid_texture(color), rect_size)
+
+# Real card art where available, falling back to a solid color-tint
+# placeholder if a texture can't be found (e.g. use_adv requested but this
+# particular card has no advanced-side art).
+func _make_real_card(cd: CardData, rect_size: Vector2, use_adv: bool = false) -> TextureRect:
+	var url: String = cd.adv_image_url if use_adv else cd.image_url
+	var tex: Texture2D = ImageCache.get_texture(url) if not url.is_empty() else null
+	if not tex:
+		return _make_card_rect(rect_size, CardData.color_tint(cd.adv_color if use_adv else cd.color))
+	return _wrap_rounded(tex, rect_size)
+
+func _make_back_card(local_path: String, rect_size: Vector2) -> TextureRect:
+	var tex: Texture2D = load(local_path) as Texture2D
+	if not tex:
+		return _make_card_rect(rect_size, Color(0.12, 0.14, 0.22))
+	return _wrap_rounded(tex, rect_size)
 
 func _make_caption(text: String) -> Label:
 	var lbl: Label = Label.new()
@@ -274,22 +301,21 @@ func _build_diagram_1() -> Control:
 	row.add_theme_constant_override("separation", 14)
 	root.add_child(row)
 
-	var fill_colors: Array[Color] = [
-		CardData.color_tint(CardData.SupplyColor.DUST),
-		CardData.color_tint(CardData.SupplyColor.METALS),
-		CardData.color_tint(CardData.SupplyColor.LIQUIDS),
-	]
+	var sectors: Array[CardData] = CardDatabase.sectors
 	for i: int in 6:
-		var color: Color = fill_colors[i] if i < fill_colors.size() else Color(0.22, 0.24, 0.3, 0.4)
-		row.add_child(_make_card_rect(Vector2(78, 110), color))
+		if i < 3 and i < sectors.size():
+			row.add_child(_make_real_card(sectors[i], Vector2(78, 110)))
+		else:
+			row.add_child(_make_card_rect(Vector2(78, 110), Color(0.22, 0.24, 0.3, 0.4)))
 
 	root.add_child(_make_caption("Your ship — 6 Sector slots (3 built, 3 open)"))
 
 	var tech_row: HBoxContainer = HBoxContainer.new()
 	tech_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	tech_row.add_theme_constant_override("separation", 5)
-	for i: int in 5:
-		tech_row.add_child(_make_card_rect(Vector2(24, 34), Color(0.5, 0.5, 0.55, 0.55)))
+	var techs: Array[CardData] = CardDatabase.techs
+	for i: int in mini(5, techs.size()):
+		tech_row.add_child(_make_real_card(techs[i], Vector2(30, 42)))
 	root.add_child(tech_row)
 	root.add_child(_make_caption("Up to 5 Tech cards per Sector"))
 	return root
@@ -299,25 +325,30 @@ func _build_diagram_2() -> Control:
 	root.alignment = BoxContainer.ALIGNMENT_CENTER
 	root.add_theme_constant_override("separation", 14)
 
+	var techs: Array[CardData] = CardDatabase.techs
+
 	var hand_row: HBoxContainer = HBoxContainer.new()
 	hand_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	hand_row.add_theme_constant_override("separation", 10)
-	var hand_colors: Array[CardData.SupplyColor] = [
-		CardData.SupplyColor.ORGANIX, CardData.SupplyColor.ELECTRIX, CardData.SupplyColor.THRUST,
-	]
-	for color: CardData.SupplyColor in hand_colors:
-		hand_row.add_child(_make_card_rect(Vector2(60, 84), CardData.color_tint(color)))
+	for i: int in mini(3, techs.size()):
+		hand_row.add_child(_make_real_card(techs[i], Vector2(60, 84)))
 	root.add_child(hand_row)
 	root.add_child(_make_caption("Your hand"))
 
 	var research_row: HBoxContainer = HBoxContainer.new()
 	research_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	research_row.add_theme_constant_override("separation", 10)
-	research_row.add_child(_make_card_rect(Vector2(50, 70), Color(0.35, 0.35, 0.4, 0.7)))
+	if techs.size() > 3:
+		research_row.add_child(_make_real_card(techs[3], Vector2(50, 70)))
+	else:
+		research_row.add_child(_make_card_rect(Vector2(50, 70), Color(0.35, 0.35, 0.4, 0.7)))
 	research_row.add_child(_make_arrow_label("discard 1  →"))
-	research_row.add_child(_make_card_rect(Vector2(50, 70), Color(0.10, 0.12, 0.28)))
+	research_row.add_child(_make_back_card(TECH_DECK_BACK_PATH, Vector2(50, 70)))
 	research_row.add_child(_make_arrow_label("→  draw 1"))
-	research_row.add_child(_make_card_rect(Vector2(50, 70), Color(0.6, 0.85, 0.6)))
+	if techs.size() > 4:
+		research_row.add_child(_make_real_card(techs[4], Vector2(50, 70)))
+	else:
+		research_row.add_child(_make_card_rect(Vector2(50, 70), Color(0.6, 0.85, 0.6)))
 	root.add_child(research_row)
 	root.add_child(_make_caption("Research: discard 1, draw a fresh card from the Tech Deck"))
 	return root
@@ -359,13 +390,16 @@ func _build_diagram_4() -> Control:
 	groups.add_theme_constant_override("separation", 36)
 	root.add_child(groups)
 
+	var sectors: Array[CardData] = CardDatabase.sectors
+	var expeditions: Array[CardData] = CardDatabase.expeditions
+
 	var buy_col: VBoxContainer = VBoxContainer.new()
 	buy_col.alignment = BoxContainer.ALIGNMENT_CENTER
 	buy_col.add_theme_constant_override("separation", 6)
 	var buy_row: HBoxContainer = HBoxContainer.new()
 	buy_row.add_theme_constant_override("separation", 8)
-	for i: int in 3:
-		buy_row.add_child(_make_card_rect(Vector2(56, 78), CardData.color_tint(CardData.SupplyColor.DUST)))
+	for i: int in mini(3, sectors.size()):
+		buy_row.add_child(_make_real_card(sectors[i], Vector2(56, 78)))
 	buy_col.add_child(buy_row)
 	buy_col.add_child(_make_caption("Dust Sectors — pay & place"))
 	groups.add_child(buy_col)
@@ -375,11 +409,8 @@ func _build_diagram_4() -> Control:
 	bid_col.add_theme_constant_override("separation", 6)
 	var bid_row: HBoxContainer = HBoxContainer.new()
 	bid_row.add_theme_constant_override("separation", 8)
-	var bid_colors: Array[CardData.SupplyColor] = [
-		CardData.SupplyColor.METALS, CardData.SupplyColor.THRUST, CardData.SupplyColor.ELECTRIX,
-	]
-	for color: CardData.SupplyColor in bid_colors:
-		bid_row.add_child(_make_card_rect(Vector2(56, 78), CardData.color_tint(color)))
+	for i: int in mini(3, expeditions.size()):
+		bid_row.add_child(_make_real_card(expeditions[i], Vector2(56, 78)))
 	bid_col.add_child(bid_row)
 	bid_col.add_child(_make_caption("Advanced Sectors & Expeditions — bid to win"))
 	groups.add_child(bid_col)
