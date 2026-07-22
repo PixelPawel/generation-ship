@@ -149,7 +149,7 @@ func _apply_step(step: String) -> void:
 			_main._show_effect_hint("Nothing left to do? Press Pass")
 			_main._start_pass_btn_3d_flash()
 		"closing":
-			_main._show_effect_hint("To win, collect starts by placing cards, winning bids and optimizing your sectors. To learn more check out the Rulebook in the Pause Menu.")
+			_main._show_effect_hint("To win, collect stars by placing cards, winning bids and optimizing your sectors. To learn more check out the Rulebook in the Pause Menu (Esc to open Pause Menu).")
 	_current_step = step
 
 # "Buy a Sector" is really 3 sub-phases of one flow: click a market slot,
