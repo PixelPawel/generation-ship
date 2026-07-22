@@ -220,32 +220,32 @@ func _make_button(label_text: String) -> Button:
 	return btn
 
 # ── Diagram-building helpers ──────────────────────────────────────────────
-# No new artwork: every "card" is a plain TextureRect with no texture, tinted
-# via .modulate and rounded via the same shader used for face-down tucked
-# cards elsewhere (scenes/ui/cargo_drones_panel.gd). That trick relies on a
-# real (if blank) source texture — with texture left null, STRETCH_KEEP_
-# ASPECT_CENTERED has nothing to compute an aspect ratio from and draws
-# nothing at all, so a small generated white texture is used here instead.
+# No new artwork: every "card" is a plain TextureRect rounded via the same
+# shader used for face-down tucked cards elsewhere
+# (scenes/ui/cargo_drones_panel.gd). That shader samples TEXTURE directly
+# and writes COLOR from scratch — it never reads the incoming (pre-modulate)
+# color, so a node's .modulate has no effect on the render at all. The tint
+# has to be baked into the source texture itself instead.
 
-var _white_tex: ImageTexture = null
+var _solid_tex_cache: Dictionary = {}
 
-func _get_white_texture() -> ImageTexture:
-	if not _white_tex:
-		var img: Image = Image.create(8, 8, false, Image.FORMAT_RGB8)
-		img.fill(Color.WHITE)
-		_white_tex = ImageTexture.create_from_image(img)
-	return _white_tex
+func _get_solid_texture(color: Color) -> ImageTexture:
+	var key: String = color.to_html(true)
+	if not _solid_tex_cache.has(key):
+		var img: Image = Image.create(8, 8, false, Image.FORMAT_RGBA8)
+		img.fill(color)
+		_solid_tex_cache[key] = ImageTexture.create_from_image(img)
+	return _solid_tex_cache[key] as ImageTexture
 
 func _make_card_rect(rect_size: Vector2, color: Color) -> TextureRect:
 	var img: TextureRect = TextureRect.new()
 	img.custom_minimum_size = rect_size
 	img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	img.texture = _get_white_texture()
+	img.texture = _get_solid_texture(color)
 	var mat: ShaderMaterial = ShaderMaterial.new()
 	mat.shader = load("res://shaders/card_rounded.gdshader")
 	img.material = mat
-	img.modulate = color
 	return img
 
 func _make_caption(text: String) -> Label:
