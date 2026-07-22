@@ -663,7 +663,12 @@ func _update_turn_ui(show_banner: bool = true) -> void:
 	_cs_display.show_turn_indicator(true)
 	var my_turn: bool = GameNetwork.is_my_turn()
 	_cs_display.set_my_turn(my_turn)
-	if show_banner and my_turn and _round > 0:
+	# advance_turn() cycles through player_order blindly, so a player who has
+	# already passed for the round can still land back on "active" again
+	# (before immediately auto-advancing past them) — that's not a real new
+	# turn, so skip the banner/chime for it, but leave everything else (turn
+	# indicator, action button state) updating normally.
+	if show_banner and my_turn and _round > 0 and not _has_passed:
 		_show_your_turn_banner()
 	_set_action_buttons_disabled(not my_turn)
 
