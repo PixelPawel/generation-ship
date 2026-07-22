@@ -166,19 +166,35 @@ func get_texture(url: String) -> Texture2D:
 # for callers (like a menu-accessible popup) that need art to actually show
 # up regardless of what state a prior, possibly-failed network fetch left
 # the cache in.
-func get_or_load_local_texture(url: String) -> Texture2D:
+# is_sector_dust_face mirrors _cache_sector_dust_url(): a Dust Sector's own
+# Link URL doesn't map onto a matching local file — the correct art is a
+# separate "*_Back_*" file keyed by sector number, not by the URL itself.
+func get_or_load_local_texture(url: String, is_sector_dust_face: bool = false) -> Texture2D:
 	if url.is_empty():
 		return null
 	var cached: Texture2D = _memory.get(url, null) as Texture2D
 	if cached:
 		return cached
-	var local_path: String = _url_to_local(url)
-	if local_path.is_empty() or not ResourceLoader.exists(local_path):
-		return null
-	var tex: Texture2D = load(local_path) as Texture2D
+	var tex: Texture2D = _resolve_local_texture(url, is_sector_dust_face)
 	if tex:
 		_memory[url] = tex
 	return tex
+
+func _resolve_local_texture(url: String, is_sector_dust_face: bool) -> Texture2D:
+	if is_sector_dust_face:
+		var fname: String = _url_to_local(url).get_file()
+		var parts: PackedStringArray = fname.split("_")
+		if parts.size() > 2:
+			var num: int = parts[2].to_int()
+			var sector_backs: Dictionary = _build_sector_back_map()
+			if sector_backs.has(num):
+				var back_tex: Texture2D = load(sector_backs[num]) as Texture2D
+				if back_tex:
+					return back_tex
+	var local_path: String = _url_to_local(url)
+	if not local_path.is_empty() and ResourceLoader.exists(local_path):
+		return load(local_path) as Texture2D
+	return null
 
 const _S3_PREFIX := "https://generationship.s3.eu-central-1.amazonaws.com/TTS/"
 const _DIR_MAP: Dictionary = {

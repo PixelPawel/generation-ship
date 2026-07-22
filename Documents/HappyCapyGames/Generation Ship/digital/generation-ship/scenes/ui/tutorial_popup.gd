@@ -259,7 +259,8 @@ func _make_card_rect(rect_size: Vector2, color: Color) -> TextureRect:
 # particular card has no advanced-side art).
 func _make_real_card(cd: CardData, rect_size: Vector2, use_adv: bool = false) -> TextureRect:
 	var url: String = cd.adv_image_url if use_adv else cd.image_url
-	var tex: Texture2D = ImageCache.get_or_load_local_texture(url) if not url.is_empty() else null
+	var is_sector_dust_face: bool = cd.card_type == CardData.CardType.SECTOR and not use_adv
+	var tex: Texture2D = ImageCache.get_or_load_local_texture(url, is_sector_dust_face) if not url.is_empty() else null
 	if not tex:
 		return _make_card_rect(rect_size, CardData.color_tint(cd.adv_color if use_adv else cd.color))
 	return _wrap_rounded(tex, rect_size)
