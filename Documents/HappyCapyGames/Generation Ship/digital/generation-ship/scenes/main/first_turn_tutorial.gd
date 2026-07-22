@@ -89,7 +89,7 @@ func _apply_step(step: String) -> void:
 		"buy":
 			_apply_buy_step()
 		"place":
-			_main._show_effect_hint("Place a Tech card from your hand onto a Sector")
+			_main._show_effect_hint("Left-click and drag a Tech card from your hand onto the Sector")
 			_highlight_tech_slots()
 		"fuse":
 			_main._show_effect_hint("Fuse 2 of one supply into 1 of the next")
