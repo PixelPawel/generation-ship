@@ -2727,6 +2727,8 @@ func _rpc_sync_hand_dealt(peer_id: int, card_refs: Array) -> void:
 	_broadcast_my_state()
 
 func _on_bid_confirmed(amount: int) -> void:
+	if _tutorial and _bid_card_data and _bid_card_data.card_type == CardData.CardType.EXPEDITION:
+		_tutorial.notify_expedition_bid_confirmed()
 	if _pending_auction:
 		_pending_auction = false
 		_auction_starting = true
