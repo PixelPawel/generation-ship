@@ -157,6 +157,29 @@ func get_texture(url: String) -> Texture2D:
 		return load(url) as Texture2D
 	return _memory.get(url, null) as Texture2D
 
+# Like get_texture(), but if there's no cached texture yet, attempts a
+# synchronous local-art load on the spot rather than returning null.
+# preload_local_art()'s own _cache_url()/_cache_sector_dust_url() skip a URL
+# the instant it's already a _memory key — including one registered by a
+# real network preload_urls() call whose fetch never actually completed
+# (queued as null and left that way, e.g. no connectivity) — so this exists
+# for callers (like a menu-accessible popup) that need art to actually show
+# up regardless of what state a prior, possibly-failed network fetch left
+# the cache in.
+func get_or_load_local_texture(url: String) -> Texture2D:
+	if url.is_empty():
+		return null
+	var cached: Texture2D = _memory.get(url, null) as Texture2D
+	if cached:
+		return cached
+	var local_path: String = _url_to_local(url)
+	if local_path.is_empty() or not ResourceLoader.exists(local_path):
+		return null
+	var tex: Texture2D = load(local_path) as Texture2D
+	if tex:
+		_memory[url] = tex
+	return tex
+
 const _S3_PREFIX := "https://generationship.s3.eu-central-1.amazonaws.com/TTS/"
 const _DIR_MAP: Dictionary = {
 	"Tech/": "res://assets/cards/tech/",
