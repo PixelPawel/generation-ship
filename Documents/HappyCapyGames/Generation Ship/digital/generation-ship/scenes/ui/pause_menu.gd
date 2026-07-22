@@ -13,6 +13,10 @@ const RESOLUTIONS: Array[Vector2i] = [
 ]
 const FULLSCREEN_IDX: int = 5
 
+# Locale codes offered in the Language dropdown, in display order — matches
+# project.godot's locale/locale_filter and the LANG_* keys in "UI Strings.csv".
+const LANGUAGE_CODES: Array[String] = ["en", "de", "it", "pl", "es", "fr"]
+
 var _settings_panel: Control = null
 var _manual: Control = null
 var _main_panel: Control = null
@@ -22,6 +26,7 @@ var _music_slider: HSlider = null
 var _sfx_slider: HSlider = null
 var _shake_check: CheckButton = null
 var _tutorial_check: CheckButton = null
+var _language_option: OptionButton = null
 var _rebind_buttons: Dictionary = {}   # action -> [primary_btn, secondary_btn]
 var _listening_action: String = ""
 var _listening_slot: int = -1
@@ -41,6 +46,7 @@ func open_settings() -> void:
 		_settings_panel.visible = true
 	visible = true
 	_load_tutorial_setting()
+	_load_language_setting()
 
 func _build_ui() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -218,6 +224,24 @@ func _build_settings_panel() -> void:
 	_tutorial_check.toggled.connect(_save_tutorial_setting)
 	tutorial_row.add_child(_tutorial_check)
 
+	var lang_row := HBoxContainer.new()
+	lang_row.add_theme_constant_override("separation", 10)
+	vbox.add_child(lang_row)
+
+	var lang_lbl := Label.new()
+	lang_lbl.text = "Language"
+	lang_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lang_lbl.add_theme_font_size_override("font_size", 16)
+	lang_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lang_row.add_child(lang_lbl)
+
+	_language_option = OptionButton.new()
+	_language_option.add_theme_font_size_override("font_size", 16)
+	_language_option.item_selected.connect(_on_language_selected)
+	for code: String in LANGUAGE_CODES:
+		_language_option.add_item(tr("LANG_" + code.to_upper()))
+	lang_row.add_child(_language_option)
+
 	var audio_sep := HSeparator.new()
 	audio_sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
 	vbox.add_child(audio_sep)
@@ -364,6 +388,7 @@ func _build_settings_panel() -> void:
 	_load_audio_settings()
 	_load_shake_setting()
 	_load_tutorial_setting()
+	_load_language_setting()
 
 func _input(event: InputEvent) -> void:
 	if _listening_action.is_empty():
@@ -474,12 +499,36 @@ func _save_tutorial_setting(want_replay: bool) -> void:
 	cfg.set_value("tutorial", "seen", not want_replay)
 	cfg.save(SETTINGS_PATH)
 
+func _load_language_setting() -> void:
+	var cfg: ConfigFile = ConfigFile.new()
+	var locale: String = "en"
+	if cfg.load(SETTINGS_PATH) == OK:
+		locale = str(cfg.get_value("game", "locale", "en"))
+	var idx: int = LANGUAGE_CODES.find(locale)
+	if idx == -1:
+		idx = 0
+		locale = "en"
+	TranslationServer.set_locale(locale)
+	if _language_option:
+		_language_option.selected = idx
+
+func _on_language_selected(idx: int) -> void:
+	if idx < 0 or idx >= LANGUAGE_CODES.size():
+		return
+	var locale: String = LANGUAGE_CODES[idx]
+	TranslationServer.set_locale(locale)
+	var cfg: ConfigFile = ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
+	cfg.set_value("game", "locale", locale)
+	cfg.save(SETTINGS_PATH)
+
 func _on_manual_pressed() -> void:
 	_manual.open()
 
 func _on_settings_pressed() -> void:
 	_settings_panel.visible = true
 	_load_tutorial_setting()
+	_load_language_setting()
 
 func _on_main_menu_pressed() -> void:
 	visible = false

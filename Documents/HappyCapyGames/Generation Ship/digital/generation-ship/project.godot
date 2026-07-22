@@ -49,6 +49,12 @@ enabled=PackedStringArray("res://addons/gde_gozen/plugin.cfg", "res://addons/god
 
 theme/custom="res://assets/ui/theme.tres"
 
+[internationalization]
+
+locale/locale_filter_mode=1
+locale/locale_filter=PackedStringArray("en", "de", "it", "pl", "es", "fr")
+locale/translations=PackedStringArray("res://data/UI Strings.en.translation", "res://data/UI Strings.de.translation", "res://data/UI Strings.it.translation", "res://data/UI Strings.pl.translation", "res://data/UI Strings.es.translation", "res://data/UI Strings.fr.translation")
+
 [physics]
 
 3d/physics_engine="Jolt Physics"
