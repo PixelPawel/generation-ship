@@ -11,6 +11,26 @@ signal closed
 const PAGE_COUNT: int = 5
 const TECH_DECK_BACK_PATH: String = "res://assets/cards/tech/GS_Techs_Back_44x67mm.png"
 
+# Direct references to already-imported card art (assets/cards/) — picked
+# arbitrarily for illustration, not tied to any specific CardData entry.
+const SECTOR_ART_PATHS: Array[String] = [
+	"res://assets/cards/sector/GS_Sector_1_Back_67x44mm.png",
+	"res://assets/cards/sector/GS_Sector_2_Back__67x44mm.png",
+	"res://assets/cards/sector/GS_Sector_3_Back__67x44mm.png",
+]
+const TECH_ART_PATHS: Array[String] = [
+	"res://assets/cards/tech/GS_Techs_44x67mm.png",
+	"res://assets/cards/tech/GS_Techs_44x67mm2.png",
+	"res://assets/cards/tech/GS_Techs_44x67mm3.png",
+	"res://assets/cards/tech/GS_Techs_44x67mm4.png",
+	"res://assets/cards/tech/GS_Techs_44x67mm5.png",
+]
+const EXPEDITION_ART_PATHS: Array[String] = [
+	"res://assets/cards/expedition/GS_Expeditions_44x67mm.png",
+	"res://assets/cards/expedition/GS_Expeditions_44x67mm2.png",
+	"res://assets/cards/expedition/GS_Expeditions_44x67mm3.png",
+]
+
 const PANELS: Array[Dictionary] = [
 	{
 		title = "The Ship & Sectors",
@@ -221,8 +241,8 @@ func _make_button(label_text: String) -> Button:
 	return btn
 
 # ── Diagram-building helpers ──────────────────────────────────────────────
-# No new artwork: diagrams use the game's own real card art (via the local-
-# art cache ImageCache.preload_local_art() already warmed in _ready()) where
+# No new artwork: diagrams use the game's own already-imported card art
+# (assets/cards/, loaded directly by path — see *_ART_PATHS above) where
 # possible, rounded via the same shader used for face-down tucked cards
 # elsewhere (scenes/ui/cargo_drones_panel.gd). That shader samples TEXTURE
 # directly and writes COLOR from scratch — it never reads the incoming
@@ -254,21 +274,12 @@ func _wrap_rounded(tex: Texture2D, rect_size: Vector2) -> TextureRect:
 func _make_card_rect(rect_size: Vector2, color: Color) -> TextureRect:
 	return _wrap_rounded(_get_solid_texture(color), rect_size)
 
-# Real card art where available, falling back to a solid color-tint
-# placeholder if a texture can't be found (e.g. use_adv requested but this
-# particular card has no advanced-side art).
-func _make_real_card(cd: CardData, rect_size: Vector2, use_adv: bool = false) -> TextureRect:
-	var url: String = cd.adv_image_url if use_adv else cd.image_url
-	var is_sector_dust_face: bool = cd.card_type == CardData.CardType.SECTOR and not use_adv
-	var tex: Texture2D = ImageCache.get_or_load_local_texture(url, is_sector_dust_face) if not url.is_empty() else null
+# Loads an already-imported card art file directly (assets/cards/) —
+# falls back to a neutral solid-color placeholder if it can't be loaded.
+func _make_art_card(path: String, rect_size: Vector2) -> TextureRect:
+	var tex: Texture2D = load(path) as Texture2D
 	if not tex:
-		return _make_card_rect(rect_size, CardData.color_tint(cd.adv_color if use_adv else cd.color))
-	return _wrap_rounded(tex, rect_size)
-
-func _make_back_card(local_path: String, rect_size: Vector2) -> TextureRect:
-	var tex: Texture2D = load(local_path) as Texture2D
-	if not tex:
-		return _make_card_rect(rect_size, Color(0.12, 0.14, 0.22))
+		return _make_card_rect(rect_size, Color(0.16, 0.19, 0.28))
 	return _wrap_rounded(tex, rect_size)
 
 func _make_caption(text: String) -> Label:
@@ -297,10 +308,9 @@ func _build_diagram_1() -> Control:
 	row.add_theme_constant_override("separation", 14)
 	root.add_child(row)
 
-	var sectors: Array[CardData] = CardDatabase.sectors
 	for i: int in 6:
-		if i < 3 and i < sectors.size():
-			row.add_child(_make_real_card(sectors[i], Vector2(120, 168)))
+		if i < SECTOR_ART_PATHS.size():
+			row.add_child(_make_art_card(SECTOR_ART_PATHS[i], Vector2(120, 168)))
 		else:
 			row.add_child(_make_card_rect(Vector2(120, 168), Color(0.22, 0.24, 0.3, 0.4)))
 
@@ -309,9 +319,8 @@ func _build_diagram_1() -> Control:
 	var tech_row: HBoxContainer = HBoxContainer.new()
 	tech_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	tech_row.add_theme_constant_override("separation", 8)
-	var techs: Array[CardData] = CardDatabase.techs
-	for i: int in mini(5, techs.size()):
-		tech_row.add_child(_make_real_card(techs[i], Vector2(50, 70)))
+	for path: String in TECH_ART_PATHS:
+		tech_row.add_child(_make_art_card(path, Vector2(50, 70)))
 	root.add_child(tech_row)
 	root.add_child(_make_caption("Up to 5 Tech cards per Sector"))
 	return root
@@ -321,30 +330,22 @@ func _build_diagram_2() -> Control:
 	root.alignment = BoxContainer.ALIGNMENT_CENTER
 	root.add_theme_constant_override("separation", 14)
 
-	var techs: Array[CardData] = CardDatabase.techs
-
 	var hand_row: HBoxContainer = HBoxContainer.new()
 	hand_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	hand_row.add_theme_constant_override("separation", 14)
-	for i: int in mini(3, techs.size()):
-		hand_row.add_child(_make_real_card(techs[i], Vector2(100, 140)))
+	for path: String in TECH_ART_PATHS.slice(0, 3):
+		hand_row.add_child(_make_art_card(path, Vector2(100, 140)))
 	root.add_child(hand_row)
 	root.add_child(_make_caption("Your hand"))
 
 	var research_row: HBoxContainer = HBoxContainer.new()
 	research_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	research_row.add_theme_constant_override("separation", 12)
-	if techs.size() > 3:
-		research_row.add_child(_make_real_card(techs[3], Vector2(85, 119)))
-	else:
-		research_row.add_child(_make_card_rect(Vector2(85, 119), Color(0.35, 0.35, 0.4, 0.7)))
+	research_row.add_child(_make_art_card(TECH_ART_PATHS[3], Vector2(85, 119)))
 	research_row.add_child(_make_arrow_label("discard 1  →"))
-	research_row.add_child(_make_back_card(TECH_DECK_BACK_PATH, Vector2(85, 119)))
+	research_row.add_child(_make_art_card(TECH_DECK_BACK_PATH, Vector2(85, 119)))
 	research_row.add_child(_make_arrow_label("→  draw 1"))
-	if techs.size() > 4:
-		research_row.add_child(_make_real_card(techs[4], Vector2(85, 119)))
-	else:
-		research_row.add_child(_make_card_rect(Vector2(85, 119), Color(0.6, 0.85, 0.6)))
+	research_row.add_child(_make_art_card(TECH_ART_PATHS[4], Vector2(85, 119)))
 	root.add_child(research_row)
 	root.add_child(_make_caption("Research: discard 1, draw a fresh card from the Tech Deck"))
 	return root
@@ -386,16 +387,13 @@ func _build_diagram_4() -> Control:
 	groups.add_theme_constant_override("separation", 36)
 	root.add_child(groups)
 
-	var sectors: Array[CardData] = CardDatabase.sectors
-	var expeditions: Array[CardData] = CardDatabase.expeditions
-
 	var buy_col: VBoxContainer = VBoxContainer.new()
 	buy_col.alignment = BoxContainer.ALIGNMENT_CENTER
 	buy_col.add_theme_constant_override("separation", 6)
 	var buy_row: HBoxContainer = HBoxContainer.new()
 	buy_row.add_theme_constant_override("separation", 10)
-	for i: int in mini(3, sectors.size()):
-		buy_row.add_child(_make_real_card(sectors[i], Vector2(100, 140)))
+	for path: String in SECTOR_ART_PATHS:
+		buy_row.add_child(_make_art_card(path, Vector2(100, 140)))
 	buy_col.add_child(buy_row)
 	buy_col.add_child(_make_caption("Dust Sectors — pay & place"))
 	groups.add_child(buy_col)
@@ -405,8 +403,8 @@ func _build_diagram_4() -> Control:
 	bid_col.add_theme_constant_override("separation", 6)
 	var bid_row: HBoxContainer = HBoxContainer.new()
 	bid_row.add_theme_constant_override("separation", 10)
-	for i: int in mini(3, expeditions.size()):
-		bid_row.add_child(_make_real_card(expeditions[i], Vector2(100, 140)))
+	for path: String in EXPEDITION_ART_PATHS:
+		bid_row.add_child(_make_art_card(path, Vector2(100, 140)))
 	bid_col.add_child(bid_row)
 	bid_col.add_child(_make_caption("Advanced Sectors & Expeditions — bid to win"))
 	groups.add_child(bid_col)
