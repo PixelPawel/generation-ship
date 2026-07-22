@@ -121,6 +121,15 @@ var _auction_active: bool = false
 var _auction_starting: bool = false  # true from bid-confirm until _auction_active (or a same-peer instant win) — closes the auto-end-turn race for the client that requested the auction
 var _is_runner_up_offer: bool = false
 var _runner_up_phase: bool = false
+# Networked (host → all): true from the moment an auction resolves with a
+# winner until that winner's card is actually placed (or recycled/discarded)
+# — blocks end-turn for the initiator too, even when someone else won,
+# since otherwise the initiator's turn could end while the winner is still
+# mid-placement and break turn order.
+var _auction_placement_pending: bool = false
+# Local only: true on whichever client currently owes the placement (the
+# winner, or the runner-up if the winner forfeited).
+var _auction_win_awaiting_placement: bool = false
 var _bots_passed_this_round: Array[int] = []
 
 var _interfleet_active: bool = false
@@ -995,6 +1004,7 @@ func _rpc_notify_runner_up_forfeit(card_ref: Dictionary) -> void:
 		return
 	_rpc_sync_market_removal.rpc(card_ref)
 	_rpc_sync_runner_up_phase.rpc(false)
+	_rpc_sync_auction_placement_pending.rpc(false)
 
 # Host → Runner-up: you may claim this card at printed cost.
 @rpc("authority", "reliable")
@@ -1005,6 +1015,32 @@ func _rpc_offer_to_runner_up(card_ref: Dictionary, slot_idx: int, is_tech: bool,
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_runner_up_phase(active: bool) -> void:
 	_runner_up_phase = active
+
+# Host → All: an auction's card still needs placing (or no longer does).
+# See _auction_placement_pending for why this has to be synced to everyone,
+# not just tracked on the winner's own client.
+@rpc("authority", "reliable", "call_local")
+func _rpc_sync_auction_placement_pending(pending: bool) -> void:
+	_auction_placement_pending = pending
+	if not pending:
+		_try_auto_end_turn()
+
+# Client (whoever currently owes the placement) → Host: my auction win has
+# been placed, recycled, or otherwise resolved — safe to unblock everyone.
+@rpc("any_peer", "reliable")
+func _rpc_notify_auction_placement_done() -> void:
+	if not multiplayer.is_server():
+		return
+	_rpc_sync_auction_placement_pending.rpc(false)
+
+func _notify_auction_placement_done() -> void:
+	if not _auction_win_awaiting_placement:
+		return
+	_auction_win_awaiting_placement = false
+	if GameNetwork.is_host:
+		_rpc_sync_auction_placement_pending.rpc(false)
+	else:
+		_rpc_notify_auction_placement_done.rpc_id(1)
 
 # Host → All: auction has started, show bid popup.
 @rpc("authority", "reliable", "call_local")
@@ -1058,10 +1094,12 @@ func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, ca
 	_is_runner_up_offer = false
 	_bid_popup.hide()
 	UIAudio.stop_auction_music()
+	_auction_placement_pending = true
 	var cost_color: CardData.SupplyColor = cost_color_int as CardData.SupplyColor
 	var my_id: int = multiplayer.get_unique_id()
 	if my_id == winner_id:
 		_pending_auction_win = true
+		_auction_win_awaiting_placement = true
 		_auction_win_is_initiator = (my_id == initiator_id)
 		if not _auction_win_is_initiator:
 			_pending_won_card_ref = card_ref
@@ -1074,11 +1112,11 @@ func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, ca
 	else:
 		if my_id == initiator_id:
 			$Board.cancel_purchase()
+			# Losing an auction you initiated still spends your major action
+			# for the turn, but _auction_placement_pending (set above) keeps
+			# end-turn blocked until the actual winner places their card —
+			# _rpc_sync_auction_placement_pending re-checks it once that's done.
 		_show_action_buttons(true)
-		# Losing an auction you initiated still spends your major action for
-		# the turn, but nothing else re-checks whether the turn can now end
-		# automatically — do that here instead of leaving the player stuck.
-		_try_auto_end_turn()
 	_update_turn_ui()
 	var _cd_toast: CardData = CardRef.from_ref(card_ref)
 	var _cn_toast: String = ""
@@ -1940,6 +1978,7 @@ func _on_sector_revealed(card_data: CardData, slot_idx: int) -> void:
 func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	if not card.card_data:
 		return
+	_notify_auction_placement_done()
 	var _cd: CardData = card.card_data
 	var _is_adv: bool = bool(card.get("is_advanced"))
 	var _cname: String = _cd.adv_name if _is_adv and not _cd.adv_name.is_empty() else _cd.card_name
@@ -2528,9 +2567,11 @@ func _server_handle_pass_bid(peer_id: int) -> void:
 
 func _server_offer_to_runner_up() -> void:
 	if _auction_second_id == -1:
+		_rpc_sync_auction_placement_pending.rpc(false)
 		return
 	var cd: CardData = CardRef.from_ref(_auction_card_ref)
 	if not cd:
+		_rpc_sync_auction_placement_pending.rpc(false)
 		return
 	_rpc_sync_runner_up_phase.rpc(true)
 	var printed_cost: int = cd.adv_cost if _auction_is_adv else cd.cost
@@ -2545,6 +2586,7 @@ func _on_runner_up_offer(card_ref: Dictionary, _slot_idx: int, _is_tech: bool, i
 		return
 	_pending_won_card_ref = card_ref
 	_pending_auction_win = true
+	_auction_win_awaiting_placement = true
 	_auction_win_is_initiator = false
 	_is_runner_up_offer = true
 	var c_name: String = cd.adv_name if (is_adv and not cd.adv_name.is_empty()) else cd.card_name
@@ -2766,6 +2808,7 @@ func _on_bid_payment_confirmed(allocations: Dictionary) -> void:
 			var card: CardData = CardRef.from_ref(_pending_won_card_ref)
 			if not $Board.begin_auction_win_drag(card):
 				push_warning("AuctionWin: card not found in market")
+				_notify_auction_placement_done()
 		_show_action_buttons(true)
 		_broadcast_my_state()
 		return
@@ -2783,6 +2826,7 @@ func _on_bid_payment_forfeited() -> void:
 		return
 	if _pending_auction_win:
 		_pending_auction_win = false
+		_auction_win_awaiting_placement = false
 		if _auction_win_is_initiator:
 			$Board.cancel_purchase()
 			$Board.reset_turn()
@@ -2796,6 +2840,7 @@ func _on_bid_payment_forfeited() -> void:
 				if GameNetwork.is_host:
 					_rpc_sync_market_removal.rpc(_pending_won_card_ref)
 					_rpc_sync_runner_up_phase.rpc(false)
+					_rpc_sync_auction_placement_pending.rpc(false)
 				else:
 					_rpc_notify_runner_up_forfeit.rpc_id(1, _pending_won_card_ref)
 			else:
@@ -3045,6 +3090,8 @@ func _try_auto_end_turn() -> void:
 		return
 	if _auction_active or _auction_starting or _runner_up_phase or _pending_auction or _pending_auction_win:
 		return
+	if _auction_placement_pending:
+		return
 	if _pending_reveal_gain_supply or _pending_reveal_may_bid or _pending_reveal_may_free_gain:
 		return
 	if $Board.is_card_drag_pending():
@@ -3063,6 +3110,8 @@ func _on_end_turn_pressed() -> void:
 	if not $Board.is_major_action_taken():
 		return
 	if _runner_up_phase:
+		return
+	if _auction_placement_pending:
 		return
 	if _effect_mode == EffectMode.EFFECT_INTERFLEET_PICK:
 		return
@@ -3218,6 +3267,7 @@ func _on_unplaceable_card_recycled(card_data: CardData) -> void:
 	_show_auction_toast("No room to place %s — recycled instead" % c_name)
 	_log_action("No room to place %s, recycled instead" % c_name, Color(1.0, 0.6, 0.4))
 	_broadcast_my_state()
+	_notify_auction_placement_done()
 	# This auto-recycle never goes through the normal card_placed → effect
 	# queue chain, so nothing else re-checks whether the turn can now end.
 	_try_auto_end_turn()
