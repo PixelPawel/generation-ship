@@ -23,11 +23,30 @@ static func get_steps(cd: CardData, slot: SectorSlot) -> Array[Dictionary]:
 	var is_new: bool = slot.get_tech_count() == 1
 	var is_complete: bool = slot.is_complete()
 	var is_opt: bool = slot.is_optimized
+	var placed_colors: Array[int] = _slot_placed_colors(slot)
+	return get_steps_for_state(cd, is_new, is_complete, is_opt, placed_colors)
+
+static func _slot_placed_colors(slot: SectorSlot) -> Array[int]:
+	var placed_colors: Array[int] = []
+	for c: Node3D in slot.get_all_placed_cards():
+		var cdata: CardData = c.get("card_data")
+		if cdata:
+			placed_colors.append(int(cdata.color))
+	return placed_colors
+
+# State-only entry point — no SectorSlot/Node3D required, so bots can resolve
+# the exact same card effects a real player would without a live scene.
+# placed_colors is every card currently on the slot (sector + techs), each
+# card's raw .color field (matches the original slot.get_all_placed_cards()
+# based logic below, including its historical use of .color rather than
+# effective_color for advanced sectors).
+static func get_steps_for_state(cd: CardData, is_new: bool, is_complete: bool, is_opt: bool,
+		placed_colors: Array[int]) -> Array[Dictionary]:
 	var steps: Array[Dictionary] = []
-	_build(cd.card_name, cd, slot, is_new, is_complete, is_opt, steps)
+	_build(cd.card_name, cd, placed_colors, is_new, is_complete, is_opt, steps)
 	return CardData.tag_effect_source(steps, cd.card_name)
 
-static func _build(name: String, _cd: CardData, slot: SectorSlot,
+static func _build(name: String, _cd: CardData, placed_colors: Array[int],
 		is_new: bool, is_complete: bool, is_opt: bool,
 		steps: Array[Dictionary]) -> void:
 	match name:
@@ -188,7 +207,7 @@ static func _build(name: String, _cd: CardData, slot: SectorSlot,
 		# ── Electrix techs ────────────────────────────────────────────────────
 
 		"Nanohull", "Nanobots":
-			var distinct: int = _count_distinct_tech_colors(slot)
+			var distinct: int = _count_distinct_colors(placed_colors)
 			if distinct > 0:
 				steps.append({type = "gain_supply", color = CardData.SupplyColor.ELECTRIX, amount = distinct})
 
@@ -207,10 +226,8 @@ static func _build(name: String, _cd: CardData, slot: SectorSlot,
 		# ── Thrust techs ──────────────────────────────────────────────────────
 
 		"Replicators":
-			for c: Node3D in slot.get_all_placed_cards():
-				var cdata: CardData = c.get("card_data")
-				if cdata:
-					steps.append({type = "store_on_slot", color = cdata.color, amount = 1})
+			for color: int in placed_colors:
+				steps.append({type = "store_on_slot", color = color, amount = 1})
 
 		"Quantum Entangled Radio":
 			steps.append({type = "recycle_tuck", count = 2})
@@ -242,10 +259,8 @@ static func _build(name: String, _cd: CardData, slot: SectorSlot,
 		"Caldera Colony":
 			steps.append({type = "caldera_colony"})
 
-static func _count_distinct_tech_colors(slot: SectorSlot) -> int:
+static func _count_distinct_colors(placed_colors: Array[int]) -> int:
 	var seen: Dictionary = {}
-	for c: Node3D in slot.get_all_placed_cards():
-		var cdata: CardData = c.get("card_data")
-		if cdata:
-			seen[int(cdata.color)] = true
+	for color: int in placed_colors:
+		seen[color] = true
 	return seen.size()

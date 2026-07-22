@@ -1411,74 +1411,17 @@ func restore_from_snapshot(snap: Dictionary) -> void:
 					slot.triggered_levels[j] = true
 
 func _update_optimize_state(slot: SectorSlot) -> Array[int]:
-	var triggered: Array[int] = []
 	if not slot.occupied or not slot.placed_card or not slot.placed_card.card_data:
-		return triggered
+		return []
 	var cd: CardData = slot.placed_card.card_data
 	var is_adv: bool = bool(slot.placed_card.get("is_advanced"))
-	var level_reqs: Array = [
-		(cd.adv_opt1_req if is_adv else cd.opt1_req),
-		(cd.adv_opt2_req if is_adv else []),
-		(cd.adv_opt3_req if is_adv else []),
-	]
-	# Ensure triggered_levels is sized (guards against slots restored from old snapshots)
-	if slot.triggered_levels.size() != slot.max_optimizations:
-		slot.triggered_levels.resize(slot.max_optimizations)
-		for i: int in slot.triggered_levels.size():
-			if i >= slot.optimize_count:
-				slot.triggered_levels[i] = false
-	# Pool of placed tech colors; each level "consumes" its own required colors so
-	# levels with identical requirements (e.g. Greenhouses) don't all fire at once.
 	var pool: Array[int] = slot.get_placed_tech_colors()
-	for level_idx: int in 3:
-		var req: Array = level_reqs[level_idx]
-		if req.is_empty():
-			break
-		if level_idx < slot.triggered_levels.size() and slot.triggered_levels[level_idx]:
-			# Already triggered — remove its colors from the shared pool and skip.
-			_consume_from_pool(pool, req)
-			continue
-		# Not yet triggered — check this level's own requirements against what's left.
-		if _satisfies_optimize(pool, req):
-			if level_idx < slot.triggered_levels.size():
-				slot.triggered_levels[level_idx] = true
-			slot.optimize_count += 1
-			if slot.optimize_count >= slot.max_optimizations:
-				slot.is_optimized = true
-			triggered.append(level_idx + 1)
-			_consume_from_pool(pool, req)
-	return triggered
-
-# Removes one instance of each required color from pool (specific colors first, ANY last).
-func _consume_from_pool(pool: Array[int], req: Array[int]) -> void:
-	var any_count: int = 0
-	for r: int in req:
-		if r == CardData.OPTIMIZE_ANY:
-			any_count += 1
-		else:
-			var idx: int = pool.find(r)
-			if idx >= 0:
-				pool.remove_at(idx)
-	for _i: int in any_count:
-		if not pool.is_empty():
-			pool.pop_back()
-
-func _satisfies_optimize(placed: Array[int], required: Array[int]) -> bool:
-	var counts: Dictionary = {}
-	for c: int in placed:
-		counts[c] = counts.get(c, 0) + 1
-	var any_needed: int = 0
-	for req: int in required:
-		if req == CardData.OPTIMIZE_ANY:
-			any_needed += 1
-		else:
-			if counts.get(req, 0) == 0:
-				return false
-			counts[req] -= 1
-	var total_remaining: int = 0
-	for v: Variant in counts.values():
-		total_remaining += int(v)
-	return total_remaining >= any_needed
+	var result: Dictionary = OptimizeLogic.update_optimize_state(
+		cd, is_adv, pool, slot.optimize_count, slot.max_optimizations, slot.triggered_levels)
+	slot.optimize_count = result["optimize_count"]
+	slot.is_optimized = result["is_optimized"]
+	slot.triggered_levels = result["triggered_levels"] as Array[bool]
+	return result["triggered"] as Array[int]
 
 func _handle_failed_drop() -> void:
 	_end_arrow_drag()

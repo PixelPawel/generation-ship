@@ -1088,7 +1088,7 @@ func _rpc_sync_auction_state(current_bid: int, leader_id: int, active_id: int, l
 
 # Host → All: auction resolved — winner places the card.
 @rpc("authority", "reliable", "call_local")
-func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, card_ref: Dictionary, _slot_idx: int, _is_tech: bool, cost_color_int: int) -> void:
+func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, card_ref: Dictionary, _slot_idx: int, is_tech: bool, cost_color_int: int) -> void:
 	_auction_active = false
 	_auction_starting = false
 	_is_runner_up_offer = false
@@ -1117,6 +1117,13 @@ func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, ca
 			# end-turn blocked until the actual winner places their card —
 			# _rpc_sync_auction_placement_pending re-checks it once that's done.
 		_show_action_buttons(true)
+	# Bots have no client to drive the normal drag-to-place step, so the host
+	# resolves payment/placement for them right here and clears the
+	# placement-pending flag itself — otherwise it would never clear and
+	# end-turn would stay blocked for everyone for the rest of the game.
+	if multiplayer.is_server() and GameNetwork.is_bot(winner_id):
+		BotTurn.bot_resolve_auction_win(self, winner_id, card_ref, final_bid, cost_color, is_tech, _auction_is_adv)
+		_rpc_sync_auction_placement_pending.rpc(false)
 	_update_turn_ui()
 	var _cd_toast: CardData = CardRef.from_ref(card_ref)
 	var _cn_toast: String = ""

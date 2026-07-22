@@ -15,12 +15,30 @@ static func get_optimize_steps(slot: SectorSlot) -> Array[Dictionary]:
 	if not cd:
 		return []
 	var is_adv: bool = bool(slot.placed_card.get("is_advanced"))
+	var placed_colors: Array[int] = _slot_effective_colors(slot)
+	return get_optimize_steps_for_state(cd, is_adv, placed_colors, slot.last_placed_tech_cost)
+
+static func _slot_effective_colors(slot: SectorSlot) -> Array[int]:
+	var result: Array[int] = []
+	for card_node: Node3D in slot.get_all_placed_cards():
+		var cdata: CardData = card_node.get("card_data")
+		if cdata:
+			result.append(int(CardData.effective_color(cdata, bool(card_node.get("is_advanced")))))
+	return result
+
+# State-only entry point — no SectorSlot/Node3D required, so bots can resolve
+# the exact same optimize effect a real player would. placed_colors is every
+# card currently on the slot (sector + techs) mapped through
+# CardData.effective_color (matches the original slot-based logic below).
+static func get_optimize_steps_for_state(cd: CardData, is_adv: bool, placed_colors: Array[int],
+		last_placed_tech_cost: int) -> Array[Dictionary]:
 	var name: String = cd.adv_name if is_adv else cd.card_name
 	var steps: Array[Dictionary] = []
-	_build(name, slot, steps)
+	_build(name, placed_colors, last_placed_tech_cost, steps)
 	return CardData.tag_effect_source(steps, name)
 
-static func _build(name: String, slot: SectorSlot, steps: Array[Dictionary]) -> void:
+static func _build(name: String, placed_colors: Array[int], last_placed_tech_cost: int,
+		steps: Array[Dictionary]) -> void:
 	match name:
 
 		# ── Dust sector optimize effects ──────────────────────────────────────
@@ -53,12 +71,9 @@ static func _build(name: String, slot: SectorSlot, steps: Array[Dictionary]) -> 
 		"Central Transport":
 			# Fuse 1:1 for each Metals and Electrix card here (including this sector)
 			var fuse_count: int = 0
-			for card_node: Node3D in slot.get_all_placed_cards():
-				var cdata: CardData = card_node.get("card_data")
-				if cdata:
-					var col: CardData.SupplyColor = CardData.effective_color(cdata, bool(card_node.get("is_advanced")))
-					if col == CardData.SupplyColor.METALS or col == CardData.SupplyColor.ELECTRIX:
-						fuse_count += 1
+			for col: int in placed_colors:
+				if col == CardData.SupplyColor.METALS or col == CardData.SupplyColor.ELECTRIX:
+					fuse_count += 1
 			if fuse_count > 0:
 				steps.append({type = "fuse_notice", count = fuse_count})
 
@@ -74,10 +89,8 @@ static func _build(name: String, slot: SectorSlot, steps: Array[Dictionary]) -> 
 
 		"Preservation":
 			var colors: Dictionary = {}
-			for card_node: Node3D in slot.get_all_placed_cards():
-				var cdata: CardData = card_node.get("card_data")
-				if cdata:
-					colors[int(CardData.effective_color(cdata, bool(card_node.get("is_advanced"))))] = true
+			for col: int in placed_colors:
+				colors[col] = true
 			if not colors.is_empty():
 				steps.append({type = "gain_supply", color = CardData.SupplyColor.DUST, amount = 2 * colors.size()})
 
@@ -97,7 +110,7 @@ static func _build(name: String, slot: SectorSlot, steps: Array[Dictionary]) -> 
 
 		"Parliament":
 			# Draw equal to the printed cost of the last tech card placed here
-			var draw_count: int = slot.last_placed_tech_cost
+			var draw_count: int = last_placed_tech_cost
 			if draw_count > 0:
 				steps.append({type = "draw", count = draw_count})
 
