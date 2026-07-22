@@ -7,6 +7,7 @@ signal lobby_view_requested
 const MAX_PLAYERS: int = 4
 const SETTINGS_PATH: String = "user://settings.cfg"
 const LOBBY_REFRESH_INTERVAL: float = 5.0
+const BOT_NAMES: Array[String] = ["Wally", "Bender", "Deep Blue"]  # Easy, Normal, Hard — proper nouns, not translated
 
 var _player_name: String = ""
 var _players: Dictionary = {}      # peer_id (int) -> name (String)
@@ -350,8 +351,7 @@ func _on_add_bot_pressed() -> void:
 	var bot_id: int = -_bot_count
 	var diff: int = _diff_btn.selected if _diff_btn else 1
 	_bot_difficulties[bot_id] = diff
-	var diff_label: String = [tr("Easy"), tr("Normal"), tr("Hard")][diff]
-	_players[bot_id] = tr("Bot %d (%s)") % [_bot_count, diff_label]
+	_players[bot_id] = BOT_NAMES[diff]
 	_players_ready[bot_id] = true
 	_rpc_sync_players.rpc(_players)
 	_refresh_player_list()
