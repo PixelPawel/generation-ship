@@ -271,36 +271,32 @@ static func setup_info_screen_display(main: Main) -> void:
 		p.reparent(main._info_viewport, false)
 		register_info_panel(main, p)
 
-	var hint_root := Control.new()
-	hint_root.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	hint_root.offset_bottom = 56.0
-	hint_root.z_index = 10
-	hint_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var hint_bg := ColorRect.new()
-	hint_bg.color = Color(0.03, 0.04, 0.09, 0.92)
-	hint_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	hint_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hint_root.add_child(hint_bg)
-	var hint_border := ColorRect.new()
-	hint_border.color = Color(0.3, 0.6, 1.0, 0.55)
-	hint_border.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	hint_border.offset_top = -2.0
-	hint_border.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hint_root.add_child(hint_border)
+	# Free-floating, screen-space (not on the in-world Info Screen) so it
+	# reads clearly regardless of camera angle — centered on the actual
+	# game window via the shared ScifiPanel frame used by every other
+	# floating popup in the game.
+	var hint_panel: Control = load("res://scenes/ui/scifi_panel.gd").new()
+	hint_panel.set_content_margin(16)
+	hint_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	hint_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	hint_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	hint_panel.custom_minimum_size = Vector2(640, 90)
+	hint_panel.z_index = 10
+	hint_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var hint_label := Label.new()
 	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD
 	hint_label.add_theme_font_size_override("font_size", 22)
 	hint_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.55))
 	hint_label.add_theme_constant_override("outline_size", 2)
 	hint_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.7))
-	hint_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hint_root.add_child(hint_label)
-	main._effect_hint_panel = hint_root
+	hint_panel.add_child(hint_label)
+	main._effect_hint_panel = hint_panel
 	main._effect_hint_label = hint_label
 	main._effect_hint_panel.hide()
-	main._info_viewport.add_child(hint_root)
+	main.get_node("UILayer").add_child(hint_panel)
 
 static func setup_info_screen_input(main: Main, screen_mesh: MeshInstance3D) -> void:
 	setup_viewport_input(main, screen_mesh, main._info_viewport)
