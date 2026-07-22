@@ -16,12 +16,20 @@ const COL_DIM      := Color(0.55, 0.55, 0.6, 0.28)
 const COL_GLOW     := Color(1.0, 0.4, 0.5, 0.25)
 const COL_1TO1     := Color(0.15, 0.92, 0.42)
 const COL_1TO1_GLOW := Color(0.15, 0.92, 0.42, 0.25)
+const COL_TUTORIAL_A := Color(0.25, 0.55, 1.0)
+const COL_TUTORIAL_B := Color(0.95, 0.2, 0.25)
 
 var _pos: Dictionary = {}     # int (SupplyColor) -> Vector2 centre
 var _arrows: Array = []       # Array[Dictionary] { src, dst, hovered, disabled }
 var _labels: Dictionary = {}  # int -> Label
 var _time: float = 0.0
 var _hovered_icon: int = -1
+var _tutorial_highlight: bool = false
+
+# Tutorial-only: tweens every currently-usable arrow between blue and red
+# instead of its normal color, to draw attention during the Fuse Supply step.
+func set_tutorial_highlight(active: bool) -> void:
+	_tutorial_highlight = active
 
 func setup(positions: Dictionary, fuse_map: Dictionary, icon_textures: Dictionary) -> void:
 	_pos = positions
@@ -105,8 +113,13 @@ func _draw() -> void:
 		var col_base: Color = COL_DIM
 		var col_glow: Color = COL_GLOW
 		if not arrow.disabled:
-			col_base = COL_1TO1 if is_1to1 else COL_ARROW
-			col_glow = COL_1TO1_GLOW if is_1to1 else COL_GLOW
+			if _tutorial_highlight:
+				var tt: float = 0.5 + 0.5 * sin(_time * 2.5)
+				col_base = COL_TUTORIAL_A.lerp(COL_TUTORIAL_B, tt)
+				col_glow = Color(col_base.r, col_base.g, col_base.b, 0.25)
+			else:
+				col_base = COL_1TO1 if is_1to1 else COL_ARROW
+				col_glow = COL_1TO1_GLOW if is_1to1 else COL_GLOW
 
 		# Pulsing pill-shaped glow (circles at endpoints avoid flat/boxy caps)
 		if not arrow.disabled:

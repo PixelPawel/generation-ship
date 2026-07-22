@@ -82,6 +82,8 @@ func _apply_step(step: String) -> void:
 		_main._market_panel.set_tutorial_dust_highlight(false)
 	if step != "place":
 		_clear_tech_slot_highlights()
+	if step != "fuse":
+		_main._cs_display._flow.set_tutorial_highlight(false)
 	if step != "pass":
 		_main._stop_pass_btn_3d_flash()
 
@@ -92,7 +94,8 @@ func _apply_step(step: String) -> void:
 			_main._show_effect_hint("Left-click and drag a Tech card from your hand onto the Sector")
 			_highlight_tech_slots()
 		"fuse":
-			_main._show_effect_hint("Fuse 2 of one supply into 1 of the next")
+			_main._show_effect_hint("Fuse 2 supply into 1 supply of a higher value.")
+			_main._cs_display._flow.set_tutorial_highlight(true)
 		"pass":
 			_main._show_effect_hint("Nothing left to do? Press Pass")
 			_main._start_pass_btn_3d_flash()
@@ -143,6 +146,7 @@ func _finish() -> void:
 	_main._hide_effect_hint()
 	_main._market_panel.set_tutorial_dust_highlight(false)
 	_clear_tech_slot_highlights()
+	_main._cs_display._flow.set_tutorial_highlight(false)
 	_main._stop_pass_btn_3d_flash()
 	if _board.card_placed.is_connected(_on_card_placed):
 		_board.card_placed.disconnect(_on_card_placed)
