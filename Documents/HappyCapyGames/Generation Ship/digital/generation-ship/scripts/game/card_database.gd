@@ -162,6 +162,23 @@ func _is_valid_color(s: String) -> bool:
 			return true
 	return false
 
+# A disconnected human's sector/tech names are the only trace of their board
+# left once their client is gone (see Main._convert_peer_to_bot) — these
+# resolve those name strings back into real CardData for the takeover bot.
+func find_sector_by_name(card_name: String, advanced: bool) -> CardData:
+	for cd: CardData in sectors:
+		if advanced and cd.adv_name == card_name:
+			return cd
+		elif not advanced and cd.card_name == card_name:
+			return cd
+	return null
+
+func find_tech_by_name(card_name: String) -> CardData:
+	for cd: CardData in techs:
+		if cd.card_name == card_name:
+			return cd
+	return null
+
 func get_all_image_urls() -> Array[String]:
 	var urls: Array[String] = []
 	for cd: CardData in sectors:

@@ -2573,6 +2573,12 @@ func _server_offer_to_runner_up() -> void:
 	if not cd:
 		_rpc_sync_auction_placement_pending.rpc(false)
 		return
+	if GameNetwork.is_bot(_auction_second_id):
+		# Bots have no payment-panel UI to accept this at printed cost —
+		# treat it the same as a human runner-up declining outright.
+		_rpc_sync_market_removal.rpc(_auction_card_ref)
+		_rpc_sync_auction_placement_pending.rpc(false)
+		return
 	_rpc_sync_runner_up_phase.rpc(true)
 	var printed_cost: int = cd.adv_cost if _auction_is_adv else cd.cost
 	if _auction_second_id == multiplayer.get_unique_id():
@@ -3204,11 +3210,17 @@ func _rpc_sync_expedition_reveal(slot_idx: int) -> void:
 func _on_peer_disconnected(peer_id: int) -> void:
 	if not GameNetwork.is_multiplayer:
 		return
-	var msg: String
 	if peer_id == 1:
-		msg = "Host disconnected."
-	else:
-		msg = "%s disconnected." % GameNetwork.player_names.get(peer_id, "Opponent")
+		# The host holds all game authority (turn flow, bot state) — there's
+		# no one left to continue the session for anyone.
+		_show_session_ended_modal("Host disconnected.")
+		return
+	# A non-host player dropping doesn't have to end the game for everyone —
+	# hand their seat to the AI so the rest of the table can finish.
+	if multiplayer.is_server():
+		_convert_peer_to_bot(peer_id)
+
+func _show_session_ended_modal(msg: String) -> void:
 	var panel: ScifiPanel = load("res://scenes/ui/scifi_panel.gd").new()
 	panel.set_content_margin(32)
 	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
@@ -3237,6 +3249,75 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	vbox.add_child(btn)
 	panel.add_child(vbox)
 	$UILayer.add_child(panel)
+
+# Host-only: takes over a disconnected player's seat with the existing bot
+# system. Their exact hand contents are gone for good (the host only ever
+# knew the turn-1 deal, per _opp_snapshots being a lossy public summary) —
+# this is a best-effort "let the game finish" stopgap, not a true rejoin.
+func _convert_peer_to_bot(peer_id: int) -> void:
+	var snap: Dictionary = _opp_snapshots.get(peer_id, {})
+	var starter_supply: Dictionary = {
+		int(CardData.SupplyColor.DUST):     4,
+		int(CardData.SupplyColor.METALS):   2,
+		int(CardData.SupplyColor.LIQUIDS):  2,
+		int(CardData.SupplyColor.ORGANIX):  1,
+		int(CardData.SupplyColor.ELECTRIX): 1,
+		int(CardData.SupplyColor.THRUST):   0,
+	}
+	bot_supplies[peer_id] = snap.get("supply", starter_supply)
+	bot_hands[peer_id] = $Board.draw_card_data(int(snap.get("hand_size", 6)))
+	var board: Array = []
+	for slot_v: Variant in (snap.get("slots", []) as Array):
+		var slot: Dictionary = slot_v as Dictionary
+		if not slot.get("occupied", false):
+			continue
+		var is_adv: bool = bool(slot.get("sector_advanced", false))
+		var sector: CardData = CardDatabase.find_sector_by_name(slot.get("sector_name", ""), is_adv)
+		if not sector:
+			continue
+		var techs: Array = []
+		for tech_name: String in (slot.get("tech_names", []) as Array):
+			var tech: CardData = CardDatabase.find_tech_by_name(tech_name)
+			if tech:
+				techs.append(tech)
+		board.append({"sector": sector, "is_advanced": is_adv, "techs": techs, "stored": {}})
+	bot_boards[peer_id] = board
+
+	var original_name: String = GameNetwork.player_names.get(peer_id, "Player")
+	_rpc_sync_peer_converted_to_bot.rpc(peer_id, "%s (Bot)" % original_name)
+	_broadcast_log("%s disconnected — a bot has taken over (lost hand and any stored supply)." % original_name, Color(1.0, 0.6, 0.4))
+
+	if GameNetwork.active_peer_id == peer_id:
+		BotTurn.run_bot_turn(self, peer_id)
+	elif _auction_active and not _auction_remaining.is_empty() and _auction_remaining[_auction_active_idx] == peer_id:
+		BotTurn.bot_decide_bid(self, peer_id)
+	elif _interfleet_active and not _interfleet_remaining_order.is_empty() and _interfleet_remaining_order[0] == peer_id:
+		BotTurn.bot_decide_interfleet_pick(self, peer_id)
+	elif (_runner_up_phase and _auction_second_id == peer_id) or (_auction_placement_pending and _auction_leader_id == peer_id):
+		_host_force_decline_pending_auction(peer_id)
+
+# Host → All: peer_id is now bot-controlled. Only mutates GameNetwork state —
+# bot_hands/bot_supplies/bot_boards stay host-only, exactly like every other
+# bot, since only the host ever runs BotTurn.
+@rpc("authority", "reliable", "call_local")
+func _rpc_sync_peer_converted_to_bot(peer_id: int, display_name: String) -> void:
+	if not GameNetwork.bot_ids.has(peer_id):
+		GameNetwork.bot_ids.append(peer_id)
+	GameNetwork.bot_difficulty[peer_id] = BotAI.Difficulty.EASY
+	GameNetwork.player_names[peer_id] = display_name
+
+# Host-only: force-resolves an auction outcome that was waiting on peer_id's
+# own input (a runner-up offer, or paying/placing after winning) when that
+# input can never come because they've disconnected. Deliberately doesn't
+# touch $Board — cancel_purchase()/reset_turn() are per-client operations on
+# state that only ever existed on peer_id's own (now-gone) client.
+func _host_force_decline_pending_auction(peer_id: int) -> void:
+	if _runner_up_phase and _auction_second_id == peer_id:
+		_rpc_sync_market_removal.rpc(_auction_card_ref)
+		_rpc_sync_runner_up_phase.rpc(false)
+		_rpc_sync_auction_placement_pending.rpc(false)
+	elif _auction_placement_pending and _auction_leader_id == peer_id:
+		_server_offer_to_runner_up()
 
 # ── Music ─────────────────────────────────────────────────────────────────────
 
