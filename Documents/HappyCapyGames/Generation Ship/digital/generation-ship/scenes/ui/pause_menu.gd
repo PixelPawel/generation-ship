@@ -21,6 +21,7 @@ var _monitor_option: OptionButton = null
 var _music_slider: HSlider = null
 var _sfx_slider: HSlider = null
 var _shake_check: CheckButton = null
+var _tutorial_check: CheckButton = null
 var _rebind_buttons: Dictionary = {}   # action -> [primary_btn, secondary_btn]
 var _listening_action: String = ""
 var _listening_slot: int = -1
@@ -39,6 +40,7 @@ func open_settings() -> void:
 	if _settings_panel:
 		_settings_panel.visible = true
 	visible = true
+	_load_tutorial_setting()
 
 func _build_ui() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -201,6 +203,21 @@ func _build_settings_panel() -> void:
 	)
 	shake_row.add_child(_shake_check)
 
+	var tutorial_row := HBoxContainer.new()
+	tutorial_row.add_theme_constant_override("separation", 10)
+	vbox.add_child(tutorial_row)
+
+	var tutorial_lbl := Label.new()
+	tutorial_lbl.text = "Replay Tutorial"
+	tutorial_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tutorial_lbl.add_theme_font_size_override("font_size", 16)
+	tutorial_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tutorial_row.add_child(tutorial_lbl)
+
+	_tutorial_check = CheckButton.new()
+	_tutorial_check.toggled.connect(_save_tutorial_setting)
+	tutorial_row.add_child(_tutorial_check)
+
 	var audio_sep := HSeparator.new()
 	audio_sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
 	vbox.add_child(audio_sep)
@@ -346,6 +363,7 @@ func _build_settings_panel() -> void:
 	_load_monitor_setting()
 	_load_audio_settings()
 	_load_shake_setting()
+	_load_tutorial_setting()
 
 func _input(event: InputEvent) -> void:
 	if _listening_action.is_empty():
@@ -437,11 +455,31 @@ func _save_shake_setting(on: bool) -> void:
 	cfg.set_value("display", "screen_shake", on)
 	cfg.save(SETTINGS_PATH)
 
+# Same "tutorial"/"seen" flag main.gd's FirstTurnTutorial gate reads/marks —
+# this checkbox is just a manual way to flip it back to "not seen" (checked)
+# so it plays again next solo game start; main.gd marks it seen again the
+# instant the tutorial actually starts, so reopening Settings afterward
+# correctly shows it unchecked again.
+func _load_tutorial_setting() -> void:
+	var cfg: ConfigFile = ConfigFile.new()
+	var seen: bool = false
+	if cfg.load(SETTINGS_PATH) == OK:
+		seen = bool(cfg.get_value("tutorial", "seen", false))
+	if _tutorial_check:
+		_tutorial_check.set_pressed_no_signal(not seen)
+
+func _save_tutorial_setting(want_replay: bool) -> void:
+	var cfg: ConfigFile = ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
+	cfg.set_value("tutorial", "seen", not want_replay)
+	cfg.save(SETTINGS_PATH)
+
 func _on_manual_pressed() -> void:
 	_manual.open()
 
 func _on_settings_pressed() -> void:
 	_settings_panel.visible = true
+	_load_tutorial_setting()
 
 func _on_main_menu_pressed() -> void:
 	visible = false
