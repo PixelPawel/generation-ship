@@ -141,10 +141,10 @@ func _apply_buy_step() -> void:
 		_main._show_effect_hint("Place your Sector on a free Sector slot")
 	elif (_main._bid_popup and _main._bid_popup.visible) or (_main._bid_payment_panel and _main._bid_payment_panel.visible):
 		_main._market_panel.set_tutorial_dust_highlight(false)
-		_main._show_effect_hint("Pay 2 Dust to place your Dust Sector")
+		_main._show_effect_hint("Left-click a Dust Sector on the Market screen, then pay 2 dust to place it on a sector slot.")
 	else:
 		_main._market_panel.set_tutorial_dust_highlight(true)
-		_main._show_effect_hint("Left-click a Dust Sector on the Market screen")
+		_main._show_effect_hint("Left-click a Dust Sector on the Market screen, then pay 2 dust to place it on a sector slot.")
 
 # "Bid on an Expedition" is also multiple sub-phases: click an Expedition,
 # confirm a bid in the popup, then pay for the win — recycling and fusing
