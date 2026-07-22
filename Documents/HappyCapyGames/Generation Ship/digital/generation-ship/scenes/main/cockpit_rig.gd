@@ -48,11 +48,11 @@ static func setup_control_screen_display(main: Main) -> void:
 		setup_screen_input(main, screen_mesh)
 
 	var btn_callbacks: Array[Callable] = [main._on_research_pressed, main._on_pass_pressed, main._on_end_turn_pressed]
-	var btn_tooltip_titles: Array[String] = ["Research", "Pass", "End Turn"]
+	var btn_tooltip_titles: Array[String] = [main.tr("Research"), main.tr("Pass"), main.tr("End Turn")]
 	var btn_tooltip_descs: Array[String] = [
-		"Discard a hand card and draw a replacement, once this Action is taken, you can only Research or Pass.",
-		"End your turn. Once all players pass the Generation is over.",
-		"Finish your turn manually, after buying or placing a card. Mostly automated",
+		main.tr("Discard a hand card and draw a replacement, once this Action is taken, you can only Research or Pass."),
+		main.tr("End your turn. Once all players pass the Generation is over."),
+		main.tr("Finish your turn manually, after buying or placing a card. Mostly automated"),
 	]
 	for i: int in 3:
 		var btn_mesh: MeshInstance3D = ui_control.find_child("gs_ui_control_button%d" % (i + 1), true, false) as MeshInstance3D
@@ -254,7 +254,7 @@ static func setup_info_screen_display(main: Main) -> void:
 	main._market_panel.card_inspect_requested.connect(main._on_market_card_inspect_requested)
 	main._market_panel.card_hover_started.connect(main._on_market_card_hover_started)
 	main._market_panel.card_hover_ended.connect(main._hide_tooltip)
-	main._market_panel.opponent_hover_started.connect(func(player_name: String) -> void: main._show_tooltip("", "Click to view %s's board." % player_name))
+	main._market_panel.opponent_hover_started.connect(func(player_name: String) -> void: main._show_tooltip("", main.tr("Click to view %s's board.") % player_name))
 	main._market_panel.opponent_hover_ended.connect(main._hide_tooltip)
 
 	var screen_mesh: MeshInstance3D = main.get_node("UiInfo").find_child("gs_ui_info_screen", true, false) as MeshInstance3D
@@ -394,7 +394,7 @@ static func setup_log_screen_display(main: Main) -> void:
 	canvas.add_child(bg)
 
 	var header: Label = Label.new()
-	header.text = "Event Log"
+	header.text = main.tr("Event Log")
 	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	header.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	header.add_theme_font_size_override("font_size", 24)
