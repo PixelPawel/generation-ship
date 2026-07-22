@@ -15,6 +15,7 @@ const FULLSCREEN_IDX: int = 5
 
 var _settings_panel: Control = null
 var _manual: Control = null
+var _tutorial: Control = null
 var _main_panel: Control = null
 var _resolution_option: OptionButton = null
 var _monitor_option: OptionButton = null
@@ -91,6 +92,10 @@ func _build_ui() -> void:
 	manual_btn.pressed.connect(_on_manual_pressed)
 	vbox.add_child(manual_btn)
 
+	var howto_btn := _make_button("How to Play")
+	howto_btn.pressed.connect(_on_howto_pressed)
+	vbox.add_child(howto_btn)
+
 	var sep2 := HSeparator.new()
 	sep2.modulate = Color(0.4, 0.4, 0.5, 0.3)
 	vbox.add_child(sep2)
@@ -103,6 +108,8 @@ func _build_ui() -> void:
 	_build_settings_panel()
 	_manual = load("res://scenes/ui/manual_popup.gd").new()
 	add_child(_manual)
+	_tutorial = load("res://scenes/ui/tutorial_popup.gd").new()
+	add_child(_tutorial)
 
 func _make_button(label_text: String) -> Button:
 	var btn := Button.new()
@@ -439,6 +446,9 @@ func _save_shake_setting(on: bool) -> void:
 
 func _on_manual_pressed() -> void:
 	_manual.open()
+
+func _on_howto_pressed() -> void:
+	_tutorial.open()
 
 func _on_settings_pressed() -> void:
 	_settings_panel.visible = true

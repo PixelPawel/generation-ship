@@ -8,6 +8,7 @@ const _SLIDE_DURATION: float = 0.5
 var _btn_tweens: Dictionary = {}
 var _music_player: AudioStreamPlayer = null
 var _manual: Control = null
+var _tutorial: Control = null
 
 const RESOLUTIONS: Array[Vector2i] = [
 	Vector2i(1280, 720),
@@ -35,9 +36,12 @@ func _ready() -> void:
 	$Panels/MainView/VBox/MultiplayerBtn.modulate.a = 0.0
 	$Panels/MainView/VBox/SettingsBtn.modulate.a = 0.0
 	$Panels/MainView/VBox/RuleBookBtn.modulate.a = 0.0
+	$Panels/MainView/VBox/HowToPlayBtn.modulate.a = 0.0
 	$Panels/MainView/VBox/QuitBtn.modulate.a = 0.0
 	_manual = load("res://scenes/ui/manual_popup.gd").new()
 	add_child(_manual)
+	_tutorial = load("res://scenes/ui/tutorial_popup.gd").new()
+	add_child(_tutorial)
 	call_deferred("_start_animations")
 
 	var ver_lbl := Label.new()
@@ -83,6 +87,7 @@ func _start_animations() -> void:
 	_setup_button_hover($Panels/MainView/VBox/MultiplayerBtn as Button)
 	_setup_button_hover($Panels/MainView/VBox/SettingsBtn as Button)
 	_setup_button_hover($Panels/MainView/VBox/RuleBookBtn as Button)
+	_setup_button_hover($Panels/MainView/VBox/HowToPlayBtn as Button)
 	_setup_button_hover($Panels/MainView/VBox/QuitBtn as Button)
 
 func _animate_logo() -> void:
@@ -111,6 +116,7 @@ func _animate_buttons() -> void:
 		$Panels/MainView/VBox/MultiplayerBtn,
 		$Panels/MainView/VBox/SettingsBtn,
 		$Panels/MainView/VBox/RuleBookBtn,
+		$Panels/MainView/VBox/HowToPlayBtn,
 		$Panels/MainView/VBox/QuitBtn,
 	]
 	for i: int in buttons.size():
@@ -144,6 +150,9 @@ func _on_btn_hover_exit(btn: Button) -> void:
 
 func _on_rule_book_pressed() -> void:
 	_manual.open()
+
+func _on_how_to_play_pressed() -> void:
+	_tutorial.open()
 
 func _on_settings_btn_pressed() -> void:
 	$PauseMenu.open_settings()

@@ -4,6 +4,8 @@ extends Node3D
 @export var card_scene: PackedScene
 
 const MAX_ROUNDS := 4
+const SETTINGS_PATH: String = "user://settings.cfg"
+const TUTORIAL_SAFETY_TIMEOUT_SEC: float = 300.0
 
 var _round: int = 0
 var _bid_amount: int = 0
@@ -157,6 +159,7 @@ var es_viewport: Control = null
 var _bid_popup: Control = null
 var _scoreboard: Control = null
 var _pause_menu: Control = null
+var _tutorial_popup: Control = null
 var info_panels: Array[Control] = []
 var bot_hands: Dictionary = {}      # bot_id → Array[CardData]
 var bot_supplies: Dictionary = {}   # bot_id → Dictionary (int color → int count)
@@ -200,6 +203,8 @@ func _ready() -> void:
 	_scoreboard = $UILayer/Scoreboard
 	_pause_menu = $UILayer/PauseMenu
 	_pause_menu.main_menu_pressed.connect(_on_pause_main_menu)
+	_tutorial_popup = load("res://scenes/ui/tutorial_popup.gd").new()
+	$UILayer.add_child(_tutorial_popup)
 	_bid_popup.bid_confirmed.connect(_on_bid_confirmed)
 	_bid_popup.bid_cancelled.connect(_on_bid_cancelled)
 	_bid_popup.bid_raised.connect(_on_bid_raised)
@@ -504,6 +509,30 @@ func _flicker_one_slot(slot: SectorSlot, delay: float) -> void:
 		await get_tree().create_timer(durations[i]).timeout
 	slot.set_slot_brightness(1.0)
 
+# Local, per-machine — not synced. Each peer independently checks/shows/
+# marks its own settings.cfg, since "has this installation seen the
+# tutorial" has nothing to do with the network session.
+func _tutorial_seen() -> bool:
+	var cfg: ConfigFile = ConfigFile.new()
+	if cfg.load(SETTINGS_PATH) == OK:
+		return bool(cfg.get_value("tutorial", "seen", false))
+	return false
+
+func _mark_tutorial_seen() -> void:
+	var cfg: ConfigFile = ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
+	cfg.set_value("tutorial", "seen", true)
+	cfg.save(SETTINGS_PATH)
+
+func _show_tutorial_if_needed() -> void:
+	if _tutorial_seen():
+		return
+	_mark_tutorial_seen()  # mark before showing, so a crash mid-view never re-nags
+	_tutorial_popup.open()
+	var safety: SceneTreeTimer = get_tree().create_timer(TUTORIAL_SAFETY_TIMEOUT_SEC)
+	safety.timeout.connect(_tutorial_popup._on_close_pressed, CONNECT_ONE_SHOT)
+	await _tutorial_popup.closed
+
 @rpc("authority", "reliable", "call_local")
 func _rpc_start_game(sector_order: Array, exp_order: Array, tech_order: Array) -> void:
 	if not _pre_setup_done:
@@ -539,6 +568,7 @@ func _rpc_start_game(sector_order: Array, exp_order: Array, tech_order: Array) -
 	if GameNetwork.is_multiplayer:
 		_broadcast_my_state()
 	await get_tree().create_timer(2.0).timeout
+	await _show_tutorial_if_needed()
 	if GameNetwork.is_my_turn():
 		_show_your_turn_banner()
 	if multiplayer.is_server() and GameNetwork.is_bot(GameNetwork.active_peer_id):
