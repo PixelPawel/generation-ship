@@ -57,7 +57,7 @@ func _build_ui() -> void:
 	vbox.add_child(title_row)
 
 	var title: Label = Label.new()
-	title.text = "RULE BOOK"
+	title.text = tr("RULE BOOK")
 	title.add_theme_font_size_override("font_size", 18)
 	title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -96,7 +96,7 @@ func _build_ui() -> void:
 	nav.add_theme_constant_override("separation", 12)
 	vbox.add_child(nav)
 
-	var prev_btn: Button = _make_button("◀  Prev")
+	var prev_btn: Button = _make_button(tr("◀  Prev"))
 	prev_btn.pressed.connect(_on_prev)
 	nav.add_child(prev_btn)
 
@@ -107,7 +107,7 @@ func _build_ui() -> void:
 	_page_label.custom_minimum_size = Vector2(80, 0)
 	nav.add_child(_page_label)
 
-	var next_btn: Button = _make_button("Next  ▶")
+	var next_btn: Button = _make_button(tr("Next  ▶"))
 	next_btn.pressed.connect(_on_next)
 	nav.add_child(next_btn)
 
@@ -138,12 +138,12 @@ func _go_to(page: int) -> void:
 	if _page_image:
 		_page_image.texture = _pages[_page - 1]
 	if _page_label:
-		_page_label.text = "%d / %d" % [_page, PAGE_COUNT]
+		_page_label.text = tr("%d / %d") % [_page, PAGE_COUNT]
 
 func _set_zoom(z: float) -> void:
 	_zoom = clampf(z, ZOOM_MIN, ZOOM_MAX)
 	if _zoom_label:
-		_zoom_label.text = "%d%%" % roundi(_zoom * 100.0)
+		_zoom_label.text = tr("%d%%") % roundi(_zoom * 100.0)
 	if not _page_image:
 		return
 	if _zoom <= 1.0:

@@ -73,7 +73,7 @@ func _build_ui() -> void:
 	panel.add_child(vbox)
 
 	var title := Label.new()
-	title.text = "PAUSED"
+	title.text = tr("PAUSED")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 34)
 	title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
@@ -83,19 +83,19 @@ func _build_ui() -> void:
 	sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
 	vbox.add_child(sep)
 
-	var resume_btn := _make_button("Resume")
+	var resume_btn := _make_button(tr("Resume"))
 	resume_btn.pressed.connect(func(): visible = false)
 	vbox.add_child(resume_btn)
 
-	var main_menu_btn := _make_button("Main Menu")
+	var main_menu_btn := _make_button(tr("Main Menu"))
 	main_menu_btn.pressed.connect(_on_main_menu_pressed)
 	vbox.add_child(main_menu_btn)
 
-	var settings_btn := _make_button("Settings")
+	var settings_btn := _make_button(tr("Settings"))
 	settings_btn.pressed.connect(_on_settings_pressed)
 	vbox.add_child(settings_btn)
 
-	var manual_btn := _make_button("Rule Book")
+	var manual_btn := _make_button(tr("Rule Book"))
 	manual_btn.pressed.connect(_on_manual_pressed)
 	vbox.add_child(manual_btn)
 
@@ -103,7 +103,7 @@ func _build_ui() -> void:
 	sep2.modulate = Color(0.4, 0.4, 0.5, 0.3)
 	vbox.add_child(sep2)
 
-	var quit_btn := _make_button("Quit Game")
+	var quit_btn := _make_button(tr("Quit Game"))
 	quit_btn.add_theme_color_override("font_color", Color(1.0, 0.45, 0.35))
 	quit_btn.pressed.connect(func(): get_tree().quit())
 	vbox.add_child(quit_btn)
@@ -142,7 +142,7 @@ func _build_settings_panel() -> void:
 	_settings_panel.add_child(vbox)
 
 	var title := Label.new()
-	title.text = "SETTINGS"
+	title.text = tr("SETTINGS")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
@@ -157,7 +157,7 @@ func _build_settings_panel() -> void:
 	vbox.add_child(res_row)
 
 	var res_lbl := Label.new()
-	res_lbl.text = "Resolution"
+	res_lbl.text = tr("Resolution")
 	res_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	res_lbl.add_theme_font_size_override("font_size", 16)
 	res_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -167,8 +167,8 @@ func _build_settings_panel() -> void:
 	_resolution_option.add_theme_font_size_override("font_size", 16)
 	_resolution_option.item_selected.connect(_on_resolution_selected)
 	for res: Vector2i in RESOLUTIONS:
-		_resolution_option.add_item("%d × %d" % [res.x, res.y])
-	_resolution_option.add_item("Fullscreen")
+		_resolution_option.add_item(tr("%d × %d") % [res.x, res.y])
+	_resolution_option.add_item(tr("Fullscreen"))
 	res_row.add_child(_resolution_option)
 
 	var mon_row := HBoxContainer.new()
@@ -176,7 +176,7 @@ func _build_settings_panel() -> void:
 	vbox.add_child(mon_row)
 
 	var mon_lbl := Label.new()
-	mon_lbl.text = "Monitor"
+	mon_lbl.text = tr("Monitor")
 	mon_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mon_lbl.add_theme_font_size_override("font_size", 16)
 	mon_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -188,7 +188,7 @@ func _build_settings_panel() -> void:
 	var screen_count: int = DisplayServer.get_screen_count()
 	for i: int in screen_count:
 		var sz: Vector2i = DisplayServer.screen_get_size(i)
-		_monitor_option.add_item("Monitor %d  (%d×%d)" % [i + 1, sz.x, sz.y])
+		_monitor_option.add_item(tr("Monitor %d  (%d×%d)") % [i + 1, sz.x, sz.y])
 	mon_row.add_child(_monitor_option)
 
 	var shake_row := HBoxContainer.new()
@@ -196,7 +196,7 @@ func _build_settings_panel() -> void:
 	vbox.add_child(shake_row)
 
 	var shake_lbl := Label.new()
-	shake_lbl.text = "Screen Shake"
+	shake_lbl.text = tr("Screen Shake")
 	shake_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	shake_lbl.add_theme_font_size_override("font_size", 16)
 	shake_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -214,7 +214,7 @@ func _build_settings_panel() -> void:
 	vbox.add_child(tutorial_row)
 
 	var tutorial_lbl := Label.new()
-	tutorial_lbl.text = "Replay Tutorial"
+	tutorial_lbl.text = tr("Replay Tutorial")
 	tutorial_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tutorial_lbl.add_theme_font_size_override("font_size", 16)
 	tutorial_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -229,7 +229,7 @@ func _build_settings_panel() -> void:
 	vbox.add_child(lang_row)
 
 	var lang_lbl := Label.new()
-	lang_lbl.text = "Language"
+	lang_lbl.text = tr("Language")
 	lang_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lang_lbl.add_theme_font_size_override("font_size", 16)
 	lang_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -247,7 +247,7 @@ func _build_settings_panel() -> void:
 	vbox.add_child(audio_sep)
 
 	var audio_title := Label.new()
-	audio_title.text = "AUDIO"
+	audio_title.text = tr("AUDIO")
 	audio_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	audio_title.add_theme_font_size_override("font_size", 18)
 	audio_title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
@@ -259,7 +259,7 @@ func _build_settings_panel() -> void:
 		row.add_theme_constant_override("separation", 10)
 		vbox.add_child(row)
 		var lbl := Label.new()
-		lbl.text = entry[0]
+		lbl.text = tr(entry[0])
 		lbl.custom_minimum_size = Vector2(130, 0)
 		lbl.add_theme_font_size_override("font_size", 15)
 		lbl.add_theme_color_override("font_color", Color(0.75, 0.8, 1.0))
@@ -287,7 +287,7 @@ func _build_settings_panel() -> void:
 	vbox.add_child(kb_sep)
 
 	var kb_title := Label.new()
-	kb_title.text = "KEYBINDS"
+	kb_title.text = tr("KEYBINDS")
 	kb_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	kb_title.add_theme_font_size_override("font_size", 18)
 	kb_title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
@@ -300,7 +300,7 @@ func _build_settings_panel() -> void:
 	var ch_spacer := Label.new()
 	ch_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col_header.add_child(ch_spacer)
-	for col_name: String in ["Primary", "Secondary"]:
+	for col_name: String in [tr("Primary"), tr("Secondary")]:
 		var ch := Label.new()
 		ch.text = col_name
 		ch.custom_minimum_size = Vector2(110, 0)
@@ -311,11 +311,11 @@ func _build_settings_panel() -> void:
 
 	# Fixed mouse-driven actions (informational, not rebindable)
 	var fixed_binds: Array = [
-		["Play Card",       "LMB + Drag"],
-		["Buy Market Card", "LMB / Drag"],
-		["Open Sector",     "LMB (placed)"],
-		["Recycle Card",    "RMB (hand)"],
-		["Inspect Card",    "RMB (market/placed)"],
+		[tr("Play Card"),       "LMB + Drag"],
+		[tr("Buy Market Card"), "LMB / Drag"],
+		[tr("Open Sector"),     "LMB (placed)"],
+		[tr("Recycle Card"),    "RMB (hand)"],
+		[tr("Inspect Card"),    "RMB (market/placed)"],
 	]
 	for bind: Array in fixed_binds:
 		var row := HBoxContainer.new()
@@ -335,7 +335,7 @@ func _build_settings_panel() -> void:
 		v.add_theme_color_override("font_color", Color(0.5, 0.55, 0.7))
 		row.add_child(v)
 		var empty := Label.new()
-		empty.text = "—"
+		empty.text = tr("—")
 		empty.custom_minimum_size = Vector2(110, 0)
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty.add_theme_font_size_override("font_size", 13)
@@ -348,7 +348,7 @@ func _build_settings_panel() -> void:
 		row.add_theme_constant_override("separation", 6)
 		vbox.add_child(row)
 		var n := Label.new()
-		n.text = str(KeybindManager.ACTION_LABELS.get(action, action))
+		n.text = tr(str(KeybindManager.ACTION_LABELS.get(action, action)))
 		n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		n.add_theme_font_size_override("font_size", 14)
 		n.add_theme_color_override("font_color", Color(0.75, 0.8, 1.0))
@@ -359,7 +359,7 @@ func _build_settings_panel() -> void:
 		for slot: int in 2:
 			var keycode: int = primary if slot == 0 else secondary
 			var btn := Button.new()
-			btn.text = OS.get_keycode_string(keycode) if keycode != 0 else "—"
+			btn.text = OS.get_keycode_string(keycode) if keycode != 0 else tr("—")
 			btn.custom_minimum_size = Vector2(110, 30)
 			btn.add_theme_font_size_override("font_size", 13)
 			row.add_child(btn)
@@ -371,12 +371,12 @@ func _build_settings_panel() -> void:
 					if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 						var cur_primary: int = KeybindManager.get_primary(action)
 						KeybindManager.save_binding(action, cur_primary, 0)
-						btn.text = "—"
+						btn.text = tr("—")
 						btn.accept_event()
 				)
 		_rebind_buttons[action] = btns
 
-	var close_btn := _make_button("Close")
+	var close_btn := _make_button(tr("Close"))
 	close_btn.pressed.connect(func() -> void:
 		_settings_panel.visible = false
 		if _main_panel and not _main_panel.visible:
@@ -417,7 +417,7 @@ func _start_listen(action: String, slot: int, btn: Button) -> void:
 	_listening_action = action
 	_listening_slot = slot
 	_listen_btn = btn
-	btn.text = "Press key…"
+	btn.text = tr("Press key…")
 	for a: String in _rebind_buttons:
 		for b: Button in (_rebind_buttons[a] as Array[Button]):
 			if b != btn:
@@ -426,7 +426,7 @@ func _start_listen(action: String, slot: int, btn: Button) -> void:
 func _cancel_listen() -> void:
 	if not _listening_action.is_empty() and _listen_btn:
 		var cur: int = KeybindManager.get_primary(_listening_action) if _listening_slot == 0 else KeybindManager.get_secondary(_listening_action)
-		_listen_btn.text = OS.get_keycode_string(cur) if cur != 0 else "—"
+		_listen_btn.text = OS.get_keycode_string(cur) if cur != 0 else tr("—")
 	_end_listen()
 
 func _end_listen() -> void:
