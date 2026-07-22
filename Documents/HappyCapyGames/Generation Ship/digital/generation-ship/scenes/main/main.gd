@@ -235,7 +235,7 @@ func _ready() -> void:
 	_bid_payment_panel.forfeited.connect(_on_bid_payment_forfeited)
 
 	_effect_done_btn = Button.new()
-	_effect_done_btn.text = "Done"
+	_effect_done_btn.text = tr("Done")
 	_effect_done_btn.visible = false
 	_effect_done_btn.add_theme_font_size_override("font_size", 18)
 	GameTheme.apply_to_button(_effect_done_btn)
@@ -309,18 +309,18 @@ func _on_any_card_hovered(card_node: Node3D) -> void:
 		return
 	var desc: String = ""
 	if card.is_market_inspecting():
-		desc = "Left-click to buy.\nRight-click to shrink."
+		desc = tr("Left-click to buy.\nRight-click to shrink.")
 	elif card.is_placed:
-		desc = "Right-click to shrink card." if card.is_elevated() else "Right-click to enlarge card."
+		desc = tr("Right-click to shrink card.") if card.is_elevated() else tr("Right-click to enlarge card.")
 		_set_containing_sector_hover(card, true)
 	elif card.managed_by_hand:
-		desc = "Left-click and drag onto sector to buy or Right-click to Recycle."
+		desc = tr("Left-click and drag onto sector to buy or Right-click to Recycle.")
 	elif card.card_data:
 		match card.card_data.card_type:
 			CardData.CardType.EXPEDITION:
-				desc = "left-click and drag onto sector card to start a bid."
+				desc = tr("Left-click and drag onto sector card to start a bid.")
 			CardData.CardType.SECTOR:
-				desc = "Left-click and drag onto a blue sector slot to start a bid." if card.is_advanced else "Left-click and drag onto a blue sector slot to buy sector. Base card to place other cards onto."
+				desc = tr("Left-click and drag onto a blue sector slot to start a bid.") if card.is_advanced else tr("Left-click and drag onto a blue sector slot to buy sector. Base card to place other cards onto.")
 	if not desc.is_empty():
 		_show_tooltip("", desc)
 
@@ -373,7 +373,7 @@ func _collect_urls() -> Array[String]:
 # ── Cache / start ─────────────────────────────────────────────────────────────
 
 func _on_cache_progress(loaded: int, total: int) -> void:
-	$UILayer/LoadingLabel.text = "Loading cards... %d / %d" % [loaded, total]
+	$UILayer/LoadingLabel.text = tr("Loading cards... %d / %d") % [loaded, total]
 
 func _on_cache_ready() -> void:
 	$UILayer/LoadingLabel.hide()
@@ -425,7 +425,7 @@ func _do_game_setup(sector_order: Array, exp_order: Array, tech_order: Array) ->
 	_update_turn_ui(false)
 	if GameNetwork.is_multiplayer:
 		OpponentBoardView.build_opponent_widget(self)
-	_log_action("─── Round 1 / %d ───" % MAX_ROUNDS, Color(0.6, 0.82, 1.0))
+	_log_action(tr("─── Round 1 / %d ───") % MAX_ROUNDS, Color(0.6, 0.82, 1.0))
 
 func _show_tooltip(title: String, desc: String) -> void:
 	if not _tooltip_panel:
@@ -492,8 +492,8 @@ func _broadcast_log(text: String, color: Color = Color(0.80, 0.88, 1.0)) -> void
 # effect (sector place, tech Always, or sector optimize) produced the step —
 # see _effect_source_name, set once per step in _execute_effect_step.
 func _log_effect(message: String) -> void:
-	var source: String = _effect_source_name if not _effect_source_name.is_empty() else "Effect"
-	_broadcast_log("%s: %s" % [source, message], Color(0.6, 0.85, 0.75))
+	var source: String = _effect_source_name if not _effect_source_name.is_empty() else tr("Effect")
+	_broadcast_log(tr("%s: %s") % [source, message], Color(0.6, 0.85, 0.75))
 
 func _generate_shuffled_order(size: int) -> Array:
 	var order: Array = []
@@ -602,7 +602,7 @@ func _on_research_pressed() -> void:
 		return
 	_effect_mode = EffectMode.RESEARCH
 	_set_action_buttons_disabled(true)
-	_show_effect_hint("Click a card in your hand to discard it")
+	_show_effect_hint(tr("Click a card in your hand to discard it"))
 	$Hand.set_discard_mode(true)
 	if GameNetwork.is_multiplayer:
 		if GameNetwork.is_host:
@@ -630,7 +630,7 @@ func _do_pass() -> void:
 		else:
 			_rpc_request_pass.rpc_id(1)
 		return
-	_log_action("You: passed", Color(0.55, 0.55, 0.70))
+	_log_action(tr("You: passed"), Color(0.55, 0.55, 0.70))
 	var supply_dur: float = _apply_supply_generation()
 	var delay: float = maxf(supply_dur + 0.15, 0.25)
 	get_tree().create_timer(delay).timeout.connect(func() -> void:
@@ -670,7 +670,7 @@ func _make_banner_label(text: String, font_size: int, color: Color) -> Label:
 	return lbl
 
 func _show_round_transition(then: Callable) -> void:
-	var lbl: Label = _make_banner_label("End of Round %d" % _round, 72, Color(0.75, 0.90, 1.0))
+	var lbl: Label = _make_banner_label(tr("End of Round %d") % _round, 72, Color(0.75, 0.90, 1.0))
 	var t: Tween = create_tween()
 	t.tween_property(lbl, "modulate:a", 1.0, 0.3)
 	t.tween_interval(0.85)
@@ -686,11 +686,11 @@ func _end_round() -> void:
 	_refresh_all_opp_status_labels()
 	$Board.reset_turn()
 	if _round >= MAX_ROUNDS:
-		_log_action("─── Game over ───", Color(0.6, 0.82, 1.0))
+		_log_action(tr("─── Game over ───"), Color(0.6, 0.82, 1.0))
 		_game_over()
 		return
 	_round += 1
-	_log_action("─── Round %d / %d ───" % [_round, MAX_ROUNDS], Color(0.6, 0.82, 1.0))
+	_log_action(tr("─── Round %d / %d ───") % [_round, MAX_ROUNDS], Color(0.6, 0.82, 1.0))
 	_update_round_label()
 	if not GameNetwork.is_multiplayer:
 		$Board.draw_cards(6)
@@ -728,7 +728,7 @@ func _update_turn_ui(show_banner: bool = true) -> void:
 
 func _show_your_turn_banner() -> void:
 	UIAudio.play_shift_change_sfx()
-	var lbl: Label = _make_banner_label("Your Turn", 56, Color(0.45, 1.0, 0.55))
+	var lbl: Label = _make_banner_label(tr("Your Turn"), 56, Color(0.45, 1.0, 0.55))
 	var t: Tween = create_tween()
 	t.tween_property(lbl, "modulate:a", 1.0, 0.22).set_ease(Tween.EASE_OUT)
 	t.tween_interval(1.0)
@@ -914,13 +914,13 @@ func _refresh_opp_status_label(peer_id: int) -> void:
 	if not is_instance_valid(lbl):
 		return
 	if status == "researching":
-		lbl.text = "Researching"
+		lbl.text = tr("Researching")
 		lbl.add_theme_color_override("font_color", Color(0.5, 0.85, 1.0))
 	elif status == "passed":
-		lbl.text = "Passed"
+		lbl.text = tr("Passed")
 		lbl.add_theme_color_override("font_color", Color(0.55, 0.55, 0.65))
 	elif is_active:
-		lbl.text = "Active"
+		lbl.text = tr("Active")
 		lbl.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
 	else:
 		lbl.text = ""
@@ -937,9 +937,9 @@ func _rpc_sync_opp_status(peer_id: int, status: String) -> void:
 	_refresh_opp_status_label(peer_id)
 	var peer_name: String = GameNetwork.player_names.get(peer_id, "Player")
 	if status == "passed":
-		_log_action("%s: passed" % peer_name, Color(0.55, 0.55, 0.70))
+		_log_action(tr("%s: passed") % peer_name, Color(0.55, 0.55, 0.70))
 	elif status == "researching":
-		_log_action("%s: researching…" % peer_name, Color(0.50, 0.78, 1.0))
+		_log_action(tr("%s: researching…") % peer_name, Color(0.50, 0.78, 1.0))
 
 # Client → Host: I entered research mode.
 @rpc("any_peer", "reliable")
@@ -1063,7 +1063,7 @@ func _rpc_sync_auction_started(card_ref: Dictionary, slot_idx: int, is_tech: boo
 	if GameNetwork.is_multiplayer and initiator_id != multiplayer.get_unique_id():
 		_flash_auction_warning()
 	var _initiator_name: String = GameNetwork.player_names.get(initiator_id, "Player")
-	_log_action("%s: auction for %s" % [_initiator_name, card_name], Color(1.0, 0.72, 0.28))
+	_log_action(tr("%s: auction for %s") % [_initiator_name, card_name], Color(1.0, 0.72, 0.28))
 	_bid_popup.show_auction(cd, is_adv, min_bid, leader_name, _auction_cost_color, is_active, can_pass)
 	_auction_active = true
 	_auction_starting = false
@@ -1130,8 +1130,8 @@ func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, ca
 	if _cd_toast:
 		_cn_toast = _cd_toast.adv_name if (_auction_is_adv and not _cd_toast.adv_name.is_empty()) else _cd_toast.card_name
 	var _wn_toast: String = GameNetwork.player_names.get(winner_id, "Player")
-	_show_auction_toast("%s won %s for %d" % [_wn_toast, _cn_toast, final_bid])
-	_log_action("%s won %s for %d" % [_wn_toast, _cn_toast, final_bid], Color(1.0, 0.92, 0.35))
+	_show_auction_toast(tr("%s won %s for %d") % [_wn_toast, _cn_toast, final_bid])
+	_log_action(tr("%s won %s for %d") % [_wn_toast, _cn_toast, final_bid], Color(1.0, 0.92, 0.35))
 	UIAudio.play_gavel_sfx()
 	if _bid_is_from_effect:
 		_bid_is_from_effect = false
@@ -1170,7 +1170,7 @@ func _rpc_sync_interfleet_started(pool_refs: Array, order: Array, initiator_id: 
 	_interfleet_active = true
 	_effect_mode = EffectMode.EFFECT_INTERFLEET_PICK
 	var iname: String = GameNetwork.player_names.get(initiator_id, "Player")
-	_log_action("%s: Interfleet Comms — drew %d card(s) to pass around" % [iname, _interfleet_pool_refs.size()], Color(0.6, 0.85, 1.0))
+	_log_action(tr("%s: Interfleet Comms — drew %d card(s) to pass around") % [iname, _interfleet_pool_refs.size()], Color(0.6, 0.85, 1.0))
 	if not _interfleet_remaining_order.is_empty():
 		_update_interfleet_ui(_interfleet_remaining_order[0])
 
@@ -1192,7 +1192,7 @@ func _rpc_sync_interfleet_pick_result(peer_id: int, card_ref: Dictionary) -> voi
 	if my_id == peer_id:
 		if cd:
 			$Board.add_specific_card_to_hand(cd)
-			_log_action("You kept %s (Interfleet Comms)" % cd.card_name, Color(0.6, 1.0, 0.6))
+			_log_action(tr("You kept %s (Interfleet Comms)") % cd.card_name, Color(0.6, 1.0, 0.6))
 		_broadcast_my_state()
 	elif multiplayer.is_server() and GameNetwork.is_bot(peer_id):
 		if cd:
@@ -1201,7 +1201,7 @@ func _rpc_sync_interfleet_pick_result(peer_id: int, card_ref: Dictionary) -> voi
 			BotTurn.bot_set_hand(self, peer_id, hand)
 	else:
 		var pname: String = GameNetwork.player_names.get(peer_id, "Player")
-		_log_action("%s kept a card (Interfleet Comms)" % pname, Color(0.6, 0.85, 1.0))
+		_log_action(tr("%s kept a card (Interfleet Comms)") % pname, Color(0.6, 0.85, 1.0))
 
 # Host → All: sequence complete — the last player auto-received the final
 # card; resumes the initiator's own effect queue.
@@ -1225,7 +1225,7 @@ func _rpc_sync_interfleet_finished(recipient_id: int, card_ref: Dictionary, init
 			hand.append(cd)
 			BotTurn.bot_set_hand(self, recipient_id, hand)
 	var rname: String = GameNetwork.player_names.get(recipient_id, "Player")
-	_log_action("%s automatically received the last Interfleet Comms card" % rname, Color(0.6, 0.85, 1.0))
+	_log_action(tr("%s automatically received the last Interfleet Comms card") % rname, Color(0.6, 0.85, 1.0))
 	if my_id == initiator_id:
 		_process_next_effect()
 
@@ -1256,7 +1256,7 @@ func _server_handle_draw_all_players(count: int, initiator_id: int, source: Stri
 # initiator's own effect queue if it's still waiting on this.
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_draw_all_finished(initiator_id: int, source: String, count: int) -> void:
-	_log_action("%s: everyone draws %d card(s)" % [source, count], Color(0.6, 0.85, 0.75))
+	_log_action(tr("%s: everyone draws %d card(s)") % [source, count], Color(0.6, 0.85, 0.75))
 	if _effect_mode == EffectMode.EFFECT_AWAITING_ALL_DRAW and multiplayer.get_unique_id() == initiator_id:
 		_effect_mode = EffectMode.NONE
 		_process_next_effect()
@@ -1324,12 +1324,12 @@ func _update_interfleet_ui(active_id: int) -> void:
 				pool.append(cd)
 		_interfleet_awaiting_pick = true
 		_hide_effect_hint()
-		_choice_popup.show_card_choices("Interfleet Comms — keep one card:", pool, false)
+		_choice_popup.show_card_choices(tr("Interfleet Comms — keep one card:"), pool, false)
 	else:
 		_interfleet_awaiting_pick = false
 		_choice_popup.hide()
 		var pname: String = GameNetwork.player_names.get(active_id, "Player")
-		_show_effect_hint("Waiting for %s to pick a card (Interfleet Comms)…" % pname)
+		_show_effect_hint(tr("Waiting for %s to pick a card (Interfleet Comms)…") % pname)
 
 func _show_auction_toast(message: String) -> void:
 	var panel := PanelContainer.new()
@@ -1375,7 +1375,7 @@ func _flash_auction_warning() -> void:
 	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	overlay.z_index = 10
 	var lbl := Label.new()
-	lbl.text = "⚠  AUCTION"
+	lbl.text = tr("⚠  AUCTION")
 	lbl.add_theme_font_size_override("font_size", 72)
 	lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1443,7 +1443,7 @@ func _on_card_discarded(card: Node3D) -> void:
 			if _tutorial:
 				_tutorial.notify_researched()
 			if not GameNetwork.is_multiplayer:
-				_log_action("You: researched", Color(0.50, 0.78, 1.0))
+				_log_action(tr("You: researched"), Color(0.50, 0.78, 1.0))
 			_broadcast_my_state()
 			if GameNetwork.is_multiplayer:
 				if GameNetwork.is_host:
@@ -1519,102 +1519,102 @@ func _process_hand_choice(index: int) -> void:
 	match _effect_mode:
 		EffectMode.EFFECT_RECYCLE:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-			var recycled_name: String = card.card_data.card_name if card.card_data else "a card"
+			var recycled_name: String = card.card_data.card_name if card.card_data else tr("a card")
 			_cs_display.add_supply(color, 1)
 			_apply_recycle_bonus(color)
 			$Board.add_to_discard(card.card_data)
 			_recycle_card_to_supply(card, color)
-			_log_effect("recycled %s, gained 1 %s" % [recycled_name, CardData.color_name(color)])
+			_log_effect(tr("recycled %s, gained 1 %s") % [recycled_name, CardData.color_name(color)])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				_finish_interactive_step()
 			else:
-				_show_hand_popup("Recycle %d more card(s)" % _effect_remaining, false)
+				_show_hand_popup(tr("Recycle %d more card(s)") % _effect_remaining, false)
 
 		EffectMode.EFFECT_RECYCLE_OPTIONAL:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-			var recycled_name: String = card.card_data.card_name if card.card_data else "a card"
+			var recycled_name: String = card.card_data.card_name if card.card_data else tr("a card")
 			_cs_display.add_supply(color, 1)
 			_apply_recycle_bonus(color)
 			$Board.add_to_discard(card.card_data)
 			_recycle_card_to_supply(card, color)
 			$Board.draw_cards(1)
-			_log_effect("recycled %s, gained 1 %s, drew 1" % [recycled_name, CardData.color_name(color)])
+			_log_effect(tr("recycled %s, gained 1 %s, drew 1") % [recycled_name, CardData.color_name(color)])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				_finish_interactive_step()
 			else:
-				_show_hand_popup("Recycle up to %d more card(s)" % _effect_remaining, true)
+				_show_hand_popup(tr("Recycle up to %d more card(s)") % _effect_remaining, true)
 
 		EffectMode.EFFECT_TUCK:
-			var tucked_name: String = card.card_data.card_name if card.card_data else "a card"
+			var tucked_name: String = card.card_data.card_name if card.card_data else tr("a card")
 			if _effect_slot and card.card_data:
 				_effect_slot.add_tucked_card(card.card_data, _effect_face_up)
 			$Hand.remove_card_fly_out(card)
-			var face_str_log: String = "faceup" if _effect_face_up else "facedown"
-			_log_effect("tucked %s %s under the sector" % [tucked_name, face_str_log])
+			var face_str_log: String = tr("faceup") if _effect_face_up else tr("facedown")
+			_log_effect(tr("tucked %s %s under the sector") % [tucked_name, face_str_log])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				_finish_interactive_step()
 			else:
-				var face_str: String = "faceup" if _effect_face_up else "facedown"
-				_show_hand_popup("Tuck %d more card(s) %s" % [_effect_remaining, face_str], false)
+				var face_str: String = tr("faceup") if _effect_face_up else tr("facedown")
+				_show_hand_popup(tr("Tuck %d more card(s) %s") % [_effect_remaining, face_str], false)
 
 		EffectMode.EFFECT_TUCK_OPTIONAL:
-			var tucked_name: String = card.card_data.card_name if card.card_data else "a card"
+			var tucked_name: String = card.card_data.card_name if card.card_data else tr("a card")
 			if _effect_slot and card.card_data:
 				_effect_slot.add_tucked_card(card.card_data, _effect_face_up)
 			$Hand.remove_card_fly_out(card)
 			$Board.draw_cards(1)
-			var face_str_log_opt: String = "faceup" if _effect_face_up else "facedown"
-			_log_effect("tucked %s %s under the sector, drew 1" % [tucked_name, face_str_log_opt])
+			var face_str_log_opt: String = tr("faceup") if _effect_face_up else tr("facedown")
+			_log_effect(tr("tucked %s %s under the sector, drew 1") % [tucked_name, face_str_log_opt])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				_finish_interactive_step()
 			else:
-				var face_str: String = "faceup" if _effect_face_up else "facedown"
-				_show_hand_popup("Tuck up to %d more card(s) %s" % [_effect_remaining, face_str], true)
+				var face_str: String = tr("faceup") if _effect_face_up else tr("facedown")
+				_show_hand_popup(tr("Tuck up to %d more card(s) %s") % [_effect_remaining, face_str], true)
 
 		EffectMode.EFFECT_TUCK_ANY_SECTOR:
 			_pending_tuck_card_data = card.card_data
 			$Hand.remove_card_fly_out(card)
 			_effect_mode = EffectMode.EFFECT_TUCK_ANY_SECTOR_SLOT
 			$Board.set_cargo_click_mode(true)
-			var face_str_tuck: String = "faceup" if _effect_face_up else "facedown"
-			var tuck_name: String = card.card_data.card_name if card.card_data else "card"
-			_sector_picker.setup("Tuck %s %s — pick a sector" % [tuck_name, face_str_tuck], $Board.get_all_sector_slots())
+			var face_str_tuck: String = tr("faceup") if _effect_face_up else tr("facedown")
+			var tuck_name: String = card.card_data.card_name if card.card_data else tr("card")
+			_sector_picker.setup(tr("Tuck %s %s — pick a sector") % [tuck_name, face_str_tuck], $Board.get_all_sector_slots())
 
 		EffectMode.EFFECT_RECYCLE_TUCK:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-			var rt_name: String = card.card_data.card_name if card.card_data else "a card"
+			var rt_name: String = card.card_data.card_name if card.card_data else tr("a card")
 			_cs_display.add_supply(color, 1)
 			_apply_recycle_bonus(color)
 			if _effect_slot and card.card_data:
 				_effect_slot.add_tucked_card(card.card_data, false)
 			_recycle_card_to_supply(card, color)
-			_log_effect("recycled & tucked %s facedown, gained 1 %s" % [rt_name, CardData.color_name(color)])
+			_log_effect(tr("recycled & tucked %s facedown, gained 1 %s") % [rt_name, CardData.color_name(color)])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				var tucked_count: int = int(_effect_slot.tucked_cards.size()) if _effect_slot else 0
 				$Board.draw_cards(tucked_count)
-				_log_effect("drew %d card(s)" % tucked_count)
+				_log_effect(tr("drew %d card(s)") % tucked_count)
 				_finish_interactive_step()
 			else:
-				_show_hand_popup("Recycle & tuck %d more card(s) facedown" % _effect_remaining, false)
+				_show_hand_popup(tr("Recycle & tuck %d more card(s) facedown") % _effect_remaining, false)
 
 		EffectMode.EFFECT_RECYCLE_DOUBLE:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-			var rd_name: String = card.card_data.card_name if card.card_data else "a card"
+			var rd_name: String = card.card_data.card_name if card.card_data else tr("a card")
 			_cs_display.add_supply(color, 2)
 			_apply_recycle_bonus(color)
 			$Board.add_to_discard(card.card_data)
 			_recycle_card_to_supply(card, color)
-			_log_effect("recycled %s, gained 2 %s" % [rd_name, CardData.color_name(color)])
+			_log_effect(tr("recycled %s, gained 2 %s") % [rd_name, CardData.color_name(color)])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				_finish_interactive_step()
 			else:
-				_show_hand_popup("Recycle %d more card(s) — gain double supply" % _effect_remaining, false)
+				_show_hand_popup(tr("Recycle %d more card(s) — gain double supply") % _effect_remaining, false)
 
 func _reset_effect_state() -> void:
 	_effect_mode = EffectMode.NONE
@@ -1707,7 +1707,7 @@ func _apply_seedbanks(indices: Array[int]) -> void:
 		count += 1
 	_pending_recycle_cards = []
 	if count > 0:
-		_log_effect("recycled %d card(s), stored their supplies on the sector" % count)
+		_log_effect(tr("recycled %d card(s), stored their supplies on the sector") % count)
 	_finish_interactive_step()
 
 func _apply_recycle_optional_multiselect(indices: Array[int]) -> void:
@@ -1725,7 +1725,7 @@ func _apply_recycle_optional_multiselect(indices: Array[int]) -> void:
 	_pending_recycle_cards = []
 	if count > 0:
 		$Board.draw_cards(count)
-		_log_effect("recycled %d card(s), drew %d" % [count, count])
+		_log_effect(tr("recycled %d card(s), drew %d") % [count, count])
 	_finish_interactive_step()
 
 func _apply_tuck_optional_multiselect(indices: Array[int]) -> void:
@@ -1742,9 +1742,9 @@ func _apply_tuck_optional_multiselect(indices: Array[int]) -> void:
 	if count > 0:
 		if not _restrict_picks_to_drawn and not _tuck_optional_no_bonus_draw:
 			$Board.draw_cards(count)
-			_log_effect("tucked %d card(s), drew %d" % [count, count])
+			_log_effect(tr("tucked %d card(s), drew %d") % [count, count])
 		else:
-			_log_effect("tucked %d card(s)" % count)
+			_log_effect(tr("tucked %d card(s)") % count)
 	_finish_interactive_step()
 
 func _apply_recycle_tuck_multiselect(indices: Array[int]) -> void:
@@ -1763,7 +1763,7 @@ func _apply_recycle_tuck_multiselect(indices: Array[int]) -> void:
 	_pending_recycle_cards = []
 	if count > 0:
 		$Board.draw_cards(count)
-		_log_effect("recycled & tucked %d card(s) facedown, drew %d" % [count, count])
+		_log_effect(tr("recycled & tucked %d card(s) facedown, drew %d") % [count, count])
 	_finish_interactive_step()
 
 func _apply_recycle_tuck_store_multiselect(indices: Array[int]) -> void:
@@ -1777,7 +1777,7 @@ func _apply_recycle_tuck_store_multiselect(indices: Array[int]) -> void:
 		return
 	_effect_mode = EffectMode.EFFECT_RECYCLE_TUCK_STORE_SECTOR
 	$Board.set_cargo_click_mode(true)
-	_sector_picker.setup("Terraformed Planet — pick a sector to tuck facedown", $Board.get_all_sector_slots())
+	_sector_picker.setup(tr("Terraformed Planet — pick a sector to tuck facedown"), $Board.get_all_sector_slots())
 
 func _apply_recycle_tuck_store_decision(store_on_sector: bool) -> void:
 	var target: SectorSlot = _pending_target_slot if _pending_target_slot else _effect_slot
@@ -1796,8 +1796,8 @@ func _apply_recycle_tuck_store_decision(store_on_sector: bool) -> void:
 		$Hand.remove_card_fly_out(card)
 	_pending_store_nodes = []
 	if count > 0:
-		var dest_str: String = "stored their supply on the sector" if store_on_sector else "gained their supply as currency"
-		_log_effect("recycled & tucked %d card(s) facedown, %s" % [count, dest_str])
+		var dest_str: String = tr("stored their supply on the sector") if store_on_sector else tr("gained their supply as currency")
+		_log_effect(tr("recycled & tucked %d card(s) facedown, %s") % [count, dest_str])
 	_finish_interactive_step()
 
 func _on_caldera_sector_chosen(index: int) -> void:
@@ -1818,7 +1818,7 @@ func _on_caldera_sector_chosen(index: int) -> void:
 		return
 	_effect_mode = EffectMode.EFFECT_CALDERA_SELECT_CARDS
 	_choice_popup.show_multiselect_card_choices(
-		"Caldera Colony — select cards to recycle (supply stored on sector):", eligible_cards)
+		tr("Caldera Colony — select cards to recycle (supply stored on sector):"), eligible_cards)
 
 func _apply_caldera_recycle(indices: Array[int]) -> void:
 	if not _pending_target_slot:
@@ -1841,7 +1841,7 @@ func _apply_caldera_recycle(indices: Array[int]) -> void:
 	_pending_target_slot.refresh_display()
 	_pending_target_slot = null
 	if count > 0:
-		_log_effect("recycled %d card(s) on the chosen sector, stored their supplies" % count)
+		_log_effect(tr("recycled %d card(s) on the chosen sector, stored their supplies") % count)
 	_finish_interactive_step()
 
 func _on_choice_skipped() -> void:
@@ -1866,7 +1866,7 @@ func _on_sector_info_requested(slot: SectorSlot) -> void:
 			if slot.occupied:
 				_sector_picker.hide()
 				slot.add_stored_supply(_pending_store_color, _pending_store_amount)
-				_log_effect("stored %d %s on the chosen sector" % [_pending_store_amount, CardData.color_name(_pending_store_color)])
+				_log_effect(tr("stored %d %s on the chosen sector") % [_pending_store_amount, CardData.color_name(_pending_store_color)])
 				_finish_interactive_step()
 		EffectMode.EFFECT_RECYCLE_TUCK_STORE_SECTOR:
 			if slot.occupied:
@@ -1875,23 +1875,23 @@ func _on_sector_info_requested(slot: SectorSlot) -> void:
 				$Board.set_cargo_click_mode(false)
 				_hide_effect_hint()
 				_effect_mode = EffectMode.EFFECT_RECYCLE_TUCK_STORE_DECIDE
-				var labels: Array[String] = ["Store on sector", "Gain as currency"]
-				_choice_popup.show_choices("Terraformed Planet — what to do with recycled supply?", labels, false)
+				var labels: Array[String] = [tr("Store on sector"), tr("Gain as currency")]
+				_choice_popup.show_choices(tr("Terraformed Planet — what to do with recycled supply?"), labels, false)
 		EffectMode.EFFECT_TUCK_ANY_SECTOR_SLOT:
 			if slot.occupied:
 				_sector_picker.hide()
 				if _pending_tuck_card_data:
 					slot.add_tucked_card(_pending_tuck_card_data, _effect_face_up)
-					var face_str_any_log: String = "faceup" if _effect_face_up else "facedown"
-					_log_effect("tucked %s %s on the chosen sector" % [_pending_tuck_card_data.card_name, face_str_any_log])
+					var face_str_any_log: String = tr("faceup") if _effect_face_up else tr("facedown")
+					_log_effect(tr("tucked %s %s on the chosen sector") % [_pending_tuck_card_data.card_name, face_str_any_log])
 				_pending_tuck_card_data = null
 				$Board.set_cargo_click_mode(false)
 				_hide_effect_hint()
 				_effect_remaining -= 1
 				if _effect_remaining > 0:
 					_effect_mode = EffectMode.EFFECT_TUCK_ANY_SECTOR
-					var face_str_slot: String = "faceup" if _effect_face_up else "facedown"
-					_show_hand_popup("%s — tuck a card %s? (%d remaining)" % [_effect_label, face_str_slot, _effect_remaining], true)
+					var face_str_slot: String = tr("faceup") if _effect_face_up else tr("facedown")
+					_show_hand_popup(tr("%s — tuck a card %s? (%d remaining)") % [_effect_label, face_str_slot, _effect_remaining], true)
 				else:
 					_finish_interactive_step()
 		_:
@@ -1920,14 +1920,14 @@ func _on_cargo_move_requested(source: SectorSlot, dest: SectorSlot, supplies: Di
 	dest.refresh_display()
 	var moved_supply_parts: Array[String] = []
 	for color: int in supplies:
-		moved_supply_parts.append("%d %s" % [supplies[color], CardData.color_name(color as CardData.SupplyColor)])
+		moved_supply_parts.append(tr("%d %s") % [supplies[color], CardData.color_name(color as CardData.SupplyColor)])
 	var move_desc: String = ", ".join(moved_supply_parts) if not moved_supply_parts.is_empty() else ""
 	if not move_desc.is_empty() and sorted_tucked.size() > 0:
-		_log_effect("moved %s and %d tucked card(s) between sectors" % [move_desc, sorted_tucked.size()])
+		_log_effect(tr("moved %s and %d tucked card(s) between sectors") % [move_desc, sorted_tucked.size()])
 	elif not move_desc.is_empty():
-		_log_effect("moved %s between sectors" % move_desc)
+		_log_effect(tr("moved %s between sectors") % move_desc)
 	elif sorted_tucked.size() > 0:
-		_log_effect("moved %d tucked card(s) between sectors" % sorted_tucked.size())
+		_log_effect(tr("moved %d tucked card(s) between sectors") % sorted_tucked.size())
 
 # Auto-revealed cards (Ice Mining, Ancient Airlock, Cargo Bays, etc.) only
 # ever show as a tiny market-panel icon otherwise — this shows the just-
@@ -1963,17 +1963,17 @@ func _on_sector_revealed(card_data: CardData, slot_idx: int) -> void:
 			_rpc_notify_sector_revealed.rpc_id(1, slot_idx)
 	_hide_effect_hint()
 	$Board.set_sector_reveal_mode(false)
-	var reveal_name: String = card_data.card_name if card_data else "a card"
-	var reveal_outcome_parts: Array[String] = ["revealed %s" % reveal_name]
+	var reveal_name: String = card_data.card_name if card_data else tr("a card")
+	var reveal_outcome_parts: Array[String] = [tr("revealed %s") % reveal_name]
 	if _pending_reveal_gain_supply and card_data:
 		_cs_display.add_supply(card_data.adv_color, 1)
-		reveal_outcome_parts.append("gained 1 %s" % CardData.color_name(card_data.adv_color))
+		reveal_outcome_parts.append(tr("gained 1 %s") % CardData.color_name(card_data.adv_color))
 	if _pending_reveal_may_bid and card_data:
 		_reveal_bid_pool.append(card_data)
-		reveal_outcome_parts.append("added it to the bid pool")
+		reveal_outcome_parts.append(tr("added it to the bid pool"))
 	if _pending_reveal_may_free_gain and card_data:
 		_reveal_free_pool.append(card_data)
-		reveal_outcome_parts.append("added it to the free-gain pool")
+		reveal_outcome_parts.append(tr("added it to the free-gain pool"))
 	_log_effect(", ".join(reveal_outcome_parts))
 	_pending_reveal_gain_supply = false
 	_pending_reveal_may_bid = false
@@ -1989,9 +1989,9 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	var _cd: CardData = card.card_data
 	var _is_adv: bool = bool(card.get("is_advanced"))
 	var _cname: String = _cd.adv_name if _is_adv and not _cd.adv_name.is_empty() else _cd.card_name
-	var _pname: String = GameNetwork.player_names.get(multiplayer.get_unique_id(), "You")
+	var _pname: String = GameNetwork.player_names.get(multiplayer.get_unique_id(), tr("You"))
 	var _supply: CardData.SupplyColor = _cd.adv_color if _is_adv else _cd.color
-	_broadcast_log("%s: placed %s" % [_pname, _cname], CardData.color_tint(_supply))
+	_broadcast_log(tr("%s: placed %s") % [_pname, _cname], CardData.color_tint(_supply))
 	UIAudio.play_supply_sfx(_supply)
 	$Board.refresh_hand_discounts()
 	if _effect_mode != EffectMode.NONE:
@@ -2029,11 +2029,11 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 		var always_source_name: String = str(always_steps[0].get("_source_name", ""))
 		var always_cd: CardData = _find_card_data_by_name(always_source_name)
 		if always_cd:
-			_choice_popup.show_card_choices("Two effects triggered — resolve which first?",
+			_choice_popup.show_card_choices(tr("Two effects triggered — resolve which first?"),
 				[always_cd, cd], false, [false, is_adv])
 		else:
 			var card_name: String = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
-			_choice_popup.show_choices("Two effects triggered — resolve which first?", ["Sector effects", card_name], false)
+			_choice_popup.show_choices(tr("Two effects triggered — resolve which first?"), [tr("Sector effects"), card_name], false)
 		return
 
 	_effect_queue.append_array(always_steps)
@@ -2073,7 +2073,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 			$Board.draw_cards(int(step.get("count", 0)))
 			var _after: Array[Node3D] = $Hand.get_cards()
 			_last_drawn_cards = _after.filter(func(c: Node3D) -> bool: return not _before.has(c))
-			_log_effect("drew %d card(s)" % _last_drawn_cards.size())
+			_log_effect(tr("drew %d card(s)") % _last_drawn_cards.size())
 			_process_next_effect()
 
 		"draw_recycle_top":
@@ -2087,16 +2087,16 @@ func _execute_effect_step(step: Dictionary) -> void:
 			if $Board.card_recycled.is_connected(capture_color):
 				$Board.card_recycled.disconnect(capture_color)
 			if recycled_color_box[0] != null:
-				_log_effect("drew and recycled the top card, gained 1 %s" % CardData.color_name(recycled_color_box[0] as CardData.SupplyColor))
+				_log_effect(tr("drew and recycled the top card, gained 1 %s") % CardData.color_name(recycled_color_box[0] as CardData.SupplyColor))
 			else:
-				_log_effect("drew and recycled the top card")
+				_log_effect(tr("drew and recycled the top card"))
 			_process_next_effect()
 
 		"gain_supply":
 			var gs_color: CardData.SupplyColor = step["color"] as CardData.SupplyColor
 			var gs_amount: int = int(step.get("amount", 0))
 			_cs_display.add_supply(gs_color, gs_amount)
-			_log_effect("gained %d %s" % [gs_amount, CardData.color_name(gs_color)])
+			_log_effect(tr("gained %d %s") % [gs_amount, CardData.color_name(gs_color)])
 			_process_next_effect()
 
 		"store_on_slot":
@@ -2104,7 +2104,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 				var ss_color: CardData.SupplyColor = step["color"] as CardData.SupplyColor
 				var ss_amount: int = int(step.get("amount", 0))
 				_effect_slot.add_stored_supply(ss_color, ss_amount)
-				_log_effect("stored %d %s on the sector" % [ss_amount, CardData.color_name(ss_color)])
+				_log_effect(tr("stored %d %s on the sector") % [ss_amount, CardData.color_name(ss_color)])
 			_process_next_effect()
 
 		"store_on_any_sector":
@@ -2112,8 +2112,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_pending_store_amount = int(step.get("amount", 1))
 			_effect_mode = EffectMode.EFFECT_STORE_ON_SECTOR
 			$Board.set_cargo_click_mode(true)
-			var color_names: Array[String] = ["Dust", "Metals", "Liquids", "Organix", "Electrix", "Thrust"]
-			_sector_picker.setup("Store %d %s — pick a sector" % [_pending_store_amount, color_names[_pending_store_color]], $Board.get_all_sector_slots())
+			_sector_picker.setup(tr("Store %d %s — pick a sector") % [_pending_store_amount, CardData.color_name(_pending_store_color)], $Board.get_all_sector_slots())
 
 		"store_per_card_here":
 			if _effect_slot:
@@ -2139,45 +2138,45 @@ func _execute_effect_step(step: Dictionary) -> void:
 			else:
 				count = $Board.get_sector_count()
 			_cs_display.add_supply(color, count)
-			_log_effect("gained %d %s" % [count, CardData.color_name(color)])
+			_log_effect(tr("gained %d %s") % [count, CardData.color_name(color)])
 			_process_next_effect()
 
 		"fuse_notice":
 			var count: int = int(step.get("count", 0))
 			_cs_display.add_fuse_1to1(count)
-			_log_effect("granted %d fuse action(s)" % count)
+			_log_effect(tr("granted %d fuse action(s)") % count)
 			_process_next_effect()
 
 		"fuse_dust_1to1":
 			_cs_display.set_dust_fuse_1to1(true)
-			_log_effect("granted a Dust fuse action")
+			_log_effect(tr("granted a Dust fuse action"))
 			_process_next_effect()
 
 		"recycle":
 			_effect_mode = EffectMode.EFFECT_RECYCLE
 			_effect_remaining = int(step.get("count", 1))
 			_restrict_picks_to_drawn = bool(step.get("restrict_to_drawn", false))
-			_show_hand_popup("Recycle %d card(s) from your hand" % _effect_remaining, false)
+			_show_hand_popup(tr("Recycle %d card(s) from your hand") % _effect_remaining, false)
 
 		"recycle_optional":
 			_effect_mode = EffectMode.EFFECT_RECYCLE_OPTIONAL
 			_effect_remaining = int(step.get("max", 1))
 			_restrict_picks_to_drawn = bool(step.get("restrict_to_drawn", false))
-			_show_hand_multiselect("Recycle up to %d card(s) — draw 1 per recycled" % _effect_remaining)
+			_show_hand_multiselect(tr("Recycle up to %d card(s) — draw 1 per recycled") % _effect_remaining)
 
 		"recycle_double":
 			_effect_mode = EffectMode.EFFECT_RECYCLE_DOUBLE
 			_effect_remaining = int(step.get("count", 1))
 			_restrict_picks_to_drawn = bool(step.get("restrict_to_drawn", false))
-			_show_hand_popup("Recycle %d card(s) — gain double supply" % _effect_remaining, false)
+			_show_hand_popup(tr("Recycle %d card(s) — gain double supply") % _effect_remaining, false)
 
 		"tuck":
 			_effect_mode = EffectMode.EFFECT_TUCK
 			_effect_remaining = int(step.get("count", 1))
 			_effect_face_up = bool(step.get("face_up", false))
 			_restrict_picks_to_drawn = bool(step.get("restrict_to_drawn", false))
-			var face_str_t: String = "faceup" if _effect_face_up else "facedown"
-			_show_hand_popup("Tuck %d card(s) %s under this sector" % [_effect_remaining, face_str_t], false)
+			var face_str_t: String = tr("faceup") if _effect_face_up else tr("facedown")
+			_show_hand_popup(tr("Tuck %d card(s) %s under this sector") % [_effect_remaining, face_str_t], false)
 
 		"tuck_optional":
 			_effect_step_tuck_optional(step)
@@ -2186,33 +2185,33 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_effect_mode = EffectMode.EFFECT_TUCK_ANY_SECTOR
 			_effect_remaining = int(step.get("max", 1))
 			_effect_face_up = bool(step.get("face_up", false))
-			_effect_label = step.get("label", "Tuck")
-			var face_str_any: String = "faceup" if _effect_face_up else "facedown"
-			_show_hand_popup("%s — tuck a card %s? (%d remaining)" % [_effect_label, face_str_any, _effect_remaining], true)
+			_effect_label = step.get("label", tr("Tuck"))
+			var face_str_any: String = tr("faceup") if _effect_face_up else tr("facedown")
+			_show_hand_popup(tr("%s — tuck a card %s? (%d remaining)") % [_effect_label, face_str_any, _effect_remaining], true)
 
 		"recycle_tuck":
 			_effect_mode = EffectMode.EFFECT_RECYCLE_TUCK
 			_effect_remaining = int(step.get("count", 2))
-			_show_hand_multiselect("Recycle & tuck up to %d card(s) facedown — draw equal" % _effect_remaining)
+			_show_hand_multiselect(tr("Recycle & tuck up to %d card(s) facedown — draw equal") % _effect_remaining)
 
 		"recycle_tuck_store_choice":
 			_effect_mode = EffectMode.EFFECT_RECYCLE_TUCK_STORE
 			_effect_remaining = int(step.get("max", 4))
-			_show_hand_multiselect("Recycle & tuck up to %d card(s) facedown — choose store or gain" % _effect_remaining)
+			_show_hand_multiselect(tr("Recycle & tuck up to %d card(s) facedown — choose store or gain") % _effect_remaining)
 
 		"reveal_sector":
 			_pending_reveal_gain_supply = bool(step.get("gain_supply", false))
 			_pending_reveal_may_bid = bool(step.get("may_bid", false))
 			_pending_reveal_may_free_gain = bool(step.get("may_free_gain", false))
 			_effect_mode = EffectMode.EFFECT_REVEAL_SECTOR
-			_show_effect_hint("Click a free sector slot in the Market panel to reveal it")
+			_show_effect_hint(tr("Click a free sector slot in the Market panel to reveal it"))
 			$Board.set_sector_reveal_mode(true)
 
 		"reveal_expedition":
 			_pending_expedition_reveal_gain_supply = bool(step.get("gain_supply", false))
 			_pending_expedition_reveal_may_bid = bool(step.get("may_bid", false))
 			_effect_mode = EffectMode.EFFECT_REVEAL_EXPEDITION
-			_show_effect_hint("Click an expedition slot in the Market panel to reveal it")
+			_show_effect_hint(tr("Click an expedition slot in the Market panel to reveal it"))
 			$Board.set_expedition_reveal_mode(true)
 
 		"reveal_expedition_slot":
@@ -2318,7 +2317,7 @@ func _effect_step_choice(step: Dictionary) -> void:
 	var labels: Array[String] = []
 	var tints: Array[Color] = []
 	for opt: Dictionary in _pending_choice_options:
-		labels.append(str(opt.get("label", "?")))
+		labels.append(str(opt.get("label", tr("?"))))
 		if opt.has("tint"):
 			tints.append(opt["tint"] as Color)
 	var choice_cd: CardData = null
@@ -2327,7 +2326,7 @@ func _effect_step_choice(step: Dictionary) -> void:
 		choice_cd = _effect_slot.placed_card.card_data
 		choice_is_adv = bool(_effect_slot.placed_card.get("is_advanced"))
 	_choice_popup.show_choices(
-		str(step.get("prompt", "Choose:")),
+		str(step.get("prompt", tr("Choose:"))),
 		labels,
 		bool(step.get("skippable", false)),
 		tints,
@@ -2361,7 +2360,7 @@ func _effect_step_reflectors_choice() -> void:
 	for i: int in eligible_cards.size():
 		_pending_choice_options.append({steps = eligible_steps[i]})
 	_effect_mode = EffectMode.EFFECT_CHOICE
-	_choice_popup.show_card_choices("Reflectors — copy which effect?", eligible_cards, true)
+	_choice_popup.show_card_choices(tr("Reflectors — copy which effect?"), eligible_cards, true)
 
 func _effect_step_offer_bid_pool() -> void:
 	if _reveal_bid_pool.is_empty():
@@ -2373,7 +2372,7 @@ func _effect_step_offer_bid_pool() -> void:
 	for cd: CardData in pool:
 		_pending_choice_options.append({steps = [{type = "initiate_market_bid", card_data = cd}]})
 	_effect_mode = EffectMode.EFFECT_CHOICE
-	_choice_popup.show_card_choices("Bid on a revealed card?", pool, true)
+	_choice_popup.show_card_choices(tr("Bid on a revealed card?"), pool, true)
 
 # Unlike _effect_step_offer_bid_pool (only the card(s) this same effect just
 # revealed), Probe Launcher's text is "you may bid on any expedition" — the
@@ -2387,7 +2386,7 @@ func _effect_step_offer_bid_any_expedition() -> void:
 	for cd: CardData in pool:
 		_pending_choice_options.append({steps = [{type = "initiate_market_bid", card_data = cd}]})
 	_effect_mode = EffectMode.EFFECT_CHOICE
-	_choice_popup.show_card_choices("Probe Launcher — bid on any expedition?", pool, true)
+	_choice_popup.show_card_choices(tr("Probe Launcher — bid on any expedition?"), pool, true)
 
 func _effect_step_offer_free_sector_gain() -> void:
 	var eligible: Array[CardData] = []
@@ -2408,7 +2407,7 @@ func _effect_step_offer_free_sector_gain() -> void:
 	for cd: CardData in eligible:
 		_pending_choice_options.append({steps = [{type = "free_sector_gain", card_data = cd}]})
 	_effect_mode = EffectMode.EFFECT_CHOICE
-	_choice_popup.show_card_choices("Inflatable Hull — gain which sector for free?", eligible, false, eligible_adv)
+	_choice_popup.show_card_choices(tr("Inflatable Hull — gain which sector for free?"), eligible, false, eligible_adv)
 
 func _effect_step_seedbanks() -> void:
 	_effect_mode = EffectMode.EFFECT_SEEDBANKS
@@ -2424,7 +2423,7 @@ func _effect_step_seedbanks() -> void:
 		_finish_interactive_step()
 	else:
 		_choice_popup.show_multiselect_card_choices(
-			"Seedbanks — select cards to recycle (supplies stored on sector)", card_data)
+			tr("Seedbanks — select cards to recycle (supplies stored on sector)"), card_data)
 
 func _effect_step_caldera_colony() -> void:
 	_caldera_slots = []
@@ -2440,7 +2439,7 @@ func _effect_step_caldera_colony() -> void:
 		_finish_interactive_step()
 		return
 	_effect_mode = EffectMode.EFFECT_CALDERA_SELECT_SECTOR
-	_choice_popup.show_card_choices("Caldera Colony — choose a sector:", caldera_cards, true, caldera_advanced_flags)
+	_choice_popup.show_card_choices(tr("Caldera Colony — choose a sector:"), caldera_cards, true, caldera_advanced_flags)
 
 # "Draw 1 per player, keep 1, then pass cards left" — needs real network sync
 # since every other player must see and pick from the same shared pool. Async
@@ -2450,7 +2449,7 @@ func _effect_step_caldera_colony() -> void:
 func _effect_step_interfleet_comms() -> void:
 	if not GameNetwork.is_multiplayer:
 		$Board.draw_cards(1)
-		_log_effect("drew 1 card (Interfleet Comms, solo)")
+		_log_effect(tr("drew 1 card (Interfleet Comms, solo)"))
 		_process_next_effect()
 		return
 	_effect_mode = EffectMode.EFFECT_INTERFLEET_PICK
@@ -2468,11 +2467,11 @@ func _effect_step_interfleet_comms() -> void:
 func _effect_step_draw_all_players(count: int) -> void:
 	if not GameNetwork.is_multiplayer:
 		$Board.draw_cards(count)
-		_log_effect("everyone draws %d card(s), solo" % count)
+		_log_effect(tr("everyone draws %d card(s), solo") % count)
 		_process_next_effect()
 		return
 	_effect_mode = EffectMode.EFFECT_AWAITING_ALL_DRAW
-	var source: String = _effect_source_name if not _effect_source_name.is_empty() else "Effect"
+	var source: String = _effect_source_name if not _effect_source_name.is_empty() else tr("Effect")
 	if GameNetwork.is_host:
 		_server_handle_draw_all_players(count, 1, source)
 	else:
@@ -2482,7 +2481,7 @@ func _effect_step_black_hole_encounter() -> void:
 	_effect_mode = EffectMode.EFFECT_EXPEDITION_SHUFFLE
 	_effect_remaining = 3
 	_shuffle_count = 0
-	_show_effect_hint("Click up to 3 expeditions to shuffle back — then click Done")
+	_show_effect_hint(tr("Click up to 3 expeditions to shuffle back — then click Done"))
 	_effect_done_btn.show()
 	$Board.set_expedition_shuffle_mode(true)
 
@@ -2944,33 +2943,33 @@ func _on_market_card_hover_started(slot_type: String, slot_idx: int) -> void:
 	var desc_parts: Array[String] = []
 	if not effect.is_empty():
 		desc_parts.append(effect)
-	desc_parts.append("Left-click to buy.")
-	desc_parts.append("Right-click to enlarge.")
-	_show_tooltip("%s — %d %s" % [card_name, cost, CardData.color_name(cost_color)], "\n".join(desc_parts))
+	desc_parts.append(tr("Left-click to buy."))
+	desc_parts.append(tr("Right-click to enlarge."))
+	_show_tooltip(tr("%s — %d %s") % [card_name, cost, CardData.color_name(cost_color)], "\n".join(desc_parts))
 
 func _on_supply_icon_hovered(color: int) -> void:
 	var supply_color: CardData.SupplyColor = color as CardData.SupplyColor
 	var count: int = _cs_display.get_supply(supply_color)
-	var desc: String = "You have %d." % count
+	var desc: String = tr("You have %d.") % count
 	var fuses_into: Array = SupplyUI.FUSE_MAP.get(color, [])
 	if not fuses_into.is_empty():
 		var dest_names: Array[String] = []
 		for dst: int in fuses_into:
 			dest_names.append(CardData.color_name(dst as CardData.SupplyColor))
-		desc += " Fuses into %s." % ", ".join(dest_names)
+		desc += tr(" Fuses into %s.") % ", ".join(dest_names)
 	_show_tooltip(CardData.color_name(supply_color), desc)
 
 func _execute_expedition_reveal(slot_idx: int) -> void:
 	$Board.set_expedition_reveal_mode(false)
 	_hide_effect_hint()
 	var revealed: CardData = $Board.reveal_expedition_to_slot(slot_idx)
-	var exp_reveal_parts: Array[String] = ["revealed %s" % (revealed.card_name if revealed else "a card")]
+	var exp_reveal_parts: Array[String] = [tr("revealed %s") % (revealed.card_name if revealed else tr("a card"))]
 	if _pending_expedition_reveal_gain_supply and revealed:
 		_cs_display.add_supply(revealed.color, 1)
-		exp_reveal_parts.append("gained 1 %s" % CardData.color_name(revealed.color))
+		exp_reveal_parts.append(tr("gained 1 %s") % CardData.color_name(revealed.color))
 	if _pending_expedition_reveal_may_bid and revealed:
 		_reveal_bid_pool.append(revealed)
-		exp_reveal_parts.append("added it to the bid pool")
+		exp_reveal_parts.append(tr("added it to the bid pool"))
 	_log_effect(", ".join(exp_reveal_parts))
 	_pending_expedition_reveal_gain_supply = false
 	_pending_expedition_reveal_may_bid = false
@@ -3042,7 +3041,7 @@ func _on_expedition_shuffled_back(card_data: CardData, deck_insert_idx: int) -> 
 	if _effect_remaining <= 0:
 		_finish_expedition_shuffle()
 	else:
-		_show_effect_hint("Click up to %d more expedition(s) to shuffle back — or Done" % _effect_remaining)
+		_show_effect_hint(tr("Click up to %d more expedition(s) to shuffle back — or Done") % _effect_remaining)
 
 func _finish_expedition_shuffle() -> void:
 	$Board.set_expedition_shuffle_mode(false)
@@ -3051,7 +3050,7 @@ func _finish_expedition_shuffle() -> void:
 	_hide_effect_hint()
 	_effect_done_btn.hide()
 	if _shuffle_count > 0:
-		_log_effect("shuffled %d expedition(s) back into the deck" % _shuffle_count)
+		_log_effect(tr("shuffled %d expedition(s) back into the deck") % _shuffle_count)
 	for _i: int in _shuffle_count:
 		_effect_queue.insert(0, {type = "reveal_expedition", _source_name = _effect_source_name})
 	_shuffle_count = 0
@@ -3113,7 +3112,7 @@ func _try_auto_end_turn() -> void:
 	# another optional action available, so the turn can never end itself —
 	# nudge the player to press End Turn manually instead of going silent.
 	if _cs_display.has_fuse_1to1_active():
-		_show_effect_hint("Press the End Turn Button (Play) to end your turn manually.")
+		_show_effect_hint(tr("Press the End Turn Button (Play) to end your turn manually."))
 		return
 	_on_end_turn_pressed()
 
@@ -3220,7 +3219,7 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	if peer_id == 1:
 		# The host holds all game authority (turn flow, bot state) — there's
 		# no one left to continue the session for anyone.
-		_show_session_ended_modal("Host disconnected.")
+		_show_session_ended_modal(tr("Host disconnected."))
 		return
 	# A non-host player dropping doesn't have to end the game for everyone —
 	# hand their seat to the AI so the rest of the table can finish.
@@ -3239,11 +3238,11 @@ func _show_session_ended_modal(msg: String) -> void:
 	vbox.add_theme_constant_override("separation", 24)
 	vbox.custom_minimum_size = Vector2(380.0, 0.0)
 	var lbl: Label = Label.new()
-	lbl.text = msg + "\n\nThe game session has ended."
+	lbl.text = msg + "\n\n" + tr("The game session has ended.")
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_size_override("font_size", 22)
 	var btn: Button = Button.new()
-	btn.text = "Main Menu"
+	btn.text = tr("Main Menu")
 	btn.custom_minimum_size = Vector2(200.0, 48.0)
 	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	btn.pressed.connect(func() -> void:
@@ -3292,7 +3291,7 @@ func _convert_peer_to_bot(peer_id: int) -> void:
 
 	var original_name: String = GameNetwork.player_names.get(peer_id, "Player")
 	_rpc_sync_peer_converted_to_bot.rpc(peer_id, "%s (Bot)" % original_name)
-	_broadcast_log("%s disconnected — a bot has taken over (lost hand and any stored supply)." % original_name, Color(1.0, 0.6, 0.4))
+	_broadcast_log(tr("%s disconnected — a bot has taken over (lost hand and any stored supply).") % original_name, Color(1.0, 0.6, 0.4))
 
 	if GameNetwork.active_peer_id == peer_id:
 		BotTurn.run_bot_turn(self, peer_id)
@@ -3351,9 +3350,9 @@ func _on_card_recycled(color: CardData.SupplyColor) -> void:
 # its supply as usual; this just explains to the player why it vanished
 # instead of asking them to place it.
 func _on_unplaceable_card_recycled(card_data: CardData) -> void:
-	var c_name: String = card_data.card_name if card_data else "Card"
-	_show_auction_toast("No room to place %s — recycled instead" % c_name)
-	_log_action("No room to place %s, recycled instead" % c_name, Color(1.0, 0.6, 0.4))
+	var c_name: String = card_data.card_name if card_data else tr("Card")
+	_show_auction_toast(tr("No room to place %s — recycled instead") % c_name)
+	_log_action(tr("No room to place %s — recycled instead") % c_name, Color(1.0, 0.6, 0.4))
 	_broadcast_my_state()
 	_notify_auction_placement_done()
 	# This auto-recycle never goes through the normal card_placed → effect

@@ -135,21 +135,21 @@ func _apply_step(step: String) -> void:
 		"buy":
 			_apply_buy_step()
 		"place":
-			_main._show_effect_hint("Left-click and drag a Tech card from your hand onto the Sector")
+			_main._show_effect_hint(tr("TUT_PLACE_TECH"))
 			_highlight_tech_slots()
 		"fuse":
-			_main._show_effect_hint("Fuse 2 supply into 1 supply of a higher value.")
+			_main._show_effect_hint(tr("TUT_FUSE"))
 			_main._cs_display._flow.set_tutorial_highlight(true)
 		"bid":
 			_apply_bid_step()
 		"research":
-			_main._show_effect_hint("Don't like a card in your hand? Press the research button to discard it and draw a replacement. Once you're researching, you can only take the research action or Pass.")
+			_main._show_effect_hint(tr("TUT_RESEARCH"))
 			_main._start_research_btn_3d_flash()
 		"pass":
-			_main._show_effect_hint("Nothing left to do? Press Pass")
+			_main._show_effect_hint(tr("TUT_PASS"))
 			_main._start_pass_btn_3d_flash()
 		"closing":
-			_main._show_effect_hint("To win, collect stars by placing cards, winning bids and optimizing your sectors. To learn more check out the Rulebook in the Pause Menu (Esc to open Pause Menu).")
+			_main._show_effect_hint(tr("TUT_CLOSING"))
 	_current_step = step
 
 # "Buy a Sector" is really 3 sub-phases of one flow: click a market slot,
@@ -158,13 +158,13 @@ func _apply_step(step: String) -> void:
 func _apply_buy_step() -> void:
 	if _is_dragging_sector_card():
 		_main._market_panel.set_tutorial_dust_highlight(false)
-		_main._show_effect_hint("Place your Sector on a free Sector slot")
+		_main._show_effect_hint(tr("TUT_BUY_PLACE"))
 	elif (_main._bid_popup and _main._bid_popup.visible) or (_main._bid_payment_panel and _main._bid_payment_panel.visible):
 		_main._market_panel.set_tutorial_dust_highlight(false)
-		_main._show_effect_hint("Left-click a Dust Sector on the Market screen, then pay 2 dust to place it on a sector slot.")
+		_main._show_effect_hint(tr("TUT_BUY"))
 	else:
 		_main._market_panel.set_tutorial_dust_highlight(true)
-		_main._show_effect_hint("Left-click a Dust Sector on the Market screen, then pay 2 dust to place it on a sector slot.")
+		_main._show_effect_hint(tr("TUT_BUY"))
 
 # "Bid on an Expedition" is also multiple sub-phases: click an Expedition,
 # confirm a bid in the popup, then pay for the win — recycling and fusing
@@ -173,21 +173,21 @@ func _apply_bid_step() -> void:
 	if _is_dragging_expedition_card():
 		_recycled_during_bid_payment = false
 		_main._market_panel.set_tutorial_expedition_highlight(false)
-		_main._show_effect_hint("Place the expedition on a sector. If you don't have a free slot, the expedition is automatically recycled.")
+		_main._show_effect_hint(tr("TUT_BID_PLACE"))
 	elif _main._bid_popup and _main._bid_popup.visible:
 		_recycled_during_bid_payment = false
 		_main._market_panel.set_tutorial_expedition_highlight(false)
-		_main._show_effect_hint("Start a bid on this expedition, by paying the supply on the card. The minimum bid is the printed cost. Confirm bid to continue.")
+		_main._show_effect_hint(tr("TUT_BID_POPUP"))
 	elif _main._bid_payment_panel and _main._bid_payment_panel.visible:
 		_main._market_panel.set_tutorial_expedition_highlight(false)
 		if _recycled_during_bid_payment:
-			_main._show_effect_hint("Pay for the auction by recycling and fusing supply. High value supply, such as thrust can pay for low value cards.")
+			_main._show_effect_hint(tr("TUT_BID_PAY"))
 		else:
-			_main._show_effect_hint("Right-click cards in your hand to recycle them, you gain 1 supply of that cards color.")
+			_main._show_effect_hint(tr("TUT_BID_RECYCLE"))
 	else:
 		_recycled_during_bid_payment = false
 		_main._market_panel.set_tutorial_expedition_highlight(true)
-		_main._show_effect_hint("Left-click on an Expedition to start an auction")
+		_main._show_effect_hint(tr("TUT_BID_DEFAULT"))
 
 func _is_dragging_sector_card() -> bool:
 	var dragged: Node3D = _board.get("_dragged_card") as Node3D
