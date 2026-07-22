@@ -58,6 +58,8 @@ static func setup_control_screen_display(main: Main) -> void:
 		var btn_mesh: MeshInstance3D = ui_control.find_child("gs_ui_control_button%d" % (i + 1), true, false) as MeshInstance3D
 		if btn_mesh:
 			setup_button_input(main, btn_mesh, btn_callbacks[i], btn_tooltip_titles[i], btn_tooltip_descs[i])
+			if i == 0:
+				main._research_btn_mesh = btn_mesh
 			if i == 1:
 				main._pass_btn_mesh = btn_mesh
 			if i == 2:
@@ -98,8 +100,15 @@ static func setup_button_input(main: Main, btn_mesh: MeshInstance3D, callback: C
 			main._show_tooltip(tooltip_title, tooltip_desc)
 	)
 	area.mouse_exited.connect(func() -> void:
-		if btn_mesh == main._end_turn_btn_mesh and main._end_turn_flash_mat != null:
-			btn_mesh.set_surface_override_material(0, main._end_turn_flash_mat)
+		var flash_mat: StandardMaterial3D = null
+		if btn_mesh == main._end_turn_btn_mesh:
+			flash_mat = main._end_turn_flash_mat
+		elif btn_mesh == main._pass_btn_mesh:
+			flash_mat = main._pass_btn_flash_mat
+		elif btn_mesh == main._research_btn_mesh:
+			flash_mat = main._research_btn_flash_mat
+		if flash_mat != null:
+			btn_mesh.set_surface_override_material(0, flash_mat)
 		else:
 			btn_mesh.set_surface_override_material(0, null)
 		main._hide_tooltip()
