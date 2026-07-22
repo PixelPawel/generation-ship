@@ -96,14 +96,12 @@ func open() -> void:
 	visible = true
 
 func _build_ui() -> void:
+	# No dim/darken backdrop behind this panel — the game scene must stay
+	# fully visible behind any popup. mouse_filter=STOP on this invisible
+	# full-rect root only blocks click-through to the board, matching
+	# manual_popup.gd; it does not render anything itself.
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
-
-	var dim: ColorRect = ColorRect.new()
-	dim.color = Color(0.0, 0.0, 0.0, 0.65)
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	dim.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(dim)
 
 	var panel: Control = load("res://scenes/ui/scifi_panel.gd").new()
 	panel.set_content_margin(20)
