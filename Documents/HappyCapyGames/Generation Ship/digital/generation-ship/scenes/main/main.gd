@@ -91,6 +91,7 @@ var _ending_turn: bool = false
 var _pre_setup_done: bool = false
 var _cached_sector_order: Array = []
 var _cached_exp_order: Array = []
+var _cached_tech_order: Array = []
 
 var _auction_card_ref: Dictionary = {}
 var _auction_slot_idx: int = -1
@@ -176,8 +177,10 @@ func _ready() -> void:
 	$Board.card_recycled.connect(_on_card_recycled)
 	$Board.unplaceable_card_recycled.connect(_on_unplaceable_card_recycled)
 	$Board.recycle_confirm_required.connect(_on_recycle_confirm_required)
-	$Board.setup_tech_deck(CardDatabase.techs)
 	$Board.setup_sector_deck(CardDatabase.sectors)
+	$Board.tech_card_drawn.connect(_on_tech_card_drawn)
+	$Board.tech_deck_reshuffled.connect(_on_tech_deck_reshuffled)
+	$Board.tech_card_discarded.connect(_on_tech_card_discarded)
 	$Hand.card_selected_for_discard.connect(_on_card_discarded)
 	$Hand.card_right_clicked.connect(_on_card_right_clicked_free_recycle)
 	$Board.bid_required.connect(_on_bid_required)
@@ -360,21 +363,23 @@ func _on_cache_ready() -> void:
 		GameNetwork.setup_solo()
 		_cached_sector_order = _generate_shuffled_order(CardDatabase.sectors.size())
 		_cached_exp_order = _generate_shuffled_order(CardDatabase.expeditions.size())
+		_cached_tech_order = _generate_shuffled_order(CardDatabase.techs.size())
 		call_deferred("_deferred_pre_setup")
 	elif GameNetwork.is_host:
 		_cached_sector_order = _generate_shuffled_order(CardDatabase.sectors.size())
 		_cached_exp_order = _generate_shuffled_order(CardDatabase.expeditions.size())
+		_cached_tech_order = _generate_shuffled_order(CardDatabase.techs.size())
 		call_deferred("_deferred_pre_setup")
 
 func _deferred_pre_setup() -> void:
-	_do_game_setup(_cached_sector_order, _cached_exp_order)
+	_do_game_setup(_cached_sector_order, _cached_exp_order, _cached_tech_order)
 	await get_tree().create_timer(3.0).timeout
 	if not GameNetwork.is_multiplayer:
-		_rpc_start_game([], [])
+		_rpc_start_game([], [], [])
 	elif GameNetwork.is_host:
-		_rpc_start_game.rpc(_cached_sector_order, _cached_exp_order)
+		_rpc_start_game.rpc(_cached_sector_order, _cached_exp_order, _cached_tech_order)
 
-func _do_game_setup(sector_order: Array, exp_order: Array) -> void:
+func _do_game_setup(sector_order: Array, exp_order: Array, tech_order: Array) -> void:
 	_pre_setup_done = true
 	_round = 1
 	_update_round_label()
@@ -389,8 +394,10 @@ func _do_game_setup(sector_order: Array, exp_order: Array) -> void:
 	else:
 		$Board.setup_expedition_deck_ordered(exp_order)
 	$Board.setup_expedition_market()
-	if multiplayer.is_server() and not GameNetwork.bot_ids.is_empty():
-		BotTurn.init_bot_state(self)
+	if tech_order.is_empty():
+		$Board.setup_tech_deck(CardDatabase.techs)
+	else:
+		$Board.setup_tech_deck_ordered(tech_order)
 	$Board.refresh_hand_discounts()
 	_market_panel.setup($Board.get_market(), $Board.get_expedition_market())
 	_show_action_buttons(true)
@@ -497,9 +504,11 @@ func _flicker_one_slot(slot: SectorSlot, delay: float) -> void:
 	slot.set_slot_brightness(1.0)
 
 @rpc("authority", "reliable", "call_local")
-func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
+func _rpc_start_game(sector_order: Array, exp_order: Array, tech_order: Array) -> void:
 	if not _pre_setup_done:
-		_do_game_setup(sector_order, exp_order)
+		_do_game_setup(sector_order, exp_order, tech_order)
+	if multiplayer.is_server() and not GameNetwork.bot_ids.is_empty():
+		BotTurn.init_bot_state(self)
 
 	for slot: SectorSlot in $Board.get_sector_slots():
 		slot.set_slot_brightness(0.0)
@@ -522,7 +531,10 @@ func _rpc_start_game(sector_order: Array, exp_order: Array) -> void:
 		await ui_log_anim.animation_finished
 
 	await _flicker_sector_slots()
-	$Board.deal_opening_hand()
+	if not GameNetwork.is_multiplayer:
+		$Board.deal_opening_hand()
+	elif GameNetwork.is_host:
+		_server_deal_hands_to_real_peers(6)
 	if GameNetwork.is_multiplayer:
 		_broadcast_my_state()
 	await get_tree().create_timer(2.0).timeout
@@ -626,7 +638,10 @@ func _end_round() -> void:
 	_round += 1
 	_log_action("─── Round %d / %d ───" % [_round, MAX_ROUNDS], Color(0.6, 0.82, 1.0))
 	_update_round_label()
-	$Board.draw_cards(6)
+	if not GameNetwork.is_multiplayer:
+		$Board.draw_cards(6)
+	elif GameNetwork.is_host:
+		_server_deal_hands_to_real_peers(6)
 	$Board.refresh_hand_discounts()
 	if multiplayer.is_server() and not GameNetwork.bot_ids.is_empty():
 		BotTurn.update_bots_for_new_round(self)
@@ -1101,26 +1116,33 @@ func _rpc_sync_interfleet_finished(recipient_id: int, card_ref: Dictionary, init
 		_process_next_effect()
 
 # ── "Every player draws" RPCs (Gas Cloud) ─────────────────────────────────────
-# No shared pool or turn order needed — just tell every client (and the host,
-# for its bots) to draw independently from their own deck.
+# The tech deck is now a shared resource (see _server_deal_hands_to_real_peers)
+# — every player independently drawing from what they each think is the same
+# undiverged deck would race and could hand out duplicate cards. Host draws
+# the whole batch once and distributes named cards explicitly instead.
 
-# Client → Host: I placed a "draw_all_players" card; tell everyone to draw.
+# Client → Host: I placed a "draw_all_players" card; deal it for everyone.
 @rpc("any_peer", "reliable")
 func _rpc_request_draw_all_players(count: int, source: String) -> void:
 	if not multiplayer.is_server():
 		return
-	_rpc_sync_draw_all_players.rpc(count, multiplayer.get_remote_sender_id(), source)
+	_server_handle_draw_all_players(count, multiplayer.get_remote_sender_id(), source)
 
-# Host → All: everyone draws N cards from their own local deck.
+# Host-only: deal to real peers via the shared hand-delivery mechanism, deal
+# to bots inline (their own separate, non-networked path), then tell
+# everyone it's done so the initiator's effect queue can resume.
+func _server_handle_draw_all_players(count: int, initiator_id: int, source: String) -> void:
+	_server_deal_hands_to_real_peers(count)
+	for bot_id: int in GameNetwork.bot_ids:
+		BotTurn.apply_bot_effect_steps(self, bot_id, [{type = "draw", count = count}])
+	BotTurn.broadcast_bot_states(self)
+	_rpc_sync_draw_all_finished.rpc(initiator_id, source, count)
+
+# Host → All: the draw-for-everyone is complete — log it once, and resume the
+# initiator's own effect queue if it's still waiting on this.
 @rpc("authority", "reliable", "call_local")
-func _rpc_sync_draw_all_players(count: int, initiator_id: int, source: String) -> void:
-	$Board.draw_cards(count)
+func _rpc_sync_draw_all_finished(initiator_id: int, source: String, count: int) -> void:
 	_log_action("%s: everyone draws %d card(s)" % [source, count], Color(0.6, 0.85, 0.75))
-	_broadcast_my_state()
-	if multiplayer.is_server():
-		for bot_id: int in GameNetwork.bot_ids:
-			BotTurn.apply_bot_effect_steps(self, bot_id, [{type = "draw", count = count}])
-		BotTurn.broadcast_bot_states(self)
 	if _effect_mode == EffectMode.EFFECT_AWAITING_ALL_DRAW and multiplayer.get_unique_id() == initiator_id:
 		_effect_mode = EffectMode.NONE
 		_process_next_effect()
@@ -2300,7 +2322,7 @@ func _effect_step_interfleet_comms() -> void:
 # deck, but since a placed card's effect queue only ever runs on the placing
 # player's own client, every other client still needs an explicit RPC to
 # know to draw at all. Async like _effect_step_interfleet_comms: resumes via
-# _rpc_sync_draw_all_players once the round trip reaches the initiator.
+# _rpc_sync_draw_all_finished once the deal completes.
 func _effect_step_draw_all_players(count: int) -> void:
 	if not GameNetwork.is_multiplayer:
 		$Board.draw_cards(count)
@@ -2310,7 +2332,7 @@ func _effect_step_draw_all_players(count: int) -> void:
 	_effect_mode = EffectMode.EFFECT_AWAITING_ALL_DRAW
 	var source: String = _effect_source_name if not _effect_source_name.is_empty() else "Effect"
 	if GameNetwork.is_host:
-		_rpc_sync_draw_all_players.rpc(count, multiplayer.get_unique_id(), source)
+		_server_handle_draw_all_players(count, 1, source)
 	else:
 		_rpc_request_draw_all_players.rpc_id(1, count, source)
 
@@ -2480,6 +2502,142 @@ func _rpc_sync_sector_revealed(slot_idx: int) -> void:
 	if GameNetwork.is_my_turn():
 		return
 	$Board.sync_market_reveal(slot_idx)
+
+# ── Tech deck sync (shared, finite deck across all players) ──────────────────
+# The tech deck is a single shared resource across every client (see
+# setup_tech_deck_ordered) — whoever draws/discards/reshuffles does it locally
+# first, then relays a bare event so every other client's mirror replays the
+# identical mutation. Mirrors the sector-reveal RPC triple above, except an
+# explicit actor_id is used instead of GameNetwork.is_my_turn() to decide who
+# skips replaying — tech draws aren't always tied to whoever's turn it is
+# (bots, Interfleet Comms' auto-delivered final card), unlike sector reveals.
+
+func _on_tech_card_drawn() -> void:
+	if GameNetwork.is_multiplayer:
+		if GameNetwork.is_host:
+			_server_sync_tech_draw(1)
+		else:
+			_rpc_notify_tech_draw.rpc_id(1)
+
+@rpc("any_peer", "reliable")
+func _rpc_notify_tech_draw() -> void:
+	if not multiplayer.is_server():
+		return
+	_server_sync_tech_draw(multiplayer.get_remote_sender_id())
+
+func _server_sync_tech_draw(actor_id: int) -> void:
+	if actor_id != 1:
+		$Board.replay_tech_draw()
+	_rpc_sync_tech_draw.rpc(actor_id)
+
+@rpc("authority", "reliable")
+func _rpc_sync_tech_draw(actor_id: int) -> void:
+	if multiplayer.get_unique_id() == actor_id:
+		return
+	$Board.replay_tech_draw()
+
+func _on_tech_card_discarded(cd: CardData) -> void:
+	if GameNetwork.is_multiplayer:
+		var card_ref: Dictionary = CardRef.to_ref(cd)
+		if GameNetwork.is_host:
+			_server_sync_tech_discard(card_ref, 1)
+		else:
+			_rpc_notify_tech_discard.rpc_id(1, card_ref)
+
+@rpc("any_peer", "reliable")
+func _rpc_notify_tech_discard(card_ref: Dictionary) -> void:
+	if not multiplayer.is_server():
+		return
+	_server_sync_tech_discard(card_ref, multiplayer.get_remote_sender_id())
+
+func _server_sync_tech_discard(card_ref: Dictionary, actor_id: int) -> void:
+	if actor_id != 1:
+		var cd: CardData = CardRef.from_ref(card_ref)
+		if cd:
+			$Board.replay_tech_discard(cd)
+	_rpc_sync_tech_discard.rpc(card_ref, actor_id)
+
+@rpc("authority", "reliable")
+func _rpc_sync_tech_discard(card_ref: Dictionary, actor_id: int) -> void:
+	if multiplayer.get_unique_id() == actor_id:
+		return
+	var cd: CardData = CardRef.from_ref(card_ref)
+	if cd:
+		$Board.replay_tech_discard(cd)
+
+func _on_tech_deck_reshuffled(cards: Array[CardData]) -> void:
+	if GameNetwork.is_multiplayer:
+		var refs: Array = []
+		for cd: CardData in cards:
+			refs.append(CardRef.to_ref(cd))
+		if GameNetwork.is_host:
+			_server_sync_tech_reshuffle(refs, 1)
+		else:
+			_rpc_notify_tech_reshuffle.rpc_id(1, refs)
+
+@rpc("any_peer", "reliable")
+func _rpc_notify_tech_reshuffle(refs: Array) -> void:
+	if not multiplayer.is_server():
+		return
+	_server_sync_tech_reshuffle(refs, multiplayer.get_remote_sender_id())
+
+func _server_sync_tech_reshuffle(refs: Array, actor_id: int) -> void:
+	if actor_id != 1:
+		$Board.replay_tech_reshuffle(_tech_refs_to_cards(refs))
+	_rpc_sync_tech_reshuffle.rpc(refs, actor_id)
+
+@rpc("authority", "reliable")
+func _rpc_sync_tech_reshuffle(refs: Array, actor_id: int) -> void:
+	if multiplayer.get_unique_id() == actor_id:
+		return
+	$Board.replay_tech_reshuffle(_tech_refs_to_cards(refs))
+
+func _tech_refs_to_cards(refs: Array) -> Array[CardData]:
+	var result: Array[CardData] = []
+	for ref: Variant in refs:
+		var cd: CardData = CardRef.from_ref(ref as Dictionary)
+		if cd:
+			result.append(cd)
+	return result
+
+# Host-only. Draws count*N cards from the shared deck in one batch (each pop
+# already fires tech_card_drawn above, keeping every mirror in sync) and
+# delivers `count` of them to each REAL (non-bot) peer. Bots are each
+# caller's own responsibility — round-start and Gas Cloud each already treat
+# bot hands differently and would double-deal if this handled bots too.
+# Used for cases where every player "acts" at the same moment (opening hand,
+# round-start draw, Gas Cloud) — unlike a sequential per-turn draw, letting
+# each client pop independently here would race and could hand out the same
+# card to more than one player.
+func _server_deal_hands_to_real_peers(count: int) -> void:
+	var real_peers: Array[int] = []
+	for peer_id: int in GameNetwork.player_order:
+		if not GameNetwork.is_bot(peer_id):
+			real_peers.append(peer_id)
+	if real_peers.is_empty():
+		return
+	var drawn: Array[CardData] = $Board.draw_card_data(count * real_peers.size())
+	var idx: int = 0
+	for peer_id: int in real_peers:
+		var refs: Array = []
+		for _c: int in count:
+			if idx < drawn.size():
+				refs.append(CardRef.to_ref(drawn[idx]))
+				idx += 1
+		_rpc_sync_hand_dealt.rpc(peer_id, refs)
+
+@rpc("authority", "reliable", "call_local")
+func _rpc_sync_hand_dealt(peer_id: int, card_refs: Array) -> void:
+	if multiplayer.get_unique_id() != peer_id:
+		return
+	var cards: Array[CardData] = []
+	for ref: Variant in card_refs:
+		var cd: CardData = CardRef.from_ref(ref as Dictionary)
+		if cd:
+			cards.append(cd)
+	$Board.add_specific_cards_to_hand(cards)
+	$Board.refresh_hand_discounts()
+	_broadcast_my_state()
 
 func _on_bid_confirmed(amount: int) -> void:
 	if _pending_auction:

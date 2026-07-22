@@ -59,9 +59,8 @@ func _apply_back_url(path: String) -> void:
 	if tex:
 		_apply_back_texture(tex)
 
-func refill(cards: Array[CardData]) -> void:
+func set_cards(cards: Array[CardData]) -> void:
 	_cards = cards.duplicate()
-	_cards.shuffle()
 	_update_label()
 
 func draw_card() -> CardData:

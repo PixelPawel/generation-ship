@@ -43,6 +43,9 @@ signal expedition_card_shuffled_back(card_data: CardData, deck_insert_idx: int)
 signal expedition_reveal_requested(slot_idx: int)
 signal sector_info_requested(slot: SectorSlot)
 signal market_card_inspect_bought(slot_type: String, slot_idx: int)
+signal tech_card_drawn
+signal tech_deck_reshuffled(cards: Array[CardData])
+signal tech_card_discarded(cd: CardData)
 
 enum DragOrigin { NONE, HAND, MARKET }
 
@@ -134,6 +137,9 @@ func setup_market_ordered(sector_order: Array) -> void:
 
 func setup_expedition_deck_ordered(exp_order: Array) -> void:
 	_expedition_deck.setup_ordered(CardDatabase.expeditions, exp_order, EXPEDITION_BACK_PATH)
+
+func setup_tech_deck_ordered(tech_order: Array) -> void:
+	_tech_deck.setup_ordered(CardDatabase.techs, tech_order, TECH_BACK_PATH)
 
 func setup_sector_deck(cards: Array[CardData]) -> void:
 	_sector_deck.setup(cards)
@@ -547,14 +553,39 @@ func get_supply_generators() -> Array[Dictionary]:
 func add_to_discard(cd: CardData) -> void:
 	if _discard_pile and cd:
 		_discard_pile.add_discard(cd)
+		tech_card_discarded.emit(cd)
 
+# Shared-deck replay entry points — used exclusively by main.gd's RPC handlers
+# on clients that did NOT perform the original action, to keep every
+# client's local tech-deck mirror in lockstep. These must NOT re-emit the
+# signals below (that would cause an RPC ping-pong back out to the network).
+func replay_tech_draw() -> void:
+	_tech_deck.draw_card()
+
+func replay_tech_discard(cd: CardData) -> void:
+	if _discard_pile and cd:
+		_discard_pile.add_discard(cd)
+
+func replay_tech_reshuffle(cards: Array[CardData]) -> void:
+	_tech_deck.set_cards(cards)
+	if _discard_pile:
+		_discard_pile.take_all_cards()
+
+# The tech deck is a single shared, finite resource across every client (see
+# setup_tech_deck_ordered) — every successful pop and every reshuffle-on-empty
+# is emitted individually, in the exact order it happens, so main.gd can relay
+# each one and every other client's mirror can replay the identical sequence.
 func _draw_from_tech_deck() -> CardData:
 	var data: CardData = _tech_deck.draw_card()
 	if data == null and _discard_pile:
 		var recycled: Array[CardData] = _discard_pile.take_all_cards()
 		if not recycled.is_empty():
-			_tech_deck.refill(recycled)
+			recycled.shuffle()
+			_tech_deck.set_cards(recycled)
+			tech_deck_reshuffled.emit(recycled)
 			data = _tech_deck.draw_card()
+	if data:
+		tech_card_drawn.emit()
 	return data
 
 func draw_card_data(count: int) -> Array[CardData]:
@@ -594,6 +625,21 @@ func add_specific_card_to_hand(cd: CardData) -> void:
 	_hand.add_card(card)
 	card.set_card_data(cd)
 	_hand.animate_draw_cards([card])
+
+# Batched sibling of add_specific_card_to_hand — used for host-authoritative
+# hand delivery (opening hand, round-start draw, Gas Cloud) so a dealt hand
+# gets one fan-out animation instead of several small ones.
+func add_specific_cards_to_hand(cards: Array[CardData]) -> void:
+	var new_cards: Array[Node3D] = []
+	for cd: CardData in cards:
+		if not cd:
+			continue
+		var card: Node3D = _card_scene.instantiate()
+		_hand.add_card(card)
+		card.set_card_data(cd)
+		new_cards.append(card)
+	if not new_cards.is_empty():
+		_hand.animate_draw_cards(new_cards)
 
 func clear_hand() -> void:
 	_hand.clear()
