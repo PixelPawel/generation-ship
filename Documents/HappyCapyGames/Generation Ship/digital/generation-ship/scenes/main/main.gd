@@ -1075,6 +1075,10 @@ func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, ca
 		if my_id == initiator_id:
 			$Board.cancel_purchase()
 		_show_action_buttons(true)
+		# Losing an auction you initiated still spends your major action for
+		# the turn, but nothing else re-checks whether the turn can now end
+		# automatically — do that here instead of leaving the player stuck.
+		_try_auto_end_turn()
 	_update_turn_ui()
 	var _cd_toast: CardData = CardRef.from_ref(card_ref)
 	var _cn_toast: String = ""
@@ -3043,9 +3047,13 @@ func _try_auto_end_turn() -> void:
 		return
 	if _pending_reveal_gain_supply or _pending_reveal_may_bid or _pending_reveal_may_free_gain:
 		return
-	if _cs_display.has_fuse_1to1_active():
-		return
 	if $Board.is_card_drag_pending():
+		return
+	# A permanent 1:1 fuse ability (e.g. Fusion Synthesizer) always leaves
+	# another optional action available, so the turn can never end itself —
+	# nudge the player to press End Turn manually instead of going silent.
+	if _cs_display.has_fuse_1to1_active():
+		_show_effect_hint("Press the End Turn Button (Play) to end your turn manually.")
 		return
 	_on_end_turn_pressed()
 
@@ -3210,6 +3218,9 @@ func _on_unplaceable_card_recycled(card_data: CardData) -> void:
 	_show_auction_toast("No room to place %s — recycled instead" % c_name)
 	_log_action("No room to place %s, recycled instead" % c_name, Color(1.0, 0.6, 0.4))
 	_broadcast_my_state()
+	# This auto-recycle never goes through the normal card_placed → effect
+	# queue chain, so nothing else re-checks whether the turn can now end.
+	_try_auto_end_turn()
 
 func _apply_recycle_bonus(color: CardData.SupplyColor) -> void:
 	if color != CardData.SupplyColor.DUST:
