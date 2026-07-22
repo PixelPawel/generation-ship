@@ -181,7 +181,7 @@ func _apply_bid_step() -> void:
 	elif _main._bid_payment_panel and _main._bid_payment_panel.visible:
 		_main._market_panel.set_tutorial_expedition_highlight(false)
 		if _recycled_during_bid_payment:
-			_main._show_effect_hint("Pay for the auction by recycling and fusing supply")
+			_main._show_effect_hint("Pay for the auction by recycling and fusing supply. High value supply, such as thrust can pay for low value cards.")
 		else:
 			_main._show_effect_hint("Right-click cards in your hand to recycle them, you gain 1 supply of that cards color.")
 	else:
