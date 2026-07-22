@@ -5,6 +5,7 @@ signal supply_changed
 signal fuse_1to1_changed
 signal icon_hovered(color: int)
 signal icon_unhovered
+signal fused(source: int, target: int)
 
 const SUPPLY_DEFS := [
 	{ "color": CardData.SupplyColor.DUST,     "path": "res://assets/ui/supply/Dust.png" },
@@ -202,6 +203,7 @@ func _fuse(source: int, target: int) -> void:
 	add_supply(target, 1)
 	_fuse_history.append({source = source, target = target, cost = cost, used_1to1_token = used_token})
 	_update_undo_btn()
+	fused.emit(source, target)
 
 func _on_undo_fuse_pressed() -> void:
 	if _fuse_history.is_empty():

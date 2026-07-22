@@ -19,7 +19,6 @@ var _spinner_active: bool = false
 var _spinner_time: float = 0.0
 var _bot_count: int = 0
 var _manual: Control = null
-var _tutorial: Control = null
 var _add_bot_btn: Button = null
 var _remove_bot_btn: Button = null
 var _diff_btn: OptionButton = null
@@ -59,8 +58,6 @@ func _ready() -> void:
 	($LobbyPanel/DirectRow as Control).visible = false
 	_manual = load("res://scenes/ui/manual_popup.gd").new()
 	add_child(_manual)
-	_tutorial = load("res://scenes/ui/tutorial_popup.gd").new()
-	add_child(_tutorial)
 	_load_saved_name()
 	_request_lobby_list()
 	_lobby_refresh_timer = LOBBY_REFRESH_INTERVAL
@@ -250,9 +247,6 @@ func _on_leave_pressed() -> void:
 
 func _on_rule_book_pressed() -> void:
 	_manual.open()
-
-func _on_how_to_play_pressed() -> void:
-	_tutorial.open()
 
 func _on_back_pressed() -> void:
 	if _steam_lobby_id > 0:

@@ -5,7 +5,6 @@ extends Node3D
 
 const MAX_ROUNDS := 4
 const SETTINGS_PATH: String = "user://settings.cfg"
-const TUTORIAL_SAFETY_TIMEOUT_SEC: float = 300.0
 
 var _round: int = 0
 var _bid_amount: int = 0
@@ -153,13 +152,16 @@ var _end_turn_flash_tween: Tween = null
 var _ui_control_shown: bool = false
 var _ui_info_shown: bool = false
 var _end_turn_flash_mat: StandardMaterial3D = null
+var _pass_btn_mesh: MeshInstance3D = null
+var _pass_btn_flash_tween: Tween = null
+var _pass_btn_flash_mat: StandardMaterial3D = null
 var _effect_hint_panel: Control = null
 var _effect_hint_label: Label = null
 var es_viewport: Control = null
 var _bid_popup: Control = null
 var _scoreboard: Control = null
 var _pause_menu: Control = null
-var _tutorial_popup: Control = null
+var _tutorial: FirstTurnTutorial = null
 var info_panels: Array[Control] = []
 var bot_hands: Dictionary = {}      # bot_id → Array[CardData]
 var bot_supplies: Dictionary = {}   # bot_id → Dictionary (int color → int count)
@@ -203,8 +205,6 @@ func _ready() -> void:
 	_scoreboard = $UILayer/Scoreboard
 	_pause_menu = $UILayer/PauseMenu
 	_pause_menu.main_menu_pressed.connect(_on_pause_main_menu)
-	_tutorial_popup = load("res://scenes/ui/tutorial_popup.gd").new()
-	$UILayer.add_child(_tutorial_popup)
 	_bid_popup.bid_confirmed.connect(_on_bid_confirmed)
 	_bid_popup.bid_cancelled.connect(_on_bid_cancelled)
 	_bid_popup.bid_raised.connect(_on_bid_raised)
@@ -524,14 +524,23 @@ func _mark_tutorial_seen() -> void:
 	cfg.set_value("tutorial", "seen", true)
 	cfg.save(SETTINGS_PATH)
 
-func _show_tutorial_if_needed() -> void:
-	if _tutorial_seen():
+# "Solo" in the sense that matters for the tutorial: no other real person
+# at the table. GameNetwork.is_multiplayer is true even for a bots-only
+# lobby (setup_multiplayer() is always called once a game is launched via
+# the menu/lobby — is_multiplayer only reads false if main.tscn is opened
+# directly, bypassing the lobby entirely) so it can't be used here.
+func _is_true_solo_session() -> bool:
+	var real_players: Array = GameNetwork.player_order.filter(
+		func(id: int) -> bool: return not GameNetwork.is_bot(id))
+	return real_players.size() <= 1
+
+func _start_first_turn_tutorial_if_needed() -> void:
+	if not _is_true_solo_session() or _tutorial_seen():
 		return
-	_mark_tutorial_seen()  # mark before showing, so a crash mid-view never re-nags
-	_tutorial_popup.open()
-	var safety: SceneTreeTimer = get_tree().create_timer(TUTORIAL_SAFETY_TIMEOUT_SEC)
-	safety.timeout.connect(_tutorial_popup._on_close_pressed, CONNECT_ONE_SHOT)
-	await _tutorial_popup.closed
+	_mark_tutorial_seen()  # mark before starting — a crash mid-tutorial shouldn't re-nag
+	_tutorial = FirstTurnTutorial.new()
+	add_child(_tutorial)
+	_tutorial.start(self)
 
 @rpc("authority", "reliable", "call_local")
 func _rpc_start_game(sector_order: Array, exp_order: Array, tech_order: Array) -> void:
@@ -568,7 +577,7 @@ func _rpc_start_game(sector_order: Array, exp_order: Array, tech_order: Array) -
 	if GameNetwork.is_multiplayer:
 		_broadcast_my_state()
 	await get_tree().create_timer(2.0).timeout
-	await _show_tutorial_if_needed()
+	_start_first_turn_tutorial_if_needed()
 	if GameNetwork.is_my_turn():
 		_show_your_turn_banner()
 	if multiplayer.is_server() and GameNetwork.is_bot(GameNetwork.active_peer_id):
@@ -595,6 +604,8 @@ func _on_pass_pressed() -> void:
 	_do_pass()
 
 func _do_pass() -> void:
+	if _tutorial:
+		_tutorial.notify_passed()
 	_has_passed = true
 	_ending_turn = true
 	_cs_display.clear_fuse_1to1()
@@ -3260,3 +3271,31 @@ func _stop_end_turn_3d_flash() -> void:
 	_end_turn_flash_mat = null
 	if _end_turn_btn_mesh:
 		_end_turn_btn_mesh.set_surface_override_material(0, null)
+
+# Tutorial-only attention cue on the Pass console button — mirrors
+# _start_end_turn_3d_flash()/_stop_end_turn_3d_flash() exactly, just
+# retargeted, since there's no independent "disabled" concept for these
+# 3D mesh buttons to hook into like the End Turn flash does.
+func _start_pass_btn_3d_flash() -> void:
+	if not _pass_btn_mesh:
+		return
+	if _pass_btn_flash_tween:
+		_pass_btn_flash_tween.kill()
+	var base: Material = _pass_btn_mesh.mesh.surface_get_material(0)
+	var mat: StandardMaterial3D = (base as StandardMaterial3D).duplicate() as StandardMaterial3D if base is StandardMaterial3D else StandardMaterial3D.new()
+	mat.emission_enabled = true
+	mat.emission = Color(0.2, 0.6, 1.0)
+	mat.emission_energy_multiplier = 0.0
+	_pass_btn_flash_mat = mat
+	_pass_btn_mesh.set_surface_override_material(0, mat)
+	_pass_btn_flash_tween = create_tween().set_loops()
+	_pass_btn_flash_tween.tween_property(mat, "emission_energy_multiplier", 2.5, 0.5).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+	_pass_btn_flash_tween.tween_property(mat, "emission_energy_multiplier", 0.0, 0.5).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+
+func _stop_pass_btn_3d_flash() -> void:
+	if _pass_btn_flash_tween:
+		_pass_btn_flash_tween.kill()
+		_pass_btn_flash_tween = null
+	_pass_btn_flash_mat = null
+	if _pass_btn_mesh:
+		_pass_btn_mesh.set_surface_override_material(0, null)

@@ -30,6 +30,7 @@ var _adv_counts:      Array[Label]       = []
 var _dust_rects:      Array[TextureRect] = []
 var _dust_counts:     Array[Label]       = []
 var _dust_highlights: Array[ColorRect]   = []
+var _tutorial_dust_highlights: Array[ColorRect] = []
 var _exp_rects:       Array[TextureRect] = []
 var _exp_counts:      Array[Label]       = []
 var _exp_highlights:  Array[ColorRect]   = []
@@ -273,6 +274,13 @@ func _build_ui() -> void:
 		_dust_rects.append(rect)
 		_dust_counts.append(count_lbl)
 		_dust_highlights.append(highlight)
+		var tutorial_highlight := ColorRect.new()
+		tutorial_highlight.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		tutorial_highlight.color = Color(0.3, 0.6, 1.0, 0.30)
+		tutorial_highlight.visible = false
+		tutorial_highlight.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.add_child(tutorial_highlight)
+		_tutorial_dust_highlights.append(tutorial_highlight)
 		var idx: int = i
 		slot.gui_input.connect(func(ev: InputEvent) -> void:
 			if ev is InputEventMouseButton:
@@ -456,6 +464,12 @@ func _refresh_exp(i: int) -> void:
 
 func _on_reveal_mode_changed(active: bool) -> void:
 	for highlight: ColorRect in _dust_highlights:
+		highlight.visible = active
+
+# Independent of the reveal-mode highlight above (different feature, own
+# ColorRect array) so the two never fight over one visible flag.
+func set_tutorial_dust_highlight(active: bool) -> void:
+	for highlight: ColorRect in _tutorial_dust_highlights:
 		highlight.visible = active
 
 func _on_expedition_reveal_mode_changed(active: bool) -> void:

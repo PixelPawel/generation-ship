@@ -58,6 +58,8 @@ static func setup_control_screen_display(main: Main) -> void:
 		var btn_mesh: MeshInstance3D = ui_control.find_child("gs_ui_control_button%d" % (i + 1), true, false) as MeshInstance3D
 		if btn_mesh:
 			setup_button_input(main, btn_mesh, btn_callbacks[i], btn_tooltip_titles[i], btn_tooltip_descs[i])
+			if i == 1:
+				main._pass_btn_mesh = btn_mesh
 			if i == 2:
 				main._end_turn_btn_mesh = btn_mesh
 
