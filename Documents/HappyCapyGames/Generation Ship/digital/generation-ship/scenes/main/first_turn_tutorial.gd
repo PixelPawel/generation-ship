@@ -120,7 +120,7 @@ func _apply_buy_step() -> void:
 	if _is_dragging_sector_card():
 		_main._market_panel.set_tutorial_dust_highlight(false)
 		_main._show_effect_hint("Place your Sector on a free Sector slot")
-	elif _main._bid_payment_panel and _main._bid_payment_panel.visible:
+	elif (_main._bid_popup and _main._bid_popup.visible) or (_main._bid_payment_panel and _main._bid_payment_panel.visible):
 		_main._market_panel.set_tutorial_dust_highlight(false)
 		_main._show_effect_hint("Pay 2 Dust to place your Dust Sector")
 	else:
