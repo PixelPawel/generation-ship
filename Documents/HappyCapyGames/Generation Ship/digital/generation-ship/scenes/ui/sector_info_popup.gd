@@ -9,7 +9,6 @@ const SUPPLY_ICON_PATHS: Array[String] = [
 	"res://assets/ui/supply/Electrix.png",
 	"res://assets/ui/supply/Thrust.png",
 ]
-const SUPPLY_NAMES: Array[String] = ["Dust", "Metals", "Liquids", "Organix", "Electrix", "Thrust"]
 const TECH_BACK_PATH := "res://assets/cards/tech/GS_Techs_Back_44x67mm.png"
 
 var _content_vbox: VBoxContainer = null
@@ -41,7 +40,7 @@ func _ready() -> void:
 	_scroll_container.add_child(_content_vbox)
 
 	var close_btn := Button.new()
-	close_btn.text = "Close"
+	close_btn.text = tr("Close")
 	close_btn.add_theme_font_size_override("font_size", 20)
 	close_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	close_btn.pressed.connect(func(): hide())
@@ -57,7 +56,7 @@ func _rebuild(slot: SectorSlot) -> void:
 		child.queue_free()
 
 	# Title
-	var title_str: String = "Sector"
+	var title_str: String = tr("Sector")
 	if slot.placed_card and slot.placed_card.card_data:
 		var cd: CardData = slot.placed_card.card_data
 		var is_adv: bool = bool(slot.placed_card.get("is_advanced"))
@@ -74,7 +73,7 @@ func _rebuild(slot: SectorSlot) -> void:
 	# Stored supplies
 	if _has_stored_supply(slot):
 		has_content = true
-		_add_section_label("Stored Supplies")
+		_add_section_label(tr("Stored Supplies"))
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
 		row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -101,18 +100,18 @@ func _rebuild(slot: SectorSlot) -> void:
 	var faceup: Array = slot.tucked_cards.filter(func(t: Dictionary) -> bool: return t.get("face_up", false))
 	if not faceup.is_empty():
 		has_content = true
-		_add_section_label("Faceup Tucked")
+		_add_section_label(tr("Faceup Tucked"))
 		_content_vbox.add_child(_make_card_row(faceup, true))
 
 	# Facedown tucked
 	var facedown: Array = slot.tucked_cards.filter(func(t: Dictionary) -> bool: return not t.get("face_up", false))
 	if not facedown.is_empty():
 		has_content = true
-		_add_section_label("Facedown Tucked")
+		_add_section_label(tr("Facedown Tucked"))
 		_content_vbox.add_child(_make_card_row(facedown, false))
 
 	if not has_content:
-		_add_empty_state("Nothing stored here")
+		_add_empty_state(tr("Nothing stored here"))
 
 	_fit_scroll_height()
 

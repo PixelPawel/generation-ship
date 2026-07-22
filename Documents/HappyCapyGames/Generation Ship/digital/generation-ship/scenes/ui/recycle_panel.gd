@@ -9,7 +9,6 @@ const _SUPPLY_ICON_PATHS: Array[String] = [
 	"res://assets/ui/supply/Electrix.png",
 	"res://assets/ui/supply/Thrust.png",
 ]
-const _SUPPLY_NAMES: Array[String] = ["Dust", "Metals", "Liquids", "Organix", "Electrix", "Thrust"]
 
 signal confirmed()
 signal cancelled()
@@ -35,7 +34,7 @@ func _ready() -> void:
 	panel.add_child(outer_vbox)
 
 	var title: Label = Label.new()
-	title.text = "Recycle Card"
+	title.text = tr("Recycle Card")
 	title.add_theme_font_size_override("font_size", 28)
 	title.add_theme_color_override("font_color", Color.WHITE)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -64,7 +63,7 @@ func _ready() -> void:
 	outer_vbox.add_child(gain_row)
 
 	var gain_prefix: Label = Label.new()
-	gain_prefix.text = "Gain:"
+	gain_prefix.text = tr("Gain:")
 	gain_prefix.add_theme_font_size_override("font_size", 22)
 	gain_prefix.add_theme_color_override("font_color", Color(0.8, 0.9, 1.0))
 	gain_row.add_child(gain_prefix)
@@ -86,14 +85,14 @@ func _ready() -> void:
 	outer_vbox.add_child(btn_row)
 
 	var cancel_btn: Button = Button.new()
-	cancel_btn.text = "Skip"
+	cancel_btn.text = tr("Skip")
 	cancel_btn.custom_minimum_size = Vector2(140.0, 52.0)
 	cancel_btn.add_theme_font_size_override("font_size", 22)
 	cancel_btn.pressed.connect(func() -> void: _on_cancelled())
 	btn_row.add_child(cancel_btn)
 
 	var confirm_btn: Button = Button.new()
-	confirm_btn.text = "Recycle"
+	confirm_btn.text = tr("Recycle")
 	confirm_btn.custom_minimum_size = Vector2(140.0, 52.0)
 	confirm_btn.add_theme_font_size_override("font_size", 22)
 	confirm_btn.pressed.connect(func() -> void: _on_confirmed())
@@ -108,11 +107,11 @@ func show_recycle(card_data: CardData, color: CardData.SupplyColor, bonus: int) 
 		_card_image.texture = null
 		_card_name_label.text = ""
 	_gain_icon.texture = load(_SUPPLY_ICON_PATHS[int(color)]) as Texture2D
-	var color_name: String = _SUPPLY_NAMES[int(color)]
+	var color_name: String = CardData.color_name(color)
 	if bonus > 0:
-		_gain_label.text = "%d %s (Trash Compactor +%d)" % [1 + bonus, color_name, bonus]
+		_gain_label.text = tr("%d %s (Trash Compactor +%d)") % [1 + bonus, color_name, bonus]
 	else:
-		_gain_label.text = "1 %s" % color_name
+		_gain_label.text = tr("1 %s") % color_name
 	show()
 
 func _on_confirmed() -> void:

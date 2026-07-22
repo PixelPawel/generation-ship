@@ -88,7 +88,7 @@ func _ready() -> void:
 	outer_vbox.add_child(btn_row)
 
 	var forfeit_btn := Button.new()
-	forfeit_btn.text = "Cancel"
+	forfeit_btn.text = tr("Cancel")
 	forfeit_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	forfeit_btn.custom_minimum_size = Vector2(0, 56)
 	forfeit_btn.add_theme_font_size_override("font_size", 24)
@@ -96,7 +96,7 @@ func _ready() -> void:
 	btn_row.add_child(forfeit_btn)
 
 	_confirm_btn = Button.new()
-	_confirm_btn.text = "Pay & Place"
+	_confirm_btn.text = tr("Pay & Place")
 	_confirm_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_confirm_btn.custom_minimum_size = Vector2(0, 56)
 	_confirm_btn.add_theme_font_size_override("font_size", 24)
@@ -139,7 +139,7 @@ func show_bid_payment(card_name: String, amount: int, valid_colors: Array[CardDa
 	elif _card_image_rect:
 		_card_image_rect.visible = false
 
-	_title_label.text = "Pay for %s" % card_name
+	_title_label.text = tr("Pay for %s") % card_name
 	_rebuild_rows()
 	_update_total()
 	show()
@@ -187,7 +187,7 @@ func refresh() -> void:
 			_available[col_key] = avail
 			_allocations[col_key] = mini(int(_allocations.get(col_key, 0)), avail)
 			if _avail_labels.has(col_key):
-				(_avail_labels[col_key] as Label).text = "(have %d)" % avail
+				(_avail_labels[col_key] as Label).text = tr("(have %d)") % avail
 			if _count_labels.has(col_key):
 				(_count_labels[col_key] as Label).text = str(_allocations[col_key])
 		var rem: int = _needed - _get_total()
@@ -232,7 +232,7 @@ func _add_row_cells(color: CardData.SupplyColor) -> void:
 	_rows_container.add_child(name_lbl)
 
 	var avail_lbl := Label.new()
-	avail_lbl.text = "(have %d)" % _available[col_key]
+	avail_lbl.text = tr("(have %d)") % _available[col_key]
 	avail_lbl.add_theme_font_size_override("font_size", 20)
 	avail_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
 	avail_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -282,7 +282,7 @@ func _get_total() -> int:
 
 func _update_total() -> void:
 	var total: int = _get_total()
-	_total_label.text = "Allocated: %d / %d" % [total, _needed]
+	_total_label.text = tr("Allocated: %d / %d") % [total, _needed]
 	if total == _needed:
 		_total_label.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5))
 	else:

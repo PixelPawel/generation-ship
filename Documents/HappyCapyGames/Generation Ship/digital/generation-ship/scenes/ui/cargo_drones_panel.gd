@@ -93,7 +93,7 @@ func _clear_step() -> void:
 
 func _add_finish_button() -> void:
 	var btn := Button.new()
-	btn.text = "Finish Cargo Drones"
+	btn.text = tr("Finish Cargo Drones")
 	btn.add_theme_font_size_override("font_size", 20)
 	btn.add_theme_color_override("font_color", FINISH_COLOR)
 	btn.pressed.connect(func() -> void: hide(); finished.emit())
@@ -111,22 +111,22 @@ func _sector_display_name(slot: SectorSlot) -> String:
 		var cd: CardData = slot.placed_card.card_data
 		var is_adv: bool = bool(slot.placed_card.get("is_advanced"))
 		return cd.adv_name if (is_adv and not cd.adv_name.is_empty()) else cd.card_name
-	return "Sector"
+	return tr("Sector")
 
 func _describe_pending() -> String:
 	var parts: Array[String] = []
 	for color: int in _pending_supplies:
-		parts.append("%d %s" % [_pending_supplies[color], SectorInfoPopup.SUPPLY_NAMES[color]])
+		parts.append(tr("%d %s") % [_pending_supplies[color], CardData.color_name(color as CardData.SupplyColor)])
 	if not _pending_tucked_indices.is_empty():
-		parts.append("%d tucked card(s)" % _pending_tucked_indices.size())
-	return ", ".join(parts) if not parts.is_empty() else "nothing"
+		parts.append(tr("%d tucked card(s)") % _pending_tucked_indices.size())
+	return ", ".join(parts) if not parts.is_empty() else tr("nothing")
 
 # ── Step 1: pick a source sector ──────────────────────────────────────────────
 
 func _go_to_source() -> void:
 	_step = _Step.SOURCE
 	_summary_label.visible = false
-	_title_label.text = "Cargo Drones — pick a sector to move FROM"
+	_title_label.text = tr("Cargo Drones — pick a sector to move FROM")
 	_clear_step()
 	_build_sector_grid(_occupied_slots(null), pick_source_slot)
 	_add_finish_button()
@@ -142,12 +142,12 @@ func pick_source_slot(slot: SectorSlot) -> void:
 func _go_to_choose() -> void:
 	_step = _Step.CHOOSE
 	_summary_label.visible = true
-	_summary_label.text = "Moving from: %s" % _sector_display_name(_source_slot)
-	_title_label.text = "Cargo Drones — choose what to move"
+	_summary_label.text = tr("Moving from: %s") % _sector_display_name(_source_slot)
+	_title_label.text = tr("Cargo Drones — choose what to move")
 	_clear_step()
 	_build_choose_step()
 	var back_btn := Button.new()
-	back_btn.text = "← Pick Different Source"
+	back_btn.text = tr("← Pick Different Source")
 	back_btn.add_theme_font_size_override("font_size", 20)
 	back_btn.pressed.connect(_go_to_source)
 	_footer.add_child(back_btn)
@@ -172,7 +172,7 @@ func _build_choose_step() -> void:
 
 	if _has_stored_supply(slot):
 		has_content = true
-		_add_section_label(vbox, "Move Supplies")
+		_add_section_label(vbox, tr("Move Supplies"))
 		for i: int in 6:
 			var count: int = slot.stored_supply.get(i, 0)
 			if count == 0:
@@ -180,13 +180,13 @@ func _build_choose_step() -> void:
 			var row := HBoxContainer.new()
 			row.add_theme_constant_override("separation", 8)
 			var name_lbl := Label.new()
-			name_lbl.text = SectorInfoPopup.SUPPLY_NAMES[i]
+			name_lbl.text = CardData.color_name(i as CardData.SupplyColor)
 			name_lbl.add_theme_font_size_override("font_size", 18)
 			name_lbl.add_theme_color_override("font_color", Color.WHITE)
 			name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			row.add_child(name_lbl)
 			var avail_lbl := Label.new()
-			avail_lbl.text = "(of %d)" % count
+			avail_lbl.text = tr("(of %d)") % count
 			avail_lbl.add_theme_font_size_override("font_size", 16)
 			avail_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 			row.add_child(avail_lbl)
@@ -203,7 +203,7 @@ func _build_choose_step() -> void:
 
 	if not slot.tucked_cards.is_empty():
 		has_content = true
-		_add_section_label(vbox, "Move Tucked Cards")
+		_add_section_label(vbox, tr("Move Tucked Cards"))
 		for i: int in slot.tucked_cards.size():
 			var entry: Dictionary = slot.tucked_cards[i]
 			var cd: CardData = entry.get("data") as CardData
@@ -226,14 +226,14 @@ func _build_choose_step() -> void:
 				img.modulate = Color(0.12, 0.18, 0.32) if not face_up else Color(0.92, 0.87, 0.76)
 			row.add_child(img)
 			var name_lbl := Label.new()
-			name_lbl.text = (cd.card_name if cd else "?") if face_up else "Facedown"
+			name_lbl.text = (cd.card_name if cd else tr("?")) if face_up else tr("Facedown")
 			name_lbl.add_theme_font_size_override("font_size", 17)
 			name_lbl.add_theme_color_override("font_color", Color.WHITE)
 			name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
 			row.add_child(name_lbl)
 			var btn := Button.new()
-			btn.text = "Move"
+			btn.text = tr("Move")
 			btn.toggle_mode = true
 			btn.toggled.connect(func(on: bool) -> void:
 				btn.modulate = Color(0.4, 1.0, 0.5) if on else Color.WHITE
@@ -245,7 +245,7 @@ func _build_choose_step() -> void:
 
 	if not has_content:
 		var empty := Label.new()
-		empty.text = "Nothing to move here"
+		empty.text = tr("Nothing to move here")
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty.add_theme_font_size_override("font_size", 18)
 		empty.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
@@ -253,7 +253,7 @@ func _build_choose_step() -> void:
 		return
 
 	_next_btn = Button.new()
-	_next_btn.text = "Next: Pick Destination →"
+	_next_btn.text = tr("Next: Pick Destination →")
 	_next_btn.add_theme_font_size_override("font_size", 20)
 	_next_btn.disabled = true
 	_next_btn.pressed.connect(_on_choose_next_pressed)
@@ -305,12 +305,12 @@ func _on_choose_next_pressed() -> void:
 func _go_to_dest() -> void:
 	_step = _Step.DEST
 	_summary_label.visible = true
-	_summary_label.text = "Moving %s from %s" % [_describe_pending(), _sector_display_name(_source_slot)]
-	_title_label.text = "Cargo Drones — pick a sector to move TO"
+	_summary_label.text = tr("Moving %s from %s") % [_describe_pending(), _sector_display_name(_source_slot)]
+	_title_label.text = tr("Cargo Drones — pick a sector to move TO")
 	_clear_step()
 	_build_sector_grid(_occupied_slots(_source_slot), pick_dest_slot)
 	var back_btn := Button.new()
-	back_btn.text = "← Back"
+	back_btn.text = tr("← Back")
 	back_btn.add_theme_font_size_override("font_size", 20)
 	back_btn.pressed.connect(_go_to_choose)
 	_footer.add_child(back_btn)
@@ -328,10 +328,10 @@ func pick_dest_slot(slot: SectorSlot) -> void:
 func _go_to_confirm() -> void:
 	_step = _Step.CONFIRM
 	_summary_label.visible = false
-	_title_label.text = "Cargo Drones"
+	_title_label.text = tr("Cargo Drones")
 	_clear_step()
 	var lbl := Label.new()
-	lbl.text = "Moved %s\n%s → %s" % [_describe_pending(), _sector_display_name(_source_slot), _sector_display_name(_dest_slot)]
+	lbl.text = tr("Moved %s\n%s → %s") % [_describe_pending(), _sector_display_name(_source_slot), _sector_display_name(_dest_slot)]
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_size_override("font_size", 24)
 	lbl.add_theme_color_override("font_color", Color(0.5, 1.0, 0.6))
@@ -348,7 +348,7 @@ func _go_to_confirm() -> void:
 func _build_sector_grid(slots: Array[SectorSlot], on_pick: Callable) -> void:
 	if slots.is_empty():
 		var empty := Label.new()
-		empty.text = "No sectors available"
+		empty.text = tr("No sectors available")
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty.add_theme_font_size_override("font_size", 18)
 		empty.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))

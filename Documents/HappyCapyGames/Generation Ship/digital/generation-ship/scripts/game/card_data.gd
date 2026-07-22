@@ -18,14 +18,20 @@ const OPTIMIZE_ANY: int = -1
 @export var stars: int
 @export var is_star_card: bool = false
 
+
+# Routed through TranslationServer directly (not the usual tr()) since this
+# is a static function with no Node/instance to call tr() through, and it's
+# the single place every caller across the codebase gets a supply color's
+# display name — translating here means every log message/tooltip/hint that
+# already calls this picks up the right language automatically.
 static func color_name(supply_color: SupplyColor) -> String:
 	match supply_color:
-		SupplyColor.DUST:     return "Dust"
-		SupplyColor.METALS:   return "Metals"
-		SupplyColor.LIQUIDS:  return "Liquids"
-		SupplyColor.ORGANIX:  return "Organix"
-		SupplyColor.ELECTRIX: return "Electrix"
-		SupplyColor.THRUST:   return "Thrust"
+		SupplyColor.DUST:     return TranslationServer.translate("Dust")
+		SupplyColor.METALS:   return TranslationServer.translate("Metals")
+		SupplyColor.LIQUIDS:  return TranslationServer.translate("Liquids")
+		SupplyColor.ORGANIX:  return TranslationServer.translate("Organix")
+		SupplyColor.ELECTRIX: return TranslationServer.translate("Electrix")
+		SupplyColor.THRUST:   return TranslationServer.translate("Thrust")
 	return "?"
 
 static func color_tint(supply_color: SupplyColor) -> Color:
