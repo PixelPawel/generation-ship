@@ -66,7 +66,7 @@ func _process(delta: float) -> void:
 	if _spinner_active:
 		_spinner_time += delta
 		var frame: int = int(_spinner_time * 8.0) % _SPINNER_FRAMES.size()
-		_status_label.text = "Creating lobby…  " + _SPINNER_FRAMES[frame]
+		_status_label.text = tr("Creating lobby…  ") + _SPINNER_FRAMES[frame]
 	if not _lobby_panel.visible:
 		return
 	_lobby_refresh_timer -= delta
@@ -92,14 +92,14 @@ func _show_staging() -> void:
 		vbox.add_child(bot_row)
 		vbox.move_child(bot_row, insert_idx)
 		_add_bot_btn = Button.new()
-		_add_bot_btn.text = "Add Bot"
+		_add_bot_btn.text = tr("Add Bot")
 		_add_bot_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		_add_bot_btn.custom_minimum_size = Vector2(0, 44)
 		_add_bot_btn.add_theme_font_size_override("font_size", 20)
 		_add_bot_btn.pressed.connect(_on_add_bot_pressed)
 		bot_row.add_child(_add_bot_btn)
 		_remove_bot_btn = Button.new()
-		_remove_bot_btn.text = "Remove Bot"
+		_remove_bot_btn.text = tr("Remove Bot")
 		_remove_bot_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		_remove_bot_btn.custom_minimum_size = Vector2(0, 44)
 		_remove_bot_btn.add_theme_font_size_override("font_size", 20)
@@ -107,9 +107,9 @@ func _show_staging() -> void:
 		_remove_bot_btn.pressed.connect(_on_remove_bot_pressed)
 		bot_row.add_child(_remove_bot_btn)
 		_diff_btn = OptionButton.new()
-		_diff_btn.add_item("Easy")
-		_diff_btn.add_item("Normal")
-		_diff_btn.add_item("Hard")
+		_diff_btn.add_item(tr("Easy"))
+		_diff_btn.add_item(tr("Normal"))
+		_diff_btn.add_item(tr("Hard"))
 		_diff_btn.selected = 1
 		_diff_btn.custom_minimum_size = Vector2(100, 44)
 		_diff_btn.add_theme_font_size_override("font_size", 18)
@@ -146,7 +146,7 @@ func _request_lobby_list() -> void:
 	Steam.requestLobbyList()
 
 func _on_lobby_match_list(lobbies: Array) -> void:
-	_set_status("Found %d lobbies" % lobbies.size())
+	_set_status(tr("Found %d lobbies") % lobbies.size())
 	var prev_selected: int = 0
 	var sel: PackedInt32Array = _game_list.get_selected_items()
 	if not sel.is_empty():
@@ -156,7 +156,7 @@ func _on_lobby_match_list(lobbies: Array) -> void:
 		var lobby_id: int = int(entry)
 		var host_name: String = Steam.getLobbyData(lobby_id, "host_name")
 		if host_name.is_empty():
-			host_name = "Unknown"
+			host_name = tr("Unknown")
 		_game_list.add_item(host_name)
 		_game_list.set_item_metadata(_game_list.item_count - 1, lobby_id)
 		if lobby_id == prev_selected:
@@ -174,14 +174,14 @@ func _on_host_pressed() -> void:
 func _on_lobby_created(connect_result: int, lobby_id: int) -> void:
 	_spinner_active = false
 	if connect_result != 1:
-		_set_status("Failed to create lobby.")
+		_set_status(tr("Failed to create lobby."))
 		_set_controls_locked(false)
 		return
 	_steam_lobby_id = lobby_id
 	Steam.setLobbyData(lobby_id, "game", "generation_ship")
 	Steam.setLobbyData(lobby_id, "host_name", _player_name)
 	if not ClassDB.class_exists("SteamMultiplayerPeer"):
-		_set_status("SteamMultiplayerPeer not found — install the GodotSteam MultiplayerPeer addon.")
+		_set_status(tr("SteamMultiplayerPeer not found — install the GodotSteam MultiplayerPeer addon."))
 		_set_controls_locked(false)
 		return
 	var peer: MultiplayerPeer = ClassDB.instantiate("SteamMultiplayerPeer") as MultiplayerPeer
@@ -196,34 +196,34 @@ func _on_lobby_created(connect_result: int, lobby_id: int) -> void:
 func _on_join_selected_pressed() -> void:
 	var selected: PackedInt32Array = _game_list.get_selected_items()
 	if selected.is_empty():
-		_set_status("Select a game from the list first.")
+		_set_status(tr("Select a game from the list first."))
 		return
 	var lobby_id: int = int(_game_list.get_item_metadata(selected[0]))
 	_set_controls_locked(true)
-	_set_status("Joining lobby…")
+	_set_status(tr("Joining lobby…"))
 	Steam.joinLobby(lobby_id)
 
 func _on_lobby_entered(lobby_id: int, _permissions: int, _locked: bool, response: int) -> void:
 	if response != Steam.CHAT_ROOM_ENTER_RESPONSE_SUCCESS:
-		_set_status("Failed to join lobby.")
+		_set_status(tr("Failed to join lobby."))
 		_set_controls_locked(false)
 		return
 	_steam_lobby_id = lobby_id
 	if _is_host:
 		return
 	if not ClassDB.class_exists("SteamMultiplayerPeer"):
-		_set_status("SteamMultiplayerPeer not found — install the GodotSteam MultiplayerPeer addon.")
+		_set_status(tr("SteamMultiplayerPeer not found — install the GodotSteam MultiplayerPeer addon."))
 		_set_controls_locked(false)
 		return
 	var host_steam_id: int = Steam.getLobbyOwner(lobby_id)
 	var peer: MultiplayerPeer = ClassDB.instantiate("SteamMultiplayerPeer") as MultiplayerPeer
 	peer.call("create_client", host_steam_id, 0)
 	multiplayer.multiplayer_peer = peer
-	_set_status("Connecting…")
+	_set_status(tr("Connecting…"))
 
 func _on_lobby_join_requested(lobby_id: int, _steam_id: int) -> void:
 	_set_controls_locked(true)
-	_set_status("Joining lobby…")
+	_set_status(tr("Joining lobby…"))
 	Steam.joinLobby(lobby_id)
 
 # ── Start / Leave / Back ──────────────────────────────────────────────────────
@@ -266,7 +266,7 @@ func _on_peer_connected(_id: int) -> void:
 	pass
 
 func _on_connection_failed() -> void:
-	_set_status("Connection to host failed.")
+	_set_status(tr("Connection to host failed."))
 	_set_controls_locked(false)
 	multiplayer.multiplayer_peer = null
 	_is_host = false
@@ -284,7 +284,7 @@ func _on_connected_to_server() -> void:
 	_show_staging()
 
 func _on_server_disconnected() -> void:
-	_set_status("Lost connection to host.")
+	_set_status(tr("Lost connection to host."))
 	_players.clear()
 	if _steam_lobby_id > 0:
 		Steam.leaveLobby(_steam_lobby_id)
@@ -344,8 +344,8 @@ func _on_add_bot_pressed() -> void:
 	var bot_id: int = -_bot_count
 	var diff: int = _diff_btn.selected if _diff_btn else 1
 	_bot_difficulties[bot_id] = diff
-	var diff_label: String = ["Easy", "Normal", "Hard"][diff]
-	_players[bot_id] = "Bot %d (%s)" % [_bot_count, diff_label]
+	var diff_label: String = [tr("Easy"), tr("Normal"), tr("Hard")][diff]
+	_players[bot_id] = tr("Bot %d (%s)") % [_bot_count, diff_label]
 	_players_ready[bot_id] = true
 	_rpc_sync_players.rpc(_players)
 	_refresh_player_list()
@@ -363,16 +363,16 @@ func _on_remove_bot_pressed() -> void:
 
 func _refresh_player_list() -> void:
 	if _players.is_empty():
-		_staging_player_list.text = "(no players)"
+		_staging_player_list.text = tr("(no players)")
 	else:
 		var lines: Array[String] = []
 		for id: int in _players:
 			var tag: String = ""
 			if id == 1:
-				tag = "  ★ host"
+				tag = tr("  ★ host")
 			elif id < 0:
-				tag = "  [bot]"
-			lines.append("• %s%s" % [_players[id], tag])
+				tag = tr("  [bot]")
+			lines.append(tr("• %s%s") % [_players[id], tag])
 		_staging_player_list.text = "\n".join(lines)
 	var all_ready: bool = not _players.is_empty()
 	for pid: Variant in _players:
