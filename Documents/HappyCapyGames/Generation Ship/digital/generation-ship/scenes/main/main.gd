@@ -2747,8 +2747,6 @@ func _on_bid_confirmed(amount: int) -> void:
 	_bid_payment_panel.show_bid_payment(_bid_card_name, amount, valid_colors, _cs_display, _bid_card_data, _bid_is_advanced)
 
 func _on_bid_payment_confirmed(allocations: Dictionary) -> void:
-	if _tutorial and _pending_auction_win and _bid_card_data and _bid_card_data.card_type == CardData.CardType.EXPEDITION:
-		_tutorial.notify_expedition_purchased()
 	if _effect_mode == EffectMode.PAYMENT_CONFIRM:
 		_effect_mode = EffectMode.NONE
 		$Board.hide_payment_confirm_arrow()

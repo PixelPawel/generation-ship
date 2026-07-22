@@ -46,6 +46,7 @@ func start(main: Main) -> void:
 	_board = main.get_node("Board")
 	_board.card_placed.connect(_on_card_placed)
 	_board.card_recycled.connect(_on_card_recycled)
+	_board.unplaceable_card_recycled.connect(_on_unplaceable_card_recycled)
 	main._cs_display.fused.connect(_on_fused)
 
 	var timer: Timer = Timer.new()
@@ -56,9 +57,6 @@ func start(main: Main) -> void:
 
 func notify_passed() -> void:
 	_passed = true
-
-func notify_expedition_purchased() -> void:
-	_bid_expedition = true
 
 func notify_researched() -> void:
 	_researched = true
@@ -74,6 +72,14 @@ func _on_card_placed(card: Node3D, _slot: SectorSlot) -> void:
 		_bought_sector = true
 	elif cd.card_type == CardData.CardType.TECH:
 		_placed_tech = true
+	elif cd.card_type == CardData.CardType.EXPEDITION:
+		_bid_expedition = true
+
+# An auction win with nowhere to place it (no free tech slot anywhere)
+# auto-recycles instead of ever starting a drag — still counts as done.
+func _on_unplaceable_card_recycled(card_data: CardData) -> void:
+	if card_data and card_data.card_type == CardData.CardType.EXPEDITION:
+		_bid_expedition = true
 
 func _on_fused(_source: int, _target: int) -> void:
 	_fused_supply = true
@@ -150,7 +156,11 @@ func _apply_buy_step() -> void:
 # confirm a bid in the popup, then pay for the win — recycling and fusing
 # supply if what's on hand isn't enough — on the payment panel.
 func _apply_bid_step() -> void:
-	if _main._bid_popup and _main._bid_popup.visible:
+	if _is_dragging_expedition_card():
+		_recycled_during_bid_payment = false
+		_main._market_panel.set_tutorial_expedition_highlight(false)
+		_main._show_effect_hint("Place the expedition on a sector. If you don't have a free slot, the expedition is automatically recycled.")
+	elif _main._bid_popup and _main._bid_popup.visible:
 		_recycled_during_bid_payment = false
 		_main._market_panel.set_tutorial_expedition_highlight(false)
 		_main._show_effect_hint("Start a bid on this expedition, by paying the supply on the card. The minimum bid is the printed cost. Confirm bid to continue.")
@@ -171,6 +181,13 @@ func _is_dragging_sector_card() -> bool:
 		return false
 	var cd: CardData = dragged.get("card_data")
 	return cd != null and cd.card_type == CardData.CardType.SECTOR
+
+func _is_dragging_expedition_card() -> bool:
+	var dragged: Node3D = _board.get("_dragged_card") as Node3D
+	if not dragged:
+		return false
+	var cd: CardData = dragged.get("card_data")
+	return cd != null and cd.card_type == CardData.CardType.EXPEDITION
 
 func _highlight_tech_slots() -> void:
 	var eligible: Array[SectorSlot] = []
@@ -204,6 +221,8 @@ func _finish() -> void:
 		_board.card_placed.disconnect(_on_card_placed)
 	if _board.card_recycled.is_connected(_on_card_recycled):
 		_board.card_recycled.disconnect(_on_card_recycled)
+	if _board.unplaceable_card_recycled.is_connected(_on_unplaceable_card_recycled):
+		_board.unplaceable_card_recycled.disconnect(_on_unplaceable_card_recycled)
 	if _main._cs_display.fused.is_connected(_on_fused):
 		_main._cs_display.fused.disconnect(_on_fused)
 	# main._tutorial otherwise dangles once this node is freed — a later
