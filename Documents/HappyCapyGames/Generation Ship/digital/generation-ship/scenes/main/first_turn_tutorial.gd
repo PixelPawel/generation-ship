@@ -106,7 +106,7 @@ func _apply_step(step: String) -> void:
 			_main._show_effect_hint("Fuse 2 supply into 1 supply of a higher value.")
 			_main._cs_display._flow.set_tutorial_highlight(true)
 		"bid":
-			_main._show_effect_hint("Left-click on an Expedition and confirm a bid to start an auction")
+			_main._show_effect_hint("Left-click on an Expedition to start an auction")
 			_main._market_panel.set_tutorial_expedition_highlight(true)
 		"pass":
 			_main._show_effect_hint("Nothing left to do? Press Pass")
