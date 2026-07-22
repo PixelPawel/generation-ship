@@ -104,7 +104,7 @@ func _ready() -> void:
 	vbox.add_child(btn_row)
 
 	_cancel_btn = Button.new()
-	_cancel_btn.text = "Cancel"
+	_cancel_btn.text = tr("Cancel")
 	_cancel_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_cancel_btn.custom_minimum_size = Vector2(0, 56)
 	_cancel_btn.add_theme_font_size_override("font_size", 24)
@@ -112,7 +112,7 @@ func _ready() -> void:
 	btn_row.add_child(_cancel_btn)
 
 	_pass_btn = Button.new()
-	_pass_btn.text = "Pass"
+	_pass_btn.text = tr("Pass")
 	_pass_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_pass_btn.custom_minimum_size = Vector2(0, 56)
 	_pass_btn.add_theme_font_size_override("font_size", 24)
@@ -121,7 +121,7 @@ func _ready() -> void:
 	btn_row.add_child(_pass_btn)
 
 	_confirm_btn = Button.new()
-	_confirm_btn.text = "Confirm Bid"
+	_confirm_btn.text = tr("Confirm Bid")
 	_confirm_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_confirm_btn.custom_minimum_size = Vector2(0, 56)
 	_confirm_btn.add_theme_font_size_override("font_size", 24)
@@ -134,7 +134,7 @@ func _set_accepted_colors(cost_color: CardData.SupplyColor) -> void:
 	for child: Node in _accepted_row.get_children():
 		child.queue_free()
 	var prefix := Label.new()
-	prefix.text = "Pays with:"
+	prefix.text = tr("Pays with:")
 	prefix.add_theme_font_size_override("font_size", 16)
 	prefix.add_theme_color_override("font_color", Color(0.6, 0.65, 0.8))
 	_accepted_row.add_child(prefix)
@@ -168,16 +168,16 @@ func show_bid(card_data: CardData, is_advanced: bool, min_cost: int, cost_color:
 	_is_active_turn = true
 	_min_cost = min_cost
 	_bid_amount = min_cost
-	var color_name: String = (CardData.SupplyColor.keys()[int(cost_color)] as String).capitalize()
+	var color_name: String = CardData.color_name(cost_color)
 	var card_name: String = ""
 	if card_data:
 		card_name = card_data.adv_name if (is_advanced and not card_data.adv_name.is_empty()) else card_data.card_name
-	_title_label.text = "Bid for %s" % card_name
-	_hint_label.text = "Minimum bid: %d %s" % [min_cost, color_name]
+	_title_label.text = tr("Bid for %s") % card_name
+	_hint_label.text = tr("Minimum bid: %d %s") % [min_cost, color_name]
 	_status_label.visible = false
 	_cancel_btn.show()
 	_pass_btn.visible = false
-	_confirm_btn.text = "Confirm Bid"
+	_confirm_btn.text = tr("Confirm Bid")
 	_dec_btn.disabled = false
 	_inc_btn.disabled = false
 	_update()
@@ -191,14 +191,14 @@ func show_auction(card_data: CardData, is_advanced: bool, current_bid: int, lead
 	_auction_mode = true
 	_min_cost = current_bid
 	_bid_amount = current_bid + 1
-	_cached_color_name = (CardData.SupplyColor.keys()[int(cost_color)] as String).capitalize()
+	_cached_color_name = CardData.color_name(cost_color)
 	var card_name: String = ""
 	if card_data:
 		card_name = card_data.adv_name if (is_advanced and not card_data.adv_name.is_empty()) else card_data.card_name
-	_title_label.text = "Bid for %s" % card_name
-	_hint_label.text = "Current bid: %d %s  —  Leader: %s" % [current_bid, _cached_color_name, leader_name]
+	_title_label.text = tr("Bid for %s") % card_name
+	_hint_label.text = tr("Current bid: %d %s  —  Leader: %s") % [current_bid, _cached_color_name, leader_name]
 	_cancel_btn.hide()
-	_confirm_btn.text = "Raise"
+	_confirm_btn.text = tr("Raise")
 	_set_auction_active(is_active, can_pass)
 	_update()
 	show()
@@ -207,7 +207,7 @@ func update_auction(current_bid: int, leader_name: String, is_active: bool, can_
 	_min_cost = current_bid
 	if _bid_amount <= current_bid:
 		_bid_amount = current_bid + 1
-	_hint_label.text = "Current bid: %d %s  —  Leader: %s" % [current_bid, _cached_color_name, leader_name]
+	_hint_label.text = tr("Current bid: %d %s  —  Leader: %s") % [current_bid, _cached_color_name, leader_name]
 	_set_auction_active(is_active, can_pass)
 	_update()
 	if not visible:
@@ -217,10 +217,10 @@ func _set_auction_active(is_active: bool, can_pass: bool) -> void:
 	_is_active_turn = is_active
 	_status_label.visible = true
 	if is_active:
-		_status_label.text = "Your turn — raise to win!"
+		_status_label.text = tr("Your turn — raise to win!")
 		_status_label.add_theme_color_override("font_color", Color(0.4, 1.0, 0.4))
 	else:
-		_status_label.text = "Waiting for other players…"
+		_status_label.text = tr("Waiting for other players…")
 		_status_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 	_dec_btn.disabled = not is_active
 	_inc_btn.disabled = not is_active

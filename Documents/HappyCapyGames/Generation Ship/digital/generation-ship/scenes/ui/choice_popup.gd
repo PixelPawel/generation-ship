@@ -73,7 +73,7 @@ func _ready() -> void:
 	vbox.add_child(footer_row)
 
 	_skip_btn = Button.new()
-	_skip_btn.text = "Skip"
+	_skip_btn.text = tr("Skip")
 	_skip_btn.add_theme_font_size_override("font_size", 40)
 	_skip_btn.custom_minimum_size = Vector2(200, 80)
 	_skip_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -82,7 +82,7 @@ func _ready() -> void:
 	footer_row.add_child(_skip_btn)
 
 	_multiselect_done_btn = Button.new()
-	_multiselect_done_btn.text = "Done"
+	_multiselect_done_btn.text = tr("Done")
 	_multiselect_done_btn.add_theme_font_size_override("font_size", 40)
 	_multiselect_done_btn.custom_minimum_size = Vector2(200, 80)
 	_multiselect_done_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER

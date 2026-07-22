@@ -46,7 +46,7 @@ func _ready() -> void:
 	vbox.add_child(_buttons_row)
 
 	var cancel_btn := Button.new()
-	cancel_btn.text = "Cancel"
+	cancel_btn.text = tr("Cancel")
 	cancel_btn.add_theme_font_size_override("font_size", 22)
 	cancel_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	cancel_btn.pressed.connect(func() -> void: hide(); cancelled.emit())
@@ -54,7 +54,7 @@ func _ready() -> void:
 
 func show_cost(card_name: String, cost: int, affordable: Array) -> void:
 	_title.text = card_name
-	_hint.text = "Choose supply to pay %d:" % cost
+	_hint.text = tr("Choose supply to pay %d:") % cost
 	for child: Node in _buttons_row.get_children():
 		child.queue_free()
 	for color: Variant in affordable:
@@ -63,7 +63,7 @@ func show_cost(card_name: String, cost: int, affordable: Array) -> void:
 
 func _make_btn(color: CardData.SupplyColor, cost: int) -> Button:
 	var btn := Button.new()
-	btn.text = "%s ×%d" % [CardData.color_name(color), cost]
+	btn.text = tr("%s ×%d") % [CardData.color_name(color), cost]
 	btn.add_theme_font_size_override("font_size", 26)
 	btn.add_theme_color_override("font_color", CardData.color_tint(color))
 	btn.custom_minimum_size = Vector2(200, 64)

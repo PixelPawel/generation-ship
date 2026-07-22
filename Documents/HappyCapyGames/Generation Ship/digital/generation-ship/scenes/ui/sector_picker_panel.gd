@@ -48,7 +48,7 @@ func _ready() -> void:
 	content.add_child(_card_container)
 
 	var skip_btn: Button = Button.new()
-	skip_btn.text = "Skip"
+	skip_btn.text = tr("Skip")
 	skip_btn.add_theme_font_size_override("font_size", 26)
 	skip_btn.custom_minimum_size = Vector2(200, 56)
 	skip_btn.anchor_left = 0.5

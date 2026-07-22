@@ -236,13 +236,13 @@ func update_opponent_status(peer_id: int, status: String, is_active: bool) -> vo
 		return
 	var lbl: Label = _opp_refs[peer_id]["status_lbl"] as Label
 	if status == "researching":
-		lbl.text = "Researching"
+		lbl.text = tr("Researching")
 		lbl.add_theme_color_override("font_color", Color(0.5, 0.85, 1.0))
 	elif status == "passed":
-		lbl.text = "Passed"
+		lbl.text = tr("Passed")
 		lbl.add_theme_color_override("font_color", Color(0.55, 0.55, 0.65))
 	elif is_active:
-		lbl.text = "Active"
+		lbl.text = tr("Active")
 		lbl.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
 	else:
 		lbl.text = ""

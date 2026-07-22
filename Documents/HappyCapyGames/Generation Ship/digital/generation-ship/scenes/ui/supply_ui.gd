@@ -111,7 +111,7 @@ func _build_ui() -> void:
 	vbox.add_child(_turn_indicator_panel)
 
 	_turn_indicator_label = Label.new()
-	_turn_indicator_label.text = "YOUR TURN"
+	_turn_indicator_label.text = tr("YOUR TURN")
 	_turn_indicator_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_turn_indicator_label.add_theme_font_size_override("font_size", 14)
 	_turn_indicator_label.add_theme_color_override("font_color", Color(0.18, 0.25, 0.18))
@@ -145,7 +145,7 @@ func _build_ui() -> void:
 	_game_info_box.add_child(info_sep)
 
 	_undo_btn = Button.new()
-	_undo_btn.text = "↩ Undo Fuse"
+	_undo_btn.text = tr("↩ Undo Fuse")
 	_undo_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_undo_btn.add_theme_font_size_override("font_size", 14)
 	_undo_btn.add_theme_color_override("font_color", Color(1.0, 0.75, 0.35))
@@ -369,10 +369,10 @@ func _update_fuse_1to1_label() -> void:
 	if not _fuse_1to1_label:
 		return
 	if _fuse_dust_1to1:
-		_fuse_1to1_label.text = "⚡ DUST FUSE 1:1\nUnlimited"
+		_fuse_1to1_label.text = tr("⚡ DUST FUSE 1:1\nUnlimited")
 		_fuse_1to1_label.visible = true
 	elif _fuse_1to1_remaining > 0:
-		_fuse_1to1_label.text = "⚡ FUSE 1:1\n%d left" % _fuse_1to1_remaining
+		_fuse_1to1_label.text = tr("⚡ FUSE 1:1\n%d left") % _fuse_1to1_remaining
 		_fuse_1to1_label.visible = true
 	else:
 		_fuse_1to1_label.visible = false
@@ -380,15 +380,15 @@ func _update_fuse_1to1_label() -> void:
 
 func set_round(current: int, max_rounds: int) -> void:
 	if _round_label:
-		_round_label.text = "Round %d / %d" % [current, max_rounds]
+		_round_label.text = tr("Round %d / %d") % [current, max_rounds]
 
 func set_vp(vp: int) -> void:
 	var gained: int = vp - _prev_vp
 	_prev_vp = vp
 	if _vp_label:
-		_vp_label.text = "⭐ %d VP" % vp
+		_vp_label.text = tr("⭐ %d VP") % vp
 	if gained > 0 and _vp_label:
-		_spawn_vp_label("+%d VP" % gained)
+		_spawn_vp_label(tr("+%d VP") % gained)
 
 func _spawn_vp_label(text: String) -> void:
 	var src_rect: Rect2 = _vp_label.get_global_rect()
