@@ -72,10 +72,15 @@ func _setup_music() -> void:
 	var stream: AudioStreamWAV = load("res://assets/music/ambience.wav") as AudioStreamWAV
 	if not stream:
 		return
+	# Don't rely solely on the .import file's baked loop_mode — set it
+	# explicitly here too, and fall back to manually restarting on
+	# "finished" as a belt-and-suspenders guarantee it actually loops.
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
 	_music_player = AudioStreamPlayer.new()
 	_music_player.stream = stream
 	_music_player.bus = &"Music"
 	_music_player.volume_db = -80.0
+	_music_player.finished.connect(_music_player.play)
 	add_child(_music_player)
 	_music_player.play()
 	var tw: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)

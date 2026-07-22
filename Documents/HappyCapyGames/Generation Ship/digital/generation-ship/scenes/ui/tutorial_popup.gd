@@ -18,6 +18,12 @@ const SECTOR_ART_PATHS: Array[String] = [
 	"res://assets/cards/sector/GS_Sector_2_Back__67x44mm.png",
 	"res://assets/cards/sector/GS_Sector_3_Back__67x44mm.png",
 ]
+# Advanced Sectors are the flip side of a Dust Sector column — these are the
+# non-"Back" numbered files (the Dust/"Back" face is above).
+const ADVANCED_SECTOR_ART_PATHS: Array[String] = [
+	"res://assets/cards/sector/GS_Sector_1_67x44mm.png",
+	"res://assets/cards/sector/GS_Sector_2_67x44mm.png",
+]
 const TECH_ART_PATHS: Array[String] = [
 	"res://assets/cards/tech/GS_Techs_44x67mm.png",
 	"res://assets/cards/tech/GS_Techs_44x67mm2.png",
@@ -401,8 +407,9 @@ func _build_diagram_4() -> Control:
 	bid_col.add_theme_constant_override("separation", 6)
 	var bid_row: HBoxContainer = HBoxContainer.new()
 	bid_row.add_theme_constant_override("separation", 10)
-	for path: String in EXPEDITION_ART_PATHS:
+	for path: String in ADVANCED_SECTOR_ART_PATHS:
 		bid_row.add_child(_make_art_card(path, Vector2(100, 140)))
+	bid_row.add_child(_make_art_card(EXPEDITION_ART_PATHS[0], Vector2(100, 140)))
 	bid_col.add_child(bid_row)
 	bid_col.add_child(_make_caption("Advanced Sectors & Expeditions — bid to win"))
 	groups.add_child(bid_col)
