@@ -66,6 +66,7 @@ var _pending_recycle_cards: Array[Node3D] = []
 var _pending_store_nodes: Array[Node3D] = []
 var _last_drawn_cards: Array[Node3D] = []
 var _restrict_picks_to_drawn: bool = false
+var _tuck_optional_no_bonus_draw: bool = false
 var _sector_info_popup: SectorInfoPopup = null
 var _recycle_panel: Control = null
 var _sector_picker: SectorPickerPanel = null
@@ -1533,6 +1534,7 @@ func _reset_effect_state() -> void:
 	_pending_store_nodes = []
 	_last_drawn_cards = []
 	_restrict_picks_to_drawn = false
+	_tuck_optional_no_bonus_draw = false
 	_pending_tuck_card_data = null
 	_pending_target_slot = null
 	_effect_label = ""
@@ -1643,7 +1645,7 @@ func _apply_tuck_optional_multiselect(indices: Array[int]) -> void:
 		count += 1
 	_pending_recycle_cards = []
 	if count > 0:
-		if not _restrict_picks_to_drawn:
+		if not _restrict_picks_to_drawn and not _tuck_optional_no_bonus_draw:
 			$Board.draw_cards(count)
 			_log_effect("tucked %d card(s), drew %d" % [count, count])
 		else:
@@ -2173,6 +2175,9 @@ func _execute_effect_step(step: Dictionary) -> void:
 		"draw_all_players":
 			_effect_step_draw_all_players(int(step.get("count", 1)))
 
+		"offer_bid_any_expedition":
+			_effect_step_offer_bid_any_expedition()
+
 		"black_hole_encounter":
 			_effect_step_black_hole_encounter()
 
@@ -2186,10 +2191,13 @@ func _effect_step_tuck_optional(step: Dictionary) -> void:
 	_effect_remaining = int(step.get("max", 1))
 	_effect_face_up = bool(step.get("face_up", false))
 	_restrict_picks_to_drawn = bool(step.get("restrict_to_drawn", false))
+	_tuck_optional_no_bonus_draw = bool(step.get("no_bonus_draw", false))
 	var face_str_to: String = "faceup" if _effect_face_up else "facedown"
 	var prompt_to: String
 	if _restrict_picks_to_drawn:
 		prompt_to = "Tuck up to %d of the drawn cards %s" % [_effect_remaining, face_str_to]
+	elif _tuck_optional_no_bonus_draw:
+		prompt_to = "Tuck up to %d card(s) %s" % [_effect_remaining, face_str_to]
 	else:
 		prompt_to = "Tuck up to %d card(s) %s — draw 1 per tucked" % [_effect_remaining, face_str_to]
 	_show_hand_multiselect(prompt_to)
@@ -2239,7 +2247,11 @@ func _effect_step_reflectors_choice() -> void:
 	var eligible_steps: Array = []
 	for card_node: Node3D in _effect_slot.get_all_placed_cards():
 		var cd: CardData = card_node.get("card_data")
-		if not cd or cd.card_type != CardData.CardType.TECH or cd.card_name == "Reflectors":
+		# get_all_placed_cards() includes the sector itself (placed_card) —
+		# exclude that (sectors have no place effect to copy) and Reflectors
+		# itself, but allow both Tech AND Expedition place effects, since an
+		# Expedition can occupy this same sector slot.
+		if not cd or cd.card_type == CardData.CardType.SECTOR or cd.card_name == "Reflectors":
 			continue
 		var copied: Array[Dictionary] = PlaceEffects.get_steps(cd, _effect_slot)
 		if copied.is_empty():
@@ -2266,6 +2278,20 @@ func _effect_step_offer_bid_pool() -> void:
 		_pending_choice_options.append({steps = [{type = "initiate_market_bid", card_data = cd}]})
 	_effect_mode = EffectMode.EFFECT_CHOICE
 	_choice_popup.show_card_choices("Bid on a revealed card?", pool, true)
+
+# Unlike _effect_step_offer_bid_pool (only the card(s) this same effect just
+# revealed), Probe Launcher's text is "you may bid on any expedition" — the
+# pool is every expedition currently visible in the market, reveal or not.
+func _effect_step_offer_bid_any_expedition() -> void:
+	var pool: Array[CardData] = $Board.get_visible_expedition_cards()
+	if pool.is_empty():
+		_process_next_effect()
+		return
+	_pending_choice_options = []
+	for cd: CardData in pool:
+		_pending_choice_options.append({steps = [{type = "initiate_market_bid", card_data = cd}]})
+	_effect_mode = EffectMode.EFFECT_CHOICE
+	_choice_popup.show_card_choices("Probe Launcher — bid on any expedition?", pool, true)
 
 func _effect_step_offer_free_sector_gain() -> void:
 	var eligible: Array[CardData] = []

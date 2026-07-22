@@ -14,7 +14,7 @@ extends RefCounted
 #   recycle(count)               — player picks exactly N hand cards to recycle (mandatory)
 #   recycle_optional(max)        — player picks 0-max, draws 1 per recycle
 #   tuck(count, face_up)         — player picks exactly N hand cards to tuck on slot
-#   tuck_optional(max, face_up)  — player picks 0-max, draws 1 per tuck
+#   tuck_optional(max, face_up)  — player picks 0-max, draws 1 per tuck (pass no_bonus_draw=true to suppress the bonus draw, e.g. when a prior step already drew cards for this same effect)
 #   recycle_tuck(count)          — recycle N cards AND tuck them facedown, then draw N
 #   interfleet_comms             — draw 1/player, pass-left pick sequence (network-synced); solo collapses to draw 1
 #   draw_all_players(count)      — every player (and bot) independently draws N from their own deck (network-synced); solo collapses to draw N
@@ -234,7 +234,7 @@ static func _build(name: String, _cd: CardData, slot: SectorSlot,
 
 		"DNA Sculpting":
 			steps.append({type = "draw", count = 3})
-			steps.append({type = "tuck_optional", max = 3, face_up = true})
+			steps.append({type = "tuck_optional", max = 3, face_up = true, no_bonus_draw = true})
 
 		"Terraformed Planet":
 			steps.append({type = "recycle_tuck_store_choice", max = 4})

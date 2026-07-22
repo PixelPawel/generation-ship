@@ -200,6 +200,17 @@ func get_available_dust_sectors() -> Array[CardData]:
 			result.append(cd)
 	return result
 
+# Every expedition currently visible in the market (any stack, any depth) —
+# used by effects that offer a bid on any expedition, not just one just
+# revealed by that same effect (e.g. Probe Launcher).
+func get_visible_expedition_cards() -> Array[CardData]:
+	var result: Array[CardData] = []
+	for card_node: Node3D in _expedition_market.get_all_visible_cards():
+		var cd: CardData = card_node.get("card_data")
+		if cd:
+			result.append(cd)
+	return result
+
 # Entry point for a card offered via an effect's bid pool (e.g. Ancient
 # Airlock, Deep Space Radar, Cargo Bays) — these are always advanced sectors
 # or expeditions, so always bid. Same left-click-then-bid, drag-to-place-after

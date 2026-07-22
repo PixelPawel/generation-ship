@@ -110,8 +110,11 @@ static func _build(name: String, slot: SectorSlot, steps: Array[Dictionary]) -> 
 			steps.append(CardData.color_store_choice("Store 2nd supply — choose color:", true))
 
 		"Probe Launcher":
-			steps.append({type = "reveal_expedition", may_bid = true})
-			steps.append({type = "offer_bid_pool"})
+			# Text says "bid on ANY expedition" (unlike Ice Mining/Operations'
+			# "bid on it") — the just-revealed card joins the market like any
+			# other, so offer the whole visible market, not just this reveal.
+			steps.append({type = "reveal_expedition", may_bid = false})
+			steps.append({type = "offer_bid_any_expedition"})
 
 		"Engines":
 			steps.append({type = "gain_supply_per_sector_count", color = CardData.SupplyColor.ELECTRIX})
