@@ -40,10 +40,16 @@ func _ready() -> void:
 	_hint.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	vbox.add_child(_hint)
 
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(scroll)
+
 	_buttons_row = HBoxContainer.new()
 	_buttons_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_buttons_row.add_theme_constant_override("separation", 16)
-	vbox.add_child(_buttons_row)
+	scroll.add_child(_buttons_row)
 
 	var cancel_btn := Button.new()
 	cancel_btn.text = tr("Cancel")
@@ -52,21 +58,33 @@ func _ready() -> void:
 	cancel_btn.pressed.connect(func() -> void: hide(); cancelled.emit())
 	vbox.add_child(cancel_btn)
 
+const _BASE_BTN_SIZE: Vector2 = Vector2(200, 64)
+const _MIN_BTN_SCALE: float = 0.5
+
 func show_cost(card_name: String, cost: int, affordable: Array) -> void:
 	_title.text = card_name
 	_hint.text = tr("Choose supply to pay %d:") % cost
 	for child: Node in _buttons_row.get_children():
 		child.queue_free()
+	# Shrinks buttons to fit rather than letting the row silently overflow
+	# past the panel once affordable.size() gets large (valid_payment_colors
+	# can return all 6 colors) — see ChoicePopup.fit_scale for why. Only
+	# ever shrinks (min 1.0), since this panel's buttons were sized for a
+	# fixed look at the common low-count case, not designed to grow.
+	var avail_w: float = get_viewport_rect().size.x * 0.85
+	var scale: float = clampf(
+		ChoicePopup.fit_scale(affordable.size(), _BASE_BTN_SIZE.x, avail_w, 16.0), _MIN_BTN_SCALE, 1.0)
+	var btn_size: Vector2 = Vector2(_BASE_BTN_SIZE.x * scale, _BASE_BTN_SIZE.y)
 	for color: Variant in affordable:
-		_buttons_row.add_child(_make_btn(color as CardData.SupplyColor, cost))
+		_buttons_row.add_child(_make_btn(color as CardData.SupplyColor, cost, btn_size, scale))
 	show()
 
-func _make_btn(color: CardData.SupplyColor, cost: int) -> Button:
+func _make_btn(color: CardData.SupplyColor, cost: int, btn_size: Vector2, scale: float) -> Button:
 	var btn := Button.new()
 	btn.text = tr("%s ×%d") % [CardData.color_name(color), cost]
-	btn.add_theme_font_size_override("font_size", 26)
+	btn.add_theme_font_size_override("font_size", clampi(roundi(26.0 * scale), 14, 26))
 	btn.add_theme_color_override("font_color", CardData.color_tint(color))
-	btn.custom_minimum_size = Vector2(200, 64)
+	btn.custom_minimum_size = btn_size
 	btn.pressed.connect(func() -> void:
 		supply_chosen.emit(color)
 		hide()

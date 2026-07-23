@@ -174,21 +174,40 @@ func show_multiselect_card_choices(prompt: String, cards: Array[CardData], max_s
 # container instead of shrinking further into illegibility.
 const _CARD_MIN_SCALE: float = 0.55
 
+# General "N same-width items must fit within an available row" rule: any
+# panel laying out a variable-count row of fixed-width items (card art,
+# sector tiles, supply/color buttons, ...) should reuse this instead of
+# re-deriving its own version. Returns the RAW scale needed for `count`
+# items (each base_w wide, `separation` apart) to fit avail_w — callers
+# combine it with their own height/aspect constraints and floor (see
+# _card_row_grow_scale below for the card-art case, or supply_cost_panel.gd
+# for a plain-width case) rather than this doing it for them, since what
+# "too small" means differs per use.
+#
+# This exists because _card_row_grow_scale used to floor at 1.0 (grow only,
+# never shrink): once there were enough options (~4+), the row grew past
+# the visible panel with no working scrollbar (horizontal_scroll_mode was
+# never explicitly set, and the width-fitting call was missing from two of
+# the three code paths that populate a row), so extra choices were silently
+# unreachable — e.g. Inflatable Hull's free-sector-gain choice, whose "gain
+# a Liquids sector" option went missing this way despite being correctly
+# computed as eligible.
+static func fit_scale(count: int, base_w: float, avail_w: float, separation: float) -> float:
+	var per_item_w: float = (avail_w - separation * float(max(count - 1, 0))) / float(max(count, 1))
+	return per_item_w / base_w
+
 # Grows each card image beyond its base size when there's room to spare (e.g.
 # a single revealed card fills most of the available screen space), and
 # shrinks it when there isn't — down to _CARD_MIN_SCALE, past which point it
-# relies on the scroll container instead. This used to floor at 1.0 (never
-# shrink), which silently overflowed the row for ~4+ options: the row grew
-# past the screen with no visible/discoverable scrollbar, so extra choices
-# were effectively unreachable (e.g. Inflatable Hull's free-sector-gain
-# choice, whose "gain a Liquids sector" option went missing this way even
-# though it was correctly computed as eligible).
+# relies on the scroll container instead.
 func _card_row_grow_scale(count: int, base_sz: Vector2) -> float:
 	var separation: float = _buttons_row.get_theme_constant("separation")
 	var vp_size: Vector2 = get_viewport_rect().size
-	var avail_w: float = (vp_size.x * _CARD_ROW_WIDTH_FRACTION - separation * max(count - 1, 0)) / max(count, 1)
+	var avail_w: float = vp_size.x * _CARD_ROW_WIDTH_FRACTION
 	var avail_h: float = vp_size.y * _CARD_ROW_HEIGHT_FRACTION - _CARD_LABEL_RESERVE
-	return max(_CARD_MIN_SCALE, min(avail_w / base_sz.x, avail_h / base_sz.y))
+	var w_scale: float = fit_scale(count, base_sz.x, avail_w, separation)
+	var h_scale: float = avail_h / base_sz.y
+	return max(_CARD_MIN_SCALE, min(w_scale, h_scale))
 
 func _build_card_rows(cards: Array[CardData], on_click: Callable, advanced_flags: Array[bool] = []) -> void:
 	for i: int in cards.size():
