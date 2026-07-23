@@ -15,25 +15,34 @@ extends RefCounted
 #   1-G Thrust         — gain 1 Thrust per 1-G Thrust on the ENTIRE board when any sector completes
 #   Biodomes           — draw 1 per Biodomes anywhere on the board when any Liquids card is placed
 
-static func get_colocated_steps(placed_card: CardData, slot: SectorSlot) -> Array[Dictionary]:
+static func get_colocated_steps(placed_card: CardData, placed_card_node: Node3D, slot: SectorSlot) -> Array[Dictionary]:
 	var steps: Array[Dictionary] = []
 	for card_node: Node3D in slot.get_all_placed_cards():
 		var cd: CardData = card_node.get("card_data")
 		if cd == null:
 			continue
+		# Crops/Living Hull/Quantum Archives trigger off "the next card placed
+		# here" — they must never fire off their own placement. get_all_placed_cards()
+		# already includes the card just placed (this runs after it's registered
+		# in the slot), and all three happen to carry a printed star themselves,
+		# so without this check placing one would immediately trigger its own
+		# effect against its own star count. Insects has no such self-exclusion
+		# need — _is_new_color() already excludes the placed card on its own.
+		var is_self: bool = card_node == placed_card_node
 		match cd.card_name:
 			"Insects":
 				if _is_new_color(placed_card, slot):
 					steps.append({type = "store_on_slot", color = placed_card.color, amount = 1, _source_name = "Insects"})
 			"Crops":
-				if placed_card.stars > 0:
+				if not is_self and placed_card.stars > 0:
 					steps.append({type = "gain_supply", color = CardData.SupplyColor.ORGANIX, amount = placed_card.stars, _source_name = "Crops"})
 			"Living Hull":
-				if placed_card.stars > 0:
+				if not is_self and placed_card.stars > 0:
 					steps.append({type = "draw", count = placed_card.stars, _source_name = "Living Hull"})
 			"Quantum Archives":
-				for _i: int in placed_card.stars:
-					steps.append(CardData.tag_step_source(CardData.color_store_choice("Quantum Archives — store which supply?", true), "Quantum Archives"))
+				if not is_self:
+					for _i: int in placed_card.stars:
+						steps.append(CardData.tag_step_source(CardData.color_store_choice("Quantum Archives — store which supply?", true), "Quantum Archives"))
 	return steps
 
 # Checks all sector slots for board-wide Always triggers when a sector completes.

@@ -2021,7 +2021,7 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	_effect_queue.clear()
 
 	var always_steps: Array[Dictionary] = []
-	always_steps.append_array(AlwaysEffects.get_colocated_steps(card.card_data, slot))
+	always_steps.append_array(AlwaysEffects.get_colocated_steps(card.card_data, card, slot))
 	always_steps.append_array(AlwaysEffects.get_board_wide_placement_steps(card, $Board.get_all_sector_slots()))
 	always_steps.append_array(AlwaysEffects.get_board_wide_steps(slot, $Board.get_all_sector_slots()))
 	always_steps.append_array(AlwaysEffects.get_global_expedition_steps(card.card_data, $Board.get_all_placed_expeditions()))
