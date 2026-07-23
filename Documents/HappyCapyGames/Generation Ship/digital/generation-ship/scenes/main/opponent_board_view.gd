@@ -6,6 +6,25 @@ extends RefCounted
 # cache main.gd already owns and keeps updated via state-broadcast RPCs.
 # Holds no state of its own — operates on the Main node passed in.
 
+const CARD_ASPECT: float = 183.0 / 130.0  # height / width, matches the physical card proportions
+const CARD_MAX_W: float = 240.0
+const CARD_MIN_W: float = 60.0
+const CARD_ROW_SPACING: int = 16
+# Rough allowance for ScifiPanel's content margin + the outer list's vertical
+# scrollbar — used to estimate how much width a card row actually has to work
+# with, so cards can be sized to always fit without ever needing their own
+# horizontal scrollbar.
+const ROW_MARGIN: float = 60.0
+
+# Shrinks cards to fit `count` of them side by side within the estimated
+# available row width, instead of a fixed size that overflows into a
+# horizontal scrollbar once enough cards are present.
+static func _dynamic_card_size(avail_w: float, count: int) -> Vector2:
+	var n: int = maxi(count, 1)
+	var card_w: float = (avail_w - CARD_ROW_SPACING * float(n - 1)) / float(n)
+	card_w = clampf(card_w, CARD_MIN_W, CARD_MAX_W)
+	return Vector2(card_w, card_w * CARD_ASPECT)
+
 static func setup_enemy_screen_display(main: Main) -> void:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -366,6 +385,7 @@ static func build_opp_sector_block(main: Main, slot: Dictionary) -> Control:
 	var is_adv: bool = bool(slot.get("sector_advanced", false))
 	var tech_names: Array = slot.get("tech_names", []) as Array
 	var sector_cd: CardData = CardDatabase.find_sector_by_name(sector_name, is_adv)
+	var avail_w: float = main.opp_info_panel.get_viewport_rect().size.x - ROW_MARGIN
 
 	var block: VBoxContainer = VBoxContainer.new()
 	block.add_theme_constant_override("separation", 10)
@@ -377,18 +397,12 @@ static func build_opp_sector_block(main: Main, slot: Dictionary) -> Control:
 		Color(1.0, 0.90, 0.50) if is_adv else Color(0.80, 0.90, 1.0))
 	block.add_child(hdr)
 
-	var cards_scroll: ScrollContainer = ScrollContainer.new()
-	cards_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	cards_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	cards_scroll.custom_minimum_size = Vector2(0, 410)
-	block.add_child(cards_scroll)
-
 	var cards_row: HBoxContainer = HBoxContainer.new()
-	cards_row.add_theme_constant_override("separation", 16)
-	cards_row.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	cards_scroll.add_child(cards_row)
+	cards_row.add_theme_constant_override("separation", CARD_ROW_SPACING)
+	block.add_child(cards_row)
 
-	cards_row.add_child(build_detail_card(sector_cd, is_adv, sector_name))
+	var card_size: Vector2 = _dynamic_card_size(avail_w, 1 + tech_names.size())
+	cards_row.add_child(build_detail_card(sector_cd, is_adv, sector_name, card_size))
 
 	if not tech_names.is_empty():
 		var vsep: VSeparator = VSeparator.new()
@@ -397,27 +411,75 @@ static func build_opp_sector_block(main: Main, slot: Dictionary) -> Control:
 		for t: Variant in tech_names:
 			var t_name: String = str(t)
 			var tech_cd: CardData = CardDatabase.find_tech_by_name(t_name)
-			cards_row.add_child(build_detail_card(tech_cd, false, t_name))
+			cards_row.add_child(build_detail_card(tech_cd, false, t_name, card_size))
 
 	var stored_supply: Dictionary = slot.get("stored_supply", {}) as Dictionary
 	var tucked_resolved: Array = []
 	for tuck_v: Variant in (slot.get("tucked_cards", []) as Array):
 		var tuck: Dictionary = tuck_v as Dictionary
 		var face_up: bool = bool(tuck.get("face_up", false))
-		var resolved_cd: CardData = CardDatabase.find_any_by_name(str(tuck.get("name", ""))) if face_up else null
-		tucked_resolved.append({"data": resolved_cd, "face_up": face_up})
+		var tuck_name: String = str(tuck.get("name", ""))
+		var resolved_cd: CardData = CardDatabase.find_any_by_name(tuck_name) if face_up else null
+		tucked_resolved.append({"data": resolved_cd, "face_up": face_up, "name": tuck_name})
 
-	if SectorInfoPopup.has_stored_supply(stored_supply) or not tucked_resolved.is_empty():
-		SectorInfoPopup.append_supply_and_tucked_sections(
-			block, main.opp_info_panel.get_viewport_rect().size, stored_supply, tucked_resolved)
+	if SectorInfoPopup.has_stored_supply(stored_supply):
+		block.add_child(SectorInfoPopup.make_section_label(main.tr("Stored Supplies")))
+		block.add_child(SectorInfoPopup.make_supply_row(stored_supply))
+
+	var faceup: Array = tucked_resolved.filter(func(t: Dictionary) -> bool: return t.get("face_up", false))
+	if not faceup.is_empty():
+		block.add_child(SectorInfoPopup.make_section_label(main.tr("Faceup Tucked")))
+		block.add_child(build_tucked_row(faceup, true, avail_w))
+
+	var facedown: Array = tucked_resolved.filter(func(t: Dictionary) -> bool: return not t.get("face_up", false))
+	if not facedown.is_empty():
+		block.add_child(SectorInfoPopup.make_section_label(main.tr("Facedown Tucked")))
+		block.add_child(build_tucked_row(facedown, false, avail_w))
 
 	return block
 
-static func build_detail_card(cd: CardData, is_adv: bool, fallback_name: String) -> Control:
+# Tucked cards get their own dynamically-sized row (sized independently from
+# the sector/tech row above, since it usually holds a different card count) —
+# NOT SectorInfoPopup.make_card_row, which sizes a single card to fill nearly
+# the whole popup width; that's correct for that popup's one-section-at-a-time
+# use case but wildly oversized dropped into this denser, multi-row layout.
+static func build_tucked_row(cards: Array, face_up: bool, avail_w: float) -> Control:
+	var card_size: Vector2 = _dynamic_card_size(avail_w, cards.size())
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", CARD_ROW_SPACING)
+	for tuck_v: Variant in cards:
+		var tuck: Dictionary = tuck_v as Dictionary
+		if face_up:
+			var cd: CardData = tuck.get("data") as CardData
+			row.add_child(build_detail_card(cd, false, str(tuck.get("name", "")), card_size))
+		else:
+			row.add_child(build_facedown_card(card_size))
+	return row
+
+static func build_facedown_card(card_size: Vector2) -> Control:
+	var outer: PanelContainer = PanelContainer.new()
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = Color(0.05, 0.08, 0.16)
+	style.border_color = Color(0.35, 0.38, 0.5)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(4)
+	style.set_content_margin_all(6)
+	outer.add_theme_stylebox_override("panel", style)
+
+	var art: TextureRect = TextureRect.new()
+	art.texture = ImageCache.get_texture(SectorInfoPopup.TECH_BACK_PATH)
+	art.custom_minimum_size = card_size
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	outer.add_child(art)
+	return outer
+
+static func build_detail_card(cd: CardData, is_adv: bool, fallback_name: String, card_size: Vector2) -> Control:
 	var supply_color: CardData.SupplyColor = CardData.SupplyColor.DUST
 	if cd:
 		supply_color = cd.adv_color if is_adv else cd.color
 	var border_col: Color = CardData.color_tint(supply_color)
+	var scale: float = card_size.x / CARD_MAX_W
 
 	var outer: PanelContainer = PanelContainer.new()
 	var style: StyleBoxFlat = StyleBoxFlat.new()
@@ -425,10 +487,7 @@ static func build_detail_card(cd: CardData, is_adv: bool, fallback_name: String)
 	style.border_color = border_col
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(4)
-	style.content_margin_left = 6
-	style.content_margin_right = 6
-	style.content_margin_top = 6
-	style.content_margin_bottom = 6
+	style.set_content_margin_all(6)
 	outer.add_theme_stylebox_override("panel", style)
 
 	var vbox: VBoxContainer = VBoxContainer.new()
@@ -443,31 +502,32 @@ static func build_detail_card(cd: CardData, is_adv: bool, fallback_name: String)
 	if tex:
 		var art: TextureRect = TextureRect.new()
 		art.texture = tex
-		art.custom_minimum_size = Vector2(240, 336)
+		art.custom_minimum_size = card_size
 		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		vbox.add_child(art)
 	else:
 		var placeholder: ColorRect = ColorRect.new()
 		placeholder.color = border_col.darkened(0.55)
-		placeholder.custom_minimum_size = Vector2(240, 336)
+		placeholder.custom_minimum_size = card_size
 		vbox.add_child(placeholder)
 
 	var card_name: String = ((cd.adv_name if is_adv else cd.card_name) if cd else fallback_name)
-	var name_lbl: Label = Label.new()
-	name_lbl.text = card_name
-	name_lbl.add_theme_font_size_override("font_size", 14)
-	name_lbl.add_theme_color_override("font_color",
-		Color(1.0, 0.90, 0.50) if is_adv else Color(0.85, 0.92, 1.0))
-	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	name_lbl.custom_minimum_size = Vector2(240, 0)
-	vbox.add_child(name_lbl)
+	if not card_name.is_empty():
+		var name_lbl: Label = Label.new()
+		name_lbl.text = card_name
+		name_lbl.add_theme_font_size_override("font_size", clampi(roundi(14.0 * scale), 9, 14))
+		name_lbl.add_theme_color_override("font_color",
+			Color(1.0, 0.90, 0.50) if is_adv else Color(0.85, 0.92, 1.0))
+		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		name_lbl.custom_minimum_size = Vector2(card_size.x, 0)
+		vbox.add_child(name_lbl)
 
 	if cd and cd.stars > 0:
 		var stars_lbl: Label = Label.new()
 		stars_lbl.text = "⭐".repeat(cd.stars)
-		stars_lbl.add_theme_font_size_override("font_size", 13)
+		stars_lbl.add_theme_font_size_override("font_size", clampi(roundi(13.0 * scale), 8, 13))
 		stars_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		vbox.add_child(stars_lbl)
 
