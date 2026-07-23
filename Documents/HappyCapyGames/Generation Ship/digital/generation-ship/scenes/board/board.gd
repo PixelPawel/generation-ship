@@ -79,6 +79,7 @@ var _prepaid_market_notified: bool = false
 var _pending_placement_card: Node3D = null
 var _pending_placement_slot: SectorSlot = null
 var _pending_placement_is_tech: bool = false
+var _pending_placement_origin: DragOrigin = DragOrigin.NONE
 var _placement_confirm_pending: bool = false
 @onready var _sector_row: Node3D = $SectorRow
 @onready var _market: Node3D = $SectorMarket
@@ -793,18 +794,21 @@ func _end_arrow_drag() -> void:
 		if ctype != CardData.CardType.SECTOR and ctype != CardData.CardType.EXPEDITION:
 			_dragged_card.visible = true
 
-# Re-arms the drag-arrow visual after a placement click that missed every
-# slot. Only used for prepaid (already-paid-for) market cards: money's
-# already spent and market_card_taken has already fired, so there's no
-# "cancel" here — only "keep dragging and try again."
-func _resume_prepaid_drag_arrow() -> void:
+# Re-arms the drag-arrow visual — either after a placement click that missed
+# every slot (prepaid market cards only: money's already spent, so there's no
+# "cancel" there, just "keep dragging and try again"), or after the
+# placement-confirm panel's own Cancel, for any origin. Mirrors _begin_drag's
+# own origin -> "from" point logic so a re-armed hand-card arrow starts from
+# the hand rather than the (irrelevant, for that origin) market position.
+func _resume_drag_arrow() -> void:
 	if _drag_arrow == null:
 		return
 	_is_arrow_drag = true
 	var cam: Camera3D = get_viewport().get_camera_3d()
 	if not cam:
 		return
-	var from_2d: Vector2 = cam.unproject_position(market_origin_3d)
+	var from_3d: Vector3 = market_origin_3d if _drag_origin == DragOrigin.MARKET else (_hand.global_position if _hand else _drag_start_global_pos)
+	var from_2d: Vector2 = cam.unproject_position(from_3d)
 	var snap_slot: SectorSlot = _find_nearest_empty_sector_slot() if _is_sector_card() else _find_nearest_tech_slot()
 	if snap_slot == null:
 		snap_slot = _find_nearest_empty_sector_slot(INF) if _is_sector_card() else _find_nearest_tech_slot(INF)
@@ -954,13 +958,13 @@ func _try_drop_sector() -> void:
 	var target_slot: SectorSlot = _find_nearest_empty_sector_slot()
 	if not target_slot:
 		if _is_prepaid_placement:
-			_resume_prepaid_drag_arrow()
+			_resume_drag_arrow()
 			return
 		_handle_failed_drop()
 		return
 	var placed: Node3D = _dragged_card
 	if _is_prepaid_placement:
-		_request_placement_confirm(placed, target_slot, false)
+		_request_placement_confirm(placed, target_slot, false, DragOrigin.MARKET)
 		return
 	if _is_free_gain:
 		_dragged_card = null
@@ -981,13 +985,9 @@ func _try_drop_sector() -> void:
 	var cd: CardData = placed.card_data
 	if not _resolve_card_payment(placed, target_slot, false):
 		return
-	_dragged_card = null
-	_drag_origin = DragOrigin.NONE
-	target_slot.accept_card(placed)
-	placed.place()
-	card_placed.emit(placed, target_slot)
 	if origin == DragOrigin.MARKET and cd:
 		market_card_taken.emit(cd)
+	_request_placement_confirm(placed, target_slot, false, origin)
 
 func _try_drop_tech() -> void:
 	if _drag_origin == DragOrigin.HAND and _major_action_taken:
@@ -996,36 +996,37 @@ func _try_drop_tech() -> void:
 	var best_sector: SectorSlot = _find_nearest_tech_slot()
 	if not best_sector:
 		if _is_prepaid_placement:
-			_resume_prepaid_drag_arrow()
+			_resume_drag_arrow()
 			return
 		_handle_failed_drop()
 		return
 	var placed: Node3D = _dragged_card
 	if _is_prepaid_placement:
-		_request_placement_confirm(placed, best_sector, true)
+		_request_placement_confirm(placed, best_sector, true, DragOrigin.MARKET)
 		return
 	if _should_bid(_dragged_card):
 		_start_bid(_dragged_card, best_sector, true)
 		return
+	var origin: DragOrigin = _drag_origin
 	if not _resolve_card_payment(placed, best_sector, true):
 		return
-	_dragged_card = null
-	_drag_origin = DragOrigin.NONE
-	best_sector.accept_tech_card(placed)
-	placed.place()
-	var opt_levels: Array[int] = _update_optimize_state(best_sector)
-	card_placed.emit(placed, best_sector)
-	for level: int in opt_levels:
-		optimize_triggered.emit(best_sector, level)
+	_request_placement_confirm(placed, best_sector, true, origin)
 
-# A prepaid arrow-drop that found a valid target no longer places immediately
-# — it freezes the card in place (see _process's _placement_confirm_pending
-# guard) and asks main.gd to show a "Place X on Y?" panel first.
-func _request_placement_confirm(card: Node3D, slot: SectorSlot, is_tech: bool) -> void:
+# A drop that found a valid target no longer places immediately — it
+# freezes the card in place (see _process's _placement_confirm_pending
+# guard) and asks main.gd to show a "Place X on Y?" panel first. Used for
+# both a prepaid market arrow-drop and a regular hand/board drag once its
+# payment has resolved (origin is passed explicitly rather than read from
+# _drag_origin, since by the time a hand card's payment confirms,
+# _start_payment_confirm already nulled it — see cancel_pending_placement_to_arrow).
+func _request_placement_confirm(card: Node3D, slot: SectorSlot, is_tech: bool, origin: DragOrigin) -> void:
 	_placement_confirm_pending = true
 	_pending_placement_card = card
 	_pending_placement_slot = slot
 	_pending_placement_is_tech = is_tech
+	_pending_placement_origin = origin
+	_dragged_card = card
+	_drag_origin = origin
 	placement_confirm_required.emit(card, slot, is_tech)
 
 func confirm_pending_placement() -> void:
@@ -1037,6 +1038,7 @@ func confirm_pending_placement() -> void:
 	_pending_placement_card = null
 	_pending_placement_slot = null
 	_pending_placement_is_tech = false
+	_pending_placement_origin = DragOrigin.NONE
 	_placement_confirm_pending = false
 	_dragged_card = null
 	_drag_origin = DragOrigin.NONE
@@ -1057,15 +1059,22 @@ func confirm_pending_placement() -> void:
 
 # The confirm panel's own Cancel: keeps the payment (unlike right-click
 # during targeting, which refunds it) and just re-arms the arrow so the
-# player can aim at a different slot.
+# player can aim at a different slot. Restores _dragged_card/_drag_origin
+# from the pending-placement state first — for a hand card, both were
+# already cleared back when its payment panel first opened.
 func cancel_pending_placement_to_arrow() -> void:
 	if not _pending_placement_card:
 		return
+	var card: Node3D = _pending_placement_card
+	var origin: DragOrigin = _pending_placement_origin
 	_pending_placement_card = null
 	_pending_placement_slot = null
 	_pending_placement_is_tech = false
+	_pending_placement_origin = DragOrigin.NONE
 	_placement_confirm_pending = false
-	_resume_prepaid_drag_arrow()
+	_dragged_card = card
+	_drag_origin = origin
+	_resume_drag_arrow()
 
 func _should_bid(card: Node3D) -> bool:
 	if _is_free_gain:
@@ -1290,19 +1299,9 @@ func confirm_payment() -> void:
 	if not slot:
 		_begin_prepaid_drag(card, pay_amounts)
 		return
-	if is_tech:
-		slot.accept_tech_card(card)
-		card.place()
-		var opt_levels: Array[int] = _update_optimize_state(slot)
-		card_placed.emit(card, slot)
-		for level: int in opt_levels:
-			optimize_triggered.emit(slot, level)
-	else:
-		slot.accept_card(card)
-		card.place()
-		card_placed.emit(card, slot)
 	if pay_origin == DragOrigin.MARKET and card.card_data:
 		market_card_taken.emit(card.card_data)
+	_request_placement_confirm(card, slot, is_tech, pay_origin)
 
 func cancel_payment_confirm() -> void:
 	if not _pending_card:
