@@ -4,9 +4,18 @@ extends Node3D
 const TechSlotScript := preload("res://scenes/board/tech_slot.gd")
 const TECH_BACK_PATH := "res://assets/cards/tech/GS_Techs_Back_44x67mm.png"
 
-# Card icon paths, indexed by SupplyColor enum — used both for the stored-
-# supply badges and the floating optimize-requirement display (which colors
-# trigger each Optimize level).
+# Supply icon paths, indexed by SupplyColor enum (DUST=0 .. THRUST=5)
+const SUPPLY_ICON_PATHS := [
+	"res://assets/ui/supply/Dust.png",
+	"res://assets/ui/supply/Metals.png",
+	"res://assets/ui/supply/Liquids.png",
+	"res://assets/ui/supply/Organix.png",
+	"res://assets/ui/supply/Electrix.png",
+	"res://assets/ui/supply/Thrust.png",
+]
+
+# Card icon paths, indexed by SupplyColor enum — used for the floating
+# optimize-requirement display (which colors trigger each Optimize level).
 const CARD_ICON_PATHS := [
 	"res://assets/ui/cards/Dust_Card.png",
 	"res://assets/ui/cards/Metals_Card.png",
@@ -95,12 +104,11 @@ func _setup_display() -> void:
 	const DISC_Y: float = 0.15
 	const X_START: float = -0.37
 	const X_STEP: float = 0.148
-	const SUPPLY_ICON_PIXEL_SIZE: float = 0.00014
 
 	for i: int in 6:
 		var spr := Sprite3D.new()
-		spr.texture = load(CARD_ICON_PATHS[i])
-		spr.pixel_size = SUPPLY_ICON_PIXEL_SIZE
+		spr.texture = load(SUPPLY_ICON_PATHS[i])
+		spr.pixel_size = 0.00004
 		spr.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		spr.no_depth_test = true
 		spr.render_priority = 2
@@ -110,7 +118,7 @@ func _setup_display() -> void:
 		_supply_sprites.append(spr)
 
 		var lbl := _make_badge(
-			Vector3(X_START + i * X_STEP, DISC_Y + 0.045, DISC_Z), Color.WHITE, true)
+			Vector3(X_START + i * X_STEP, DISC_Y + 0.01, DISC_Z), Color.WHITE, true)
 		_supply_labels.append(lbl)
 
 	_faceup_vp_label   = _make_badge(Vector3(-0.23, 0.15, 0.52), Color(1.0, 0.95, 0.3))
@@ -398,17 +406,17 @@ func _setup_max_optimizations(card: Node3D) -> void:
 
 const OPT_ICON_TEX_SIZE: Vector2 = Vector2(701.0, 908.0)  # matches every card icon PNG
 const OPT_ICON_PIXEL_SIZE: float = 0.0001
-const OPT_OUTLINE_MARGIN: float = 0.008
 const OPT_COLUMN_X: float = -0.32
 const OPT_BASE_Y: float = 0.24
 const OPT_ICON_Y_STEP: float = 0.115
 const OPT_LEVEL_GAP_Y: float = 0.05
-const OPT_PENDING_COLOR: Color = Color(0.82, 0.16, 0.16)
-const OPT_DONE_COLOR: Color = Color(0.30, 0.85, 0.35)
+const OPT_PENDING_EMISSION: Color = Color(0.9, 0.15, 0.15)
+const OPT_DONE_EMISSION: Color = Color(0.25, 0.95, 0.35)
+const OPT_EMISSION_ENERGY: float = 0.8
 
 # Floating "recipe" icons in a vertical column on the sector's left side, one
 # icon per required color across all Optimize levels (per the Optimize 1/2/3
-# CSV columns) — each with a colored outline (red = pending, green = met).
+# CSV columns) — glowing red while pending, green once that level is met.
 # Built once at placement time since a slot's requirement set never changes
 # after accept_card() (dust vs. advanced is fixed then).
 func _build_optimize_display(card: Node3D) -> void:
@@ -440,36 +448,25 @@ func _build_optimize_display(card: Node3D) -> void:
 		cur_y += OPT_LEVEL_GAP_Y
 	refresh_optimize_display()
 
-# Fakes an outline around a Sprite3D icon with a slightly larger colored
-# plane rendered behind it (lower render_priority) — the card icons are
-# opaque rectangular renders with no transparent padding, so the plane's
-# edges peek out evenly on all sides like a border. Returns the outline's
-# material so refresh_optimize_display() can flip its color later.
+# A plain textured plane sitting at a real 3D position — no no_depth_test/
+# render_priority tricks, so it's properly occluded like any other object
+# instead of always drawing in front of everything. Returns the material so
+# refresh_optimize_display() can flip its emission color later.
 func _make_optimize_icon(pos: Vector3, tex_path: String, icon_w: float, icon_h: float) -> StandardMaterial3D:
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(icon_w, icon_h) + Vector2(OPT_OUTLINE_MARGIN, OPT_OUTLINE_MARGIN) * 2.0
-	var outline := MeshInstance3D.new()
-	outline.mesh = plane
+	plane.size = Vector2(icon_w, icon_h)
+	var mesh_inst := MeshInstance3D.new()
+	mesh_inst.mesh = plane
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	mat.no_depth_test = true
-	mat.render_priority = 1
-	mat.albedo_color = OPT_PENDING_COLOR
-	outline.material_override = mat
-	outline.position = pos
-	add_child(outline)
-	_optimize_nodes.append(outline)
-
-	var spr := Sprite3D.new()
-	spr.texture = load(tex_path)
-	spr.pixel_size = OPT_ICON_PIXEL_SIZE
-	spr.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	spr.no_depth_test = true
-	spr.render_priority = 2
-	spr.position = pos
-	add_child(spr)
-	_optimize_nodes.append(spr)
+	mat.albedo_texture = load(tex_path)
+	mat.emission_enabled = true
+	mat.emission_energy_multiplier = OPT_EMISSION_ENERGY
+	mesh_inst.material_override = mat
+	mesh_inst.position = pos
+	add_child(mesh_inst)
+	_optimize_nodes.append(mesh_inst)
 
 	return mat
 
@@ -479,15 +476,16 @@ func _clear_optimize_display() -> void:
 	_optimize_nodes.clear()
 	_optimize_icons.clear()
 
-# Flips a level's outline color once its requirement has been met —
-# triggered_levels is a permanent one-way flag (see OptimizeLogic), so this
-# only ever needs to move icons from "pending" to "done", never back.
+# Flips a level's icons from a red to a green emission glow once its
+# requirement has been met — triggered_levels is a permanent one-way flag
+# (see OptimizeLogic), so this only ever needs to move icons from "pending"
+# to "done", never back.
 func refresh_optimize_display() -> void:
 	for level_idx: int in _optimize_icons.size():
 		var done: bool = level_idx < triggered_levels.size() and triggered_levels[level_idx]
-		var color: Color = OPT_DONE_COLOR if done else OPT_PENDING_COLOR
+		var color: Color = OPT_DONE_EMISSION if done else OPT_PENDING_EMISSION
 		for mat: StandardMaterial3D in _optimize_icons[level_idx]:
-			mat.albedo_color = color
+			mat.emission = color
 
 func _on_placed_card_clicked(_card: Node3D) -> void:
 	slot_clicked.emit(self)
