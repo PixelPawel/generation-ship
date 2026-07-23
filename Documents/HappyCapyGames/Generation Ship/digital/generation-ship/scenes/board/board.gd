@@ -80,6 +80,7 @@ var _pending_placement_card: Node3D = null
 var _pending_placement_slot: SectorSlot = null
 var _pending_placement_is_tech: bool = false
 var _pending_placement_origin: DragOrigin = DragOrigin.NONE
+var _pending_placement_spent: Dictionary = {}
 var _placement_confirm_pending: bool = false
 @onready var _sector_row: Node3D = $SectorRow
 @onready var _market: Node3D = $SectorMarket
@@ -973,7 +974,7 @@ func _try_drop_sector() -> void:
 		return
 	var placed: Node3D = _dragged_card
 	if _is_prepaid_placement:
-		_request_placement_confirm(placed, target_slot, false, DragOrigin.MARKET)
+		_request_placement_confirm(placed, target_slot, false, DragOrigin.MARKET, _prepaid_spent_amounts)
 		return
 	if _is_free_gain:
 		_dragged_card = null
@@ -1011,7 +1012,7 @@ func _try_drop_tech() -> void:
 		return
 	var placed: Node3D = _dragged_card
 	if _is_prepaid_placement:
-		_request_placement_confirm(placed, best_sector, true, DragOrigin.MARKET)
+		_request_placement_confirm(placed, best_sector, true, DragOrigin.MARKET, _prepaid_spent_amounts)
 		return
 	if _should_bid(_dragged_card):
 		_start_bid(_dragged_card, best_sector, true)
@@ -1028,12 +1029,13 @@ func _try_drop_tech() -> void:
 # payment has resolved (origin is passed explicitly rather than read from
 # _drag_origin, since by the time a hand card's payment confirms,
 # _start_payment_confirm already nulled it — see cancel_pending_placement_to_arrow).
-func _request_placement_confirm(card: Node3D, slot: SectorSlot, is_tech: bool, origin: DragOrigin) -> void:
+func _request_placement_confirm(card: Node3D, slot: SectorSlot, is_tech: bool, origin: DragOrigin, spent: Dictionary = {}) -> void:
 	_placement_confirm_pending = true
 	_pending_placement_card = card
 	_pending_placement_slot = slot
 	_pending_placement_is_tech = is_tech
 	_pending_placement_origin = origin
+	_pending_placement_spent = spent.duplicate()
 	_dragged_card = card
 	_drag_origin = origin
 	placement_confirm_required.emit(card, slot, is_tech)
@@ -1048,6 +1050,7 @@ func confirm_pending_placement() -> void:
 	_pending_placement_slot = null
 	_pending_placement_is_tech = false
 	_pending_placement_origin = DragOrigin.NONE
+	_pending_placement_spent = {}
 	_placement_confirm_pending = false
 	_dragged_card = null
 	_drag_origin = DragOrigin.NONE
@@ -1066,21 +1069,32 @@ func confirm_pending_placement() -> void:
 		card.place()
 		card_placed.emit(card, slot)
 
-# The confirm panel's own Cancel: keeps the payment (unlike right-click
-# during targeting, which refunds it) and just re-arms the arrow so the
-# player can aim at a different slot. Restores _dragged_card/_drag_origin
-# from the pending-placement state first — for a hand card, both were
-# already cleared back when its payment panel first opened.
+# The confirm panel's own Cancel. For a market card (prepaid purchase or
+# direct market drag), this keeps the payment and just re-arms the arrow so
+# the player can aim at a different slot. For a hand card, there's no "try a
+# different slot" — it refunds whatever was spent, hands the card back, and
+# leaves the targeting arrow cancelled rather than resuming it.
 func cancel_pending_placement_to_arrow() -> void:
 	if not _pending_placement_card:
 		return
 	var card: Node3D = _pending_placement_card
 	var origin: DragOrigin = _pending_placement_origin
+	var spent: Dictionary = _pending_placement_spent
 	_pending_placement_card = null
 	_pending_placement_slot = null
 	_pending_placement_is_tech = false
 	_pending_placement_origin = DragOrigin.NONE
+	_pending_placement_spent = {}
 	_placement_confirm_pending = false
+	if origin == DragOrigin.HAND:
+		_dragged_card = null
+		_drag_origin = DragOrigin.NONE
+		for color: CardData.SupplyColor in spent:
+			_supply_ui.add_supply(color, spent[color])
+		card.visible = true
+		card.end_drag()
+		_hand.add_card(card, true)
+		return
 	_dragged_card = card
 	_drag_origin = origin
 	_resume_drag_arrow()
@@ -1310,7 +1324,7 @@ func confirm_payment() -> void:
 		return
 	if pay_origin == DragOrigin.MARKET and card.card_data:
 		market_card_taken.emit(card.card_data)
-	_request_placement_confirm(card, slot, is_tech, pay_origin)
+	_request_placement_confirm(card, slot, is_tech, pay_origin, pay_amounts)
 
 func cancel_payment_confirm() -> void:
 	if not _pending_card:
