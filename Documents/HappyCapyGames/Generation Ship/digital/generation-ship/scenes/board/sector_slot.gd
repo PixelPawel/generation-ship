@@ -104,6 +104,10 @@ func _setup_display() -> void:
 	const DISC_Y: float = 0.15
 	const X_START: float = -0.37
 	const X_STEP: float = 0.148
+	# Absolute world Y, applied after each node joins the tree — the slot's
+	# own transform is tilted, so a fixed local Y doesn't reliably read as
+	# "just above the slot" in world space (see the optimize icons' same fix).
+	const SUPPLY_ICON_WORLD_Y: float = 0.540
 
 	for i: int in 6:
 		var spr := Sprite3D.new()
@@ -115,10 +119,12 @@ func _setup_display() -> void:
 		spr.position = Vector3(X_START + i * X_STEP, DISC_Y, DISC_Z)
 		spr.visible = false
 		add_child(spr)
+		spr.global_position.y = SUPPLY_ICON_WORLD_Y
 		_supply_sprites.append(spr)
 
 		var lbl := _make_badge(
 			Vector3(X_START + i * X_STEP, DISC_Y + 0.01, DISC_Z), Color.WHITE, true)
+		lbl.global_position.y = SUPPLY_ICON_WORLD_Y + 0.01
 		_supply_labels.append(lbl)
 
 	_faceup_vp_label   = _make_badge(Vector3(-0.23, 0.15, 0.52), Color(1.0, 0.95, 0.3))
@@ -407,7 +413,12 @@ func _setup_max_optimizations(card: Node3D) -> void:
 const OPT_ICON_TEX_SIZE: Vector2 = Vector2(701.0, 908.0)  # matches every card icon PNG
 const OPT_ICON_PIXEL_SIZE: float = 0.0001
 const OPT_COLUMN_X: float = -0.32
-const OPT_ICON_Y: float = 0.24
+# Set as an absolute world Y (not a local offset) after adding each icon to
+# the tree — the slot's own transform is tilted ~12.6 degrees, so a fixed
+# local Y/Z would land at a different world height depending on how far
+# along Z that particular icon sits. This keeps every icon at the same
+# world height regardless.
+const OPT_ICON_WORLD_Y: float = 0.280
 const OPT_BASE_Z: float = 0.0
 const OPT_ICON_Z_STEP: float = 0.115
 const OPT_LEVEL_GAP_Z: float = 0.05
@@ -443,7 +454,7 @@ func _build_optimize_display(card: Node3D) -> void:
 		var row: Array = []
 		for color_id: int in req:
 			var tex_path: String = ANY_CARD_ICON_PATH if color_id == CardData.OPTIMIZE_ANY else CARD_ICON_PATHS[color_id]
-			row.append(_make_optimize_icon(Vector3(OPT_COLUMN_X, OPT_ICON_Y, cur_z), tex_path, icon_w, icon_h))
+			row.append(_make_optimize_icon(Vector3(OPT_COLUMN_X, 0.0, cur_z), tex_path, icon_w, icon_h))
 			cur_z += OPT_ICON_Z_STEP
 		_optimize_icons[level_idx] = row
 		cur_z += OPT_LEVEL_GAP_Z
@@ -467,6 +478,7 @@ func _make_optimize_icon(pos: Vector3, tex_path: String, icon_w: float, icon_h: 
 	mesh_inst.position = pos
 	mesh_inst.rotation_degrees.x = -12.6
 	add_child(mesh_inst)
+	mesh_inst.global_position.y = OPT_ICON_WORLD_Y
 	_optimize_nodes.append(mesh_inst)
 
 	return mat
