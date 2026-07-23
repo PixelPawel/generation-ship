@@ -324,199 +324,76 @@ static func build_opp_info_panel(main: Main, peer_id: int) -> void:
 	hsep2.modulate = Color(0.4, 0.4, 0.5, 0.5)
 	outer.add_child(hsep2)
 
-	# ── Sector columns ──────────────────────────────────────────────────────────
-	var sectors_row: HBoxContainer = HBoxContainer.new()
-	sectors_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	sectors_row.add_theme_constant_override("separation", 8)
-	outer.add_child(sectors_row)
+	# ── Sectors ─────────────────────────────────────────────────────────────────
+	# One continuous scrollable list instead of a 6-slot grid you had to click
+	# into one sector at a time — that modal's tech-card row also had no
+	# scrollbar and silently clipped past 3 cards. Everything (sector art,
+	# attached techs, stored supply, tucked cards) is visible at a glance now;
+	# you just scroll down through the board instead of clicking in and out.
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	outer.add_child(scroll)
+
+	var sectors_list: VBoxContainer = VBoxContainer.new()
+	sectors_list.add_theme_constant_override("separation", 16)
+	sectors_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(sectors_list)
 
 	var slots: Array = snap.get("slots", []) as Array
 	var occupied_slots: Array = []
 	for sv: Variant in slots:
 		if bool((sv as Dictionary).get("occupied", false)):
 			occupied_slots.append(sv as Dictionary)
-	while occupied_slots.size() < 6:
-		occupied_slots.append({"occupied": false})
 
-	for slot_v: Variant in occupied_slots:
-		sectors_row.add_child(build_opp_sector_widget(main, slot_v as Dictionary))
-
-static func build_opp_sector_widget(main: Main, slot: Dictionary) -> Control:
-	var occupied: bool = bool(slot.get("occupied", false))
-	var sector_name: String = str(slot.get("sector_name", ""))
-	var is_adv: bool = bool(slot.get("sector_advanced", false))
-	var tech_names: Array = slot.get("tech_names", []) as Array
-
-	var cd: CardData = CardDatabase.find_sector_by_name(sector_name, is_adv) if occupied else null
-
-	var supply_color: CardData.SupplyColor = CardData.SupplyColor.DUST
-	if cd:
-		supply_color = cd.adv_color if is_adv else cd.color
-	var border_col: Color = CardData.color_tint(supply_color)
-
-	var outer: PanelContainer = PanelContainer.new()
-	outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	outer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.06, 0.09, 0.18, 0.95) if occupied else Color(0.04, 0.06, 0.12, 0.6)
-	panel_style.border_color = border_col if occupied else Color(0.25, 0.28, 0.38, 0.5)
-	panel_style.set_border_width_all(2)
-	panel_style.set_corner_radius_all(4)
-	panel_style.content_margin_left = 6
-	panel_style.content_margin_right = 6
-	panel_style.content_margin_top = 6
-	panel_style.content_margin_bottom = 6
-	outer.add_theme_stylebox_override("panel", panel_style)
-
-	var vbox: VBoxContainer = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 4)
-	outer.add_child(vbox)
-
-	if not occupied:
+	if occupied_slots.is_empty():
 		var empty_lbl: Label = Label.new()
-		empty_lbl.text = "—"
+		empty_lbl.text = main.tr("No sectors placed yet")
 		empty_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		empty_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		empty_lbl.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		empty_lbl.add_theme_font_size_override("font_size", 28)
-		empty_lbl.add_theme_color_override("font_color", Color(0.25, 0.28, 0.38, 0.6))
-		vbox.add_child(empty_lbl)
-		return outer
-
-	var img_url: String = ""
-	if cd:
-		img_url = cd.adv_image_url if is_adv else cd.image_url
-	var tex: Texture2D = ImageCache.get_texture(img_url) if not img_url.is_empty() else null
-
-	if tex:
-		var art: TextureRect = TextureRect.new()
-		art.texture = tex
-		art.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		vbox.add_child(art)
+		empty_lbl.add_theme_font_size_override("font_size", 18)
+		empty_lbl.add_theme_color_override("font_color", Color(0.5, 0.55, 0.65))
+		sectors_list.add_child(empty_lbl)
 	else:
-		var placeholder: ColorRect = ColorRect.new()
-		placeholder.color = border_col.darkened(0.55)
-		placeholder.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		vbox.add_child(placeholder)
+		for i: int in occupied_slots.size():
+			sectors_list.add_child(build_opp_sector_block(main, occupied_slots[i] as Dictionary))
+			if i < occupied_slots.size() - 1:
+				var sep: HSeparator = HSeparator.new()
+				sep.modulate = Color(0.4, 0.4, 0.5, 0.4)
+				sectors_list.add_child(sep)
 
-	var name_lbl: Label = Label.new()
-	name_lbl.text = ("▲ " if is_adv else "") + sector_name
-	name_lbl.add_theme_font_size_override("font_size", 13)
-	name_lbl.add_theme_color_override("font_color",
-		Color(1.0, 0.90, 0.50) if is_adv else Color(0.85, 0.92, 1.0))
-	name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_child(name_lbl)
-
-	if not tech_names.is_empty():
-		var sep: HSeparator = HSeparator.new()
-		sep.modulate = Color(0.35, 0.40, 0.55, 0.5)
-		vbox.add_child(sep)
-		for t: Variant in tech_names:
-			var t_lbl: Label = Label.new()
-			t_lbl.text = "• " + str(t)
-			t_lbl.add_theme_font_size_override("font_size", 11)
-			t_lbl.add_theme_color_override("font_color", Color(0.65, 0.80, 1.0))
-			t_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			vbox.add_child(t_lbl)
-
-	var stored_supply: Dictionary = slot.get("stored_supply", {}) as Dictionary
-	var stored_count: int = 0
-	for count: int in stored_supply.values():
-		stored_count += count
-	var tucked_count: int = (slot.get("tucked_cards", []) as Array).size()
-	if stored_count > 0 or tucked_count > 0:
-		var stash_lbl: Label = Label.new()
-		stash_lbl.text = "📦 %d" % (stored_count + tucked_count)
-		stash_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		stash_lbl.add_theme_font_size_override("font_size", 12)
-		stash_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
-		stash_lbl.tooltip_text = main.tr("Click to see stored supplies and tucked cards")
-		vbox.add_child(stash_lbl)
-
-	outer.mouse_filter = Control.MOUSE_FILTER_STOP
-	outer.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	outer.gui_input.connect(func(event: InputEvent) -> void:
-		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			show_opp_sector_detail(main, slot)
-	)
-
-	return outer
-
-
-static func show_opp_sector_detail(main: Main, slot: Dictionary) -> void:
-	var existing: Node = main.opp_info_panel.get_node_or_null("SectorDetail")
-	if existing:
-		existing.queue_free()
-
+static func build_opp_sector_block(main: Main, slot: Dictionary) -> Control:
 	var sector_name: String = str(slot.get("sector_name", ""))
 	var is_adv: bool = bool(slot.get("sector_advanced", false))
 	var tech_names: Array = slot.get("tech_names", []) as Array
-
 	var sector_cd: CardData = CardDatabase.find_sector_by_name(sector_name, is_adv)
 
-	var overlay: Control = Control.new()
-	overlay.name = "SectorDetail"
-	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	main.opp_info_panel.add_child(overlay)
-
-	var dim: ColorRect = ColorRect.new()
-	dim.color = Color(0.0, 0.0, 0.0, 0.78)
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	dim.mouse_filter = Control.MOUSE_FILTER_STOP
-	dim.gui_input.connect(func(event: InputEvent) -> void:
-		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			overlay.queue_free()
-	)
-	overlay.add_child(dim)
-
-	var center: CenterContainer = CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	overlay.add_child(center)
-
-	var panel: PanelContainer = PanelContainer.new()
-	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	var ps: StyleBoxFlat = StyleBoxFlat.new()
-	ps.bg_color = Color(0.06, 0.09, 0.20, 0.98)
-	ps.border_color = Color(0.35, 0.42, 0.62)
-	ps.set_border_width_all(2)
-	ps.set_corner_radius_all(6)
-	ps.content_margin_left = 24
-	ps.content_margin_right = 24
-	ps.content_margin_top = 20
-	ps.content_margin_bottom = 20
-	panel.add_theme_stylebox_override("panel", ps)
-	center.add_child(panel)
-
-	var inner: VBoxContainer = VBoxContainer.new()
-	inner.add_theme_constant_override("separation", 14)
-	panel.add_child(inner)
+	var block: VBoxContainer = VBoxContainer.new()
+	block.add_theme_constant_override("separation", 10)
 
 	var hdr: Label = Label.new()
 	hdr.text = ("▲ " if is_adv else "") + sector_name
-	hdr.add_theme_font_size_override("font_size", 26)
+	hdr.add_theme_font_size_override("font_size", 20)
 	hdr.add_theme_color_override("font_color",
 		Color(1.0, 0.90, 0.50) if is_adv else Color(0.80, 0.90, 1.0))
-	hdr.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	inner.add_child(hdr)
+	block.add_child(hdr)
 
-	var hsep_d: HSeparator = HSeparator.new()
-	hsep_d.modulate = Color(0.4, 0.4, 0.5, 0.5)
-	inner.add_child(hsep_d)
+	var cards_scroll: ScrollContainer = ScrollContainer.new()
+	cards_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	cards_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	cards_scroll.custom_minimum_size = Vector2(0, 410)
+	block.add_child(cards_scroll)
 
 	var cards_row: HBoxContainer = HBoxContainer.new()
 	cards_row.add_theme_constant_override("separation", 16)
-	inner.add_child(cards_row)
+	cards_row.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	cards_scroll.add_child(cards_row)
 
 	cards_row.add_child(build_detail_card(sector_cd, is_adv, sector_name))
 
 	if not tech_names.is_empty():
-		var vsep_d: VSeparator = VSeparator.new()
-		vsep_d.modulate = Color(0.4, 0.4, 0.5, 0.4)
-		cards_row.add_child(vsep_d)
+		var vsep: VSeparator = VSeparator.new()
+		vsep.modulate = Color(0.4, 0.4, 0.5, 0.4)
+		cards_row.add_child(vsep)
 		for t: Variant in tech_names:
 			var t_name: String = str(t)
 			var tech_cd: CardData = CardDatabase.find_tech_by_name(t_name)
@@ -531,24 +408,10 @@ static func show_opp_sector_detail(main: Main, slot: Dictionary) -> void:
 		tucked_resolved.append({"data": resolved_cd, "face_up": face_up})
 
 	if SectorInfoPopup.has_stored_supply(stored_supply) or not tucked_resolved.is_empty():
-		var stored_sep: HSeparator = HSeparator.new()
-		stored_sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
-		inner.add_child(stored_sep)
 		SectorInfoPopup.append_supply_and_tucked_sections(
-			inner, main.opp_info_panel.get_viewport_rect().size, stored_supply, tucked_resolved)
+			block, main.opp_info_panel.get_viewport_rect().size, stored_supply, tucked_resolved)
 
-	var close_sep: HSeparator = HSeparator.new()
-	close_sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
-	inner.add_child(close_sep)
-
-	var close_btn: Button = Button.new()
-	close_btn.text = "✕  Close"
-	close_btn.add_theme_font_size_override("font_size", 18)
-	close_btn.custom_minimum_size = Vector2(160, 44)
-	close_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	close_btn.pressed.connect(func() -> void: overlay.queue_free())
-	inner.add_child(close_btn)
-
+	return block
 
 static func build_detail_card(cd: CardData, is_adv: bool, fallback_name: String) -> Control:
 	var supply_color: CardData.SupplyColor = CardData.SupplyColor.DUST
