@@ -7,8 +7,8 @@ extends RefCounted
 # Holds no state of its own — operates on the Main node passed in.
 
 const CARD_ASPECT: float = 183.0 / 130.0  # height / width, matches the physical card proportions
-const CARD_MAX_W: float = 200.0
-const CARD_MIN_W: float = 50.0
+const CARD_MAX_W: float = 160.0
+const CARD_MIN_W: float = 45.0
 # Tucked cards render at their own, smaller cap (40% below the sector/tech
 # row's cards) — they're a "what's stashed here" detail, not the headline
 # content of the row.
@@ -18,8 +18,12 @@ const CARD_ROW_SPACING: int = 16
 # Rough allowance for ScifiPanel's content margin + the outer list's vertical
 # scrollbar — used to estimate how much width a card row actually has to work
 # with, so cards can be sized to always fit without ever needing their own
-# horizontal scrollbar.
-const ROW_MARGIN: float = 60.0
+# horizontal scrollbar. A 5-6 card row (sector + several techs) was still
+# computing wide enough to push the whole panel past the info screen's
+# actual visible area (its bezel crops more than this margin alone assumed),
+# shoving the header's return button off-screen — bumped up alongside the
+# lower CARD_MAX_W above to leave more headroom.
+const ROW_MARGIN: float = 80.0
 
 # Shrinks cards to fit `count` of them side by side within the estimated
 # available row width, instead of a fixed size that overflows into a
