@@ -3206,7 +3206,7 @@ func _try_auto_end_turn() -> void:
 	# another optional action available, so the turn can never end itself —
 	# nudge the player to press End Turn manually instead of going silent.
 	if _cs_display.has_fuse_1to1_active():
-		_show_effect_hint(tr("Press the End Turn Button (Play) to end your turn manually."))
+		_show_effect_hint(tr("You can still fuse 1:1. Spend them all or press the End Turn button (Play) to end your turn manually."))
 		return
 	_on_end_turn_pressed()
 
