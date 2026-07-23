@@ -1037,6 +1037,15 @@ func _rpc_sync_runner_up_phase(active: bool) -> void:
 func _rpc_sync_auction_placement_pending(pending: bool) -> void:
 	_auction_placement_pending = pending
 	if not pending:
+		# _try_auto_end_turn() only ever advances *this client's own* turn
+		# (it bails immediately unless GameNetwork.is_my_turn()), so it can
+		# never end a bot's turn — bots have no client of their own. A bot
+		# that started this auction needs its turn ended explicitly here,
+		# once the resulting placement (bot or human winner) has fully
+		# settled; is_major_action_taken() guards against double-firing if
+		# this sync ever arrives more than once for the same turn.
+		if multiplayer.is_server() and GameNetwork.is_bot(GameNetwork.active_peer_id) and $Board.is_major_action_taken():
+			_server_handle_end_turn()
 		_try_auto_end_turn()
 
 # Client (whoever currently owes the placement) → Host: my auction win has

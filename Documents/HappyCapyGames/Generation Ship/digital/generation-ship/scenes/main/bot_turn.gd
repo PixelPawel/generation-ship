@@ -100,6 +100,7 @@ static func run_bot_turn(main: Main, bot_id: int) -> void:
 		return
 	var difficulty: int = GameNetwork.bot_difficulty.get(bot_id, BotAI.Difficulty.EASY)
 	var market_sectors: Array[CardData] = main.get_node("Board").get_available_dust_sectors()
+	var market_expeditions: Array[CardData] = main.get_node("Board").get_available_expeditions()
 	var board: Array = main.bot_boards.get(bot_id, []) as Array
 	var supplies: Dictionary = main.bot_supplies.get(bot_id, {}) as Dictionary
 	var hand: Array[CardData] = bot_hand(main, bot_id)
@@ -109,13 +110,13 @@ static func run_bot_turn(main: Main, bot_id: int) -> void:
 	for f: Dictionary in BotAI.suggest_fuses(difficulty, hand, supplies, board, market_sectors):
 		bot_fuse(main, bot_id, int(f["source"]), int(f["target"]))
 
-	var action: Dictionary = BotAI.decide_action(difficulty, hand, supplies, board, main._round, market_sectors)
+	var action: Dictionary = BotAI.decide_action(difficulty, hand, supplies, board, main._round, market_sectors, market_expeditions)
 	if String(action.get("type", "pass")) in ["pass", "research"]:
 		var recycle_card: CardData = BotAI.suggest_recycle(difficulty, hand, supplies, board, market_sectors)
 		if recycle_card:
 			bot_recycle(main, bot_id, recycle_card)
 			hand = bot_hand(main, bot_id)
-			action = BotAI.decide_action(difficulty, hand, supplies, board, main._round, market_sectors)
+			action = BotAI.decide_action(difficulty, hand, supplies, board, main._round, market_sectors, market_expeditions)
 
 	match String(action.get("type", "pass")):
 		"buy_sector":
@@ -128,6 +129,14 @@ static func run_bot_turn(main: Main, bot_id: int) -> void:
 			broadcast_bot_states(main)
 			await main.get_tree().create_timer(0.5).timeout
 			main._server_handle_end_turn()
+		"start_auction":
+			bot_start_auction(main, bot_id, action["card"] as CardData)
+			broadcast_bot_states(main)
+			# No end_turn call here — the auction (and whoever wins it) still
+			# has to resolve, which can take real time and other players'
+			# input. Main._rpc_sync_auction_placement_pending ends this bot's
+			# turn once that fully settles, mirroring how a human initiator's
+			# turn stays open until their auction is done.
 		"research":
 			bot_do_research(main, bot_id)
 			broadcast_bot_states(main)
@@ -357,6 +366,24 @@ static func _bot_recycle_n(main: Main, bot_id: int, count: int) -> void:
 		main.bot_supplies[bot_id][int(card.color)] = (main.bot_supplies[bot_id].get(int(card.color), 0) as int) + 1
 		main.get_node("Board").add_to_discard(card)
 	bot_set_hand(main, bot_id, hand)
+
+
+# Mirrors the human flow (Board._start_bid -> Main._on_bid_required ->
+# Main._on_bid_confirmed -> Main._server_start_auction), skipping the bid-
+# popup confirmation step entirely since a bot has no UI to confirm through —
+# it opens straight at the card's printed cost. slot_idx is passed as -1:
+# it's only meaningful for advanced-sector auctions (a new board slot), and
+# is unused (an underscore-prefixed parameter) on the expedition/is_tech path
+# this is exclusively used for — the winner's own bot_resolve_auction_win /
+# human placement picks the destination slot independently.
+static func bot_start_auction(main: Main, bot_id: int, card_data: CardData) -> void:
+	var board_node: Node = main.get_node("Board")
+	board_node.get_expedition_market().remove_card(card_data)
+	board_node.set_major_action_taken()
+	var card_ref: Dictionary = CardRef.to_ref(card_data)
+	main._server_start_auction(card_ref, -1, true, false, card_data.cost, int(card_data.color), bot_id)
+	var _bname: String = GameNetwork.player_names.get(bot_id, main.tr("Bot"))
+	main._broadcast_log(main.tr("%s: started an auction for %s") % [_bname, card_data.card_name], CardData.color_tint(card_data.color))
 
 
 static func bot_decide_bid(main: Main, bot_id: int) -> void:

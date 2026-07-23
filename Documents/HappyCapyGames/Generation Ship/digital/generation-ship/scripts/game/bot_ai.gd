@@ -34,18 +34,20 @@ static func skills_for(difficulty: int) -> Dictionary:
 			}
 
 # Returns {type, card?, slot_idx?}
-# type: "pass" | "research" | "buy_sector" | "place_tech"
+# type: "pass" | "research" | "buy_sector" | "place_tech" | "start_auction"
 static func decide_action(
 	difficulty: int,
 	hand: Array[CardData],
 	supplies: Dictionary,
 	bot_board: Array,
 	_round: int,
-	market_sectors: Array[CardData]
+	market_sectors: Array[CardData],
+	market_expeditions: Array[CardData]
 ) -> Dictionary:
 	var skills: Dictionary = skills_for(difficulty)
 	var candidates: Array[Dictionary] = _get_affordable_sector_plays(market_sectors, supplies, bot_board)
 	candidates.append_array(_get_affordable_tech_plays(hand, supplies, bot_board))
+	candidates.append_array(_get_affordable_auction_plays(market_expeditions, supplies, bot_board))
 
 	if difficulty == Difficulty.EASY:
 		if candidates.is_empty() or randf() < float(skills.get("randomness", 0.0)):
@@ -235,6 +237,14 @@ static func _score_play(play: Dictionary, bot_board: Array, skills: Dictionary) 
 	elif play["type"] == "buy_sector":
 		if bool(skills.get("optimize_aware", false)):
 			score += 0.5 * float(OptimizeLogic.max_optimizations(card, false))
+	elif play["type"] == "start_auction" and bool(skills.get("bid_ev", false)):
+		# estimate_bid_value is a standalone worth estimate (same one decide_bid
+		# uses to judge raises), not a bonus on top of card_value — replace the
+		# base score rather than add to it. Discounted a bit versus a
+		# guaranteed buy_sector/place_tech, since starting an auction risks
+		# spending the turn's major action and still losing the card to a
+		# higher bid.
+		score = float(BotScoring.estimate_bid_value(card, false, bot_board)) * 0.8
 	return score
 
 # Simulates placing `card` on `slot` and estimates the resulting PlaceEffects payoff.
@@ -298,6 +308,33 @@ static func _get_affordable_sector_plays(market_sectors: Array[CardData], suppli
 static func _get_affordable_tech_plays(hand: Array[CardData], supplies: Dictionary, bot_board: Array) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for play: Dictionary in _all_tech_plays(hand, bot_board):
+		if _is_affordable(play, supplies):
+			result.append(play)
+	return result
+
+# Expeditions attach to an existing sector's tech stack if won (mirrors Tech
+# cards), so starting an auction is only offered as a candidate when there's
+# actually somewhere to put the card — otherwise a won auction just spends
+# the turn's major action on a card that gets recycled away for lack of room.
+static func _all_auction_plays(market_expeditions: Array[CardData], bot_board: Array) -> Array[Dictionary]:
+	var plays: Array[Dictionary] = []
+	if not _any_slot_has_tech_room(bot_board):
+		return plays
+	for card: CardData in market_expeditions:
+		plays.append({type = "start_auction", card = card})
+	return plays
+
+static func _any_slot_has_tech_room(bot_board: Array) -> bool:
+	for slot_v: Variant in bot_board:
+		var slot: Dictionary = slot_v as Dictionary
+		var techs: Array = slot.get("techs", []) as Array
+		if techs.size() < TECH_CAPACITY:
+			return true
+	return false
+
+static func _get_affordable_auction_plays(market_expeditions: Array[CardData], supplies: Dictionary, bot_board: Array) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for play: Dictionary in _all_auction_plays(market_expeditions, bot_board):
 		if _is_affordable(play, supplies):
 			result.append(play)
 	return result

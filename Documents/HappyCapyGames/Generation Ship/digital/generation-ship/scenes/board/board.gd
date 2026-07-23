@@ -200,6 +200,17 @@ func get_available_dust_sectors() -> Array[CardData]:
 			result.append(cd)
 	return result
 
+# The top (clickable/biddable) card in each of the 3 expedition slots — what
+# a player would actually see and be able to start an auction on right now,
+# as opposed to get_visible_expedition_cards()'s full-depth stack view.
+func get_available_expeditions() -> Array[CardData]:
+	var result: Array[CardData] = []
+	for i: int in 3:
+		var cd: CardData = _expedition_market.get_card_data(i)
+		if cd:
+			result.append(cd)
+	return result
+
 # Every expedition currently visible in the market (any stack, any depth) —
 # used by effects that offer a bid on any expedition, not just one just
 # revealed by that same effect (e.g. Probe Launcher).
