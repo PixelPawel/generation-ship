@@ -422,6 +422,7 @@ func _do_game_setup(sector_order: Array, exp_order: Array, tech_order: Array) ->
 	_show_end_turn_button(true)
 	_set_end_turn_button_disabled(true)
 	_refresh_vp()
+	_refresh_card_counts()
 	_update_turn_ui(false)
 	if GameNetwork.is_multiplayer:
 		OpponentBoardView.build_opponent_widget(self)
@@ -2089,6 +2090,7 @@ func _process_next_effect() -> void:
 	if _effect_queue.is_empty():
 		_effect_slot = null
 		_refresh_vp()
+		_refresh_card_counts()
 		$Board.set_cards_can_elevate(true)
 		_try_auto_end_turn()
 		return
@@ -3211,6 +3213,21 @@ func _refresh_vp() -> void:
 	for line: Dictionary in lines:
 		total += int(line.get("vp", 0))
 	_cs_display.set_vp(total)
+
+# Every placed card counts under its CURRENT color — a Sector's dust color
+# while unadvanced, its adv_color once flipped — matching how Optimize
+# requirements read a sector's placed-card colors elsewhere in this file.
+func _refresh_card_counts() -> void:
+	var counts: Dictionary = {}
+	for slot: SectorSlot in $Board.get_all_sector_slots():
+		for card_node: Node3D in slot.get_all_placed_cards():
+			var cd: CardData = card_node.get("card_data")
+			if cd == null:
+				continue
+			var is_adv: bool = cd.card_type == CardData.CardType.SECTOR and bool(card_node.get("is_advanced"))
+			var color: CardData.SupplyColor = cd.adv_color if is_adv else cd.color
+			counts[int(color)] = int(counts.get(int(color), 0)) + 1
+	_cs_display.set_card_counts(counts)
 
 # ── Expedition sync RPCs ──────────────────────────────────────────────────────
 

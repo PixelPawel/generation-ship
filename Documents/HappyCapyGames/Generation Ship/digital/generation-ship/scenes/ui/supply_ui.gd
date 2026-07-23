@@ -16,6 +16,19 @@ const SUPPLY_DEFS := [
 	{ "color": CardData.SupplyColor.THRUST,   "path": "res://assets/ui/supply/Thrust.png" },
 ]
 
+# Small portrait renders (701x908 source) of each color's card back — used
+# for the "cards on your ship" count row, distinct from SUPPLY_DEFS' plain
+# resource-token icons above.
+const CARD_ICON_DEFS := [
+	{ "color": CardData.SupplyColor.DUST,     "path": "res://assets/ui/cards/Dust_Card.png" },
+	{ "color": CardData.SupplyColor.METALS,   "path": "res://assets/ui/cards/Metals_Card.png" },
+	{ "color": CardData.SupplyColor.LIQUIDS,  "path": "res://assets/ui/cards/Liquids_Card.png" },
+	{ "color": CardData.SupplyColor.ORGANIX,  "path": "res://assets/ui/cards/Organix_Card.png" },
+	{ "color": CardData.SupplyColor.ELECTRIX, "path": "res://assets/ui/cards/Electrix_Card.png" },
+	{ "color": CardData.SupplyColor.THRUST,   "path": "res://assets/ui/cards/Thrust_Card.png" },
+]
+const CARD_ICON_SIZE: Vector2 = Vector2(20, 26)  # matches the 701:908 source aspect ratio
+
 const FUSE_MAP: Dictionary = {
 	CardData.SupplyColor.DUST:     [CardData.SupplyColor.METALS, CardData.SupplyColor.LIQUIDS],
 	CardData.SupplyColor.METALS:   [CardData.SupplyColor.ELECTRIX],
@@ -26,6 +39,8 @@ const FUSE_MAP: Dictionary = {
 
 var _counts: Dictionary = {}
 var _icon_textures: Dictionary = {}
+var _card_icon_textures: Dictionary = {}
+var _card_count_labels: Dictionary = {}
 var _flow: Control = null
 var _fuse_1to1_remaining: int = 0
 var _fuse_dust_1to1: bool = false
@@ -49,6 +64,8 @@ var _turn_style_off: StyleBoxFlat = null
 func _ready() -> void:
 	for def: Dictionary in SUPPLY_DEFS:
 		_icon_textures[def["color"]] = load(def["path"])
+	for def: Dictionary in CARD_ICON_DEFS:
+		_card_icon_textures[def["color"]] = load(def["path"])
 	_build_ui()
 func _flow_positions() -> Dictionary:
 	return {
@@ -153,6 +170,35 @@ func _build_ui() -> void:
 	_undo_btn.pressed.connect(_on_undo_fuse_pressed)
 	vbox.add_child(_undo_btn)
 
+	# ── Card counts (cards currently placed on your ship, by color) ─────────
+	var card_count_row := HBoxContainer.new()
+	card_count_row.add_theme_constant_override("separation", 2)
+	card_count_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	card_count_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(card_count_row)
+
+	for def: Dictionary in CARD_ICON_DEFS:
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 0)
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card_count_row.add_child(col)
+
+		var icon := TextureRect.new()
+		icon.texture = _card_icon_textures.get(def["color"]) as Texture2D
+		icon.custom_minimum_size = CARD_ICON_SIZE
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		col.add_child(icon)
+
+		var count_lbl := Label.new()
+		count_lbl.text = "0"
+		count_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		count_lbl.add_theme_font_size_override("font_size", 12)
+		count_lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.92))
+		col.add_child(count_lbl)
+		_card_count_labels[def["color"]] = count_lbl
+
 	# ── Supply flow ───────────────────────────────────────────────────────────
 	var flow_sep := HSeparator.new()
 	flow_sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
@@ -223,6 +269,14 @@ func _on_undo_fuse_pressed() -> void:
 func _update_undo_btn() -> void:
 	if _undo_btn:
 		_undo_btn.disabled = _fuse_history.is_empty()
+
+# counts: SupplyColor (int) -> number of placed cards of that color currently
+# on the board. Computed externally (Main._refresh_card_counts) since this
+# widget has no board reference of its own.
+func set_card_counts(counts: Dictionary) -> void:
+	for color: Variant in _card_count_labels:
+		var lbl: Label = _card_count_labels[color] as Label
+		lbl.text = str(int(counts.get(int(color), 0)))
 
 func _get_fuse_threshold(src: int) -> int:
 	if src == CardData.SupplyColor.DUST and _fuse_dust_1to1:
