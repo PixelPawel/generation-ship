@@ -418,7 +418,7 @@ const OPT_COLUMN_X: float = -0.32
 # local Y/Z would land at a different world height depending on how far
 # along Z that particular icon sits. This keeps every icon at the same
 # world height regardless.
-const OPT_ICON_WORLD_Y: float = 0.280
+const OPT_ICON_WORLD_Y: float = 0.540
 const OPT_BASE_Z: float = 0.0
 const OPT_ICON_Z_STEP: float = 0.115
 const OPT_LEVEL_GAP_Z: float = 0.05
