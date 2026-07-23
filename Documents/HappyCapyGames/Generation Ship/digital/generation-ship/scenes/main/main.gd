@@ -2050,8 +2050,10 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 		var always_source_name: String = str(always_steps[0].get("_source_name", ""))
 		var always_cd: CardData = _find_card_data_by_name(always_source_name)
 		if always_cd:
+			var choice_cards: Array[CardData] = [always_cd, cd]
+			var choice_adv_flags: Array[bool] = [false, is_adv]
 			_choice_popup.show_card_choices(tr("Two effects triggered — resolve which first?"),
-				[always_cd, cd], false, [false, is_adv])
+				choice_cards, false, choice_adv_flags)
 		else:
 			var card_name: String = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
 			_choice_popup.show_choices(tr("Two effects triggered — resolve which first?"), [tr("Sector effects"), card_name], false)

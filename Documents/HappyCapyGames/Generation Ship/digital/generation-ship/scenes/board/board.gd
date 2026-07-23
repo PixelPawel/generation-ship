@@ -635,7 +635,8 @@ func add_specific_card_to_hand(cd: CardData) -> void:
 	var card: Node3D = _card_scene.instantiate()
 	_hand.add_card(card)
 	card.set_card_data(cd)
-	_hand.animate_draw_cards([card])
+	var new_cards: Array[Node3D] = [card]
+	_hand.animate_draw_cards(new_cards)
 
 # Batched sibling of add_specific_card_to_hand — used for host-authoritative
 # hand delivery (opening hand, round-start draw, Gas Cloud) so a dealt hand
