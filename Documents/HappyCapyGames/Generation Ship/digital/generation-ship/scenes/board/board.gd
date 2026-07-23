@@ -57,6 +57,7 @@ var market_origin_3d: Vector3 = Vector3.ZERO
 var _drag_start_global_pos: Vector3 = Vector3.ZERO
 var _drag_start_scale: Vector3 = Vector3.ONE
 var _major_action_taken: bool = false
+var _effect_active: bool = false  # kept in sync by Main whenever _effect_mode changes — see set_effect_active()
 var _supply_ui: Control = null
 var _card_scene: PackedScene = null
 var _inspecting_card: Node3D = null
@@ -717,6 +718,15 @@ func set_major_action_taken() -> void:
 func is_major_action_taken() -> bool:
 	return _major_action_taken
 
+# Called by Main whenever its _effect_mode enters/leaves EffectMode.NONE.
+# Starting a hand/market card drag mid-effect used to clobber _effect_mode
+# with PAYMENT_CONFIRM/PLACEMENT_CONFIRM, stranding the original effect with
+# no way to resume once the drag's own payment dialog was confirmed or
+# cancelled — this blocks the drag from starting at all while any effect
+# (including this feature's own dialogs) is already active.
+func set_effect_active(active: bool) -> void:
+	_effect_active = active
+
 # True whenever a card is following the mouse awaiting placement — including
 # the post-payment placement drag for a market purchase, where the card is
 # already paid for but not yet on the board. Used to keep the turn from
@@ -732,7 +742,7 @@ func _on_hand_card_drag_started(card: Node3D) -> void:
 	# hand card and clicking during that window would let the hand card
 	# start its OWN drag too, silently stealing _dragged_card out from under
 	# the market card (which is then orphaned, invisible, forever unplaceable).
-	if not GameNetwork.is_my_turn() or _pending_card or _pending_recycle_card or _dragged_card:
+	if not GameNetwork.is_my_turn() or _pending_card or _pending_recycle_card or _dragged_card or _effect_active:
 		card.end_drag()
 		_hand.add_card(card, true)
 		return
@@ -742,7 +752,7 @@ func _on_hand_card_drag_started(card: Node3D) -> void:
 func _on_market_card_drag_started(card: Node3D) -> void:
 	# See _on_hand_card_drag_started's _dragged_card comment — same hazard,
 	# just with a second market card instead of a hand card.
-	if not GameNetwork.is_my_turn() or _major_action_taken or _dragged_card:
+	if not GameNetwork.is_my_turn() or _major_action_taken or _dragged_card or _effect_active:
 		card.end_drag()
 		if card.card_data and card.card_data.card_type == CardData.CardType.EXPEDITION:
 			_expedition_market.return_card(card)

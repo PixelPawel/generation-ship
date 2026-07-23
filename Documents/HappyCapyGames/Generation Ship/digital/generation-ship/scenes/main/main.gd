@@ -46,7 +46,17 @@ enum EffectMode {
 	PLACEMENT_CONFIRM,
 }
 
-var _effect_mode: EffectMode = EffectMode.NONE
+# Kept in sync with Board via the setter below so it can refuse to start a
+# hand/market card drag while any effect (including this class's own
+# PAYMENT_CONFIRM/PLACEMENT_CONFIRM dialogs) is already using _effect_mode —
+# starting one mid-effect used to silently clobber the effect in progress,
+# stranding it with no way to resume once the drag's dialog resolved.
+var _effect_mode: EffectMode = EffectMode.NONE:
+	set(value):
+		_effect_mode = value
+		var board: Node = get_node_or_null("Board")
+		if board:
+			board.set_effect_active(value != EffectMode.NONE)
 var _effect_queue: Array[Dictionary] = []
 var _effect_slot: SectorSlot = null
 var _effect_source_name: String = ""
