@@ -17,7 +17,7 @@ func _ready() -> void:
 	add_child(panel)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 20)
+	vbox.add_theme_constant_override("separation", 36)
 	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	panel.add_child(vbox)
@@ -25,17 +25,18 @@ func _ready() -> void:
 	_title = Label.new()
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_title.add_theme_font_size_override("font_size", 22)
+	_title.add_theme_font_size_override("font_size", 40)
 	vbox.add_child(_title)
 
 	var btn_row := HBoxContainer.new()
 	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	btn_row.add_theme_constant_override("separation", 16)
+	btn_row.add_theme_constant_override("separation", 24)
 	vbox.add_child(btn_row)
 
 	var confirm_btn := Button.new()
 	confirm_btn.text = tr("Confirm")
-	confirm_btn.add_theme_font_size_override("font_size", 18)
+	confirm_btn.custom_minimum_size = Vector2(220, 64)
+	confirm_btn.add_theme_font_size_override("font_size", 26)
 	confirm_btn.pressed.connect(func() -> void:
 		hide()
 		confirmed.emit()
@@ -44,7 +45,8 @@ func _ready() -> void:
 
 	var cancel_btn := Button.new()
 	cancel_btn.text = tr("Cancel")
-	cancel_btn.add_theme_font_size_override("font_size", 18)
+	cancel_btn.custom_minimum_size = Vector2(220, 64)
+	cancel_btn.add_theme_font_size_override("font_size", 26)
 	cancel_btn.pressed.connect(func() -> void:
 		hide()
 		cancelled.emit()
