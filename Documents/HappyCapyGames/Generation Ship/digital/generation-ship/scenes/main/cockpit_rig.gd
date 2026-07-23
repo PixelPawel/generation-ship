@@ -202,7 +202,7 @@ static func setup_screen_enlarge(main: Main) -> void:
 	var names: Array[String] = ["gs_ui_control_screen", "gs_ui_info_screen", "gs_ui_log_screen"]
 	for i: int in nodes.size():
 		var node: Node3D = nodes[i]
-		main._screen_enlarge_base_pos[node] = node.position
+		main.screen_enlarge_base_pos[node] = node.position
 		var mesh: MeshInstance3D = node.find_child(names[i], true, false) as MeshInstance3D
 		if not mesh:
 			continue
@@ -245,23 +245,23 @@ static func setup_screen_enlarge(main: Main) -> void:
 		)
 
 static func _toggle_screen_enlarge(main: Main, node: Node3D) -> void:
-	if main._screen_enlarged.get(node, false):
-		main._screen_enlarged[node] = false
+	if main.screen_enlarged.get(node, false):
+		main.screen_enlarged[node] = false
 		_shrink_screen(main, node)
 	else:
-		main._screen_enlarged[node] = true
+		main.screen_enlarged[node] = true
 		_enlarge_screen(main, node)
 
 static func _enlarge_screen(main: Main, node: Node3D) -> void:
-	var tw: Tween = main._screen_enlarge_tweens.get(node) as Tween
+	var tw: Tween = main.screen_enlarge_tweens.get(node) as Tween
 	if tw and tw.is_valid():
 		tw.kill()
-	var base: Vector3 = main._screen_enlarge_base_pos[node]
+	var base: Vector3 = main.screen_enlarge_base_pos[node]
 	var dir: Vector3 = (main.get_node("Camera3D").global_position - node.global_position).normalized()
 	dir.x *= 0.5
 	tw = main.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tw.tween_property(node, "position", base + dir * SCREEN_ENLARGE_DIST, SCREEN_ENLARGE_IN_SEC)
-	main._screen_enlarge_tweens[node] = tw
+	main.screen_enlarge_tweens[node] = tw
 
 	var ducked: Array[SectorSlot] = []
 	for slot: SectorSlot in main.get_node("Board").get_all_sector_slots():
@@ -273,35 +273,35 @@ static func _enlarge_screen(main: Main, node: Node3D) -> void:
 				tech_cards.append(card)
 		if tech_cards.is_empty():
 			continue
-		var dtw: Tween = main._screen_duck_tweens.get(slot) as Tween
+		var dtw: Tween = main.screen_duck_tweens.get(slot) as Tween
 		if dtw and dtw.is_valid():
 			dtw.kill()
 		dtw = main.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		var first: bool = true
 		for card: Node3D in tech_cards:
-			if card not in main._screen_duck_card_pos:
-				main._screen_duck_card_pos[card] = card.position
+			if card not in main.screen_duck_card_pos:
+				main.screen_duck_card_pos[card] = card.position
 			var slot_idx: int = card.get_parent().get("slot_index") as int
-			var slide_pos: Vector3 = main._screen_duck_card_pos[card] + Vector3(0.0, 0.0, SCREEN_DUCK_SLIDE_Z * float(slot_idx + 1))
+			var slide_pos: Vector3 = main.screen_duck_card_pos[card] + Vector3(0.0, 0.0, SCREEN_DUCK_SLIDE_Z * float(slot_idx + 1))
 			if first:
 				dtw.tween_property(card, "position", slide_pos, SCREEN_DUCK_IN_SEC)
 				first = false
 			else:
 				dtw.parallel().tween_property(card, "position", slide_pos, SCREEN_DUCK_IN_SEC)
-		main._screen_duck_tweens[slot] = dtw
+		main.screen_duck_tweens[slot] = dtw
 		ducked.append(slot)
-	main._screen_ducked_slots[node] = ducked
+	main.screen_ducked_slots[node] = ducked
 
 static func _shrink_screen(main: Main, node: Node3D) -> void:
-	var tw: Tween = main._screen_enlarge_tweens.get(node) as Tween
+	var tw: Tween = main.screen_enlarge_tweens.get(node) as Tween
 	if tw and tw.is_valid():
 		tw.kill()
 	tw = main.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(node, "position", main._screen_enlarge_base_pos[node], SCREEN_ENLARGE_OUT_SEC)
-	main._screen_enlarge_tweens[node] = tw
-	var slots: Array = main._screen_ducked_slots.get(node, [] as Array)
+	tw.tween_property(node, "position", main.screen_enlarge_base_pos[node], SCREEN_ENLARGE_OUT_SEC)
+	main.screen_enlarge_tweens[node] = tw
+	var slots: Array = main.screen_ducked_slots.get(node, [] as Array)
 	for slot: SectorSlot in slots:
-		var dtw: Tween = main._screen_duck_tweens.get(slot) as Tween
+		var dtw: Tween = main.screen_duck_tweens.get(slot) as Tween
 		if dtw and dtw.is_valid():
 			dtw.kill()
 		var tech_cards: Array[Node3D] = []
@@ -309,12 +309,12 @@ static func _shrink_screen(main: Main, node: Node3D) -> void:
 			if card != slot.placed_card:
 				tech_cards.append(card)
 		if tech_cards.is_empty():
-			main._screen_duck_tweens.erase(slot)
+			main.screen_duck_tweens.erase(slot)
 			continue
 		dtw = main.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		var first: bool = true
 		for card: Node3D in tech_cards:
-			var rest_pos: Vector3 = main._screen_duck_card_pos.get(card, card.position)
+			var rest_pos: Vector3 = main.screen_duck_card_pos.get(card, card.position)
 			if first:
 				dtw.tween_property(card, "position", rest_pos, SCREEN_DUCK_OUT_SEC)
 				first = false
@@ -322,9 +322,9 @@ static func _shrink_screen(main: Main, node: Node3D) -> void:
 				dtw.parallel().tween_property(card, "position", rest_pos, SCREEN_DUCK_OUT_SEC)
 		dtw.tween_callback(func() -> void:
 			for card: Node3D in tech_cards:
-				main._screen_duck_card_pos.erase(card))
-		main._screen_duck_tweens[slot] = dtw
-	main._screen_ducked_slots.erase(node)
+				main.screen_duck_card_pos.erase(card))
+		main.screen_duck_tweens[slot] = dtw
+	main.screen_ducked_slots.erase(node)
 
 static func setup_viewport_input(main: Main, screen_mesh: MeshInstance3D, vp: SubViewport) -> void:
 	var area: Area3D = Area3D.new()
@@ -640,7 +640,7 @@ static func play_rumble(main: Main) -> void:
 	var ui_cockpit: Node3D = main.get_node("UiCockpit")
 	var targets: Array[Node3D] = [ui_cockpit]
 	for node: Node3D in [main.get_node("UiControl"), main.get_node("UiInfo"), main.get_node("UiLog")]:
-		if not main._screen_enlarged.get(node, false):
+		if not main.screen_enlarged.get(node, false):
 			targets.append(node)
 	for slot: SectorSlot in main.get_node("Board").get_all_sector_slots():
 		targets.append(slot)
