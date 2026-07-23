@@ -29,7 +29,10 @@ func add_card(card: Node3D, animate: bool = false) -> void:
 	card.hovered.connect(_on_card_hovered)
 	card.unhovered.connect(_on_card_unhovered)
 	card.drag_started.connect(_on_card_drag_started)
-	card.right_clicked.connect(_on_card_right_clicked)
+	# detach_card() deliberately leaves right_clicked connected, so guard
+	# against double-connecting when a card comes back after a failed drop.
+	if not card.right_clicked.is_connected(_on_card_right_clicked):
+		card.right_clicked.connect(_on_card_right_clicked)
 	_layout(animate)
 
 func animate_draw_cards(cards: Array[Node3D]) -> void:
@@ -89,7 +92,19 @@ func remove_card_fly_out(card: Node3D) -> void:
 func detach_card(card: Node3D) -> void:
 	_hovered_index = -1
 	card.managed_by_hand = false
-	_disconnect_card_signals(card)
+	if card.hovered.is_connected(_on_card_hovered):
+		card.hovered.disconnect(_on_card_hovered)
+	if card.unhovered.is_connected(_on_card_unhovered):
+		card.unhovered.disconnect(_on_card_unhovered)
+	if card.drag_started.is_connected(_on_card_drag_started):
+		card.drag_started.disconnect(_on_card_drag_started)
+	# right_clicked is intentionally NOT disconnected here. This is called
+	# the instant any drag starts (drag_needs_movement is unused, so even a
+	# plain click "starts" one) as well as on a recycle request — a started
+	# drag can still fail (miss every slot) and leave the card sitting right
+	# back in its hand position, fully visible and clickable, for the ~0.3s
+	# return animation before add_card() re-adds it. Recycling needs to keep
+	# working through that window instead of silently going dead.
 	_cards.erase(card)
 	_layout(true)
 
