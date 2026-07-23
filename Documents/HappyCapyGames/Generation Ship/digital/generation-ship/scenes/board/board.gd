@@ -825,13 +825,15 @@ func _resume_drag_arrow() -> void:
 	var to_2d: Vector2 = cam.unproject_position(snap_slot.global_position) if snap_slot else get_viewport().get_mouse_position()
 	_drag_arrow.show_arrow(from_2d, to_2d)
 
-# Right-click during a post-purchase targeting arrow: refunds the supply
-# already spent and re-runs the same payment step for this same card, which
-# reopens the payment panel (or, rarely, resolves for free again) — letting
-# the player re-pick colors or forfeit outright from there. Scoped to direct
-# purchases only, never auction wins: an auction's price and other players'
-# bids are already settled by this point, and unwinding that is a bigger,
-# separate feature this doesn't attempt.
+# Right-click during a post-purchase targeting arrow: re-runs the same
+# payment step for this same card, which reopens the payment panel (or,
+# rarely, resolves for free again) — letting the player re-pick colors or
+# forfeit outright from there. Nothing to refund here — supply is only ever
+# actually spent once placement is confirmed (see confirm_pending_placement),
+# so _prepaid_spent_amounts at this point is still just the pending amount,
+# not a real deduction. Scoped to direct purchases only, never auction wins:
+# an auction's price and other players' bids are already settled by this
+# point, and unwinding that is a bigger, separate feature this doesn't attempt.
 func _cancel_prepaid_to_payment() -> void:
 	if not is_instance_valid(_dragged_card) or not _is_prepaid_placement:
 		return
@@ -842,8 +844,6 @@ func _cancel_prepaid_to_payment() -> void:
 	_end_arrow_drag()
 	_dragged_card = null
 	_is_prepaid_placement = false
-	for color: CardData.SupplyColor in _prepaid_spent_amounts:
-		_supply_ui.add_supply(color, _prepaid_spent_amounts[color])
 	_prepaid_spent_amounts = {}
 	if not _resolve_card_payment(card, null, is_tech):
 		return
@@ -959,9 +959,9 @@ func _resolve_card_payment(placed: Node3D, slot: SectorSlot, is_tech: bool) -> b
 	if needs_confirm:
 		_start_payment_confirm(placed, slot, pay_amounts, is_tech)
 		return false
-	action_committed.emit()
-	for col: CardData.SupplyColor in pay_amounts:
-		_supply_ui.spend_supply(col, pay_amounts[col])
+	# pay_amounts is always empty here (cost 0) — nothing to spend, and the
+	# major action itself is now only committed once placement is actually
+	# confirmed (see confirm_pending_placement), not at this earlier point.
 	return true
 
 func _try_drop_sector() -> void:
@@ -1046,6 +1046,7 @@ func confirm_pending_placement() -> void:
 	var card: Node3D = _pending_placement_card
 	var slot: SectorSlot = _pending_placement_slot
 	var is_tech: bool = _pending_placement_is_tech
+	var spent: Dictionary = _pending_placement_spent
 	_pending_placement_card = null
 	_pending_placement_slot = null
 	_pending_placement_is_tech = false
@@ -1057,6 +1058,15 @@ func confirm_pending_placement() -> void:
 	_is_prepaid_placement = false
 	_is_auction_win_placement = false
 	_prepaid_spent_amounts = {}
+	# This is the one true commit point for a direct buy/hand-card placement:
+	# the major action and the supply cost both land here, not back when the
+	# payment panel was confirmed — an auction win's spend already happened
+	# separately (main.gd, at bid-payment time) so spent is empty for those
+	# and this loop is a no-op; action_committed re-firing is harmless too,
+	# since starting the auction already committed the major action.
+	action_committed.emit()
+	for col: CardData.SupplyColor in spent:
+		_supply_ui.spend_supply(col, spent[col])
 	if is_tech:
 		slot.accept_tech_card(card)
 		card.place()
@@ -1070,16 +1080,17 @@ func confirm_pending_placement() -> void:
 		card_placed.emit(card, slot)
 
 # The confirm panel's own Cancel. For a market card (prepaid purchase or
-# direct market drag), this keeps the payment and just re-arms the arrow so
-# the player can aim at a different slot. For a hand card, there's no "try a
-# different slot" — it refunds whatever was spent, hands the card back, and
-# leaves the targeting arrow cancelled rather than resuming it.
+# direct market drag), this just re-arms the arrow so the player can aim at
+# a different slot. For a hand card, there's no "try a different slot" — it
+# hands the card back and leaves the targeting arrow cancelled rather than
+# resuming it. Neither branch needs to refund anything: supply is only ever
+# actually spent in confirm_pending_placement, once placement lands for
+# real, so cancelling before that point never took anything to begin with.
 func cancel_pending_placement_to_arrow() -> void:
 	if not _pending_placement_card:
 		return
 	var card: Node3D = _pending_placement_card
 	var origin: DragOrigin = _pending_placement_origin
-	var spent: Dictionary = _pending_placement_spent
 	_pending_placement_card = null
 	_pending_placement_slot = null
 	_pending_placement_is_tech = false
@@ -1089,8 +1100,6 @@ func cancel_pending_placement_to_arrow() -> void:
 	if origin == DragOrigin.HAND:
 		_dragged_card = null
 		_drag_origin = DragOrigin.NONE
-		for color: CardData.SupplyColor in spent:
-			_supply_ui.add_supply(color, spent[color])
 		card.visible = true
 		card.end_drag()
 		_hand.add_card(card, true)
@@ -1316,9 +1325,11 @@ func confirm_payment() -> void:
 	_pending_is_tech = false
 	_pending_pay_amounts = {}
 	_pending_drag_origin = DragOrigin.NONE
-	action_committed.emit()
-	for col: CardData.SupplyColor in pay_amounts:
-		_supply_ui.spend_supply(col, pay_amounts[col])
+	# Neither the supply nor the major action are committed here anymore —
+	# only once placement is actually confirmed (see confirm_pending_placement)
+	# — so cancelling later (return to hand, or right-click back to this same
+	# payment step) never has to undo a spend or a turn-ending flag that
+	# shouldn't have landed yet.
 	if not slot:
 		_begin_prepaid_drag(card, pay_amounts)
 		return
