@@ -4,18 +4,9 @@ extends Node3D
 const TechSlotScript := preload("res://scenes/board/tech_slot.gd")
 const TECH_BACK_PATH := "res://assets/cards/tech/GS_Techs_Back_44x67mm.png"
 
-# Supply icon paths, indexed by SupplyColor enum (DUST=0 .. THRUST=5)
-const SUPPLY_ICON_PATHS := [
-	"res://assets/ui/supply/Dust.png",
-	"res://assets/ui/supply/Metals.png",
-	"res://assets/ui/supply/Liquids.png",
-	"res://assets/ui/supply/Organix.png",
-	"res://assets/ui/supply/Electrix.png",
-	"res://assets/ui/supply/Thrust.png",
-]
-
-# Card icon paths, indexed by SupplyColor enum — used for the floating
-# optimize-requirement display (which colors trigger each Optimize level).
+# Card icon paths, indexed by SupplyColor enum — used both for the stored-
+# supply badges and the floating optimize-requirement display (which colors
+# trigger each Optimize level).
 const CARD_ICON_PATHS := [
 	"res://assets/ui/cards/Dust_Card.png",
 	"res://assets/ui/cards/Metals_Card.png",
@@ -104,11 +95,12 @@ func _setup_display() -> void:
 	const DISC_Y: float = 0.15
 	const X_START: float = -0.37
 	const X_STEP: float = 0.148
+	const SUPPLY_ICON_PIXEL_SIZE: float = 0.00014
 
 	for i: int in 6:
 		var spr := Sprite3D.new()
-		spr.texture = load(SUPPLY_ICON_PATHS[i])
-		spr.pixel_size = 0.00004
+		spr.texture = load(CARD_ICON_PATHS[i])
+		spr.pixel_size = SUPPLY_ICON_PIXEL_SIZE
 		spr.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		spr.no_depth_test = true
 		spr.render_priority = 2
@@ -118,7 +110,7 @@ func _setup_display() -> void:
 		_supply_sprites.append(spr)
 
 		var lbl := _make_badge(
-			Vector3(X_START + i * X_STEP, DISC_Y + 0.01, DISC_Z), Color.WHITE, true)
+			Vector3(X_START + i * X_STEP, DISC_Y + 0.045, DISC_Z), Color.WHITE, true)
 		_supply_labels.append(lbl)
 
 	_faceup_vp_label   = _make_badge(Vector3(-0.23, 0.15, 0.52), Color(1.0, 0.95, 0.3))
