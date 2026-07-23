@@ -318,7 +318,7 @@ static func apply_bot_effect_steps(main: Main, bot_id: int, steps: Array[Diction
 			"choice":
 				var opts: Array = step.get("options", []) as Array
 				if not opts.is_empty():
-					apply_bot_effect_steps(main, bot_id, (opts[0] as Dictionary).get("steps", []) as Array[Dictionary], slot_idx)
+					apply_bot_effect_steps(main, bot_id, BotScoring.to_dict_array((opts[0] as Dictionary).get("steps", []) as Array), slot_idx)
 			_:
 				pass
 

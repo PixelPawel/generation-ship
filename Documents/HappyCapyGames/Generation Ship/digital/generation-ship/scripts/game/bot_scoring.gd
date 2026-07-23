@@ -11,6 +11,19 @@ extends RefCounted
 # Good enough to make bots value plays sensibly and show a believable final
 # score — not meant to reproduce a human's Scoring.gd result exactly.
 
+# A "choice" step's option "steps" list is written as a plain Dictionary-
+# literal array in place_effects.gd/score_effects.gd/etc. (e.g. `steps =
+# [{type = "gain_supply", ...}]`), so at runtime it's an untyped Array even
+# though every element is a Dictionary. GDScript's "as Array[Dictionary]"
+# only succeeds when the source array already carries that type tag from
+# creation — it errors on a plain Array, however uniform its contents —
+# so callers must convert element-by-element instead of casting directly.
+static func to_dict_array(raw: Array) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for item: Variant in raw:
+		result.append(item as Dictionary)
+	return result
+
 const SECTOR_STORED_BONUS: Dictionary = {
 	"Greenhouses": {"color": CardData.SupplyColor.LIQUIDS, "per": 1},
 	"Astra Cultura": {"color": CardData.SupplyColor.THRUST, "per": 2},
@@ -266,5 +279,5 @@ static func effect_payoff(steps: Array[Dictionary]) -> float:
 			"choice":
 				var opts: Array = step.get("options", []) as Array
 				if not opts.is_empty():
-					v += effect_payoff((opts[0] as Dictionary).get("steps", []) as Array[Dictionary])
+					v += effect_payoff(to_dict_array((opts[0] as Dictionary).get("steps", []) as Array))
 	return v
