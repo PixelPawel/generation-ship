@@ -460,12 +460,12 @@ func _make_optimize_icon(pos: Vector3, tex_path: String, icon_w: float, icon_h: 
 	mesh_inst.mesh = plane
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	mat.albedo_texture = load(tex_path)
 	mat.emission_enabled = true
 	mat.emission_energy_multiplier = OPT_EMISSION_ENERGY
 	mesh_inst.material_override = mat
 	mesh_inst.position = pos
+	mesh_inst.rotation_degrees.x = -12.6
 	add_child(mesh_inst)
 	_optimize_nodes.append(mesh_inst)
 
