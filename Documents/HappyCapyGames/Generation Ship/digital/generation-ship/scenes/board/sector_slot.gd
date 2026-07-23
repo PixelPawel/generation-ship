@@ -460,10 +460,12 @@ func _build_optimize_display(card: Node3D) -> void:
 		cur_z += OPT_LEVEL_GAP_Z
 	refresh_optimize_display()
 
-# A plain textured plane sitting at a real 3D position — no no_depth_test/
-# render_priority tricks, so it's properly occluded like any other object
-# instead of always drawing in front of everything. Returns the material so
-# refresh_optimize_display() can flip its emission color later.
+# A plain textured plane sitting at a real 3D position. The camera looks
+# straight down (-90 on X), so the icon's own fixed tilt puts it underneath
+# the flat-lying placed card from the camera's point of view once normal
+# depth-testing applies — matching the stored-supply badges' no_depth_test/
+# render_priority treatment keeps it visibly on top instead. Returns the
+# material so refresh_optimize_display() can flip its emission color later.
 func _make_optimize_icon(pos: Vector3, tex_path: String, icon_w: float, icon_h: float) -> StandardMaterial3D:
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(icon_w, icon_h)
@@ -474,6 +476,8 @@ func _make_optimize_icon(pos: Vector3, tex_path: String, icon_w: float, icon_h: 
 	mat.albedo_texture = load(tex_path)
 	mat.emission_enabled = true
 	mat.emission_energy_multiplier = OPT_EMISSION_ENERGY
+	mat.no_depth_test = true
+	mat.render_priority = 2
 	mesh_inst.material_override = mat
 	mesh_inst.position = pos
 	mesh_inst.rotation_degrees.x = -12.6
