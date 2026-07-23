@@ -413,17 +413,15 @@ func _setup_max_optimizations(card: Node3D) -> void:
 const OPT_ICON_TEX_SIZE: Vector2 = Vector2(701.0, 908.0)  # matches every card icon PNG
 const OPT_ICON_PIXEL_SIZE: float = 0.0001
 const OPT_COLUMN_X: float = -0.32
-# Set as an absolute world Y (not a local offset) after adding each icon to
-# the tree — the slot's own transform is tilted ~12.6 degrees, so a fixed
-# local Y/Z would land at a different world height depending on how far
-# along Z that particular icon sits. This keeps every icon at the same
-# world height regardless.
-# The placed card itself isn't static, either: it bobs continuously between
+# Target world Y for the icon's BOTTOM edge (see _make_optimize_icon, which
+# adds icon_h/2 on top of this since a PlaneMesh's origin is its center) —
+# not a local offset, since the slot's own transform is tilted ~12.6
+# degrees, so a fixed local Y/Z would land at a different world height
+# depending on how far along Z a given icon sits.
+# The placed card itself isn't static either: it bobs continuously between
 # CARD_REST_Y ± FLOAT_AMP (0.075-0.095 local), which — run through the same
 # tilted transform — puts the card's own world Y somewhere around
-# 0.547-0.550 at its peak. 0.550 alone was right at that peak, not
-# consistently above it; clearing it for real needs real headroom above
-# the card's highest bob, not just its rest position.
+# 0.547-0.550 at its peak. This needs to clear that peak.
 const OPT_ICON_WORLD_Y: float = 0.560
 const OPT_BASE_Z: float = 0.0
 const OPT_ICON_Z_STEP: float = 0.115
@@ -485,7 +483,12 @@ func _make_optimize_icon(pos: Vector3, tex_path: String, icon_w: float, icon_h: 
 	mesh_inst.position = pos
 	mesh_inst.rotation_degrees.x = -12.6
 	add_child(mesh_inst)
-	mesh_inst.global_position.y = OPT_ICON_WORLD_Y
+	# OPT_ICON_WORLD_Y clears the card's own peak height, but a PlaneMesh's
+	# origin is its CENTER — half of icon_h still extends below that center,
+	# which was enough to dip back under the card's surface. Push the origin
+	# up by that half-height too so the icon's bottom edge, not just its
+	# center, actually clears the card.
+	mesh_inst.global_position.y = OPT_ICON_WORLD_Y + icon_h * 0.5
 	_optimize_nodes.append(mesh_inst)
 
 	return mat
