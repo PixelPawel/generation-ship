@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://bg68qxka06u6t"
 path.s3tc="res://.godot/imported/gs_card_sector_Generation_Ship_SectorCard_crd_sector_frame_BaseColor.png-5e9e80b4b96e0ba1ab0698990fd8d755.s3tc.ctex"
+path.etc2="res://.godot/imported/gs_card_sector_Generation_Ship_SectorCard_crd_sector_frame_BaseColor.png-5e9e80b4b96e0ba1ab0698990fd8d755.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/3d/gs_card_sector_Generation_Ship_SectorCard_crd_sector_frame_BaseColor.png"
-dest_files=["res://.godot/imported/gs_card_sector_Generation_Ship_SectorCard_crd_sector_frame_BaseColor.png-5e9e80b4b96e0ba1ab0698990fd8d755.s3tc.ctex"]
+dest_files=["res://.godot/imported/gs_card_sector_Generation_Ship_SectorCard_crd_sector_frame_BaseColor.png-5e9e80b4b96e0ba1ab0698990fd8d755.s3tc.ctex", "res://.godot/imported/gs_card_sector_Generation_Ship_SectorCard_crd_sector_frame_BaseColor.png-5e9e80b4b96e0ba1ab0698990fd8d755.etc2.ctex"]
 
 [params]
 

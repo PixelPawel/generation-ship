@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://rhn06lshy1rf"
 path.s3tc="res://.godot/imported/gs_card_sector_Generation_Ship_SectorCard_crd_sector_frame_Metalness-Generation_Ship_SectorCard_crd_sector_frame_Roughness.png-bd801467d8e746a25f480fde24ed170e.s3tc.ctex"
+path.etc2="res://.godot/imported/gs_card_sector_Generation_Ship_SectorCard_crd_sector_frame_Metalness-Generation_Ship_SectorCard_crd_sector_frame_Roughness.png-bd801467d8e746a25f480fde24ed170e.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/3d/gs_card_sector_Generation_Ship_SectorCard_crd_sector_frame_Metalness-Generation_Ship_SectorCard_crd_sector_frame_Roughness.png"
-dest_files=["res://.godot/imported/gs_card_sector_Generation_Ship_SectorCard_crd_sector_frame_Metalness-Generation_Ship_SectorCard_crd_sector_frame_Roughness.png-bd801467d8e746a25f480fde24ed170e.s3tc.ctex"]
+dest_files=["res://.godot/imported/gs_card_sector_Generation_Ship_SectorCard_crd_sector_frame_Metalness-Generation_Ship_SectorCard_crd_sector_frame_Roughness.png-bd801467d8e746a25f480fde24ed170e.s3tc.ctex", "res://.godot/imported/gs_card_sector_Generation_Ship_SectorCard_crd_sector_frame_Metalness-Generation_Ship_SectorCard_crd_sector_frame_Roughness.png-bd801467d8e746a25f480fde24ed170e.etc2.ctex"]
 
 [params]
 

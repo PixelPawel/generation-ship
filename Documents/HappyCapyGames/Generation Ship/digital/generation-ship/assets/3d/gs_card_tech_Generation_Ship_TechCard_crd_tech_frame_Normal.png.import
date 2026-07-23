@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://bfm1lebw4ssqj"
 path.s3tc="res://.godot/imported/gs_card_tech_Generation_Ship_TechCard_crd_tech_frame_Normal.png-321cf121409e4f95121839435dcf6c9c.s3tc.ctex"
+path.etc2="res://.godot/imported/gs_card_tech_Generation_Ship_TechCard_crd_tech_frame_Normal.png-321cf121409e4f95121839435dcf6c9c.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/3d/gs_card_tech_Generation_Ship_TechCard_crd_tech_frame_Normal.png"
-dest_files=["res://.godot/imported/gs_card_tech_Generation_Ship_TechCard_crd_tech_frame_Normal.png-321cf121409e4f95121839435dcf6c9c.s3tc.ctex"]
+dest_files=["res://.godot/imported/gs_card_tech_Generation_Ship_TechCard_crd_tech_frame_Normal.png-321cf121409e4f95121839435dcf6c9c.s3tc.ctex", "res://.godot/imported/gs_card_tech_Generation_Ship_TechCard_crd_tech_frame_Normal.png-321cf121409e4f95121839435dcf6c9c.etc2.ctex"]
 
 [params]
 

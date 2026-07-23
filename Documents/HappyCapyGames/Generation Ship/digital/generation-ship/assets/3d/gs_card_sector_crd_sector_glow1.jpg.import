@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://0pnjrqdomowl"
 path.s3tc="res://.godot/imported/gs_card_sector_crd_sector_glow1.jpg-2af2f24b48ddd16f65762ec4df248fa1.s3tc.ctex"
+path.etc2="res://.godot/imported/gs_card_sector_crd_sector_glow1.jpg-2af2f24b48ddd16f65762ec4df248fa1.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/3d/gs_card_sector_crd_sector_glow1.jpg"
-dest_files=["res://.godot/imported/gs_card_sector_crd_sector_glow1.jpg-2af2f24b48ddd16f65762ec4df248fa1.s3tc.ctex"]
+dest_files=["res://.godot/imported/gs_card_sector_crd_sector_glow1.jpg-2af2f24b48ddd16f65762ec4df248fa1.s3tc.ctex", "res://.godot/imported/gs_card_sector_crd_sector_glow1.jpg-2af2f24b48ddd16f65762ec4df248fa1.etc2.ctex"]
 
 [params]
 

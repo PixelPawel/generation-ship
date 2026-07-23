@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://i1s8rccw52ij"
 path.s3tc="res://.godot/imported/gs_card_sector_crd_sector_frame_Normal.png-f668e6ae01cb773a5d2744ab5ec0ea93.s3tc.ctex"
+path.etc2="res://.godot/imported/gs_card_sector_crd_sector_frame_Normal.png-f668e6ae01cb773a5d2744ab5ec0ea93.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/3d/gs_card_sector_crd_sector_frame_Normal.png"
-dest_files=["res://.godot/imported/gs_card_sector_crd_sector_frame_Normal.png-f668e6ae01cb773a5d2744ab5ec0ea93.s3tc.ctex"]
+dest_files=["res://.godot/imported/gs_card_sector_crd_sector_frame_Normal.png-f668e6ae01cb773a5d2744ab5ec0ea93.s3tc.ctex", "res://.godot/imported/gs_card_sector_crd_sector_frame_Normal.png-f668e6ae01cb773a5d2744ab5ec0ea93.etc2.ctex"]
 
 [params]
 

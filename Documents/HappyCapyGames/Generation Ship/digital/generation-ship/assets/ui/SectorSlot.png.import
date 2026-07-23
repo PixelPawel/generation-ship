@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://csc1havfbrn2a"
 path.s3tc="res://.godot/imported/SectorSlot.png-6716387bc54351026bfecf8a2545ddfc.s3tc.ctex"
+path.etc2="res://.godot/imported/SectorSlot.png-6716387bc54351026bfecf8a2545ddfc.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/ui/SectorSlot.png"
-dest_files=["res://.godot/imported/SectorSlot.png-6716387bc54351026bfecf8a2545ddfc.s3tc.ctex"]
+dest_files=["res://.godot/imported/SectorSlot.png-6716387bc54351026bfecf8a2545ddfc.s3tc.ctex", "res://.godot/imported/SectorSlot.png-6716387bc54351026bfecf8a2545ddfc.etc2.ctex"]
 
 [params]
 

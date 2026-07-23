@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://bdl2fxudytay5"
 path.s3tc="res://.godot/imported/gs_ui_control_gs_ui_control_button_BaseColor.png-d57ce8b5b5fc122fdd045c1ee1ce1f26.s3tc.ctex"
+path.etc2="res://.godot/imported/gs_ui_control_gs_ui_control_button_BaseColor.png-d57ce8b5b5fc122fdd045c1ee1ce1f26.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/3d/gs_ui_control_gs_ui_control_button_BaseColor.png"
-dest_files=["res://.godot/imported/gs_ui_control_gs_ui_control_button_BaseColor.png-d57ce8b5b5fc122fdd045c1ee1ce1f26.s3tc.ctex"]
+dest_files=["res://.godot/imported/gs_ui_control_gs_ui_control_button_BaseColor.png-d57ce8b5b5fc122fdd045c1ee1ce1f26.s3tc.ctex", "res://.godot/imported/gs_ui_control_gs_ui_control_button_BaseColor.png-d57ce8b5b5fc122fdd045c1ee1ce1f26.etc2.ctex"]
 
 [params]
 
