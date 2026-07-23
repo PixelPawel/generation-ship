@@ -43,6 +43,7 @@ enum EffectMode {
 	EFFECT_AWAITING_ALL_DRAW,
 	PAYMENT_CONFIRM,
 	SUPPLY_CHOICE,
+	PLACEMENT_CONFIRM,
 }
 
 var _effect_mode: EffectMode = EffectMode.NONE
@@ -74,6 +75,7 @@ var _sector_picker: SectorPickerPanel = null
 var _supply_cost_panel: SupplyCostPanel = null
 var _market_panel: Control = null
 var _bid_payment_panel: Control = null
+var _placement_confirm_panel: PlacementConfirmPanel = null
 var _cargo_drones_panel: CargoDronesPanel = null
 var _caldera_slots: Array[SectorSlot] = []
 var _music_player: AudioStreamPlayer = null
@@ -209,6 +211,7 @@ func _ready() -> void:
 	$Board.sector_revealed.connect(_on_sector_revealed)
 	$Board.market_card_drag_failed.connect(_on_market_card_drag_failed)
 	$Board.payment_confirm_required.connect(_on_payment_confirm_required)
+	$Board.placement_confirm_required.connect(_on_placement_confirm_required)
 	$Board.expedition_card_shuffled_back.connect(_on_expedition_shuffled_back)
 	$Board.expedition_reveal_requested.connect(_execute_expedition_reveal)
 	$Board.market_card_taken.connect(_on_market_card_taken)
@@ -288,6 +291,10 @@ func _ready() -> void:
 
 	_setup_music()
 	CockpitRig.setup_control_screen_display(self)
+	_placement_confirm_panel = load("res://scenes/ui/placement_confirm_panel.gd").new()
+	cs_viewport.add_child(_placement_confirm_panel)
+	_placement_confirm_panel.confirmed.connect(_on_placement_confirmed)
+	_placement_confirm_panel.cancelled.connect(_on_placement_cancelled)
 	OpponentBoardView.setup_enemy_screen_display(self)
 	CockpitRig.setup_log_screen_display(self)
 	CockpitRig.setup_floating_tooltip(self)
@@ -1486,14 +1493,15 @@ func _recycle_card_to_supply(card: Node3D, color: CardData.SupplyColor) -> void:
 	$Hand.remove_card_fly_out(card)
 
 func _on_card_right_clicked_free_recycle(card: Node3D) -> void:
-	# PAYMENT_CONFIRM is exempted: the card mid-payment is already detached
-	# from the hand and invisible, so it can't be the one right-clicked here
-	# — this only ever affects a different hand card, which is safe to
-	# recycle while a payment dialog is up (the panel already re-syncs its
-	# available-supply display via _on_supply_changed -> refresh()). Every
-	# other effect mode represents an in-progress effect resolution that a
-	# free recycle could genuinely interfere with, so those stay blocked.
-	if _effect_mode != EffectMode.NONE and _effect_mode != EffectMode.PAYMENT_CONFIRM:
+	# PAYMENT_CONFIRM/PLACEMENT_CONFIRM are exempted: the card mid-purchase is
+	# already detached from the hand and invisible, so it can't be the one
+	# right-clicked here — this only ever affects a different hand card,
+	# which is safe to recycle while either dialog is up (the panel already
+	# re-syncs its available-supply display via _on_supply_changed ->
+	# refresh()). Every other effect mode represents an in-progress effect
+	# resolution that a free recycle could genuinely interfere with, so those
+	# stay blocked.
+	if _effect_mode != EffectMode.NONE and _effect_mode != EffectMode.PAYMENT_CONFIRM and _effect_mode != EffectMode.PLACEMENT_CONFIRM:
 		return
 	$Board.request_recycle(card)
 
@@ -3041,6 +3049,36 @@ func _on_payment_confirm_required(card: Node3D, slot: SectorSlot, pay_amounts: D
 		var from_2d: Vector2 = cam.unproject_position(from_world)
 		var to_2d: Vector2 = cam.unproject_position(slot.global_position)
 		$Board.show_payment_confirm_arrow(from_2d, to_2d)
+
+# The targeting arrow shown after a market purchase snaps to a slot but
+# doesn't place immediately anymore — this confirms the exact target first,
+# on the control screen (where the player's attention already is while
+# aiming), before the card actually lands.
+func _on_placement_confirm_required(card: Node3D, slot: SectorSlot, _is_tech: bool) -> void:
+	_effect_mode = EffectMode.PLACEMENT_CONFIRM
+	var card_name: String = ""
+	if card.card_data:
+		var cd: CardData = card.card_data
+		var is_adv: bool = bool(card.get("is_advanced"))
+		card_name = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
+	var target_name: String = ""
+	if slot and slot.placed_card and slot.placed_card.card_data:
+		var scd: CardData = slot.placed_card.card_data
+		var slot_is_adv: bool = bool(slot.placed_card.get("is_advanced"))
+		target_name = scd.adv_name if slot_is_adv and not scd.adv_name.is_empty() else scd.card_name
+	_placement_confirm_panel.show_confirm(card_name, target_name)
+
+func _on_placement_confirmed() -> void:
+	if _effect_mode != EffectMode.PLACEMENT_CONFIRM:
+		return
+	_effect_mode = EffectMode.NONE
+	$Board.confirm_pending_placement()
+
+func _on_placement_cancelled() -> void:
+	if _effect_mode != EffectMode.PLACEMENT_CONFIRM:
+		return
+	_effect_mode = EffectMode.NONE
+	$Board.cancel_pending_placement_to_arrow()
 
 func _on_supply_choice_required(card: Node3D, _slot: SectorSlot, cost: int, options: Array[CardData.SupplyColor], _is_tech: bool) -> void:
 	_effect_mode = EffectMode.SUPPLY_CHOICE
