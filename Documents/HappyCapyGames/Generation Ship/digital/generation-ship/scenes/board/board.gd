@@ -724,7 +724,14 @@ func is_card_drag_pending() -> bool:
 	return _dragged_card != null
 
 func _on_hand_card_drag_started(card: Node3D) -> void:
-	if not GameNetwork.is_my_turn() or _pending_card or _pending_recycle_card:
+	# _dragged_card guards against a market card mid-arrow-drag (prepaid
+	# purchase or placement-confirm): board.gd starts that drag directly
+	# rather than through this card's own click handling, so Card's static
+	# _any_dragging flag never gets set for it — without this, hovering a
+	# hand card and clicking during that window would let the hand card
+	# start its OWN drag too, silently stealing _dragged_card out from under
+	# the market card (which is then orphaned, invisible, forever unplaceable).
+	if not GameNetwork.is_my_turn() or _pending_card or _pending_recycle_card or _dragged_card:
 		card.end_drag()
 		_hand.add_card(card, true)
 		return
@@ -732,7 +739,9 @@ func _on_hand_card_drag_started(card: Node3D) -> void:
 	_begin_drag(card)
 
 func _on_market_card_drag_started(card: Node3D) -> void:
-	if not GameNetwork.is_my_turn() or _major_action_taken:
+	# See _on_hand_card_drag_started's _dragged_card comment — same hazard,
+	# just with a second market card instead of a hand card.
+	if not GameNetwork.is_my_turn() or _major_action_taken or _dragged_card:
 		card.end_drag()
 		if card.card_data and card.card_data.card_type == CardData.CardType.EXPEDITION:
 			_expedition_market.return_card(card)
