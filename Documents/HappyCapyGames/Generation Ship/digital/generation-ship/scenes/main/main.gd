@@ -3315,7 +3315,10 @@ func _convert_peer_to_bot(peer_id: int) -> void:
 			continue
 		var techs: Array = []
 		for tech_name: String in (slot.get("tech_names", []) as Array):
-			var tech: CardData = CardDatabase.find_tech_by_name(tech_name)
+			# tech_names can also hold Expedition card names (they attach to a
+			# sector's stack the same way Tech cards do) — a Tech-only lookup
+			# would silently drop those from the takeover bot's board.
+			var tech: CardData = CardDatabase.find_any_by_name(tech_name)
 			if tech:
 				techs.append(tech)
 		board.append({"sector": sector, "is_advanced": is_adv, "techs": techs, "stored": {}})

@@ -173,12 +173,6 @@ func find_sector_by_name(card_name: String, advanced: bool) -> CardData:
 			return cd
 	return null
 
-func find_tech_by_name(card_name: String) -> CardData:
-	for cd: CardData in techs:
-		if cd.card_name == card_name:
-			return cd
-	return null
-
 # Tucked/stored cards can be any card type, and opponent snapshots only carry
 # a name string (see Main._get_public_snapshot) — this resolves that name
 # back into real CardData for display, searching every category.

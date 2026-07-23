@@ -426,7 +426,10 @@ static func build_opp_sector_block(main: Main, slot: Dictionary) -> Control:
 		cards_row.add_child(vsep)
 		for t: Variant in tech_names:
 			var t_name: String = str(t)
-			var tech_cd: CardData = CardDatabase.find_tech_by_name(t_name)
+			# "tech_names" also carries Expedition card names — those attach to
+			# a sector's stack the same way Tech cards do (see bot_turn.gd) —
+			# so a plain Tech-only lookup silently misses them.
+			var tech_cd: CardData = CardDatabase.find_any_by_name(t_name)
 			cards_row.add_child(build_detail_card(tech_cd, false, t_name, card_size))
 
 	var stored_supply: Dictionary = slot.get("stored_supply", {}) as Dictionary
