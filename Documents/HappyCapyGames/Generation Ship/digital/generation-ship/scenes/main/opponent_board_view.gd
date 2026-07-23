@@ -7,8 +7,13 @@ extends RefCounted
 # Holds no state of its own — operates on the Main node passed in.
 
 const CARD_ASPECT: float = 183.0 / 130.0  # height / width, matches the physical card proportions
-const CARD_MAX_W: float = 240.0
-const CARD_MIN_W: float = 60.0
+const CARD_MAX_W: float = 200.0
+const CARD_MIN_W: float = 50.0
+# Tucked cards render at their own, smaller cap (40% below the sector/tech
+# row's cards) — they're a "what's stashed here" detail, not the headline
+# content of the row.
+const TUCKED_CARD_MAX_W: float = CARD_MAX_W * 0.6
+const TUCKED_CARD_MIN_W: float = CARD_MIN_W * 0.6
 const CARD_ROW_SPACING: int = 16
 # Rough allowance for ScifiPanel's content margin + the outer list's vertical
 # scrollbar — used to estimate how much width a card row actually has to work
@@ -19,10 +24,10 @@ const ROW_MARGIN: float = 60.0
 # Shrinks cards to fit `count` of them side by side within the estimated
 # available row width, instead of a fixed size that overflows into a
 # horizontal scrollbar once enough cards are present.
-static func _dynamic_card_size(avail_w: float, count: int) -> Vector2:
+static func _dynamic_card_size(avail_w: float, count: int, max_w: float = CARD_MAX_W, min_w: float = CARD_MIN_W) -> Vector2:
 	var n: int = maxi(count, 1)
 	var card_w: float = (avail_w - CARD_ROW_SPACING * float(n - 1)) / float(n)
-	card_w = clampf(card_w, CARD_MIN_W, CARD_MAX_W)
+	card_w = clampf(card_w, min_w, max_w)
 	return Vector2(card_w, card_w * CARD_ASPECT)
 
 static func setup_enemy_screen_display(main: Main) -> void:
@@ -257,6 +262,13 @@ static func build_opp_info_panel(main: Main, peer_id: int) -> void:
 	return_btn.pressed.connect(func() -> void: close_opponent_board_view(main))
 	header.add_child(return_btn)
 
+	# The in-world screen's bezel crops a bit more than ScifiPanel's own
+	# content margin accounts for, so the return button was sitting almost
+	# off the visible edge — pull it in with a fixed spacer.
+	var header_right_pad: Control = Control.new()
+	header_right_pad.custom_minimum_size = Vector2(40, 0)
+	header.add_child(header_right_pad)
+
 	# Opponent-switch tabs — lets you hop directly to another opponent's
 	# board without backing out to the market panel and clicking again.
 	var opponent_ids: Array = []
@@ -444,7 +456,7 @@ static func build_opp_sector_block(main: Main, slot: Dictionary) -> Control:
 # the whole popup width; that's correct for that popup's one-section-at-a-time
 # use case but wildly oversized dropped into this denser, multi-row layout.
 static func build_tucked_row(cards: Array, face_up: bool, avail_w: float) -> Control:
-	var card_size: Vector2 = _dynamic_card_size(avail_w, cards.size())
+	var card_size: Vector2 = _dynamic_card_size(avail_w, cards.size(), TUCKED_CARD_MAX_W, TUCKED_CARD_MIN_W)
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", CARD_ROW_SPACING)
 	for tuck_v: Variant in cards:
