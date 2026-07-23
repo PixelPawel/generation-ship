@@ -194,7 +194,7 @@ func _build_ui() -> void:
 		var count_lbl := Label.new()
 		count_lbl.text = "0"
 		count_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		count_lbl.add_theme_font_size_override("font_size", 12)
+		count_lbl.add_theme_font_size_override("font_size", 24)
 		count_lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.92))
 		col.add_child(count_lbl)
 		_card_count_labels[def["color"]] = count_lbl
