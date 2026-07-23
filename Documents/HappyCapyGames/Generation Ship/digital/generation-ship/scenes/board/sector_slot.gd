@@ -77,7 +77,8 @@ var _faceup_count_icon: MeshInstance3D = null
 var _facedown_count_icon: MeshInstance3D = null
 var _faceup_count_label: Label3D = null
 var _facedown_count_label: Label3D = null
-var _optimize_icons: Array = []  # index = level (0..2), value = Array[Sprite3D] for that level's requirement
+var _optimize_icons: Array = []  # index = level (0..2), value = Array[StandardMaterial3D] (outline mats for that level's icons)
+var _optimize_nodes: Array[Node3D] = []  # every icon/outline node, tracked for cleanup
 
 @onready var _mesh: MeshInstance3D = $SlotMesh
 
@@ -403,16 +404,21 @@ func _setup_max_optimizations(card: Node3D) -> void:
 	triggered_levels.resize(max_optimizations)
 	triggered_levels.fill(false)
 
-const OPT_BASE_Y: float = 0.22
-const OPT_ROW_Y_STEP: float = 0.07
-const OPT_ICON_X_STEP: float = 0.06
-const OPT_ICON_PIXEL_SIZE: float = 0.00005
-const OPT_DONE_TINT: Color = Color(0.55, 1.0, 0.6, 0.5)
+const OPT_ICON_TEX_SIZE: Vector2 = Vector2(701.0, 908.0)  # matches every card icon PNG
+const OPT_ICON_PIXEL_SIZE: float = 0.0001
+const OPT_OUTLINE_MARGIN: float = 0.008
+const OPT_COLUMN_X: float = -0.32
+const OPT_BASE_Y: float = 0.24
+const OPT_ICON_Y_STEP: float = 0.115
+const OPT_LEVEL_GAP_Y: float = 0.05
+const OPT_PENDING_COLOR: Color = Color(0.82, 0.16, 0.16)
+const OPT_DONE_COLOR: Color = Color(0.30, 0.85, 0.35)
 
-# Floating "recipe" icons hovering above the placed sector card, one row per
-# Optimize level, showing which supply colors trigger it (per the Optimize
-# 1/2/3 CSV columns). Built once at placement time since a slot's requirement
-# set never changes after accept_card() (dust vs. advanced is fixed then).
+# Floating "recipe" icons in a vertical column on the sector's left side, one
+# icon per required color across all Optimize levels (per the Optimize 1/2/3
+# CSV columns) — each with a colored outline (red = pending, green = met).
+# Built once at placement time since a slot's requirement set never changes
+# after accept_card() (dust vs. advanced is fixed then).
 func _build_optimize_display(card: Node3D) -> void:
 	_clear_optimize_display()
 	_optimize_icons.resize(3)
@@ -426,46 +432,70 @@ func _build_optimize_display(card: Node3D) -> void:
 		[cd.adv_opt1_req, cd.adv_opt2_req, cd.adv_opt3_req] if is_adv
 		else [cd.opt1_req, [], []]
 	)
-	var row_idx: int = 0
+	var icon_w: float = OPT_ICON_TEX_SIZE.x * OPT_ICON_PIXEL_SIZE
+	var icon_h: float = OPT_ICON_TEX_SIZE.y * OPT_ICON_PIXEL_SIZE
+	var cur_y: float = OPT_BASE_Y
 	for level_idx: int in 3:
 		var req: Array = level_reqs[level_idx]
 		if req.is_empty():
 			continue
 		var row: Array = []
-		var n: int = req.size()
-		var start_x: float = -float(n - 1) * OPT_ICON_X_STEP * 0.5
-		var row_y: float = OPT_BASE_Y + row_idx * OPT_ROW_Y_STEP
-		for i: int in n:
-			var color_id: int = req[i]
+		for color_id: int in req:
 			var tex_path: String = ANY_CARD_ICON_PATH if color_id == CardData.OPTIMIZE_ANY else CARD_ICON_PATHS[color_id]
-			var spr := Sprite3D.new()
-			spr.texture = load(tex_path)
-			spr.pixel_size = OPT_ICON_PIXEL_SIZE
-			spr.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-			spr.no_depth_test = true
-			spr.render_priority = 2
-			spr.position = Vector3(start_x + i * OPT_ICON_X_STEP, row_y, 0.0)
-			add_child(spr)
-			row.append(spr)
+			row.append(_make_optimize_icon(Vector3(OPT_COLUMN_X, cur_y, 0.0), tex_path, icon_w, icon_h))
+			cur_y += OPT_ICON_Y_STEP
 		_optimize_icons[level_idx] = row
-		row_idx += 1
+		cur_y += OPT_LEVEL_GAP_Y
 	refresh_optimize_display()
 
+# Fakes an outline around a Sprite3D icon with a slightly larger colored
+# plane rendered behind it (lower render_priority) — the card icons are
+# opaque rectangular renders with no transparent padding, so the plane's
+# edges peek out evenly on all sides like a border. Returns the outline's
+# material so refresh_optimize_display() can flip its color later.
+func _make_optimize_icon(pos: Vector3, tex_path: String, icon_w: float, icon_h: float) -> StandardMaterial3D:
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(icon_w, icon_h) + Vector2(OPT_OUTLINE_MARGIN, OPT_OUTLINE_MARGIN) * 2.0
+	var outline := MeshInstance3D.new()
+	outline.mesh = plane
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.no_depth_test = true
+	mat.render_priority = 1
+	mat.albedo_color = OPT_PENDING_COLOR
+	outline.material_override = mat
+	outline.position = pos
+	add_child(outline)
+	_optimize_nodes.append(outline)
+
+	var spr := Sprite3D.new()
+	spr.texture = load(tex_path)
+	spr.pixel_size = OPT_ICON_PIXEL_SIZE
+	spr.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	spr.no_depth_test = true
+	spr.render_priority = 2
+	spr.position = pos
+	add_child(spr)
+	_optimize_nodes.append(spr)
+
+	return mat
+
 func _clear_optimize_display() -> void:
-	for row: Array in _optimize_icons:
-		for spr: Sprite3D in row:
-			spr.queue_free()
+	for n: Node3D in _optimize_nodes:
+		n.queue_free()
+	_optimize_nodes.clear()
 	_optimize_icons.clear()
 
-# Dims a level's icons once its requirement has been met — triggered_levels
-# is a permanent one-way flag (see OptimizeLogic), so this only ever needs
-# to move icons from "pending" to "done", never back.
+# Flips a level's outline color once its requirement has been met —
+# triggered_levels is a permanent one-way flag (see OptimizeLogic), so this
+# only ever needs to move icons from "pending" to "done", never back.
 func refresh_optimize_display() -> void:
 	for level_idx: int in _optimize_icons.size():
 		var done: bool = level_idx < triggered_levels.size() and triggered_levels[level_idx]
-		var tint: Color = OPT_DONE_TINT if done else Color.WHITE
-		for spr: Sprite3D in _optimize_icons[level_idx]:
-			spr.modulate = tint
+		var color: Color = OPT_DONE_COLOR if done else OPT_PENDING_COLOR
+		for mat: StandardMaterial3D in _optimize_icons[level_idx]:
+			mat.albedo_color = color
 
 func _on_placed_card_clicked(_card: Node3D) -> void:
 	slot_clicked.emit(self)
