@@ -72,17 +72,17 @@ func show_cost(card_name: String, cost: int, affordable: Array) -> void:
 	# ever shrinks (min 1.0), since this panel's buttons were sized for a
 	# fixed look at the common low-count case, not designed to grow.
 	var avail_w: float = get_viewport_rect().size.x * 0.85
-	var scale: float = clampf(
+	var btn_scale: float = clampf(
 		ChoicePopup.fit_scale(affordable.size(), _BASE_BTN_SIZE.x, avail_w, 16.0), _MIN_BTN_SCALE, 1.0)
-	var btn_size: Vector2 = Vector2(_BASE_BTN_SIZE.x * scale, _BASE_BTN_SIZE.y)
+	var btn_size: Vector2 = Vector2(_BASE_BTN_SIZE.x * btn_scale, _BASE_BTN_SIZE.y)
 	for color: Variant in affordable:
-		_buttons_row.add_child(_make_btn(color as CardData.SupplyColor, cost, btn_size, scale))
+		_buttons_row.add_child(_make_btn(color as CardData.SupplyColor, cost, btn_size, btn_scale))
 	show()
 
-func _make_btn(color: CardData.SupplyColor, cost: int, btn_size: Vector2, scale: float) -> Button:
+func _make_btn(color: CardData.SupplyColor, cost: int, btn_size: Vector2, btn_scale: float) -> Button:
 	var btn := Button.new()
 	btn.text = tr("%s ×%d") % [CardData.color_name(color), cost]
-	btn.add_theme_font_size_override("font_size", clampi(roundi(26.0 * scale), 14, 26))
+	btn.add_theme_font_size_override("font_size", clampi(roundi(26.0 * btn_scale), 14, 26))
 	btn.add_theme_color_override("font_color", CardData.color_tint(color))
 	btn.custom_minimum_size = btn_size
 	btn.pressed.connect(func() -> void:
