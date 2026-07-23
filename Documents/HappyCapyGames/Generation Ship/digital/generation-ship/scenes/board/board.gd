@@ -793,7 +793,16 @@ func _process(_delta: float) -> void:
 	_update_slot_highlights()
 
 func _input(event: InputEvent) -> void:
-	if not _dragged_card:
+	# _placement_confirm_pending guard: the confirm panel lives on the info
+	# screen, a 3D mesh — clicking its Confirm/Cancel button is a raw OS
+	# click forwarded into its SubViewport via physics-object-picking, which
+	# Godot resolves *after* plain _input(). Without this guard, the same
+	# click hit this function first (since _dragged_card is deliberately
+	# kept alive while the panel is up — see _request_placement_confirm),
+	# re-triggering _try_drop() for the still-"dragged" card and clobbering
+	# _effect_mode before the real button press ever landed — producing an
+	# endless arrow/confirm-panel loop every time Confirm or Cancel was clicked.
+	if not _dragged_card or _placement_confirm_pending:
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
 		_try_drop()
