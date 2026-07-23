@@ -263,9 +263,7 @@ func _build_ui() -> void:
 	# ── Column 1: Basic Sectors (stacked vertically) ──────────────────────────
 	var basic_vbox := VBoxContainer.new()
 	basic_vbox.add_theme_constant_override("separation", 4)
-	basic_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	basic_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_hbox.add_child(basic_vbox)
+	main_hbox.add_child(_center_column(basic_vbox))
 
 	for i: int in 3:
 		var rect := TextureRect.new()
@@ -309,9 +307,7 @@ func _build_ui() -> void:
 
 	var adv_vbox := VBoxContainer.new()
 	adv_vbox.add_theme_constant_override("separation", 4)
-	adv_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	adv_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_hbox.add_child(adv_vbox)
+	main_hbox.add_child(_center_column(adv_vbox))
 
 	for i: int in 3:
 		var rect := TextureRect.new()
@@ -346,9 +342,7 @@ func _build_ui() -> void:
 
 	var exp_vbox := VBoxContainer.new()
 	exp_vbox.add_theme_constant_override("separation", 4)
-	exp_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	exp_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_hbox.add_child(exp_vbox)
+	main_hbox.add_child(_center_column(exp_vbox))
 
 	for i: int in 3:
 		var rect := TextureRect.new()
@@ -401,6 +395,16 @@ func _build_ui() -> void:
 	_opp_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	players_vbox.add_child(_opp_vbox)
 	_init_opponent_slots()
+
+# Wraps a card column in a CenterContainer so its slots always sit centered
+# in the panel's full height, regardless of how tall the tallest column
+# (currently the players list) ends up — a plain VBoxContainer alignment
+# wasn't reliably centering once the row grew taller than the card stack.
+func _center_column(vbox: VBoxContainer) -> CenterContainer:
+	var center := CenterContainer.new()
+	center.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	center.add_child(vbox)
+	return center
 
 func _make_slot(slot_size: Vector2, rect: TextureRect, count_lbl: Label, highlight: ColorRect) -> Control:
 	var root := Control.new()
