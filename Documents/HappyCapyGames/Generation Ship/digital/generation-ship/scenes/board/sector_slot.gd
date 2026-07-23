@@ -14,6 +14,18 @@ const SUPPLY_ICON_PATHS := [
 	"res://assets/ui/supply/Thrust.png",
 ]
 
+# Card icon paths, indexed by SupplyColor enum — used for the floating
+# optimize-requirement display (which colors trigger each Optimize level).
+const CARD_ICON_PATHS := [
+	"res://assets/ui/cards/Dust_Card.png",
+	"res://assets/ui/cards/Metals_Card.png",
+	"res://assets/ui/cards/Liquids_Card.png",
+	"res://assets/ui/cards/Organix_Card.png",
+	"res://assets/ui/cards/Electrix_Card.png",
+	"res://assets/ui/cards/Thrust_Card.png",
+]
+const ANY_CARD_ICON_PATH := "res://assets/ui/cards/Any_Card.png"
+
 static var TECH_OFFSETS_COMPACT: Array[Vector3] = [
 	Vector3(0, 0.070, -0.32),
 	Vector3(0, 0.060, -0.76),
@@ -65,6 +77,7 @@ var _faceup_count_icon: MeshInstance3D = null
 var _facedown_count_icon: MeshInstance3D = null
 var _faceup_count_label: Label3D = null
 var _facedown_count_label: Label3D = null
+var _optimize_icons: Array = []  # index = level (0..2), value = Array[Sprite3D] for that level's requirement
 
 @onready var _mesh: MeshInstance3D = $SlotMesh
 
@@ -259,6 +272,7 @@ func reset_optimize() -> void:
 	optimize_count = 0
 	is_optimized = false
 	triggered_levels.fill(false)
+	refresh_optimize_display()
 
 func _process(_delta: float) -> void:
 	if _slot_mat:
@@ -389,6 +403,70 @@ func _setup_max_optimizations(card: Node3D) -> void:
 	triggered_levels.resize(max_optimizations)
 	triggered_levels.fill(false)
 
+const OPT_BASE_Y: float = 0.22
+const OPT_ROW_Y_STEP: float = 0.07
+const OPT_ICON_X_STEP: float = 0.06
+const OPT_ICON_PIXEL_SIZE: float = 0.00005
+const OPT_DONE_TINT: Color = Color(0.55, 1.0, 0.6, 0.5)
+
+# Floating "recipe" icons hovering above the placed sector card, one row per
+# Optimize level, showing which supply colors trigger it (per the Optimize
+# 1/2/3 CSV columns). Built once at placement time since a slot's requirement
+# set never changes after accept_card() (dust vs. advanced is fixed then).
+func _build_optimize_display(card: Node3D) -> void:
+	_clear_optimize_display()
+	_optimize_icons.resize(3)
+	for i: int in 3:
+		_optimize_icons[i] = []
+	if not card.card_data:
+		return
+	var cd: CardData = card.card_data
+	var is_adv: bool = bool(card.get("is_advanced"))
+	var level_reqs: Array = (
+		[cd.adv_opt1_req, cd.adv_opt2_req, cd.adv_opt3_req] if is_adv
+		else [cd.opt1_req, [], []]
+	)
+	var row_idx: int = 0
+	for level_idx: int in 3:
+		var req: Array = level_reqs[level_idx]
+		if req.is_empty():
+			continue
+		var row: Array = []
+		var n: int = req.size()
+		var start_x: float = -float(n - 1) * OPT_ICON_X_STEP * 0.5
+		var row_y: float = OPT_BASE_Y + row_idx * OPT_ROW_Y_STEP
+		for i: int in n:
+			var color_id: int = req[i]
+			var tex_path: String = ANY_CARD_ICON_PATH if color_id == CardData.OPTIMIZE_ANY else CARD_ICON_PATHS[color_id]
+			var spr := Sprite3D.new()
+			spr.texture = load(tex_path)
+			spr.pixel_size = OPT_ICON_PIXEL_SIZE
+			spr.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			spr.no_depth_test = true
+			spr.render_priority = 2
+			spr.position = Vector3(start_x + i * OPT_ICON_X_STEP, row_y, 0.0)
+			add_child(spr)
+			row.append(spr)
+		_optimize_icons[level_idx] = row
+		row_idx += 1
+	refresh_optimize_display()
+
+func _clear_optimize_display() -> void:
+	for row: Array in _optimize_icons:
+		for spr: Sprite3D in row:
+			spr.queue_free()
+	_optimize_icons.clear()
+
+# Dims a level's icons once its requirement has been met — triggered_levels
+# is a permanent one-way flag (see OptimizeLogic), so this only ever needs
+# to move icons from "pending" to "done", never back.
+func refresh_optimize_display() -> void:
+	for level_idx: int in _optimize_icons.size():
+		var done: bool = level_idx < triggered_levels.size() and triggered_levels[level_idx]
+		var tint: Color = OPT_DONE_TINT if done else Color.WHITE
+		for spr: Sprite3D in _optimize_icons[level_idx]:
+			spr.modulate = tint
+
 func _on_placed_card_clicked(_card: Node3D) -> void:
 	slot_clicked.emit(self)
 
@@ -429,6 +507,7 @@ func accept_card(card: Node3D) -> void:
 	placed_card = card
 	_mesh.visible = false
 	_setup_max_optimizations(card)
+	_build_optimize_display(card)
 	if card.has_signal("clicked") and not card.clicked.is_connected(_on_placed_card_clicked):
 		card.clicked.connect(_on_placed_card_clicked)
 	card.reparent(self, true)

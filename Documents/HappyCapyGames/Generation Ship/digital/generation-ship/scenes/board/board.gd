@@ -1421,6 +1421,7 @@ func restore_from_snapshot(snap: Dictionary) -> void:
 			for j: int in slot.optimize_count:
 				if j < slot.triggered_levels.size():
 					slot.triggered_levels[j] = true
+		slot.refresh_optimize_display()
 
 func _update_optimize_state(slot: SectorSlot) -> Array[int]:
 	if not slot.occupied or not slot.placed_card or not slot.placed_card.card_data:
@@ -1433,6 +1434,7 @@ func _update_optimize_state(slot: SectorSlot) -> Array[int]:
 	slot.optimize_count = result["optimize_count"]
 	slot.is_optimized = result["is_optimized"]
 	slot.triggered_levels = result["triggered_levels"] as Array[bool]
+	slot.refresh_optimize_display()
 	return result["triggered"] as Array[int]
 
 func _handle_failed_drop() -> void:
