@@ -1256,10 +1256,21 @@ func _begin_prepaid_drag(card: Node3D, spent: Dictionary = {}, is_auction_win: b
 	_drag_origin = DragOrigin.MARKET
 	_begin_drag(card)
 
+# cd's own node may no longer be findable by the time a DIFFERENT player
+# than the auction's initiator confirms payment for winning it: a human
+# initiator's own buy-flow already detached it from the market's trackable
+# stacks (find_market_card searches those same stacks), and a bot
+# initiator's BotTurn.bot_start_auction() goes further and queue_frees it
+# outright. Either way, build a fresh instance from the card data instead
+# of depending on a node that might already be gone.
 func begin_auction_win_drag(cd: CardData) -> bool:
 	var card: Node3D = find_market_card(cd)
 	if not card:
-		return false
+		card = _card_scene.instantiate()
+		add_child(card)
+		if cd.card_type == CardData.CardType.SECTOR:
+			card.set("is_advanced", true)
+		card.set_card_data(cd)
 	_prepaid_market_notified = false
 	if cd.card_type == CardData.CardType.EXPEDITION:
 		_expedition_market.detach_card(card)
