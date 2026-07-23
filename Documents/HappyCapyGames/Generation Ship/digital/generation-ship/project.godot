@@ -51,9 +51,9 @@ theme/custom="res://assets/ui/theme.tres"
 
 [internationalization]
 
+locale/translations=PackedStringArray("res://data/UI Strings.en.translation", "res://data/UI Strings.de.translation", "res://data/UI Strings.it.translation", "res://data/UI Strings.pl.translation", "res://data/UI Strings.es.translation", "res://data/UI Strings.fr.translation")
 locale/locale_filter_mode=1
 locale/locale_filter=PackedStringArray("en", "de", "it", "pl", "es", "fr")
-locale/translations=PackedStringArray("res://data/UI Strings.en.translation", "res://data/UI Strings.de.translation", "res://data/UI Strings.it.translation", "res://data/UI Strings.pl.translation", "res://data/UI Strings.es.translation", "res://data/UI Strings.fr.translation")
 
 [physics]
 

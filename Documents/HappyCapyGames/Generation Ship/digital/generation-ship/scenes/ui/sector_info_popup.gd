@@ -68,65 +68,81 @@ func _rebuild(slot: SectorSlot) -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_content_vbox.add_child(title)
 
-	var has_content: bool = false
-
-	# Stored supplies
-	if _has_stored_supply(slot):
-		has_content = true
-		_add_section_label(tr("Stored Supplies"))
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 10)
-		row.alignment = BoxContainer.ALIGNMENT_CENTER
-		_content_vbox.add_child(row)
-		for i: int in 6:
-			var count: int = slot.stored_supply.get(i, 0)
-			if count <= 0:
-				continue
-			var cell := HBoxContainer.new()
-			cell.add_theme_constant_override("separation", 4)
-			var icon := TextureRect.new()
-			icon.texture = load(SUPPLY_ICON_PATHS[i])
-			icon.custom_minimum_size = Vector2(34, 34)
-			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			cell.add_child(icon)
-			var lbl := Label.new()
-			lbl.text = str(count)
-			lbl.add_theme_font_size_override("font_size", 22)
-			lbl.add_theme_color_override("font_color", Color.WHITE)
-			cell.add_child(lbl)
-			row.add_child(cell)
-
-	# Faceup tucked
-	var faceup: Array = slot.tucked_cards.filter(func(t: Dictionary) -> bool: return t.get("face_up", false))
-	if not faceup.is_empty():
-		has_content = true
-		_add_section_label(tr("Faceup Tucked"))
-		_content_vbox.add_child(_make_card_row(faceup, true))
-
-	# Facedown tucked
-	var facedown: Array = slot.tucked_cards.filter(func(t: Dictionary) -> bool: return not t.get("face_up", false))
-	if not facedown.is_empty():
-		has_content = true
-		_add_section_label(tr("Facedown Tucked"))
-		_content_vbox.add_child(_make_card_row(facedown, false))
+	var has_content: bool = append_supply_and_tucked_sections(
+		_content_vbox, get_viewport_rect().size, slot.stored_supply, slot.tucked_cards)
 
 	if not has_content:
 		_add_empty_state(tr("Nothing stored here"))
 
 	_fit_scroll_height()
 
+# Appends "Stored Supplies"/"Faceup Tucked"/"Facedown Tucked" sections (each
+# only if non-empty) to any container — shared with OpponentBoardView, which
+# has no live SectorSlot to read, only a network snapshot's plain dictionaries
+# in the same shape. Returns whether anything was actually appended.
+static func append_supply_and_tucked_sections(container: Node, viewport_size: Vector2, stored_supply: Dictionary, tucked_cards: Array) -> bool:
+	var has_content: bool = false
+
+	if has_stored_supply(stored_supply):
+		has_content = true
+		container.add_child(make_section_label(TranslationServer.translate("Stored Supplies")))
+		container.add_child(make_supply_row(stored_supply))
+
+	var faceup: Array = tucked_cards.filter(func(t: Dictionary) -> bool: return t.get("face_up", false))
+	if not faceup.is_empty():
+		has_content = true
+		container.add_child(make_section_label(TranslationServer.translate("Faceup Tucked")))
+		container.add_child(make_card_row(faceup, true, viewport_size))
+
+	var facedown: Array = tucked_cards.filter(func(t: Dictionary) -> bool: return not t.get("face_up", false))
+	if not facedown.is_empty():
+		has_content = true
+		container.add_child(make_section_label(TranslationServer.translate("Facedown Tucked")))
+		container.add_child(make_card_row(facedown, false, viewport_size))
+
+	return has_content
+
+static func has_stored_supply(stored_supply: Dictionary) -> bool:
+	for count: int in stored_supply.values():
+		if count > 0:
+			return true
+	return false
+
+static func make_supply_row(stored_supply: Dictionary) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	for i: int in 6:
+		var count: int = stored_supply.get(i, 0)
+		if count <= 0:
+			continue
+		var cell := HBoxContainer.new()
+		cell.add_theme_constant_override("separation", 4)
+		var icon := TextureRect.new()
+		icon.texture = load(SUPPLY_ICON_PATHS[i])
+		icon.custom_minimum_size = Vector2(34, 34)
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		cell.add_child(icon)
+		var lbl := Label.new()
+		lbl.text = str(count)
+		lbl.add_theme_font_size_override("font_size", 22)
+		lbl.add_theme_color_override("font_color", Color.WHITE)
+		cell.add_child(lbl)
+		row.add_child(cell)
+	return row
+
+static func make_section_label(text: String) -> Label:
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.add_theme_font_size_override("font_size", 22)
+	lbl.add_theme_color_override("font_color", Color(0.75, 0.8, 1.0))
+	return lbl
+
 func _fit_scroll_height() -> void:
 	if not _scroll_container:
 		return
 	var max_h: float = get_viewport_rect().size.y * 0.75
 	_scroll_container.custom_minimum_size.y = min(_content_vbox.get_combined_minimum_size().y, max_h)
-
-func _add_section_label(text: String) -> void:
-	var lbl := Label.new()
-	lbl.text = text
-	lbl.add_theme_font_size_override("font_size", 22)
-	lbl.add_theme_color_override("font_color", Color(0.75, 0.8, 1.0))
-	_content_vbox.add_child(lbl)
 
 func _add_empty_state(text: String) -> void:
 	var empty := Label.new()
@@ -136,15 +152,9 @@ func _add_empty_state(text: String) -> void:
 	empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_content_vbox.add_child(empty)
 
-func _has_stored_supply(slot: SectorSlot) -> bool:
-	for count: int in slot.stored_supply.values():
-		if count > 0:
-			return true
-	return false
-
-func _make_card_row(cards: Array, face_up: bool) -> Control:
+static func make_card_row(cards: Array, face_up: bool, viewport_size: Vector2) -> Control:
 	# Fixed card size — same as if there were exactly one card
-	var vp: Vector2 = get_viewport_rect().size
+	var vp: Vector2 = viewport_size
 	var avail_w: float = vp.x - 48.0
 	var card_w: float = avail_w
 	var card_h: float = card_w * (183.0 / 130.0)
@@ -205,10 +215,10 @@ func _make_card_row(cards: Array, face_up: bool) -> Control:
 		hbox.add_child(card_vbox)
 
 	# Apply glowy blue scrollbar once the node is in the tree
-	hscroll.ready.connect(func() -> void: _style_blue_scrollbar(hscroll))
+	hscroll.ready.connect(func() -> void: style_blue_scrollbar(hscroll))
 	return outer
 
-func _style_blue_scrollbar(scroll: ScrollContainer) -> void:
+static func style_blue_scrollbar(scroll: ScrollContainer) -> void:
 	var hsb: HScrollBar = scroll.get_h_scroll_bar()
 	if not hsb:
 		return

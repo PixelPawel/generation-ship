@@ -179,6 +179,23 @@ func find_tech_by_name(card_name: String) -> CardData:
 			return cd
 	return null
 
+# Tucked/stored cards can be any card type, and opponent snapshots only carry
+# a name string (see Main._get_public_snapshot) — this resolves that name
+# back into real CardData for display, searching every category.
+func find_any_by_name(card_name: String) -> CardData:
+	if card_name.is_empty():
+		return null
+	for cd: CardData in sectors:
+		if cd.card_name == card_name or cd.adv_name == card_name:
+			return cd
+	for cd: CardData in techs:
+		if cd.card_name == card_name:
+			return cd
+	for cd: CardData in expeditions:
+		if cd.card_name == card_name:
+			return cd
+	return null
+
 func get_all_image_urls() -> Array[String]:
 	var urls: Array[String] = []
 	for cd: CardData in sectors:

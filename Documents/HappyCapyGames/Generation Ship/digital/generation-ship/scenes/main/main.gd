@@ -851,6 +851,20 @@ func _get_public_snapshot() -> Dictionary:
 			if ts.get("occupied") and ts.get("placed_card") and ts.placed_card.card_data:
 				tech_names.append(ts.placed_card.card_data.card_name)
 		slot_info["tech_names"] = tech_names
+		var stored_snap: Dictionary = {}
+		for color: int in slot.stored_supply:
+			stored_snap[int(color)] = slot.stored_supply[color]
+		slot_info["stored_supply"] = stored_snap
+		var tucked_snap: Array = []
+		for tuck_v: Variant in slot.tucked_cards:
+			var tuck: Dictionary = tuck_v as Dictionary
+			var face_up: bool = bool(tuck.get("face_up", false))
+			var tuck_cd: CardData = tuck.get("data") as CardData
+			tucked_snap.append({
+				"face_up": face_up,
+				"name": tuck_cd.card_name if (face_up and tuck_cd) else "",
+			})
+		slot_info["tucked_cards"] = tucked_snap
 		slot_info["position"] = {"x": slot.global_position.x, "z": slot.global_position.z}
 		slot_snaps.append(slot_info)
 	var vp_lines: Array[Dictionary] = $Board.calculate_score()

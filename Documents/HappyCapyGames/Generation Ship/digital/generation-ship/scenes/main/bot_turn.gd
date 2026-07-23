@@ -55,6 +55,20 @@ static func get_bot_snapshot(main: Main, bot_id: int) -> Dictionary:
 			var tc: CardData = t as CardData
 			if tc:
 				tech_names.append(tc.card_name)
+		var stored_supply: Dictionary = entry.get("stored_supply", {}) as Dictionary
+		var stored_snap: Dictionary = {}
+		for color: int in stored_supply:
+			stored_snap[int(color)] = stored_supply[color]
+		var tucked_cards: Array = entry.get("tucked_cards", []) as Array
+		var tucked_snap: Array = []
+		for tuck_v: Variant in tucked_cards:
+			var tuck: Dictionary = tuck_v as Dictionary
+			var face_up: bool = bool(tuck.get("face_up", false))
+			var tuck_cd: CardData = tuck.get("data") as CardData
+			tucked_snap.append({
+				"face_up": face_up,
+				"name": tuck_cd.card_name if (face_up and tuck_cd) else "",
+			})
 		slot_snaps.append({
 			"occupied": true,
 			"optimize_count": int(entry.get("optimize_count", 0)),
@@ -64,6 +78,8 @@ static func get_bot_snapshot(main: Main, bot_id: int) -> Dictionary:
 			"sector_name": sector.adv_name if (is_adv and not sector.adv_name.is_empty()) else sector.card_name,
 			"sector_advanced": is_adv,
 			"tech_names": tech_names,
+			"stored_supply": stored_snap,
+			"tucked_cards": tucked_snap,
 			"position": {"x": 0.0, "z": 0.0},
 		})
 	return {

@@ -238,6 +238,30 @@ static func build_opp_info_panel(main: Main, peer_id: int) -> void:
 	return_btn.pressed.connect(func() -> void: close_opponent_board_view(main))
 	header.add_child(return_btn)
 
+	# Opponent-switch tabs — lets you hop directly to another opponent's
+	# board without backing out to the market panel and clicking again.
+	var opponent_ids: Array = []
+	for pid: int in GameNetwork.player_order:
+		if pid != main.multiplayer.get_unique_id():
+			opponent_ids.append(pid)
+	if opponent_ids.size() > 1:
+		var tabs_row: HBoxContainer = HBoxContainer.new()
+		tabs_row.add_theme_constant_override("separation", 8)
+		outer.add_child(tabs_row)
+		for opid_v: Variant in opponent_ids:
+			var opid: int = opid_v
+			var tab_btn: Button = Button.new()
+			tab_btn.text = GameNetwork.player_names.get(opid, "Player")
+			tab_btn.custom_minimum_size = Vector2(0, 36)
+			tab_btn.add_theme_font_size_override("font_size", 15)
+			tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			if opid == peer_id:
+				tab_btn.disabled = true
+				tab_btn.add_theme_color_override("font_disabled_color", Color(1.0, 0.88, 0.35))
+			else:
+				tab_btn.pressed.connect(func() -> void: build_opp_info_panel(main, opid))
+			tabs_row.add_child(tab_btn)
+
 	var hsep: HSeparator = HSeparator.new()
 	hsep.modulate = Color(0.4, 0.4, 0.5, 0.5)
 	outer.add_child(hsep)
@@ -323,12 +347,7 @@ static func build_opp_sector_widget(main: Main, slot: Dictionary) -> Control:
 	var is_adv: bool = bool(slot.get("sector_advanced", false))
 	var tech_names: Array = slot.get("tech_names", []) as Array
 
-	var cd: CardData = null
-	if occupied:
-		for c: CardData in CardDatabase.sectors:
-			if c.card_name == sector_name or c.adv_name == sector_name:
-				cd = c
-				break
+	var cd: CardData = CardDatabase.find_sector_by_name(sector_name, is_adv) if occupied else null
 
 	var supply_color: CardData.SupplyColor = CardData.SupplyColor.DUST
 	if cd:
@@ -403,6 +422,20 @@ static func build_opp_sector_widget(main: Main, slot: Dictionary) -> Control:
 			t_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			vbox.add_child(t_lbl)
 
+	var stored_supply: Dictionary = slot.get("stored_supply", {}) as Dictionary
+	var stored_count: int = 0
+	for count: int in stored_supply.values():
+		stored_count += count
+	var tucked_count: int = (slot.get("tucked_cards", []) as Array).size()
+	if stored_count > 0 or tucked_count > 0:
+		var stash_lbl: Label = Label.new()
+		stash_lbl.text = "📦 %d" % (stored_count + tucked_count)
+		stash_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		stash_lbl.add_theme_font_size_override("font_size", 12)
+		stash_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
+		stash_lbl.tooltip_text = main.tr("Click to see stored supplies and tucked cards")
+		vbox.add_child(stash_lbl)
+
 	outer.mouse_filter = Control.MOUSE_FILTER_STOP
 	outer.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	outer.gui_input.connect(func(event: InputEvent) -> void:
@@ -422,11 +455,7 @@ static func show_opp_sector_detail(main: Main, slot: Dictionary) -> void:
 	var is_adv: bool = bool(slot.get("sector_advanced", false))
 	var tech_names: Array = slot.get("tech_names", []) as Array
 
-	var sector_cd: CardData = null
-	for c: CardData in CardDatabase.sectors:
-		if c.card_name == sector_name or c.adv_name == sector_name:
-			sector_cd = c
-			break
+	var sector_cd: CardData = CardDatabase.find_sector_by_name(sector_name, is_adv)
 
 	var overlay: Control = Control.new()
 	overlay.name = "SectorDetail"
@@ -490,12 +519,23 @@ static func show_opp_sector_detail(main: Main, slot: Dictionary) -> void:
 		cards_row.add_child(vsep_d)
 		for t: Variant in tech_names:
 			var t_name: String = str(t)
-			var tech_cd: CardData = null
-			for c: CardData in CardDatabase.techs:
-				if c.card_name == t_name:
-					tech_cd = c
-					break
+			var tech_cd: CardData = CardDatabase.find_tech_by_name(t_name)
 			cards_row.add_child(build_detail_card(tech_cd, false, t_name))
+
+	var stored_supply: Dictionary = slot.get("stored_supply", {}) as Dictionary
+	var tucked_resolved: Array = []
+	for tuck_v: Variant in (slot.get("tucked_cards", []) as Array):
+		var tuck: Dictionary = tuck_v as Dictionary
+		var face_up: bool = bool(tuck.get("face_up", false))
+		var resolved_cd: CardData = CardDatabase.find_any_by_name(str(tuck.get("name", ""))) if face_up else null
+		tucked_resolved.append({"data": resolved_cd, "face_up": face_up})
+
+	if SectorInfoPopup.has_stored_supply(stored_supply) or not tucked_resolved.is_empty():
+		var stored_sep: HSeparator = HSeparator.new()
+		stored_sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
+		inner.add_child(stored_sep)
+		SectorInfoPopup.append_supply_and_tucked_sections(
+			inner, main.opp_info_panel.get_viewport_rect().size, stored_supply, tucked_resolved)
 
 	var close_sep: HSeparator = HSeparator.new()
 	close_sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
