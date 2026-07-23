@@ -418,7 +418,13 @@ const OPT_COLUMN_X: float = -0.32
 # local Y/Z would land at a different world height depending on how far
 # along Z that particular icon sits. This keeps every icon at the same
 # world height regardless.
-const OPT_ICON_WORLD_Y: float = 0.550
+# The placed card itself isn't static, either: it bobs continuously between
+# CARD_REST_Y ± FLOAT_AMP (0.075-0.095 local), which — run through the same
+# tilted transform — puts the card's own world Y somewhere around
+# 0.547-0.550 at its peak. 0.550 alone was right at that peak, not
+# consistently above it; clearing it for real needs real headroom above
+# the card's highest bob, not just its rest position.
+const OPT_ICON_WORLD_Y: float = 0.560
 const OPT_BASE_Z: float = 0.0
 const OPT_ICON_Z_STEP: float = 0.115
 const OPT_LEVEL_GAP_Z: float = 0.05
