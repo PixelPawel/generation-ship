@@ -183,6 +183,139 @@ static func setup_switch_input(switch_mesh: MeshInstance3D, callback: Callable) 
 				callback.call()
 	)
 
+const SCREEN_ENLARGE_DIST: float = 0.115
+const SCREEN_ENLARGE_IN_SEC: float = 0.25
+const SCREEN_ENLARGE_OUT_SEC: float = 0.40
+const SCREEN_DUCK_SLIDE_Z: float = 0.20
+const SCREEN_DUCK_IN_SEC: float = 0.30
+const SCREEN_DUCK_OUT_SEC: float = 0.45
+
+# Right-click toggle that pulls a cockpit screen (control/info/log) closer to
+# the camera — brought back from an earlier hover-triggered version of this
+# same effect (removed because hover was the wrong trigger); the tween
+# tuning and the "duck" side effect (sliding a sector's tech cards back so
+# an enlarged screen doesn't clip through them) are unchanged from that
+# version, only the trigger changed from hover to a right-click toggle.
+static func setup_screen_enlarge(main: Main) -> void:
+	var nodes: Array[Node3D] = [main.get_node("UiControl"), main.get_node("UiInfo"), main.get_node("UiLog")]
+	var names: Array[String] = ["gs_ui_control_screen", "gs_ui_info_screen", "gs_ui_log_screen"]
+	for i: int in nodes.size():
+		var node: Node3D = nodes[i]
+		main._screen_enlarge_base_pos[node] = node.position
+		var mesh: MeshInstance3D = node.find_child(names[i], true, false) as MeshInstance3D
+		if not mesh:
+			continue
+		var area: Area3D = null
+		for child: Node in mesh.get_children():
+			if child is Area3D:
+				area = child as Area3D
+				break
+		if not area:
+			area = Area3D.new()
+			area.input_ray_pickable = true
+			var cshape: CollisionShape3D = CollisionShape3D.new()
+			var box: BoxShape3D = BoxShape3D.new()
+			var aabb: AABB = mesh.mesh.get_aabb()
+			box.size = Vector3(aabb.size.x, aabb.size.y, 0.01)
+			cshape.shape = box
+			cshape.position = aabb.get_center()
+			area.add_child(cshape)
+			mesh.add_child(area)
+		area.input_event.connect(func(_cam: Node, event: InputEvent, _pos: Vector3, _norm: Vector3, _idx: int) -> void:
+			if event is InputEventMouseButton:
+				var mb: InputEventMouseButton = event as InputEventMouseButton
+				if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+					_toggle_screen_enlarge(main, node)
+		)
+		area.mouse_entered.connect(func() -> void:
+			main._show_tooltip("", main.tr("Right-click to enlarge/shrink this screen."))
+		)
+		area.mouse_exited.connect(func() -> void:
+			main._hide_tooltip()
+		)
+
+static func _toggle_screen_enlarge(main: Main, node: Node3D) -> void:
+	if main._screen_enlarged.get(node, false):
+		main._screen_enlarged[node] = false
+		_shrink_screen(main, node)
+	else:
+		main._screen_enlarged[node] = true
+		_enlarge_screen(main, node)
+
+static func _enlarge_screen(main: Main, node: Node3D) -> void:
+	var tw: Tween = main._screen_enlarge_tweens.get(node) as Tween
+	if tw and tw.is_valid():
+		tw.kill()
+	var base: Vector3 = main._screen_enlarge_base_pos[node]
+	var dir: Vector3 = (main.get_node("Camera3D").global_position - node.global_position).normalized()
+	dir.x *= 0.5
+	tw = main.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(node, "position", base + dir * SCREEN_ENLARGE_DIST, SCREEN_ENLARGE_IN_SEC)
+	main._screen_enlarge_tweens[node] = tw
+
+	var ducked: Array[SectorSlot] = []
+	for slot: SectorSlot in main.get_node("Board").get_all_sector_slots():
+		if not slot.occupied:
+			continue
+		var tech_cards: Array[Node3D] = []
+		for card: Node3D in slot.get_all_placed_cards():
+			if card != slot.placed_card:
+				tech_cards.append(card)
+		if tech_cards.is_empty():
+			continue
+		var dtw: Tween = main._screen_duck_tweens.get(slot) as Tween
+		if dtw and dtw.is_valid():
+			dtw.kill()
+		dtw = main.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		var first: bool = true
+		for card: Node3D in tech_cards:
+			if card not in main._screen_duck_card_pos:
+				main._screen_duck_card_pos[card] = card.position
+			var slot_idx: int = card.get_parent().get("slot_index") as int
+			var slide_pos: Vector3 = main._screen_duck_card_pos[card] + Vector3(0.0, 0.0, SCREEN_DUCK_SLIDE_Z * float(slot_idx + 1))
+			if first:
+				dtw.tween_property(card, "position", slide_pos, SCREEN_DUCK_IN_SEC)
+				first = false
+			else:
+				dtw.parallel().tween_property(card, "position", slide_pos, SCREEN_DUCK_IN_SEC)
+		main._screen_duck_tweens[slot] = dtw
+		ducked.append(slot)
+	main._screen_ducked_slots[node] = ducked
+
+static func _shrink_screen(main: Main, node: Node3D) -> void:
+	var tw: Tween = main._screen_enlarge_tweens.get(node) as Tween
+	if tw and tw.is_valid():
+		tw.kill()
+	tw = main.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(node, "position", main._screen_enlarge_base_pos[node], SCREEN_ENLARGE_OUT_SEC)
+	main._screen_enlarge_tweens[node] = tw
+	var slots: Array = main._screen_ducked_slots.get(node, [] as Array)
+	for slot: SectorSlot in slots:
+		var dtw: Tween = main._screen_duck_tweens.get(slot) as Tween
+		if dtw and dtw.is_valid():
+			dtw.kill()
+		var tech_cards: Array[Node3D] = []
+		for card: Node3D in slot.get_all_placed_cards():
+			if card != slot.placed_card:
+				tech_cards.append(card)
+		if tech_cards.is_empty():
+			main._screen_duck_tweens.erase(slot)
+			continue
+		dtw = main.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		var first: bool = true
+		for card: Node3D in tech_cards:
+			var rest_pos: Vector3 = main._screen_duck_card_pos.get(card, card.position)
+			if first:
+				dtw.tween_property(card, "position", rest_pos, SCREEN_DUCK_OUT_SEC)
+				first = false
+			else:
+				dtw.parallel().tween_property(card, "position", rest_pos, SCREEN_DUCK_OUT_SEC)
+		dtw.tween_callback(func() -> void:
+			for card: Node3D in tech_cards:
+				main._screen_duck_card_pos.erase(card))
+		main._screen_duck_tweens[slot] = dtw
+	main._screen_ducked_slots.erase(node)
+
 static func setup_viewport_input(main: Main, screen_mesh: MeshInstance3D, vp: SubViewport) -> void:
 	var area: Area3D = Area3D.new()
 	area.input_ray_pickable = true
@@ -495,7 +628,10 @@ static func play_rumble(main: Main) -> void:
 	const JOLT_SEC: float = 0.10
 	const JOLT_COUNT: int = 15  # 15 × 0.10 s = 1.5 s
 	var ui_cockpit: Node3D = main.get_node("UiCockpit")
-	var targets: Array[Node3D] = [ui_cockpit, main.get_node("UiControl"), main.get_node("UiInfo"), main.get_node("UiLog")]
+	var targets: Array[Node3D] = [ui_cockpit]
+	for node: Node3D in [main.get_node("UiControl"), main.get_node("UiInfo"), main.get_node("UiLog")]:
+		if not main._screen_enlarged.get(node, false):
+			targets.append(node)
 	for slot: SectorSlot in main.get_node("Board").get_all_sector_slots():
 		targets.append(slot)
 	for node: Node3D in targets:

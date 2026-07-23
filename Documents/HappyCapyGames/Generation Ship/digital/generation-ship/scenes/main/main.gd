@@ -156,6 +156,12 @@ var _sun_elevated_count: int = 0
 var rumble_tweens: Dictionary = {}   # Node3D -> Tween
 var _rumble_base_pos: Dictionary = {} # Node3D -> Vector3
 var _rumble_base_rot: Dictionary = {} # Node3D -> Vector3
+var _screen_enlarge_tweens: Dictionary = {}    # Node3D (screen) -> Tween
+var _screen_enlarge_base_pos: Dictionary = {}  # Node3D (screen) -> Vector3
+var _screen_enlarged: Dictionary = {}          # Node3D (screen) -> true while pulled toward camera
+var _screen_duck_tweens: Dictionary = {}       # SectorSlot -> Tween
+var _screen_duck_card_pos: Dictionary = {}     # Node3D (tech card) -> Vector3 rest position
+var _screen_ducked_slots: Dictionary = {}      # Node3D (screen) -> Array[SectorSlot]
 var _info_screen_mesh: MeshInstance3D = null
 var _cs_display: SupplyUI = null
 var _end_turn_btn_mesh: MeshInstance3D = null
@@ -299,6 +305,7 @@ func _ready() -> void:
 	CockpitRig.setup_log_screen_display(self)
 	CockpitRig.setup_floating_tooltip(self)
 	CockpitRig.setup_cockpit_switches(self)
+	CockpitRig.setup_screen_enlarge(self)
 
 	_wire_sector_slots_to_board()
 
