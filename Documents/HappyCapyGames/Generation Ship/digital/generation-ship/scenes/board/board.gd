@@ -1032,14 +1032,22 @@ func _try_drop_tech() -> void:
 		return
 	_request_placement_confirm(placed, best_sector, true, origin)
 
-# A drop that found a valid target no longer places immediately — it
-# freezes the card in place (see _process's _placement_confirm_pending
-# guard) and asks main.gd to show a "Place X on Y?" panel first. Used for
-# both a prepaid market arrow-drop and a regular hand/board drag once its
-# payment has resolved (origin is passed explicitly rather than read from
-# _drag_origin, since by the time a hand card's payment confirms,
-# _start_payment_confirm already nulled it — see cancel_pending_placement_to_arrow).
+# A tech/expedition drop that found a valid target no longer places
+# immediately — it freezes the card in place (see _process's
+# _placement_confirm_pending guard) and asks main.gd to show a "Place X on
+# Y?" panel first, since it attaches to a specific existing sector among
+# possibly several. Used for both a prepaid market arrow-drop and a regular
+# hand/board drag once its payment has resolved (origin is passed explicitly
+# rather than read from _drag_origin, since by the time a hand card's
+# payment confirms, _start_payment_confirm already nulled it — see
+# cancel_pending_placement_to_arrow). Sectors skip the panel and finalize
+# immediately instead — there's rarely any ambiguity about where a sector
+# card should land (it just snaps to the nearest empty slot), so the extra
+# click was more friction than it was worth.
 func _request_placement_confirm(card: Node3D, slot: SectorSlot, is_tech: bool, origin: DragOrigin, spent: Dictionary = {}) -> void:
+	if not is_tech:
+		_finalize_placement(card, slot, false, spent)
+		return
 	_placement_confirm_pending = true
 	_pending_placement_card = card
 	_pending_placement_slot = slot
@@ -1063,17 +1071,20 @@ func confirm_pending_placement() -> void:
 	_pending_placement_origin = DragOrigin.NONE
 	_pending_placement_spent = {}
 	_placement_confirm_pending = false
+	_finalize_placement(card, slot, is_tech, spent)
+
+# The one true commit point for a direct buy/hand-card placement: the major
+# action and the supply cost both land here, not back when the payment
+# panel was confirmed — an auction win's spend already happened separately
+# (main.gd, at bid-payment time) so spent is empty for those and this loop
+# is a no-op; action_committed re-firing is harmless too, since starting
+# the auction already committed the major action.
+func _finalize_placement(card: Node3D, slot: SectorSlot, is_tech: bool, spent: Dictionary) -> void:
 	_dragged_card = null
 	_drag_origin = DragOrigin.NONE
 	_is_prepaid_placement = false
 	_is_auction_win_placement = false
 	_prepaid_spent_amounts = {}
-	# This is the one true commit point for a direct buy/hand-card placement:
-	# the major action and the supply cost both land here, not back when the
-	# payment panel was confirmed — an auction win's spend already happened
-	# separately (main.gd, at bid-payment time) so spent is empty for those
-	# and this loop is a no-op; action_committed re-firing is harmless too,
-	# since starting the auction already committed the major action.
 	action_committed.emit()
 	for col: CardData.SupplyColor in spent:
 		_supply_ui.spend_supply(col, spent[col])
