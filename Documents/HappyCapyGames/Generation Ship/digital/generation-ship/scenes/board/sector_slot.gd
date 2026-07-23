@@ -407,18 +407,19 @@ func _setup_max_optimizations(card: Node3D) -> void:
 const OPT_ICON_TEX_SIZE: Vector2 = Vector2(701.0, 908.0)  # matches every card icon PNG
 const OPT_ICON_PIXEL_SIZE: float = 0.0001
 const OPT_COLUMN_X: float = -0.32
-const OPT_BASE_Y: float = 0.24
-const OPT_ICON_Y_STEP: float = 0.115
-const OPT_LEVEL_GAP_Y: float = 0.05
+const OPT_ICON_Y: float = 0.24
+const OPT_BASE_Z: float = 0.0
+const OPT_ICON_Z_STEP: float = 0.115
+const OPT_LEVEL_GAP_Z: float = 0.05
 const OPT_PENDING_EMISSION: Color = Color(0.9, 0.15, 0.15)
 const OPT_DONE_EMISSION: Color = Color(0.25, 0.95, 0.35)
 const OPT_EMISSION_ENERGY: float = 0.8
 
-# Floating "recipe" icons in a vertical column on the sector's left side, one
-# icon per required color across all Optimize levels (per the Optimize 1/2/3
-# CSV columns) — glowing red while pending, green once that level is met.
-# Built once at placement time since a slot's requirement set never changes
-# after accept_card() (dust vs. advanced is fixed then).
+# Floating "recipe" icons stacked front-to-back on the sector's left side,
+# one icon per required color across all Optimize levels (per the Optimize
+# 1/2/3 CSV columns) — glowing red while pending, green once that level is
+# met. Built once at placement time since a slot's requirement set never
+# changes after accept_card() (dust vs. advanced is fixed then).
 func _build_optimize_display(card: Node3D) -> void:
 	_clear_optimize_display()
 	_optimize_icons.resize(3)
@@ -434,7 +435,7 @@ func _build_optimize_display(card: Node3D) -> void:
 	)
 	var icon_w: float = OPT_ICON_TEX_SIZE.x * OPT_ICON_PIXEL_SIZE
 	var icon_h: float = OPT_ICON_TEX_SIZE.y * OPT_ICON_PIXEL_SIZE
-	var cur_y: float = OPT_BASE_Y
+	var cur_z: float = OPT_BASE_Z
 	for level_idx: int in 3:
 		var req: Array = level_reqs[level_idx]
 		if req.is_empty():
@@ -442,10 +443,10 @@ func _build_optimize_display(card: Node3D) -> void:
 		var row: Array = []
 		for color_id: int in req:
 			var tex_path: String = ANY_CARD_ICON_PATH if color_id == CardData.OPTIMIZE_ANY else CARD_ICON_PATHS[color_id]
-			row.append(_make_optimize_icon(Vector3(OPT_COLUMN_X, cur_y, 0.0), tex_path, icon_w, icon_h))
-			cur_y += OPT_ICON_Y_STEP
+			row.append(_make_optimize_icon(Vector3(OPT_COLUMN_X, OPT_ICON_Y, cur_z), tex_path, icon_w, icon_h))
+			cur_z += OPT_ICON_Z_STEP
 		_optimize_icons[level_idx] = row
-		cur_y += OPT_LEVEL_GAP_Y
+		cur_z += OPT_LEVEL_GAP_Z
 	refresh_optimize_display()
 
 # A plain textured plane sitting at a real 3D position — no no_depth_test/
