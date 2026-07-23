@@ -130,16 +130,16 @@ func _setup_display() -> void:
 	_faceup_vp_label   = _make_badge(Vector3(-0.23, 0.15, 0.52), Color(1.0, 0.95, 0.3))
 	_facedown_vp_label = _make_badge(Vector3( 0.23, 0.15, 0.52), Color(1.0, 0.95, 0.3))
 	_faceup_count_icon   = _make_card_count_icon(Vector3(-0.29, 0.13, 0.67))
-	_faceup_count_label  = _make_badge(Vector3(-0.17, 0.15, 0.67), Color(0.85, 0.9, 1.0))
+	_faceup_count_label  = _make_badge(Vector3(-0.17, 0.15, 0.67), Color(0.85, 0.9, 1.0), false, false)
 	_facedown_count_icon  = _make_card_count_icon(Vector3( 0.17, 0.13, 0.67))
-	_facedown_count_label = _make_badge(Vector3( 0.29, 0.15, 0.67), Color(0.85, 0.9, 1.0))
+	_facedown_count_label = _make_badge(Vector3( 0.29, 0.15, 0.67), Color(0.85, 0.9, 1.0), false, false)
 
-func _make_badge(pos: Vector3, color: Color, outlined: bool = false) -> Label3D:
+func _make_badge(pos: Vector3, color: Color, outlined: bool = false, no_depth_test: bool = true) -> Label3D:
 	var lbl := Label3D.new()
 	lbl.font_size = 28
 	lbl.pixel_size = 0.005
 	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	lbl.no_depth_test = true
+	lbl.no_depth_test = no_depth_test
 	lbl.render_priority = 2
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.modulate = color
