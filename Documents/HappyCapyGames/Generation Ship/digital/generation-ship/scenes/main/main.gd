@@ -1985,9 +1985,6 @@ func _on_sector_revealed(card_data: CardData, slot_idx: int) -> void:
 	_hide_effect_hint()
 	$Board.set_sector_reveal_mode(false)
 	var reveal_name: String = card_data.card_name if card_data else tr("a card")
-	# TEMP DEBUG — remove once the Inflatable Hull eligibility bug is found.
-	_log_effect("[DEBUG] revealed %s, adv_color=%s, may_free_gain=%s" % [
-		reveal_name, CardData.color_name(card_data.adv_color) if card_data else "?", _pending_reveal_may_free_gain])
 	var reveal_outcome_parts: Array[String] = [tr("revealed %s") % reveal_name]
 	if _pending_reveal_gain_supply and card_data:
 		_cs_display.add_supply(card_data.adv_color, 1)
@@ -2417,11 +2414,6 @@ func _effect_step_offer_bid_any_expedition() -> void:
 func _effect_step_offer_free_sector_gain() -> void:
 	var eligible: Array[CardData] = []
 	var eligible_adv: Array[bool] = []
-	# TEMP DEBUG — remove once the Inflatable Hull eligibility bug is found.
-	var _debug_parts: Array[String] = []
-	for cd: CardData in _reveal_free_pool:
-		_debug_parts.append("%s(adv=%s)" % [cd.card_name, CardData.color_name(cd.adv_color)])
-	_log_effect("[DEBUG] reveal_free_pool: " + (", ".join(_debug_parts) if not _debug_parts.is_empty() else "(empty)"))
 	for cd: CardData in _reveal_free_pool:
 		if cd.adv_color == CardData.SupplyColor.DUST or cd.adv_color == CardData.SupplyColor.LIQUIDS:
 			eligible.append(cd)

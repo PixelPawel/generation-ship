@@ -57,6 +57,7 @@ func _ready() -> void:
 
 	_scroll_container = ScrollContainer.new()
 	_scroll_container.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll_container.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	_scroll_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(_scroll_container)
@@ -150,6 +151,7 @@ func show_card_choices(prompt: String, cards: Array[CardData], skippable: bool =
 	_build_card_rows(cards, func(idx: int, _btn: Button) -> void: _on_pressed(idx), advanced_flags)
 	_skip_btn.visible = skippable
 	_multiselect_done_btn.visible = false
+	_fit_scroll_width()
 	show()
 
 func show_multiselect_card_choices(prompt: String, cards: Array[CardData], max_select: int = 0) -> void:
@@ -165,18 +167,28 @@ func show_multiselect_card_choices(prompt: String, cards: Array[CardData], max_s
 	_build_card_rows(cards, func(idx: int, btn: Button) -> void: _on_multiselect_toggle(idx, btn))
 	_multiselect_done_btn.visible = true
 	_skip_btn.visible = false
+	_fit_scroll_width()
 	show()
 
-# Grows each card image beyond its base size when there's room to spare —
-# few cards (e.g. a single revealed card) get to fill most of the available
-# screen space, while many-option choices stay at their current size instead
-# of being squeezed smaller (they fall back on the scroll container instead).
+# Floor for _card_row_grow_scale — below this, cards fall back on the scroll
+# container instead of shrinking further into illegibility.
+const _CARD_MIN_SCALE: float = 0.55
+
+# Grows each card image beyond its base size when there's room to spare (e.g.
+# a single revealed card fills most of the available screen space), and
+# shrinks it when there isn't — down to _CARD_MIN_SCALE, past which point it
+# relies on the scroll container instead. This used to floor at 1.0 (never
+# shrink), which silently overflowed the row for ~4+ options: the row grew
+# past the screen with no visible/discoverable scrollbar, so extra choices
+# were effectively unreachable (e.g. Inflatable Hull's free-sector-gain
+# choice, whose "gain a Liquids sector" option went missing this way even
+# though it was correctly computed as eligible).
 func _card_row_grow_scale(count: int, base_sz: Vector2) -> float:
 	var separation: float = _buttons_row.get_theme_constant("separation")
 	var vp_size: Vector2 = get_viewport_rect().size
 	var avail_w: float = (vp_size.x * _CARD_ROW_WIDTH_FRACTION - separation * max(count - 1, 0)) / max(count, 1)
 	var avail_h: float = vp_size.y * _CARD_ROW_HEIGHT_FRACTION - _CARD_LABEL_RESERVE
-	return max(1.0, min(avail_w / base_sz.x, avail_h / base_sz.y))
+	return max(_CARD_MIN_SCALE, min(avail_w / base_sz.x, avail_h / base_sz.y))
 
 func _build_card_rows(cards: Array[CardData], on_click: Callable, advanced_flags: Array[bool] = []) -> void:
 	for i: int in cards.size():
