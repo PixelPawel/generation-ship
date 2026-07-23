@@ -293,15 +293,17 @@ func _ready() -> void:
 	_sector_picker.sector_selected.connect(_on_sector_selected_from_picker)
 	_sector_picker.skipped.connect(_on_sector_picker_skipped)
 
+	_placement_confirm_panel = load("res://scenes/ui/placement_confirm_panel.gd").new()
+	_info_viewport.add_child(_placement_confirm_panel)
+	CockpitRig.register_info_panel(self, _placement_confirm_panel)
+	_placement_confirm_panel.confirmed.connect(_on_placement_confirmed)
+	_placement_confirm_panel.cancelled.connect(_on_placement_cancelled)
+
 	$Board.sector_info_requested.connect(_on_sector_info_requested)
 	$Board.market_card_inspect_bought.connect(_on_market_card_inspect_bought)
 
 	_setup_music()
 	CockpitRig.setup_control_screen_display(self)
-	_placement_confirm_panel = load("res://scenes/ui/placement_confirm_panel.gd").new()
-	cs_viewport.add_child(_placement_confirm_panel)
-	_placement_confirm_panel.confirmed.connect(_on_placement_confirmed)
-	_placement_confirm_panel.cancelled.connect(_on_placement_cancelled)
 	OpponentBoardView.setup_enemy_screen_display(self)
 	CockpitRig.setup_log_screen_display(self)
 	CockpitRig.setup_floating_tooltip(self)
@@ -3062,8 +3064,8 @@ func _on_payment_confirm_required(card: Node3D, slot: SectorSlot, pay_amounts: D
 
 # The targeting arrow shown after a market purchase snaps to a slot but
 # doesn't place immediately anymore — this confirms the exact target first,
-# on the control screen (where the player's attention already is while
-# aiming), before the card actually lands.
+# on the market/info screen (alongside the other purchase-flow panels like
+# the payment panel), before the card actually lands.
 func _on_placement_confirm_required(card: Node3D, slot: SectorSlot, _is_tech: bool) -> void:
 	_effect_mode = EffectMode.PLACEMENT_CONFIRM
 	var card_name: String = ""
