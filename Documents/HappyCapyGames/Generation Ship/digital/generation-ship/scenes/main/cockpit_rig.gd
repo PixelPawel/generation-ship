@@ -189,6 +189,7 @@ const SCREEN_ENLARGE_OUT_SEC: float = 0.40
 const SCREEN_DUCK_SLIDE_Z: float = 0.20
 const SCREEN_DUCK_IN_SEC: float = 0.30
 const SCREEN_DUCK_OUT_SEC: float = 0.45
+const CARD_ELEVATION_IGNORE_WINDOW_MS: int = 50
 
 # Right-click toggle that pulls a cockpit screen (control/info/log) closer to
 # the camera — brought back from an earlier hover-triggered version of this
@@ -225,7 +226,16 @@ static func setup_screen_enlarge(main: Main) -> void:
 			if event is InputEventMouseButton:
 				var mb: InputEventMouseButton = event as InputEventMouseButton
 				if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
-					_toggle_screen_enlarge(main, node)
+					# A placed card sitting near/behind the screen from the
+					# camera's angle can be hit by the same ray, so its own
+					# right-click-to-elevate toggle may fire alongside this
+					# one. Deferring lets that toggle's signal (if any) land
+					# first regardless of dispatch order, so the timestamp
+					# check below sees it before deciding whether to act.
+					(func() -> void:
+						if Time.get_ticks_msec() - main._last_card_elevation_toggle_ms > CARD_ELEVATION_IGNORE_WINDOW_MS:
+							_toggle_screen_enlarge(main, node)
+					).call_deferred()
 		)
 		area.mouse_entered.connect(func() -> void:
 			main._show_tooltip("", main.tr("Right-click to enlarge/shrink this screen."))

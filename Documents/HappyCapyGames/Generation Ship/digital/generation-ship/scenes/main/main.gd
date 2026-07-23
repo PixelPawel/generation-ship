@@ -162,6 +162,7 @@ var _screen_enlarged: Dictionary = {}          # Node3D (screen) -> true while p
 var _screen_duck_tweens: Dictionary = {}       # SectorSlot -> Tween
 var _screen_duck_card_pos: Dictionary = {}     # Node3D (tech card) -> Vector3 rest position
 var _screen_ducked_slots: Dictionary = {}      # Node3D (screen) -> Array[SectorSlot]
+var _last_card_elevation_toggle_ms: int = -999999
 var _info_screen_mesh: MeshInstance3D = null
 var _cs_display: SupplyUI = null
 var _end_turn_btn_mesh: MeshInstance3D = null
@@ -356,6 +357,7 @@ func _set_containing_sector_hover(card: Node3D, on: bool) -> void:
 		slot.set_hover_expand(on)
 
 func _on_card_elevation_started(card_node: Node3D) -> void:
+	_last_card_elevation_toggle_ms = Time.get_ticks_msec()
 	var card: Card = card_node as Card
 	if card and card.is_market_inspecting():
 		return
@@ -366,6 +368,7 @@ func _on_card_elevation_started(card_node: Node3D) -> void:
 	)
 
 func _on_card_elevation_ended(card_node: Node3D) -> void:
+	_last_card_elevation_toggle_ms = Time.get_ticks_msec()
 	var card: Card = card_node as Card
 	if card and card.is_market_inspecting():
 		return
