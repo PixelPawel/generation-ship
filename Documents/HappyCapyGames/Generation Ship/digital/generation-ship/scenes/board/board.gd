@@ -797,7 +797,7 @@ func _try_drop() -> void:
 		_try_drop_tech()
 
 func request_recycle(card: Node3D) -> void:
-	if _pending_recycle_card or _pending_card or not is_instance_valid(card):
+	if _pending_recycle_card or not is_instance_valid(card):
 		return
 	if _hand:
 		_hand.detach_card(card)

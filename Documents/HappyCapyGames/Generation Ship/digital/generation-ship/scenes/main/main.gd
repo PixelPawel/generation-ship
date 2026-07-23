@@ -1476,7 +1476,14 @@ func _recycle_card_to_supply(card: Node3D, color: CardData.SupplyColor) -> void:
 	$Hand.remove_card_fly_out(card)
 
 func _on_card_right_clicked_free_recycle(card: Node3D) -> void:
-	if _effect_mode != EffectMode.NONE:
+	# PAYMENT_CONFIRM is exempted: the card mid-payment is already detached
+	# from the hand and invisible, so it can't be the one right-clicked here
+	# — this only ever affects a different hand card, which is safe to
+	# recycle while a payment dialog is up (the panel already re-syncs its
+	# available-supply display via _on_supply_changed -> refresh()). Every
+	# other effect mode represents an in-progress effect resolution that a
+	# free recycle could genuinely interfere with, so those stay blocked.
+	if _effect_mode != EffectMode.NONE and _effect_mode != EffectMode.PAYMENT_CONFIRM:
 		return
 	$Board.request_recycle(card)
 
