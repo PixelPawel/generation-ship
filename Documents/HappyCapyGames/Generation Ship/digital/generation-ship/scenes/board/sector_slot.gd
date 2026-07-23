@@ -418,7 +418,7 @@ const OPT_COLUMN_X: float = -0.32
 # local Y/Z would land at a different world height depending on how far
 # along Z that particular icon sits. This keeps every icon at the same
 # world height regardless.
-const OPT_ICON_WORLD_Y: float = 0.540
+const OPT_ICON_WORLD_Y: float = 0.550
 const OPT_BASE_Z: float = 0.0
 const OPT_ICON_Z_STEP: float = 0.115
 const OPT_LEVEL_GAP_Z: float = 0.05
@@ -460,12 +460,11 @@ func _build_optimize_display(card: Node3D) -> void:
 		cur_z += OPT_LEVEL_GAP_Z
 	refresh_optimize_display()
 
-# A plain textured plane sitting at a real 3D position. The camera looks
-# straight down (-90 on X), so the icon's own fixed tilt puts it underneath
-# the flat-lying placed card from the camera's point of view once normal
-# depth-testing applies — matching the stored-supply badges' no_depth_test/
-# render_priority treatment keeps it visibly on top instead. Returns the
-# material so refresh_optimize_display() can flip its emission color later.
+# A plain textured plane sitting at a real 3D position — real depth-testing
+# stays on (unlike the stored-supply badges), so it needs to actually sit
+# above the placed card's own surface rather than relying on a
+# no_depth_test bypass; see OPT_ICON_WORLD_Y. Returns the material so
+# refresh_optimize_display() can flip its emission color later.
 func _make_optimize_icon(pos: Vector3, tex_path: String, icon_w: float, icon_h: float) -> StandardMaterial3D:
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(icon_w, icon_h)
@@ -476,8 +475,6 @@ func _make_optimize_icon(pos: Vector3, tex_path: String, icon_w: float, icon_h: 
 	mat.albedo_texture = load(tex_path)
 	mat.emission_enabled = true
 	mat.emission_energy_multiplier = OPT_EMISSION_ENERGY
-	mat.no_depth_test = true
-	mat.render_priority = 2
 	mesh_inst.material_override = mat
 	mesh_inst.position = pos
 	mesh_inst.rotation_degrees.x = -12.6
