@@ -157,13 +157,15 @@ func _on_card_drag_started(card: Node3D) -> void:
 	detach_card(card)
 	card_drag_started.emit(card)
 
-# A plain left-click enlarges the card (see set_discard_mode's own click
-# handler, which takes priority while active — enlarging mid-discard would
-# just be a confusing distraction from the card that's about to fly out).
+# A plain left-click enlarges the card, or shrinks it back down if it's
+# already the enlarged one (see set_discard_mode's own click handler, which
+# takes priority while active — enlarging mid-discard would just be a
+# confusing distraction from the card that's about to fly out).
 func _on_card_clicked(card: Node3D) -> void:
 	if _discard_mode_active:
 		return
-	_enlarged_index = _cards.find(card)
+	var idx: int = _cards.find(card)
+	_enlarged_index = -1 if idx == _enlarged_index else idx
 	_layout(true)
 
 # Shrinks the card back down once the mouse actually leaves it — but only
