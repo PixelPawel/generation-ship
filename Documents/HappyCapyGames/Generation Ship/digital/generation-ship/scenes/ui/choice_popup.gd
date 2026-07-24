@@ -21,12 +21,12 @@ func _ready() -> void:
 	hide()
 
 	var panel: ScifiPanel = load("res://scenes/ui/scifi_panel.gd").new()
-	panel.set_content_margin(24)
+	panel.set_content_margin(_PANEL_CONTENT_MARGIN)
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(panel)
 
 	var outer_hbox: HBoxContainer = HBoxContainer.new()
-	outer_hbox.add_theme_constant_override("separation", 20)
+	outer_hbox.add_theme_constant_override("separation", _OUTER_HBOX_SEPARATION)
 	outer_hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	outer_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	panel.add_child(outer_hbox)
@@ -91,10 +91,22 @@ func _ready() -> void:
 	_multiselect_done_btn.visible = false
 	footer_row.add_child(_multiselect_done_btn)
 
+const _PANEL_CONTENT_MARGIN: int = 24
+const _OUTER_HBOX_SEPARATION: int = 20
+
 func _fit_scroll_width() -> void:
 	if not _scroll_container:
 		return
-	var max_w: float = get_viewport_rect().size.x * 0.90
+	# max_w must reflect what's actually left for the button row, not the
+	# raw viewport width — the panel's own content margin, and (when the
+	# optional card-art rect is showing, e.g. an in-place effect's own card)
+	# its reserved width plus the separation before this vbox, both eat into
+	# it too. Skipping those let wide rows — any prompt offering all 6
+	# supply colors, e.g. Holoprinter — overflow past the visible panel edge.
+	var reserved: float = _PANEL_CONTENT_MARGIN * 2.0
+	if _card_image_rect and _card_image_rect.visible:
+		reserved += _card_image_rect.custom_minimum_size.x + _OUTER_HBOX_SEPARATION
+	var max_w: float = get_viewport_rect().size.x - reserved
 	var w: float = min(_buttons_row.get_combined_minimum_size().x, max_w)
 	_scroll_container.custom_minimum_size.x = w
 
@@ -130,7 +142,10 @@ func show_choices(prompt: String, option_labels: Array, skippable: bool = false,
 		_buttons_row.add_child(btn)
 	_skip_btn.visible = skippable
 	_multiselect_done_btn.visible = false
-	_fit_scroll_width()
+	# Must resolve the card-art rect's visibility for THIS call before
+	# _fit_scroll_width() runs — that function reserves space for it only
+	# when visible, so fitting first would size the row against whatever
+	# state was left over from the previous popup instead of this one.
 	if _card_image_rect:
 		if card_data:
 			var url: String = card_data.adv_image_url if (is_advanced and not card_data.adv_image_url.is_empty()) else card_data.image_url
@@ -138,6 +153,7 @@ func show_choices(prompt: String, option_labels: Array, skippable: bool = false,
 			_card_image_rect.visible = _card_image_rect.texture != null
 		else:
 			_card_image_rect.visible = false
+	_fit_scroll_width()
 	show()
 
 func show_card_choices(prompt: String, cards: Array[CardData], skippable: bool = true, advanced_flags: Array[bool] = []) -> void:
@@ -160,6 +176,8 @@ func show_multiselect_card_choices(prompt: String, cards: Array[CardData], max_s
 		_vbox.custom_minimum_size.x = 0
 	_prompt_label.text = prompt
 	_clear_options()
+	if _card_image_rect:
+		_card_image_rect.visible = false
 	_max_select = max_select
 	_selected_flags = []
 	for _i: int in cards.size():
