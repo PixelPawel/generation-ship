@@ -321,7 +321,6 @@ func _ready() -> void:
 	CockpitRig.setup_screen_enlarge(self)
 
 	_wire_sector_slots_to_board()
-	$Board.market_screen_anchor_3d = CockpitRig.viewport_to_world(self, Vector2(_info_viewport.size) * 0.5)
 
 func _on_node_added_to_tree(node: Node) -> void:
 	if node is Card and not node.has_meta("_main_connected"):

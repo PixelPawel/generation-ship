@@ -54,19 +54,17 @@ var _hand: Node3D = null
 var _dragged_card: Node3D = null
 var _drag_origin: DragOrigin = DragOrigin.NONE
 var market_origin_3d: Vector3 = Vector3.ZERO
-# Set once by main.gd (which has the CockpitRig/viewport references this
-# doesn't) — the info/market screen's own world position, where a static
-# clone of a dragged hand card rests for the player to read (see
-# _show_drag_preview_clone).
-var market_screen_anchor_3d: Vector3 = Vector3.ZERO
 var _drag_start_global_pos: Vector3 = Vector3.ZERO
 var _drag_start_scale: Vector3 = Vector3.ONE
-# A disposable, non-interactive clone shown at the market screen for the
-# duration of a hand-origin drag only — the real dragged card stays hidden
-# and mouse-tracked like any other drag (see _begin_drag/_process); this is
-# purely a "what am I holding" reminder, freed the instant the drag's
-# targeting phase ends (see _end_arrow_drag).
-var _drag_preview_clone: Node3D = null
+# A 2D screen-space "what am I holding" readout for a hand-origin drag only,
+# shown next to the mouse cursor — reuses the same CanvasLayer as the drag
+# arrow (see _ready()) since that's the only reliably-visible approach
+# during a drag: a 3D clone placed at the info screen's own world position
+# isn't actually in view most of the time (the camera's pointed at the
+# board while aiming a drop, not at the info screen), which is why an
+# earlier version of this (a static 3D clone resting on the info screen)
+# went unseen in practice.
+var _drag_preview_rect: TextureRect = null
 var _major_action_taken: bool = false
 var _effect_active: bool = false  # kept in sync by Main whenever _effect_mode changes — see set_effect_active()
 var _supply_ui: Control = null
@@ -112,6 +110,17 @@ func _ready() -> void:
 	add_child(arrow_canvas)
 	_drag_arrow = DragArrow.new()
 	arrow_canvas.add_child(_drag_arrow)
+
+	_drag_preview_rect = TextureRect.new()
+	_drag_preview_rect.custom_minimum_size = _DRAG_PREVIEW_SIZE
+	_drag_preview_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_drag_preview_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_drag_preview_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_drag_preview_rect.visible = false
+	var preview_mat: ShaderMaterial = ShaderMaterial.new()
+	preview_mat.shader = load("res://shaders/card_rounded.gdshader") as Shader
+	_drag_preview_rect.material = preview_mat
+	arrow_canvas.add_child(_drag_preview_rect)
 
 func _on_sector_slot_clicked(slot: SectorSlot) -> void:
 	sector_info_requested.emit(slot)
@@ -773,7 +782,7 @@ func _begin_drag(card: Node3D) -> void:
 	card.reparent(self, true)
 	card.visible = false
 	if _drag_origin == DragOrigin.HAND:
-		_show_drag_preview_clone(card)
+		_show_drag_preview(card)
 	if _drag_arrow != null:
 		_is_arrow_drag = true
 		var cam: Camera3D = get_viewport().get_camera_3d()
@@ -781,35 +790,39 @@ func _begin_drag(card: Node3D) -> void:
 		var from_2d: Vector2 = cam.unproject_position(from_3d)
 		_drag_arrow.show_arrow(from_2d, from_2d)
 
-# Shows a static, non-interactive clone of a dragged hand card resting on the
-# market screen (same rotation/enlarge scale as the market-inspect clone) so
-# the player can actually read it during the drag — the real card stays
-# hidden and mouse-tracked, same as any other drag. Freed in
-# _clear_drag_preview_clone once the drag's targeting phase ends.
-func _show_drag_preview_clone(card: Node3D) -> void:
-	_clear_drag_preview_clone()
+const _DRAG_PREVIEW_SIZE: Vector2 = Vector2(160, 160)
+# Above and to the right of the cursor so the preview doesn't sit under it.
+const _DRAG_PREVIEW_MOUSE_OFFSET: Vector2 = Vector2(28, -188)
+
+# Shows the dragged hand card's own art next to the cursor for the whole
+# drag (see _process for the follow-the-mouse position update) — the real
+# card stays hidden and mouse-tracked in 3D space like any other drag, same
+# as before this preview existed.
+func _show_drag_preview(card: Node3D) -> void:
+	_drag_preview_rect.visible = false
 	if not card.card_data:
 		return
-	var clone: Node3D = _card_scene.instantiate()
-	add_child(clone)
-	clone.is_advanced = card.get("is_advanced")
-	clone.set_card_data(card.card_data)
-	clone.can_drag = false
-	clone.position = to_local(market_screen_anchor_3d)
-	clone.rotation = _MARKET_CARD_ROTATION
-	clone.scale = Vector3.ONE * _placed_card_enlarge_scale()
-	_drag_preview_clone = clone
+	var cd: CardData = card.card_data
+	var is_adv: bool = bool(card.get("is_advanced"))
+	var url: String = cd.adv_image_url if is_adv and not cd.adv_image_url.is_empty() else cd.image_url
+	if url.is_empty():
+		return
+	var tex: Texture2D = ImageCache.get_texture(url)
+	if not tex:
+		return
+	_drag_preview_rect.texture = tex
+	_drag_preview_rect.visible = true
 
-func _clear_drag_preview_clone() -> void:
-	if is_instance_valid(_drag_preview_clone):
-		_drag_preview_clone.queue_free()
-	_drag_preview_clone = null
+func _clear_drag_preview() -> void:
+	_drag_preview_rect.visible = false
 
 func _process(_delta: float) -> void:
 	if not _dragged_card or _placement_confirm_pending:
 		return
 	var world_pos: Vector3 = _mouse_to_plane(DRAG_Y)
 	_dragged_card.global_position = world_pos
+	if _drag_preview_rect.visible:
+		_drag_preview_rect.position = get_viewport().get_mouse_position() + _DRAG_PREVIEW_MOUSE_OFFSET
 	if _is_arrow_drag and _drag_arrow != null:
 		var cam: Camera3D = get_viewport().get_camera_3d()
 		var snap_slot: SectorSlot = _find_nearest_empty_sector_slot() if _is_sector_card() else _find_nearest_tech_slot()
@@ -843,7 +856,7 @@ func _end_arrow_drag() -> void:
 	if not _is_arrow_drag:
 		return
 	_is_arrow_drag = false
-	_clear_drag_preview_clone()
+	_clear_drag_preview()
 	if _drag_arrow:
 		_drag_arrow.hide_arrow()
 	if is_instance_valid(_dragged_card):
