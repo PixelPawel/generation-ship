@@ -175,6 +175,14 @@ func _make_icon_plane(pos: Vector3, size: Vector2, tex: Texture2D = null, start_
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	if tex:
 		mat.albedo_texture = tex
+		# Icon PNGs with transparent backgrounds (e.g. supply icons) need this
+		# — without it, StandardMaterial3D ignores the texture's alpha channel
+		# and renders it fully opaque, showing a solid box with a white fringe
+		# right at the icon's edge (anti-aliased semi-transparent pixels drawn
+		# at full opacity instead of blending out). Scissor, not alpha-blend,
+		# so it still writes depth normally and stays real depth-tested like
+		# everything else here.
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 	else:
 		mat.albedo_color = Color(0.12, 0.18, 0.32)
 	mesh_inst.material_override = mat
