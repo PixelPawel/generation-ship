@@ -7,6 +7,7 @@ signal cancelled
 var _title: Label
 var _hint: Label
 var _buttons_row: HBoxContainer
+var _scroll: ScrollContainer
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -40,16 +41,22 @@ func _ready() -> void:
 	_hint.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	vbox.add_child(_hint)
 
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_child(scroll)
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# SHRINK_CENTER, not EXPAND_FILL: a ScrollContainer never stretches its
+	# child along a scrollable axis, so _buttons_row's own alignment=CENTER
+	# had no extra space to center within — see show_cost(), which sizes
+	# this container to match the row (or the available width, once the
+	# row needs to actually scroll) so shrink-centering it actually centers
+	# the button row. Same fix as ChoicePopup's own button row.
+	_scroll.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	vbox.add_child(_scroll)
 
 	_buttons_row = HBoxContainer.new()
 	_buttons_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_buttons_row.add_theme_constant_override("separation", 16)
-	scroll.add_child(_buttons_row)
+	_scroll.add_child(_buttons_row)
 
 	var cancel_btn := Button.new()
 	cancel_btn.text = tr("Cancel")
@@ -77,6 +84,7 @@ func show_cost(card_name: String, cost: int, affordable: Array) -> void:
 	var btn_size: Vector2 = Vector2(_BASE_BTN_SIZE.x * btn_scale, _BASE_BTN_SIZE.y)
 	for color: Variant in affordable:
 		_buttons_row.add_child(_make_btn(color as CardData.SupplyColor, cost, btn_size, btn_scale))
+	_scroll.custom_minimum_size.x = min(_buttons_row.get_combined_minimum_size().x, avail_w)
 	show()
 
 func _make_btn(color: CardData.SupplyColor, cost: int, btn_size: Vector2, btn_scale: float) -> Button:

@@ -176,7 +176,12 @@ static func make_card_row(cards: Array, face_up: bool, viewport_size: Vector2) -
 	var hscroll := ScrollContainer.new()
 	hscroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	hscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	hscroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# SHRINK_CENTER, not EXPAND_FILL: a ScrollContainer never stretches its
+	# child along a scrollable axis, so hbox would sit at this container's
+	# left edge once it's wider than the row itself — same fix as
+	# ChoicePopup's own button row. Width is set below, once hbox is
+	# actually populated and its natural size is known.
+	hscroll.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	hscroll.custom_minimum_size = Vector2(0, card_h + 16)
 	outer.add_child(hscroll)
 
@@ -220,6 +225,8 @@ static func make_card_row(cards: Array, face_up: bool, viewport_size: Vector2) -
 			card_vbox.add_child(name_lbl)
 
 		hbox.add_child(card_vbox)
+
+	hscroll.custom_minimum_size.x = min(hbox.get_combined_minimum_size().x, avail_w)
 
 	# Apply glowy blue scrollbar once the node is in the tree
 	hscroll.ready.connect(func() -> void: style_blue_scrollbar(hscroll))
