@@ -12,6 +12,11 @@ const MIN_SPACING := CARD_WIDTH * 0.29
 const ENLARGE_LIFT := 0.2
 const ENLARGE_SCALE := HAND_SCALE * 2.2
 const LAYOUT_DURATION := 0.2
+const ENLARGE_Z_DEPTH := 0.05
+# Total z spread across the whole resting hand, split evenly per card gap
+# (see _layout) — fixed regardless of hand size so it always stays well
+# under ENLARGE_Z_DEPTH, no matter how many cards are in hand.
+const HAND_Z_MAX_STAGGER := 0.03
 
 var _cards: Array[Node3D] = []
 var _enlarged_index: int = -1
@@ -193,6 +198,7 @@ func _layout(animate: bool) -> void:
 		spacing = MAX_HAND_WIDTH / (n - 1)
 	spacing = maxf(spacing, MIN_SPACING)
 	var total_width := spacing * (n - 1)
+	var z_step: float = HAND_Z_MAX_STAGGER / float(max(n - 1, 1))
 
 	for i in n:
 		var x := -total_width * 0.5 + i * spacing
@@ -200,7 +206,20 @@ func _layout(animate: bool) -> void:
 		var t := float(i) / float(max(n - 1, 1)) * 2.0 - 1.0
 		var y_hover := ENLARGE_LIFT if i == _enlarged_index else 0.0
 		var rot_z := t * deg_to_rad(-3.0)
-		var z_depth := 0.05 if i == _enlarged_index else 0.0
+		# Every resting card used to sit at the exact same z (0.0), which is a
+		# real problem here specifically: the card face shader
+		# (card_sheen.gdshader) renders with depth_draw_never +
+		# depth_test_disabled, so overlapping cards have no depth buffer to
+		# fall back on at all — ordering comes entirely from Godot's
+		# transparent-sort distance tiebreak, which is ambiguous (and prone to
+		# picking the wrong side) when two cards are exactly tied. A newly
+		# drawn card landing back on z=0.0 after its fly-in tween could lose
+		# that tie against an already-settled neighbor and render behind it
+		# until something (e.g. enlarging via a click) gave it a decisive z.
+		# A small per-index stagger removes the tie entirely: later hand
+		# positions sit a hair closer to the camera, so draw order no longer
+		# depends on instance/tween history.
+		var z_depth := ENLARGE_Z_DEPTH if i == _enlarged_index else float(i) * z_step
 
 		var target_pos := Vector3(x, y_hover, z_depth)
 		var target_scale := Vector3.ONE * ENLARGE_SCALE if i == _enlarged_index else Vector3.ONE * HAND_SCALE
