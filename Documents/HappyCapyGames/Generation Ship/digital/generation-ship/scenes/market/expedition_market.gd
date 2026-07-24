@@ -139,13 +139,6 @@ func _on_shuffle_card_clicked(card: Node3D) -> void:
 	if _shuffle_active:
 		_refresh_shuffle_connections()
 
-func get_all_visible_cards() -> Array[Node3D]:
-	var result: Array[Node3D] = []
-	for stack: Array in _stacks:
-		for card: Node3D in stack:
-			result.append(card)
-	return result
-
 func find_card(cd: CardData) -> Node3D:
 	for stack: Array in _stacks:
 		for card: Node3D in stack:

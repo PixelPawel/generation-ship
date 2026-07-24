@@ -2440,9 +2440,13 @@ func _effect_step_offer_bid_pool() -> void:
 
 # Unlike _effect_step_offer_bid_pool (only the card(s) this same effect just
 # revealed), Probe Launcher's text is "you may bid on any expedition" — the
-# pool is every expedition currently visible in the market, reveal or not.
+# pool is every expedition currently revealed and visible in the market
+# (the top card of each of the 3 slots, same pool bots draw from via
+# get_available_expeditions()), not every card ever drawn into those slots —
+# older cards buried underneath a slot's current top are no longer up for
+# auction and shouldn't be biddable here either.
 func _effect_step_offer_bid_any_expedition() -> void:
-	var pool: Array[CardData] = $Board.get_visible_expedition_cards()
+	var pool: Array[CardData] = $Board.get_available_expeditions()
 	if pool.is_empty():
 		_process_next_effect()
 		return
