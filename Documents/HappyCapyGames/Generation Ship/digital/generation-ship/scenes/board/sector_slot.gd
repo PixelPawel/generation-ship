@@ -460,14 +460,14 @@ const OPT_ICON_PIXEL_SIZE: float = 0.0001
 # sit in, instead of the near-zero one before the slots were spaced out.
 # Sitting mid-gap keeps clear margin from both this card and the next.
 const OPT_COLUMN_X: float = -0.62
-# Roughly where the first tech slot sits (TECH_OFFSETS_COMPACT[0] =
-# Vector3(0, 0.070, -0.32)) — that spot already renders correctly for real
-# placed tech cards in every screenshot, so anchoring here sidesteps the
-# whole "which Z clears the sector card" problem instead of fighting it.
-# Subsequent icons/levels step further in the same (negative) direction,
-# mirroring how tech cards themselves stack further back per slot, so the
-# whole column stays clear of the card instead of creeping back toward it.
-const OPT_BASE_Z: float = -0.44
+# Now that the column sits out in X (OPT_COLUMN_X, clear of both this card
+# and the neighbor's), it no longer needs to dodge the sector card's own Z
+# extent the way it did back when it shared the card's own X range — so it
+# sits centered on the card's own Z-center (0) instead of hiding back near
+# the tech slots. The actual starting Z is computed per-card in
+# _build_optimize_display, not a fixed constant here, since how far that
+# needs to be depends on how many icons/levels that specific card has —
+# a fixed start would center correctly only for one particular count.
 const OPT_ICON_Z_STEP: float = -0.115
 const OPT_LEVEL_GAP_Z: float = -0.05
 const OPT_PENDING_EMISSION: Color = Color(0.9, 0.15, 0.15)
@@ -495,7 +495,27 @@ func _build_optimize_display(card: Node3D) -> void:
 		[cd.adv_opt1_req, cd.adv_opt2_req, cd.adv_opt3_req] if is_adv
 		else [cd.opt1_req, [], []]
 	)
-	var cur_z: float = OPT_BASE_Z
+	# Dry run first, using the exact same step constants as the real loop
+	# below, to find where the first and last icon would land — so the real
+	# loop can start from whatever position centers that span on 0 instead
+	# of always starting at a fixed Z (which would only center correctly
+	# for one particular icon/level count).
+	var probe_z: float = 0.0
+	var first_z: float = 0.0
+	var last_z: float = 0.0
+	var any_icon: bool = false
+	for level_idx: int in 3:
+		var req: Array = level_reqs[level_idx]
+		if req.is_empty():
+			continue
+		for _i: int in req.size():
+			if not any_icon:
+				first_z = probe_z
+				any_icon = true
+			last_z = probe_z
+			probe_z += OPT_ICON_Z_STEP
+		probe_z += OPT_LEVEL_GAP_Z
+	var cur_z: float = -(first_z + last_z) * 0.5
 	for level_idx: int in 3:
 		var req: Array = level_reqs[level_idx]
 		if req.is_empty():
