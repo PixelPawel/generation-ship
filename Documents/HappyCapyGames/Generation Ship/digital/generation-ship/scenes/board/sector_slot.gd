@@ -77,8 +77,9 @@ var _faceup_count_icon: MeshInstance3D = null
 var _facedown_count_icon: MeshInstance3D = null
 var _faceup_count_label: Label3D = null
 var _facedown_count_label: Label3D = null
-var _optimize_icons: Array = []  # index = level (0..2), value = Array[StandardMaterial3D] (outline mats for that level's icons)
-var _optimize_nodes: Array[Node3D] = []  # every icon/outline node, tracked for cleanup
+var _optimize_icons: Array = []  # index = level (0..2), value = Array[MeshInstance3D] for that level's icons
+var _optimize_level_reqs: Array = []  # index = level (0..2), value = Array[int] (that level's required colors, same order as _optimize_icons)
+var _optimize_nodes: Array[Node3D] = []  # every icon node, tracked for cleanup
 
 @onready var _mesh: MeshInstance3D = $SlotMesh
 
@@ -460,23 +461,26 @@ const OPT_COLUMN_X: float = -0.32
 # Subsequent icons/levels step further in the same (negative) direction,
 # mirroring how tech cards themselves stack further back per slot, so the
 # whole column stays clear of the card instead of creeping back toward it.
-const OPT_BASE_Z: float = -0.32
+const OPT_BASE_Z: float = -0.44
 const OPT_ICON_Z_STEP: float = -0.115
 const OPT_LEVEL_GAP_Z: float = -0.05
 const OPT_PENDING_EMISSION: Color = Color(0.9, 0.15, 0.15)
-const OPT_DONE_EMISSION: Color = Color(0.25, 0.95, 0.35)
 const OPT_EMISSION_ENERGY: float = 0.8
 
 # Floating "recipe" icons stacked front-to-back on the sector's left side,
 # one icon per required color across all Optimize levels (per the Optimize
-# 1/2/3 CSV columns) — glowing red while pending, green once that level is
-# met. Built once at placement time since a slot's requirement set never
-# changes after accept_card() (dust vs. advanced is fixed then).
+# 1/2/3 CSV columns) — glowing red while its color is still needed, hidden
+# entirely once a placed tech of that color satisfies it (see
+# refresh_optimize_display). Built once at placement time since a slot's
+# requirement set never changes after accept_card() (dust vs. advanced is
+# fixed then).
 func _build_optimize_display(card: Node3D) -> void:
 	_clear_optimize_display()
 	_optimize_icons.resize(3)
+	_optimize_level_reqs.resize(3)
 	for i: int in 3:
 		_optimize_icons[i] = []
+		_optimize_level_reqs[i] = []
 	if not card.card_data:
 		return
 	var cd: CardData = card.card_data
@@ -496,44 +500,56 @@ func _build_optimize_display(card: Node3D) -> void:
 			row.append(_make_optimize_icon(Vector3(OPT_COLUMN_X, ELEMENT_ICON_Y, cur_z), tex_path))
 			cur_z += OPT_ICON_Z_STEP
 		_optimize_icons[level_idx] = row
+		_optimize_level_reqs[level_idx] = req
 		cur_z += OPT_LEVEL_GAP_Z
 	refresh_optimize_display()
 
 # Built on the same shared _make_icon_plane as every other icon on this
-# slot, then layered with an emission glow that refresh_optimize_display()
-# flips between pending/done. Returns the material for that purpose.
-func _make_optimize_icon(pos: Vector3, tex_path: String) -> StandardMaterial3D:
+# slot, with a fixed "still needed" red glow — refresh_optimize_display()
+# only ever toggles these icons' visibility, never their look, since once
+# a color's requirement is met the icon simply disappears.
+func _make_optimize_icon(pos: Vector3, tex_path: String) -> MeshInstance3D:
 	var tex: Texture2D = load(tex_path)
 	var mesh_inst := _make_icon_plane(pos, tex.get_size() * OPT_ICON_PIXEL_SIZE, tex)
 	var mat: StandardMaterial3D = mesh_inst.material_override
 	mat.emission_enabled = true
 	mat.emission_energy_multiplier = OPT_EMISSION_ENERGY
-	# Every "..._Card.png" icon has a matching "..._Card_Green.png" variant —
-	# stashed here so refresh_optimize_display() can swap the icon's actual
-	# art to it once fulfilled, not just tint its emission glow.
-	mat.set_meta("done_texture", load(tex_path.replace(".png", "_Green.png")))
+	mat.emission = OPT_PENDING_EMISSION
 	_optimize_nodes.append(mesh_inst)
 
-	return mat
+	return mesh_inst
 
 func _clear_optimize_display() -> void:
 	for n: Node3D in _optimize_nodes:
 		n.queue_free()
 	_optimize_nodes.clear()
 	_optimize_icons.clear()
+	_optimize_level_reqs.clear()
 
-# Flips a level's icons from pending (red glow, regular art) to done (green
-# glow, "_Green" art) once its requirement has been met — triggered_levels
-# is a permanent one-way flag (see OptimizeLogic), so this only ever needs
-# to move icons from "pending" to "done", never back.
+# Hides each icon whose specific color has already been satisfied by a
+# currently-placed tech, leaving only the colors still needed visible —
+# matched the same way OptimizeLogic actually decides a level is
+# satisfied (specific colors first, ANY last), consuming the pool level by
+# level in order so a single placed tech is never counted toward two
+# different levels' displays at once. A level that's already fully
+# triggered (a permanent one-way flag, see OptimizeLogic) hides all its
+# icons outright and still consumes its share of the pool, regardless of
+# whether the exact tech that satisfied it is still in place, since the
+# achievement itself doesn't revert.
 func refresh_optimize_display() -> void:
+	var pool: Array[int] = get_placed_tech_colors()
 	for level_idx: int in _optimize_icons.size():
-		var done: bool = level_idx < triggered_levels.size() and triggered_levels[level_idx]
-		var color: Color = OPT_DONE_EMISSION if done else OPT_PENDING_EMISSION
-		for mat: StandardMaterial3D in _optimize_icons[level_idx]:
-			mat.emission = color
-			if done:
-				mat.albedo_texture = mat.get_meta("done_texture")
+		var req: Array[int] = []
+		req.assign(_optimize_level_reqs[level_idx])
+		var row: Array = _optimize_icons[level_idx]
+		if level_idx < triggered_levels.size() and triggered_levels[level_idx]:
+			for mesh_inst: MeshInstance3D in row:
+				mesh_inst.visible = false
+		else:
+			var matched: Array[bool] = OptimizeLogic.matched_indices(pool, req)
+			for i: int in row.size():
+				row[i].visible = not matched[i]
+		OptimizeLogic.consume_from_pool(pool, req)
 
 func _on_placed_card_clicked(_card: Node3D) -> void:
 	slot_clicked.emit(self)

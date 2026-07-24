@@ -20,6 +20,30 @@ static func consume_from_pool(pool: Array[int], req: Array[int]) -> void:
 		if not pool.is_empty():
 			pool.pop_back()
 
+# Same matching order as consume_from_pool (specific colors first, ANY
+# last) but reports which indices of req got matched instead of just
+# consuming pool silently — used for per-icon "already placed" display
+# (see SectorSlot.refresh_optimize_display), kept separate from
+# consume_from_pool itself so that one function stays the single source
+# of truth for the actual level-trigger/scoring pool consumption.
+static func matched_indices(pool: Array[int], req: Array[int]) -> Array[bool]:
+	var working_pool: Array[int] = pool.duplicate()
+	var matched: Array[bool] = []
+	matched.resize(req.size())
+	matched.fill(false)
+	for i: int in req.size():
+		if req[i] == CardData.OPTIMIZE_ANY:
+			continue
+		var idx: int = working_pool.find(req[i])
+		if idx >= 0:
+			working_pool.remove_at(idx)
+			matched[i] = true
+	for i: int in req.size():
+		if req[i] == CardData.OPTIMIZE_ANY and not working_pool.is_empty():
+			matched[i] = true
+			working_pool.pop_back()
+	return matched
+
 static func satisfies_optimize(placed: Array[int], required: Array[int]) -> bool:
 	var counts: Dictionary = {}
 	for c: int in placed:
