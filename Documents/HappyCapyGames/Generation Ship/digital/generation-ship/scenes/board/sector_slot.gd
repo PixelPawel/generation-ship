@@ -453,13 +453,13 @@ func _setup_max_optimizations(card: Node3D) -> void:
 	triggered_levels.fill(false)
 
 const OPT_ICON_PIXEL_SIZE: float = 0.0001
-# The sector card itself is a landscape-scaled QuadMesh (base 0.63x0.88,
-# scaled by _LANDSCAPE_CHILD_SCALE to 0.88 wide), centered on X=0 — its own
-# left edge sits at -0.44. Tech cards are narrower (portrait, 0.63 wide,
-# left edge -0.315), so anchoring the icon column at the sector card's own
-# left edge clears both, instead of sitting inside the tech stack's own
-# width like the old -0.32 did.
-const OPT_COLUMN_X: float = -0.44
+# Sector slots are now spaced 0.20 apart in world space (~1.333 in this
+# slot's own local frame, given its ~0.15 scale) — with the sector card's
+# own left edge at -0.44 and the neighboring slot's card right edge at
+# roughly -0.89, there's a real ~0.45-wide gap between the two cards to
+# sit in, instead of the near-zero one before the slots were spaced out.
+# Sitting mid-gap keeps clear margin from both this card and the next.
+const OPT_COLUMN_X: float = -0.62
 # Roughly where the first tech slot sits (TECH_OFFSETS_COMPACT[0] =
 # Vector3(0, 0.070, -0.32)) — that spot already renders correctly for real
 # placed tech cards in every screenshot, so anchoring here sidesteps the
