@@ -130,18 +130,6 @@ const MIN_FRONT_Z: float = 0.4
 func _add_z_clearance(base_local: Vector3) -> Vector3:
 	return Vector3(base_local.x, base_local.y, max(base_local.z, MIN_FRONT_Z))
 
-# Optimize icons stack front-to-back to show level order (see cur_z in
-# _build_optimize_display) — clamping to a shared floor like the other
-# elements would collapse that whole stack onto a single Z for any level
-# whose icons start below the floor, since their base Z starts at 0 (deep
-# within the card, worse than anything else on this slot). This adds a
-# fixed push on top of each icon's own Z instead, preserving the relative
-# spacing between them while still clearing the card.
-const OPTIMIZE_Z_PUSH: float = 0.55
-
-func _add_optimize_z_clearance(base_local: Vector3) -> Vector3:
-	return base_local + Vector3(0, 0, OPTIMIZE_Z_PUSH)
-
 func _setup_display() -> void:
 	const DISC_Z: float = 0.28
 	const X_START: float = -0.37
@@ -464,19 +452,24 @@ func _setup_max_optimizations(card: Node3D) -> void:
 	triggered_levels.fill(false)
 
 const OPT_ICON_PIXEL_SIZE: float = 0.0001
-const OPT_COLUMN_X: float = -0.32
-const OPT_BASE_Z: float = 0.0
-const OPT_ICON_Z_STEP: float = 0.115
-const OPT_LEVEL_GAP_Z: float = 0.05
+# Roughly where the first tech slot sits (TECH_OFFSETS_COMPACT[0] =
+# Vector3(0, 0.070, -0.32)) — that spot already renders correctly for real
+# placed tech cards in every screenshot, so anchoring here sidesteps the
+# whole "which Z clears the sector card" problem instead of fighting it.
+const OPT_BASE_X: float = 0.0
+const OPT_ICON_X_STEP: float = 0.16
+const OPT_BASE_Z: float = -0.4
+const OPT_LEVEL_Z_STEP: float = -0.2
 const OPT_PENDING_EMISSION: Color = Color(0.9, 0.15, 0.15)
 const OPT_DONE_EMISSION: Color = Color(0.25, 0.95, 0.35)
 const OPT_EMISSION_ENERGY: float = 0.8
 
-# Floating "recipe" icons stacked front-to-back on the sector's left side,
-# one icon per required color across all Optimize levels (per the Optimize
-# 1/2/3 CSV columns) — glowing red while pending, green once that level is
-# met. Built once at placement time since a slot's requirement set never
-# changes after accept_card() (dust vs. advanced is fixed then).
+# Floating "recipe" icons above the sector, one row per Optimize level (per
+# the Optimize 1/2/3 CSV columns), each level's icons spread side by side
+# and centered, with each subsequent level sitting a bit further back —
+# glowing red while pending, green once that level is met. Built once at
+# placement time since a slot's requirement set never changes after
+# accept_card() (dust vs. advanced is fixed then).
 func _build_optimize_display(card: Node3D) -> void:
 	_clear_optimize_display()
 	_optimize_icons.resize(3)
@@ -496,12 +489,14 @@ func _build_optimize_display(card: Node3D) -> void:
 		if req.is_empty():
 			continue
 		var row: Array = []
-		for color_id: int in req:
+		var row_start_x: float = OPT_BASE_X - (req.size() - 1) * OPT_ICON_X_STEP * 0.5
+		for i: int in req.size():
+			var color_id: int = req[i]
 			var tex_path: String = ANY_CARD_ICON_PATH if color_id == CardData.OPTIMIZE_ANY else CARD_ICON_PATHS[color_id]
-			row.append(_make_optimize_icon(_add_optimize_z_clearance(Vector3(OPT_COLUMN_X, ELEMENT_ICON_Y, cur_z)), tex_path))
-			cur_z += OPT_ICON_Z_STEP
+			var x: float = row_start_x + i * OPT_ICON_X_STEP
+			row.append(_make_optimize_icon(Vector3(x, ELEMENT_ICON_Y, cur_z), tex_path))
 		_optimize_icons[level_idx] = row
-		cur_z += OPT_LEVEL_GAP_Z
+		cur_z += OPT_LEVEL_Z_STEP
 	refresh_optimize_display()
 
 # Built on the same shared _make_icon_plane as every other icon on this
