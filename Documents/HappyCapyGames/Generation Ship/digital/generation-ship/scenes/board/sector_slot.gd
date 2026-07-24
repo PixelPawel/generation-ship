@@ -496,26 +496,29 @@ func _build_optimize_display(card: Node3D) -> void:
 		else [cd.opt1_req, [], []]
 	)
 	# Dry run first, using the exact same step constants as the real loop
-	# below, to find where the first and last icon would land — so the real
-	# loop can start from whatever position centers that span on 0 instead
-	# of always starting at a fixed Z (which would only center correctly
-	# for one particular icon/level count).
+	# below, to collect every icon's Z position in creation order (so the
+	# whole span can be centered on 0 regardless of how many icons/levels
+	# this specific card needs), then hand them out in REVERSE — the first
+	# icon created (e.g. an advanced sector's own Optimize 1, first color)
+	# ends up at the position the last one used to get, and vice versa, per
+	# feedback that creation order had ended up visually inverted.
+	var z_slots: Array[float] = []
 	var probe_z: float = 0.0
-	var first_z: float = 0.0
-	var last_z: float = 0.0
-	var any_icon: bool = false
 	for level_idx: int in 3:
 		var req: Array = level_reqs[level_idx]
 		if req.is_empty():
 			continue
 		for _i: int in req.size():
-			if not any_icon:
-				first_z = probe_z
-				any_icon = true
-			last_z = probe_z
+			z_slots.append(probe_z)
 			probe_z += OPT_ICON_Z_STEP
 		probe_z += OPT_LEVEL_GAP_Z
-	var cur_z: float = -(first_z + last_z) * 0.5
+	if not z_slots.is_empty():
+		var center: float = (z_slots[0] + z_slots[-1]) * 0.5
+		for i: int in z_slots.size():
+			z_slots[i] -= center
+	z_slots.reverse()
+
+	var slot_idx: int = 0
 	for level_idx: int in 3:
 		var req: Array = level_reqs[level_idx]
 		if req.is_empty():
@@ -523,11 +526,10 @@ func _build_optimize_display(card: Node3D) -> void:
 		var row: Array = []
 		for color_id: int in req:
 			var tex_path: String = ANY_CARD_ICON_PATH if color_id == CardData.OPTIMIZE_ANY else CARD_ICON_PATHS[color_id]
-			row.append(_make_optimize_icon(Vector3(OPT_COLUMN_X, ELEMENT_ICON_Y, cur_z), tex_path))
-			cur_z += OPT_ICON_Z_STEP
+			row.append(_make_optimize_icon(Vector3(OPT_COLUMN_X, ELEMENT_ICON_Y, z_slots[slot_idx]), tex_path))
+			slot_idx += 1
 		_optimize_icons[level_idx] = row
 		_optimize_level_reqs[level_idx] = req
-		cur_z += OPT_LEVEL_GAP_Z
 	refresh_optimize_display()
 
 # Built on the same shared _make_icon_plane as every other icon on this
