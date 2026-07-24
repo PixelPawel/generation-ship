@@ -9,13 +9,13 @@ const BASE_SPACING := 0.25
 const MAX_HAND_WIDTH := 2.5
 const CARD_WIDTH := 0.504
 const MIN_SPACING := CARD_WIDTH * 0.29
-const HOVER_LIFT := 0.2
-const HOVER_SCALE := HAND_SCALE * 2.2
+const ENLARGE_LIFT := 0.2
+const ENLARGE_SCALE := HAND_SCALE * 2.2
 const LAYOUT_DURATION := 0.2
 
 var _cards: Array[Node3D] = []
-var _hovered_index: int = -1
-var _unhover_pending: bool = false
+var _enlarged_index: int = -1
+var _discard_mode_active: bool = false
 
 func add_card(card: Node3D, animate: bool = false) -> void:
 	if _cards.has(card):
@@ -26,13 +26,19 @@ func add_card(card: Node3D, animate: bool = false) -> void:
 		add_child(card)
 	_cards.append(card)
 	card.managed_by_hand = true
-	card.hovered.connect(_on_card_hovered)
+	# A plain click enlarges a hand card instead of hover doing it (see
+	# _on_card_clicked/_on_card_unhovered) — needs actual mouse movement
+	# past the drag threshold to count as a real drag, or every click would
+	# immediately register as one (see Card._on_input_event).
+	card.drag_needs_movement = true
 	card.unhovered.connect(_on_card_unhovered)
 	card.drag_started.connect(_on_card_drag_started)
 	# detach_card() deliberately leaves right_clicked connected, so guard
 	# against double-connecting when a card comes back after a failed drop.
 	if not card.right_clicked.is_connected(_on_card_right_clicked):
 		card.right_clicked.connect(_on_card_right_clicked)
+	if not card.clicked.is_connected(_on_card_clicked):
+		card.clicked.connect(_on_card_clicked)
 	_layout(animate)
 
 func animate_draw_cards(cards: Array[Node3D]) -> void:
@@ -50,14 +56,14 @@ func animate_draw_cards(cards: Array[Node3D]) -> void:
 		t.parallel().tween_property(card, "scale", target_scale, 0.32)
 
 func _disconnect_card_signals(card: Node3D) -> void:
-	if card.hovered.is_connected(_on_card_hovered):
-		card.hovered.disconnect(_on_card_hovered)
 	if card.unhovered.is_connected(_on_card_unhovered):
 		card.unhovered.disconnect(_on_card_unhovered)
 	if card.drag_started.is_connected(_on_card_drag_started):
 		card.drag_started.disconnect(_on_card_drag_started)
 	if card.right_clicked.is_connected(_on_card_right_clicked):
 		card.right_clicked.disconnect(_on_card_right_clicked)
+	if card.clicked.is_connected(_on_card_clicked):
+		card.clicked.disconnect(_on_card_clicked)
 
 func _fly_out_card(card: Node3D, on_done: Callable = Callable()) -> void:
 	card.collider.monitoring = false
@@ -74,7 +80,7 @@ func _fly_out_card(card: Node3D, on_done: Callable = Callable()) -> void:
 	)
 
 func remove_card(card: Node3D) -> void:
-	_hovered_index = -1
+	_enlarged_index = -1
 	card.managed_by_hand = false
 	_disconnect_card_signals(card)
 	remove_child(card)
@@ -82,7 +88,7 @@ func remove_card(card: Node3D) -> void:
 	_layout(false)
 
 func remove_card_fly_out(card: Node3D) -> void:
-	_hovered_index = -1
+	_enlarged_index = -1
 	card.managed_by_hand = false
 	_disconnect_card_signals(card)
 	_cards.erase(card)
@@ -90,25 +96,26 @@ func remove_card_fly_out(card: Node3D) -> void:
 	_fly_out_card(card)
 
 func detach_card(card: Node3D) -> void:
-	_hovered_index = -1
+	_enlarged_index = -1
 	card.managed_by_hand = false
-	if card.hovered.is_connected(_on_card_hovered):
-		card.hovered.disconnect(_on_card_hovered)
 	if card.unhovered.is_connected(_on_card_unhovered):
 		card.unhovered.disconnect(_on_card_unhovered)
 	if card.drag_started.is_connected(_on_card_drag_started):
 		card.drag_started.disconnect(_on_card_drag_started)
+	if card.clicked.is_connected(_on_card_clicked):
+		card.clicked.disconnect(_on_card_clicked)
 	# right_clicked is intentionally NOT disconnected here. This is called
-	# the instant any drag starts (drag_needs_movement is unused, so even a
-	# plain click "starts" one) as well as on a recycle request — a started
-	# drag can still fail (miss every slot) and leave the card sitting right
-	# back in its hand position, fully visible and clickable, for the ~0.3s
-	# return animation before add_card() re-adds it. Recycling needs to keep
+	# the instant a real drag starts (see Card.drag_needs_movement, set true
+	# in add_card()) as well as on a recycle request — a started drag can
+	# still fail (miss every slot) and leave the card sitting right back in
+	# its hand position, fully visible and clickable, for the ~0.3s return
+	# animation before add_card() re-adds it. Recycling needs to keep
 	# working through that window instead of silently going dead.
 	_cards.erase(card)
 	_layout(true)
 
 func set_discard_mode(active: bool) -> void:
+	_discard_mode_active = active
 	for card: Node3D in _cards:
 		card.can_drag = not active
 		if active:
@@ -135,7 +142,7 @@ func clear() -> void:
 
 func _on_card_clicked_for_discard(card: Node3D) -> void:
 	set_discard_mode(false)
-	_hovered_index = -1
+	_enlarged_index = -1
 	card.managed_by_hand = false
 	_disconnect_card_signals(card)
 	_cards.erase(card)
@@ -150,17 +157,27 @@ func _on_card_drag_started(card: Node3D) -> void:
 	detach_card(card)
 	card_drag_started.emit(card)
 
-func _on_card_hovered(card: Node3D) -> void:
-	_unhover_pending = false
-	_hovered_index = _cards.find(card)
+# A plain left-click enlarges the card (see set_discard_mode's own click
+# handler, which takes priority while active — enlarging mid-discard would
+# just be a confusing distraction from the card that's about to fly out).
+func _on_card_clicked(card: Node3D) -> void:
+	if _discard_mode_active:
+		return
+	_enlarged_index = _cards.find(card)
 	_layout(true)
 
-func _on_card_unhovered(_card: Node3D) -> void:
-	_unhover_pending = true
+# Shrinks the card back down once the mouse actually leaves it — but only
+# if it's still the one currently enlarged by the time this fires (a short
+# delay smooths over brief accidental un-hovers), so a stale timer from an
+# earlier card can't clobber a different card enlarged by a click in the
+# meantime.
+func _on_card_unhovered(card: Node3D) -> void:
+	var idx: int = _cards.find(card)
+	if idx == -1 or idx != _enlarged_index:
+		return
 	get_tree().create_timer(0.1).timeout.connect(func() -> void:
-		if _unhover_pending:
-			_unhover_pending = false
-			_hovered_index = -1
+		if _enlarged_index == idx:
+			_enlarged_index = -1
 			_layout(true)
 	)
 
@@ -179,12 +196,12 @@ func _layout(animate: bool) -> void:
 		var x := -total_width * 0.5 + i * spacing
 
 		var t := float(i) / float(max(n - 1, 1)) * 2.0 - 1.0
-		var y_hover := HOVER_LIFT if i == _hovered_index else 0.0
+		var y_hover := ENLARGE_LIFT if i == _enlarged_index else 0.0
 		var rot_z := t * deg_to_rad(-3.0)
-		var z_depth := 0.05 if i == _hovered_index else 0.0
+		var z_depth := 0.05 if i == _enlarged_index else 0.0
 
 		var target_pos := Vector3(x, y_hover, z_depth)
-		var target_scale := Vector3.ONE * HOVER_SCALE if i == _hovered_index else Vector3.ONE * HAND_SCALE
+		var target_scale := Vector3.ONE * ENLARGE_SCALE if i == _enlarged_index else Vector3.ONE * HAND_SCALE
 
 		if animate:
 			var tween := _cards[i].create_tween()
