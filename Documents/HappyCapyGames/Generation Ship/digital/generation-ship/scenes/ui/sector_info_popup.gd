@@ -121,6 +121,13 @@ static func make_supply_row(stored_supply: Dictionary) -> Control:
 		var icon := TextureRect.new()
 		icon.texture = load(SUPPLY_ICON_PATHS[i])
 		icon.custom_minimum_size = Vector2(22, 22)
+		# Source supply icons are 4688x4688 — without this, TextureRect's
+		# default EXPAND_KEEP_SIZE forces its minimum size to match the real
+		# texture, silently overriding custom_minimum_size above and
+		# rendering ~200x too big wherever nothing else clips/scrolls it
+		# (e.g. the opponent board view, unlike this popup's own scroll
+		# container).
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		cell.add_child(icon)
 		var lbl := Label.new()
