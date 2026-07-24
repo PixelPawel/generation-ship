@@ -55,22 +55,18 @@ var _dragged_card: Node3D = null
 var _drag_origin: DragOrigin = DragOrigin.NONE
 var market_origin_3d: Vector3 = Vector3.ZERO
 # Set once by main.gd (which has the CockpitRig/viewport references this
-# doesn't) — the info/market screen's own world position, used to park a
-# dragged hand card there for reading instead of hiding it (see _begin_drag).
+# doesn't) — the info/market screen's own world position, where a static
+# clone of a dragged hand card rests for the player to read (see
+# _show_drag_preview_clone).
 var market_screen_anchor_3d: Vector3 = Vector3.ZERO
 var _drag_start_global_pos: Vector3 = Vector3.ZERO
 var _drag_start_scale: Vector3 = Vector3.ONE
-# Captured so a failed hand-origin drop can tween the rotation back too — the
-# card's rotation is repointed at the market screen for the whole drag now
-# (see _show_hand_card_on_market_screen), unlike position/scale it wouldn't
-# otherwise get restored until _hand.add_card()'s instant, unanimated layout.
-var _drag_start_rotation: Vector3 = Vector3.ZERO
-# The drag's logical position (always mouse-tracked, used by
-# _find_nearest_empty_sector_slot/_find_nearest_tech_slot for aim
-# detection) — kept separate from _dragged_card's own visual position
-# since a hand-origin drag now parks the real card at the market screen
-# instead of following the mouse with it (see _process).
-var _drag_cursor_pos: Vector3 = Vector3.ZERO
+# A disposable, non-interactive clone shown at the market screen for the
+# duration of a hand-origin drag only — the real dragged card stays hidden
+# and mouse-tracked like any other drag (see _begin_drag/_process); this is
+# purely a "what am I holding" reminder, freed the instant the drag's
+# targeting phase ends (see _end_arrow_drag).
+var _drag_preview_clone: Node3D = null
 var _major_action_taken: bool = false
 var _effect_active: bool = false  # kept in sync by Main whenever _effect_mode changes — see set_effect_active()
 var _supply_ui: Control = null
@@ -134,7 +130,7 @@ func add_sector_slot(slot: SectorSlot) -> void:
 		slot.slot_clicked.connect(_on_sector_slot_clicked)
 
 func _find_nearest_empty_sector_slot(max_dist: float = DROP_RADIUS) -> SectorSlot:
-	var pos: Vector3 = _drag_cursor_pos
+	var pos: Vector3 = _dragged_card.global_position
 	var best: SectorSlot = null
 	var best_dist: float = max_dist
 	for slot: SectorSlot in _sector_row.get_children():
@@ -772,15 +768,12 @@ func _on_market_card_drag_started(card: Node3D) -> void:
 func _begin_drag(card: Node3D) -> void:
 	_drag_start_global_pos = card.global_position
 	_drag_start_scale = card.scale
-	_drag_start_rotation = card.rotation
 	_dragged_card = card
-	_drag_cursor_pos = card.global_position
 	card.set("is_dragging", true)
 	card.reparent(self, true)
+	card.visible = false
 	if _drag_origin == DragOrigin.HAND:
-		_show_hand_card_on_market_screen(card)
-	else:
-		card.visible = false
+		_show_drag_preview_clone(card)
 	if _drag_arrow != null:
 		_is_arrow_drag = true
 		var cam: Camera3D = get_viewport().get_camera_3d()
@@ -788,27 +781,35 @@ func _begin_drag(card: Node3D) -> void:
 		var from_2d: Vector2 = cam.unproject_position(from_3d)
 		_drag_arrow.show_arrow(from_2d, from_2d)
 
-# Keeps a dragged hand card visible instead of hiding it — it travels to and
-# rests on the market/info screen for the whole drag, readable like the
-# market-inspect clone (same enlarge scale), while the targeting arrow keeps
-# independently tracking the mouse/nearest slot (see _drag_cursor_pos in
-# _process) for aiming, same as before.
-func _show_hand_card_on_market_screen(card: Node3D) -> void:
-	card.visible = true
-	var parent: Node3D = card.get_parent() as Node3D
-	var target_local: Vector3 = parent.to_local(market_screen_anchor_3d) if parent else market_screen_anchor_3d
-	var t: Tween = card.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	t.tween_property(card, "position", target_local, 0.3)
-	t.parallel().tween_property(card, "scale", Vector3.ONE * _placed_card_enlarge_scale(), 0.3)
-	t.parallel().tween_property(card, "rotation", _MARKET_CARD_ROTATION, 0.3)
+# Shows a static, non-interactive clone of a dragged hand card resting on the
+# market screen (same rotation/enlarge scale as the market-inspect clone) so
+# the player can actually read it during the drag — the real card stays
+# hidden and mouse-tracked, same as any other drag. Freed in
+# _clear_drag_preview_clone once the drag's targeting phase ends.
+func _show_drag_preview_clone(card: Node3D) -> void:
+	_clear_drag_preview_clone()
+	if not card.card_data:
+		return
+	var clone: Node3D = _card_scene.instantiate()
+	add_child(clone)
+	clone.is_advanced = card.get("is_advanced")
+	clone.set_card_data(card.card_data)
+	clone.can_drag = false
+	clone.position = to_local(market_screen_anchor_3d)
+	clone.rotation = _MARKET_CARD_ROTATION
+	clone.scale = Vector3.ONE * _placed_card_enlarge_scale()
+	_drag_preview_clone = clone
+
+func _clear_drag_preview_clone() -> void:
+	if is_instance_valid(_drag_preview_clone):
+		_drag_preview_clone.queue_free()
+	_drag_preview_clone = null
 
 func _process(_delta: float) -> void:
 	if not _dragged_card or _placement_confirm_pending:
 		return
 	var world_pos: Vector3 = _mouse_to_plane(DRAG_Y)
-	_drag_cursor_pos = world_pos
-	if _drag_origin != DragOrigin.HAND:
-		_dragged_card.global_position = world_pos
+	_dragged_card.global_position = world_pos
 	if _is_arrow_drag and _drag_arrow != null:
 		var cam: Camera3D = get_viewport().get_camera_3d()
 		var snap_slot: SectorSlot = _find_nearest_empty_sector_slot() if _is_sector_card() else _find_nearest_tech_slot()
@@ -842,6 +843,7 @@ func _end_arrow_drag() -> void:
 	if not _is_arrow_drag:
 		return
 	_is_arrow_drag = false
+	_clear_drag_preview_clone()
 	if _drag_arrow:
 		_drag_arrow.hide_arrow()
 	if is_instance_valid(_dragged_card):
@@ -971,9 +973,9 @@ func _find_nearest_tech_slot(max_dist: float = TECH_COLUMN_HALF_X) -> SectorSlot
 	for slot: SectorSlot in _sector_row.get_children():
 		if not slot.occupied or not slot.has_tech_space():
 			continue
-		var dx: float = abs(_drag_cursor_pos.x - slot.global_position.x)
+		var dx: float = abs(_dragged_card.global_position.x - slot.global_position.x)
 		var slot_z: float = slot.global_position.z
-		var card_z: float = _drag_cursor_pos.z
+		var card_z: float = _dragged_card.global_position.z
 		if dx < best_dx and card_z < slot_z + TECH_ZONE_Z_FRONT and card_z > slot_z - TECH_ZONE_Z_BACK:
 			best_dx = dx
 			best = slot
@@ -1638,7 +1640,6 @@ func _handle_failed_drop() -> void:
 			var t: Tween = card.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 			t.tween_property(card, "global_position", start_pos, 0.3)
 			t.parallel().tween_property(card, "scale", Vector3.ONE * HAND_CARD_SCALE, 0.3)
-			t.parallel().tween_property(card, "rotation", _drag_start_rotation, 0.3)
 			t.tween_callback(func() -> void: _hand.add_card(card, false))
 		DragOrigin.MARKET:
 			market_card_drag_failed.emit(card)
