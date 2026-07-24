@@ -119,14 +119,28 @@ const SUPPLY_ICON_PIXEL_SIZE: float = 0.00004  # matches the old Sprite3D pixel_
 # inspecting it directly): placed_card sits at local Z=0, and pushing an
 # element further forward in local Z — away from the card, not "up" in Y —
 # is what actually clears it. Local Y barely matters for depth here at all.
-# Every element's own base Z differs (supply icons start at 0.28, the
-# first row of optimize icons starts at 0.0), so this is an ADDITIVE
-# clearance applied on top of each one's own Z, not a replacement — sized
-# to clear the worst case (Z=0) with room to spare, verified the same way.
-const ELEMENT_Z_CLEARANCE: float = 0.65
+# Clamping every element's Z up to this shared floor (rather than adding
+# a flat amount to all of them) only moves the ones that actually need
+# it, and only by as much as they need — supply icons (base Z=0.28) barely
+# move, while still landing just past the card's own Z extent. Kept low
+# enough to stay clear of the tuck badges' own Z range (0.52-0.67, already
+# past the card on their own) so the two groups don't crowd each other.
+const MIN_FRONT_Z: float = 0.4
 
 func _add_z_clearance(base_local: Vector3) -> Vector3:
-	return base_local + Vector3(0, 0, ELEMENT_Z_CLEARANCE)
+	return Vector3(base_local.x, base_local.y, max(base_local.z, MIN_FRONT_Z))
+
+# Optimize icons stack front-to-back to show level order (see cur_z in
+# _build_optimize_display) — clamping to a shared floor like the other
+# elements would collapse that whole stack onto a single Z for any level
+# whose icons start below the floor, since their base Z starts at 0 (deep
+# within the card, worse than anything else on this slot). This adds a
+# fixed push on top of each icon's own Z instead, preserving the relative
+# spacing between them while still clearing the card.
+const OPTIMIZE_Z_PUSH: float = 0.55
+
+func _add_optimize_z_clearance(base_local: Vector3) -> Vector3:
+	return base_local + Vector3(0, 0, OPTIMIZE_Z_PUSH)
 
 func _setup_display() -> void:
 	const DISC_Z: float = 0.28
@@ -484,7 +498,7 @@ func _build_optimize_display(card: Node3D) -> void:
 		var row: Array = []
 		for color_id: int in req:
 			var tex_path: String = ANY_CARD_ICON_PATH if color_id == CardData.OPTIMIZE_ANY else CARD_ICON_PATHS[color_id]
-			row.append(_make_optimize_icon(_add_z_clearance(Vector3(OPT_COLUMN_X, ELEMENT_ICON_Y, cur_z)), tex_path))
+			row.append(_make_optimize_icon(_add_optimize_z_clearance(Vector3(OPT_COLUMN_X, ELEMENT_ICON_Y, cur_z)), tex_path))
 			cur_z += OPT_ICON_Z_STEP
 		_optimize_icons[level_idx] = row
 		cur_z += OPT_LEVEL_GAP_Z
