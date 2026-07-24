@@ -111,23 +111,22 @@ const ELEMENT_LABEL_Y: float = 0.17
 const ICON_TILT_COMPENSATION_DEG: float = -12.6
 const SUPPLY_ICON_PIXEL_SIZE: float = 0.00004  # matches the old Sprite3D pixel_size, keeps supply icons' on-screen size unchanged
 
-# Local-Y comparisons against placed_card kept failing because these
-# elements don't all sit at the same local X/Z as the card — the camera
-# isn't directly overhead (confirmed by instrumenting the actual running
-# scene: get_viewport().get_camera_3d(), comparing real distance-to-camera
-# for the card's peak bob position vs. each element type), so an element
-# further from the card along local X/Z needs real help, not just a taller
-# Y. TOWARD_CAMERA_LOCAL_DIR is that scene's actual measured "which local
-# direction, from a point on this slot, points at the camera" — a
-# real-world-verified ray, not a guessed one — so every element's base
-# position gets nudged along it by CAMERA_CLEARANCE_STEP via
-# _toward_camera(). Bump the step (and re-test in-game) if any element is
-# still occluded; this is the single point to tune.
-const TOWARD_CAMERA_LOCAL_DIR: Vector3 = Vector3(0.285894, 0.957693, 0.032979)
-const CAMERA_CLEARANCE_STEP: float = 0.15
+# Comparing local Y against placed_card (or projecting toward the camera —
+# also tried, also wrong) never reliably cleared these elements, because
+# neither actually matches what the depth test does here. Confirmed by
+# instrumenting the real game (placing an actual card, adding real stored
+# supply/tucked cards, then rendering the live scene to an image and
+# inspecting it directly): placed_card sits at local Z=0, and pushing an
+# element further forward in local Z — away from the card, not "up" in Y —
+# is what actually clears it. Local Y barely matters for depth here at all.
+# Every element's own base Z differs (supply icons start at 0.28, the
+# first row of optimize icons starts at 0.0), so this is an ADDITIVE
+# clearance applied on top of each one's own Z, not a replacement — sized
+# to clear the worst case (Z=0) with room to spare, verified the same way.
+const ELEMENT_Z_CLEARANCE: float = 0.65
 
-func _toward_camera(base_local: Vector3) -> Vector3:
-	return base_local + TOWARD_CAMERA_LOCAL_DIR * CAMERA_CLEARANCE_STEP
+func _add_z_clearance(base_local: Vector3) -> Vector3:
+	return base_local + Vector3(0, 0, ELEMENT_Z_CLEARANCE)
 
 func _setup_display() -> void:
 	const DISC_Z: float = 0.28
@@ -137,20 +136,20 @@ func _setup_display() -> void:
 	for i: int in 6:
 		var tex: Texture2D = load(SUPPLY_ICON_PATHS[i])
 		var spr := _make_icon_plane(
-			_toward_camera(Vector3(X_START + i * X_STEP, ELEMENT_ICON_Y, DISC_Z)),
+			_add_z_clearance(Vector3(X_START + i * X_STEP, ELEMENT_ICON_Y, DISC_Z)),
 			tex.get_size() * SUPPLY_ICON_PIXEL_SIZE, tex, false)
 		_supply_sprites.append(spr)
 
 		var lbl := _make_badge(
-			_toward_camera(Vector3(X_START + i * X_STEP, ELEMENT_LABEL_Y, DISC_Z)), Color.WHITE, true)
+			_add_z_clearance(Vector3(X_START + i * X_STEP, ELEMENT_LABEL_Y, DISC_Z)), Color.WHITE, true)
 		_supply_labels.append(lbl)
 
-	_faceup_vp_label   = _make_badge(_toward_camera(Vector3(-0.23, ELEMENT_LABEL_Y, 0.52)), Color(1.0, 0.95, 0.3))
-	_facedown_vp_label = _make_badge(_toward_camera(Vector3( 0.23, ELEMENT_LABEL_Y, 0.52)), Color(1.0, 0.95, 0.3))
-	_faceup_count_icon    = _make_icon_plane(_toward_camera(Vector3(-0.29, ELEMENT_ICON_Y, 0.67)), Vector2(0.07, 0.10), null, false)
-	_faceup_count_label   = _make_badge(_toward_camera(Vector3(-0.17, ELEMENT_LABEL_Y, 0.67)), Color(0.85, 0.9, 1.0))
-	_facedown_count_icon  = _make_icon_plane(_toward_camera(Vector3( 0.17, ELEMENT_ICON_Y, 0.67)), Vector2(0.07, 0.10), null, false)
-	_facedown_count_label = _make_badge(_toward_camera(Vector3( 0.29, ELEMENT_LABEL_Y, 0.67)), Color(0.85, 0.9, 1.0))
+	_faceup_vp_label   = _make_badge(_add_z_clearance(Vector3(-0.23, ELEMENT_LABEL_Y, 0.52)), Color(1.0, 0.95, 0.3))
+	_facedown_vp_label = _make_badge(_add_z_clearance(Vector3( 0.23, ELEMENT_LABEL_Y, 0.52)), Color(1.0, 0.95, 0.3))
+	_faceup_count_icon    = _make_icon_plane(_add_z_clearance(Vector3(-0.29, ELEMENT_ICON_Y, 0.67)), Vector2(0.07, 0.10), null, false)
+	_faceup_count_label   = _make_badge(_add_z_clearance(Vector3(-0.17, ELEMENT_LABEL_Y, 0.67)), Color(0.85, 0.9, 1.0))
+	_facedown_count_icon  = _make_icon_plane(_add_z_clearance(Vector3( 0.17, ELEMENT_ICON_Y, 0.67)), Vector2(0.07, 0.10), null, false)
+	_facedown_count_label = _make_badge(_add_z_clearance(Vector3( 0.29, ELEMENT_LABEL_Y, 0.67)), Color(0.85, 0.9, 1.0))
 
 # Shared text badge used for every label on this slot (stored-supply counts,
 # tucked-card VP/count labels). Real depth-tested (Label3D's own default —
@@ -485,7 +484,7 @@ func _build_optimize_display(card: Node3D) -> void:
 		var row: Array = []
 		for color_id: int in req:
 			var tex_path: String = ANY_CARD_ICON_PATH if color_id == CardData.OPTIMIZE_ANY else CARD_ICON_PATHS[color_id]
-			row.append(_make_optimize_icon(_toward_camera(Vector3(OPT_COLUMN_X, ELEMENT_ICON_Y, cur_z)), tex_path))
+			row.append(_make_optimize_icon(_add_z_clearance(Vector3(OPT_COLUMN_X, ELEMENT_ICON_Y, cur_z)), tex_path))
 			cur_z += OPT_ICON_Z_STEP
 		_optimize_icons[level_idx] = row
 		cur_z += OPT_LEVEL_GAP_Z
