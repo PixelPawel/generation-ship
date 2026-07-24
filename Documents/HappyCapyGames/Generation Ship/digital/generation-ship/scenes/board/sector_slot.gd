@@ -508,6 +508,10 @@ func _make_optimize_icon(pos: Vector3, tex_path: String) -> StandardMaterial3D:
 	var mat: StandardMaterial3D = mesh_inst.material_override
 	mat.emission_enabled = true
 	mat.emission_energy_multiplier = OPT_EMISSION_ENERGY
+	# Every "..._Card.png" icon has a matching "..._Card_Green.png" variant —
+	# stashed here so refresh_optimize_display() can swap the icon's actual
+	# art to it once fulfilled, not just tint its emission glow.
+	mat.set_meta("done_texture", load(tex_path.replace(".png", "_Green.png")))
 	_optimize_nodes.append(mesh_inst)
 
 	return mat
@@ -518,16 +522,18 @@ func _clear_optimize_display() -> void:
 	_optimize_nodes.clear()
 	_optimize_icons.clear()
 
-# Flips a level's icons from a red to a green emission glow once its
-# requirement has been met — triggered_levels is a permanent one-way flag
-# (see OptimizeLogic), so this only ever needs to move icons from "pending"
-# to "done", never back.
+# Flips a level's icons from pending (red glow, regular art) to done (green
+# glow, "_Green" art) once its requirement has been met — triggered_levels
+# is a permanent one-way flag (see OptimizeLogic), so this only ever needs
+# to move icons from "pending" to "done", never back.
 func refresh_optimize_display() -> void:
 	for level_idx: int in _optimize_icons.size():
 		var done: bool = level_idx < triggered_levels.size() and triggered_levels[level_idx]
 		var color: Color = OPT_DONE_EMISSION if done else OPT_PENDING_EMISSION
 		for mat: StandardMaterial3D in _optimize_icons[level_idx]:
 			mat.emission = color
+			if done:
+				mat.albedo_texture = mat.get_meta("done_texture")
 
 func _on_placed_card_clicked(_card: Node3D) -> void:
 	slot_clicked.emit(self)
