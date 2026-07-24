@@ -166,7 +166,7 @@ func _make_badge(pos: Vector3, color: Color, outlined: bool = false) -> Label3D:
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.modulate = color
 	if outlined:
-		lbl.outline_size = 30
+		lbl.outline_size = 15
 		lbl.outline_modulate = Color.BLACK
 	lbl.position = pos
 	lbl.visible = false
