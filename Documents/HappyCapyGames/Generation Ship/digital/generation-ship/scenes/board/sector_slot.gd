@@ -68,7 +68,7 @@ var _highlight_value: float = 0.0
 var _highlight_tween: Tween = null
 var _scale_tween: Tween = null
 var _slot_mat: ShaderMaterial = null
-var _supply_sprites: Array[Sprite3D] = []
+var _supply_sprites: Array[MeshInstance3D] = []
 var _supply_labels: Array[Label3D] = []
 var _tuck_nodes: Array[Node3D] = []
 var _faceup_vp_label: Label3D = null
@@ -99,48 +99,56 @@ func _ready() -> void:
 	_setup_display()
 	set_process(false)
 
+# Shared local Y for every overlay element on this slot (stored-supply
+# icons/counts, tucked-card count badges, optimize-requirement icons — see
+# _make_icon_plane and _make_badge). All of these are direct children of
+# this same SectorSlot, so a local Y is directly comparable to placed_card's
+# own local Y (CARD_REST_Y +/- FLOAT_AMP) with no world-space conversion
+# needed — chasing world-space Y overrides here was the actual root cause
+# of every past "icon renders under the card" bug. Labels sit a touch above
+# their paired icon so the two opaque/transparent planes don't coincide
+# exactly. Both start here as one shared value; positions get tuned from
+# this single point rather than per-element ad hoc numbers.
+const ELEMENT_ICON_Y: float = 0.15
+const ELEMENT_LABEL_Y: float = 0.17
+# Cancels this SectorSlot's own baked-in ~12.6 degree local X tilt (see the
+# SectorSlot transforms in main.tscn) so a flat textured plane lies parallel
+# to the camera instead of following the slot's own tilted surface.
+const ICON_TILT_COMPENSATION_DEG: float = -12.6
+const SUPPLY_ICON_PIXEL_SIZE: float = 0.00004  # matches the old Sprite3D pixel_size, keeps supply icons' on-screen size unchanged
+
 func _setup_display() -> void:
 	const DISC_Z: float = 0.28
-	const DISC_Y: float = 0.15
 	const X_START: float = -0.37
 	const X_STEP: float = 0.148
-	# Absolute world Y, applied after each node joins the tree — the slot's
-	# own transform is tilted, so a fixed local Y doesn't reliably read as
-	# "just above the slot" in world space (see the optimize icons' same fix).
-	const SUPPLY_ICON_WORLD_Y: float = 0.540
 
 	for i: int in 6:
-		var spr := Sprite3D.new()
-		spr.texture = load(SUPPLY_ICON_PATHS[i])
-		spr.pixel_size = 0.00004
-		spr.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		spr.no_depth_test = true
-		spr.render_priority = 2
-		spr.position = Vector3(X_START + i * X_STEP, DISC_Y, DISC_Z)
-		spr.visible = false
-		add_child(spr)
-		spr.global_position.y = SUPPLY_ICON_WORLD_Y
+		var tex: Texture2D = load(SUPPLY_ICON_PATHS[i])
+		var spr := _make_icon_plane(
+			Vector3(X_START + i * X_STEP, ELEMENT_ICON_Y, DISC_Z),
+			tex.get_size() * SUPPLY_ICON_PIXEL_SIZE, tex, false)
 		_supply_sprites.append(spr)
 
 		var lbl := _make_badge(
-			Vector3(X_START + i * X_STEP, DISC_Y + 0.01, DISC_Z), Color.WHITE, true)
-		lbl.global_position.y = SUPPLY_ICON_WORLD_Y + 0.01
+			Vector3(X_START + i * X_STEP, ELEMENT_LABEL_Y, DISC_Z), Color.WHITE, true)
 		_supply_labels.append(lbl)
 
-	_faceup_vp_label   = _make_badge(Vector3(-0.23, 0.15, 0.52), Color(1.0, 0.95, 0.3))
-	_facedown_vp_label = _make_badge(Vector3( 0.23, 0.15, 0.52), Color(1.0, 0.95, 0.3))
-	_faceup_count_icon   = _make_card_count_icon(Vector3(-0.29, 0.13, 0.67))
-	_faceup_count_label  = _make_badge(Vector3(-0.17, 0.15, 0.67), Color(0.85, 0.9, 1.0), false, false)
-	_facedown_count_icon  = _make_card_count_icon(Vector3( 0.17, 0.13, 0.67))
-	_facedown_count_label = _make_badge(Vector3( 0.29, 0.15, 0.67), Color(0.85, 0.9, 1.0), false, false)
+	_faceup_vp_label   = _make_badge(Vector3(-0.23, ELEMENT_LABEL_Y, 0.52), Color(1.0, 0.95, 0.3))
+	_facedown_vp_label = _make_badge(Vector3( 0.23, ELEMENT_LABEL_Y, 0.52), Color(1.0, 0.95, 0.3))
+	_faceup_count_icon    = _make_icon_plane(Vector3(-0.29, ELEMENT_ICON_Y, 0.67), Vector2(0.07, 0.10), null, false)
+	_faceup_count_label   = _make_badge(Vector3(-0.17, ELEMENT_LABEL_Y, 0.67), Color(0.85, 0.9, 1.0))
+	_facedown_count_icon  = _make_icon_plane(Vector3( 0.17, ELEMENT_ICON_Y, 0.67), Vector2(0.07, 0.10), null, false)
+	_facedown_count_label = _make_badge(Vector3( 0.29, ELEMENT_LABEL_Y, 0.67), Color(0.85, 0.9, 1.0))
 
-func _make_badge(pos: Vector3, color: Color, outlined: bool = false, no_depth_test: bool = true) -> Label3D:
+# Shared text badge used for every label on this slot (stored-supply counts,
+# tucked-card VP/count labels). Real depth-tested (Label3D's own default —
+# no no_depth_test bypass) so it's occluded by placed_card exactly like
+# every other element, matching _make_icon_plane below.
+func _make_badge(pos: Vector3, color: Color, outlined: bool = false) -> Label3D:
 	var lbl := Label3D.new()
 	lbl.font_size = 28
 	lbl.pixel_size = 0.005
 	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	lbl.no_depth_test = no_depth_test
-	lbl.render_priority = 2
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.modulate = color
 	if outlined:
@@ -151,18 +159,30 @@ func _make_badge(pos: Vector3, color: Color, outlined: bool = false, no_depth_te
 	add_child(lbl)
 	return lbl
 
-func _make_card_count_icon(pos: Vector3) -> MeshInstance3D:
+# Shared textured plane used for every icon-type element on this slot
+# (stored-supply icons, tucked-card count icons, optimize-requirement
+# icons — see _make_optimize_icon). Real depth-tested — no no_depth_test/
+# billboard bypass — so it properly occludes and is occluded by
+# placed_card like everything else in the scene, with a fixed rotation
+# canceling this slot's own tilt (see ICON_TILT_COMPENSATION_DEG) so it
+# still lies flat facing the camera.
+func _make_icon_plane(pos: Vector3, size: Vector2, tex: Texture2D = null, start_visible: bool = true) -> MeshInstance3D:
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(0.07, 0.10)
-	var mi := MeshInstance3D.new()
-	mi.mesh = plane
-	mi.position = pos
+	plane.size = size
+	var mesh_inst := MeshInstance3D.new()
+	mesh_inst.mesh = plane
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.12, 0.18, 0.32)
-	mi.material_override = mat
-	mi.visible = false
-	add_child(mi)
-	return mi
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	if tex:
+		mat.albedo_texture = tex
+	else:
+		mat.albedo_color = Color(0.12, 0.18, 0.32)
+	mesh_inst.material_override = mat
+	mesh_inst.position = pos
+	mesh_inst.rotation_degrees.x = ICON_TILT_COMPENSATION_DEG
+	mesh_inst.visible = start_visible
+	add_child(mesh_inst)
+	return mesh_inst
 
 func refresh_display() -> void:
 	if _supply_sprites.is_empty():
@@ -410,19 +430,8 @@ func _setup_max_optimizations(card: Node3D) -> void:
 	triggered_levels.resize(max_optimizations)
 	triggered_levels.fill(false)
 
-const OPT_ICON_TEX_SIZE: Vector2 = Vector2(701.0, 908.0)  # matches every card icon PNG
 const OPT_ICON_PIXEL_SIZE: float = 0.0001
 const OPT_COLUMN_X: float = -0.32
-# A local Y, not a world one — the icons are siblings of placed_card, both
-# direct children of this same SectorSlot, so they already share the exact
-# same (tilted) local frame. Comparing local Y directly against
-# placed_card's is enough to know which one sits "higher" from the
-# camera's point of view, with no world-space conversion needed at all.
-# placed_card bobs between CARD_REST_Y +/- FLOAT_AMP (0.075-0.095 local, see
-# _process()), and DISC_Y (the stored-supply badges' own local Y) is 0.15 —
-# comfortably above that peak, so matching it here clears the card the same
-# way those badges already do.
-const OPT_ICON_LOCAL_Y: float = 0.15
 const OPT_BASE_Z: float = 0.0
 const OPT_ICON_Z_STEP: float = 0.115
 const OPT_LEVEL_GAP_Z: float = 0.05
@@ -448,8 +457,6 @@ func _build_optimize_display(card: Node3D) -> void:
 		[cd.adv_opt1_req, cd.adv_opt2_req, cd.adv_opt3_req] if is_adv
 		else [cd.opt1_req, [], []]
 	)
-	var icon_w: float = OPT_ICON_TEX_SIZE.x * OPT_ICON_PIXEL_SIZE
-	var icon_h: float = OPT_ICON_TEX_SIZE.y * OPT_ICON_PIXEL_SIZE
 	var cur_z: float = OPT_BASE_Z
 	for level_idx: int in 3:
 		var req: Array = level_reqs[level_idx]
@@ -458,31 +465,21 @@ func _build_optimize_display(card: Node3D) -> void:
 		var row: Array = []
 		for color_id: int in req:
 			var tex_path: String = ANY_CARD_ICON_PATH if color_id == CardData.OPTIMIZE_ANY else CARD_ICON_PATHS[color_id]
-			row.append(_make_optimize_icon(Vector3(OPT_COLUMN_X, OPT_ICON_LOCAL_Y, cur_z), tex_path, icon_w, icon_h))
+			row.append(_make_optimize_icon(Vector3(OPT_COLUMN_X, ELEMENT_ICON_Y, cur_z), tex_path))
 			cur_z += OPT_ICON_Z_STEP
 		_optimize_icons[level_idx] = row
 		cur_z += OPT_LEVEL_GAP_Z
 	refresh_optimize_display()
 
-# A plain textured plane sitting at a real 3D position — real depth-testing
-# stays on (unlike the stored-supply badges), so it needs to actually sit
-# above the placed card's own surface rather than relying on a
-# no_depth_test bypass; see OPT_ICON_LOCAL_Y. Returns the material so
-# refresh_optimize_display() can flip its emission color later.
-func _make_optimize_icon(pos: Vector3, tex_path: String, icon_w: float, icon_h: float) -> StandardMaterial3D:
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(icon_w, icon_h)
-	var mesh_inst := MeshInstance3D.new()
-	mesh_inst.mesh = plane
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_texture = load(tex_path)
+# Built on the same shared _make_icon_plane as every other icon on this
+# slot, then layered with an emission glow that refresh_optimize_display()
+# flips between pending/done. Returns the material for that purpose.
+func _make_optimize_icon(pos: Vector3, tex_path: String) -> StandardMaterial3D:
+	var tex: Texture2D = load(tex_path)
+	var mesh_inst := _make_icon_plane(pos, tex.get_size() * OPT_ICON_PIXEL_SIZE, tex)
+	var mat: StandardMaterial3D = mesh_inst.material_override
 	mat.emission_enabled = true
 	mat.emission_energy_multiplier = OPT_EMISSION_ENERGY
-	mesh_inst.material_override = mat
-	mesh_inst.position = pos
-	mesh_inst.rotation_degrees.x = -12.6
-	add_child(mesh_inst)
 	_optimize_nodes.append(mesh_inst)
 
 	return mat
