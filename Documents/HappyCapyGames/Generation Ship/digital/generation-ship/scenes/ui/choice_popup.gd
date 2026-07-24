@@ -58,7 +58,15 @@ func _ready() -> void:
 	_scroll_container = ScrollContainer.new()
 	_scroll_container.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll_container.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	_scroll_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# SHRINK_CENTER, not EXPAND_FILL: a ScrollContainer never stretches its
+	# child along a scrollable axis (it needs the child's own natural size to
+	# know what's scrollable), so _buttons_row always sits at this
+	# container's left edge regardless of _buttons_row.alignment. Since
+	# _fit_scroll_width() already sizes this container to match the row
+	# (or the available width, once the row needs to actually scroll),
+	# shrink-centering IT within the vbox is what actually centers the
+	# button row when it's narrower than the panel.
+	_scroll_container.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_scroll_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(_scroll_container)
 
