@@ -21,6 +21,14 @@ const HAND_Z_MAX_STAGGER := 0.03
 var _cards: Array[Node3D] = []
 var _enlarged_index: int = -1
 var _discard_mode_active: bool = false
+# Set by Board via its arrow_drag_changed signal (see main.gd wiring) —
+# suppresses hover-enlarge while a drag's targeting arrow is up, so mouse
+# movement passing over other hand cards on the way to a slot doesn't pop
+# them up too.
+var _arrow_drag_active: bool = false
+
+func set_arrow_drag_active(active: bool) -> void:
+	_arrow_drag_active = active
 
 func add_card(card: Node3D, animate: bool = false) -> void:
 	if _cards.has(card):
@@ -156,11 +164,11 @@ func _on_card_drag_started(card: Node3D) -> void:
 	detach_card(card)
 	card_drag_started.emit(card)
 
-# Hovering enlarges the card — skipped entirely while any card (this one or
-# another) is mid-drag, so a drag's mouse movement passing over other hand
-# cards on its way to a slot doesn't pop them up too.
+# Hovering enlarges the card — skipped entirely while the drag-targeting
+# arrow is up (see set_arrow_drag_active), so a drag's mouse movement
+# passing over other hand cards on its way to a slot doesn't pop them up too.
 func _on_card_hovered(card: Node3D) -> void:
-	if Card._any_dragging:
+	if _arrow_drag_active:
 		return
 	_enlarged_index = _cards.find(card)
 	_layout(true)

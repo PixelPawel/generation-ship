@@ -210,6 +210,7 @@ func _ready() -> void:
 	$UILayer/StartButton.queue_free()
 	var hand: Node3D = $Hand
 	$Board.set_hand(hand)
+	$Board.arrow_drag_changed.connect($Hand.set_arrow_drag_active)
 	$Board.set_card_scene(card_scene)
 	$Board.card_recycled.connect(_on_card_recycled)
 	$Board.unplaceable_card_recycled.connect(_on_unplaceable_card_recycled)

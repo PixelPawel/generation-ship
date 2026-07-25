@@ -45,6 +45,11 @@ signal expedition_reveal_requested(slot_idx: int)
 signal sector_info_requested(slot: SectorSlot)
 signal market_card_inspect_bought(slot_type: String, slot_idx: int)
 signal tech_card_drawn
+# Fires whenever the drag-targeting arrow becomes visible/hidden (either
+# origin — hand or market). Hand listens to this to suppress hover-enlarge
+# while it's up, since a drag's own mouse movement passing over other hand
+# cards would otherwise pop them up too.
+signal arrow_drag_changed(active: bool)
 signal tech_deck_reshuffled(cards: Array[CardData])
 signal tech_card_discarded(cd: CardData)
 
@@ -784,7 +789,7 @@ func _begin_drag(card: Node3D) -> void:
 	if _drag_origin == DragOrigin.HAND:
 		_show_drag_preview(card)
 	if _drag_arrow != null:
-		_is_arrow_drag = true
+		_set_arrow_drag_active(true)
 		var cam: Camera3D = get_viewport().get_camera_3d()
 		var from_3d: Vector3 = market_origin_3d if _drag_origin == DragOrigin.MARKET else (_hand.global_position if _hand else _drag_start_global_pos)
 		var from_2d: Vector2 = cam.unproject_position(from_3d)
@@ -852,10 +857,14 @@ func _input(event: InputEvent) -> void:
 func _is_sector_card() -> bool:
 	return _dragged_card.card_data != null and _dragged_card.card_data.card_type == CardData.CardType.SECTOR
 
+func _set_arrow_drag_active(active: bool) -> void:
+	_is_arrow_drag = active
+	arrow_drag_changed.emit(active)
+
 func _end_arrow_drag() -> void:
 	if not _is_arrow_drag:
 		return
-	_is_arrow_drag = false
+	_set_arrow_drag_active(false)
 	_clear_drag_preview()
 	if _drag_arrow:
 		_drag_arrow.hide_arrow()
@@ -873,7 +882,7 @@ func _end_arrow_drag() -> void:
 func _resume_drag_arrow() -> void:
 	if _drag_arrow == null:
 		return
-	_is_arrow_drag = true
+	_set_arrow_drag_active(true)
 	var cam: Camera3D = get_viewport().get_camera_3d()
 	if not cam:
 		return
