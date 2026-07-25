@@ -198,7 +198,7 @@ func show_multiselect_card_choices(prompt: String, cards: Array[CardData], max_s
 
 # Floor for _card_row_grow_scale — below this, cards fall back on the scroll
 # container instead of shrinking further into illegibility.
-const _CARD_MIN_SCALE: float = 0.55
+const _CARD_MIN_SCALE: float = 0.85
 
 # General "N same-width items must fit within an available row" rule: any
 # panel laying out a variable-count row of fixed-width items (card art,
