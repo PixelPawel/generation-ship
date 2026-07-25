@@ -176,6 +176,29 @@ theme_override_colors/caret_color = Color(0.55, 0.85, 1.0, 1)
 theme_override_styles/normal = SubResource("SBF_input_n")
 theme_override_styles/focus = SubResource("SBF_input_f")
 
+[node name="PasswordRow" type="HBoxContainer" parent="Panels/LobbyView/LobbyPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PasswordLabel" type="Label" parent="Panels/LobbyView/LobbyPanel/PasswordRow"]
+layout_mode = 2
+text = "Password"
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+
+[node name="PasswordInput" type="LineEdit" parent="Panels/LobbyView/LobbyPanel/PasswordRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+secret = true
+placeholder_text = "Optional…"
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.88, 0.93, 1.0, 1)
+theme_override_colors/font_placeholder_color = Color(0.40, 0.58, 0.78, 0.65)
+theme_override_colors/caret_color = Color(0.55, 0.85, 1.0, 1)
+theme_override_styles/normal = SubResource("SBF_input_n")
+theme_override_styles/focus = SubResource("SBF_input_f")
+
 [node name="HostBtn" type="Button" parent="Panels/LobbyView/LobbyPanel"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 52)
@@ -199,6 +222,22 @@ theme_override_colors/font_color = Color(0.75, 0.75, 0.75, 1)
 layout_mode = 2
 text = "↻ Refresh"
 theme_override_font_sizes/font_size = 14
+
+[node name="FiltersRow" type="HBoxContainer" parent="Panels/LobbyView/LobbyPanel"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="PasswordOnlyCheck" type="CheckBox" parent="Panels/LobbyView/LobbyPanel/FiltersRow"]
+layout_mode = 2
+text = "Password Protected"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.75, 0.75, 0.75, 1)
+
+[node name="FriendsOnlyCheck" type="CheckBox" parent="Panels/LobbyView/LobbyPanel/FiltersRow"]
+layout_mode = 2
+text = "Friends Only"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.75, 0.75, 0.75, 1)
 
 [node name="GameList" type="ItemList" parent="Panels/LobbyView/LobbyPanel"]
 layout_mode = 2
@@ -348,6 +387,8 @@ script = ExtResource("4_pause_menu")
 [connection signal="pressed" from="Panels/MainView/VBox/QuitBtn" to="." method="_on_quit_pressed"]
 [connection signal="pressed" from="Panels/LobbyView/LobbyPanel/HostBtn" to="Panels/LobbyView" method="_on_host_pressed"]
 [connection signal="pressed" from="Panels/LobbyView/LobbyPanel/GamesRow/RefreshBtn" to="Panels/LobbyView" method="_on_refresh_pressed"]
+[connection signal="toggled" from="Panels/LobbyView/LobbyPanel/FiltersRow/PasswordOnlyCheck" to="Panels/LobbyView" method="_on_filter_toggled"]
+[connection signal="toggled" from="Panels/LobbyView/LobbyPanel/FiltersRow/FriendsOnlyCheck" to="Panels/LobbyView" method="_on_filter_toggled"]
 [connection signal="pressed" from="Panels/LobbyView/LobbyPanel/JoinSelectedBtn" to="Panels/LobbyView" method="_on_join_selected_pressed"]
 [connection signal="pressed" from="Panels/LobbyView/LobbyPanel/DirectRow/DirectJoinBtn" to="Panels/LobbyView" method="_on_join_pressed"]
 [connection signal="pressed" from="Panels/LobbyView/LobbyPanel/BackBtn" to="Panels/LobbyView" method="_on_back_pressed"]
