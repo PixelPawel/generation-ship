@@ -31,19 +31,13 @@ func add_card(card: Node3D, animate: bool = false) -> void:
 		add_child(card)
 	_cards.append(card)
 	card.managed_by_hand = true
-	# A plain click enlarges a hand card instead of hover doing it (see
-	# _on_card_clicked/_on_card_unhovered) — needs actual mouse movement
-	# past the drag threshold to count as a real drag, or every click would
-	# immediately register as one (see Card._on_input_event).
-	card.drag_needs_movement = true
+	card.hovered.connect(_on_card_hovered)
 	card.unhovered.connect(_on_card_unhovered)
 	card.drag_started.connect(_on_card_drag_started)
 	# detach_card() deliberately leaves right_clicked connected, so guard
 	# against double-connecting when a card comes back after a failed drop.
 	if not card.right_clicked.is_connected(_on_card_right_clicked):
 		card.right_clicked.connect(_on_card_right_clicked)
-	if not card.clicked.is_connected(_on_card_clicked):
-		card.clicked.connect(_on_card_clicked)
 	_layout(animate)
 
 func animate_draw_cards(cards: Array[Node3D]) -> void:
@@ -61,14 +55,14 @@ func animate_draw_cards(cards: Array[Node3D]) -> void:
 		t.parallel().tween_property(card, "scale", target_scale, 0.32)
 
 func _disconnect_card_signals(card: Node3D) -> void:
+	if card.hovered.is_connected(_on_card_hovered):
+		card.hovered.disconnect(_on_card_hovered)
 	if card.unhovered.is_connected(_on_card_unhovered):
 		card.unhovered.disconnect(_on_card_unhovered)
 	if card.drag_started.is_connected(_on_card_drag_started):
 		card.drag_started.disconnect(_on_card_drag_started)
 	if card.right_clicked.is_connected(_on_card_right_clicked):
 		card.right_clicked.disconnect(_on_card_right_clicked)
-	if card.clicked.is_connected(_on_card_clicked):
-		card.clicked.disconnect(_on_card_clicked)
 
 func _fly_out_card(card: Node3D, on_done: Callable = Callable()) -> void:
 	card.collider.monitoring = false
@@ -103,18 +97,18 @@ func remove_card_fly_out(card: Node3D) -> void:
 func detach_card(card: Node3D) -> void:
 	_enlarged_index = -1
 	card.managed_by_hand = false
+	if card.hovered.is_connected(_on_card_hovered):
+		card.hovered.disconnect(_on_card_hovered)
 	if card.unhovered.is_connected(_on_card_unhovered):
 		card.unhovered.disconnect(_on_card_unhovered)
 	if card.drag_started.is_connected(_on_card_drag_started):
 		card.drag_started.disconnect(_on_card_drag_started)
-	if card.clicked.is_connected(_on_card_clicked):
-		card.clicked.disconnect(_on_card_clicked)
 	# right_clicked is intentionally NOT disconnected here. This is called
-	# the instant a real drag starts (see Card.drag_needs_movement, set true
-	# in add_card()) as well as on a recycle request — a started drag can
-	# still fail (miss every slot) and leave the card sitting right back in
-	# its hand position, fully visible and clickable, for the ~0.3s return
-	# animation before add_card() re-adds it. Recycling needs to keep
+	# the instant a real drag starts (mousedown starts dragging immediately —
+	# see Card._on_input_event) as well as on a recycle request — a started
+	# drag can still fail (miss every slot) and leave the card sitting right
+	# back in its hand position, fully visible and clickable, for the ~0.3s
+	# return animation before add_card() re-adds it. Recycling needs to keep
 	# working through that window instead of silently going dead.
 	_cards.erase(card)
 	_layout(true)
@@ -162,22 +156,19 @@ func _on_card_drag_started(card: Node3D) -> void:
 	detach_card(card)
 	card_drag_started.emit(card)
 
-# A plain left-click enlarges the card, or shrinks it back down if it's
-# already the enlarged one (see set_discard_mode's own click handler, which
-# takes priority while active — enlarging mid-discard would just be a
-# confusing distraction from the card that's about to fly out).
-func _on_card_clicked(card: Node3D) -> void:
-	if _discard_mode_active:
+# Hovering enlarges the card — skipped entirely while any card (this one or
+# another) is mid-drag, so a drag's mouse movement passing over other hand
+# cards on its way to a slot doesn't pop them up too.
+func _on_card_hovered(card: Node3D) -> void:
+	if Card._any_dragging:
 		return
-	var idx: int = _cards.find(card)
-	_enlarged_index = -1 if idx == _enlarged_index else idx
+	_enlarged_index = _cards.find(card)
 	_layout(true)
 
 # Shrinks the card back down once the mouse actually leaves it — but only
 # if it's still the one currently enlarged by the time this fires (a short
 # delay smooths over brief accidental un-hovers), so a stale timer from an
-# earlier card can't clobber a different card enlarged by a click in the
-# meantime.
+# earlier card can't clobber a different card enlarged in the meantime.
 func _on_card_unhovered(card: Node3D) -> void:
 	var idx: int = _cards.find(card)
 	if idx == -1 or idx != _enlarged_index:
@@ -215,8 +206,8 @@ func _layout(animate: bool) -> void:
 		# picking the wrong side) when two cards are exactly tied. A newly
 		# drawn card landing back on z=0.0 after its fly-in tween could lose
 		# that tie against an already-settled neighbor and render behind it
-		# until something (e.g. enlarging via a click) gave it a decisive z.
-		# A small per-index stagger removes the tie entirely: later hand
+		# until something (e.g. hover-enlarging it) gave it a decisive z. A
+		# small per-index stagger removes the tie entirely: later hand
 		# positions sit a hair closer to the camera, so draw order no longer
 		# depends on instance/tween history.
 		var z_depth := ENLARGE_Z_DEPTH if i == _enlarged_index else float(i) * z_step
