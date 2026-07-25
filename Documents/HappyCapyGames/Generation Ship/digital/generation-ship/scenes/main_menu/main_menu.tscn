@@ -233,6 +233,7 @@ theme_override_constants/separation = 14
 
 [node name="PasswordOnlyCheck" type="CheckBox" parent="Panels/LobbyView/LobbyPanel/FiltersRow"]
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Password Protected"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.75, 0.75, 0.75, 1)
@@ -248,7 +249,7 @@ layout_mode = 2
 custom_minimum_size = Vector2(0, 140)
 size_flags_vertical = 3
 theme_override_constants/v_separation = 10
-theme_override_font_sizes/font_size = 32
+theme_override_font_sizes/font_size = 24
 theme_override_colors/font_color = Color(0.88, 0.93, 1.0, 1)
 theme_override_colors/font_selected_color = Color(1.0, 1.0, 1.0, 1)
 theme_override_styles/panel = SubResource("SBF_list_bg")
