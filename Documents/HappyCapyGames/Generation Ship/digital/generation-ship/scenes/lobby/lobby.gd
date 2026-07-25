@@ -566,8 +566,18 @@ func _on_refresh_pressed() -> void:
 	_lobby_refresh_timer = LOBBY_REFRESH_INTERVAL
 
 func _on_invite_pressed() -> void:
-	if _steam_lobby_id > 0:
-		Steam.activateGameOverlayInviteDialog(_steam_lobby_id)
+	if _steam_lobby_id <= 0:
+		return
+	# activateGameOverlayInviteDialog silently no-ops whenever the Steam
+	# overlay itself can't render — the player disabled it in their Steam
+	# client settings, or (a GodotSteam/Vulkan limitation, not fixable here)
+	# the game is running from the Godot editor instead of a real Steam
+	# launch. Either way "nothing happens" with zero feedback is the worst
+	# outcome, so surface it instead of failing silently.
+	if not Steam.isOverlayEnabled():
+		_set_status(tr("Steam overlay is disabled — enable it in Steam's settings to invite friends."))
+		return
+	Steam.activateGameOverlayInviteDialog(_steam_lobby_id)
 
 func _load_saved_name() -> void:
 	var cfg: ConfigFile = ConfigFile.new()
