@@ -796,8 +796,11 @@ func _begin_drag(card: Node3D) -> void:
 		_drag_arrow.show_arrow(from_2d, from_2d)
 
 const _DRAG_PREVIEW_SIZE: Vector2 = Vector2(160, 160)
-# Above and to the right of the cursor so the preview doesn't sit under it.
-const _DRAG_PREVIEW_MOUSE_OFFSET: Vector2 = Vector2(28, -188)
+# Above and to the right of the cursor/arrowhead (both sit at roughly the
+# same point — see DragArrow's _to) so the preview doesn't cover either one,
+# but close enough to still read as attached to the arrow rather than
+# floating disconnected from it.
+const _DRAG_PREVIEW_MOUSE_OFFSET: Vector2 = Vector2(30, -120)
 
 # Shows the dragged hand card's own art next to the cursor for the whole
 # drag (see _process for the follow-the-mouse position update) — the real
