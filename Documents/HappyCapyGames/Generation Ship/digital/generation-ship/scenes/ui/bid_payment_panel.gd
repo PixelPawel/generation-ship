@@ -144,64 +144,39 @@ func show_bid_payment(card_name: String, amount: int, valid_colors: Array[CardDa
 	_update_total()
 	show()
 
+# Fires on every supply change while this panel is open (fuse, recycle,
+# anything else routed through SupplyUI.supply_changed — see
+# main.gd:_on_supply_changed). Always re-auto-allocates from scratch with
+# the same greedy, priority-order fill show_bid_payment used for the
+# initial suggestion, rather than trying to preserve the previous split:
+# topping up a stale allocation that's already fully funded (e.g. 2
+# Metals + 2 Electrix for a cost of 4) would never reconsider it even
+# after fusing into 3 Metals available, leaving the player's "best"
+# option unreflected on screen.
 func refresh() -> void:
 	if not visible or not _supply_ui:
 		return
-	var new_colors: Array[CardData.SupplyColor] = []
-	var new_available: Dictionary = {}
+	_colors = []
+	_available.clear()
 	for color: CardData.SupplyColor in _valid_colors:
 		var avail: int = _supply_ui.get_supply(color)
 		if avail > 0:
-			new_colors.append(color)
-			new_available[int(color)] = avail
-	var colors_changed: bool = new_colors.size() != _colors.size()
-	if not colors_changed:
-		for i: int in new_colors.size():
-			if new_colors[i] != _colors[i]:
-				colors_changed = true
-				break
-	if colors_changed:
-		var old_allocs: Dictionary = _allocations.duplicate()
-		_colors = new_colors
-		_available = new_available
-		_allocations.clear()
-		for color: CardData.SupplyColor in _colors:
-			var col_key: int = int(color)
-			_allocations[col_key] = mini(old_allocs.get(col_key, 0), _available.get(col_key, 0))
-		var rem: int = _needed - _get_total()
-		for color: CardData.SupplyColor in _colors:
-			if rem <= 0:
-				break
-			var col_key: int = int(color)
-			var can_add: int = _available.get(col_key, 0) - int(_allocations.get(col_key, 0))
-			var take: int = mini(can_add, rem)
-			_allocations[col_key] = int(_allocations.get(col_key, 0)) + take
-			rem -= take
-		_count_labels.clear()
-		_avail_labels.clear()
-		_rebuild_rows()
-	else:
-		for color: CardData.SupplyColor in _colors:
-			var col_key: int = int(color)
-			var avail: int = new_available[col_key]
-			_available[col_key] = avail
-			_allocations[col_key] = mini(int(_allocations.get(col_key, 0)), avail)
-			if _avail_labels.has(col_key):
-				(_avail_labels[col_key] as Label).text = tr("(have %d)") % avail
-			if _count_labels.has(col_key):
-				(_count_labels[col_key] as Label).text = str(_allocations[col_key])
-		var rem: int = _needed - _get_total()
-		for color: CardData.SupplyColor in _colors:
-			if rem <= 0:
-				break
-			var col_key: int = int(color)
-			var can_add: int = _available.get(col_key, 0) - int(_allocations.get(col_key, 0))
-			var take: int = mini(can_add, rem)
-			if take > 0:
-				_allocations[col_key] = int(_allocations.get(col_key, 0)) + take
-				rem -= take
-				if _count_labels.has(col_key):
-					(_count_labels[col_key] as Label).text = str(_allocations[col_key])
+			_colors.append(color)
+			_available[int(color)] = avail
+	_allocations.clear()
+	for color: CardData.SupplyColor in _colors:
+		_allocations[int(color)] = 0
+	var remaining: int = _needed
+	for color: CardData.SupplyColor in _colors:
+		if remaining <= 0:
+			break
+		var col_key: int = int(color)
+		var take: int = mini(_available[col_key], remaining)
+		_allocations[col_key] = take
+		remaining -= take
+	_count_labels.clear()
+	_avail_labels.clear()
+	_rebuild_rows()
 	_update_total()
 
 func _rebuild_rows() -> void:
