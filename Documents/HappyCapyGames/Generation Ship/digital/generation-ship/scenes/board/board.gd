@@ -50,6 +50,11 @@ signal tech_card_drawn
 # while it's up, since a drag's own mouse movement passing over other hand
 # cards would otherwise pop them up too.
 signal arrow_drag_changed(active: bool)
+# Right-click during an auction win's targeting arrow — main.gd re-shows the
+# bid payment panel (it already has the winning amount/card cached from the
+# original bid) and hands the chosen allocation back via
+# resume_auction_win_drag once confirmed.
+signal auction_payment_cancel_requested
 signal tech_deck_reshuffled(cards: Array[CardData])
 signal tech_card_discarded(cd: CardData)
 
@@ -91,6 +96,12 @@ var _is_arrow_drag: bool = false
 var _is_auction_win_placement: bool = false
 var _prepaid_spent_amounts: Dictionary = {}
 var _prepaid_market_notified: bool = false
+# Holds the dragged card while its bid-payment window is being redone (see
+# _cancel_prepaid_to_payment/resume_auction_win_drag) — unlike the direct-
+# purchase cancel path, an auction win can't just re-run _resolve_card_payment
+# (the amount owed is the fixed winning bid, not a recomputed cost), so main.gd
+# re-shows the bid payment panel and hands the same node back here once done.
+var _cancelled_auction_card: Node3D = null
 var _pending_placement_card: Node3D = null
 var _pending_placement_slot: SectorSlot = null
 var _pending_placement_is_tech: bool = false
@@ -897,29 +908,51 @@ func _resume_drag_arrow() -> void:
 	var to_2d: Vector2 = cam.unproject_position(snap_slot.global_position) if snap_slot else get_viewport().get_mouse_position()
 	_drag_arrow.show_arrow(from_2d, to_2d)
 
-# Right-click during a post-purchase targeting arrow: re-runs the same
-# payment step for this same card, which reopens the payment panel (or,
-# rarely, resolves for free again) — letting the player re-pick colors or
-# forfeit outright from there. Nothing to refund here — supply is only ever
-# actually spent once placement is confirmed (see confirm_pending_placement),
-# so _prepaid_spent_amounts at this point is still just the pending amount,
-# not a real deduction. Scoped to direct purchases only, never auction wins:
-# an auction's price and other players' bids are already settled by this
-# point, and unwinding that is a bigger, separate feature this doesn't attempt.
+# Right-click during a post-purchase targeting arrow: re-opens the payment
+# step for this same card, letting the player re-pick colors or forfeit
+# outright — for a direct purchase, that's _resolve_card_payment's own panel
+# again; for an auction win, the bid amount is already fixed (not a cost
+# _resolve_card_payment could recompute), so it re-opens the bid payment
+# panel instead via auction_payment_cancel_requested, using the same node
+# once main.gd hands it back through resume_auction_win_drag. Safe for both
+# now: supply is only ever actually spent once placement is confirmed (see
+# _finalize_placement/complete_purchase), so _prepaid_spent_amounts at this
+# point is still just the pending amount, not a real deduction — nothing to
+# refund either way.
 func _cancel_prepaid_to_payment() -> void:
 	if not is_instance_valid(_dragged_card) or not _is_prepaid_placement:
 		return
-	if _is_auction_win_placement or _placement_confirm_pending:
+	if _placement_confirm_pending:
 		return
 	var card: Node3D = _dragged_card
+	var is_auction_win: bool = _is_auction_win_placement
 	var is_tech: bool = not _is_sector_card()
 	_end_arrow_drag()
 	_dragged_card = null
 	_is_prepaid_placement = false
+	_is_auction_win_placement = false
 	_prepaid_spent_amounts = {}
+	if is_auction_win:
+		card.visible = false
+		_cancelled_auction_card = card
+		auction_payment_cancel_requested.emit()
+		return
 	if not _resolve_card_payment(card, null, is_tech):
 		return
 	_begin_prepaid_drag(card)
+
+# Resumes a drag cancelled back to the bid-payment window via
+# _cancel_prepaid_to_payment, once the player re-confirms payment — reuses
+# the exact same card node (unlike begin_auction_win_drag's find-or-create,
+# meant for a fresh win whose node might not exist locally) since it's
+# already in hand here, just hidden.
+func resume_auction_win_drag(spent: Dictionary) -> void:
+	if not is_instance_valid(_cancelled_auction_card):
+		_cancelled_auction_card = null
+		return
+	var card: Node3D = _cancelled_auction_card
+	_cancelled_auction_card = null
+	_begin_prepaid_drag(card, spent, true)
 
 func _try_drop() -> void:
 	_end_arrow_drag()
@@ -1137,10 +1170,12 @@ func confirm_pending_placement() -> void:
 
 # The one true commit point for a direct buy/hand-card placement: the major
 # action and the supply cost both land here, not back when the payment
-# panel was confirmed — an auction win's spend already happened separately
-# (main.gd, at bid-payment time) so spent is empty for those and this loop
-# is a no-op; action_committed re-firing is harmless too, since starting
-# the auction already committed the major action.
+# panel was confirmed — including an auction win that needed a fresh drag
+# (see complete_purchase for the other auction-win case, one that already
+# had a slot pre-selected before bidding interrupted it, which spends and
+# places directly there instead of coming through here). action_committed
+# re-firing for an auction win is harmless too, since starting the auction
+# already committed the major action.
 func _finalize_placement(card: Node3D, slot: SectorSlot, is_tech: bool, spent: Dictionary) -> void:
 	_dragged_card = null
 	_drag_origin = DragOrigin.NONE
@@ -1225,7 +1260,13 @@ func _start_bid(card: Node3D, slot: Node3D, is_tech: bool) -> void:
 		cost_color = card.card_data.adv_color
 	bid_required.emit(card, slot, min_cost, cost_color, is_tech)
 
-func complete_purchase() -> void:
+# spent lands here (not earlier, at bid-payment time) so an auction win only
+# actually costs supply once the card is placed for real — same rule as
+# every other purchase (see _finalize_placement). The occupied/no-tech-space
+# fallbacks below recycle the card instead of placing it, and deliberately
+# don't spend anything in that case either: nothing was ever actually taken
+# from the player for a card that didn't end up placed.
+func complete_purchase(spent: Dictionary = {}) -> void:
 	if not _pending_card:
 		return
 	_pending_dynamic_slot = null
@@ -1240,7 +1281,7 @@ func complete_purchase() -> void:
 	_pending_is_tech = false
 	_pending_drag_origin = DragOrigin.NONE
 	if not slot:
-		_begin_prepaid_drag(card, {}, true)
+		_begin_prepaid_drag(card, spent, true)
 		return
 	var sector_slot: SectorSlot = slot as SectorSlot
 	if not sector_slot:
@@ -1249,6 +1290,8 @@ func complete_purchase() -> void:
 		return
 	if is_tech:
 		if sector_slot.has_tech_space():
+			for col: CardData.SupplyColor in spent:
+				_supply_ui.spend_supply(col, spent[col])
 			sector_slot.accept_tech_card(card)
 			card.place()
 			var opt_levels_bid: Array[int] = _update_optimize_state(sector_slot)
@@ -1264,6 +1307,8 @@ func complete_purchase() -> void:
 			card.queue_free()
 	else:
 		if not sector_slot.occupied:
+			for col: CardData.SupplyColor in spent:
+				_supply_ui.spend_supply(col, spent[col])
 			sector_slot.accept_card(card)
 			card.place()
 			card_placed.emit(card, sector_slot)
@@ -1316,7 +1361,7 @@ func _begin_prepaid_drag(card: Node3D, spent: Dictionary = {}, is_auction_win: b
 # initiator's BotTurn.bot_start_auction() goes further and queue_frees it
 # outright. Either way, build a fresh instance from the card data instead
 # of depending on a node that might already be gone.
-func begin_auction_win_drag(cd: CardData) -> bool:
+func begin_auction_win_drag(cd: CardData, spent: Dictionary = {}) -> bool:
 	var card: Node3D = find_market_card(cd)
 	if not card:
 		card = _card_scene.instantiate()
@@ -1329,7 +1374,7 @@ func begin_auction_win_drag(cd: CardData) -> bool:
 		_expedition_market.detach_card(card)
 	else:
 		_market.detach_advanced_card(card)
-	_begin_prepaid_drag(card, {}, true)
+	_begin_prepaid_drag(card, spent, true)
 	return true
 
 func cancel_purchase() -> void:

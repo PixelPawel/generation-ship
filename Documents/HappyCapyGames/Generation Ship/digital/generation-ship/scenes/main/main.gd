@@ -12,6 +12,11 @@ var _bid_color: CardData.SupplyColor = CardData.SupplyColor.DUST
 var _bid_card_name: String = ""
 var _bid_card_data: CardData = null
 var _bid_is_advanced: bool = false
+# Set right before re-showing the bid payment panel for
+# Board.auction_payment_cancel_requested — tells _on_bid_payment_confirmed to
+# hand the allocation back to Board.resume_auction_win_drag (the same card
+# node, already mid-drag) instead of treating it as a brand new auction win.
+var _pending_auction_recancel: bool = false
 
 # ── Effect queue ──────────────────────────────────────────────────────��───────
 
@@ -222,6 +227,7 @@ func _ready() -> void:
 	$Hand.card_selected_for_discard.connect(_on_card_discarded)
 	$Hand.card_right_clicked.connect(_on_card_right_clicked_free_recycle)
 	$Board.bid_required.connect(_on_bid_required)
+	$Board.auction_payment_cancel_requested.connect(_on_auction_payment_cancel_requested)
 	$Board.card_placed.connect(_on_card_placed)
 	$Board.optimize_triggered.connect(_on_optimize_triggered)
 	$Board.action_committed.connect(_on_action_committed)
@@ -2873,27 +2879,46 @@ func _on_bid_confirmed(amount: int) -> void:
 	var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(_bid_color)
 	_bid_payment_panel.show_bid_payment(_bid_card_name, amount, valid_colors, _cs_display, _bid_card_data, _bid_is_advanced)
 
+# Right-click during an auction win's targeting arrow (see
+# Board._cancel_prepaid_to_payment) — the winning bid itself is already
+# settled, so this just re-opens the payment-allocation step for the same
+# fixed amount, reusing _bid_amount/_bid_card_name/etc. still cached from
+# the original bid rather than re-running the auction.
+func _on_auction_payment_cancel_requested() -> void:
+	_pending_auction_recancel = true
+	var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(_bid_color)
+	_bid_payment_panel.show_bid_payment(_bid_card_name, _bid_amount, valid_colors, _cs_display, _bid_card_data, _bid_is_advanced)
+
 func _on_bid_payment_confirmed(allocations: Dictionary) -> void:
 	if _effect_mode == EffectMode.PAYMENT_CONFIRM:
 		_effect_mode = EffectMode.NONE
 		$Board.hide_payment_confirm_arrow()
 		$Board.confirm_payment_with_allocations(allocations)
 		return
-	for color: Variant in allocations:
-		_cs_display.spend_supply(color as CardData.SupplyColor, int(allocations[color]))
+	# Supply is deliberately NOT spent here anymore — same rule as every
+	# other purchase now: it's only actually taken once the card lands on a
+	# slot for real (see Board.complete_purchase/_finalize_placement), not
+	# at this earlier payment-choice step. allocations is just carried
+	# through to whichever placement path handles that.
+	if _pending_auction_recancel:
+		_pending_auction_recancel = false
+		$Board.resume_auction_win_drag(allocations)
+		_show_action_buttons(true)
+		_broadcast_my_state()
+		return
 	if _pending_auction_win:
 		_pending_auction_win = false
 		if _auction_win_is_initiator:
-			$Board.complete_purchase()
+			$Board.complete_purchase(allocations)
 		else:
 			var card: CardData = CardRef.from_ref(_pending_won_card_ref)
-			if not $Board.begin_auction_win_drag(card):
+			if not $Board.begin_auction_win_drag(card, allocations):
 				push_warning("AuctionWin: card not found in market")
 				_notify_auction_placement_done()
 		_show_action_buttons(true)
 		_broadcast_my_state()
 		return
-	$Board.complete_purchase()
+	$Board.complete_purchase(allocations)
 	_show_action_buttons(true)
 	if _bid_is_from_effect:
 		_bid_is_from_effect = false
