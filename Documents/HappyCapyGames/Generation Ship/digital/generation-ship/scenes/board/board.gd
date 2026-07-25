@@ -567,7 +567,13 @@ func get_purchase_discount(target: CardData, placement_slot: SectorSlot = null) 
 	for slot: SectorSlot in _sector_row.get_children():
 		if not slot.occupied:
 			continue
-		for card_node: Node3D in slot.get_all_placed_cards():
+		# get_all_placed_cards is [sector card, tech slot 0, tech slot 1, ...]
+		# in placement order, gap-free (get_next_tech_slot always fills the
+		# lowest empty index, and compact_tech_cards keeps it that way after
+		# a removal) — so the last entry is whichever tech is currently on
+		# top, needed below for Day-Night Cycle/Seasons.
+		var placed_cards: Array[Node3D] = slot.get_all_placed_cards()
+		for card_node: Node3D in placed_cards:
 			var cd: CardData = card_node.card_data
 			if not cd:
 				continue
@@ -588,10 +594,17 @@ func get_purchase_discount(target: CardData, placement_slot: SectorSlot = null) 
 					if target.card_type == CardData.CardType.TECH and target.is_star_card:
 						discount += 1
 				"Day-Night Cycle":
-					if placement_slot == slot and target.card_type == CardData.CardType.TECH:
+					# "The next tech card placed here costs -1" — a one-time
+					# discount for whatever lands directly on top of it, not
+					# every tech this sector receives from then on. Only
+					# applies while it's still the most recently placed tech
+					# here — buried under a later tech, it stops, until
+					# something like Caldera Colony clears what's on top of
+					# it and restores it to the top.
+					if placement_slot == slot and card_node == placed_cards[-1] and target.card_type == CardData.CardType.TECH:
 						discount += 1
 				"Seasons":
-					if placement_slot == slot and target.card_type == CardData.CardType.TECH:
+					if placement_slot == slot and card_node == placed_cards[-1] and target.card_type == CardData.CardType.TECH:
 						discount += 2
 	return discount
 
