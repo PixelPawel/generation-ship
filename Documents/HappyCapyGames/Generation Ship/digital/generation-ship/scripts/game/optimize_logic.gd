@@ -76,6 +76,14 @@ static func max_optimizations(cd: CardData, is_advanced: bool) -> int:
 # returns the levels (1-based) newly triggered by this call, mutating
 # optimize_count/is_optimized/triggered_levels in place — mirrors
 # board.gd:_update_optimize_state()'s pool-consuming logic exactly.
+#
+# Also un-triggers an already-triggered level if the current pool no longer
+# satisfies its requirement — a placement alone can never cause this (it
+# only ever adds colors to the pool, so anything satisfied stays satisfied),
+# but a removal (e.g. Caldera Colony recycling a tucked tech) can shrink the
+# pool enough that a color the level depended on is gone, in which case it's
+# earnable again rather than staying permanently triggered off a
+# combination the sector no longer actually has.
 static func update_optimize_state(
 	cd: CardData, is_advanced: bool, placed_tech_colors: Array[int],
 	optimize_count: int, max_opt: int, triggered_levels: Array[bool]
@@ -99,7 +107,11 @@ static func update_optimize_state(
 		if req.is_empty():
 			break
 		if level_idx < triggered_levels.size() and triggered_levels[level_idx]:
-			consume_from_pool(pool, req)
+			if satisfies_optimize(pool, req):
+				consume_from_pool(pool, req)
+			else:
+				triggered_levels[level_idx] = false
+				optimize_count -= 1
 			continue
 		if satisfies_optimize(pool, req):
 			if level_idx < triggered_levels.size():

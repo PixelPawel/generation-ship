@@ -1912,6 +1912,8 @@ func _apply_caldera_recycle(indices: Array[int]) -> void:
 		count += 1
 	_pending_recycle_cards = []
 	_pending_target_slot.compact_tech_cards()
+	if count > 0:
+		$Board.revalidate_optimize_after_removal(_pending_target_slot)
 	_pending_target_slot.refresh_display()
 	_pending_target_slot = null
 	if count > 0:

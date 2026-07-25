@@ -1714,6 +1714,17 @@ func _update_optimize_state(slot: SectorSlot) -> Array[int]:
 	slot.refresh_optimize_display()
 	return result["triggered"] as Array[int]
 
+# Called after a tech card is removed from a sector (e.g. Caldera Colony
+# recycling a tucked tech) — a placement alone can never un-satisfy an
+# already-triggered optimize level (it only ever adds colors), but a
+# removal can, so this needs to run there too, not just after placements.
+# Also fires optimize_triggered for the rare case where freeing up the pool
+# indirectly lets an untriggered level satisfy now (see
+# OptimizeLogic.update_optimize_state).
+func revalidate_optimize_after_removal(slot: SectorSlot) -> void:
+	for level: int in _update_optimize_state(slot):
+		optimize_triggered.emit(slot, level)
+
 func _handle_failed_drop() -> void:
 	_end_arrow_drag()
 	_cleanup_pending_dynamic_slot()
