@@ -126,6 +126,12 @@ var _auction_second_id: int = -1
 var _deferred_effect_queue: Array[Dictionary] = []
 var _deferred_effect_slot: SectorSlot = null
 var _defer_place_effects: bool = false
+# Staged by _on_optimize_triggered, which now always fires immediately before
+# card_placed for the same placement (see board.gd) — _on_card_placed reads
+# and clears this so an optimize effect triggered by the same placement can
+# take part in its "which effect goes first" choice, instead of silently
+# landing after everything else.
+var _pending_optimize_steps: Array[Dictionary] = []
 var _pending_auction: bool = false
 var _pending_auction_card_ref: Dictionary = {}
 var _pending_auction_slot_idx: int = -1
@@ -2073,6 +2079,12 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	always_steps.append_array(AlwaysEffects.get_board_wide_steps(slot, $Board.get_all_sector_slots()))
 	always_steps.append_array(AlwaysEffects.get_global_expedition_steps(card.card_data, $Board.get_all_placed_expeditions()))
 	var place_steps: Array[Dictionary] = PlaceEffects.get_steps(card.card_data, slot)
+	# optimize_triggered (see board.gd) always fires just before card_placed
+	# for the same placement, so this is already staged by now if this
+	# placement (e.g. an expedition attaching to a sector) also completed
+	# that sector's optimize requirement.
+	var optimize_steps: Array[Dictionary] = _pending_optimize_steps.duplicate()
+	_pending_optimize_steps = []
 
 	if _defer_place_effects:
 		_defer_place_effects = false
@@ -2080,34 +2092,54 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 		_deferred_effect_queue.clear()
 		_deferred_effect_queue.append_array(always_steps)
 		_deferred_effect_queue.append_array(place_steps)
+		_deferred_effect_queue.append_array(optimize_steps)
 		_effect_slot = null
 		_effect_queue.clear()
 		return
 
-	if not always_steps.is_empty() and not place_steps.is_empty():
-		var cd: CardData = card.card_data
-		var is_adv: bool = bool(card.get("is_advanced"))
-		var always_first: Array = []; always_first.append_array(always_steps); always_first.append_array(place_steps)
-		var card_first: Array = []; card_first.append_array(place_steps); card_first.append_array(always_steps)
-		_pending_choice_options = [
-			{steps = always_first},
-			{steps = card_first},
-		]
+	var cd: CardData = card.card_data
+	var is_adv: bool = bool(card.get("is_advanced"))
+	var card_name: String = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
+	var always_source_name: String = str(always_steps[0].get("_source_name", "")) if not always_steps.is_empty() else ""
+	var always_cd: CardData = _find_card_data_by_name(always_source_name)
+
+	# Every distinct source of effects this placement triggered at once: the
+	# placed card's own place effect, another card's always-effect reacting
+	# to it, and any optimize effect this same placement satisfied. More
+	# than one means the player should choose the order, not have one
+	# silently land first.
+	var batches: Array[Dictionary] = []
+	if not always_steps.is_empty():
+		batches.append({label = always_cd.card_name if always_cd else tr("Sector effects"), steps = always_steps})
+	if not place_steps.is_empty():
+		batches.append({label = card_name, steps = place_steps})
+	if not optimize_steps.is_empty():
+		batches.append({label = tr("Optimize"), steps = optimize_steps})
+
+	if batches.size() > 1:
+		_pending_choice_options = []
+		for i: int in batches.size():
+			var ordered: Array = []
+			ordered.append_array(batches[i]["steps"] as Array)
+			for j: int in batches.size():
+				if j != i:
+					ordered.append_array(batches[j]["steps"] as Array)
+			_pending_choice_options.append({steps = ordered})
 		_effect_mode = EffectMode.EFFECT_CHOICE
-		var always_source_name: String = str(always_steps[0].get("_source_name", ""))
-		var always_cd: CardData = _find_card_data_by_name(always_source_name)
-		if always_cd:
+		if optimize_steps.is_empty() and always_cd:
 			var choice_cards: Array[CardData] = [always_cd, cd]
 			var choice_adv_flags: Array[bool] = [false, is_adv]
 			_choice_popup.show_card_choices(tr("Two effects triggered — resolve which first?"),
 				choice_cards, false, choice_adv_flags)
 		else:
-			var card_name: String = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
-			_choice_popup.show_choices(tr("Two effects triggered — resolve which first?"), [tr("Sector effects"), card_name], false)
+			var labels: Array[String] = []
+			for b: Dictionary in batches:
+				labels.append(str(b["label"]))
+			_choice_popup.show_choices(tr("Multiple effects triggered — resolve which first?"), labels, false)
 		return
 
-	_effect_queue.append_array(always_steps)
-	_effect_queue.append_array(place_steps)
+	for b: Dictionary in batches:
+		_effect_queue.append_array(b["steps"] as Array)
 	_process_next_effect()
 
 # Always-effect source cards (Insects, Crops, 1-G Thrust, Einstein-Rosen
@@ -3189,11 +3221,15 @@ func _on_action_committed() -> void:
 	$Board.set_major_action_taken()
 	_broadcast_my_state()
 
+# Board always fires this immediately before card_placed for the same
+# placement (see board.gd), so this only ever stages steps for
+# _on_card_placed to pick up a moment later — it never queues/processes
+# them directly itself, so a same-placement optimize trigger gets a chance
+# to take part in _on_card_placed's "which effect goes first" choice
+# instead of unconditionally landing wherever it happened to be appended.
 func _on_optimize_triggered(slot: SectorSlot, _level: int) -> void:
 	_effect_slot = slot
-	_effect_queue.append_array(SectorEffects.get_optimize_steps(slot))
-	if _effect_mode == EffectMode.NONE:
-		_process_next_effect()
+	_pending_optimize_steps.append_array(SectorEffects.get_optimize_steps(slot))
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):

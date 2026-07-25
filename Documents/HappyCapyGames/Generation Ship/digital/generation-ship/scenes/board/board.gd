@@ -1189,9 +1189,14 @@ func _finalize_placement(card: Node3D, slot: SectorSlot, is_tech: bool, spent: D
 		slot.accept_tech_card(card)
 		card.place()
 		var opt_levels: Array[int] = _update_optimize_state(slot)
-		card_placed.emit(card, slot)
+		# optimize_triggered before card_placed (not after) deliberately —
+		# main.gd's _on_optimize_triggered just stages its steps now, and
+		# _on_card_placed (which decides ordering when this placement
+		# triggered more than one effect at once) needs that already staged
+		# by the time it runs, not arriving a moment too late.
 		for level: int in opt_levels:
 			optimize_triggered.emit(slot, level)
+		card_placed.emit(card, slot)
 	else:
 		slot.accept_card(card)
 		card.place()
@@ -1295,9 +1300,11 @@ func complete_purchase(spent: Dictionary = {}) -> void:
 			sector_slot.accept_tech_card(card)
 			card.place()
 			var opt_levels_bid: Array[int] = _update_optimize_state(sector_slot)
-			card_placed.emit(card, sector_slot)
+			# See _finalize_placement for why optimize_triggered fires
+			# before card_placed here too.
 			for level: int in opt_levels_bid:
 				optimize_triggered.emit(sector_slot, level)
+			card_placed.emit(card, sector_slot)
 			if drag_origin == DragOrigin.MARKET and card.card_data:
 				market_card_taken.emit(card.card_data)
 		else:
