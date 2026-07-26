@@ -1349,6 +1349,12 @@ func complete_purchase(spent: Dictionary = {}) -> void:
 			if drag_origin == DragOrigin.MARKET and card.card_data:
 				market_card_taken.emit(card.card_data)
 		else:
+			# The pre-targeted slot filled up while the auction/payment was
+			# in progress — same "recycled instead of placed" case as
+			# _begin_prepaid_drag's no-room branch, so payment has to be
+			# taken here too, or the card never actually cost anything.
+			for col: CardData.SupplyColor in spent:
+				_supply_ui.spend_supply(col, spent[col])
 			if card.card_data:
 				add_to_discard(card.card_data)
 			card_recycled.emit(card.card_data.color)
@@ -1363,6 +1369,8 @@ func complete_purchase(spent: Dictionary = {}) -> void:
 			if drag_origin == DragOrigin.MARKET and card.card_data:
 				market_card_taken.emit(card.card_data)
 		else:
+			for col: CardData.SupplyColor in spent:
+				_supply_ui.spend_supply(col, spent[col])
 			card_recycled.emit(card.card_data.adv_color if card.is_advanced else card.card_data.color)
 			card.queue_free()
 
@@ -1392,6 +1400,14 @@ func _begin_prepaid_drag(card: Node3D, spent: Dictionary = {}, is_auction_win: b
 	var ctype: CardData.CardType = card.card_data.card_type if card.card_data else CardData.CardType.TECH
 	var has_room: bool = _has_free_sector_slot() if ctype == CardData.CardType.SECTOR else _any_tech_slot_available()
 	if not has_room:
+		# Payment is normally deferred all the way to actual placement (see
+		# the has_room branch below, and complete_purchase/confirm_payment),
+		# but this card is never going to reach that point — it's about to
+		# be recycled instead. Skipping the spend here would let a player
+		# win an auction (or buy a sector) for free and still collect the
+		# recycle bonus, since nothing would ever have left their supply.
+		for col: CardData.SupplyColor in spent:
+			_supply_ui.spend_supply(col, spent[col])
 		card.reparent(self, true)
 		card.global_position = market_origin_3d
 		unplaceable_card_recycled.emit(card.card_data)
