@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://ctcjufcotg3sn"
+
+[deps]
+
+files=["res://data/Generation Ship Full Card Details - Destinations.EN.Name.translation", "res://data/Generation Ship Full Card Details - Destinations.EN.Link.translation", "res://data/Generation Ship Full Card Details - Destinations.EN.Effect 1.translation", "res://data/Generation Ship Full Card Details - Destinations.EN.Done.translation", "res://data/Generation Ship Full Card Details - Destinations.EN.Artist.translation", "res://data/Generation Ship Full Card Details - Destinations.EN.Effect 2.translation"]
+
+source_file="res://data/Generation Ship Full Card Details - Destinations.EN.csv"
+dest_files=["res://data/Generation Ship Full Card Details - Destinations.EN.Name.translation", "res://data/Generation Ship Full Card Details - Destinations.EN.Link.translation", "res://data/Generation Ship Full Card Details - Destinations.EN.Effect 1.translation", "res://data/Generation Ship Full Card Details - Destinations.EN.Done.translation", "res://data/Generation Ship Full Card Details - Destinations.EN.Artist.translation", "res://data/Generation Ship Full Card Details - Destinations.EN.Effect 2.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

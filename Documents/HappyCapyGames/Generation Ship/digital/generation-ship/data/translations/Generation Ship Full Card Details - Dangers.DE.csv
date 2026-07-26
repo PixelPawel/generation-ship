@@ -1,0 +1,52 @@
+﻿"No.","Name","Link","Color","Flavor","Effect","Solve","Notes","Done","Artist"
+"1","Asteroidengürtel","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm1.png","Dust","Sag mir nie die Chancen!","Shuttle-Kosten +1.","Zahle 2 Dust pro Spieler.","","Done","Daniel"
+"2","Hochgeschwindigkeitseinschläge","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm2.png","Dust","Ausweichmanöver einleiten!","ALLE Spieler wandeln 3 Vorräte auf ihrem Schiff 1:1 in Dust um.","Zerstöre 1 Karte pro Spieler.
+(dreh die oberste Karte eines Sektors verdeckt)","","Done","Daniel"
+"3","Rumpfbrecher","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm3.png","Dust","Zuerst einmal tief durchatmen.","Zerstöre die oberste Karte in deinem am weitesten rechts liegenden Sektor.","Vervollständige deinen am weitesten rechts liegenden Sektor.","","Done","Daniel"
+"4","Bergbauunfall","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm4.png","Dust","Ich schwöre, das ist noch nie passiert!","Kannst keinen Dust erhalten.
+(du darfst weiterhin lagern)","Optimiere einen Dust-Sektor vollständig.","","Done","Daniel"
+"5","Beschleunigte Korrosion","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm5.png","Metals","Wie kann das im Weltraum rosten?","Zerstöre die obersten 2 Karten in deinem am weitesten links liegenden Sektor.","Optimiere einen Metals-Sektor vollständig.","","Done","Daniel"
+"6","Schmelzunfall","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm6.png","Metals","Schmelze? Die hab ich kaum gekannt.","Kannst kein Metals fusionieren oder erhalten.
+(du darfst weiterhin lagern)","Wirf 1 Metals-Karte pro Spieler ab.","","Done","Daniel"
+"7","Triebwerksüberlastung","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm7.png","Metals","Schiff auf Wahnsinnsgeschwindigkeit vorbereiten!","Jeder Spieler wählt:
+Zahle 2 Metals oder zerstöre 2 Karten.","Zahle 2 Metals pro Spieler.","","Done","Daniel"
+"8","Totalitarismus","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm8.png","Metals","Wir haben die besten Wörter.","Kannst keine IMMER-Effekte auf deinen Karten nutzen.","Wirf Karten im Wert von 2⭐ pro Spieler ab.
+","","Done","Daniel"
+"9","Antifusionsfeld","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm9.png","Liquids","Dann eben wieder Kohle verbrennen.","Kannst kein Liquids lagern oder fusionieren.
+(du darfst weiterhin erhalten)","Optimiere einen Liquids-Sektor vollständig.","","Done","Daniel"
+"10","Algenblüte","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm10.png","Liquids","Die Prinzessin ist in einem anderen Schloss!","Jeder Spieler wählt: Verliere 2 gelagerte Vorräte oder wirf 2 Karten ab.","Zahle 2 Liquids pro Spieler.","","Done","Daniel"
+"11","Flüssigkeitsleck","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm11.png","Liquids","Ein neuer Komet wird geboren.","Liquids-Karten kosten +2.","Wirf 1 Liquids-Karte pro Spieler ab.","","Done","Daniel"
+"12","Flüssigkeitsmangel","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm12.png","Liquids","Die Eispiraten sind zurück, Babyyyyyy.","Erhalte am Ende einer Generation kein Liquids.
+","Habe 3+ Liquids-Karten in 1 Sektor.","","Done","Daniel"
+"13","Sauerstofffressende Superkolonie","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm13.png","Organix","Du raubst mir den Atem.","Entferne 3 fortgeschrittene Sektoren
+aus dem Markt aus dem Spiel.","Leere 1 der Dust-Sektorstapel.","","Done","Daniel"
+"14","Pandemie","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm14.png","Organix","Musstest du wirklich diese außerirdische Fledermaus essen?","Du darfst keine Karten recyceln.","Wirf 1 Organix-Karte pro Spieler ab.","","Done","Daniel"
+"15","Mutationen","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm15.png","Organix","Die Evolution findet eben immer einen Weg.","Jeder Spieler zerstört 1 Karte, wenn möglich eine Organix-Karte.","Verliere 1 abgelegte Karte pro Spieler.
+","","Done","Daniel"
+"16","Befall","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm16.png","Organix","Ich mochte Pilze früher wirklich gerne …","Sektoren mit beliebigem Organix können nicht optimiert werden.","Drehe 1 verdeckt abgelegte Karte pro Spieler offen.","","Done","Daniel"
+"17","Pflanzenvirus","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm17.png","Organix","Die Ernte verrottet in den Gängen.","Erhalte am Ende einer Generation kein Organix.
+","Habe 3+ Organix-Karten in 1 Sektor.","","Done","Daniel"
+"18","Außerirdischer Erreger","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm18.png","Organix","Ein ungewohnter Geschmack.","Organix-Karten kosten +2.","Drehe eine offen abgelegte Karte mit 3+⭐ verdeckt.","","Done","Daniel"
+"19","Gammablitz","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm19.png","Electrix","Gesnipt aus 1500 Lichtjahren Entfernung.","Jeder Spieler wählt: Verliere 2
+gelagerte Vorräte oder abgelegte Karten.","Vervollständige einen vollständig optimierten Sektor.","","Done","Daniel"
+"20","Kybernetischer Psychopath","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm20.png","Electrix","Ich komme wieder.","Jeder Spieler zerstört
+1 Karte, wenn möglich eine Electrix-Karte.","Leere 1 der Dust-Sektorstapel.","","Done","Daniel"
+"21","Fehlfunktion des Neuralgeräts","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm21.png","Electrix","Du wirst denken, was ich denke!","Kannst keine Karten ablegen
+oder Vorräte lagern.","Wirf Karten im Wert von 3⭐ pro Spieler ab.","","Done","Daniel"
+"22","Systemausfall","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm22.png","Electrix","Hast du schon mal versucht, es aus- und wieder einzuschalten?","Lagere 1 Electrix hier.
+Decke 1 Gefahr pro Electrix auf.","Wirf 1 Electrix-Karte pro Spieler ab.","","Done","Daniel"
+"23","Roboteraufstand","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm23.png","Electrix","Bist du am Leben? Beweis es!","Sektorkarten kosten +2.","Zahle 1 Electrix pro Spieler.","","Done","Daniel"
+"24","Nanitenseuche","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm24.png","Electrix","Sie haben ein schönes Knuspern.","Erhalte am Ende einer Generation kein Electrix.
+","Wirf Karten im Wert von 3⭐ pro Spieler ab.
+","","Done","Daniel"
+"25","Unentdecktes Wurmloch","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm25.png","Thrrust","Wohin nie zuvor ein Mensch gereist ist.","Mische alle Expeditionen
+zurück in den Stapel.","Kaufe 1 Expedition.","","Done","Daniel"
+"26","Sabotage","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm26.png","Thrrust","Nur ein paar … kleine … technische Probleme.","Jeder Spieler entfernt den
+Sektor mit den wenigsten Karten.","Zerstöre 1 Expedition in einem beliebigen Sektor.
+","","Done","Daniel"
+"27","Abtrünnige KI","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm27.png","Thrrust","Möchtest du ein Spiel spielen?","Alle Karten kosten +1.","Wirf 2 Electrix- und/oder Thrust-Karten pro Spieler ab.","","Done","Daniel"
+"28","Barbarei","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm28.png","Thrrust","Nur Gentrifizierung kann jetzt noch helfen!","Kannst kein Thrust platzieren oder recyceln.","Vervollständige einen Electrix- oder Thrust-Sektor.","","Done","Daniel"
+"29","Höherdimensionale Tasche","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm29.png","Thrrust","Und du dachtest, 3 Körper wären schon ein Problem.","Jeder Spieler gibt seine
+Karten nach links weiter.","Wirf 1 Karte jeder Farbe ab.","","Done","Daniel"
+"30","Instabiles Wurmloch","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm30.png","Thrrust","Es saugt richtig ab.","Jeder Spieler wirft 3 Karten ab.","Ein beliebiger Spieler hat keine Karten auf der Hand.
+","","Done","Daniel"
