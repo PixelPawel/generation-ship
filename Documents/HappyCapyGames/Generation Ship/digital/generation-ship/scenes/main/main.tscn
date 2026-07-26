@@ -164,13 +164,13 @@ script = ExtResource("9_pause_menu")
 transform = Transform3D(3.2208035, 0.011242848, 1.3697807, -1.3697723, -0.004781525, 3.220823, 0.012217389, -3.4999788, -5.987502e-08, -0.6467306, 1.1118473, -0.22355545)
 
 [node name="UiInfo" parent="." unique_id=827463901 instance=ExtResource("17_ui_info")]
-transform = Transform3D(3.799994, 0.006632248, 2.8990477e-10, 0, -1.6610328e-07, 3.8, 0.006632248, -3.799994, -1.6610302e-07, 0.74006987, 0.9406268, -0.27440512)
+transform = Transform3D(3.799994, 0.006632248, 2.8990477e-10, 0, -1.6610328e-07, 3.8, 0.006632248, -3.799994, -1.6610302e-07, 0.74006987, 0.9406268, -0.28849393)
 
 [node name="UiCockpit" parent="." unique_id=938574012 instance=ExtResource("18_ui_cockpit")]
 transform = Transform3D(2.5, 0, 0, 0, 0.88841176, 1.8694555, 0, -2.3368194, 0.7107294, -0.0023359656, 0.9999999, -0.119951665)
 
 [node name="UiLog" parent="." unique_id=-2094967295 instance=ExtResource("21_ui_log")]
-transform = Transform3D(-7.86805e-08, -4, -8.742278e-08, 0, -1.7484555e-07, 2, -1.8, 1.7484555e-07, 3.821371e-15, -0.33061832, 0.9286856, -0.33102542)
+transform = Transform3D(-7.86805e-08, -3, -8.742278e-08, 0, -1.3113416e-07, 2, -1.8, 1.3113416e-07, 3.821371e-15, -0.33061832, 0.9286856, -0.36365524)
 
 [node name="CockpitFillLight" type="OmniLight3D" parent="." unique_id=815320505]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.037768304, 1.0892866, -0.05723527)
