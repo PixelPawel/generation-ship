@@ -987,6 +987,26 @@ func _refresh_all_opp_status_labels() -> void:
 	for pid: int in _opp_panels:
 		_refresh_opp_status_label(pid)
 
+# Overlays each opponent's market-widget status label with their standing in
+# the currently-running auction (leader's live bid, who's currently deciding,
+# who's already passed) — restored to the normal turn status via
+# _refresh_all_opp_status_labels() once the auction resolves.
+func _set_auction_opponent_statuses(remaining_ids: Array, leader_id: int, active_id: int, current_bid: int) -> void:
+	if not _market_panel:
+		return
+	var my_id: int = multiplayer.get_unique_id()
+	for peer_id: int in GameNetwork.player_order:
+		if peer_id == my_id:
+			continue
+		if peer_id == leader_id:
+			_market_panel.set_opponent_auction_label(peer_id, tr("Bid: %d") % current_bid, Color(1.0, 0.88, 0.35))
+		elif peer_id == active_id:
+			_market_panel.set_opponent_auction_label(peer_id, tr("Deciding…"), Color(0.5, 0.85, 1.0))
+		elif peer_id in remaining_ids:
+			_market_panel.set_opponent_auction_label(peer_id, "", Color(0.7, 0.78, 0.9))
+		else:
+			_market_panel.set_opponent_auction_label(peer_id, tr("Passed"), Color(0.55, 0.55, 0.65))
+
 # Host → All: an opponent's action status changed.
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_opp_status(peer_id: int, status: String) -> void:
@@ -1110,7 +1130,7 @@ func _notify_auction_placement_done() -> void:
 
 # Host → All: auction has started, show bid popup.
 @rpc("authority", "reliable", "call_local")
-func _rpc_sync_auction_started(card_ref: Dictionary, slot_idx: int, is_tech: bool, is_adv: bool, min_bid: int, cost_color_int: int, initiator_id: int, active_id: int, leader_name: String) -> void:
+func _rpc_sync_auction_started(card_ref: Dictionary, slot_idx: int, is_tech: bool, is_adv: bool, min_bid: int, cost_color_int: int, initiator_id: int, active_id: int, leader_name: String, remaining_ids: Array) -> void:
 	_auction_card_ref = card_ref
 	_auction_slot_idx = slot_idx
 	_auction_is_tech = is_tech
@@ -1135,19 +1155,21 @@ func _rpc_sync_auction_started(card_ref: Dictionary, slot_idx: int, is_tech: boo
 	_auction_starting = false
 	_show_action_buttons(false)
 	UIAudio.play_auction_music()
+	_set_auction_opponent_statuses(remaining_ids, initiator_id, active_id, min_bid)
 	if multiplayer.is_server() and GameNetwork.is_bot(active_id):
 		var _ab1: int = active_id
 		get_tree().create_timer(0.6).timeout.connect(func() -> void: BotTurn.bot_decide_bid(self, _ab1))
 
 # Host → All: bid state has changed.
 @rpc("authority", "reliable", "call_local")
-func _rpc_sync_auction_state(current_bid: int, leader_id: int, active_id: int, leader_name: String) -> void:
+func _rpc_sync_auction_state(current_bid: int, leader_id: int, active_id: int, leader_name: String, remaining_ids: Array) -> void:
 	_auction_current_bid = current_bid
 	_auction_leader_id = leader_id
 	var my_id: int = multiplayer.get_unique_id()
 	var is_active: bool = my_id == active_id
 	var can_pass: bool = is_active and my_id != leader_id
 	_bid_popup.update_auction(current_bid, leader_name, is_active, can_pass)
+	_set_auction_opponent_statuses(remaining_ids, leader_id, active_id, current_bid)
 	if multiplayer.is_server() and GameNetwork.is_bot(active_id):
 		var _ab2: int = active_id
 		get_tree().create_timer(0.6).timeout.connect(func() -> void: BotTurn.bot_decide_bid(self, _ab2))
@@ -1160,6 +1182,7 @@ func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, ca
 	_is_runner_up_offer = false
 	_bid_popup.hide()
 	UIAudio.stop_auction_music()
+	_refresh_all_opp_status_labels()
 	_auction_placement_pending = true
 	var cost_color: CardData.SupplyColor = cost_color_int as CardData.SupplyColor
 	var my_id: int = multiplayer.get_unique_id()
@@ -2646,7 +2669,7 @@ func _server_start_auction(card_ref: Dictionary, slot_idx: int, is_tech: bool, i
 	_auction_active_idx = 1
 	var active_id: int = _auction_remaining[_auction_active_idx]
 	var leader_name: String = GameNetwork.player_names.get(initiator_id, "Player")
-	_rpc_sync_auction_started.rpc(card_ref, slot_idx, is_tech, is_adv, min_bid, cost_color_int, initiator_id, active_id, leader_name)
+	_rpc_sync_auction_started.rpc(card_ref, slot_idx, is_tech, is_adv, min_bid, cost_color_int, initiator_id, active_id, leader_name, _auction_remaining)
 
 func _server_handle_raise(peer_id: int, amount: int) -> void:
 	if _auction_remaining.is_empty():
@@ -2661,7 +2684,7 @@ func _server_handle_raise(peer_id: int, amount: int) -> void:
 	_auction_active_idx = (_auction_active_idx + 1) % _auction_remaining.size()
 	var active_id: int = _auction_remaining[_auction_active_idx]
 	var leader_name: String = GameNetwork.player_names.get(_auction_leader_id, "Player")
-	_rpc_sync_auction_state.rpc(_auction_current_bid, _auction_leader_id, active_id, leader_name)
+	_rpc_sync_auction_state.rpc(_auction_current_bid, _auction_leader_id, active_id, leader_name, _auction_remaining)
 
 func _server_handle_pass_bid(peer_id: int) -> void:
 	if _auction_remaining.is_empty():
@@ -2678,7 +2701,7 @@ func _server_handle_pass_bid(peer_id: int) -> void:
 		return
 	var active_id: int = _auction_remaining[_auction_active_idx]
 	var leader_name: String = GameNetwork.player_names.get(_auction_leader_id, "Player")
-	_rpc_sync_auction_state.rpc(_auction_current_bid, _auction_leader_id, active_id, leader_name)
+	_rpc_sync_auction_state.rpc(_auction_current_bid, _auction_leader_id, active_id, leader_name, _auction_remaining)
 
 func _server_offer_to_runner_up() -> void:
 	if _auction_second_id == -1:

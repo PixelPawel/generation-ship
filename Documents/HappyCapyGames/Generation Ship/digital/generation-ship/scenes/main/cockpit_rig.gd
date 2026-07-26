@@ -419,9 +419,14 @@ static func setup_info_screen_display(main: Main) -> void:
 		mat.set_shader_parameter("bloom_threshold", 0.7)
 		screen_mesh.set_surface_override_material(0, mat)
 		setup_info_screen_input(main, screen_mesh)
-	for p: Control in [main._bid_popup, main._scoreboard]:
-		p.reparent(main._info_viewport, false)
-		register_info_panel(main, p)
+	# BidPopup deliberately does NOT register here — it stays confined to the
+	# left ~58% of the info screen (see bid_popup.gd) so the market panel's
+	# Players column (opponent supply/hand/VP + live auction status) keeps
+	# showing through on the right instead of being auto-hidden along with
+	# the rest of the market panel the way every other info panel behaves.
+	main._bid_popup.reparent(main._info_viewport, false)
+	main._scoreboard.reparent(main._info_viewport, false)
+	register_info_panel(main, main._scoreboard)
 
 	# Free-floating, screen-space (not on the in-world Info Screen) so it
 	# reads clearly regardless of camera angle — centered on the actual

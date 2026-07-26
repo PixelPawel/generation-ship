@@ -231,6 +231,13 @@ func update_opponent(peer_id: int, hand_count: int, supply: Dictionary, vp: int)
 		(supply_lbls[si] as Label).text = str(supply.get(si, 0))
 	(refs["vp_lbl"] as Label).text = "⭐ %d" % vp
 
+func set_opponent_auction_label(peer_id: int, text: String, color: Color) -> void:
+	if not _opp_refs.has(peer_id):
+		return
+	var lbl: Label = _opp_refs[peer_id]["status_lbl"] as Label
+	lbl.text = text
+	lbl.add_theme_color_override("font_color", color)
+
 func update_opponent_status(peer_id: int, status: String, is_active: bool) -> void:
 	if not _opp_refs.has(peer_id):
 		return

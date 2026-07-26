@@ -27,9 +27,20 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
+	# Only the left ~58% of the info screen — the market panel's Players
+	# column (opponent supply/hand/VP + auction status, see market_panel.gd)
+	# lives in the rightmost ~40% and must stay visible/live during an
+	# auction, not get painted over by this popup's own background.
 	var panel: ScifiPanel = load("res://scenes/ui/scifi_panel.gd").new()
 	panel.set_content_margin(20)
-	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	panel.anchor_left = 0.0
+	panel.anchor_top = 0.0
+	panel.anchor_right = 0.58
+	panel.anchor_bottom = 1.0
+	panel.offset_left = 0.0
+	panel.offset_top = 0.0
+	panel.offset_right = 0.0
+	panel.offset_bottom = 0.0
 	add_child(panel)
 
 	var vbox := VBoxContainer.new()
