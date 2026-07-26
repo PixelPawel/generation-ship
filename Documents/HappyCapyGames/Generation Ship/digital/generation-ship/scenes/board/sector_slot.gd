@@ -156,30 +156,53 @@ func _setup_display() -> void:
 	_facedown_count_icon  = _make_icon_plane(_add_z_clearance(Vector3( 0.17, ELEMENT_ICON_Y, 0.67)), Vector2(0.07, 0.10), null, false)
 	_facedown_count_label = _make_badge(_add_z_clearance(Vector3( 0.29, ELEMENT_LABEL_Y, 0.67)), Color(0.85, 0.9, 1.0))
 
-	# State-helper badges — mirrors the Optimize-requirement column's own
-	# convention of sitting out in X (STATE_BADGE_X, clear of both this card
-	# and the neighboring slot) rather than needing _add_z_clearance the way
-	# the centered supply/tuck badges above do. Separated mainly in Y (not
-	# just Z) since both are billboarded text that can show simultaneously —
-	# a Y gap reads as two stacked lines regardless of camera angle, where a
-	# Z-only gap visually collapsed into an unreadable overlap from anything
-	# but a steep top-down view.
-	_stage_badge = _make_badge(Vector3(STATE_BADGE_X, ELEMENT_LABEL_Y + 0.09, 0.08), STAGE_COLOR_READY, true)
-	_optimize_state_badge = _make_badge(Vector3(STATE_BADGE_X, ELEMENT_LABEL_Y - 0.09, -0.08), OPTIMIZE_COLOR_DONE, true)
+	# State-helper badges — centered on the sector (X=0) rather than off to
+	# the side like the Optimize-requirement column, since these read as a
+	# headline for the whole sector, not a per-color icon list. Sits dead
+	# center over the card itself (unlike every other badge here, which
+	# sits to the side or past the card's own footprint), so depth-testing
+	# it the normal way left it flickering in and out behind the card as it
+	# floats (see _process's FLOAT_AMP bob) — no_depth_test below fixes
+	# that outright rather than chasing a Z offset that clears a card
+	# that's itself moving through a Z range. Kept at the same near-zero Z
+	# the rest of this slot's centered content uses (NOT pushed forward the
+	# way _add_z_clearance does for depth-tested elements) since pushing it
+	# further from the card also pushes it further from the camera, making
+	# the same font size read noticeably smaller — confirmed by it nearly
+	# vanishing at Z=0.44 even at 3x the font size that reads clearly here.
+	# Separated from each other in Y (not Z) since both can be visible at
+	# once and a Y gap reads as two stacked lines regardless of camera
+	# angle — needs MORE gap than it looks like it should, since a line's
+	# own rendered height (~font_size * pixel_size, here ~0.11) is on the
+	# same order as any gap that looks reasonable at a glance; too small a
+	# gap let the two opaque billboards paint over each other's middle,
+	# leaving only each line's outermost letters visible.
+	_stage_badge = _make_badge(Vector3(0, ELEMENT_LABEL_Y + 0.14, 0.08), STAGE_COLOR_READY, true, 22, 11)
+	_optimize_state_badge = _make_badge(Vector3(0, ELEMENT_LABEL_Y - 0.14, -0.08), OPTIMIZE_COLOR_DONE, true, 22, 11)
+	# no_depth_test alone wasn't enough to stay clear of the tech-card stack
+	# (a tall stack still painted over the middle of the text — depth test
+	# or not, later-drawn opaque geometry still wins the color buffer). A
+	# high render_priority forces these to draw dead last among
+	# transparent-sorted objects regardless, guaranteeing nothing else can
+	# paint over them.
+	_stage_badge.no_depth_test = true
+	_stage_badge.render_priority = 100
+	_optimize_state_badge.no_depth_test = true
+	_optimize_state_badge.render_priority = 100
 
 # Shared text badge used for every label on this slot (stored-supply counts,
 # tucked-card VP/count labels). Real depth-tested (Label3D's own default —
 # no no_depth_test bypass) so it's occluded by placed_card exactly like
 # every other element, matching _make_icon_plane below.
-func _make_badge(pos: Vector3, color: Color, outlined: bool = false) -> Label3D:
+func _make_badge(pos: Vector3, color: Color, outlined: bool = false, font_size: int = 28, outline_size: int = 15) -> Label3D:
 	var lbl := Label3D.new()
-	lbl.font_size = 28
+	lbl.font_size = font_size
 	lbl.pixel_size = 0.005
 	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.modulate = color
 	if outlined:
-		lbl.outline_size = 15
+		lbl.outline_size = outline_size
 		lbl.outline_modulate = Color.BLACK
 	lbl.position = pos
 	lbl.visible = false
@@ -473,10 +496,6 @@ const OPT_ICON_PIXEL_SIZE: float = 0.0001
 # sit in, instead of the near-zero one before the slots were spaced out.
 # Sitting mid-gap keeps clear margin from both this card and the next.
 const OPT_COLUMN_X: float = -0.62
-# Mirrors OPT_COLUMN_X on the opposite side for the New/Complete/Optimized
-# state badges below — same reasoning: sitting out in X clear of both this
-# card and the neighbor's, so it needs no _add_z_clearance of its own.
-const STATE_BADGE_X: float = 0.62
 # Stage track (New / Completes Next / Complete) and Optimize track (Optimizes
 # Next / Optimized) get entirely separate color families, not just separate
 # text — the two badges can be visible at once (e.g. a sector one tech away
@@ -630,7 +649,7 @@ func _one_card_from_fully_optimized() -> bool:
 		return matched.count(false) == 1
 	return false
 
-# Refreshes the two always-on state badges (see STATE_BADGE_X) that help
+# Refreshes the two always-on state badges (see _setup_display) that help
 # players read, at a glance, which of a sector's New/Complete/Optimized
 # conditions currently apply — i.e. which "if ___" card-text effects would
 # fire on whatever gets placed here next. Piggybacks on
