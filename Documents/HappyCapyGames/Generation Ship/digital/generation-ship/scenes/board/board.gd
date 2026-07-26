@@ -811,7 +811,7 @@ func _begin_drag(card: Node3D) -> void:
 	card.reparent(self, true)
 	card.visible = false
 	if not _is_sector_card():
-		_set_tech_drag_active(true)
+		_set_tech_drag_active(true, card.card_data.color if card.card_data else CardData.SupplyColor.DUST)
 	if _drag_origin == DragOrigin.HAND:
 		_show_drag_preview(card)
 	if _drag_arrow != null:
@@ -894,9 +894,12 @@ func _set_arrow_drag_active(active: bool) -> void:
 # helper badges (see SectorSlot._refresh_state_badges) only while a tech or
 # expedition card is actually being dragged — sector cards don't trigger any
 # of those card-text conditions themselves, so their own drags leave this off.
-func _set_tech_drag_active(active: bool) -> void:
+# dragged_color is only meaningful while active — SectorSlot needs it to
+# tell whether THIS specific card would actually satisfy the one remaining
+# Optimize color, not just whether the sector is one card away in general.
+func _set_tech_drag_active(active: bool, dragged_color: CardData.SupplyColor = CardData.SupplyColor.DUST) -> void:
 	for slot: SectorSlot in _sector_row.get_children():
-		slot.set_drag_helper_active(active)
+		slot.set_drag_helper_active(active, dragged_color)
 
 func _end_arrow_drag() -> void:
 	_set_tech_drag_active(false)
@@ -921,7 +924,7 @@ func _resume_drag_arrow() -> void:
 	if _drag_arrow == null:
 		return
 	if not _is_sector_card():
-		_set_tech_drag_active(true)
+		_set_tech_drag_active(true, _dragged_card.card_data.color if _dragged_card.card_data else CardData.SupplyColor.DUST)
 	_set_arrow_drag_active(true)
 	var cam: Camera3D = get_viewport().get_camera_3d()
 	if not cam:

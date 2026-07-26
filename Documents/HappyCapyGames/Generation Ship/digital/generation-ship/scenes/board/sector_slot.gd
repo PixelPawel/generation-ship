@@ -86,6 +86,11 @@ var _optimize_state_badge: Label3D = null   # "OPTIMIZES NEXT" / "OPTIMIZED"
 # being dragged — the two badges above only ever show during that window
 # (see _refresh_state_badges), not as a permanent always-on overlay.
 var _drag_helper_active: bool = false
+# Color of the card currently being dragged (only meaningful while
+# _drag_helper_active) — Optimizes Next only fires for the color that
+# would actually complete the sector, not merely "one card away" in
+# the abstract.
+var _dragged_card_color: CardData.SupplyColor = CardData.SupplyColor.DUST
 
 @onready var _mesh: MeshInstance3D = $SlotMesh
 
@@ -633,9 +638,12 @@ func refresh_optimize_display() -> void:
 	_refresh_state_badges()
 
 # True only when exactly one Optimize level is left untriggered (so
-# satisfying it alone would flip is_optimized true) and that level's
-# requirement is missing exactly one color — i.e. any single correctly
-# colored tech placed next would fully optimize this sector. Mirrors
+# satisfying it alone would flip is_optimized true), that level's
+# requirement is missing exactly one color, AND the card currently being
+# dragged (_dragged_card_color) is that missing color — an ANY requirement
+# slot accepts whatever's being dragged, but a specific-color slot only
+# reads as "Optimizes Next" for the one color that actually completes it,
+# not for every card that happens to be one-away in the abstract. Mirrors
 # OptimizeLogic's own level-by-level pool consumption (see
 # refresh_optimize_display above) so a card already counted toward an
 # earlier level's requirement is never double-counted here.
@@ -650,18 +658,23 @@ func _one_card_from_fully_optimized() -> bool:
 			OptimizeLogic.consume_from_pool(pool, req)
 			continue
 		var matched: Array[bool] = OptimizeLogic.matched_indices(pool, req)
-		return matched.count(false) == 1
+		if matched.count(false) != 1:
+			return false
+		var missing_color: int = req[matched.find(false)]
+		return missing_color == CardData.OPTIMIZE_ANY or missing_color == int(_dragged_card_color)
 	return false
 
 # Called by Board (_set_tech_drag_active) while a tech/expedition card is
 # being dragged, on every sector slot regardless of whether it's a valid
 # target — lets players compare New/Complete/Optimized state across the
 # whole board before choosing where to drop, not just the slot they're
-# already hovering.
-func set_drag_helper_active(active: bool) -> void:
-	if _drag_helper_active == active:
+# already hovering. dragged_color only matters while active, but is always
+# passed together so the two stay in sync.
+func set_drag_helper_active(active: bool, dragged_color: CardData.SupplyColor = CardData.SupplyColor.DUST) -> void:
+	if _drag_helper_active == active and _dragged_card_color == dragged_color:
 		return
 	_drag_helper_active = active
+	_dragged_card_color = dragged_color
 	_refresh_state_badges()
 
 # Refreshes the two state badges (see _setup_display) that help players
