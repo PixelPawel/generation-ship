@@ -80,6 +80,8 @@ var _facedown_count_label: Label3D = null
 var _optimize_icons: Array = []  # index = level (0..2), value = Array[MeshInstance3D] for that level's icons
 var _optimize_level_reqs: Array = []  # index = level (0..2), value = Array[int] (that level's required colors, same order as _optimize_icons)
 var _optimize_nodes: Array[Node3D] = []  # every icon node, tracked for cleanup
+var _stage_badge: Label3D = null            # "NEW" / "COMPLETES NEXT" / "COMPLETE"
+var _optimize_state_badge: Label3D = null   # "OPTIMIZES NEXT" / "OPTIMIZED"
 
 @onready var _mesh: MeshInstance3D = $SlotMesh
 
@@ -153,6 +155,17 @@ func _setup_display() -> void:
 	_faceup_count_label   = _make_badge(_add_z_clearance(Vector3(-0.17, ELEMENT_LABEL_Y, 0.67)), Color(0.85, 0.9, 1.0))
 	_facedown_count_icon  = _make_icon_plane(_add_z_clearance(Vector3( 0.17, ELEMENT_ICON_Y, 0.67)), Vector2(0.07, 0.10), null, false)
 	_facedown_count_label = _make_badge(_add_z_clearance(Vector3( 0.29, ELEMENT_LABEL_Y, 0.67)), Color(0.85, 0.9, 1.0))
+
+	# State-helper badges — mirrors the Optimize-requirement column's own
+	# convention of sitting out in X (STATE_BADGE_X, clear of both this card
+	# and the neighboring slot) rather than needing _add_z_clearance the way
+	# the centered supply/tuck badges above do. Separated mainly in Y (not
+	# just Z) since both are billboarded text that can show simultaneously —
+	# a Y gap reads as two stacked lines regardless of camera angle, where a
+	# Z-only gap visually collapsed into an unreadable overlap from anything
+	# but a steep top-down view.
+	_stage_badge = _make_badge(Vector3(STATE_BADGE_X, ELEMENT_LABEL_Y + 0.09, 0.08), STAGE_COLOR_READY, true)
+	_optimize_state_badge = _make_badge(Vector3(STATE_BADGE_X, ELEMENT_LABEL_Y - 0.09, -0.08), OPTIMIZE_COLOR_DONE, true)
 
 # Shared text badge used for every label on this slot (stored-supply counts,
 # tucked-card VP/count labels). Real depth-tested (Label3D's own default —
@@ -460,6 +473,22 @@ const OPT_ICON_PIXEL_SIZE: float = 0.0001
 # sit in, instead of the near-zero one before the slots were spaced out.
 # Sitting mid-gap keeps clear margin from both this card and the next.
 const OPT_COLUMN_X: float = -0.62
+# Mirrors OPT_COLUMN_X on the opposite side for the New/Complete/Optimized
+# state badges below — same reasoning: sitting out in X clear of both this
+# card and the neighbor's, so it needs no _add_z_clearance of its own.
+const STATE_BADGE_X: float = 0.62
+# Stage track (New / Completes Next / Complete) and Optimize track (Optimizes
+# Next / Optimized) get entirely separate color families, not just separate
+# text — the two badges can be visible at once (e.g. a sector one tech away
+# from Complete that's also one matching card away from Optimize), and a
+# shared "done" or "soon" color made the two lines visually blend into an
+# unreadable overlap where they'd otherwise sit close together. Color alone
+# still tells the two tracks apart even when their text does overlap.
+const STAGE_COLOR_READY: Color = Color(0.55, 0.85, 1.0)   # New — empty, ready for its first tech card
+const STAGE_COLOR_SOON: Color = Color(1.0, 0.75, 0.3)     # Completes Next
+const STAGE_COLOR_DONE: Color = Color(1.0, 0.88, 0.35)    # Complete
+const OPTIMIZE_COLOR_SOON: Color = Color(0.78, 0.6, 1.0)  # Optimizes Next
+const OPTIMIZE_COLOR_DONE: Color = Color(0.4, 1.0, 0.55)  # Optimized
 # Now that the column sits out in X (OPT_COLUMN_X, clear of both this card
 # and the neighbor's), it no longer needs to dodge the sector card's own Z
 # extent the way it did back when it shared the card's own X range — so it
@@ -578,6 +607,68 @@ func refresh_optimize_display() -> void:
 			for i: int in row.size():
 				row[i].visible = not matched[i]
 		OptimizeLogic.consume_from_pool(pool, req)
+	_refresh_state_badges()
+
+# True only when exactly one Optimize level is left untriggered (so
+# satisfying it alone would flip is_optimized true) and that level's
+# requirement is missing exactly one color — i.e. any single correctly
+# colored tech placed next would fully optimize this sector. Mirrors
+# OptimizeLogic's own level-by-level pool consumption (see
+# refresh_optimize_display above) so a card already counted toward an
+# earlier level's requirement is never double-counted here.
+func _one_card_from_fully_optimized() -> bool:
+	if is_optimized or optimize_count != max_optimizations - 1:
+		return false
+	var pool: Array[int] = get_placed_tech_colors()
+	for level_idx: int in max_optimizations:
+		var req: Array[int] = []
+		req.assign(_optimize_level_reqs[level_idx])
+		if level_idx < triggered_levels.size() and triggered_levels[level_idx]:
+			OptimizeLogic.consume_from_pool(pool, req)
+			continue
+		var matched: Array[bool] = OptimizeLogic.matched_indices(pool, req)
+		return matched.count(false) == 1
+	return false
+
+# Refreshes the two always-on state badges (see STATE_BADGE_X) that help
+# players read, at a glance, which of a sector's New/Complete/Optimized
+# conditions currently apply — i.e. which "if ___" card-text effects would
+# fire on whatever gets placed here next. Piggybacks on
+# refresh_optimize_display's own call sites (every tech placement, sector
+# placement, and Caldera-Colony-style re-validation) rather than needing
+# any new call sites of its own.
+func _refresh_state_badges() -> void:
+	if not occupied:
+		_stage_badge.visible = false
+		_optimize_state_badge.visible = false
+		return
+	var tech_count: int = get_tech_count()
+	var total_slots: int = _tech_slots.size()
+	if tech_count == 0:
+		_stage_badge.text = "NEW"
+		_stage_badge.modulate = STAGE_COLOR_READY
+		_stage_badge.visible = true
+	elif tech_count == total_slots - 1:
+		_stage_badge.text = "COMPLETES NEXT"
+		_stage_badge.modulate = STAGE_COLOR_SOON
+		_stage_badge.visible = true
+	elif tech_count == total_slots:
+		_stage_badge.text = "COMPLETE"
+		_stage_badge.modulate = STAGE_COLOR_DONE
+		_stage_badge.visible = true
+	else:
+		_stage_badge.visible = false
+
+	if is_optimized:
+		_optimize_state_badge.text = "OPTIMIZED"
+		_optimize_state_badge.modulate = OPTIMIZE_COLOR_DONE
+		_optimize_state_badge.visible = true
+	elif _one_card_from_fully_optimized():
+		_optimize_state_badge.text = "OPTIMIZES NEXT"
+		_optimize_state_badge.modulate = OPTIMIZE_COLOR_SOON
+		_optimize_state_badge.visible = true
+	else:
+		_optimize_state_badge.visible = false
 
 func _on_placed_card_clicked(_card: Node3D) -> void:
 	slot_clicked.emit(self)
