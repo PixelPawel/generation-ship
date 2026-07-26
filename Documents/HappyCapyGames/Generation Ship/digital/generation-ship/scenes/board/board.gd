@@ -994,9 +994,14 @@ func confirm_recycle() -> void:
 
 # Shared by confirm_recycle() (player-chosen) and _begin_prepaid_drag()'s
 # no-room-to-place fallback (forced) — adds the card's supply, discards it,
-# and plays the same shrink-away animation either way.
+# and plays the same shrink-away animation either way. Previously only ever
+# called with hand (tech) cards, which don't have an adv_color distinction —
+# now also reached by unplaceable advanced-sector auction wins, so it must
+# credit adv_color rather than the dust-sector color for those.
 func _recycle_card_node(card: Node3D) -> void:
-	var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
+	var color: CardData.SupplyColor = CardData.SupplyColor.DUST
+	if card.card_data:
+		color = card.card_data.adv_color if card.is_advanced else card.card_data.color
 	add_to_discard(card.card_data)
 	card_recycled.emit(color)
 	card.collider.monitoring = false
@@ -1013,6 +1018,13 @@ func _recycle_card_node(card: Node3D) -> void:
 func _any_tech_slot_available() -> bool:
 	for slot: SectorSlot in _sector_row.get_children():
 		if slot.occupied and slot.has_tech_space():
+			return true
+	return false
+
+# True if any of the fixed 6 sector slots is still empty.
+func _has_free_sector_slot() -> bool:
+	for slot: SectorSlot in _sector_row.get_children():
+		if not slot.occupied and slot.is_available:
 			return true
 	return false
 
@@ -1356,13 +1368,14 @@ func _begin_prepaid_drag(card: Node3D, spent: Dictionary = {}, is_auction_win: b
 	if not _prepaid_market_notified and card.card_data:
 		market_card_taken.emit(card.card_data)
 		_prepaid_market_notified = true
-	# Tech/expedition cards need an occupied sector with a free tech slot;
-	# unlike sector cards (which can always spawn a fresh empty slot), that
-	# space is capped, so a bought/won card can end up with nowhere to go.
-	# The physical game's rule for this is to recycle it instead of leaving
-	# the buyer stuck holding an unplaceable card forever.
+	# Tech/expedition cards need an occupied sector with a free tech slot,
+	# and sector cards need one of the fixed 6 sector slots to be empty —
+	# either way that space is capped, so a bought/won card can end up with
+	# nowhere to go. The physical game's rule for this is to recycle it
+	# instead of leaving the buyer stuck holding an unplaceable card forever.
 	var ctype: CardData.CardType = card.card_data.card_type if card.card_data else CardData.CardType.TECH
-	if ctype != CardData.CardType.SECTOR and not _any_tech_slot_available():
+	var has_room: bool = _has_free_sector_slot() if ctype == CardData.CardType.SECTOR else _any_tech_slot_available()
+	if not has_room:
 		card.reparent(self, true)
 		card.global_position = market_origin_3d
 		unplaceable_card_recycled.emit(card.card_data)
