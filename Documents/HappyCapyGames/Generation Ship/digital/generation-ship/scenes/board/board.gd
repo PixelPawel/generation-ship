@@ -810,6 +810,8 @@ func _begin_drag(card: Node3D) -> void:
 	card.set("is_dragging", true)
 	card.reparent(self, true)
 	card.visible = false
+	if not _is_sector_card():
+		_set_tech_drag_active(true)
 	if _drag_origin == DragOrigin.HAND:
 		_show_drag_preview(card)
 	if _drag_arrow != null:
@@ -888,7 +890,16 @@ func _set_arrow_drag_active(active: bool) -> void:
 	_is_arrow_drag = active
 	arrow_drag_changed.emit(active)
 
+# Shows every sector's New/Completes-Next/Complete + Optimizes-Next/Optimized
+# helper badges (see SectorSlot._refresh_state_badges) only while a tech or
+# expedition card is actually being dragged — sector cards don't trigger any
+# of those card-text conditions themselves, so their own drags leave this off.
+func _set_tech_drag_active(active: bool) -> void:
+	for slot: SectorSlot in _sector_row.get_children():
+		slot.set_drag_helper_active(active)
+
 func _end_arrow_drag() -> void:
+	_set_tech_drag_active(false)
 	if not _is_arrow_drag:
 		return
 	_set_arrow_drag_active(false)
@@ -909,6 +920,8 @@ func _end_arrow_drag() -> void:
 func _resume_drag_arrow() -> void:
 	if _drag_arrow == null:
 		return
+	if not _is_sector_card():
+		_set_tech_drag_active(true)
 	_set_arrow_drag_active(true)
 	var cam: Camera3D = get_viewport().get_camera_3d()
 	if not cam:

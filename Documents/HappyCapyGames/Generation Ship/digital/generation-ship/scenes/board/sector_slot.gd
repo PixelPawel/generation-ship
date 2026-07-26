@@ -82,6 +82,10 @@ var _optimize_level_reqs: Array = []  # index = level (0..2), value = Array[int]
 var _optimize_nodes: Array[Node3D] = []  # every icon node, tracked for cleanup
 var _stage_badge: Label3D = null            # "NEW" / "COMPLETES NEXT" / "COMPLETE"
 var _optimize_state_badge: Label3D = null   # "OPTIMIZES NEXT" / "OPTIMIZED"
+# Set by Board via _set_tech_drag_active while a tech/expedition card is
+# being dragged — the two badges above only ever show during that window
+# (see _refresh_state_badges), not as a permanent always-on overlay.
+var _drag_helper_active: bool = false
 
 @onready var _mesh: MeshInstance3D = $SlotMesh
 
@@ -649,15 +653,28 @@ func _one_card_from_fully_optimized() -> bool:
 		return matched.count(false) == 1
 	return false
 
-# Refreshes the two always-on state badges (see _setup_display) that help
-# players read, at a glance, which of a sector's New/Complete/Optimized
-# conditions currently apply — i.e. which "if ___" card-text effects would
-# fire on whatever gets placed here next. Piggybacks on
-# refresh_optimize_display's own call sites (every tech placement, sector
-# placement, and Caldera-Colony-style re-validation) rather than needing
-# any new call sites of its own.
+# Called by Board (_set_tech_drag_active) while a tech/expedition card is
+# being dragged, on every sector slot regardless of whether it's a valid
+# target — lets players compare New/Complete/Optimized state across the
+# whole board before choosing where to drop, not just the slot they're
+# already hovering.
+func set_drag_helper_active(active: bool) -> void:
+	if _drag_helper_active == active:
+		return
+	_drag_helper_active = active
+	_refresh_state_badges()
+
+# Refreshes the two state badges (see _setup_display) that help players
+# read, at a glance, which of a sector's New/Complete/Optimized conditions
+# currently apply — i.e. which "if ___" card-text effects would fire on
+# whatever gets placed here next. Only actually shown while
+# _drag_helper_active (a tech/expedition drag is in progress) — otherwise
+# they'd be a permanent, distracting overlay on every sector at all times.
+# Piggybacks on refresh_optimize_display's own call sites (every tech
+# placement, sector placement, and Caldera-Colony-style re-validation)
+# rather than needing any new call sites of its own.
 func _refresh_state_badges() -> void:
-	if not occupied:
+	if not occupied or not _drag_helper_active:
 		_stage_badge.visible = false
 		_optimize_state_badge.visible = false
 		return
