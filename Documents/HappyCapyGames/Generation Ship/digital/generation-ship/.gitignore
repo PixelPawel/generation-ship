@@ -32,3 +32,10 @@ assets/frames/
 # Runtime HTTP card image cache
 assets/cards/
 Build/
+
+# Steam upload bundle — too large for plain git, built locally as needed
+/GS.zip
+
+# gde_gozen leaves stale lock-file remnants (~<hash>.TMP) next to the DLL
+# after a crashed/locked reimport — transient, safe to ignore
+addons/gde_gozen/bin/*.TMP
