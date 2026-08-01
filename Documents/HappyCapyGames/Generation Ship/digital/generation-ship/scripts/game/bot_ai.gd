@@ -92,21 +92,30 @@ static func decide_bid(
 	is_adv: bool,
 	bot_board: Array
 ) -> int:
-	var skills: Dictionary = skills_for(difficulty)
 	var color: int = int(card.adv_color if is_adv else card.color)
 	var budget: int = supplies.get(color, 0) as int
-	if not bool(skills.get("bid_ev", false)):
-		match difficulty:
-			Difficulty.NORMAL:
-				return current_bid + 1 if current_bid < budget / 2.0 else 0
-		return 0  # Easy never bids
-	# Hard: keep raising while the next bid is both affordable and still
-	# within what the card looks like it's actually worth.
+	# Keep raising while the next bid is both affordable (leaving one unit
+	# of headroom rather than spending the color down to zero) and still
+	# within what the card looks like it's actually worth. Every difficulty
+	# now consults the same real valuation (BotScoring.estimate_bid_value)
+	# — Easy used to never bid at all (bid_ev gate always false, card worth
+	# never even computed), and Normal only ever compared the bid against
+	# raw supply with no notion of the card's value at all. Easy/Normal
+	# stay more cautious than Hard's full EV via a willingness discount —
+	# the same idea _score_play already applies (0.8x) when Hard considers
+	# starting an auction in the first place — rather than bidding right up
+	# to the estimate like Hard does.
 	var next_bid: int = current_bid + 1
 	if next_bid > budget - 1:
 		return 0
 	var worth: int = BotScoring.estimate_bid_value(card, is_adv, bot_board)
-	return next_bid if next_bid <= worth else 0
+	var willingness: float = 1.0
+	match difficulty:
+		Difficulty.EASY:
+			willingness = 0.5
+		Difficulty.NORMAL:
+			willingness = 0.75
+	return next_bid if next_bid <= worth * willingness else 0
 
 
 # ── Fuse & recycle (free actions, called before the main action) ────────────

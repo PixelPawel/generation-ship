@@ -240,15 +240,27 @@ static func card_value(cd: CardData) -> float:
 		v += 3.0
 	return v
 
+# Exodus Fleets/Bio-Compatible World/Hive Mind's own printed text is explicit
+# that their per-color count includes the card itself ("Gain X per <color>
+# card (including this)"). board_vp_lines already gets this right for real,
+# already-won cards, since a placed expedition sits in slot_cards() like any
+# other card by the time end-game scoring runs — but a bid-time estimate
+# has to add it in manually, since the card hasn't actually been won/placed
+# yet. Without this, a bot with zero matching-colored cards so far always
+# saw these three as worth exactly 0, and could never justify the very bid
+# that would start building that color — a chicken-and-egg dead end, not a
+# deliberate "not worth it" judgment.
+const _INCLUDES_SELF_EXPEDITIONS: PackedStringArray = ["Exodus Fleets", "Bio-Compatible World", "Hive Mind"]
+
 # Rough "what is winning this auction worth" estimate for bid EV. For
 # expedition cards, reuses the same approximate VP formulas as the end-game
-# estimate (evaluated against the board as it is *before* winning, so cards
-# whose formula counts "including self" are slightly undercounted — a
-# deliberately conservative simplification, not a bug). For advanced sector
-# cards, falls back to printed stars plus a rough optimize-potential bonus.
+# estimate. For advanced sector cards, falls back to printed stars plus a
+# rough optimize-potential bonus.
 static func estimate_bid_value(cd: CardData, is_adv: bool, board: Array) -> int:
 	if cd.card_type == CardData.CardType.EXPEDITION:
 		var all_cards: Array[CardData] = _all_cards(board)
+		if _INCLUDES_SELF_EXPEDITIONS.has(cd.card_name):
+			all_cards.append(cd)
 		var expeditions: Array[CardData] = []
 		for c: CardData in all_cards:
 			if c.card_type == CardData.CardType.EXPEDITION:
