@@ -43,7 +43,6 @@ signal market_card_drag_failed(card: Node3D)
 signal expedition_card_shuffled_back(card_data: CardData, deck_insert_idx: int)
 signal expedition_reveal_requested(slot_idx: int)
 signal sector_info_requested(slot: SectorSlot)
-signal market_card_inspect_bought(slot_type: String, slot_idx: int)
 signal tech_card_drawn
 # Fires whenever the drag-targeting arrow becomes visible/hidden (either
 # origin — hand or market). Hand listens to this to suppress hover-enlarge
@@ -374,17 +373,31 @@ func inspect_market_card(slot_type: String, slot_idx: int, world_pos: Vector3, s
 		vanish = world_pos + away_dir * (dist * INSPECT_VANISH_PULL)
 	clone.enlarge_from(target, vanish, Vector3.ONE * _placed_card_enlarge_scale())
 	_inspecting_card = clone
-	clone.clicked.connect(_on_inspecting_card_clicked.bind(slot_type, slot_idx), CONNECT_ONE_SHOT)
-
-# Left-clicking the enlarged inspect card shrinks it back into the screen
-# (the same animation right-click-to-shrink already does — the clone
-# self-destructs on collapse, see Card.enlarge_from), then once it's gone,
-# kicks off the same buy/bid flow a direct market-panel click would.
-func _on_inspecting_card_clicked(card: Node3D, slot_type: String, slot_idx: int) -> void:
-	card.collapse_if_elevated()
-	card.tree_exited.connect(func() -> void:
-		market_card_inspect_bought.emit(slot_type, slot_idx)
+	# collapse_if_elevated()'s tween frees the clone once it finishes, but
+	# nothing else clears this reference — every other read already guards
+	# with is_instance_valid(), so a dangling pointer here is harmless in
+	# practice, but leaving it dangling indefinitely (instead of nulling it
+	# the moment the clone is actually gone) is fragile. Clear it as soon as
+	# the clone leaves the tree, guarded so a newer clone (already inspecting
+	# a different card by the time this old one finishes freeing) is never
+	# clobbered by a stale callback.
+	clone.tree_exited.connect(func() -> void:
+		if _inspecting_card == clone:
+			_inspecting_card = null
 	)
+	# Pulled toward the camera for readability (INSPECT_CAMERA_PULL), the
+	# clone's own collider can end up spatially covering other market slots
+	# behind it — since Godot's 3D click-picking delivers a click to only
+	# the single closest collider along the ray, a left-click actually aimed
+	# at, say, a dust sector could get swallowed by this clone instead,
+	# silently re-triggering ITS OWN buy/bid flow (the wrong card) with no
+	# way to back out. Making it unpickable removes it from ray-picking
+	# entirely, so every click — on this same card's position or any other
+	# slot — passes through to the real 2D market-panel button underneath,
+	# which already dismisses this clone itself (_dismiss_inspecting_card,
+	# called from _begin_market_purchase) as the first thing it does. See
+	# _input() below for how right-click-to-shrink is preserved without it.
+	clone.collider.input_ray_pickable = false
 
 # Shrinks whatever card is currently enlarged from a market inspect, if any —
 # called when the player's attention moves elsewhere (e.g. buying a
@@ -867,6 +880,18 @@ func _process(_delta: float) -> void:
 	_update_slot_highlights()
 
 func _input(event: InputEvent) -> void:
+	# Right-click-to-shrink a market-inspect clone used to be handled by the
+	# clone's own 3D collider — no longer possible now that it's deliberately
+	# unpickable (see inspect_market_card), so it's replaced with a plain
+	# "right-click anywhere dismisses the inspect view" here instead. Handled
+	# (and consumed) before any of the drag-specific logic below, since
+	# there's no dragged card at all while just inspecting.
+	if _inspecting_card and is_instance_valid(_inspecting_card) and event is InputEventMouseButton:
+		var mb_inspect: InputEventMouseButton = event as InputEventMouseButton
+		if mb_inspect.button_index == MOUSE_BUTTON_RIGHT and mb_inspect.pressed:
+			_dismiss_inspecting_card()
+			get_viewport().set_input_as_handled()
+			return
 	# _placement_confirm_pending guard: the confirm panel lives on the info
 	# screen, a 3D mesh — clicking its Confirm/Cancel button is a raw OS
 	# click forwarded into its SubViewport via physics-object-picking, which
