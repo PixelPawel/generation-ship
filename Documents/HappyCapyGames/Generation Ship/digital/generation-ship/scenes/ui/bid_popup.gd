@@ -9,7 +9,6 @@ var _min_cost: int = 0
 var _bid_amount: int = 0
 var _auction_mode: bool = false
 var _is_active_turn: bool = false
-var _cached_color_name: String = ""
 var _title_label: Label
 var _hint_label: Label
 var _status_label: Label
@@ -205,6 +204,8 @@ func show_bid(card_data: CardData, is_advanced: bool, min_cost: int, cost_color:
 	var card_name: String = ""
 	if card_data:
 		card_name = card_data.adv_name if (is_advanced and not card_data.adv_name.is_empty()) else card_data.card_name
+	_title_label.visible = true
+	_hint_label.visible = true
 	_title_label.text = tr("Bid for %s") % card_name
 	_hint_label.text = tr("Minimum bid: %d %s") % [min_cost, color_name]
 	_status_label.visible = false
@@ -224,12 +225,12 @@ func show_auction(card_data: CardData, is_advanced: bool, current_bid: int, lead
 	_auction_mode = true
 	_min_cost = current_bid
 	_bid_amount = current_bid + 1
-	_cached_color_name = CardData.color_name(cost_color)
-	var card_name: String = ""
-	if card_data:
-		card_name = card_data.adv_name if (is_advanced and not card_data.adv_name.is_empty()) else card_data.card_name
-	_title_label.text = tr("Bid for %s") % card_name
-	_hint_label.text = tr("Current bid: %d %s  —  Leader: %s") % [current_bid, _cached_color_name, leader_name]
+	# Card name/current-bid/leader as text is redundant here — the card art
+	# is already shown above, and the Players column on the right (see the
+	# ~58%-width anchor note at the top of _ready) already shows live
+	# per-player auction status, including who's leading.
+	_title_label.visible = false
+	_hint_label.visible = false
 	_cancel_btn.hide()
 	_confirm_btn.text = tr("Raise")
 	_set_auction_active(is_active, can_pass)
@@ -240,7 +241,6 @@ func update_auction(current_bid: int, leader_name: String, is_active: bool, can_
 	_min_cost = current_bid
 	if _bid_amount <= current_bid:
 		_bid_amount = current_bid + 1
-	_hint_label.text = tr("Current bid: %d %s  —  Leader: %s") % [current_bid, _cached_color_name, leader_name]
 	_set_auction_active(is_active, can_pass)
 	_update()
 	if not visible:
