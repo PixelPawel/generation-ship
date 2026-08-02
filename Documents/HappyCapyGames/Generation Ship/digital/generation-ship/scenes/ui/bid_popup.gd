@@ -19,7 +19,20 @@ var _pass_btn: Button
 var _dec_btn: Button
 var _inc_btn: Button
 var _card_image: TextureRect
+var _card_enlarge_image: TextureRect
 var _accepted_row: HBoxContainer
+
+# Solo mode still shows the title/minimum-bid hint above the card, so it
+# has less vertical room than auction mode (which hides both, see
+# show_auction) — each mode sets its own height in show_bid/show_auction.
+const _CARD_IMAGE_HEIGHT_SOLO: float = 210.0
+const _CARD_IMAGE_HEIGHT_AUCTION: float = 300.0
+# Deliberately sized/positioned relative to the whole popup (the full info
+# screen), not just this panel's own 58%-width column — a right-click
+# close-up is a momentary, user-dismissed peek, so briefly overlapping the
+# Players column on the right is fine (unlike the constant auction view,
+# which must never cover it — see the anchor note in _ready).
+const _CARD_ENLARGE_SIZE: Vector2 = Vector2(700.0, 460.0)
 
 
 func _ready() -> void:
@@ -59,12 +72,16 @@ func _ready() -> void:
 	# gets ~58% of the info screen's width now (see above), so the
 	# full-size image plus every other row no longer fits the available
 	# height without overflowing past the bottom of the 572-tall canvas.
+	# show_bid/show_auction set the actual height per mode (see
+	# _CARD_IMAGE_HEIGHT_SOLO/_AUCTION) since auction mode has more room to
+	# spare once the title/hint are hidden.
 	_card_image = TextureRect.new()
-	_card_image.custom_minimum_size = Vector2(0, 210)
+	_card_image.custom_minimum_size = Vector2(0, _CARD_IMAGE_HEIGHT_SOLO)
 	_card_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_card_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_card_image.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_card_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card_image.mouse_filter = Control.MOUSE_FILTER_STOP
+	_card_image.gui_input.connect(_on_card_image_gui_input)
 	_card_image.visible = false
 	var _bid_mat: ShaderMaterial = ShaderMaterial.new()
 	_bid_mat.shader = load("res://shaders/card_rounded.gdshader")
@@ -160,6 +177,28 @@ func _ready() -> void:
 	_confirm_btn.pressed.connect(_on_confirm)
 	btn_row.add_child(_confirm_btn)
 
+	# Right-click-to-enlarge close-up, added last so it paints above the
+	# panel and everything in it. Centered on the whole popup rather than
+	# nested in vbox, since it's not part of that layout flow.
+	_card_enlarge_image = TextureRect.new()
+	_card_enlarge_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_card_enlarge_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_card_enlarge_image.mouse_filter = Control.MOUSE_FILTER_STOP
+	_card_enlarge_image.gui_input.connect(_on_card_enlarge_gui_input)
+	_card_enlarge_image.visible = false
+	var enlarge_mat: ShaderMaterial = ShaderMaterial.new()
+	enlarge_mat.shader = load("res://shaders/card_rounded.gdshader")
+	_card_enlarge_image.material = enlarge_mat
+	_card_enlarge_image.anchor_left = 0.5
+	_card_enlarge_image.anchor_right = 0.5
+	_card_enlarge_image.anchor_top = 0.5
+	_card_enlarge_image.anchor_bottom = 0.5
+	_card_enlarge_image.offset_left = -_CARD_ENLARGE_SIZE.x / 2.0
+	_card_enlarge_image.offset_right = _CARD_ENLARGE_SIZE.x / 2.0
+	_card_enlarge_image.offset_top = -_CARD_ENLARGE_SIZE.y / 2.0
+	_card_enlarge_image.offset_bottom = _CARD_ENLARGE_SIZE.y / 2.0
+	add_child(_card_enlarge_image)
+
 	visible = false
 
 func _set_accepted_colors(cost_color: CardData.SupplyColor) -> void:
@@ -180,6 +219,10 @@ func _set_accepted_colors(cost_color: CardData.SupplyColor) -> void:
 		_accepted_row.add_child(lbl)
 
 func _set_card_image(card_data: CardData, is_advanced: bool) -> void:
+	# A new card means any previous card's close-up is stale — drop it so
+	# the next right-click starts fresh instead of showing an old image for
+	# a frame before its texture catches up.
+	_card_enlarge_image.visible = false
 	if not card_data:
 		_card_image.visible = false
 		return
@@ -191,9 +234,27 @@ func _set_card_image(card_data: CardData, is_advanced: bool) -> void:
 	_card_image.texture = tex
 	_card_image.visible = tex != null
 
+func _on_card_image_gui_input(event: InputEvent) -> void:
+	if not (event is InputEventMouseButton):
+		return
+	var mb: InputEventMouseButton = event as InputEventMouseButton
+	if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed and _card_image.texture:
+		_card_enlarge_image.texture = _card_image.texture
+		_card_enlarge_image.visible = true
+		get_viewport().set_input_as_handled()
+
+func _on_card_enlarge_gui_input(event: InputEvent) -> void:
+	if not (event is InputEventMouseButton):
+		return
+	var mb: InputEventMouseButton = event as InputEventMouseButton
+	if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+		_card_enlarge_image.visible = false
+		get_viewport().set_input_as_handled()
+
 # ── Solo mode ─────────────────────────────────────────────────────────────────
 
 func show_bid(card_data: CardData, is_advanced: bool, min_cost: int, cost_color: CardData.SupplyColor) -> void:
+	_card_image.custom_minimum_size = Vector2(0, _CARD_IMAGE_HEIGHT_SOLO)
 	_set_card_image(card_data, is_advanced)
 	_set_accepted_colors(cost_color)
 	_auction_mode = false
@@ -220,6 +281,7 @@ func show_bid(card_data: CardData, is_advanced: bool, min_cost: int, cost_color:
 # ── Auction mode ──────────────────────────────────────────────────────────────
 
 func show_auction(card_data: CardData, is_advanced: bool, current_bid: int, _leader_name: String, cost_color: CardData.SupplyColor, is_active: bool, can_pass: bool) -> void:
+	_card_image.custom_minimum_size = Vector2(0, _CARD_IMAGE_HEIGHT_AUCTION)
 	_set_card_image(card_data, is_advanced)
 	_set_accepted_colors(cost_color)
 	_auction_mode = true
