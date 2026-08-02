@@ -219,7 +219,7 @@ func show_bid(card_data: CardData, is_advanced: bool, min_cost: int, cost_color:
 
 # ── Auction mode ──────────────────────────────────────────────────────────────
 
-func show_auction(card_data: CardData, is_advanced: bool, current_bid: int, leader_name: String, cost_color: CardData.SupplyColor, is_active: bool, can_pass: bool) -> void:
+func show_auction(card_data: CardData, is_advanced: bool, current_bid: int, _leader_name: String, cost_color: CardData.SupplyColor, is_active: bool, can_pass: bool) -> void:
 	_set_card_image(card_data, is_advanced)
 	_set_accepted_colors(cost_color)
 	_auction_mode = true
@@ -237,7 +237,7 @@ func show_auction(card_data: CardData, is_advanced: bool, current_bid: int, lead
 	_update()
 	show()
 
-func update_auction(current_bid: int, leader_name: String, is_active: bool, can_pass: bool) -> void:
+func update_auction(current_bid: int, _leader_name: String, is_active: bool, can_pass: bool) -> void:
 	_min_cost = current_bid
 	if _bid_amount <= current_bid:
 		_bid_amount = current_bid + 1
