@@ -118,7 +118,12 @@ static func _score_stars(lines: Array[Dictionary], all_cards: Array) -> void:
 	var total: int = 0
 	for card: Node3D in all_cards:
 		var cd: CardData = card.get("card_data")
-		if cd != null and cd.stars > 0 and cd.card_type != CardData.CardType.SECTOR:
+		# Conditional techs' printed star is just a reminder pip, not a real
+		# baseline VP — their actual value (0 if unmet, full amount if met)
+		# comes entirely from _score_tech_conditions below. Counting the
+		# printed star here too would grant them 1 VP even when their
+		# condition fails, and double-count it when the condition succeeds.
+		if cd != null and cd.stars > 0 and cd.card_type != CardData.CardType.SECTOR and not _is_conditional_tech(cd.card_name):
 			total += cd.stars
 	_add_line(lines, "Stars (⭐)", total)
 
