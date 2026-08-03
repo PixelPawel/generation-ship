@@ -1,0 +1,16 @@
+"DepotBuildConfig"
+{
+	"DepotID"		"REPLACE_WITH_WINDOWS_DEPOT_ID"
+
+	// Matches export_presets.cfg's [preset.0] export_path (Build/Windows/GS.exe).
+	"ContentRoot"	"..\Build\Windows\"
+
+	"FileMapping"
+	{
+		"LocalPath"		"*"
+		"DepotPath"		"."
+		"recursive"		"1"
+	}
+
+	"FileExclusion"	"*.pdb"
+}

@@ -1,0 +1,29 @@
+"appbuild"
+{
+	"appid"			"5006020"
+	"desc"			"Generation Ship Demo build"
+
+	// steamcmd's own scratch/log output, not the game build itself — safe
+	// to delete, gitignored, recreated automatically on each run.
+	"buildoutput"	"..\SteamBuildOutput\"
+
+	// Not set live on any branch automatically — a build always lands in
+	// Steamworks first and stays inactive until you push it live yourself
+	// from the "Builds" tab (or set this to a branch name, e.g. "beta",
+	// once you're comfortable automating that step too).
+	"setlive"		""
+
+	"preview"		"0"
+	"local"			""
+
+	"depots"
+	{
+		// Steamworks assigns these when you create depots for this app —
+		// Steamworks partner site > App 5006020 > SteamPipe > Depots.
+		// Replace before running; steamcmd will error on these literal
+		// placeholder strings.
+		"REPLACE_WITH_WINDOWS_DEPOT_ID"	"depot_build_windows.vdf"
+		"REPLACE_WITH_MAC_DEPOT_ID"			"depot_build_mac.vdf"
+		"REPLACE_WITH_LINUX_DEPOT_ID"		"depot_build_linux.vdf"
+	}
+}

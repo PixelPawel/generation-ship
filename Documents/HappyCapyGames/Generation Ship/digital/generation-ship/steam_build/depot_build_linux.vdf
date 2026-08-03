@@ -1,0 +1,30 @@
+"DepotBuildConfig"
+{
+	"DepotID"		"REPLACE_WITH_LINUX_DEPOT_ID"
+
+	// Matches export_presets.cfg's [preset.2] export_path — Godot exports a
+	// Build/Linux/GS.zip archive, so unzip it into Build/Linux/ first
+	// before running the upload.
+	"ContentRoot"	"..\Build\Linux\"
+
+	"FileMapping"
+	{
+		"LocalPath"		"*"
+		"DepotPath"		"."
+		"recursive"		"1"
+	}
+
+	"FileExclusion"	"*.pdb"
+
+	// Uploading from Windows drops the Unix executable bit — SteamPipe
+	// needs to be told explicitly which file to restore it on, or the
+	// binary won't be runnable once downloaded on Linux.
+	"FileProperties"
+	{
+		"LocalPath"		"GS"
+		"Attributes"
+		{
+			"posixexecutable"	"1"
+		}
+	}
+}

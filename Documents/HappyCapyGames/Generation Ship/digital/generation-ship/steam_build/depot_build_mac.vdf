@@ -1,0 +1,19 @@
+"DepotBuildConfig"
+{
+	"DepotID"		"REPLACE_WITH_MAC_DEPOT_ID"
+
+	// Matches export_presets.cfg's [preset.1] export_path — Godot exports a
+	// Build/Mac/GS.zip archive, so unzip it into Build/Mac/ first (the .app
+	// bundle needs to exist on disk here, not sit inside the zip) before
+	// running the upload.
+	"ContentRoot"	"..\Build\Mac\"
+
+	"FileMapping"
+	{
+		"LocalPath"		"*"
+		"DepotPath"		"."
+		"recursive"		"1"
+	}
+
+	"FileExclusion"	"*.pdb"
+}
