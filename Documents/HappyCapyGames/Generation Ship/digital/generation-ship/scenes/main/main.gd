@@ -346,11 +346,22 @@ func _on_any_card_hovered(card_node: Node3D) -> void:
 	var card: Card = card_node as Card
 	if not card:
 		return
+	var title: String = ""
 	var desc: String = ""
 	if card.is_market_inspecting():
 		desc = tr("Left-click to buy.\nRight-click to shrink.")
 	elif card.is_placed:
-		desc = tr("Right-click to shrink card.") if card.is_elevated() else tr("Right-click to enlarge card.")
+		var hint: String = tr("Right-click to shrink card.") if card.is_elevated() else tr("Right-click to enlarge card.")
+		if card.card_data:
+			var cd: CardData = card.card_data
+			var card_name: String = cd.adv_name if card.is_advanced and not cd.adv_name.is_empty() else cd.card_name
+			var cost: int = CardData.effective_cost(cd, card.is_advanced)
+			var cost_color: CardData.SupplyColor = cd.adv_color if card.is_advanced else cd.color
+			var effect: String = cd.adv_effect_text if card.is_advanced and not cd.adv_effect_text.is_empty() else cd.effect_text
+			title = tr("%s — %d %s") % [card_name, cost, CardData.color_name(cost_color)]
+			desc = ("%s\n%s" % [effect, hint]) if not effect.is_empty() else hint
+		else:
+			desc = hint
 		_set_containing_sector_hover(card, true)
 	elif card.managed_by_hand:
 		desc = tr("Left-click and drag onto sector to buy or Right-click to Recycle.")
@@ -361,7 +372,7 @@ func _on_any_card_hovered(card_node: Node3D) -> void:
 			CardData.CardType.SECTOR:
 				desc = tr("Left-click and drag onto a blue sector slot to start a bid.") if card.is_advanced else tr("Left-click and drag onto a blue sector slot to buy sector. Base card to place other cards onto.")
 	if not desc.is_empty():
-		_show_tooltip("", desc)
+		_show_tooltip(title, desc)
 
 func _on_any_card_unhovered(card_node: Node3D) -> void:
 	_hide_tooltip()
