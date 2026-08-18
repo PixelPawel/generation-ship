@@ -13,6 +13,9 @@ const ENLARGE_LIFT := 0.2
 const ENLARGE_SCALE := HAND_SCALE * 2.2
 const LAYOUT_DURATION := 0.2
 const ENLARGE_Z_DEPTH := 0.05
+# Extra clearance beyond the enlarged card's own edge, so its neighbors
+# part with a visible gap instead of just touching it.
+const HOVER_PUSH_MARGIN := 0.05
 # Total z spread across the whole resting hand, split evenly per card gap
 # (see _layout) — fixed regardless of hand size so it always stays well
 # under ENLARGE_Z_DEPTH, no matter how many cards are in hand.
@@ -199,8 +202,20 @@ func _layout(animate: bool) -> void:
 	var total_width := spacing * (n - 1)
 	var z_step: float = HAND_Z_MAX_STAGGER / float(max(n - 1, 1))
 
+	# The enlarged card scales up to ENLARGE_SCALE while every other card
+	# stays at its normal evenly-spaced x — without this, its much wider
+	# rendered width just overlaps (and visually hides) its immediate
+	# neighbors instead of the hand parting around it.
+	var push: float = 0.0
+	if _enlarged_index != -1:
+		push = CARD_WIDTH * (ENLARGE_SCALE - HAND_SCALE) * 0.5 + HOVER_PUSH_MARGIN
+
 	for i in n:
 		var x := -total_width * 0.5 + i * spacing
+		if i < _enlarged_index:
+			x -= push
+		elif i > _enlarged_index:
+			x += push
 
 		var t := float(i) / float(max(n - 1, 1)) * 2.0 - 1.0
 		var y_hover := ENLARGE_LIFT if i == _enlarged_index else 0.0
