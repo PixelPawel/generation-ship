@@ -3150,16 +3150,21 @@ func _on_payment_confirm_required(card: Node3D, slot: SectorSlot, pay_amounts: D
 func _on_placement_confirm_required(card: Node3D, slot: SectorSlot, _is_tech: bool) -> void:
 	_effect_mode = EffectMode.PLACEMENT_CONFIRM
 	var card_name: String = ""
+	var card_color: CardData.SupplyColor = CardData.SupplyColor.DUST
 	if card.card_data:
 		var cd: CardData = card.card_data
 		var is_adv: bool = bool(card.get("is_advanced"))
 		card_name = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
+		card_color = CardData.effective_color(cd, is_adv)
 	var target_name: String = ""
+	var target_color: CardData.SupplyColor = CardData.SupplyColor.DUST
 	if slot and slot.placed_card and slot.placed_card.card_data:
 		var scd: CardData = slot.placed_card.card_data
 		var slot_is_adv: bool = bool(slot.placed_card.get("is_advanced"))
 		target_name = scd.adv_name if slot_is_adv and not scd.adv_name.is_empty() else scd.card_name
-	_placement_confirm_panel.show_confirm(card_name, target_name)
+		target_color = CardData.effective_color(scd, slot_is_adv)
+	var preview_steps: Array[Dictionary] = $Board.preview_placement_steps(card, slot)
+	_placement_confirm_panel.show_confirm(card_name, card_color, target_name, target_color, preview_steps)
 
 func _on_placement_confirmed() -> void:
 	if _effect_mode != EffectMode.PLACEMENT_CONFIRM:

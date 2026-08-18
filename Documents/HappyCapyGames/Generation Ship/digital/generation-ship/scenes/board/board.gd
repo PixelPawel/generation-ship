@@ -1219,6 +1219,66 @@ func _request_placement_confirm(card: Node3D, slot: SectorSlot, is_tech: bool, o
 	_drag_origin = origin
 	placement_confirm_required.emit(card, slot, is_tech)
 
+# Preview-only: the effect steps this tech card would generate if placed on
+# this slot right now — its own place effect, plus (once per newly-triggered
+# level) the sector's optimize effect if this placement would complete it.
+# Never mutates slot state (the card isn't actually placed yet at this
+# point — see _request_placement_confirm) — mirrors _finalize_placement's
+# real resolution order and OptimizeLogic.update_optimize_state's pool
+# rules exactly, but against a hypothetical "as if this card already
+# landed" pool instead of the slot's actual placed cards. Used by the
+# placement confirmation panel to show what to expect before committing.
+func preview_placement_steps(card: Node3D, slot: SectorSlot) -> Array[Dictionary]:
+	if not card or not card.card_data or not slot or not slot.placed_card or not slot.placed_card.card_data:
+		return []
+	var cd: CardData = card.card_data
+	var sector_cd: CardData = slot.placed_card.card_data
+	var sector_is_adv: bool = bool(slot.placed_card.get("is_advanced"))
+
+	# PlaceEffects' placed_colors: every card already on the slot (sector +
+	# techs) plus this incoming card, each by raw .color — mirrors
+	# PlaceEffects._slot_placed_colors/get_steps exactly.
+	var place_colors: Array[int] = []
+	for c: Node3D in slot.get_all_placed_cards():
+		var c_cd: CardData = c.get("card_data")
+		if c_cd:
+			place_colors.append(int(c_cd.color))
+	place_colors.append(int(cd.color))
+
+	# Optimize-trigger pool: tech colors only, never the sector itself
+	# (mirrors _update_optimize_state), plus this incoming card.
+	var opt_pool: Array[int] = slot.get_placed_tech_colors()
+	opt_pool.append(int(cd.color))
+
+	var is_new: bool = slot.get_tech_count() == 0
+	var is_complete: bool = slot.get_tech_count() + 1 >= SectorSlot.TECH_OFFSETS_COMPACT.size()
+
+	# triggered_levels is duplicated because OptimizeLogic mutates the array
+	# it's given in place — without this, a mere preview would silently
+	# alter the slot's real optimize-progress state.
+	var opt_result: Dictionary = OptimizeLogic.update_optimize_state(
+		sector_cd, sector_is_adv, opt_pool,
+		slot.optimize_count, slot.max_optimizations, slot.triggered_levels.duplicate())
+	var is_opt: bool = opt_result["is_optimized"]
+
+	var steps: Array[Dictionary] = PlaceEffects.get_steps_for_state(cd, is_new, is_complete, is_opt, place_colors)
+
+	# SectorEffects' placed_colors: every card on the slot (sector + techs),
+	# EFFECTIVE color, plus this incoming card — mirrors
+	# SectorEffects._slot_effective_colors/get_optimize_steps exactly.
+	var opt_effect_colors: Array[int] = []
+	for c2: Node3D in slot.get_all_placed_cards():
+		var c2_cd: CardData = c2.get("card_data")
+		if c2_cd:
+			opt_effect_colors.append(int(CardData.effective_color(c2_cd, bool(c2.get("is_advanced")))))
+	opt_effect_colors.append(int(cd.color))
+
+	var triggered: Array = opt_result["triggered"]
+	for _level: int in triggered:
+		steps.append_array(SectorEffects.get_optimize_steps_for_state(sector_cd, sector_is_adv, opt_effect_colors, cd.cost))
+
+	return steps
+
 func confirm_pending_placement() -> void:
 	if not _pending_placement_card:
 		return
