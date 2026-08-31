@@ -1,0 +1,27 @@
+Lang,Name,Cost,Phases,Text,Restrictions
+EN,Argent Company,6 SALT,Before Combat,"Enemies can notuse Banes thiscombat.",
+DE,Die Silberne Kompanie,6 SALZ,Vor dem Kampf,"VOR DEM KAMPF Dein Gegner kannin diesem Kampfkeine Geißeln nutzen.",
+EN,Avatar of the Old Gods,6 FOOD,After Combat,Place 1 of your Basic Units from a Graveyard here (Max. 5 per hex).,
+DE,Avatar der Alten Götter,6 FOOD,Nach dem Kampf,Platziere 1 deiner Basis-Einheiten von einem Friedhof hier (Max. 5 pro Hexfeld),
+EN,Cabal of Ykka,3 PLUNDER,Archery AND Clash,Gain 1 SKULL / Gain 1 BOLT,Before damage Once per combat
+DE,Ykkas Kabal,3 PLUNDER,Fernkampf Nahkampf,Erhalte 1 SCHÄDEL / Erhalte 1 BOLZEN,Vor dem Schaden Einmal pro Kampf
+EN,Darvesh,3 SALT,Clash,For every symbol on BRONZE ignore 1 SHIELD.,Before damage
+DE,Darvesh,3 SALT,Nahkampf,Für jedes Symbol auf deinen BRONZE ignoriere 1 SCHILD.,Vor dem Kampf
+EN,Drakes-of-Shaan,7 SALT,Always,Your Units and Hero in this Unit's hex are adjacent to any hex.,
+DE,Lindwurm aus Shaan,8 SALT,Jederzeit,Dein Held und Einheiten auf dem Hexfeld dieser Einheit grenzen an jedes Hexfeld an.,
+EN,Druid Fanatic,5 SALT,Archery & Clash,"Godpowers on Druids can be used twice instead of once, on his hex.",
+DE,Druidenfanatiker,5 SALT,Fern- & Nahkampf,"Gotteskräfte auf Druiden könnnen zwei statt einmal, genutzt werden.",Hexfeld dieser Einheit
+EN,Hill Giant,3 FOOD,Archery & Clash,"Pay 1 FOOD, to reroll 1 YELLOW.",Before damage
+DE,Hügelriese,3 FOOD,Fern- & Nahkampf,Zahle 1 FOOD: Wirf 1 GELB erneut.,
+EN,Jortsaal Master,5 SALT,Always,This Unit can only be placed and moved onto an Ice Waste and is adjacent to all Ice Wastes.,
+DE,Jortsaal Meister,,,Kann nur auf Eiswüsten-Hexfeldern platziert und bewegt werden. Grenzt an jedes Eiswüsten-Hexfeld an.,
+EN,Salvaged Juggernaut,3 PLUNDER,After Combat,"If this Unit is destroyed, roll BRONZE. On a blank, place it on any explored hex without enemy Units",
+DE,Geborgener Zerstörer,,,"Wirf 1 BRONZE, wenn diese Einheit zerstört wurde: Wirfst du eine Leerseite, platziere sie auf einem erkundeten Hexfeld ohne gegnerische Einheiten.",
+EN,Swamp Terror,3 FOOD,Always / Clash,"Your Units ignore the Marshes Terrain effect. / Destroy this Unit, to double all symbols on your RED.",Before damage
+DE,Sumpfschrecken,,,Deine Einheiten ignorieren den Sumpf-Terraineffekt. Zerstöre diese Einheit: verdoppel alle Symbole auf deinen         .,
+EN,Vakqar Blitzer,3 SALT,Always,You may place this Unit into any player's combat. That player gains this card.,Before rolling
+DE,Vakqar Sturmläufer,,,Du kannst diese Einheit in den Kampf eines beliebigen Spielers platzieren. Dieser Spieler erhält diese Karte.,
+EN,Wild Bunch,5 FOOD,Archery & Clash,"Lose 2 VP, to gain 1 BLACK.","Before rolling, Once per combat"
+DE,Der Wilde Haufen,5 FOOD,Nahkampf,Verliere 2 VP: Erhalte 1 SCHWARZ,
+EN,Ziyoya Bard,4 SALT,After Combat,"If you have fewer VP than Chaos or The Empire, gain 1 VP.",
+DE,Ziyoya Barde,4 SALT,Nach dem Kampf,Wenn du weniger VP als Chaos oder das Imperium hast: Erhalte 1 VP.,

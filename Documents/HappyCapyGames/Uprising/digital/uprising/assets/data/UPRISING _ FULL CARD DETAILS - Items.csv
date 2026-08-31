@@ -1,0 +1,156 @@
+Lang,Box,Name,Text,Restrictions,Phases,Cost,Might,Magic,Lead,Guile
+DE,Core,Abad Kriegsbemalung,Abwerfen: Erhalte 1 ROT.,Vor dem Wurf Hexfeld des Helden,Nahkampf,1,,,,
+EN,Core,Abad Warpaint,Discard this to gain 1 RED.,Before Rolling On your Hero's Hex,Clash,1,,,,
+EN,Core,Assassins Dagger,"Discard this, to place it on a Horde or Legion card. When an Activation Token is removed from here, reduce its Threat by 1.",,Actions,2,,,,1
+EN,Core,Axe of the Giants,Pay 1 FOOD to gain 1 SKULL.,Before Damage Once per Round On your Hero's Hex,Clash,4,3,,,
+DE,Core,Axt der Giganten,Zahle 1 NAHRUNG: Erhalte 1 SCHÄDEL.,Vor dem Schaden Einmal pro Runde Hexfeld des Helden,Nahkampf,4,3,,,
+EN,Titans,Beacon of Hope,"When you gain this, place 1 Tower on any Haven.
+
+Flip this, to move any of your units on adjacent hexes here (max 5 per hex).",Before rolling,Archery & Clash,2,,,,
+EN,Core,Blackfire,Pay 1 SALT to gain 1 WHITE.,Before Rolling Once per Round On your Hero's Hex,Archery,2,,1,,
+EN,Armory,Blackheart,"When you gain this, place it under your Hero card.",,Always,2,,,,
+EN,Armory,Blooddagger,"When you gain this, place it under your Hero card.",,Always,2,,,,
+DE,Armory,Blutdolch,Wenn du dies erhältst: Platziere es unter deiner Heldenkarte.,,Jederzeit,2,,,,
+DE,Core,Bogen der Eisgeborenen,Zahle 1 NAHRUNG: Erhalte 1 GELB.,Vor dem Wurf Einmal pro Runde Hexfeld des Helden,Fernkampf,4,,,,2
+DE,Core,Bogen des Zwielichts,Umdrehen: Zerstöre 1 Skelett hier oder auf einem angrenzenden Hexfeld -- ODER -- Abwerfen: Zerstöre 2 Skelette.,,Aktionen,2,1,,,
+EN,Core,Bottled Demon,Pay 1 SALT to gain 1 RED.,Before Rolling Once per Round On your Hero's Hex,Archery,4,,3,,
+EN,Core,Bow of the Iceborn,Pay 1 FOOD to gain 1 YELLOW.,Before Rolling Once per Round On your Hero's Hex,Archery,4,,,,2
+DE,Core,Buddeldämon,Zahle 1 SALZ: Erhalte 1 ROT.,Vor dem Wurf Einmal pro Runde Hexfeld des Helden,Fernkampf,4,,3,,
+EN,Core,Censer of Shadows,You may place 1 of your Basic Units destroyed here on any of your Havens.,On your Hero's hex,After Combat,2,,,2,
+EN,Core,Cursed Dice,Pay 1 SALT to reroll 1 die on any of your rolls outside of combat.,,Always,1,,,,2
+DE,Core,Dämmergaards Laterne,Abwerfen: Wähle eine Quest aus dem Questdeck. Mische das Deck und lege die ausgewählte Quest oben auf das Deck.,,Aktionen,2,,2,,
+EN,Core,Darkstrider Boots,"Flip this, to regain 1 used AP from your player board.",,Actions,3,,,,
+EN,Core,Dawngaard Lantern,Discard this to choose a Quest from the Quest deck. Shuffle the Quest deck and place it on top.,,Actions,2,,2,,
+EN,Armory,Deepling Glowshroom,"When you would discard 1 Feat, you may discard this item instead.",,Always,2,,,,
+DE,Core,Der Erste Götze,Zahle 2 Ressourcen: Erhalte 1 BOLZEN.,Vor dem Schaden Einmal pro Runde Hexfeld des Helden,Fern- & Nahkampf,2,,,2,
+DE,Armory,Der Geist von Vyoth,Du kannst 1 deiner Einheiten die hier zerstört wurde in die Reserve platzieren.,Hexfeld des Helden,Nach dem Kampf,1,,,1,
+DE,Core,Dolch des Assassinen,"Abwerfen: Platziere dies auf einer Legions- oder Hordenkarte. Wenn ein Aktivierungsmarker von dieser entfernt wird, verliert sie 1 Bedrohung.",,Aktionen,2,,,,1
+DE,Core,Dornenpeitsche,Zahle 2 NAHRUNG: Erhalte 1 SCHÄDEL oder 1 SCHILD.,Vor dem Schaden Einmal pro Runde Hexfeld des Helden,Nahkampf,2,,,2,
+DE,Core,Drachenfrüchte,Abwerfen: Erhalte 5 NAHRUNG. Alle anderen Spieler erhalten 2 NAHRUNG.,,Aktionen,3,,,,
+EN,Core,Dragonfruits,Discard this. Gain 5 FOOD. Every other player gains 2 FOOD.,,Actions,3,,,,
+EN,Core,Drakh Architect,"Flip this, to place 1 Tower and 1 Wall on any Haven.",,Actions,2,,,1,
+DE,Core,Drakh Architekt,Umdrehen: Platziere 1 Turm und Wall auf einer beliebigen Zuflucht.,,Aktionen,2,,,1,
+EN,Armory,Drakhforge Shield,Pay 2 PLUNDER to gain 1 SHIELD.,Before Damage Once per Round On your Heros Hex,Archery & Clash,1,2,,,
+EN,Armory,Drakhtower Ruins,"When you gain this, place 1 Tower on any Haven.
+
+If you have a Tower here, gain 1 die that you already roll in Archery.","Before Rolling 
+Once per Round",Archery,2,,,,1
+DE,Armory,Drakoeanischer Kriegshelm,Entferne 1 deiner Einheiten in einem Friedhof aus dem Spiel: Erhalte 1 SCHILD.,Vor dem Schaden Einmal pro Runde Hexfeld des Helden,Nahkampf,2,2,,,
+EN,Armory,Drakorean Warhelm,"Remove 1 of your Units in any Graveyard from the game, to gain 1 SHIELD.",Before Damage Once per Round On your Heros Hex,Clash,2,2,,,
+EN,Core,Druid's Ale,"Discard this, to draw 1 Feat.",,Actions,2,1,,,
+EN,Core,Drums of Terror,"If your enemy's dice show 1+ blanks, gain 1 SHIELD.",Before Damage On your Hero's Hex,Clash,3,,2,,
+DE,Core,Druwhn Hexer,Abwerfen: Entferne 1 Aktivierungsmarker von einer Legions- oder Hordenkarte.,,Jederzeit,2,,,,1
+EN,Core,Druwhn Witcher,"Discard this, to remove 1 Activation Token from 1 Legion or Horde card.",,Always,2,,,,1
+DE,Armory,Dunkelherz,Wenn du dies erhältst: Platziere es unter deiner Heldenkarte.,,Jederzeit,2,,,,
+DE,Core,Dunkelschreiters Stiefel,Umdrehen: Erhalte 1 deiner genutzten AP von deiner Fraktionsübersicht.,,Aktionen,3,,,,
+DE,Core,Eiswasserpfeife,Du kannst ALLE deine Würfel in einem Wurf außerhalb des Kampfes erneut werfen.,,Jederzeit,3,,,1,
+DE,Core,Gebräu der Druiden,Abwerfen: Ziehe 1 Fähigkeit.,,Aktionen,2,1,,,
+DE,Armory,Geisterstein,Wenn du dies erhältst: Platziere es unter deiner Heldenkarte.,,Jederzeit,2,,,,
+EN,Armory,Ghost of Vyoth,You may return 1 of your Units destroyed here to the reserve.,On your Hero's hex,After Combat,1,,,1,
+EN,Armory,Ghoststone,"When you gain this, place it under your Hero card.",,Always,2,,,,
+DE,Armory,Glühpilz der Tieflinge,"Abwerfen, wenn du 1 Fähigkeit abwerfen würdest: Wirf stattdessen dieses Item ab.",,Jederzeit,2,,,,
+DE,Armory,Handelsguilde von Norngaard,Umdrehen: Nutze die Handeln-Aktion für NULL AP. Alle Spieler können sich Resourcen und Items geben.,,Aktionen,1,,,,2
+DE,Core,Harpune des Leviathan,"Du kannst 1 deiner Würfel auf eine Seite mit 1 einzelnen SCHÄDEL, SCHILD oder BOLZEN drehen.",Vor dem Schaden Einmal pro Runde Hexfeld des Helden,Nahkampf,4,3,,,
+EN,Core,Healing Potion,"Discard this, to place 1 of your Units destroyed here on any of your Havens.",On your Hero's Hex,After Combat,1,,,,
+DE,Armory,Heiligtümer,Pro eigener Zuflucht mit einem Turm und Wall: Erhalte 1 SP in der Auswertungsphase.,,Jederzeit,3,,,2,
+DE,Core,Heiltrank,Abwerfen: Platziere 1 deiner hier zerstörten Einheiten auf einer deiner Zufluchten.,Hexfeld des Helden,Nach dem Kampf,1,,,,
+EN,Armory,Hidden Village,"When you gain this, place ANY player's Haven here. This is not a hex and can not gain a Target or Units, but generates VP.",,Always,3,,,,3
+DE,Core,Horn der Bruderschaft,Abwerfen: Jeder Spieler kann seine Einheiten vom Spielfeld in den Kampf eines anderen Spielers platzieren. Zerstöre diese nach dem Kampf.,Vor dem Wurf,Jederzeit,2,,,1,
+DE,Core,Horn des Yor,Wenn du die Kommando-Aktion nutzt: Du musst kein NAHRUNG bezahlen.,,Aktionen,3,,,,2
+EN,Core,Horn of Brotherhood,Discard this. Every player may place their Units from play into another player's combat. Destroy them after Combat.,Before Rolling,Always,2,,,1,
+EN,Core,Horn of Yor,When you use the Command Action pay zero FOOD.,,Actions,3,,,,2
+EN,Core,Icewaterpipe,You may reroll ALL your dice on any roll outside of combat once.,,Always,3,,,1,
+EN,Armory,Imperial Armory,"Discard this, to exchange 1 of your Units with another of your Units from the reserve.",,Actions,2,,,,
+EN,Core,Imperial Defectors,Discard this. Every Player places 1 Basic Unit on any of their Havens.,,Actions,2,,,,1
+DE,Core,Imperiale Überläufer,Abwerfen: Jeder Spieler platziert 1 Basis-Einheit auf einer seiner Zufluchten.,,Aktionen,2,,,,1
+DE,Armory,Imperiale Waffenkammer,Abwerfen: Ersetze 1 deiner Einheiten mit einer anderen Einheit aus deiner Reserve.,,Aktionen,2,,,,
+DE,Armory,Jitaka,Umdrehen: Erhalte 1 BOLZEN.,Vor dem Schaden Hexfeld des Helden,Fern- & Nahkampf,3,,2,,
+EN,Armory,Jitaka,"Flip this, to gain 1 BOLT.",Before Damage On your Hero's Hex,Archery & Clash,3,,2,,
+EN,Core,Leeching Orb,"Discard this, to remove 1 Curse in any hex and gain 1 VP.",,Actions,4,,,,
+DE,Titans,Leuchtfeuer der Hoffnung,"Wenn du dies erhälst: Platziere 1 Turm auf einer beliebigen Zuflucht.
+
+Umdrehen: Bewege deine Einheiten in angrenzenden Hexfeldern hierher (max. 5 pro Hexfeld).",Vor dem Wurf,Fern- & Nahkampf,2,,,,
+EN,Core,Leviathans Harpoon,"You may turn 1 of your dice to show 1 single SKULL, SHIELD or BOLT.",Before Damage Once per Round On your Hero's Hex,Clash,4,3,,,
+EN,Armory,Mask of Aezher,"Flip this, when a Legion or Horde moves, to move it instead to an adjacent hex.",,Always,2,,,3,
+EN,Core,Mask of Jein,"Discard this, to turn up to 2 dice of any player to any sides you want, in a roll outside of combat.",After Rolling,Always,2,,,,1
+DE,Core,Maske des Jein,Abwerfen: Drehe bis zu 2 Würfel eines Spielers auf eine beliebige Seite in einem Wurf außerhalb des Kampfes.,Nach dem Wurf,Jederzeit,2,,,,1
+DE,Armory,Maske von Aezher,"Umdrehen, wenn sich eine Legion oder Horde bewegt: Bewege diese auf ein angrenzendes Hexfeld deiner Wahl.",,Jederzeit,2,,,3,
+DE,Core,Mohyar Pirat,Abwerfen: Verliere 1 SP und erhalte 5 Ressourcen.,,Aktionen,0,,,,
+EN,Core,Mohyar Pirate,Discard this. Lose 1 VP to gain 5 resources.,,Actions,0,,,,
+DE,Armory,Mondstab,Wenn du dies erhältst: Platziere es unter deiner Heldenkarte.,,Jederzeit,2,,,,
+EN,Armory,Moonstaff,"When you gain this, place it under your Hero card.",,Always,2,,,,
+DE,Titans,Nachtstein,"Umdrehen: Drehe ein angrenzendes Hexfeld um, aber erhalte keine Ressourcen.",,Aktionen,1,,,,1
+EN,Core,Nethersea Compass,"Discard this when you use the Command Action, to choose any explored hex. All other hexes are considered adjacent.",,Actions,1,,1,,
+EN,Core,Nethersea Map,Your Hero is considered adjacent to every hex.,,Always,1,,1,,
+EN,Titans,Nightstone,"Flip this, to flip an adjacent hex, but do not gain any resources.",,Actions,1,,,,1
+EN,Armory,Nobu's Mask,"When you use the Quest Action, you may reroll YELLOW and WHITE once.",,Actions,1,,,,1
+DE,Armory,Nobus Maske,"Umdrehen, wenn du die Quest-Aktion nutzt: Du kannst alle GELB und WEIß erneut werfen.",,Aktionen,1,,,,1
+EN,Core,Orb of Storms,"Discard this, to move 1 Horde or Legion to an adjacent hex (without activating it).",,Actions,2,,2,,
+EN,Core,Ptetee,"Flip this, to move your Hero up to 3 hexes.",,Actions,2,,,,
+DE,Core,Ptetee,Umdrehen: Bewege deinen Helden bis zu 3 Hexfelder.,,Aktionen,2,,,,
+DE,Armory,Ruinen der Drakh,"Wenn du dies erhältst: Platziere 1 Turm auf einer Zuflucht.
+
+Wenn du einen Turm hier hast: Erhalte 1 Würfel, den du bereits im Fernkampf wirfst.","Vor dem Wurf 
+Einmal pro Runde",Fernkampf,2,,,,1
+DE,Armory,Runenkette,Umdrehen: Pro eigener Zuflucht mit einem Wall: Erhalte 1 SCHILD.,Vor dem Schaden Hexfeld des Helden,Fern- & Nahkampf,2,2,,,
+DE,Core,Runensteine,"Zahle 2 Ressourcen: Füge 1 SCHÄDEL, SCHILD oder BOLZEN zum Wurf eines beliebigen Spielers außerhalb des Kampfes hinzu.",Einmal pro Wurf,Jederzeit,2,,,,2
+EN,Core,Runestones,"Pay 2 resources to add 1 SKULL, SHIELD or BOLT to any player's roll outside of combat.",Once per roll,Always,2,,,,2
+EN,Armory,Runestrings,"Flip this, to gain 1 SHIELD for each of your Havens with a Wall.",Before Damage On your Hero's hex,Archery & Clash,2,2,,,
+EN,Armory,Sanctuaries,Gain 1 VP during the Scoring Phase for each of your Havens with a Wall & Tower.,,Always,3,,,2,
+DE,Armory,Schattenwall,"Wenn du dies erhältst: Platziere 1 Wall auf einer Zuflucht.
+
+Du kannst BLAU deiner Wälle mit LILA ersetzen.",Vor dem Wurf,Nahkampf,1,,1,,
+DE,Armory,Schild der Drakh,Zahle 2 BEUTE: Erhalte 1 SCHILD.,Vor dem Schaden Einmal pro Runde Hexfeld des Helden,Fern- & Nahkampf,1,2,,,
+DE,Core,Schwarzfeuer,Zahle 1 SALZ: Erhalte 1 WEIß.,Vor dem Wurf Einmal pro Runde Hexfeld des Helden,Fernkampf,2,,1,,
+EN,Armory,Scout Network,"When you use the Command Action, you may ignore IMPASSABLE TERRAIN.",,Actions,1,,,,3
+EN,Armory,Screamer,Exchange 1 of your Unit's dice with RED.,Before rolling Once per round On your Hero's hex,Clash,2,2,,,
+DE,Armory,Sklavenkuss,Abwerfen: Ignoriere alle gegnerischen SCHILDE.,Vor dem Schaden Hexfeld des Helden,Nahkampf,2,1,,,
+EN,Armory,Slaver's Kiss,Discard this to ignore all enemy SHIELD.,Before Damage On your Heros Hex,Clash,2,1,,,
+DE,Armory,Sonnenstab,Deine Einheiten im Friedhof gelten als wären diese auch in der Reserve.,,Jederzeit,2,,,3,
+DE,Armory,Spähernetzwerk,Wenn du die Kommando-Aktion nutzt: Du kannst IT ignorieren.,,Aktionen,1,,,,3
+DE,Core,Speckschneider,Du kannst 1 deiner WEIß auf eine Seite mit 1 einzelnen SCHÄDEL oder SCHILD drehen.,Vor dem Schaden Einmal pro Kampf Hexfeld des Helden,Nahkampf,4,2,,,
+DE,Core,Sphäre der Stürme,Abwerfen: Bewege 1 Horde oder Legion auf ein angrenzendes Hexfeld (ohne sie zu aktivieren).,,Aktionen,2,,2,,
+EN,Core,Spikeshell,Gain 1 SHIELD.,Before damage Once per round On your Hero's Hex,Archery,4,,,2,
+DE,Core,Stachel,Erhalte 1 SCHILD.,Vor dem Schaden Einmal pro Runde Hexfeld des Helden,Fernkampf,4,,,2,
+EN,Armory,Sunstaff,You may consider your Units in any Graveyard as if they were also in your reserve.,,Always,2,,,3,
+EN,Core,Survivors,"When you gain this, place 1 Basic Unit on any Haven.
+ 
+Flip this. Every player may build Units and Defenses.",,Actions,0,,,,
+EN,Core,The First Idol,Pay 2 resources to gain 1 BOLT.,Before Damage Once per Round On your Hero's Hex,Archery & Clash,2,,,2,
+EN,Core,The Flenser,Turn 1 of your WHITE to show 1 single SKULL or SHIELD.,Before Damage Once per Combat On your Hero's Hex,Clash,4,2,,,
+DE,Armory,Tobende Klinge,Ersetze den Würfel einer deiner Einheiten mit ROT.,Vor dem Wurf Einmal pro Runde Hexfeld des Helden,Nahkampf,2,2,,,
+EN,Armory,Tradersguild of Norngaard,"Flip this, to use the Trade Action for zero AP. All Heros may trade resources and Items.",,Actions,1,,,,2
+EN,Titans,Traveling Merchants,"Place this item next to the board, and place 2 SALT on it. When any player uses the Trade Action, they may place OR gain resources from this card.",,Always,1,,,1,
+DE,Core,Trommeln des Schreckens,Wenn dein Gegner 1+ Leerseiten geworfen hat: Erhalte 1 SCHILD.,Vor dem Schaden Hexfeld des Helden,Nahkampf,3,,2,,
+EN,Core,Twilight Bow,"Flip this, to destroy 1 Skeleton here or in an adjacent hex. -- OR -- Discard this, to destroy 2 Skeletons.",,Actions,2,1,,,
+DE,Core,Überlebende,"Wenn du dies erhältst: Platziere 1 Basis-Einheit in einer beliebigen Zuflucht.
+
+Umdrehen: Jeder Spieler kann Einheiten und Verteidigungen in Zufluchten bauen.",,Aktionen,0,,,,
+DE,Core,Untersee Kompass,"Abwerfen, wenn du die Kommando-Aktion nutzt: Wähle ein erkundetes Hexfeld. Alle anderen Hexfelder gelten als angrenzend.",,Aktionen,1,,1,,
+DE,Core,Unterseekarte,Dein Held grenzt an alle Hexfelder an.,,Jederzeit,1,,1,,
+EN,Core,Urn of Malice,Discard this. You and your enemy gain 1 BLACK every combat round.,Before Rolling On your Hero's Hex,Archery & Clash,1,,1,,
+DE,Core,Urne der Bosheit,Abwerfen: Du und dein Gegner erhalten 1 SCHWARZ in jeder Kampfrunde.,Vor dem Wurf Hexfeld des Helden,Fern- & Nahkampf,1,,1,,
+DE,Core,Vampirsphäre,Abwerfen: Entferne 1 Fluch auf einem Hexfeld und erhalte 1 SP.,,Aktionen,4,,,,
+DE,Armory,Verborgene Zuflucht,"Wenn du die erhältst: Platziere die Zuflucht eines beliebigen Spielers auf dieser Karte. Dies ist kein Hexfeld und kann keine Ziele oder Einheiten erhalten, generiert aber SP.",,Jederzeit,3,,,,3
+DE,Core,Verfluchte Würfel,Zahle 1 SALZ: Wirf 1 Würfel in einem Wurf außerhalb des Kampfes erneut.,,Jederzeit,1,,,,2
+DE,Titans,Wachtürme,"Wenn du dies erhältst: Platziere 1 Wall auf einer beliebigen Zuflucht.
+
+Du kannst BLAU deiner Wälle mit LILA ersetzen.",Vor dem Wurf,Fernkampf,2,,,,
+EN,Armory,Wall of Shadows,"When you gan this, place 1 Wall on any Haven.
+
+You may exchange the BLUE from your walls with PURPLE.",Before Damage,Clash,1,,1,,
+DE,Titans,Wandernde Händler,Platziere dieses Item neben dem Spielfeld und platziere 2 SALZ darauf. Wenn ein Spieler die Handel-Aktion nutzt: Erhalte oder platziere Resourcen von/auf dieser Karte.,,Jederzeit,1,,,1,
+EN,Titans,Watchtowers,"When you gain this, place 1 Tower on any Haven.
+
+Gain 1 WHITE for every adjacent hex with a Tower.",Before rolling,Archery,2,,,,
+DE,Core,Weihrauch der Schatten,"Du kannst 1 deiner Basis-Einheiten, die hier zerstört wurde, auf 1 deiner Zufluchten platzieren.",Hexfeld des Helden,Nach dem Kampf,2,,,2,
+EN,Core,Whip of Thorns,Pay 2 FOOD to gain 1 SKULL or SHIELD.,Before Damage Once pre Round On your Hero's Hex,Clash,2,,,2,
+EN,Core,Wyrmscale,"If you rolled 2+ blanks, gain 1 BOLT.",Before Damage On your Hero's Hex,Clash,1,1,,,
+DE,Core,Wyrmschuppe,Wenn du 2+ Leerseiten geworfen hast: Erhalte 1 BOLZEN.,Vor dem Schaden Hexfeld des Helden,Nahkampf,1,1,,,
+DE,Core,Wytens Augenklappe,Füge 1 ROT zu deinen Würfen außerhalb des Kampfes hinzu.,Vor dem Wurf,Jederzeit,2,1,,,
+EN,Core,Wytens Eyepatch,Add 1 RED to any of your rolls outside of combat.,Before Rolling,Always,2,1,,,
+DE,Core,Xyxrit Blätter,Abwerfen: Füge 1 beliebigen Würfel zum Wurf eines beliebigen Spielers außerhalb des Kampfes hinzu.,Vor dem Wurf,Jederzeit,1,,,,
+EN,Core,Xyxrit Leaves,"Discard this, to add any 1 die to any player's roll outside of combat.",Before rolling,Always,1,,,,
+EN,Core,Ziyoya Bard,"Discard this, to double the VP of any Horde or Legion when it is destroyed.",,Always,3,,,,1
+DE,Core,Ziyoya Barde,"Abwerfen, wenn eine Horde oder Legion zerstört wurde: Verdopple die erhaltenen SP.",,Jederzeit,3,,,,1
+,,,,,,,42,32,42,47
