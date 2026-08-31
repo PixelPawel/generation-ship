@@ -6,8 +6,12 @@ extends Node3D
 ## in one place. Not game logic -- just "does everything actually render."
 ##
 ## @tool so this also populates when you just open main.tscn in the editor,
-## not only when you press Play -- the scene has no saved child nodes (they're
-## all built here, without an owner, so they never get baked into the .tscn).
+## not only when you press Play. Generated nodes are given an owner so they
+## show up in the Scene dock and can be selected/moved/saved normally -- once
+## you save, they become real nodes in main.tscn and _ready() will no longer
+## regenerate them (see the has_node("Standees") guard below). To regenerate
+## from scratch (e.g. after re-running tools/extract_unity3d.py), delete the
+## WorldEnvironment/Sun/MapBoard/MainCamera/Standees nodes and reopen the scene.
 
 const MAP_TEXTURE_PATH := "res://assets/images/Map/TheMap.jpg"
 const MODEL_MANIFEST_PATH := "res://assets/data/_model_manifest.csv"
@@ -41,6 +45,14 @@ func _ready() -> void:
 	_place_models(primary_paths, columns, rows)
 
 
+## Adds `child` under `parent` and gives it an owner so it's a real, saved,
+## selectable/movable part of the scene (not just a runtime-only preview).
+func _add_owned(parent: Node, child: Node) -> void:
+	parent.add_child(child)
+	var scene_root := get_tree().edited_scene_root if Engine.is_editor_hint() else null
+	child.owner = scene_root if scene_root != null else self
+
+
 func _load_model_paths() -> Array[String]:
 	var paths: Array[String] = []
 	for row in CsvParser.parse_file_as_dicts(MODEL_MANIFEST_PATH):
@@ -61,14 +73,14 @@ func _setup_environment() -> void:
 	var world_env := WorldEnvironment.new()
 	world_env.name = "WorldEnvironment"
 	world_env.environment = env
-	add_child(world_env)
+	_add_owned(self, world_env)
 
 	var sun := DirectionalLight3D.new()
 	sun.name = "Sun"
 	sun.rotation_degrees = Vector3(-55.0, -35.0, 0.0)
 	sun.light_energy = 1.1
 	sun.shadow_enabled = true
-	add_child(sun)
+	_add_owned(self, sun)
 
 
 func _setup_map(min_width: float, min_depth: float) -> void:
@@ -90,7 +102,7 @@ func _setup_map(min_width: float, min_depth: float) -> void:
 	map_instance.name = "MapBoard"
 	map_instance.mesh = mesh
 	map_instance.set_surface_override_material(0, material)
-	add_child(map_instance)
+	_add_owned(self, map_instance)
 
 
 func _setup_camera(grid_width: float, grid_depth: float) -> void:
@@ -101,7 +113,7 @@ func _setup_camera(grid_width: float, grid_depth: float) -> void:
 	# (textured on their +Y face) stay legible instead of foreshortening away.
 	camera.position = Vector3(0.0, span * 1.1, span * 0.45)
 	camera.far = span * 6.0
-	add_child(camera)
+	_add_owned(self, camera)
 	camera.look_at(Vector3.ZERO, Vector3.UP)
 	camera.current = true
 
@@ -109,7 +121,7 @@ func _setup_camera(grid_width: float, grid_depth: float) -> void:
 func _place_models(paths: Array[String], columns: int, rows: int) -> void:
 	var container := Node3D.new()
 	container.name = "Standees"
-	add_child(container)
+	_add_owned(self, container)
 
 	var start_x := -(columns - 1) * GRID_SPACING * 0.5
 	var start_z := -(rows - 1) * GRID_SPACING * 0.5
@@ -136,7 +148,7 @@ func _place_models(paths: Array[String], columns: int, rows: int) -> void:
 		var row := i / columns
 		inst.position = Vector3(start_x + col * GRID_SPACING, 0.02, start_z + row * GRID_SPACING)
 
-		container.add_child(inst)
+		_add_owned(container, inst)
 		placed += 1
 
 	print("main.gd: placed %d/%d models in a %dx%d grid" % [placed, paths.size(), columns, rows])
