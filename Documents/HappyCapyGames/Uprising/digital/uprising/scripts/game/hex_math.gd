@@ -35,3 +35,17 @@ static func key(coord: Vector2i) -> String:
 static func from_key(k: String) -> Vector2i:
 	var parts := k.split(",")
 	return Vector2i(int(parts[0]), int(parts[1]))
+
+
+## All hex coordinates within `radius` rings of `center`, ring by ring
+## (center first, then the 6 neighbors, then the 12 at distance 2, ...).
+## Used by GameSetup to lay out the map without needing a fixed-size grid.
+static func spiral(center: Vector2i, radius: int) -> Array[Vector2i]:
+	var result: Array[Vector2i] = [center]
+	for r in range(1, radius + 1):
+		var coord := center + DIRECTIONS[4] * r  # start at direction index 4 ("-1,+1")
+		for d in range(6):
+			for _step in range(r):
+				result.append(coord)
+				coord += DIRECTIONS[d]
+	return result
