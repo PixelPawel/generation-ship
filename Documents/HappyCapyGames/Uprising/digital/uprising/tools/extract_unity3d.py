@@ -66,7 +66,7 @@ def strip_uv_if_absent(obj_text: str) -> str:
 
 
 def process_bundle(bundle_path: Path, out_dir: Path) -> dict:
-    stats = {"textures": 0, "meshes": 0, "materials": 0, "objects_exported": 0, "errors": []}
+    stats = {"textures": 0, "meshes": 0, "materials": 0, "objects_exported": 0, "primary_objs": [], "errors": []}
     try:
         env = UnityPy.load(str(bundle_path))
     except Exception as e:
@@ -201,6 +201,7 @@ def process_bundle(bundle_path: Path, out_dir: Path) -> dict:
         (out_dir / f"{fname}.obj").write_text(final_text, encoding="utf-8")
         exported_mesh_ids.add(mesh_pid)
         stats["objects_exported"] += 1
+        stats.setdefault("primary_objs", []).append(str(out_dir / f"{fname}.obj"))
 
     # --- Any meshes not attached to a GameObject/MeshRenderer (e.g. collision-only) ---
     for o in objs:
@@ -224,11 +225,14 @@ def process_bundle(bundle_path: Path, out_dir: Path) -> dict:
 
 
 def main():
+    import csv
+
     bundles = sorted(SRC_ROOT.rglob("*.unity3d"))
     print(f"Found {len(bundles)} .unity3d bundles under {SRC_ROOT}")
 
     total_stats = {"textures": 0, "meshes": 0, "materials": 0, "objects_exported": 0}
     error_bundles = []
+    manifest_rows = []  # (folder relative to project root, primary_obj res:// path)
 
     for i, bundle_path in enumerate(bundles, 1):
         rel = bundle_path.relative_to(SRC_ROOT)
@@ -238,6 +242,12 @@ def main():
             total_stats[k] += stats[k]
         if stats["errors"]:
             error_bundles.append((str(rel), stats["errors"]))
+        for p in stats["primary_objs"]:
+            p_rel = Path(p).resolve().relative_to(PROJECT_ROOT).as_posix()
+            manifest_rows.append({
+                "folder": (out_dir.resolve().relative_to(PROJECT_ROOT)).as_posix(),
+                "primary_obj": "res://" + p_rel,
+            })
         if i % 10 == 0 or i == len(bundles):
             print(f"[{i}/{len(bundles)}] ...")
 
@@ -246,6 +256,13 @@ def main():
     print(f"Bundles with errors: {len(error_bundles)}")
     for name, errs in error_bundles[:20]:
         print(f"  {name}: {errs}")
+
+    manifest_path = PROJECT_ROOT / "assets" / "data" / "_model_manifest.csv"
+    with open(manifest_path, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=["folder", "primary_obj"])
+        w.writeheader()
+        w.writerows(manifest_rows)
+    print(f"\nWrote {manifest_path} ({len(manifest_rows)} primary meshes)")
 
     print(
         "\nNow force Godot to import the new files:\n"
