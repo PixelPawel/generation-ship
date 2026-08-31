@@ -87,13 +87,25 @@ func _request_action(action: Dictionary) -> void:
 
 func _apply_action(action: Dictionary, sender_id: int) -> void:
 	if game_state == null:
-		action_rejected.emit("no active game")
+		_reject(sender_id, "no active game")
 		return
-	# TODO(Phase 3): real per-action-type validation and mutation of
-	# game_state goes here (Move/Trade/Explore/Command/Haven/Market/Quest...).
-	# For now this just proves the request -> authoritative-apply -> broadcast
-	# pattern end to end; every future action type plugs in at this point.
+	var result := GameActions.apply(game_state, action, sender_id)
+	if not result.get("ok", false):
+		_reject(sender_id, result.get("reason", "action rejected"))
+		return
 	_receive_full_state.rpc(game_state.to_dict())
+
+
+func _reject(sender_id: int, reason: String) -> void:
+	if sender_id == multiplayer.get_unique_id():
+		action_rejected.emit(reason)
+	else:
+		_notify_rejected.rpc_id(sender_id, reason)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _notify_rejected(reason: String) -> void:
+	action_rejected.emit(reason)
 
 
 @rpc("authority", "call_local", "reliable")

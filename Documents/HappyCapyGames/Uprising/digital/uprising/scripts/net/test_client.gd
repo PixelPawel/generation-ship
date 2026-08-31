@@ -19,17 +19,23 @@ func _initialize() -> void:
 	var submitted := false
 	net_mgr.state_updated.connect(func(s: GameState) -> void:
 		update_count[0] += 1
-		print("CLIENT saw state_updated #%d, chapter=%d, hexes=%d" % [update_count[0], s.chapter, s.hexes.size()])
+		var krowh := s.get_player("Krowh")
+		print("CLIENT saw state_updated #%d, chapter=%d, Krowh salt=%s" % [
+			update_count[0], s.chapter, (krowh.salt if krowh != null else "?")
+		])
 	)
 	net_mgr.connection_failed.connect(func() -> void:
 		print("CLIENT connection FAILED")
+	)
+	net_mgr.action_rejected.connect(func(reason: String) -> void:
+		print("CLIENT action REJECTED: ", reason)
 	)
 
 	var frames := 0
 	while frames < MAX_WAIT_FRAMES:
 		if update_count[0] >= 1 and not submitted:
-			print("CLIENT submitting test action...")
-			net_mgr.submit_action({"type": "test_ping", "value": 42})
+			print("CLIENT submitting a real Trade action for Krowh...")
+			net_mgr.submit_action({"type": "trade", "faction": "Krowh"})
 			submitted = true
 		if update_count[0] >= 2:
 			break

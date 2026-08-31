@@ -12,13 +12,12 @@ const MAX_WAIT_FRAMES := 3600  # ~60s at 60fps
 func _initialize() -> void:
 	await process_frame
 	var net_mgr := root.get_node("/root/NetworkManager")
+	var card_db := root.get_node("/root/CardDatabase")
 
-	var state := GameState.new()
-	state.chapter = 1
-	var hex := HexTile.new()
-	hex.coord = Vector2i(0, 0)
-	hex.card_name = "Test Hex"
-	state.set_hex(hex)
+	var state := GameSetup.build_new_game(card_db, [["Krowh", "Kha'al"]], "Veteran", 3)
+	state.phase = GameState.Phase.ACTIONS
+	var starting_salt: int = state.get_player("Krowh").salt
+	print("HOST starting Krowh salt: ", starting_salt)
 
 	var err: Error = net_mgr.host_game(state, PORT)
 	print("host_game result: ", err, " (OK == 0)")
@@ -26,7 +25,8 @@ func _initialize() -> void:
 	# See test_client.gd for why this is a 1-element Array, not a plain bool.
 	var got_action := [false]
 	net_mgr.state_updated.connect(func(_s: GameState) -> void:
-		print("HOST saw state_updated, chapter=", net_mgr.game_state.chapter)
+		var salt: int = net_mgr.game_state.get_player("Krowh").salt
+		print("HOST saw state_updated, Krowh salt=", salt)
 		got_action[0] = true
 	)
 
@@ -35,6 +35,7 @@ func _initialize() -> void:
 		await process_frame
 		frames += 1
 
-	print("HOST done. got_action=", got_action[0], " frames_waited=", frames)
-	print("HOST final chapter: ", net_mgr.game_state.chapter)
-	quit(0 if got_action[0] else 1)
+	var final_salt: int = net_mgr.game_state.get_player("Krowh").salt
+	var ok: bool = got_action[0] and final_salt == starting_salt + 1
+	print("HOST done. got_action=", got_action[0], " final_salt=", final_salt, " frames_waited=", frames)
+	quit(0 if ok else 1)
