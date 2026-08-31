@@ -1,8 +1,13 @@
+@tool
 extends Node3D
 ## First-pass staging scene: lays TheMap.jpg down as the table, then places
 ## one instance of every extracted 3D model (from tools/extract_unity3d.py)
 ## in a grid on top of it, so the whole art + model pipeline can be eyeballed
 ## in one place. Not game logic -- just "does everything actually render."
+##
+## @tool so this also populates when you just open main.tscn in the editor,
+## not only when you press Play -- the scene has no saved child nodes (they're
+## all built here, without an owner, so they never get baked into the .tscn).
 
 const MAP_TEXTURE_PATH := "res://assets/images/Map/TheMap.jpg"
 const MODEL_MANIFEST_PATH := "res://assets/data/_model_manifest.csv"
@@ -17,6 +22,9 @@ const TARGET_FOOTPRINT := 2.4
 
 
 func _ready() -> void:
+	if has_node("Standees"):
+		return  # already built (e.g. the scene was reopened in the editor)
+
 	var primary_paths := _load_model_paths()
 	primary_paths.sort()
 
