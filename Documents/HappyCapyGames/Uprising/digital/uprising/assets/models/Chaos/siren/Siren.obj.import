@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://b4m13rjxg5rox"
+path="res://.godot/imported/Siren.obj-1ca9046b3e95c3514a67291c58983638.mesh"
+
+[deps]
+
+files=["res://.godot/imported/Siren.obj-1ca9046b3e95c3514a67291c58983638.mesh"]
+
+source_file="res://assets/models/Chaos/siren/Siren.obj"
+dest_files=["res://.godot/imported/Siren.obj-1ca9046b3e95c3514a67291c58983638.mesh", "res://.godot/imported/Siren.obj-1ca9046b3e95c3514a67291c58983638.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

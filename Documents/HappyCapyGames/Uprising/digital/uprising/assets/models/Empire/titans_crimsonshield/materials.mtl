@@ -1,0 +1,7 @@
+newmtl CrimsonShield
+Kd 1.0000 1.0000 1.0000
+map_Kd CrimsonShield.png
+
+newmtl GameObject_Purple
+Kd 0.6118 0.1412 0.4824
+

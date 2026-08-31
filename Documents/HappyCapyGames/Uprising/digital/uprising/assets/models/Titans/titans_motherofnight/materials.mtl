@@ -1,0 +1,7 @@
+newmtl Titan_Mother-of-Night
+Kd 1.0000 1.0000 1.0000
+map_Kd Titan_Mother-of-Night.png
+
+newmtl GameObject_LightPurple
+Kd 0.5686 0.3765 0.6588
+

@@ -1,0 +1,11 @@
+newmtl TuaThan_Yvaj_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd Yvaj_back.png
+
+newmtl TuaThan_Yvaj_Back
+Kd 1.0000 1.0000 1.0000
+map_Kd Yvaj.png
+
+newmtl GameObject_TuaThanTeal
+Kd 0.2392 0.7765 0.6745
+

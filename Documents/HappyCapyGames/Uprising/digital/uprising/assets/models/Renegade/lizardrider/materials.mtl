@@ -1,0 +1,7 @@
+newmtl GameObject_Black
+Kd 0.0000 0.0000 0.0000
+
+newmtl RenegadeLegion_LizardRider
+Kd 1.0000 1.0000 1.0000
+map_Kd lizard-rider.png
+

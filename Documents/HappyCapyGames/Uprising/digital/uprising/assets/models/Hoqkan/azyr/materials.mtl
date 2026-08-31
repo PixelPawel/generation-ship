@@ -1,0 +1,11 @@
+newmtl Hokqan_Azyr_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd azyr.png
+
+newmtl Hokqan_Azyr_back
+Kd 1.0000 1.0000 1.0000
+map_Kd azyr_back.png
+
+newmtl GameObject_Yellow
+Kd 1.0000 0.9059 0.4196
+

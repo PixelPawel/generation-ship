@@ -1,0 +1,7 @@
+newmtl Hokqan_EliteRider
+Kd 1.0000 1.0000 1.0000
+map_Kd elite-rider.png
+
+newmtl GameObject_Yellow
+Kd 1.0000 0.9059 0.4196
+

@@ -1,0 +1,7 @@
+newmtl Fatherofthunder
+Kd 1.0000 1.0000 1.0000
+map_Kd Fatherofthunder.png
+
+newmtl GameObject_LightPurple
+Kd 0.5686 0.3765 0.6588
+

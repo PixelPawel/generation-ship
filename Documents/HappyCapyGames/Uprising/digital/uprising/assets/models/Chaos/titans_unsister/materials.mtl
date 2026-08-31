@@ -1,0 +1,7 @@
+newmtl Unsister
+Kd 1.0000 1.0000 1.0000
+map_Kd Unsister.png
+
+newmtl GameObject_Green
+Kd 0.7765 0.8118 0.2235
+

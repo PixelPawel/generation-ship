@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://jlu8f4t8vra"
+path="res://.godot/imported/GMidCol5.obj-360f832ba5bc1a7dc53a2ebd247faea5.mesh"
+
+[deps]
+
+files=["res://.godot/imported/GMidCol5.obj-360f832ba5bc1a7dc53a2ebd247faea5.mesh"]
+
+source_file="res://assets/models/Empire/garrison_middle/GMidCol5.obj"
+dest_files=["res://.godot/imported/GMidCol5.obj-360f832ba5bc1a7dc53a2ebd247faea5.mesh", "res://.godot/imported/GMidCol5.obj-360f832ba5bc1a7dc53a2ebd247faea5.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

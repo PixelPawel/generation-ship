@@ -1,0 +1,7 @@
+newmtl Pirates_Sharkskald-_2_
+Kd 1.0000 1.0000 1.0000
+map_Kd Pirates_Sharkskald-_2_.png
+
+newmtl Material.200
+Kd 0.6039 0.8353 0.9137
+

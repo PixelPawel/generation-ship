@@ -1,0 +1,11 @@
+newmtl GameObject_Black
+Kd 0.0000 0.0000 0.0000
+
+newmtl RenegadeLegion_Mukla_Back
+Kd 1.0000 1.0000 1.0000
+map_Kd mukla-back.png
+
+newmtl RenegadeLegion_Mukla_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd mukla.png
+

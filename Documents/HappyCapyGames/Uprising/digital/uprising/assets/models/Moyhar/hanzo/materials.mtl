@@ -1,0 +1,11 @@
+newmtl Mohyar_Hanzo_Back
+Kd 1.0000 1.0000 1.0000
+map_Kd hanzo_back.png
+
+newmtl Mohyar_Hanzo_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd hanzo_front.png
+
+newmtl GameObject_Orange
+Kd 0.9373 0.6471 0.0510
+

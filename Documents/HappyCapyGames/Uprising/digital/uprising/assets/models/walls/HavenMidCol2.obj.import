@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://cr4dsr8r26uw4"
+path="res://.godot/imported/HavenMidCol2.obj-512e2bee6d98c5e92c3c2482833647dc.mesh"
+
+[deps]
+
+files=["res://.godot/imported/HavenMidCol2.obj-512e2bee6d98c5e92c3c2482833647dc.mesh"]
+
+source_file="res://assets/models/walls/HavenMidCol2.obj"
+dest_files=["res://.godot/imported/HavenMidCol2.obj-512e2bee6d98c5e92c3c2482833647dc.mesh", "res://.godot/imported/HavenMidCol2.obj-512e2bee6d98c5e92c3c2482833647dc.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

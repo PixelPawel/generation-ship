@@ -1,0 +1,7 @@
+newmtl GameObject_Bone
+Kd 0.9490 0.9098 0.7686
+
+newmtl Druwhn_Beastmasters
+Kd 1.0000 1.0000 1.0000
+map_Kd beastmasters.png
+

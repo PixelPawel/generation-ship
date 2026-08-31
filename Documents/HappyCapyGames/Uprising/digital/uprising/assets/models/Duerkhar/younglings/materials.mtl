@@ -1,0 +1,7 @@
+newmtl GameObject_Teal
+Kd 0.3059 0.6824 0.7686
+
+newmtl Duerkhar_Younglings
+Kd 1.0000 1.0000 1.0000
+map_Kd younglings.png
+

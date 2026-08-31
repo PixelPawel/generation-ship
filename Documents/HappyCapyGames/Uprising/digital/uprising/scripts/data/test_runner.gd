@@ -34,4 +34,13 @@ func _initialize() -> void:
 		db.feats.size(), db.events.size(), db.druids.size(), db.hexes.size(), db.mercs.size(), db.playerboards.size(),
 	])
 
+	var model_checks := [
+		"res://assets/models/Empire/butcher/Butcher.obj",
+		"res://assets/models/Empire/garrison_middle/Garrison_Middle.obj",
+		"res://assets/models/tower/Haven_Tower.obj",
+	]
+	for path in model_checks:
+		var mesh: Resource = load(path)
+		print("%s  model %s -> %s" % ["OK   " if mesh != null else "FAIL ", path, mesh])
+
 	quit()

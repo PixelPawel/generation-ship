@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://cq3oqwdbh878"
+path="res://.godot/imported/Herd.obj-8e5e9d28f1177977d2818cf3dd0b22ed.mesh"
+
+[deps]
+
+files=["res://.godot/imported/Herd.obj-8e5e9d28f1177977d2818cf3dd0b22ed.mesh"]
+
+source_file="res://assets/models/Ytuma/herd/Herd.obj"
+dest_files=["res://.godot/imported/Herd.obj-8e5e9d28f1177977d2818cf3dd0b22ed.mesh", "res://.godot/imported/Herd.obj-8e5e9d28f1177977d2818cf3dd0b22ed.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

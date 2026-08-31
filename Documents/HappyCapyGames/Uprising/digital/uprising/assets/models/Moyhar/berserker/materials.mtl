@@ -1,0 +1,7 @@
+newmtl Mohyar_Berserkers
+Kd 1.0000 1.0000 1.0000
+map_Kd berserkers.png
+
+newmtl GameObject_Orange
+Kd 0.9373 0.6471 0.0510
+

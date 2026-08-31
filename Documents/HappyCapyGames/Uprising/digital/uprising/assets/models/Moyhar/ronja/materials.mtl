@@ -1,0 +1,11 @@
+newmtl Mohyar_Ronja_Back
+Kd 1.0000 1.0000 1.0000
+map_Kd ronja_back.png
+
+newmtl Mohyar_Ronja_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd ronja_front.png
+
+newmtl GameObject_Orange
+Kd 0.9373 0.6471 0.0510
+

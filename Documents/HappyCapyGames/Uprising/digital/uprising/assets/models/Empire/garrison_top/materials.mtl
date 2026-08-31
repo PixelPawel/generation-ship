@@ -1,0 +1,9 @@
+newmtl GameObject_Purple
+Kd 0.6902 0.0431 0.5804
+
+newmtl Garrison_Gold
+Kd 0.8491 0.6755 0.2363
+
+newmtl Garrison_DarkPurple
+Kd 0.3019 0.0000 0.2090
+

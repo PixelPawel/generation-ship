@@ -1,0 +1,11 @@
+newmtl Horde_FalseMessiah_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd false_messiah_front.png
+
+newmtl Horde_FalseMessiah_Back
+Kd 1.0000 1.0000 1.0000
+map_Kd false_messiah_back.png
+
+newmtl GameObject_Green
+Kd 0.7765 0.8118 0.2235
+

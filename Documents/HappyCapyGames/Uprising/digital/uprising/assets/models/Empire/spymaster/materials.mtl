@@ -1,0 +1,11 @@
+newmtl GameObject_Purple
+Kd 0.6902 0.0431 0.5804
+
+newmtl Legion_Spymaster_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd spymaster_front.png
+
+newmtl Legion_Spymaster_Back
+Kd 1.0000 1.0000 1.0000
+map_Kd spymaster_bacl.png
+

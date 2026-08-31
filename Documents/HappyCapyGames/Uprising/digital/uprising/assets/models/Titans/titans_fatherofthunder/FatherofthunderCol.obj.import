@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://c6jgvn4v5w4bf"
+path="res://.godot/imported/FatherofthunderCol.obj-faeddbf7bed5525600be95e165b948dd.mesh"
+
+[deps]
+
+files=["res://.godot/imported/FatherofthunderCol.obj-faeddbf7bed5525600be95e165b948dd.mesh"]
+
+source_file="res://assets/models/Titans/titans_fatherofthunder/FatherofthunderCol.obj"
+dest_files=["res://.godot/imported/FatherofthunderCol.obj-faeddbf7bed5525600be95e165b948dd.mesh", "res://.godot/imported/FatherofthunderCol.obj-faeddbf7bed5525600be95e165b948dd.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

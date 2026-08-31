@@ -1,0 +1,11 @@
+newmtl Horde_CounterofOmens_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd counter_front.png
+
+newmtl GameObject_Green
+Kd 0.7765 0.8118 0.2235
+
+newmtl Horde_CounterofOmens_Back
+Kd 1.0000 1.0000 1.0000
+map_Kd counter_back.png
+

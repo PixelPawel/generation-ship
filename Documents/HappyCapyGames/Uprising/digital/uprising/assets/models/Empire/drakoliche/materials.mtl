@@ -1,0 +1,11 @@
+newmtl GameObject_Purple
+Kd 0.6902 0.0431 0.5804
+
+newmtl Legion_Drakoliche_Back
+Kd 1.0000 1.0000 1.0000
+map_Kd drakoliche_back.png
+
+newmtl Legion_Drakoliche_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd drakoliche_front.png
+
