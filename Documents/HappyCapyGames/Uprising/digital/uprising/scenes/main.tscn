@@ -1,6 +1,513 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://bnv1acy0gh3y7"]
 
-[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://7me2700rnlpt" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Texture2D" uid="uid://qycx224hhlso" path="res://assets/images/Map/TheMap.jpg" id="2_gr8w0"]
+[ext_resource type="ArrayMesh" uid="uid://d80c7dyyywx3" path="res://assets/models/Chaos/banished/Banished.obj" id="3_673bd"]
+[ext_resource type="ArrayMesh" uid="uid://cw3qxov207ktt" path="res://assets/models/Chaos/bloodwyrm/Bloodwyrm.obj" id="4_akjxb"]
+[ext_resource type="ArrayMesh" uid="uid://3clygujad73r" path="res://assets/models/Chaos/counterofomens/Counter_of_Omens.obj" id="5_vrx01"]
+[ext_resource type="ArrayMesh" uid="uid://c5jtfq7gqvl1x" path="res://assets/models/Chaos/covenofyssat/Coven_of_Yssat.obj" id="6_1uevf"]
+[ext_resource type="ArrayMesh" uid="uid://cel18408cc338" path="res://assets/models/Chaos/curse/Curse1.obj" id="7_tc087"]
+[ext_resource type="ArrayMesh" uid="uid://ciql28m7x4dq3" path="res://assets/models/Chaos/falsemessiah/FalseMessiah.obj" id="8_73205"]
+[ext_resource type="ArrayMesh" uid="uid://birfd1ivmchqs" path="res://assets/models/Chaos/harvester/Harvester.obj" id="9_0tljd"]
+[ext_resource type="ArrayMesh" uid="uid://i6atj1tpe1cc" path="res://assets/models/Chaos/kingofplagues/King_of_Plagues.obj" id="10_mgpkq"]
+[ext_resource type="ArrayMesh" uid="uid://deueu0gtrxuea" path="res://assets/models/Chaos/lichqueen/Lich_Queen.obj" id="11_xmrkg"]
+[ext_resource type="ArrayMesh" uid="uid://u1x63k1cgfpr" path="res://assets/models/Chaos/odathefallen/Oda_the_Fallen.obj" id="12_wvlrk"]
+[ext_resource type="ArrayMesh" uid="uid://b4m13rjxg5rox" path="res://assets/models/Chaos/siren/Siren.obj" id="13_engxj"]
+[ext_resource type="ArrayMesh" uid="uid://brdb2bdscosw0" path="res://assets/models/Chaos/skeletons/Skeletons.obj" id="14_raiwf"]
+[ext_resource type="ArrayMesh" uid="uid://8embn3iqu2kg" path="res://assets/models/Chaos/stormbringer/Stormbringer.obj" id="15_roort"]
+[ext_resource type="ArrayMesh" uid="uid://qf5lp62nc6lc" path="res://assets/models/Chaos/titans_shapeshifter/TheShapeshifter.obj" id="16_gm02q"]
+[ext_resource type="ArrayMesh" uid="uid://bqi3j22rx03n" path="res://assets/models/Chaos/titans_unsister/TheUnsister.obj" id="17_07pt3"]
+[ext_resource type="ArrayMesh" uid="uid://bbbm870kjhm3m" path="res://assets/models/Druwhn/beastmasters/Beastmasters.obj" id="18_37xlc"]
+[ext_resource type="ArrayMesh" uid="uid://c5whvi0vsuysl" path="res://assets/models/Druwhn/fhayanor/Fhayanor.obj" id="19_83607"]
+[ext_resource type="ArrayMesh" uid="uid://b5oo33rov6ski" path="res://assets/models/Druwhn/haven_bone/Haven_Bottom_Bone.obj" id="20_vny5k"]
+[ext_resource type="ArrayMesh" uid="uid://c2qd1dlx2whbg" path="res://assets/models/Druwhn/rangers/Rangers.obj" id="21_8lcmr"]
+[ext_resource type="ArrayMesh" uid="uid://k28flh3bej15" path="res://assets/models/Druwhn/sonsofthebow/Sons_of_the_Bow.obj" id="22_ga3rw"]
+[ext_resource type="ArrayMesh" uid="uid://duq33udtmbabd" path="res://assets/models/Druwhn/swordsisters/Swordsisters.obj" id="23_f5chs"]
+[ext_resource type="ArrayMesh" uid="uid://d4jam8fiwsol0" path="res://assets/models/Druwhn/syndra/Syndra.obj" id="24_eh25q"]
+[ext_resource type="ArrayMesh" uid="uid://ji7rtu8okvir" path="res://assets/models/Duerkhar/baranth/Baranth.obj" id="25_joh2r"]
+[ext_resource type="ArrayMesh" uid="uid://ddbvu58r6oflv" path="res://assets/models/Duerkhar/haven_blue/Haven_Bottom_Blue.obj" id="26_yton5"]
+[ext_resource type="ArrayMesh" uid="uid://tfex1cqbsct1" path="res://assets/models/Duerkhar/koloth/Koloth.obj" id="27_4ahvx"]
+[ext_resource type="ArrayMesh" uid="uid://deb402eiairuc" path="res://assets/models/Duerkhar/oathsworn/Oathsworn.obj" id="28_2cr71"]
+[ext_resource type="ArrayMesh" uid="uid://bffky7r3ligl7" path="res://assets/models/Duerkhar/spearsingers/Spearsingers.obj" id="29_1hbcg"]
+[ext_resource type="ArrayMesh" uid="uid://bqiupbefvt8ad" path="res://assets/models/Duerkhar/yanny/Yanny.obj" id="30_m4o51"]
+[ext_resource type="ArrayMesh" uid="uid://cog3341pfyh5o" path="res://assets/models/Duerkhar/younglings/Younglings.obj" id="31_jp61a"]
+[ext_resource type="ArrayMesh" uid="uid://cynbl7sha5x0d" path="res://assets/models/Empire/assassin/Assassin.obj" id="32_esrwe"]
+[ext_resource type="ArrayMesh" uid="uid://7k44oxvajxmn" path="res://assets/models/Empire/butcher/Butcher.obj" id="33_4b36k"]
+[ext_resource type="ArrayMesh" uid="uid://bmr1lnsgp5oj2" path="res://assets/models/Empire/courtesan/Courtesan.obj" id="34_1v8b0"]
+[ext_resource type="ArrayMesh" uid="uid://dwlv4id34g5wl" path="res://assets/models/Empire/drakoliche/Drakoliche.obj" id="35_683hg"]
+[ext_resource type="ArrayMesh" uid="uid://4fn8tynase1s" path="res://assets/models/Empire/empress/Empress.obj" id="36_ow8of"]
+[ext_resource type="ArrayMesh" uid="uid://0r25hekh5pt2" path="res://assets/models/Empire/executioner/Executioner.obj" id="37_hj4tt"]
+[ext_resource type="ArrayMesh" uid="uid://btffidpcvpcv3" path="res://assets/models/Empire/garrison_bottom/Garrison_Bottom.obj" id="38_kqx4a"]
+[ext_resource type="ArrayMesh" uid="uid://ck7brq5olxlci" path="res://assets/models/Empire/garrison_middle/Garrison_Middle.obj" id="39_pfcs8"]
+[ext_resource type="ArrayMesh" uid="uid://bhgeu1rhuhvph" path="res://assets/models/Empire/garrison_top/Garrison_Top.obj" id="40_50d7c"]
+[ext_resource type="ArrayMesh" uid="uid://brvyssfmpr82s" path="res://assets/models/Empire/imperialguard/Imperial_Guard.obj" id="41_ruytr"]
+[ext_resource type="ArrayMesh" uid="uid://vgbsq4hjj2wh" path="res://assets/models/Empire/inquisitor/Inquisitor.obj" id="42_la3dr"]
+[ext_resource type="ArrayMesh" uid="uid://b0nfe8ljtciu1" path="res://assets/models/Empire/magebreaker/MageBreaker.obj" id="43_hcsi8"]
+[ext_resource type="ArrayMesh" uid="uid://dggowl7y30h0e" path="res://assets/models/Empire/newemperor/New_Emperor.obj" id="44_wi1le"]
+[ext_resource type="ArrayMesh" uid="uid://do5w36p181t6y" path="res://assets/models/Empire/spymaster/Spymaster.obj" id="45_o7pr5"]
+[ext_resource type="ArrayMesh" uid="uid://cbhwsxb33xvta" path="res://assets/models/Empire/titans_crimsonshield/TheCrimsonShield.obj" id="46_hyj2l"]
+[ext_resource type="ArrayMesh" uid="uid://b5322vinjiyl1" path="res://assets/models/Empire/titans_imperialjuggernaut/TheImperialJuggernaut.obj" id="47_vuqay"]
+[ext_resource type="ArrayMesh" uid="uid://dulhewx8kskuj" path="res://assets/models/Empire/warlock/Warlock.obj" id="48_wfmv0"]
+[ext_resource type="ArrayMesh" uid="uid://bq6jhiaxs8fb" path="res://assets/models/Hoqkan/azyr/Azyr.obj" id="49_wxrqn"]
+[ext_resource type="ArrayMesh" uid="uid://dtxid1rg3yb0" path="res://assets/models/Hoqkan/ironhooves/EliteRider.obj" id="50_n756u"]
+[ext_resource type="ArrayMesh" uid="uid://dr882ua31xm46" path="res://assets/models/Hoqkan/stalker/EliteArcher.obj" id="51_k33j2"]
+[ext_resource type="ArrayMesh" uid="uid://cbc36ghh6o6ru" path="res://assets/models/Hoqkan/tzadani/Tzadani.obj" id="52_2cjf7"]
+[ext_resource type="ArrayMesh" uid="uid://3mesmmp4s214" path="res://assets/models/Hoqkan/zealots/EliteWarrior.obj" id="53_4e8e3"]
+[ext_resource type="ArrayMesh" uid="uid://cg8182hm6xkj7" path="res://assets/models/Krowh/deadeyes/Deadeyes.obj" id="54_5gihh"]
+[ext_resource type="ArrayMesh" uid="uid://fn7ewh0nvo8t" path="res://assets/models/Krowh/dugpa/Dugpa.obj" id="55_407df"]
+[ext_resource type="ArrayMesh" uid="uid://c71fxl3cfptlr" path="res://assets/models/Krowh/haven_red/Haven_Bottom_Red.obj" id="56_4sqen"]
+[ext_resource type="ArrayMesh" uid="uid://dvk58jnidl0kf" path="res://assets/models/Krowh/khaal/Kha_al.obj" id="57_w6a6y"]
+[ext_resource type="ArrayMesh" uid="uid://bciewidaor8wy" path="res://assets/models/Krowh/tribesmen/Tribesmen.obj" id="58_knlx5"]
+[ext_resource type="ArrayMesh" uid="uid://rgto77rt56k3" path="res://assets/models/Krowh/troll/Trolls.obj" id="59_pes4l"]
+[ext_resource type="ArrayMesh" uid="uid://bccsmvayd10rw" path="res://assets/models/Krowh/wargs/Wargs.obj" id="60_s5e0g"]
+[ext_resource type="ArrayMesh" uid="uid://b6n5oteawmkwm" path="res://assets/models/Moyhar/berserker/Berserkers.obj" id="61_uya8e"]
+[ext_resource type="ArrayMesh" uid="uid://c73me4tqyoxjg" path="res://assets/models/Moyhar/hanzo/Hanzo.obj" id="62_2tiby"]
+[ext_resource type="ArrayMesh" uid="uid://d1who3kvf8001" path="res://assets/models/Moyhar/haven_yellow/Haven_Bottom_Yellow.obj" id="63_1m7le"]
+[ext_resource type="ArrayMesh" uid="uid://cqlq5alr1ls4d" path="res://assets/models/Moyhar/hunter/Hunters.obj" id="64_qqwal"]
+[ext_resource type="ArrayMesh" uid="uid://b5qfc1np2y5k7" path="res://assets/models/Moyhar/ronja/Ronja.obj" id="65_qr8e4"]
+[ext_resource type="ArrayMesh" uid="uid://deyfmywcl7rnp" path="res://assets/models/Moyhar/sellsword/Sellswords.obj" id="66_d7502"]
+[ext_resource type="ArrayMesh" uid="uid://c16xbd8e2co1n" path="res://assets/models/Moyhar/slaver/Slavers.obj" id="67_avynn"]
+[ext_resource type="ArrayMesh" uid="uid://biy3ttv7phl4e" path="res://assets/models/Pirates/titans_eyvind/Eyvind.obj" id="68_eo1ke"]
+[ext_resource type="ArrayMesh" uid="uid://cfbajvyqafr3h" path="res://assets/models/Pirates/titans_pirate1/TitansPirate1.obj" id="69_j5vj0"]
+[ext_resource type="ArrayMesh" uid="uid://fhjfqxmlc0nq" path="res://assets/models/Pirates/titans_pirate2/TitansPirate2.obj" id="70_kec7f"]
+[ext_resource type="ArrayMesh" uid="uid://ctjo7lsolkta" path="res://assets/models/Pirates/titans_pirate3/TitansPirate3.obj" id="71_jgau6"]
+[ext_resource type="ArrayMesh" uid="uid://dlo5868i2pumx" path="res://assets/models/Pirates/titans_xaidine/Xaidine.obj" id="72_6a1ct"]
+[ext_resource type="ArrayMesh" uid="uid://btto62qtgt8xv" path="res://assets/models/Renegade/legionarie/Legionnaie.obj" id="73_xhrfq"]
+[ext_resource type="ArrayMesh" uid="uid://dech3rs5174h4" path="res://assets/models/Renegade/lizardrider/LizardRider.obj" id="74_2xesh"]
+[ext_resource type="ArrayMesh" uid="uid://dfftpqblni863" path="res://assets/models/Renegade/marksmen/Marksmen.obj" id="75_jexbj"]
+[ext_resource type="ArrayMesh" uid="uid://ccfu6h1lrxeg2" path="res://assets/models/Renegade/mukla/Mukla.obj" id="76_0n3pv"]
+[ext_resource type="ArrayMesh" uid="uid://ctldaejikxxod" path="res://assets/models/Renegade/orgon/OrgonUnit.obj" id="77_lgnnt"]
+[ext_resource type="ArrayMesh" uid="uid://bf754y6i1d5ol" path="res://assets/models/Renegade/tlak/Tlak.obj" id="78_6r4by"]
+[ext_resource type="ArrayMesh" uid="uid://dttlhow4dhjfc" path="res://assets/models/Renegade/warlizard/WarLizard.obj" id="79_0gito"]
+[ext_resource type="ArrayMesh" uid="uid://cm5rvpqcme6ek" path="res://assets/models/Titans/titans_fatherofthunder/FatherofThunder.obj" id="80_oh722"]
+[ext_resource type="ArrayMesh" uid="uid://ch1mbngskyg07" path="res://assets/models/Titans/titans_motherofnight/MotherofNight.obj" id="81_m4lup"]
+[ext_resource type="ArrayMesh" uid="uid://c70o1jjuebusw" path="res://assets/models/Tua-Than/crabrider/Crabrider.obj" id="82_redio"]
+[ext_resource type="ArrayMesh" uid="uid://bypitk5bqn1o6" path="res://assets/models/Tua-Than/harpooneer/Harpooner.obj" id="83_aiee3"]
+[ext_resource type="ArrayMesh" uid="uid://cuouy2oxqfk0i" path="res://assets/models/Tua-Than/kyushi/Kyushi.obj" id="84_8ojta"]
+[ext_resource type="ArrayMesh" uid="uid://dw0muv3k553ac" path="res://assets/models/Tua-Than/reefking/Battlelobster.obj" id="85_kmcm6"]
+[ext_resource type="ArrayMesh" uid="uid://dah860tv7qkqu" path="res://assets/models/Tua-Than/stoneshell/HeavyFootman.obj" id="86_8jwmc"]
+[ext_resource type="ArrayMesh" uid="uid://ly54220xxqdl" path="res://assets/models/Tua-Than/yvaj/Yvaj.obj" id="87_ybi5g"]
+[ext_resource type="ArrayMesh" uid="uid://4frnappflfpt" path="res://assets/models/Ytuma/drivers/Whipcracker.obj" id="88_f4wrh"]
+[ext_resource type="ArrayMesh" uid="uid://cusxy6esu3r74" path="res://assets/models/Ytuma/fjölja/Fj_lja.obj" id="89_smy15"]
+[ext_resource type="ArrayMesh" uid="uid://cq3oqwdbh878" path="res://assets/models/Ytuma/herd/Herd.obj" id="90_d51im"]
+[ext_resource type="ArrayMesh" uid="uid://blhlbtolgcdxx" path="res://assets/models/Ytuma/herdmaster/Herdmaster.obj" id="91_og54j"]
+[ext_resource type="ArrayMesh" uid="uid://cdhifisjgs82f" path="res://assets/models/Ytuma/mjor/Mjor.obj" id="92_404go"]
+[ext_resource type="ArrayMesh" uid="uid://bo0sstkto41e5" path="res://assets/models/Ytuma/razorbacks/Warpig.obj" id="93_54fa5"]
+[ext_resource type="ArrayMesh" uid="uid://cc55ub50xyeif" path="res://assets/models/Ytuma/tricerahog/Triceratog.obj" id="94_m2f0f"]
+[ext_resource type="ArrayMesh" uid="uid://h7sa4vvsdro1" path="res://assets/models/tower/Haven_Tower.obj" id="95_41mld"]
+[ext_resource type="ArrayMesh" uid="uid://bnsbl22f85nt2" path="res://assets/models/walls/Haven_Walls.obj" id="96_j842w"]
 
-[node name="Main" type="Node3D"]
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_m5a64"]
+
+[sub_resource type="Sky" id="Sky_avkep"]
+sky_material = SubResource("ProceduralSkyMaterial_m5a64")
+
+[sub_resource type="Environment" id="Environment_sxhm0"]
+background_mode = 2
+sky = SubResource("Sky_avkep")
+ambient_light_source = 3
+ambient_light_energy = 0.8
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_cx1dt"]
+size = Vector2(68.41844, 34.5)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_y5dkp"]
+albedo_texture = ExtResource("2_gr8w0")
+
+[node name="Main" type="Node3D" unique_id=2107644539]
 script = ExtResource("1_main")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=366430009]
+environment = SubResource("Environment_sxhm0")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1964601902]
+transform = Transform3D(0.81915206, 0.46984634, -0.32898995, 0, 0.57357645, 0.81915206, 0.57357645, -0.6710101, 0.46984634, 0, 0, 0)
+light_energy = 1.1
+shadow_enabled = true
+
+[node name="MapBoard" type="MeshInstance3D" parent="." unique_id=955093854]
+mesh = SubResource("PlaneMesh_cx1dt")
+surface_material_override/0 = SubResource("StandardMaterial3D_y5dkp")
+
+[node name="MainCamera" type="Camera3D" parent="." unique_id=30167531]
+transform = Transform3D(1, 0, 0, 0, 0.37863287, 0.92554694, 0, -0.92554694, 0.37863287, 0, 16.940674, 12.468136)
+current = true
+far = 294.0
+
+[node name="Standees" type="Node3D" parent="." unique_id=1202445228]
+
+[node name="Banished" type="MeshInstance3D" parent="Standees" unique_id=1517329738]
+transform = Transform3D(0.4042847, 0, 0, 0, 0.4042847, 0, 0, 0, 0.4042847, -22.75, 0.02, -10.5)
+mesh = ExtResource("3_673bd")
+
+[node name="Bloodwyrm" type="MeshInstance3D" parent="Standees" unique_id=142288938]
+transform = Transform3D(0.34786263, 0, 0, 0, 0.34786263, 0, 0, 0, 0.34786263, -19.25, 0.02, -10.5)
+mesh = ExtResource("4_akjxb")
+
+[node name="Counter_of_Omens" type="MeshInstance3D" parent="Standees" unique_id=1468306789]
+transform = Transform3D(0.41134617, 0, 0, 0, 0.41134617, 0, 0, 0, 0.41134617, -15.75, 0.02, -10.5)
+mesh = ExtResource("5_vrx01")
+
+[node name="Coven_of_Yssat" type="MeshInstance3D" parent="Standees" unique_id=2029766150]
+transform = Transform3D(0.40497833, 0, 0, 0, 0.40497833, 0, 0, 0, 0.40497833, -12.25, 0.02, -10.5)
+mesh = ExtResource("6_1uevf")
+
+[node name="Curse1" type="MeshInstance3D" parent="Standees" unique_id=107572237]
+transform = Transform3D(0.49124157, 0, 0, 0, 0.49124157, 0, 0, 0, 0.49124157, -8.75, 0.02, -10.5)
+mesh = ExtResource("7_tc087")
+
+[node name="FalseMessiah" type="MeshInstance3D" parent="Standees" unique_id=982891560]
+transform = Transform3D(0.3905791, 0, 0, 0, 0.3905791, 0, 0, 0, 0.3905791, -5.25, 0.02, -10.5)
+mesh = ExtResource("8_73205")
+
+[node name="Harvester" type="MeshInstance3D" parent="Standees" unique_id=1547590766]
+transform = Transform3D(0.39042702, 0, 0, 0, 0.39042702, 0, 0, 0, 0.39042702, -1.75, 0.02, -10.5)
+mesh = ExtResource("9_0tljd")
+
+[node name="King_of_Plagues" type="MeshInstance3D" parent="Standees" unique_id=266818127]
+transform = Transform3D(0.4108747, 0, 0, 0, 0.4108747, 0, 0, 0, 0.4108747, 1.75, 0.02, -10.5)
+mesh = ExtResource("10_mgpkq")
+
+[node name="Lich_Queen" type="MeshInstance3D" parent="Standees" unique_id=582074071]
+transform = Transform3D(0.40394676, 0, 0, 0, 0.40394676, 0, 0, 0, 0.40394676, 5.25, 0.02, -10.5)
+mesh = ExtResource("11_xmrkg")
+
+[node name="Oda_the_Fallen" type="MeshInstance3D" parent="Standees" unique_id=588248673]
+transform = Transform3D(0.3729742, 0, 0, 0, 0.3729742, 0, 0, 0, 0.3729742, 8.75, 0.02, -10.5)
+mesh = ExtResource("12_wvlrk")
+
+[node name="Siren" type="MeshInstance3D" parent="Standees" unique_id=1168146971]
+transform = Transform3D(0.40605763, 0, 0, 0, 0.40605763, 0, 0, 0, 0.40605763, 12.25, 0.02, -10.5)
+mesh = ExtResource("13_engxj")
+
+[node name="Skeletons" type="MeshInstance3D" parent="Standees" unique_id=1615138067]
+transform = Transform3D(0.6290882, 0, 0, 0, 0.6290882, 0, 0, 0, 0.6290882, 15.75, 0.02, -10.5)
+mesh = ExtResource("14_raiwf")
+
+[node name="Stormbringer" type="MeshInstance3D" parent="Standees" unique_id=1470087757]
+transform = Transform3D(0.40857136, 0, 0, 0, 0.40857136, 0, 0, 0, 0.40857136, 19.25, 0.02, -10.5)
+mesh = ExtResource("15_roort")
+
+[node name="TheShapeshifter" type="MeshInstance3D" parent="Standees" unique_id=205620019]
+transform = Transform3D(0.37505215, 0, 0, 0, 0.37505215, 0, 0, 0, 0.37505215, 22.75, 0.02, -10.5)
+mesh = ExtResource("16_gm02q")
+
+[node name="TheUnsister" type="MeshInstance3D" parent="Standees" unique_id=238938073]
+transform = Transform3D(0.48680946, 0, 0, 0, 0.48680946, 0, 0, 0, 0.48680946, -22.75, 0.02, -7)
+mesh = ExtResource("17_07pt3")
+
+[node name="Beastmasters" type="MeshInstance3D" parent="Standees" unique_id=2119224685]
+transform = Transform3D(0.47894198, 0, 0, 0, 0.47894198, 0, 0, 0, 0.47894198, -19.25, 0.02, -7)
+mesh = ExtResource("18_37xlc")
+
+[node name="Fhayanor" type="MeshInstance3D" parent="Standees" unique_id=1901833006]
+transform = Transform3D(0.39405066, 0, 0, 0, 0.39405066, 0, 0, 0, 0.39405066, -15.75, 0.02, -7)
+mesh = ExtResource("19_83607")
+
+[node name="Haven_Bottom_Bone" type="MeshInstance3D" parent="Standees" unique_id=1348346231]
+transform = Transform3D(0.88871837, 0, 0, 0, 0.88871837, 0, 0, 0, 0.88871837, -12.25, 0.02, -7)
+mesh = ExtResource("20_vny5k")
+
+[node name="Rangers" type="MeshInstance3D" parent="Standees" unique_id=1370127567]
+transform = Transform3D(0.5588489, 0, 0, 0, 0.5588489, 0, 0, 0, 0.5588489, -8.75, 0.02, -7)
+mesh = ExtResource("21_8lcmr")
+
+[node name="Sons_of_the_Bow" type="MeshInstance3D" parent="Standees" unique_id=435743570]
+transform = Transform3D(0.5581026, 0, 0, 0, 0.5581026, 0, 0, 0, 0.5581026, -5.25, 0.02, -7)
+mesh = ExtResource("22_ga3rw")
+
+[node name="Swordsisters" type="MeshInstance3D" parent="Standees" unique_id=1414586121]
+transform = Transform3D(0.600554, 0, 0, 0, 0.600554, 0, 0, 0, 0.600554, -1.75, 0.02, -7)
+mesh = ExtResource("23_f5chs")
+
+[node name="Syndra" type="MeshInstance3D" parent="Standees" unique_id=655703120]
+transform = Transform3D(0.38531148, 0, 0, 0, 0.38531148, 0, 0, 0, 0.38531148, 1.75, 0.02, -7)
+mesh = ExtResource("24_eh25q")
+
+[node name="Baranth" type="MeshInstance3D" parent="Standees" unique_id=572121060]
+transform = Transform3D(0.38354787, 0, 0, 0, 0.38354787, 0, 0, 0, 0.38354787, 5.25, 0.02, -7)
+mesh = ExtResource("25_joh2r")
+
+[node name="Haven_Bottom_Blue" type="MeshInstance3D" parent="Standees" unique_id=1572211766]
+transform = Transform3D(0.88871837, 0, 0, 0, 0.88871837, 0, 0, 0, 0.88871837, 8.75, 0.02, -7)
+mesh = ExtResource("26_yton5")
+
+[node name="Koloth" type="MeshInstance3D" parent="Standees" unique_id=447562915]
+transform = Transform3D(0.48965868, 0, 0, 0, 0.48965868, 0, 0, 0, 0.48965868, 12.25, 0.02, -7)
+mesh = ExtResource("27_4ahvx")
+
+[node name="Oathsworn" type="MeshInstance3D" parent="Standees" unique_id=1092378105]
+transform = Transform3D(0.60166633, 0, 0, 0, 0.60166633, 0, 0, 0, 0.60166633, 15.75, 0.02, -7)
+mesh = ExtResource("28_2cr71")
+
+[node name="Spearsingers" type="MeshInstance3D" parent="Standees" unique_id=1740850625]
+transform = Transform3D(0.57448983, 0, 0, 0, 0.57448983, 0, 0, 0, 0.57448983, 19.25, 0.02, -7)
+mesh = ExtResource("29_1hbcg")
+
+[node name="Yanny" type="MeshInstance3D" parent="Standees" unique_id=387027394]
+transform = Transform3D(0.39313695, 0, 0, 0, 0.39313695, 0, 0, 0, 0.39313695, 22.75, 0.02, -7)
+mesh = ExtResource("30_m4o51")
+
+[node name="Younglings" type="MeshInstance3D" parent="Standees" unique_id=394917278]
+transform = Transform3D(0.6616344, 0, 0, 0, 0.6616344, 0, 0, 0, 0.6616344, -22.75, 0.02, -3.5)
+mesh = ExtResource("31_jp61a")
+
+[node name="Assassin" type="MeshInstance3D" parent="Standees" unique_id=233946594]
+transform = Transform3D(0.3920928, 0, 0, 0, 0.3920928, 0, 0, 0, 0.3920928, -19.25, 0.02, -3.5)
+mesh = ExtResource("32_esrwe")
+
+[node name="Butcher" type="MeshInstance3D" parent="Standees" unique_id=1826970302]
+transform = Transform3D(0.3830856, 0, 0, 0, 0.3830856, 0, 0, 0, 0.3830856, -15.75, 0.02, -3.5)
+mesh = ExtResource("33_4b36k")
+
+[node name="Courtesan" type="MeshInstance3D" parent="Standees" unique_id=288825084]
+transform = Transform3D(0.37070042, 0, 0, 0, 0.37070042, 0, 0, 0, 0.37070042, -12.25, 0.02, -3.5)
+mesh = ExtResource("34_1v8b0")
+
+[node name="Drakoliche" type="MeshInstance3D" parent="Standees" unique_id=94259123]
+transform = Transform3D(0.35618174, 0, 0, 0, 0.35618174, 0, 0, 0, 0.35618174, -8.75, 0.02, -3.5)
+mesh = ExtResource("35_683hg")
+
+[node name="Empress" type="MeshInstance3D" parent="Standees" unique_id=753084588]
+transform = Transform3D(0.37113282, 0, 0, 0, 0.37113282, 0, 0, 0, 0.37113282, -5.25, 0.02, -3.5)
+mesh = ExtResource("36_ow8of")
+
+[node name="Executioner" type="MeshInstance3D" parent="Standees" unique_id=1338721243]
+transform = Transform3D(0.39834046, 0, 0, 0, 0.39834046, 0, 0, 0, 0.39834046, -1.75, 0.02, -3.5)
+mesh = ExtResource("37_hj4tt")
+
+[node name="Garrison_Bottom" type="MeshInstance3D" parent="Standees" unique_id=301640825]
+transform = Transform3D(1.0437071, 0, 0, 0, 1.0437071, 0, 0, 0, 1.0437071, 1.75, 0.02, -3.5)
+mesh = ExtResource("38_kqx4a")
+
+[node name="Garrison_Middle" type="MeshInstance3D" parent="Standees" unique_id=506674714]
+transform = Transform3D(1.6834307, 0, 0, 0, 1.6834307, 0, 0, 0, 1.6834307, 5.25, 0.02, -3.5)
+mesh = ExtResource("39_pfcs8")
+
+[node name="Garrison_Top" type="MeshInstance3D" parent="Standees" unique_id=2128000195]
+transform = Transform3D(2.8354585, 0, 0, 0, 2.8354585, 0, 0, 0, 2.8354585, 8.75, 0.02, -3.5)
+mesh = ExtResource("40_50d7c")
+
+[node name="Imperial_Guard" type="MeshInstance3D" parent="Standees" unique_id=77100703]
+transform = Transform3D(0.39838794, 0, 0, 0, 0.39838794, 0, 0, 0, 0.39838794, 12.25, 0.02, -3.5)
+mesh = ExtResource("41_ruytr")
+
+[node name="Inquisitor" type="MeshInstance3D" parent="Standees" unique_id=133112701]
+transform = Transform3D(0.40129662, 0, 0, 0, 0.40129662, 0, 0, 0, 0.40129662, 15.75, 0.02, -3.5)
+mesh = ExtResource("42_la3dr")
+
+[node name="MageBreaker" type="MeshInstance3D" parent="Standees" unique_id=796346084]
+transform = Transform3D(0.44138, 0, 0, 0, 0.44138, 0, 0, 0, 0.44138, 19.25, 0.02, -3.5)
+mesh = ExtResource("43_hcsi8")
+
+[node name="New_Emperor" type="MeshInstance3D" parent="Standees" unique_id=1533315342]
+transform = Transform3D(0.37965816, 0, 0, 0, 0.37965816, 0, 0, 0, 0.37965816, 22.75, 0.02, -3.5)
+mesh = ExtResource("44_wi1le")
+
+[node name="Spymaster" type="MeshInstance3D" parent="Standees" unique_id=61363411]
+transform = Transform3D(0.37419543, 0, 0, 0, 0.37419543, 0, 0, 0, 0.37419543, -22.75, 0.02, 0)
+mesh = ExtResource("45_o7pr5")
+
+[node name="TheCrimsonShield" type="MeshInstance3D" parent="Standees" unique_id=2053289730]
+transform = Transform3D(0.45186043, 0, 0, 0, 0.45186043, 0, 0, 0, 0.45186043, -19.25, 0.02, 0)
+mesh = ExtResource("46_hyj2l")
+
+[node name="TheImperialJuggernaut" type="MeshInstance3D" parent="Standees" unique_id=1671190884]
+transform = Transform3D(0.4218192, 0, 0, 0, 0.4218192, 0, 0, 0, 0.4218192, -15.75, 0.02, 0)
+mesh = ExtResource("47_vuqay")
+
+[node name="Warlock" type="MeshInstance3D" parent="Standees" unique_id=1770758352]
+transform = Transform3D(0.38269624, 0, 0, 0, 0.38269624, 0, 0, 0, 0.38269624, -12.25, 0.02, 0)
+mesh = ExtResource("48_wfmv0")
+
+[node name="Azyr" type="MeshInstance3D" parent="Standees" unique_id=147123842]
+transform = Transform3D(0.36634517, 0, 0, 0, 0.36634517, 0, 0, 0, 0.36634517, -8.75, 0.02, 0)
+mesh = ExtResource("49_wxrqn")
+
+[node name="EliteRider" type="MeshInstance3D" parent="Standees" unique_id=594611731]
+transform = Transform3D(0.5648578, 0, 0, 0, 0.5648578, 0, 0, 0, 0.5648578, -5.25, 0.02, 0)
+mesh = ExtResource("50_n756u")
+
+[node name="EliteArcher" type="MeshInstance3D" parent="Standees" unique_id=1835860905]
+transform = Transform3D(0.6118701, 0, 0, 0, 0.6118701, 0, 0, 0, 0.6118701, -1.75, 0.02, 0)
+mesh = ExtResource("51_k33j2")
+
+[node name="Tzadani" type="MeshInstance3D" parent="Standees" unique_id=799888878]
+transform = Transform3D(0.38035703, 0, 0, 0, 0.38035703, 0, 0, 0, 0.38035703, 1.75, 0.02, 0)
+mesh = ExtResource("52_2cjf7")
+
+[node name="EliteWarrior" type="MeshInstance3D" parent="Standees" unique_id=745801234]
+transform = Transform3D(0.62319344, 0, 0, 0, 0.62319344, 0, 0, 0, 0.62319344, 5.25, 0.02, 0)
+mesh = ExtResource("53_4e8e3")
+
+[node name="Deadeyes" type="MeshInstance3D" parent="Standees" unique_id=515161501]
+transform = Transform3D(0.5742645, 0, 0, 0, 0.5742645, 0, 0, 0, 0.5742645, 8.75, 0.02, 0)
+mesh = ExtResource("54_5gihh")
+
+[node name="Dugpa" type="MeshInstance3D" parent="Standees" unique_id=545230202]
+transform = Transform3D(0.38823014, 0, 0, 0, 0.38823014, 0, 0, 0, 0.38823014, 12.25, 0.02, 0)
+mesh = ExtResource("55_407df")
+
+[node name="Haven_Bottom_Red" type="MeshInstance3D" parent="Standees" unique_id=1840916570]
+transform = Transform3D(0.88871837, 0, 0, 0, 0.88871837, 0, 0, 0, 0.88871837, 15.75, 0.02, 0)
+mesh = ExtResource("56_4sqen")
+
+[node name="Kha_al" type="MeshInstance3D" parent="Standees" unique_id=1130280689]
+transform = Transform3D(0.37147835, 0, 0, 0, 0.37147835, 0, 0, 0, 0.37147835, 19.25, 0.02, 0)
+mesh = ExtResource("57_w6a6y")
+
+[node name="Tribesmen" type="MeshInstance3D" parent="Standees" unique_id=1641415950]
+transform = Transform3D(0.5918463, 0, 0, 0, 0.5918463, 0, 0, 0, 0.5918463, 22.75, 0.02, 0)
+mesh = ExtResource("58_knlx5")
+
+[node name="Trolls" type="MeshInstance3D" parent="Standees" unique_id=2079770798]
+transform = Transform3D(0.5100121, 0, 0, 0, 0.5100121, 0, 0, 0, 0.5100121, -22.75, 0.02, 3.5)
+mesh = ExtResource("59_pes4l")
+
+[node name="Wargs" type="MeshInstance3D" parent="Standees" unique_id=540523256]
+transform = Transform3D(0.49364248, 0, 0, 0, 0.49364248, 0, 0, 0, 0.49364248, -19.25, 0.02, 3.5)
+mesh = ExtResource("60_s5e0g")
+
+[node name="Berserkers" type="MeshInstance3D" parent="Standees" unique_id=1147360328]
+transform = Transform3D(0.55589205, 0, 0, 0, 0.55589205, 0, 0, 0, 0.55589205, -15.75, 0.02, 3.5)
+mesh = ExtResource("61_uya8e")
+
+[node name="Hanzo" type="MeshInstance3D" parent="Standees" unique_id=617787700]
+transform = Transform3D(0.35513315, 0, 0, 0, 0.35513315, 0, 0, 0, 0.35513315, -12.25, 0.02, 3.5)
+mesh = ExtResource("62_2tiby")
+
+[node name="Haven_Bottom_Yellow" type="MeshInstance3D" parent="Standees" unique_id=25595189]
+transform = Transform3D(0.88871837, 0, 0, 0, 0.88871837, 0, 0, 0, 0.88871837, -8.75, 0.02, 3.5)
+mesh = ExtResource("63_1m7le")
+
+[node name="Hunters" type="MeshInstance3D" parent="Standees" unique_id=1240421502]
+transform = Transform3D(0.5776252, 0, 0, 0, 0.5776252, 0, 0, 0, 0.5776252, -5.25, 0.02, 3.5)
+mesh = ExtResource("64_qqwal")
+
+[node name="Ronja" type="MeshInstance3D" parent="Standees" unique_id=1674555126]
+transform = Transform3D(0.356174, 0, 0, 0, 0.356174, 0, 0, 0, 0.356174, -1.75, 0.02, 3.5)
+mesh = ExtResource("65_qr8e4")
+
+[node name="Sellswords" type="MeshInstance3D" parent="Standees" unique_id=1170319146]
+transform = Transform3D(0.6128907, 0, 0, 0, 0.6128907, 0, 0, 0, 0.6128907, 1.75, 0.02, 3.5)
+mesh = ExtResource("66_d7502")
+
+[node name="Slavers" type="MeshInstance3D" parent="Standees" unique_id=1742592760]
+transform = Transform3D(0.48862588, 0, 0, 0, 0.48862588, 0, 0, 0, 0.48862588, 5.25, 0.02, 3.5)
+mesh = ExtResource("67_avynn")
+
+[node name="Eyvind" type="MeshInstance3D" parent="Standees" unique_id=800920833]
+transform = Transform3D(0.35148892, 0, 0, 0, 0.35148892, 0, 0, 0, 0.35148892, 8.75, 0.02, 3.5)
+mesh = ExtResource("68_eo1ke")
+
+[node name="TitansPirate1" type="MeshInstance3D" parent="Standees" unique_id=1996569139]
+transform = Transform3D(0.6983711, 0, 0, 0, 0.6983711, 0, 0, 0, 0.6983711, 12.25, 0.02, 3.5)
+mesh = ExtResource("69_j5vj0")
+
+[node name="TitansPirate2" type="MeshInstance3D" parent="Standees" unique_id=896051989]
+transform = Transform3D(0.5118739, 0, 0, 0, 0.5118739, 0, 0, 0, 0.5118739, 15.75, 0.02, 3.5)
+mesh = ExtResource("70_kec7f")
+
+[node name="TitansPirate3" type="MeshInstance3D" parent="Standees" unique_id=1987630982]
+transform = Transform3D(0.5853657, 0, 0, 0, 0.5853657, 0, 0, 0, 0.5853657, 19.25, 0.02, 3.5)
+mesh = ExtResource("71_jgau6")
+
+[node name="Xaidine" type="MeshInstance3D" parent="Standees" unique_id=1150725486]
+transform = Transform3D(0.34826547, 0, 0, 0, 0.34826547, 0, 0, 0, 0.34826547, 22.75, 0.02, 3.5)
+mesh = ExtResource("72_6a1ct")
+
+[node name="Legionnaie" type="MeshInstance3D" parent="Standees" unique_id=1771806657]
+transform = Transform3D(0.5832887, 0, 0, 0, 0.5832887, 0, 0, 0, 0.5832887, -22.75, 0.02, 7)
+mesh = ExtResource("73_xhrfq")
+
+[node name="LizardRider" type="MeshInstance3D" parent="Standees" unique_id=578661922]
+transform = Transform3D(0.4344162, 0, 0, 0, 0.4344162, 0, 0, 0, 0.4344162, -19.25, 0.02, 7)
+mesh = ExtResource("74_2xesh")
+
+[node name="Marksmen" type="MeshInstance3D" parent="Standees" unique_id=92234113]
+transform = Transform3D(0.5428332, 0, 0, 0, 0.5428332, 0, 0, 0, 0.5428332, -15.75, 0.02, 7)
+mesh = ExtResource("75_jexbj")
+
+[node name="Mukla" type="MeshInstance3D" parent="Standees" unique_id=244535923]
+transform = Transform3D(0.38586816, 0, 0, 0, 0.38586816, 0, 0, 0, 0.38586816, -12.25, 0.02, 7)
+mesh = ExtResource("76_0n3pv")
+
+[node name="OrgonUnit" type="MeshInstance3D" parent="Standees" unique_id=1226850774]
+transform = Transform3D(0.50238067, 0, 0, 0, 0.50238067, 0, 0, 0, 0.50238067, -8.75, 0.02, 7)
+mesh = ExtResource("77_lgnnt")
+
+[node name="Tlak" type="MeshInstance3D" parent="Standees" unique_id=845117832]
+transform = Transform3D(0.3941549, 0, 0, 0, 0.3941549, 0, 0, 0, 0.3941549, -5.25, 0.02, 7)
+mesh = ExtResource("78_6r4by")
+
+[node name="WarLizard" type="MeshInstance3D" parent="Standees" unique_id=615644617]
+transform = Transform3D(0.339635, 0, 0, 0, 0.339635, 0, 0, 0, 0.339635, -1.75, 0.02, 7)
+mesh = ExtResource("79_0gito")
+
+[node name="FatherofThunder" type="MeshInstance3D" parent="Standees" unique_id=1615076090]
+transform = Transform3D(0.29749757, 0, 0, 0, 0.29749757, 0, 0, 0, 0.29749757, 1.75, 0.02, 7)
+mesh = ExtResource("80_oh722")
+
+[node name="MotherofNight" type="MeshInstance3D" parent="Standees" unique_id=1733110563]
+transform = Transform3D(0.3152428, 0, 0, 0, 0.3152428, 0, 0, 0, 0.3152428, 5.25, 0.02, 7)
+mesh = ExtResource("81_m4lup")
+
+[node name="Crabrider" type="MeshInstance3D" parent="Standees" unique_id=996872387]
+transform = Transform3D(0.5475258, 0, 0, 0, 0.5475258, 0, 0, 0, 0.5475258, 8.75, 0.02, 7)
+mesh = ExtResource("82_redio")
+
+[node name="Harpooner" type="MeshInstance3D" parent="Standees" unique_id=611932487]
+transform = Transform3D(0.6265468, 0, 0, 0, 0.6265468, 0, 0, 0, 0.6265468, 12.25, 0.02, 7)
+mesh = ExtResource("83_aiee3")
+
+[node name="Kyushi" type="MeshInstance3D" parent="Standees" unique_id=1736717503]
+transform = Transform3D(0.4005082, 0, 0, 0, 0.4005082, 0, 0, 0, 0.4005082, 15.75, 0.02, 7)
+mesh = ExtResource("84_8ojta")
+
+[node name="Battlelobster" type="MeshInstance3D" parent="Standees" unique_id=690593]
+transform = Transform3D(0.5502126, 0, 0, 0, 0.5502126, 0, 0, 0, 0.5502126, 19.25, 0.02, 7)
+mesh = ExtResource("85_kmcm6")
+
+[node name="HeavyFootman" type="MeshInstance3D" parent="Standees" unique_id=1734376292]
+transform = Transform3D(0.55323, 0, 0, 0, 0.55323, 0, 0, 0, 0.55323, 22.75, 0.02, 7)
+mesh = ExtResource("86_8jwmc")
+
+[node name="Yvaj" type="MeshInstance3D" parent="Standees" unique_id=2003837327]
+transform = Transform3D(0.35296246, 0, 0, 0, 0.35296246, 0, 0, 0, 0.35296246, -22.75, 0.02, 10.5)
+mesh = ExtResource("87_ybi5g")
+
+[node name="Whipcracker" type="MeshInstance3D" parent="Standees" unique_id=1080164982]
+transform = Transform3D(0.60524696, 0, 0, 0, 0.60524696, 0, 0, 0, 0.60524696, -19.25, 0.02, 10.5)
+mesh = ExtResource("88_f4wrh")
+
+[node name="Fj_lja" type="MeshInstance3D" parent="Standees" unique_id=1845083491]
+transform = Transform3D(0.3516859, 0, 0, 0, 0.3516859, 0, 0, 0, 0.3516859, -15.75, 0.02, 10.5)
+mesh = ExtResource("89_smy15")
+
+[node name="Herd" type="MeshInstance3D" parent="Standees" unique_id=1397924804]
+transform = Transform3D(0.4973888, 0, 0, 0, 0.4973888, 0, 0, 0, 0.4973888, -12.25, 0.02, 10.5)
+mesh = ExtResource("90_d51im")
+
+[node name="Herdmaster" type="MeshInstance3D" parent="Standees" unique_id=1267024409]
+transform = Transform3D(0.464685, 0, 0, 0, 0.464685, 0, 0, 0, 0.464685, -8.75, 0.02, 10.5)
+mesh = ExtResource("91_og54j")
+
+[node name="Mjor" type="MeshInstance3D" parent="Standees" unique_id=1378303979]
+transform = Transform3D(0.3702158, 0, 0, 0, 0.3702158, 0, 0, 0, 0.3702158, -5.25, 0.02, 10.5)
+mesh = ExtResource("92_404go")
+
+[node name="Warpig" type="MeshInstance3D" parent="Standees" unique_id=1084935470]
+transform = Transform3D(0.63971746, 0, 0, 0, 0.63971746, 0, 0, 0, 0.63971746, -1.75, 0.02, 10.5)
+mesh = ExtResource("93_54fa5")
+
+[node name="Triceratog" type="MeshInstance3D" parent="Standees" unique_id=1924545462]
+transform = Transform3D(0.50292736, 0, 0, 0, 0.50292736, 0, 0, 0, 0.50292736, 1.75, 0.02, 10.5)
+mesh = ExtResource("94_m2f0f")
+
+[node name="Haven_Tower" type="MeshInstance3D" parent="Standees" unique_id=971336041]
+transform = Transform3D(2.3633254, 0, 0, 0, 2.3633254, 0, 0, 0, 2.3633254, 5.25, 0.02, 10.5)
+mesh = ExtResource("95_41mld")
+
+[node name="Haven_Walls" type="MeshInstance3D" parent="Standees" unique_id=1387359587]
+transform = Transform3D(0.9107646, 0, 0, 0, 0.9107646, 0, 0, 0, 0.9107646, 8.75, 0.02, 10.5)
+mesh = ExtResource("96_j842w")
