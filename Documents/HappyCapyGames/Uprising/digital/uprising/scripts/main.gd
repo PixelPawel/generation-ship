@@ -24,11 +24,29 @@ const MAP_ASPECT := 8000.0 / 4034.0  # TheMap.jpg is 8000x4034
 ## footprint (its largest XZ extent) for a consistent, visible showcase grid.
 const TARGET_FOOTPRINT := 2.4
 
+## DiceModel's 6 core-box colors plus the 3 textures that exist in assets
+## but have no DiceModel entry yet (Bronze/Silver/Gold -- expansion dice,
+## unused by any code until that expansion's data shows up). Every file
+## here packs its 6 face symbols into a 3-col x 2-row grid, which happens
+## to be exactly BoxMesh's own default per-face UV layout -- see
+## dice_mesh.gd for how that was confirmed.
+const DICE_DIR := "res://assets/images/Uprising+Final+EN/CORE_BOX_EN/DICE/"
+const DICE_TEXTURES := {
+	"White": "d6_white.png",
+	"Yellow": "d6_yellow.png",
+	"Red": "d6_red.png",
+	"Blue": "d6_blue.png",
+	"Purple": "d6_purple.png",
+	"Black": "d6_black.png",
+	"Bronze": "Bronze_Dice.jpg",
+	"Silver": "Silver2.jpg",
+	"Gold": "new_gold-die.jpg",
+}
+const DICE_SIZE := 1.0
+const DICE_SPACING := 1.6
+
 
 func _ready() -> void:
-	if has_node("Standees"):
-		return  # already built (e.g. the scene was reopened in the editor)
-
 	var primary_paths := _load_model_paths()
 	primary_paths.sort()
 
@@ -39,10 +57,14 @@ func _ready() -> void:
 	var grid_width := columns * GRID_SPACING
 	var grid_depth := rows * GRID_SPACING
 
-	_setup_environment()
-	_setup_map(grid_width + GRID_MARGIN * 2.0, grid_depth + GRID_MARGIN * 2.0)
-	_setup_camera(grid_width, grid_depth)
-	_place_models(primary_paths, columns, rows)
+	if not has_node("Standees"):  # already built (e.g. the scene was reopened in the editor)
+		_setup_environment()
+		_setup_map(grid_width + GRID_MARGIN * 2.0, grid_depth + GRID_MARGIN * 2.0)
+		_setup_camera(grid_width, grid_depth)
+		_place_models(primary_paths, columns, rows)
+
+	if not has_node("Dice"):
+		_place_dice(grid_depth * 0.5 + GRID_MARGIN + DICE_SPACING)
 
 
 ## Adds `child` under `parent` and gives it an owner so it's a real, saved,
@@ -152,3 +174,22 @@ func _place_models(paths: Array[String], columns: int, rows: int) -> void:
 		placed += 1
 
 	print("main.gd: placed %d/%d models in a %dx%d grid" % [placed, paths.size(), columns, rows])
+
+
+## One instance of every DICE_TEXTURES entry in a row just past the standee
+## grid, purely so the texture-wrap job can be eyeballed -- not wired to
+## DiceModel's roll logic.
+func _place_dice(row_z: float) -> void:
+	var container := Node3D.new()
+	container.name = "Dice"
+	_add_owned(self, container)
+
+	var colors := DICE_TEXTURES.keys()
+	var start_x := -(colors.size() - 1) * DICE_SPACING * 0.5
+	for i in colors.size():
+		var color: String = colors[i]
+		var texture: Texture2D = load(DICE_DIR + DICE_TEXTURES[color])
+		var die := DiceMesh.build(texture, DICE_SIZE)
+		die.name = color
+		die.position = Vector3(start_x + i * DICE_SPACING, DICE_SIZE * 0.5 + 0.02, row_z)
+		_add_owned(container, die)
