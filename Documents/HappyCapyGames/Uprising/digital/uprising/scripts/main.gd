@@ -24,6 +24,23 @@ const MAP_ASPECT := 8000.0 / 4034.0  # TheMap.jpg is 8000x4034
 ## footprint (its largest XZ extent) for a consistent, visible showcase grid.
 const TARGET_FOOTPRINT := 2.4
 
+## Every extracted standee (hero/unit/legion/horde/merc/skeleton -- the
+## "card cutout + plastic clip" props) ships lying flat, art facing +Y, and
+## every one shares the exact same clip height regardless of character:
+## aabb.size.y lands at 1.895-1.900 for all ~90 of them (checked across the
+## whole manifest). Actual 3D pieces (Garrison/Tower/Haven/Walls) each have
+## their own distinct height, none within this narrow band (nearest misses:
+## 1.538 and 2.006), so it doubles as a reliable "is this a lying-flat
+## standee" test without needing a second manifest column.
+const STANDEE_CLIP_HEIGHT_MIN := 1.8
+const STANDEE_CLIP_HEIGHT_MAX := 2.0
+
+## Rotating -90 deg around X turns "art facing up, card lying flat" into
+## "art facing the camera, card standing on its clip" -- verified by
+## rendering a standee both ways and checking it lands upright with its
+## clip on the ground, not the reverse (+90) or sideways (Z-axis) options.
+const STANDEE_STANDING_ROTATION := Vector3(-90, 0, 0)
+
 ## DiceModel's 6 core-box colors plus the 3 textures that exist in assets
 ## but have no DiceModel entry yet (Bronze/Silver/Gold -- expansion dice,
 ## unused by any code until that expansion's data shows up). Every file
@@ -131,9 +148,10 @@ func _setup_camera(grid_width: float, grid_depth: float) -> void:
 	var camera := Camera3D.new()
 	camera.name = "MainCamera"
 	var span := maxf(grid_width, grid_depth)
-	# Steeper overhead angle than a 45-degree default so the flat standees
-	# (textured on their +Y face) stay legible instead of foreshortening away.
-	camera.position = Vector3(0.0, span * 1.1, span * 0.45)
+	# Standees now stand upright facing the camera (see STANDEE_STANDING_
+	# ROTATION), so a shallower angle than a steep top-down one keeps their
+	# art readable instead of foreshortening it away to a sliver.
+	camera.position = Vector3(0.0, span * 0.65, span * 0.9)
 	camera.far = span * 6.0
 	_add_owned(self, camera)
 	camera.look_at(Vector3.ZERO, Vector3.UP)
@@ -165,6 +183,9 @@ func _place_models(paths: Array[String], columns: int, rows: int) -> void:
 		if footprint > 0.001:
 			var s := TARGET_FOOTPRINT / footprint
 			inst.scale = Vector3(s, s, s)
+
+		if aabb.size.y > STANDEE_CLIP_HEIGHT_MIN and aabb.size.y < STANDEE_CLIP_HEIGHT_MAX:
+			inst.rotation_degrees = STANDEE_STANDING_ROTATION
 
 		var col := i % columns
 		var row := i / columns

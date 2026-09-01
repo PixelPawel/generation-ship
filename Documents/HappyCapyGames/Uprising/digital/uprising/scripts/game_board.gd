@@ -76,6 +76,11 @@ const CARD_CHOICE_SIZE := Vector2(150, 221)
 ## XZ footprint so it reads clearly on a hex without overwhelming it.
 const HERO_MODEL_FOOTPRINT := 1.3
 
+## Every extracted standee ships lying flat, art facing +Y -- see main.gd's
+## STANDEE_STANDING_ROTATION for how this was picked (rendered and checked
+## it lands upright, clip on the ground, not upside down or sideways).
+const HERO_MODEL_STANDING_ROTATION := Vector3(-90, 0, 0)
+
 ## One title banner per Phase (assets/images/PhaseHeadLines), flashed in and
 ## back out whenever state.phase changes -- see _check_phase_change(). The
 ## folder also has an "08_Omens.png" that doesn't correspond to any
@@ -849,6 +854,7 @@ func _build_hero_marker(player: PlayerFactionState) -> MeshInstance3D:
 
 	if mesh != null:
 		marker.mesh = mesh
+		marker.rotation_degrees = HERO_MODEL_STANDING_ROTATION
 		var aabb := mesh.get_aabb()
 		var footprint := maxf(aabb.size.x, aabb.size.z)
 		if footprint > 0.001:
