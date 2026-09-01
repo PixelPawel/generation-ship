@@ -737,6 +737,15 @@ func _material_for_tile(tile: HexTile, is_selected: bool) -> StandardMaterial3D:
 		return mat
 
 	mat.albedo_texture = texture
+	## AtlasTexture.region is a 2D-only crop -- StandardMaterial3D's albedo
+	## sampling ignores it and just reads the whole bound image (confirmed by
+	## rendering it: an "explored"-region AtlasTexture and an "unexplored"-
+	## region one produced pixel-identical output). uv1_offset actually
+	## works for 3D, so HEX_ATLAS_BY_NAME textures are bound whole and the
+	## mesh's native top-face UV window (already tuned to one half of a
+	## square atlas -- see HEX_ATLAS_BY_NAME's doc comment) gets nudged by
+	## half a texture height to jump from that half to the other one.
+	mat.uv1_offset = Vector3(0, 0.5, 0) if (HEX_ATLAS_BY_NAME.has(tile.card_name) and tile.explored) else Vector3.ZERO
 	if is_selected:
 		mat.albedo_color = COLOR_SELECTED
 	elif tile.has_curse:
@@ -752,7 +761,8 @@ func _texture_for_tile(tile: HexTile) -> Texture2D:
 
 	var atlas_file: String = HEX_ATLAS_BY_NAME.get(tile.card_name, "")
 	if atlas_file != "":
-		return _hex_atlas_region(atlas_file, tile.explored)
+		var path := HEX_ATLAS_DIR + atlas_file
+		return load(path) if ResourceLoader.exists(path) else null
 
 	if not tile.explored or tile.card_name == "The Capital":
 		return null
@@ -760,21 +770,6 @@ func _texture_for_tile(tile: HexTile) -> Texture2D:
 	if hex_card == null or hex_card.texture_path == "" or not ResourceLoader.exists(hex_card.texture_path):
 		return null
 	return load(hex_card.texture_path)
-
-
-## `front` picks the atlas's bottom half (explored card art) vs top half
-## (unexplored back art) -- see HEX_ATLAS_BY_NAME's doc comment for the
-## file layout this relies on.
-func _hex_atlas_region(filename: String, front: bool) -> Texture2D:
-	var path := HEX_ATLAS_DIR + filename
-	if not ResourceLoader.exists(path):
-		return null
-	var base: Texture2D = load(path)
-	var half := base.get_height() / 2.0
-	var atlas := AtlasTexture.new()
-	atlas.atlas = base
-	atlas.region = Rect2(0, half if front else 0.0, base.get_width(), half)
-	return atlas
 
 
 func _find_hex_card(card_name: String) -> HexCard:
