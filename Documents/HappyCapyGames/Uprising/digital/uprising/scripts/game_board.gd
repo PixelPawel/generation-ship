@@ -30,6 +30,24 @@ const CARD_CHOICE_SIZE := Vector2(150, 221)
 ## XZ footprint so it reads clearly on a hex without overwhelming it.
 const HERO_MODEL_FOOTPRINT := 1.3
 
+## One title banner per Phase (assets/images/PhaseHeadLines), flashed in and
+## back out whenever state.phase changes -- see _check_phase_change(). The
+## folder also has an "08_Omens.png" that doesn't correspond to any
+## GameState.Phase value, so it's intentionally unused here.
+const PHASE_HEADLINE_PATHS := {
+	GameState.Phase.REFRESH: "res://assets/images/PhaseHeadLines/01_Refresh_01.png",
+	GameState.Phase.EVENTS: "res://assets/images/PhaseHeadLines/02_Events.png",
+	GameState.Phase.BUILD: "res://assets/images/PhaseHeadLines/03_Build.png",
+	GameState.Phase.ACTIONS: "res://assets/images/PhaseHeadLines/04_Actions.png",
+	GameState.Phase.NEMESIS: "res://assets/images/PhaseHeadLines/05_Nemesis.png",
+	GameState.Phase.PRODUCTION: "res://assets/images/PhaseHeadLines/06_Production.png",
+	GameState.Phase.SCORING: "res://assets/images/PhaseHeadLines/07_Scoring.png",
+}
+const PHASE_BANNER_WIDTH := 560.0
+const PHASE_BANNER_FADE_IN := 0.25
+const PHASE_BANNER_HOLD := 1.3
+const PHASE_BANNER_FADE_OUT := 0.45
+
 var state: GameState
 var current_faction: String = ""
 var selected_coord: Vector2i = NO_SELECTION
@@ -84,6 +102,12 @@ var _hand_row: HBoxContainer
 var _feat_choice_row: HBoxContainer
 var _feat_choice_label: Label
 
+## Phase-change title banner (see PHASE_HEADLINE_PATHS).
+var _phase_banner_layer: CanvasLayer
+var _phase_banner_rect: TextureRect
+var _phase_banner_tween: Tween
+var _last_seen_phase: int = -1  # sentinel (no real Phase value) so the very first phase still flashes
+
 
 func _ready() -> void:
 	_hex_mesh = load(HEX_MESH_PATH)
@@ -91,6 +115,7 @@ func _ready() -> void:
 	_setup_camera()
 	_setup_hud()
 	_setup_hand_bar()
+	_setup_phase_banner()
 	# Reached via the Lobby (scenes/lobby.tscn): hosting/joining and the
 	# actual GameState (including bot assignment for factions nobody
 	# claimed) already happened there -- NetworkManager.game_state is
@@ -193,6 +218,7 @@ func _on_action_rejected(reason: String) -> void:
 
 
 func _rebuild_board() -> void:
+	_check_phase_change()
 	_rebuild_hexes()
 	_rebuild_hero_markers()
 	_rebuild_haven_markers()
@@ -411,6 +437,69 @@ func _setup_hand_bar() -> void:
 
 	_hand_row = HBoxContainer.new()
 	scroll.add_child(_hand_row)
+
+
+## Centered, top-of-screen title banner (assets/images/PhaseHeadLines) that
+## _check_phase_change() flashes in and back out whenever state.phase
+## changes. A CenterContainer spanning the full width, not a manually
+## centered TextureRect, so this stays centered regardless of viewport
+## size without hand-computing offsets.
+func _setup_phase_banner() -> void:
+	_phase_banner_layer = CanvasLayer.new()
+	_phase_banner_layer.layer = 10  # above the HUD/hand bar's default layer
+	add_child(_phase_banner_layer)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	center.custom_minimum_size = Vector2(0, 200)
+	center.position.y = 30
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_phase_banner_layer.add_child(center)
+
+	_phase_banner_rect = TextureRect.new()
+	_phase_banner_rect.custom_minimum_size = Vector2(PHASE_BANNER_WIDTH, 0)
+	_phase_banner_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	_phase_banner_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_phase_banner_rect.modulate = Color(1, 1, 1, 0)
+	_phase_banner_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	center.add_child(_phase_banner_rect)
+
+
+## Flashes the Phase banner in whenever state.phase actually changes (not
+## on every state broadcast -- most actions don't touch phase at all). The
+## sentinel start value for _last_seen_phase means the very first phase the
+## board ever sees (game start, or a fresh client joining mid-game) also
+## flashes once, same as any later transition.
+func _check_phase_change() -> void:
+	if state == null or int(state.phase) == _last_seen_phase:
+		return
+	_last_seen_phase = int(state.phase)
+	_flash_phase_banner(state.phase)
+
+
+func _flash_phase_banner(phase: GameState.Phase) -> void:
+	var path: String = PHASE_HEADLINE_PATHS.get(phase, "")
+	if path == "" or not ResourceLoader.exists(path):
+		return
+	var texture: Texture2D = load(path)
+	_phase_banner_rect.texture = texture
+	# CenterContainer sizes its child at the child's OWN minimum size --
+	# it doesn't stretch children to fill available space -- and
+	# EXPAND_FIT_WIDTH_PROPORTIONAL only affects how the texture draws
+	# WITHIN the rect's existing bounds, not the bounds themselves. Without
+	# this, custom_minimum_size stayed (width, 0) from setup and the rect
+	# rendered at zero height: invisible despite a correct texture/alpha.
+	var tex_size := texture.get_size()
+	if tex_size.x > 0.0:
+		_phase_banner_rect.custom_minimum_size = Vector2(PHASE_BANNER_WIDTH, PHASE_BANNER_WIDTH * tex_size.y / tex_size.x)
+
+	if _phase_banner_tween != null and _phase_banner_tween.is_valid():
+		_phase_banner_tween.kill()
+	_phase_banner_rect.modulate = Color(1, 1, 1, 0)
+	_phase_banner_tween = create_tween()
+	_phase_banner_tween.tween_property(_phase_banner_rect, "modulate:a", 1.0, PHASE_BANNER_FADE_IN)
+	_phase_banner_tween.tween_interval(PHASE_BANNER_HOLD)
+	_phase_banner_tween.tween_property(_phase_banner_rect, "modulate:a", 0.0, PHASE_BANNER_FADE_OUT)
 
 
 ## Rebuilds the hand bar from scratch every call -- Items/Feats in play
