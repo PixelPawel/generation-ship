@@ -53,7 +53,7 @@ func _initialize() -> void:
 		if t.skeleton_count > 0:
 			skeleton_count += 1
 	checks.append(["curse count == 2 (Veteran)", curse_count == 2])
-	checks.append(["skeleton count == 2 (Veteran)", skeleton_count == 2])
+	checks.append(["skeleton count == 3 (flat, every difficulty/player count per TTS)", skeleton_count == 3])
 
 	checks.append(["item deck non-empty", state.item_deck.size() > 0])
 	checks.append(["market has 3", state.market.size() == 3])

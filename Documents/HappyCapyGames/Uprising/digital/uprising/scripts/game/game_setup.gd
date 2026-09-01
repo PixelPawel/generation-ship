@@ -10,7 +10,7 @@ extends RefCounted
 ## "2/3/4 Player Normal" setup buttons instead: each one's Lua script has
 ## explicit void.takeObject / towers.takeObject / garrison.takeObject calls
 ## with literal world positions, converted here to axial coords (see
-## GARRISON_COORDS / SETUP_BY_PLAYER_COUNT). That's exact data, not a
+## GARRISON_COORDS_VETERAN / SETUP_BY_PLAYER_COUNT). That's exact data, not a
 ## transcription of a diagram -- and it turned out to NOT be one uniform
 ## formula: Sea Towers sit at hex-distance 2 from Capital for 2 and 3
 ## players, but distance 3 for 4 players. Garrisons are identical across
@@ -39,21 +39,30 @@ const HOME_HEX_BY_FACTION := {
 	"Krowh": "Pak Glandris",
 }
 
-## Rulebook p9 difficulty table. Curse count and Garrison spread come
-## straight from there; Skeleton count isn't printed as a single number in
-## the rulebook (it's "indicated hexes" on the physical board) so this is a
-## reasonable approximation, not a transcription.
+## Resources are the rulebook p9 table (unaffected by anything below);
+## curses/skeletons/garrison_count come from extracting all 12 of the TTS
+## mod's difficulty x player-count setup buttons (Easy/Normal/Nightmare/
+## Apocalypse, matching Rebel/Veteran/Nightmare/Apocalypse here), same as
+## SETUP_BY_PLAYER_COUNT below -- this replaced an earlier approximation
+## that had real gaps: Skeleton count is a flat 3 at every difficulty AND
+## player count (not scaled 0/2/3/3 as guessed before), Garrison count is
+## difficulty-driven at 0/3/6 (not always 3 -- Easy has none, Nightmare/
+## Apocalypse Garrison *every* ring-1 hex, not just half), and Curse count
+## depends on player count too at the top 2 tiers (2 for 2 players, 3 for
+## 3-4), not just difficulty.
 const DIFFICULTY_TABLE := {
-	"Rebel": {"resources": 6, "curses": 0, "skeletons": 0},
-	"Veteran": {"resources": 5, "curses": 2, "skeletons": 2},
-	"Nightmare": {"resources": 5, "curses": 3, "skeletons": 3},
-	"Apocalypse": {"resources": 5, "curses": 3, "skeletons": 3},
+	"Rebel": {"resources": 6, "curses": 0, "skeletons": 3, "garrison_count": 0},
+	"Veteran": {"resources": 5, "curses": 2, "skeletons": 3, "garrison_count": 3},
+	"Nightmare": {"resources": 5, "curses": 2, "curses_3plus_players": 3, "skeletons": 3, "garrison_count": 6},
+	"Apocalypse": {"resources": 5, "curses": 2, "curses_3plus_players": 3, "skeletons": 3, "garrison_count": 6},
 }
 
 const STARTING_AP := 8
 
-## Always the same 3 of Capital's 6 ring-1 neighbors, every player count.
-const GARRISON_COORDS: Array[Vector2i] = [Vector2i(1, -1), Vector2i(0, 1), Vector2i(-1, 0)]
+## The Veteran-tier 3 Garrison coords -- the same 3 of Capital's 6 ring-1
+## neighbors at every player count. Nightmare/Apocalypse Garrison all 6
+## ring-1 neighbors instead (see _garrison_coords); Rebel Garrisons none.
+const GARRISON_COORDS_VETERAN: Array[Vector2i] = [Vector2i(1, -1), Vector2i(0, 1), Vector2i(-1, 0)]
 
 ## Home Hex / Sea Tower coords per player count, index i going to
 ## faction_hero_pairs[i]. See the class doc comment for how these were
@@ -94,12 +103,12 @@ static func build_new_game(
 	var petals := _reserve_petal_coords(faction_hero_pairs, used)
 	_place_home_hexes_and_players(state, card_db, faction_hero_pairs, petals, diff)
 	_place_fixed_sea_towers(state, pool, petals)
-	_place_capital_garrisons(state, pool, used)
+	_place_capital_garrisons(state, pool, used, _garrison_coords(int(diff.get("garrison_count", 3))))
 
 	var placements := _fill_board(state, pool, used)
 
-	_place_curses(state, placements, diff.get("curses", 0))
-	_place_skeletons(state, placements, diff.get("skeletons", 0))
+	_place_curses(state, placements, _curse_count(diff, faction_hero_pairs.size()))
+	_place_skeletons(state, placements, diff.get("skeletons", 3))
 
 	_build_decks(state, card_db)
 	_pick_druids(state, card_db)
@@ -116,6 +125,26 @@ static func _place_capital(state: GameState, used: Dictionary) -> void:
 	capital.garrison_level = 3
 	state.set_hex(capital)
 	used[HexMath.key(capital.coord)] = true
+
+
+## 0/3/6 of Capital's ring-1 neighbors depending on difficulty (see the
+## DIFFICULTY_TABLE doc comment) -- none, the fixed Veteran-tier 3, or all
+## 6 ring-1 neighbors.
+static func _garrison_coords(count: int) -> Array[Vector2i]:
+	if count <= 0:
+		return []
+	if count >= 6:
+		return HexMath.neighbors(GameState.CAPITAL_COORD)
+	return GARRISON_COORDS_VETERAN
+
+
+## Nightmare/Apocalypse Curse a 3rd hex once there are 3+ players in play
+## (see the DIFFICULTY_TABLE doc comment); every other tier/player-count
+## combination is just the tier's flat `curses` value.
+static func _curse_count(diff: Dictionary, player_count: int) -> int:
+	if player_count >= 3 and diff.has("curses_3plus_players"):
+		return diff["curses_3plus_players"]
+	return diff.get("curses", 0)
 
 
 ## One {"home": coord, "sea_tower": coord} pair per faction, using the
@@ -201,16 +230,19 @@ static func _place_home_hexes_and_players(
 		state.players.append(player)
 
 
-## Rulebook p6: "Place 3 Garrisons on The Capital, 1 Garrison on 3 adjacent
-## hexes" -- always the same 3 (GARRISON_COORDS), every player count. That
-## ring-1 hex is still a random hex like any other unclaimed one (confirmed
-## by the user against their TTS screenshots), just also carrying a
-## Garrison, so it draws from the same `pool` _fill_board uses rather than
-## being left card_name-less.
-static func _place_capital_garrisons(state: GameState, pool: Dictionary, used: Dictionary) -> void:
+## Rulebook p6's "Place 3 Garrisons on The Capital, 1 Garrison on 3
+## adjacent hexes" is just the Veteran tier -- see _garrison_coords for how
+## many ring-1 hexes actually get one at each difficulty. That ring-1 hex
+## is still a random hex like any other unclaimed one (confirmed by the
+## user against their TTS screenshots), just also carrying a Garrison, so
+## it draws from the same `pool` _fill_board uses rather than being left
+## card_name-less.
+static func _place_capital_garrisons(
+	state: GameState, pool: Dictionary, used: Dictionary, garrison_coords: Array[Vector2i]
+) -> void:
 	var normal: Array = pool["normal"]
 	var sea_tower: Array = pool["sea_tower"]
-	for coord in GARRISON_COORDS:
+	for coord in garrison_coords:
 		if used.has(HexMath.key(coord)):
 			continue
 		var tile := HexTile.new()
