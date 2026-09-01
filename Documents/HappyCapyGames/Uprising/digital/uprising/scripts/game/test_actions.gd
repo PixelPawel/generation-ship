@@ -56,10 +56,16 @@ func _initialize() -> void:
 	checks.append(["explore: AP -1", player.action_points == ap_before_explore - 1])
 
 	# --- Exploring an already-explored hex should fail ---
+	player.has_acted_this_turn = false
 	r = GameActions.apply(state, {"type": "explore", "faction": "Druwhn"}, -1, card_db)
 	checks.append(["re-explore rejected", not r.get("ok", true)])
 
-	# --- Haven on the Hero's current (now explored) hex ---
+	# --- Haven on the Hero's current (now explored) hex -- has_acted_this_turn
+	# reset directly as test scaffolding (this file tests each action's own
+	# rules in isolation; the real turn-order machinery -- has_acted_this_turn
+	# blocking a 2nd ending Action same turn, End Turn's rotation, etc -- gets
+	# its own dedicated section below, exercised through the real actions). ---
+	player.has_acted_this_turn = false
 	var plunder_before := player.plunder
 	var ap_before_haven := player.action_points
 	r = GameActions.apply(state, {"type": "haven", "faction": "Druwhn"}, -1, card_db)
@@ -70,10 +76,12 @@ func _initialize() -> void:
 	checks.append(["haven: added to player.havens", player.havens.has(neighbor)])
 
 	# --- A second Haven on the same hex should fail ---
+	player.has_acted_this_turn = false
 	r = GameActions.apply(state, {"type": "haven", "faction": "Druwhn"}, -1, card_db)
 	checks.append(["second haven on same hex rejected", not r.get("ok", true)])
 
 	# --- Command: put a Unit on a hex adjacent to the target, then Command it in ---
+	player.has_acted_this_turn = false
 	var command_target := home  # move back to the (empty, explored) home hex
 	var supply_hex := HexMath.neighbors(command_target)[0]
 	if state.get_hex(supply_hex) == null:
@@ -94,6 +102,7 @@ func _initialize() -> void:
 	checks.append(["command: food -1", player.food == food_before - 1])
 
 	# --- Market: buy a known-cheap, no-requirement Item ---
+	player.has_acted_this_turn = false
 	if not state.market.has("Abad Warpaint"):
 		state.market.append("Abad Warpaint")
 	var salt_before_market := player.salt
@@ -106,6 +115,10 @@ func _initialize() -> void:
 	checks.append(["market: market shrank by 1", state.market.size() == market_size_before - 1])
 
 	# --- Market: an Item requiring more Might than the Hero has should fail ---
+	# (has_acted_this_turn reset again -- otherwise this would trivially
+	# reject on turn-order grounds instead of actually exercising the
+	# attribute-requirement check it's meant to test.)
+	player.has_acted_this_turn = false
 	var high_req_item := "Axe of the Giants"  # requires Might 3; Fhayanor has Might 1
 	if not state.market.has(high_req_item):
 		state.market.append(high_req_item)
@@ -117,6 +130,7 @@ func _initialize() -> void:
 	checks.append(["market rejects unknown item", not r.get("ok", true)])
 
 	# --- Quest: real dice-roll resolution ---
+	player.has_acted_this_turn = false
 	var quest_name := "A Deal with Demons"
 	if not state.quests_available.has(quest_name):
 		state.quests_available.append(quest_name)
@@ -131,11 +145,106 @@ func _initialize() -> void:
 	checks.append(["quest: solved matches successes >= successes_needed", successes_match])
 
 	# --- Quest: rejects a Guile split that doesn't sum to the Hero's Guile ---
+	player.has_acted_this_turn = false
 	r = GameActions.apply(state, {"type": "quest", "faction": "Druwhn", "quest": quest_name, "guile_white": 99, "guile_yellow": 0}, -1, card_db)
 	checks.append(["quest rejects mismatched guile split", not r.get("ok", true)])
 
 	r = GameActions.apply(state, {"type": "quest", "faction": "Druwhn", "quest": "Not A Real Quest"}, -1, card_db)
 	checks.append(["quest rejects unavailable quest", not r.get("ok", true)])
+
+	# ---------------------------------------------------------------
+	# Turn order (rulebook p18: "In clockwise order, players spend AP...
+	# then next player goes"). Druwhn (index 0) has been the only actor so
+	# far -- current_player_index is still 0.
+	# ---------------------------------------------------------------
+	var krowh: PlayerFactionState = state.get_player("Krowh")
+	player.has_acted_this_turn = false
+	krowh.action_points = 5
+
+	if not state.market.has("Xyxrit Leaves"):
+		state.market.append("Xyxrit Leaves")
+	r = GameActions.apply(state, {"type": "market", "faction": "Krowh", "item": "Xyxrit Leaves"}, -1, card_db)
+	checks.append(["turn-gated action rejected when it isn't your turn", not r.get("ok", true)])
+
+	var krowh_salt_before := krowh.salt
+	r = GameActions.apply(state, {"type": "trade", "faction": "Krowh"}, -1, card_db)
+	checks.append(["Trade still works for Krowh even though it isn't their turn", r.get("ok", false) and krowh.salt == krowh_salt_before + 1])
+
+	# --- Druwhn's one Action this turn, then a 2nd is blocked -- so is Move.
+	# "Xyxrit Leaves" is still sitting in the market -- Krowh's attempt just
+	# above was rejected for turn order, not actually purchased. ---
+	r = GameActions.apply(state, {"type": "market", "faction": "Druwhn", "item": "Xyxrit Leaves"}, -1, card_db)
+	checks.append(["Druwhn's own Market succeeds on their turn", r.get("ok", false)])
+	checks.append(["has_acted_this_turn now true", player.has_acted_this_turn])
+
+	if not state.quests_available.has(quest_name):
+		state.quests_available.append(quest_name)
+	r = GameActions.apply(state, {"type": "quest", "faction": "Druwhn", "quest": quest_name}, -1, card_db)
+	checks.append(["a 2nd ending Action the same turn is rejected", not r.get("ok", true)])
+
+	r = GameActions.apply(state, {"type": "move", "faction": "Druwhn", "to": [home.x, home.y]}, -1, card_db)
+	checks.append(["Move is also blocked once this turn's Action is spent", not r.get("ok", true)])
+
+	player.action_points = 5  # replenish -- AP has been draining all test long, this check is about has_acted_this_turn, not AP
+	var druwhn_salt_before := player.salt
+	r = GameActions.apply(state, {"type": "trade", "faction": "Druwhn"}, -1, card_db)
+	checks.append(["Trade still works even after this turn's Action is spent", r.get("ok", false) and player.salt == druwhn_salt_before + 1])
+
+	# --- end_turn: wrong player rejected, current player hands off ---
+	r = GameActions.apply(state, {"type": "end_turn", "faction": "Krowh"}, -1, card_db)
+	checks.append(["end_turn rejected for a player whose turn it isn't", not r.get("ok", true)])
+
+	r = GameActions.apply(state, {"type": "end_turn", "faction": "Druwhn"}, -1, card_db)
+	checks.append(["end_turn ok for the current player", r.get("ok", false)])
+	checks.append(["turn advances to the next active player (Krowh)", state.players[state.current_player_index].faction == "Krowh"])
+	checks.append(["has_acted_this_turn reset for the incoming player", not krowh.has_acted_this_turn])
+	checks.append(["has_acted_this_turn also reset for the outgoing player", not player.has_acted_this_turn])
+
+	r = GameActions.apply(state, {"type": "market", "faction": "Druwhn", "item": "Abad Warpaint"}, -1, card_db)
+	checks.append(["Druwhn blocked once it's no longer their turn", not r.get("ok", true)])
+
+	# --- end_turn skips players who've Passed or run out of AP, wrapping
+	# around -- isolated 4-player fixture, same pattern as or_state/
+	# any_state/feat_state below for testing a mechanic in isolation. ---
+	var turn_state := GameState.new()
+	turn_state.phase = GameState.Phase.ACTIONS
+	var pa := PlayerFactionState.new()
+	pa.faction = "A"
+	pa.action_points = 5
+	var pb := PlayerFactionState.new()
+	pb.faction = "B"
+	pb.action_points = 0  # out of AP -- should be skipped
+	var pc := PlayerFactionState.new()
+	pc.faction = "C"
+	pc.has_passed = true  # already passed -- should be skipped
+	var pd := PlayerFactionState.new()
+	pd.faction = "D"
+	pd.action_points = 3
+	turn_state.players.append(pa)
+	turn_state.players.append(pb)
+	turn_state.players.append(pc)
+	turn_state.players.append(pd)
+	turn_state.current_player_index = 0  # A's turn
+
+	r = GameActions.apply(turn_state, {"type": "end_turn", "faction": "A"}, -1, card_db)
+	checks.append(["end_turn skips a 0-AP player and a Passed player, landing on D",
+		r.get("ok", false) and turn_state.players[turn_state.current_player_index].faction == "D"])
+
+	r = GameActions.apply(turn_state, {"type": "end_turn", "faction": "D"}, -1, card_db)
+	checks.append(["end_turn wraps around back to A, skipping B/C again",
+		r.get("ok", false) and turn_state.players[turn_state.current_player_index].faction == "A"])
+
+	# --- Pass, when it's the current player's turn, also hands the turn along ---
+	r = GameActions.apply(turn_state, {"type": "pass", "faction": "A"}, -1, card_db)
+	checks.append(["Pass ok", r.get("ok", false)])
+	checks.append(["Pass marks has_passed", pa.has_passed])
+	checks.append(["Pass also advances the turn (it was A's) to D", turn_state.players[turn_state.current_player_index].faction == "D"])
+
+	# --- If nobody is left active, end_turn still succeeds but current_player_index just stays put ---
+	pd.action_points = 0
+	r = GameActions.apply(turn_state, {"type": "end_turn", "faction": "D"}, -1, card_db)
+	checks.append(["end_turn succeeds even when nobody is left active", r.get("ok", false)])
+	checks.append(["current_player_index left unchanged with no active players", turn_state.players[turn_state.current_player_index].faction == "D"])
 
 	# --- Unknown action type ---
 	r = GameActions.apply(state, {"type": "not_a_real_action", "faction": "Druwhn"}, -1, card_db)

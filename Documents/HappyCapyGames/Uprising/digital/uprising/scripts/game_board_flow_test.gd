@@ -107,14 +107,34 @@ func _initialize() -> void:
 	var tile = board.state.get_hex(target)
 	_check("target hex is explored after pressing Explore", tile != null and tile.explored)
 
-	# --- Trade for good measure ---
+	# --- Explore was this turn's one Action -- rulebook p18: "Move/Trade as
+	# often as wanted, THEN 1 other Action". The Move button (and Haven,
+	# Command, Market, Quest) should now all be disabled until End Turn,
+	# but Trade stays exempt (see GameActions._move/_haven/etc's shared
+	# has_acted_this_turn guard, and _trade's explicit lack of one). ---
+	board.selected_coord = home  # any selectable neighbor -- Move's own legality doesn't matter here
+	board._rebuild_hexes()
+	board._update_hud()
+	_check("Move disables once this turn's Action is spent", board._move_button.disabled)
+	_check("Haven also disabled (has_acted_this_turn, not just hex state)", board._haven_button.disabled)
+	_check("End Turn button enabled on Druwhn's own turn", not board._end_turn_button.disabled)
+
+	# --- Trade for good measure -- exempt from has_acted_this_turn ---
+	board.selected_coord = target
+	board._rebuild_hexes()
 	var salt_before: int = board.state.get_player("Druwhn").salt
 	board._on_trade_pressed()
 	for i in 5:
 		await process_frame
 	_check("salt increased by 1 after Trade", board.state.get_player("Druwhn").salt == salt_before + 1)
 
-	# --- Haven on the (now explored) hex the Hero is standing on ---
+	# --- Haven on the (now explored) hex the Hero is standing on --
+	# has_acted_this_turn reset directly as test scaffolding (this file
+	# checks each button's own wiring in isolation; the real turn-rotation
+	# mechanics -- has_acted_this_turn blocking, End Turn's handoff, skipping
+	# Passed/0-AP players -- are already covered thoroughly in
+	# test_actions.gd's dedicated turn-order section). ---
+	board.state.get_player("Druwhn").has_acted_this_turn = false
 	board._update_hud()
 	_check("haven button enabled on an explored, unclaimed, no-X hex", not board._haven_button.disabled)
 	var plunder_before: int = board.state.get_player("Druwhn").plunder
@@ -128,6 +148,7 @@ func _initialize() -> void:
 	_check("haven button disables again once the hex already has one", board._haven_button.disabled)
 
 	# --- Command: select the now-empty home hex, gather back into it ---
+	board.state.get_player("Druwhn").has_acted_this_turn = false
 	board.selected_coord = home
 	board._rebuild_hexes()
 	board._update_hud()
@@ -139,13 +160,17 @@ func _initialize() -> void:
 	_check("hero moved to the Commanded hex", board.state.get_player("Druwhn").hero_hex == home)
 	_check("food decreased by 1 after Command", board.state.get_player("Druwhn").food == food_before - 1)
 
-	# --- Pass: Druwhn is done for this Actions Phase ---
+	# --- Pass: Druwhn is done for this Actions Phase. Druwhn has been
+	# current_player_index the whole time (nothing has called End Turn),
+	# so this should also hand the turn to Krowh (still active: full AP,
+	# hasn't Passed). ---
 	board._update_hud()
 	_check("pass button enabled during Actions Phase", not board._pass_button.disabled)
 	board._on_pass_pressed()
 	for i in 5:
 		await process_frame
 	_check("has_passed set after pressing Pass", board.state.get_player("Druwhn").has_passed)
+	_check("Pass also hands the turn to Krowh", board.state.players[board.state.current_player_index].faction == "Krowh")
 	board._update_hud()
 	_check("pass button disables once already passed", board._pass_button.disabled)
 

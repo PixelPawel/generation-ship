@@ -48,6 +48,12 @@ var pending_feat_choice: Array[String] = []
 
 var victory_points: int = 0
 var has_passed: bool = false  # passed for the remainder of this Actions Phase
+## Rulebook p18: on your Actions-Phase turn you may Move/Trade as often as
+## you want, then exactly 1 "other" Action (Command/Explore/Haven/Market/
+## Quest) -- this flags that the one other Action has been spent, blocking
+## a 2nd one (and further Move) until GameActions.end_turn hands control to
+## the next player. Reset at the start of each of this player's turns.
+var has_acted_this_turn: bool = false
 
 
 func to_dict() -> Dictionary:
@@ -70,6 +76,7 @@ func to_dict() -> Dictionary:
 		"hero_hex": [hero_hex.x, hero_hex.y],
 		"victory_points": victory_points,
 		"has_passed": has_passed,
+		"has_acted_this_turn": has_acted_this_turn,
 		"feat_deck": feat_deck.duplicate(),
 		"pending_feat_choice": pending_feat_choice.duplicate(),
 		"is_bot": is_bot,
@@ -99,6 +106,7 @@ static func from_dict(d: Dictionary) -> PlayerFactionState:
 	s.hero_hex = Vector2i(hh[0], hh[1])
 	s.victory_points = d.get("victory_points", 0)
 	s.has_passed = d.get("has_passed", false)
+	s.has_acted_this_turn = d.get("has_acted_this_turn", false)
 	s.feat_deck.assign(d.get("feat_deck", []))
 	s.pending_feat_choice.assign(d.get("pending_feat_choice", []))
 	s.is_bot = d.get("is_bot", false)

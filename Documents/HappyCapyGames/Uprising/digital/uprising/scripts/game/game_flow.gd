@@ -105,6 +105,7 @@ static func _start_actions_phase(state: GameState) -> void:
 	state.current_player_index = state.first_player_index
 	for p in state.players:
 		p.has_passed = p.is_bot
+		p.has_acted_this_turn = false
 	state.phase = GameState.Phase.ACTIONS
 
 

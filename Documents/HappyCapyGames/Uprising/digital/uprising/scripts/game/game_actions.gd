@@ -24,7 +24,11 @@ extends RefCounted
 ##    -- defense is "tower" or "wall"
 ##   {"type": "pass", "faction": "Krowh"}  -- done taking Actions for this
 ##    Chapter even if AP remains; GameFlow's turn loop treats 0 AP and a
-##    voluntary Pass the same way
+##    voluntary Pass the same way. Also hands the turn to the next active
+##    player if it was currently this player's turn.
+##   {"type": "end_turn", "faction": "Krowh"}  -- Actions Phase only, current
+##    player only: done with Move/Trade + at most 1 Command/Explore/Haven/
+##    Market/Quest for this turn, hands control to the next active player
 ##   {"type": "draw_feats", "faction": "Krowh"}  -- Build Phase, draws 2 into
 ##    pending_feat_choice
 ##   {"type": "choose_feat", "faction": "Krowh", "feat": "Tribesmen"}  --
@@ -59,6 +63,8 @@ static func apply(state: GameState, action: Dictionary, sender_id: int, card_db:
 			return _build_defense(state, action, sender_id)
 		"pass":
 			return _pass(state, action, sender_id)
+		"end_turn":
+			return _end_turn(state, action, sender_id)
 		"draw_feats":
 			return _draw_feats(state, action, sender_id)
 		"choose_feat":
@@ -80,6 +86,48 @@ static func _get_authorized_player(state: GameState, action: Dictionary, sender_
 	return {"ok": true, "player": player}
 
 
+static func _is_current_turn(state: GameState, player: PlayerFactionState) -> bool:
+	if state.players.is_empty():
+		return false
+	return state.players[state.current_player_index].faction == player.faction
+
+
+## Same as _get_authorized_player, plus rejecting anyone whose turn it isn't
+## (rulebook p18: "In clockwise order..."). Used by every Actions-Phase
+## action that's turn-gated -- i.e. everything except Trade, which the
+## rulebook explicitly calls out as usable "ALWAYS... unlike other Actions
+## restricted to your Actions-Phase turn".
+static func _get_authorized_current_player(state: GameState, action: Dictionary, sender_id: int) -> Dictionary:
+	var auth := _get_authorized_player(state, action, sender_id)
+	if not auth.get("ok", false):
+		return auth
+	var player: PlayerFactionState = auth["player"]
+	if not _is_current_turn(state, player):
+		return {"ok": false, "reason": "it isn't %s's turn" % player.faction}
+	return auth
+
+
+## Hands control to the next player still owed a turn this Actions Phase --
+## hasn't Passed and has AP left (same "active" definition GameFlow.
+## active_players() gates the Actions -> Nemesis transition on). Resets
+## has_acted_this_turn for both the outgoing and incoming player, since
+## that flag only means anything within a single still-open turn. If
+## nobody is left active, current_player_index is left as-is; the phase
+## just ends on the next advance_phase() call instead.
+static func _advance_turn(state: GameState) -> void:
+	if state.players.is_empty():
+		return
+	state.players[state.current_player_index].has_acted_this_turn = false
+	var n := state.players.size()
+	for i in range(1, n + 1):
+		var idx := (state.current_player_index + i) % n
+		var candidate: PlayerFactionState = state.players[idx]
+		if not candidate.has_passed and candidate.action_points > 0:
+			state.current_player_index = idx
+			candidate.has_acted_this_turn = false
+			return
+
+
 ## Rulebook p19: Trade is ALWAYS available (any Phase), 1 AP -> 1 Salt.
 static func _trade(state: GameState, action: Dictionary, sender_id: int) -> Dictionary:
 	var auth := _get_authorized_player(state, action, sender_id)
@@ -96,26 +144,53 @@ static func _trade(state: GameState, action: Dictionary, sender_id: int) -> Dict
 ## Voluntarily done taking Actions this Chapter, even with AP remaining
 ## (unlike running out of AP, which GameFlow's turn loop already detects on
 ## its own). Always available, like Trade -- there's no rule against passing
-## outside the Actions Phase, it just has no effect there.
+## outside the Actions Phase, it just has no effect there. If it happened to
+## be this player's turn, also hands the turn to the next active player --
+## a Passed player is no longer part of the rotation.
 static func _pass(state: GameState, action: Dictionary, sender_id: int) -> Dictionary:
 	var auth := _get_authorized_player(state, action, sender_id)
 	if not auth.get("ok", false):
 		return auth
 	var player: PlayerFactionState = auth["player"]
 	player.has_passed = true
+	if state.phase == GameState.Phase.ACTIONS and _is_current_turn(state, player):
+		_advance_turn(state)
+	return {"ok": true, "reason": ""}
+
+
+## Rulebook p18: "...then next player goes" -- ends the current active
+## player's turn once they're done (any amount of Move/Trade, at most 1
+## Command/Explore/Haven/Market/Quest) and hands control to the next player
+## still owed one. Deliberately a separate, explicit action rather than
+## something the 5 turn-ending actions trigger automatically on success --
+## the player calls this once truly ready, so it doesn't cut off any
+## manual follow-up (e.g. reading a newly-flipped hex's effect text off the
+## card and applying it) that action might still need.
+static func _end_turn(state: GameState, action: Dictionary, sender_id: int) -> Dictionary:
+	if state.phase != GameState.Phase.ACTIONS:
+		return {"ok": false, "reason": "End Turn is only available during the Actions Phase"}
+	var auth := _get_authorized_current_player(state, action, sender_id)
+	if not auth.get("ok", false):
+		return auth
+	_advance_turn(state)
 	return {"ok": true, "reason": ""}
 
 
 ## Rulebook p18: Move costs 1 AP per hex, Actions Phase only, only to an
 ## adjacent hex -- or between two explored Sea Towers, which count as
-## adjacent to every hex.
+## adjacent to every hex. Turn-gated (rulebook: "may take Move and/or Trade
+## as often as wanted, THEN 1 other Action") -- once that 1 other Action is
+## spent this turn, the action-taking window is closed until end_turn, so
+## Move is blocked too, not just a 2nd Command/Explore/Haven/Market/Quest.
 static func _move(state: GameState, action: Dictionary, sender_id: int) -> Dictionary:
 	if state.phase != GameState.Phase.ACTIONS:
 		return {"ok": false, "reason": "Move is only available during the Actions Phase"}
-	var auth := _get_authorized_player(state, action, sender_id)
+	var auth := _get_authorized_current_player(state, action, sender_id)
 	if not auth.get("ok", false):
 		return auth
 	var player: PlayerFactionState = auth["player"]
+	if player.has_acted_this_turn:
+		return {"ok": false, "reason": "you've already taken your Action this turn -- End Turn to let the next player go"}
 
 	var to_arr: Array = action.get("to", [])
 	if to_arr.size() != 2:
@@ -152,10 +227,12 @@ static func _move(state: GameState, action: Dictionary, sender_id: int) -> Dicti
 static func _explore(state: GameState, action: Dictionary, sender_id: int) -> Dictionary:
 	if state.phase != GameState.Phase.ACTIONS:
 		return {"ok": false, "reason": "Explore is only available during the Actions Phase"}
-	var auth := _get_authorized_player(state, action, sender_id)
+	var auth := _get_authorized_current_player(state, action, sender_id)
 	if not auth.get("ok", false):
 		return auth
 	var player: PlayerFactionState = auth["player"]
+	if player.has_acted_this_turn:
+		return {"ok": false, "reason": "you've already taken your Action this turn -- End Turn to let the next player go"}
 
 	var tile := state.get_hex(player.hero_hex)
 	if tile == null:
@@ -169,6 +246,7 @@ static func _explore(state: GameState, action: Dictionary, sender_id: int) -> Di
 
 	player.action_points -= 1
 	tile.explored = true
+	player.has_acted_this_turn = true
 	return {"ok": true, "reason": ""}
 
 
@@ -178,10 +256,12 @@ static func _explore(state: GameState, action: Dictionary, sender_id: int) -> Di
 static func _haven(state: GameState, action: Dictionary, sender_id: int) -> Dictionary:
 	if state.phase != GameState.Phase.ACTIONS:
 		return {"ok": false, "reason": "Haven is only available during the Actions Phase"}
-	var auth := _get_authorized_player(state, action, sender_id)
+	var auth := _get_authorized_current_player(state, action, sender_id)
 	if not auth.get("ok", false):
 		return auth
 	var player: PlayerFactionState = auth["player"]
+	if player.has_acted_this_turn:
+		return {"ok": false, "reason": "you've already taken your Action this turn -- End Turn to let the next player go"}
 
 	var tile := state.get_hex(player.hero_hex)
 	if tile == null or not tile.explored:
@@ -203,6 +283,7 @@ static func _haven(state: GameState, action: Dictionary, sender_id: int) -> Dict
 	player.plunder -= plunder_cost
 	tile.haven_faction = player.faction
 	player.havens.append(tile.coord)
+	player.has_acted_this_turn = true
 	return {"ok": true, "reason": ""}
 
 
@@ -217,10 +298,12 @@ static func _haven(state: GameState, action: Dictionary, sender_id: int) -> Dict
 static func _command(state: GameState, action: Dictionary, sender_id: int) -> Dictionary:
 	if state.phase != GameState.Phase.ACTIONS:
 		return {"ok": false, "reason": "Command is only available during the Actions Phase"}
-	var auth := _get_authorized_player(state, action, sender_id)
+	var auth := _get_authorized_current_player(state, action, sender_id)
 	if not auth.get("ok", false):
 		return auth
 	var player: PlayerFactionState = auth["player"]
+	if player.has_acted_this_turn:
+		return {"ok": false, "reason": "you've already taken your Action this turn -- End Turn to let the next player go"}
 
 	var to_arr: Array = action.get("to", [])
 	if to_arr.size() != 2:
@@ -258,6 +341,7 @@ static func _command(state: GameState, action: Dictionary, sender_id: int) -> Di
 	player.action_points -= 1
 	player.food -= 1
 	player.hero_hex = to
+	player.has_acted_this_turn = true
 	return {"ok": true, "reason": ""}
 
 
@@ -276,10 +360,12 @@ static func _other_faction_present(tile: HexTile, faction: String) -> bool:
 static func _market(state: GameState, action: Dictionary, sender_id: int, card_db: Node) -> Dictionary:
 	if state.phase != GameState.Phase.ACTIONS:
 		return {"ok": false, "reason": "Market is only available during the Actions Phase"}
-	var auth := _get_authorized_player(state, action, sender_id)
+	var auth := _get_authorized_current_player(state, action, sender_id)
 	if not auth.get("ok", false):
 		return auth
 	var player: PlayerFactionState = auth["player"]
+	if player.has_acted_this_turn:
+		return {"ok": false, "reason": "you've already taken your Action this turn -- End Turn to let the next player go"}
 
 	var item_name: String = action.get("item", "")
 	if not state.market.has(item_name):
@@ -317,6 +403,7 @@ static func _market(state: GameState, action: Dictionary, sender_id: int, card_d
 	player.salt -= cost
 	player.items_in_play.append(item_name)
 	state.market.erase(item_name)
+	player.has_acted_this_turn = true
 	return {"ok": true, "reason": ""}
 
 
@@ -333,10 +420,12 @@ static func _market(state: GameState, action: Dictionary, sender_id: int, card_d
 static func _quest(state: GameState, action: Dictionary, sender_id: int, card_db: Node) -> Dictionary:
 	if state.phase != GameState.Phase.ACTIONS:
 		return {"ok": false, "reason": "Quest is only available during the Actions Phase"}
-	var auth := _get_authorized_player(state, action, sender_id)
+	var auth := _get_authorized_current_player(state, action, sender_id)
 	if not auth.get("ok", false):
 		return auth
 	var player: PlayerFactionState = auth["player"]
+	if player.has_acted_this_turn:
+		return {"ok": false, "reason": "you've already taken your Action this turn -- End Turn to let the next player go"}
 
 	var quest_name: String = action.get("quest", "")
 	if not state.quests_available.has(quest_name):
@@ -360,6 +449,7 @@ static func _quest(state: GameState, action: Dictionary, sender_id: int, card_db
 	if player.action_points < 1:
 		return {"ok": false, "reason": "no Action Points left"}
 	player.action_points -= 1
+	player.has_acted_this_turn = true
 
 	var dice := DiceModel.roll_mixed({
 		"Red": player.might,

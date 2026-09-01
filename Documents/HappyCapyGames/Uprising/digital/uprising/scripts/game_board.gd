@@ -126,6 +126,7 @@ var _move_button: Button
 var _haven_button: Button
 var _command_button: Button
 var _pass_button: Button
+var _end_turn_button: Button
 var _end_phase_button: Button
 
 var _market_option: OptionButton
@@ -429,6 +430,11 @@ func _setup_hud() -> void:
 	_pass_button.text = "Pass"
 	_pass_button.pressed.connect(_on_pass_pressed)
 	buttons.add_child(_pass_button)
+
+	_end_turn_button = Button.new()
+	_end_turn_button.text = "End Turn"
+	_end_turn_button.pressed.connect(_on_end_turn_pressed)
+	buttons.add_child(_end_turn_button)
 
 	_end_phase_button = Button.new()
 	_end_phase_button.text = "End Phase"
@@ -878,8 +884,13 @@ func _update_hud() -> void:
 	var player := state.get_player(current_faction)
 	if player == null:
 		return
-	_status_label.text = "%s (%s) -- Chapter %d, %s" % [
-		player.faction, player.hero_name, state.chapter, GameState.Phase.keys()[state.phase]
+	var turn_faction := state.players[state.current_player_index].faction if not state.players.is_empty() else ""
+	var is_current_turn := turn_faction == player.faction
+	_status_label.text = "%s (%s) -- Chapter %d, %s%s" % [
+		player.faction, player.hero_name, state.chapter, GameState.Phase.keys()[state.phase],
+		"" if state.phase != GameState.Phase.ACTIONS else (
+			"  [YOUR TURN]" if is_current_turn else "  [%s's turn]" % turn_faction
+		)
 	]
 	_resources_label.text = "Salt %d  Plunder %d  Food %d  |  AP %d" % [
 		player.salt, player.plunder, player.food, player.action_points
@@ -909,13 +920,25 @@ func _update_hud() -> void:
 				selected_coord, (tile.card_name if tile.explored else "??? (unexplored)")
 			]
 
+	# Rulebook p18: on your Actions-Phase turn, Move is free/repeatable but
+	# still your turn's to spend -- and once your 1 other Action
+	# (Command/Explore/Haven/Market/Quest) is taken, has_acted_this_turn
+	# closes the window on ALL of these (including a further Move) until
+	# End Turn hands control along. Trade alone is exempt (see its own
+	# button, never disabled by phase/turn/has_acted).
+	var my_turn_to_act := (
+		state.phase == GameState.Phase.ACTIONS and is_current_turn and not player.has_acted_this_turn
+	)
+
 	var on_selected_hex := selected_coord == player.hero_hex
 	var selected_tile := state.get_hex(selected_coord)
 	_explore_button.disabled = not (
-		on_selected_hex and selected_tile != null and not selected_tile.explored and not selected_tile.has_curse
+		my_turn_to_act
+		and on_selected_hex and selected_tile != null and not selected_tile.explored and not selected_tile.has_curse
 	)
 	_move_button.disabled = not (
-		selected_coord != NO_SELECTION
+		my_turn_to_act
+		and selected_coord != NO_SELECTION
 		and selected_coord != player.hero_hex
 		and selected_tile != null  # a "neighbor" coordinate may not have a generated tile at all
 		and HexMath.distance(player.hero_hex, selected_coord) == 1
@@ -924,12 +947,13 @@ func _update_hud() -> void:
 	var hero_tile := state.get_hex(player.hero_hex)
 	var plunder_cost := 3 if player.faction == "Krowh" else 2
 	_haven_button.disabled = not (
-		hero_tile != null and hero_tile.explored and not hero_tile.no_haven
+		my_turn_to_act
+		and hero_tile != null and hero_tile.explored and not hero_tile.no_haven
 		and hero_tile.haven_faction == "" and player.plunder >= plunder_cost
 	)
 
 	_command_button.disabled = not (
-		state.phase == GameState.Phase.ACTIONS
+		my_turn_to_act
 		and selected_tile != null and selected_tile.explored
 		and player.action_points >= 1 and player.food >= 1
 		and not GameActions._other_faction_present(selected_tile, player.faction)
@@ -939,13 +963,16 @@ func _update_hud() -> void:
 	var can_pass := (state.phase == GameState.Phase.ACTIONS or state.phase == GameState.Phase.BUILD) and not player.has_passed
 	_pass_button.disabled = not can_pass
 	_pass_button.text = "Ready (done building)" if state.phase == GameState.Phase.BUILD else "Pass"
+	_end_turn_button.disabled = not (
+		state.phase == GameState.Phase.ACTIONS and is_current_turn and not player.has_passed
+	)
 	_end_phase_button.text = "End Phase (%s)" % GameState.Phase.keys()[state.phase]
 
 	_sync_option_button(_market_option, _market_option_items, state.market)
-	_market_button.disabled = not (state.phase == GameState.Phase.ACTIONS and not state.market.is_empty())
+	_market_button.disabled = not (my_turn_to_act and not state.market.is_empty())
 
 	_sync_option_button(_quest_option, _quest_option_items, state.quests_available)
-	_quest_button.disabled = not (state.phase == GameState.Phase.ACTIONS and not state.quests_available.is_empty())
+	_quest_button.disabled = not (my_turn_to_act and not state.quests_available.is_empty())
 
 	var unit_names: Array[String] = []
 	for u in FactionData.get_units(player.faction):
@@ -1181,6 +1208,10 @@ func _on_command_pressed() -> void:
 
 func _on_pass_pressed() -> void:
 	NetworkManager.submit_action({"type": "pass", "faction": current_faction})
+
+
+func _on_end_turn_pressed() -> void:
+	NetworkManager.submit_action({"type": "end_turn", "faction": current_faction})
 
 
 func _on_end_phase_pressed() -> void:
