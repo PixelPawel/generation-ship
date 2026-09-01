@@ -14,6 +14,7 @@ signal peer_disconnected(id: int)
 signal connection_failed
 signal connected_to_host
 signal lobby_claims_updated(claims: Dictionary)
+signal lobby_bot_enabled_updated(bot_enabled: Dictionary)
 signal game_starting(state: GameState)
 
 const DEFAULT_PORT := 8910
@@ -25,6 +26,14 @@ var game_state: GameState = null
 ## {"peer_id": int, "hero": String}. Host-authoritative like everything
 ## else here; see request_claim/request_release/start_game below.
 var lobby_claims: Dictionary = {}
+
+## Host-only decision, faction (String) -> bool: whether an unclaimed
+## faction gets a bot (true, the default -- a missing entry reads as true
+## via lobby_bot_enabled.get(faction, true)) or is left out of the game
+## entirely (false) when start_game() runs. Broadcast to everyone so
+## clients can see what the host has chosen, but only the host's own
+## set_bot_enabled() call has any effect -- see there.
+var lobby_bot_enabled: Dictionary = {}
 
 
 func _ready() -> void:
@@ -65,6 +74,7 @@ func disconnect_game() -> void:
 	is_host = false
 	game_state = null
 	lobby_claims = {}
+	lobby_bot_enabled = {}
 
 
 func _on_peer_connected(id: int) -> void:
@@ -75,6 +85,7 @@ func _on_peer_connected(id: int) -> void:
 		_receive_full_state.rpc_id(id, game_state.to_dict())
 	else:
 		_receive_lobby_claims.rpc_id(id, lobby_claims)
+		_receive_lobby_bot_enabled.rpc_id(id, lobby_bot_enabled)
 
 
 func _on_peer_disconnected(id: int) -> void:
@@ -148,23 +159,46 @@ func _receive_lobby_claims(claims: Dictionary) -> void:
 	lobby_claims_updated.emit(claims)
 
 
-## Host-only: builds the GameState from the current lobby_claims -- any of
-## `all_factions` nobody claimed becomes a "simple dummy" bot (see
-## PlayerFactionState.is_bot) with a default Hero rather than being left
-## out of the game or forcing a human to run two factions. Walks the fresh
-## state through GameFlow up to Actions Phase (same as a real Chapter
-## start), then broadcasts it so every connected peer -- including the
-## host itself, via call_local -- transitions into the real game.
-func start_game(all_factions: Array, difficulty: String, max_chapters: int) -> void:
+## Host-only: whether an unclaimed faction gets a bot (the default) or is
+## left out of the game entirely when start_game() runs. No-op for a
+## client -- only the host's own call has any effect, but the choice is
+## still broadcast so everyone can see it.
+func set_bot_enabled(faction: String, enabled: bool) -> void:
 	if not is_host:
 		return
+	lobby_bot_enabled[faction] = enabled
+	_receive_lobby_bot_enabled.rpc(lobby_bot_enabled)
+
+
+@rpc("authority", "call_local", "reliable")
+func _receive_lobby_bot_enabled(bot_enabled: Dictionary) -> void:
+	lobby_bot_enabled = bot_enabled
+	lobby_bot_enabled_updated.emit(bot_enabled)
+
+
+## Host-only: builds the GameState from the current lobby_claims -- any of
+## `all_factions` nobody claimed becomes a "simple dummy" bot (see
+## PlayerFactionState.is_bot) with a default Hero, UNLESS the host turned
+## that off via set_bot_enabled(), in which case the faction is left out of
+## the game entirely (the rulebook already supports fewer than 4 factions).
+## Walks the fresh state through GameFlow up to Actions Phase (same as a
+## real Chapter start), then broadcasts it so every connected peer --
+## including the host itself, via call_local -- transitions into the real
+## game. No-op (does not start anything) if that would leave zero players.
+func start_game(all_factions: Array, difficulty: String, max_chapters: int) -> Dictionary:
+	if not is_host:
+		return {"ok": false, "reason": "only the host can start the game"}
 	var pairs: Array = []
 	for faction in all_factions:
 		if lobby_claims.has(faction):
 			var c: Dictionary = lobby_claims[faction]
 			pairs.append([faction, c["hero"], int(c["peer_id"]), false])
-		else:
+		elif bool(lobby_bot_enabled.get(faction, true)):
 			pairs.append([faction, _default_hero_for(faction), -1, true])
+		# else: host turned off the bot for this faction -- excluded entirely.
+
+	if pairs.is_empty():
+		return {"ok": false, "reason": "no factions in play -- claim one or leave at least one Bot enabled"}
 
 	var state := GameSetup.build_new_game(CardDatabase, pairs, difficulty, max_chapters)
 	GameFlow.advance_phase(state, CardDatabase)  # REFRESH -> EVENTS
@@ -172,6 +206,7 @@ func start_game(all_factions: Array, difficulty: String, max_chapters: int) -> v
 	GameFlow.advance_phase(state, CardDatabase)  # BUILD -> ACTIONS
 	game_state = state
 	_game_starting.rpc(state.to_dict())
+	return {"ok": true, "reason": ""}
 
 
 func _default_hero_for(faction: String) -> String:

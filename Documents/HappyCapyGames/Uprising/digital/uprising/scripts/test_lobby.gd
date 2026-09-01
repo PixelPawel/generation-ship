@@ -9,7 +9,14 @@ extends SceneTree
 ## throughout this test suite. See test_lobby_host.gd/test_lobby_client.gd
 ## for a real 2-process ENet round trip of the same claim flow.
 
-const TEST_PORT := 8934  # distinct from NetworkManager.DEFAULT_PORT, so a real run isn't disturbed
+## Distinct from NetworkManager.DEFAULT_PORT (so a real run isn't disturbed)
+## and from each other (host_game/disconnect_game/host_game again in quick
+## succession shouldn't have to rely on the OS releasing the previous
+## socket instantly).
+const TEST_PORT := 8934
+const TEST_PORT_2 := 8935
+const TEST_PORT_3 := 8936
+const TEST_PORT_4 := 8937
 
 var checks: Array = []
 
@@ -81,6 +88,32 @@ func _initialize() -> void:
 	net_mgr.disconnect_game()
 	_check("disconnect_game clears lobby_claims", net_mgr.lobby_claims.is_empty())
 	_check("disconnect_game clears game_state", net_mgr.game_state == null)
+	_check("disconnect_game clears lobby_bot_enabled", net_mgr.lobby_bot_enabled.is_empty())
+
+	# --- Host can turn a faction's Bot fill-in off, excluding it entirely ---
+	net_mgr.host_game(TEST_PORT_2)
+	net_mgr._apply_claim("Krowh", "Dugpa", net_mgr.multiplayer.get_unique_id())
+	net_mgr.set_bot_enabled("Druwhn", false)
+	net_mgr.set_bot_enabled("Duerkhar", false)
+	net_mgr.set_bot_enabled("Mohyar", false)
+	var start_result: Dictionary = net_mgr.start_game(["Druwhn", "Duerkhar", "Krowh", "Mohyar"], "Veteran", 3)
+	_check("start_game ok with 1 claimed faction and bots off elsewhere", start_result.get("ok", false))
+	_check("game has exactly 1 player (the claimed faction only)", net_mgr.game_state.players.size() == 1)
+	_check("the 1 player is Krowh, not a bot", net_mgr.game_state.get_player("Krowh") != null and not net_mgr.game_state.get_player("Krowh").is_bot)
+	_check("Druwhn was excluded, not turned into a bot", net_mgr.game_state.get_player("Druwhn") == null)
+
+	# --- Refusing to start with literally nobody in play ---
+	net_mgr.disconnect_game()
+	net_mgr.host_game(TEST_PORT_3)
+	net_mgr.set_bot_enabled("Druwhn", false)
+	net_mgr.set_bot_enabled("Duerkhar", false)
+	net_mgr.set_bot_enabled("Krowh", false)
+	net_mgr.set_bot_enabled("Mohyar", false)
+	var empty_result: Dictionary = net_mgr.start_game(["Druwhn", "Duerkhar", "Krowh", "Mohyar"], "Veteran", 3)
+	_check("start_game refuses when nobody claimed anything and every Bot is off", not empty_result.get("ok", true))
+	_check("game_state stays null after a refused start", net_mgr.game_state == null)
+
+	net_mgr.disconnect_game()
 
 	# --- Lobby scene UI wiring ---
 	var scene: PackedScene = load("res://scenes/lobby.tscn")
@@ -91,6 +124,9 @@ func _initialize() -> void:
 	_check("setup panel visible before connecting", lobby._setup_panel.visible)
 	_check("room panel hidden before connecting", not lobby._room_panel.visible)
 
+	# A distinct port, not whatever _host_port_edit defaults to, so this
+	# doesn't depend on NetworkManager.DEFAULT_PORT happening to be free.
+	lobby._host_port_edit.text = str(TEST_PORT_4)
 	lobby._on_start_hosting_pressed()
 	_check("room panel visible after hosting", lobby._room_panel.visible)
 	_check("setup panel hidden after hosting", not lobby._setup_panel.visible)
@@ -98,6 +134,10 @@ func _initialize() -> void:
 
 	var druwhn_button: Button = lobby._faction_claim_buttons["Druwhn"]
 	_check("faction row starts as Open/Claim", druwhn_button.text == "Claim")
+
+	var druwhn_bot_check: CheckBox = lobby._faction_bot_checks["Druwhn"]
+	_check("Bot checkbox starts checked (on) for an open faction", druwhn_bot_check.button_pressed)
+	_check("Bot checkbox is enabled for the host", not druwhn_bot_check.disabled)
 
 	# _apply_claim's own broadcast round-trips through an RPC (even for the
 	# host's own call_local delivery) before lobby.gd's _refresh_room()
@@ -108,12 +148,19 @@ func _initialize() -> void:
 		await process_frame
 	_check("pressing Claim claims the faction", net_mgr.lobby_claims.has("Druwhn"))
 	_check("claim button now offers Release", druwhn_button.text == "Release")
+	_check("Bot checkbox disables once the faction is claimed", druwhn_bot_check.disabled)
 
 	lobby._on_claim_pressed("Druwhn")
 	for i in 5:
 		await process_frame
 	_check("pressing Release frees the faction again", not net_mgr.lobby_claims.has("Druwhn"))
 	_check("claim button offers Claim again", druwhn_button.text == "Claim")
+	_check("Bot checkbox re-enables once open again", not druwhn_bot_check.disabled)
+
+	druwhn_bot_check.toggled.emit(false)
+	for i in 5:
+		await process_frame
+	_check("unchecking Bot in the UI drives NetworkManager.set_bot_enabled", net_mgr.lobby_bot_enabled.get("Druwhn", true) == false)
 
 	net_mgr.disconnect_game()
 

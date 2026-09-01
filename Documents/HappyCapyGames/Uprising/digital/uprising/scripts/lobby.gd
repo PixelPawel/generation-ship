@@ -1,10 +1,11 @@
 extends Control
 ## Pre-game lobby, reached from the main menu's Start button. Host or Join
 ## a networked game, then everyone picks their own faction and Hero from
-## the Lobby Room -- any of the 4 Core factions nobody claims becomes a
-## "simple dummy" bot when the host starts the game (see
-## NetworkManager.start_game / PlayerFactionState.is_bot). Nobody can hold
-## two factions: claiming one releases whatever you already had.
+## the Lobby Room. Nobody can hold two factions: claiming one releases
+## whatever you already had. For any faction nobody claims, the HOST
+## decides (per faction, via the Bot checkbox) whether it gets a "simple
+## dummy" bot (the default -- see NetworkManager.start_game /
+## PlayerFactionState.is_bot) or is left out of the game entirely.
 
 const FACTIONS := ["Druwhn", "Duerkhar", "Krowh", "Mohyar"]
 const DIFFICULTIES := ["Rebel", "Veteran", "Nightmare", "Apocalypse"]
@@ -26,6 +27,7 @@ var _join_port_edit: LineEdit
 var _faction_status_labels: Dictionary = {}  # faction -> Label
 var _faction_hero_options: Dictionary = {}  # faction -> OptionButton
 var _faction_claim_buttons: Dictionary = {}  # faction -> Button
+var _faction_bot_checks: Dictionary = {}  # faction -> CheckBox, host-only control
 var _start_game_button: Button
 
 
@@ -33,6 +35,7 @@ func _ready() -> void:
 	_build_ui()
 	_set_mode(true)
 	NetworkManager.lobby_claims_updated.connect(_on_lobby_claims_updated)
+	NetworkManager.lobby_bot_enabled_updated.connect(func(_b: Dictionary) -> void: _refresh_room())
 	NetworkManager.game_starting.connect(_on_game_starting)
 	NetworkManager.peer_connected.connect(func(_id: int) -> void: _refresh_room())
 	NetworkManager.peer_disconnected.connect(func(_id: int) -> void: _refresh_room())
@@ -175,7 +178,7 @@ func _build_room_panel() -> VBoxContainer:
 	panel.add_child(_room_status_label)
 
 	var hint := Label.new()
-	hint.text = "Pick a faction and Hero. Anyone left unclaimed becomes a simple Bot when the game starts."
+	hint.text = "Pick a faction and Hero. For anyone left unclaimed, the host decides below: Bot fills it in, unchecked leaves it out of the game."
 	panel.add_child(hint)
 
 	for faction in FACTIONS:
@@ -220,6 +223,13 @@ func _build_faction_row(faction: String) -> HBoxContainer:
 	hero_option.item_selected.connect(func(_index: int) -> void: _on_hero_reselected(faction))
 	row.add_child(hero_option)
 	_faction_hero_options[faction] = hero_option
+
+	var bot_check := CheckBox.new()
+	bot_check.text = "Bot"
+	bot_check.button_pressed = true
+	bot_check.toggled.connect(func(pressed: bool) -> void: NetworkManager.set_bot_enabled(faction, pressed))
+	row.add_child(bot_check)
+	_faction_bot_checks[faction] = bot_check
 
 	var claim_button := Button.new()
 	claim_button.text = "Claim"
@@ -332,30 +342,41 @@ func _refresh_room() -> void:
 		var status_label: Label = _faction_status_labels[faction]
 		var hero_option: OptionButton = _faction_hero_options[faction]
 		var claim_button: Button = _faction_claim_buttons[faction]
+		var bot_check: CheckBox = _faction_bot_checks[faction]
 
 		if claim.is_empty():
 			status_label.text = "Open"
 			hero_option.disabled = false
 			claim_button.text = "Claim"
 			claim_button.disabled = false
+			# set_pressed_no_signal: this is syncing FROM NetworkManager's
+			# state, not a user click -- assigning button_pressed directly
+			# would re-fire `toggled` and bounce a redundant set_bot_enabled
+			# broadcast back out for no reason.
+			bot_check.set_pressed_no_signal(bool(NetworkManager.lobby_bot_enabled.get(faction, true)))
+			bot_check.disabled = not NetworkManager.is_host
 		elif int(claim["peer_id"]) == my_id:
 			status_label.text = "You: %s" % claim["hero"]
 			hero_option.disabled = false
 			claim_button.text = "Release"
 			claim_button.disabled = false
+			bot_check.disabled = true
 		else:
 			status_label.text = "Peer %d: %s" % [int(claim["peer_id"]), claim["hero"]]
 			hero_option.disabled = true
 			claim_button.text = "Taken"
 			claim_button.disabled = true
+			bot_check.disabled = true
 
 
 func _on_start_game_pressed() -> void:
-	NetworkManager.start_game(
+	var result: Dictionary = NetworkManager.start_game(
 		FACTIONS,
 		DIFFICULTIES[_difficulty_option.selected],
 		int(_chapters_option.get_item_text(_chapters_option.selected))
 	)
+	if not result.get("ok", false):
+		_room_status_label.text = "Can't start: %s" % result.get("reason", "unknown error")
 
 
 func _on_game_starting(_state: GameState) -> void:
