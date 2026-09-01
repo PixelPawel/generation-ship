@@ -61,6 +61,19 @@ func _initialize() -> void:
 		await process_frame
 	_check("salt increased by 1 after Trade", board.state.get_player("Druwhn").salt == salt_before + 1)
 
+	# --- Haven on the (now explored) hex the Hero is standing on ---
+	board._update_hud()
+	_check("haven button enabled on an explored, unclaimed, no-X hex", not board._haven_button.disabled)
+	var plunder_before: int = board.state.get_player("Druwhn").plunder
+	board._on_haven_pressed()
+	for i in 5:
+		await process_frame
+	var haven_tile = board.state.get_hex(target)
+	_check("target hex now has a Druwhn Haven", haven_tile != null and haven_tile.haven_faction == "Druwhn")
+	_check("plunder decreased by 2 after Haven", board.state.get_player("Druwhn").plunder == plunder_before - 2)
+	board._update_hud()
+	_check("haven button disables again once the hex already has one", board._haven_button.disabled)
+
 	var all_ok := true
 	for c in checks:
 		if not c[1]:

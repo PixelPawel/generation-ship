@@ -34,10 +34,12 @@ var _pivot: OrbitCamera
 var _hud: CanvasLayer
 var _status_label: Label
 var _resources_label: Label
+var _vp_label: Label
 var _selection_label: Label
 var _trade_button: Button
 var _explore_button: Button
 var _move_button: Button
+var _haven_button: Button
 
 
 func _ready() -> void:
@@ -133,6 +135,9 @@ func _setup_hud() -> void:
 	_resources_label = Label.new()
 	vbox.add_child(_resources_label)
 
+	_vp_label = Label.new()
+	vbox.add_child(_vp_label)
+
 	_selection_label = Label.new()
 	vbox.add_child(_selection_label)
 
@@ -153,6 +158,11 @@ func _setup_hud() -> void:
 	_move_button.text = "Move Here"
 	_move_button.pressed.connect(_on_move_pressed)
 	buttons.add_child(_move_button)
+
+	_haven_button = Button.new()
+	_haven_button.text = "Build Haven"
+	_haven_button.pressed.connect(_on_haven_pressed)
+	buttons.add_child(_haven_button)
 
 
 # ---------------------------------------------------------------------------
@@ -217,6 +227,9 @@ func _update_hud() -> void:
 	_resources_label.text = "Salt %d  Plunder %d  Food %d  |  AP %d" % [
 		player.salt, player.plunder, player.food, player.action_points
 	]
+	_vp_label.text = "VP -- You: %d   Empire: %d   Chaos: %d" % [
+		player.victory_points, state.empire_vp, state.chaos_vp
+	]
 
 	if selected_coord == NO_SELECTION:
 		_selection_label.text = "(no hex selected -- click one)"
@@ -239,6 +252,13 @@ func _update_hud() -> void:
 		and selected_coord != player.hero_hex
 		and selected_tile != null  # a "neighbor" coordinate may not have a generated tile at all
 		and HexMath.distance(player.hero_hex, selected_coord) == 1
+	)
+
+	var hero_tile := state.get_hex(player.hero_hex)
+	var plunder_cost := 3 if player.faction == "Krowh" else 2
+	_haven_button.disabled = not (
+		hero_tile != null and hero_tile.explored and not hero_tile.no_haven
+		and hero_tile.haven_faction == "" and player.plunder >= plunder_cost
 	)
 
 
@@ -293,3 +313,7 @@ func _on_move_pressed() -> void:
 	NetworkManager.submit_action({
 		"type": "move", "faction": current_faction, "to": [selected_coord.x, selected_coord.y]
 	})
+
+
+func _on_haven_pressed() -> void:
+	NetworkManager.submit_action({"type": "haven", "faction": current_faction})
