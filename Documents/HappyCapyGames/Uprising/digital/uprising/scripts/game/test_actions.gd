@@ -116,7 +116,7 @@ func _initialize() -> void:
 	r = GameActions.apply(state, {"type": "market", "faction": "Druwhn", "item": "Not A Real Item"}, -1, card_db)
 	checks.append(["market rejects unknown item", not r.get("ok", true)])
 
-	# --- Quest: AP-only stub ---
+	# --- Quest: real dice-roll resolution ---
 	var quest_name := "A Deal with Demons"
 	if not state.quests_available.has(quest_name):
 		state.quests_available.append(quest_name)
@@ -124,6 +124,15 @@ func _initialize() -> void:
 	r = GameActions.apply(state, {"type": "quest", "faction": "Druwhn", "quest": quest_name}, -1, card_db)
 	checks.append(["quest ok", r.get("ok", false)])
 	checks.append(["quest: AP -1", player.action_points == ap_before_quest - 1])
+	checks.append(["quest: result carries a dice tally", r.has("dice") and (r["dice"] as Dictionary).has("skulls")])
+	checks.append(["quest: result carries goals_met for all 3 goals", (r.get("goals_met", {}) as Dictionary).size() == 3])
+	checks.append(["quest: successes_needed echoes the card", r.get("successes_needed", -1) >= 0])
+	var successes_match: bool = r.get("solved", null) == (r.get("successes", -1) >= r.get("successes_needed", 999))
+	checks.append(["quest: solved matches successes >= successes_needed", successes_match])
+
+	# --- Quest: rejects a Guile split that doesn't sum to the Hero's Guile ---
+	r = GameActions.apply(state, {"type": "quest", "faction": "Druwhn", "quest": quest_name, "guile_white": 99, "guile_yellow": 0}, -1, card_db)
+	checks.append(["quest rejects mismatched guile split", not r.get("ok", true)])
 
 	r = GameActions.apply(state, {"type": "quest", "faction": "Druwhn", "quest": "Not A Real Quest"}, -1, card_db)
 	checks.append(["quest rejects unavailable quest", not r.get("ok", true)])

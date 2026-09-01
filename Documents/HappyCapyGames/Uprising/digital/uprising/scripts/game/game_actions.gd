@@ -13,7 +13,9 @@ extends RefCounted
 ##   {"type": "haven",   "faction": "Krowh"}
 ##   {"type": "command", "faction": "Krowh", "to": [q, r]}
 ##   {"type": "market",  "faction": "Krowh", "item": "Abad Warpaint"}
-##   {"type": "quest",   "faction": "Krowh", "quest": "A Deal with Demons"}
+##   {"type": "quest",   "faction": "Krowh", "quest": "A Deal with Demons",
+##    "guile_white": 2, "guile_yellow": 1}  -- Guile split, must sum to the
+##    Hero's Guile; omit both for an all-White default
 ## More plug in the same way: add a case in apply() and a
 ## _handler(state, action, sender_id, card_db) -> {ok, reason} function.
 ## `card_db` is the CardDatabase autoload, needed by handlers (Market, Quest)
@@ -36,7 +38,7 @@ static func apply(state: GameState, action: Dictionary, sender_id: int, card_db:
 		"market":
 			return _market(state, action, sender_id, card_db)
 		"quest":
-			return _quest(state, action, sender_id)
+			return _quest(state, action, sender_id, card_db)
 		_:
 			return {"ok": false, "reason": "unknown action type '%s'" % type}
 
@@ -281,13 +283,17 @@ static func _market(state: GameState, action: Dictionary, sender_id: int, card_d
 	return {"ok": true, "reason": ""}
 
 
-## Rulebook p25: Quest costs 1 AP, Actions Phase only. Choosing a Quest and
-## rolling/resolving it needs actual Hero Dice face data (which color rolls
-## which Skull/Shield/Bolt/blank faces) that isn't available anywhere in the
-## CSVs or rulebook text -- this only handles the mechanical AP cost and
-## marks the attempt; dice rolling and success/failure resolution stay
-## manual (assisted) until that data exists.
-static func _quest(state: GameState, action: Dictionary, sender_id: int) -> Dictionary:
+## Rulebook p25: Quest costs 1 AP, Actions Phase only. Rolls the Hero's
+## attribute dice (Might->Red, Magic->Purple, Leadership->Blue, Guile->the
+## player's White/Yellow split) via DiceModel, and checks the result against
+## the Quest's three goal thresholds to determine which succeeded and
+## whether it's Solved overall. Returns the roll and outcome in the result
+## dict for the UI to show. Deliberately does NOT apply the Quest's Solve/
+## Failure effect text or touch quests_available/discard piles -- which
+## specific effect text applies and whether the card is discarded/kept is
+## per-Quest free text, so that stays a manual step per the automation-scope
+## decision (same boundary as Explore's hex-flip-only approach).
+static func _quest(state: GameState, action: Dictionary, sender_id: int, card_db: Node) -> Dictionary:
 	if state.phase != GameState.Phase.ACTIONS:
 		return {"ok": false, "reason": "Quest is only available during the Actions Phase"}
 	var auth := _get_authorized_player(state, action, sender_id)
@@ -298,8 +304,51 @@ static func _quest(state: GameState, action: Dictionary, sender_id: int) -> Dict
 	var quest_name: String = action.get("quest", "")
 	if not state.quests_available.has(quest_name):
 		return {"ok": false, "reason": "that Quest is not available"}
+	if card_db == null:
+		return {"ok": false, "reason": "no card database available to resolve the Quest"}
+
+	var quest_card: QuestCard = null
+	for c in card_db.quests:
+		if c.lang == "EN" and c.card_name == quest_name:
+			quest_card = c
+			break
+	if quest_card == null:
+		return {"ok": false, "reason": "unknown Quest '%s'" % quest_name}
+
+	var guile_white: int = action.get("guile_white", player.guile)
+	var guile_yellow: int = action.get("guile_yellow", 0)
+	if guile_white + guile_yellow != player.guile:
+		return {"ok": false, "reason": "guile_white + guile_yellow must equal the Hero's Guile"}
+
 	if player.action_points < 1:
 		return {"ok": false, "reason": "no Action Points left"}
-
 	player.action_points -= 1
-	return {"ok": true, "reason": "AP spent; roll Hero Dice and resolve the Quest manually"}
+
+	var dice := DiceModel.roll_mixed({
+		"Red": player.might,
+		"Purple": player.magic,
+		"Blue": player.leadership,
+		"White": guile_white,
+		"Yellow": guile_yellow,
+	})
+
+	var goals_met := {
+		"skulls": quest_card.skulls_threshold > 0 and dice["skulls"] >= quest_card.skulls_threshold,
+		"shields": quest_card.shields_threshold > 0 and dice["shields"] >= quest_card.shields_threshold,
+		"bolts": quest_card.bolts_threshold > 0 and dice["bolts"] >= quest_card.bolts_threshold,
+	}
+	var successes := 0
+	for goal in goals_met:
+		if goals_met[goal]:
+			successes += 1
+	var solved: bool = successes >= quest_card.successes_needed
+
+	return {
+		"ok": true,
+		"reason": "Solved!" if solved else "Failed.",
+		"dice": dice,
+		"goals_met": goals_met,
+		"successes": successes,
+		"successes_needed": quest_card.successes_needed,
+		"solved": solved,
+	}
