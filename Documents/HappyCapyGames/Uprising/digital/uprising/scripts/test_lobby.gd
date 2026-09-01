@@ -65,6 +65,7 @@ func _initialize() -> void:
 	net_mgr.start_game(["Druwhn", "Duerkhar", "Krowh", "Mohyar"], "Veteran", 3)
 	_check("start_game populates game_state", net_mgr.game_state != null)
 	_check("4 players in the started game", net_mgr.game_state.players.size() == 4)
+	_check("game starts in the Refresh Phase, not fast-forwarded to Actions", net_mgr.game_state.phase == GameState.Phase.REFRESH)
 
 	var krowh: PlayerFactionState = net_mgr.game_state.get_player("Krowh")
 	_check("claimed faction is not a bot", krowh != null and not krowh.is_bot)
@@ -81,9 +82,10 @@ func _initialize() -> void:
 	var mohyar: PlayerFactionState = net_mgr.game_state.get_player("Mohyar")
 	_check("2nd unclaimed faction also becomes a bot", mohyar != null and mohyar.is_bot)
 
-	_check("started game is already in Actions Phase", net_mgr.game_state.phase == GameState.Phase.ACTIONS)
-	_check("bots are already marked has_passed (simple dummy, never acts)", druwhn.has_passed and mohyar.has_passed)
-	_check("claimed factions have NOT auto-passed", not krowh.has_passed and not duerkhar.has_passed)
+	# has_passed only gets set once GameFlow's BUILD -> ACTIONS transition
+	# actually runs (_start_actions_phase) -- since the game no longer
+	# fast-forwards there, nobody (bot or not) has "passed" yet at Refresh.
+	_check("nobody -- bot or not -- has auto-passed before Actions Phase is even reached", not druwhn.has_passed and not mohyar.has_passed and not krowh.has_passed and not duerkhar.has_passed)
 
 	net_mgr.disconnect_game()
 	_check("disconnect_game clears lobby_claims", net_mgr.lobby_claims.is_empty())

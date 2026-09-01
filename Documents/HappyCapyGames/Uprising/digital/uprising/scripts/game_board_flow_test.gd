@@ -19,6 +19,30 @@ func _initialize() -> void:
 	for i in 5:
 		await process_frame
 
+	# --- The game now always starts in Refresh Phase (the real first phase,
+	# same as a Lobby-started game) rather than fast-forwarded straight to
+	# Actions -- walk through Refresh -> Events -> Build -> Actions via the
+	# same submit_advance_phase() a real player's "End Phase" button uses,
+	# so this test exercises the real path instead of a shortcut. Accessed
+	# via root.get_node() rather than the bare `NetworkManager` identifier --
+	# autoload globals only resolve as bare identifiers in Node-derived
+	# scripts, not in this SceneTree script (same pattern test_network_
+	# manager.gd and friends already use). ---
+	var net_mgr := root.get_node("/root/NetworkManager")
+	_check("game starts in Refresh Phase", board.state.phase == GameState.Phase.REFRESH)
+	net_mgr.submit_advance_phase()
+	for i in 5:
+		await process_frame
+	_check("Refresh -> Events", board.state.phase == GameState.Phase.EVENTS)
+	net_mgr.submit_advance_phase()
+	for i in 5:
+		await process_frame
+	_check("Events -> Build", board.state.phase == GameState.Phase.BUILD)
+	net_mgr.submit_advance_phase()
+	for i in 5:
+		await process_frame
+	_check("Build -> Actions", board.state.phase == GameState.Phase.ACTIONS)
+
 	var player = board.state.get_player("Druwhn")
 	var home: Vector2i = player.hero_hex
 	var target := Vector2i(999999, 999999)  # sentinel "not found"

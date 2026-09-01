@@ -187,10 +187,13 @@ func _receive_lobby_bot_enabled(bot_enabled: Dictionary) -> void:
 ## PlayerFactionState.is_bot) with a default Hero, UNLESS the host turned
 ## that off via set_bot_enabled(), in which case the faction is left out of
 ## the game entirely (the rulebook already supports fewer than 4 factions).
-## Walks the fresh state through GameFlow up to Actions Phase (same as a
-## real Chapter start), then broadcasts it so every connected peer --
-## including the host itself, via call_local -- transitions into the real
-## game. No-op (does not start anything) if that would leave zero players.
+## Broadcasts the fresh state exactly as GameSetup produces it -- phase ==
+## REFRESH, the game's actual first phase -- so every connected peer,
+## including the host itself via call_local, sees and drives Refresh/
+## Events/Build themselves (Druid AETHER checks, the Events threat step and
+## card reveal, Feat draws, ...) instead of that all being silently
+## fast-forwarded through before anyone's looking. No-op (does not start
+## anything) if that would leave zero players.
 func start_game(all_factions: Array, difficulty: String, max_chapters: int) -> Dictionary:
 	if not is_host:
 		return {"ok": false, "reason": "only the host can start the game"}
@@ -207,9 +210,6 @@ func start_game(all_factions: Array, difficulty: String, max_chapters: int) -> D
 		return {"ok": false, "reason": "no factions in play -- claim one or leave at least one Bot enabled"}
 
 	var state := GameSetup.build_new_game(CardDatabase, pairs, difficulty, max_chapters)
-	GameFlow.advance_phase(state, CardDatabase)  # REFRESH -> EVENTS
-	GameFlow.advance_phase(state, CardDatabase)  # EVENTS -> BUILD
-	GameFlow.advance_phase(state, CardDatabase)  # BUILD -> ACTIONS
 	game_state = state
 	_game_starting.rpc(state.to_dict())
 	return {"ok": true, "reason": ""}
