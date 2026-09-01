@@ -53,9 +53,12 @@ var _build_unit_button: Button
 var _build_tower_button: Button
 var _build_wall_button: Button
 
+var _faction_option: OptionButton
+
 var _market_option_items: Array[String] = []  # what _market_option currently lists, to avoid needless rebuilds
 var _quest_option_items: Array[String] = []
 var _build_unit_option_items: Array[String] = []
+var _faction_option_items: Array[String] = []
 
 
 func _ready() -> void:
@@ -63,12 +66,20 @@ func _ready() -> void:
 	_setup_environment()
 	_setup_camera()
 	_setup_hud()
-	_start_local_game()
+	# LobbyConfig.configured stays false, and its faction_hero_pairs/etc
+	# default to a small 2-player local test game, when this scene is
+	# launched directly (dev iteration, tools/screenshot_scene.gd,
+	# game_board_flow_test.gd) rather than reached via scenes/lobby.tscn --
+	# so is_host defaulting true there still does the right thing.
+	if LobbyConfig.is_host:
+		_start_hosted_game()
+	else:
+		_start_joined_game()
 
 
-func _start_local_game() -> void:
+func _start_hosted_game() -> void:
 	state = GameSetup.build_new_game(
-		CardDatabase, [["Druwhn", "Fhayanor"], ["Krowh", "Kha'al"]], "Veteran", 3
+		CardDatabase, LobbyConfig.faction_hero_pairs, LobbyConfig.difficulty, LobbyConfig.max_chapters
 	)
 	# GameSetup's output is a "post-Refresh Chapter 1" state (phase ==
 	# REFRESH) -- walk it through GameFlow the same way a real game would,
@@ -79,7 +90,7 @@ func _start_local_game() -> void:
 	GameFlow.advance_phase(state, CardDatabase)  # BUILD -> ACTIONS
 	current_faction = state.players[0].faction
 
-	var err: Error = NetworkManager.host_game(state, NetworkManager.DEFAULT_PORT)
+	var err: Error = NetworkManager.host_game(state, LobbyConfig.port)
 	if err != OK:
 		push_warning("game_board: host_game failed (%s); board still renders `state` directly" % err)
 	NetworkManager.state_updated.connect(_on_state_updated)
@@ -88,8 +99,30 @@ func _start_local_game() -> void:
 	_rebuild_board()
 
 
+## Client path: no local GameState exists yet -- `state` stays null until
+## the host's first _receive_full_state RPC lands in _on_state_updated(),
+## which is also where `current_faction` gets a default (the "Playing as"
+## picker in the HUD lets the player switch which faction they're driving,
+## same as on the host).
+func _start_joined_game() -> void:
+	NetworkManager.state_updated.connect(_on_state_updated)
+	NetworkManager.action_rejected.connect(_on_action_rejected)
+	NetworkManager.connection_failed.connect(_on_connection_failed)
+
+	_status_label.text = "Connecting to %s:%d ..." % [LobbyConfig.join_address, LobbyConfig.join_port]
+	var err: Error = NetworkManager.join_game(LobbyConfig.join_address, LobbyConfig.join_port)
+	if err != OK:
+		_status_label.text = "join_game failed (%s)" % err
+
+
+func _on_connection_failed() -> void:
+	_status_label.text = "Connection failed."
+
+
 func _on_state_updated(new_state: GameState) -> void:
 	state = new_state
+	if current_faction == "" and not state.players.is_empty():
+		current_faction = state.players[0].faction
 	_rebuild_board()
 
 
@@ -153,6 +186,15 @@ func _setup_hud() -> void:
 	_status_label = Label.new()
 	_status_label.text = "Uprising"
 	vbox.add_child(_status_label)
+
+	var faction_row := HBoxContainer.new()
+	vbox.add_child(faction_row)
+	var faction_label := Label.new()
+	faction_label.text = "Playing as:"
+	faction_row.add_child(faction_label)
+	_faction_option = OptionButton.new()
+	_faction_option.item_selected.connect(_on_faction_option_selected)
+	faction_row.add_child(_faction_option)
 
 	_resources_label = Label.new()
 	vbox.add_child(_resources_label)
@@ -296,6 +338,18 @@ func _rebuild_hero_markers() -> void:
 
 
 func _update_hud() -> void:
+	var faction_names: Array[String] = []
+	for p in state.players:
+		faction_names.append(p.faction)
+	if faction_names != _faction_option_items:
+		_faction_option.clear()
+		for f in faction_names:
+			_faction_option.add_item(f)
+		_faction_option_items.assign(faction_names)
+	var current_idx := faction_names.find(current_faction)
+	if current_idx >= 0 and _faction_option.selected != current_idx:
+		_faction_option.select(current_idx)
+
 	var player := state.get_player(current_faction)
 	if player == null:
 		return
@@ -398,6 +452,8 @@ func _selected_option_text(option: OptionButton) -> String:
 # ---------------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
+	if state == null:
+		return  # client hasn't received the host's first state broadcast yet
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
@@ -429,6 +485,15 @@ func hex_at_screen_pos(screen_pos: Vector2) -> Vector2i:
 # ---------------------------------------------------------------------------
 # Action buttons
 # ---------------------------------------------------------------------------
+
+func _on_faction_option_selected(index: int) -> void:
+	if index < 0 or index >= _faction_option_items.size():
+		return
+	current_faction = _faction_option_items[index]
+	selected_coord = NO_SELECTION
+	_rebuild_hexes()
+	_update_hud()
+
 
 func _on_trade_pressed() -> void:
 	NetworkManager.submit_action({"type": "trade", "faction": current_faction})
