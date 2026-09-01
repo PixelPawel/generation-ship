@@ -83,6 +83,50 @@ func _initialize() -> void:
 	_check("Legion's 2 Activation Tokens both drained", legion.activation_tokens == 0)
 	_check("Horde's 1 Activation Token drained", horde.activation_tokens == 0)
 
+	# ---------------------------------------------------------------
+	# Nemesis activation ORDER follows printed Initiative (rulebook p27),
+	# Legions and Hordes in ONE combined order -- not entry/id order.
+	# Proven via a Curse-wipes-Garrison interaction on a shared hex: a
+	# Curse placed AFTER a Garrison wipes it back to 0; a Curse placed
+	# BEFORE one leaves it at 1 once the Garrison lands on top. The Legion
+	# here ("The New Emperor", Initiative 29) is given the LOWER id
+	# (created first), and the Horde ("The Lich Queen", Initiative 3) the
+	# HIGHER id -- this only passes if activation truly follows Initiative,
+	# not id/entry order (which would activate the Legion first instead).
+	# ---------------------------------------------------------------
+	var order_state := GameState.new()
+	order_state.phase = GameState.Phase.ACTIONS
+	var order_player := PlayerFactionState.new()
+	order_player.faction = "Druwhn"
+	order_player.has_passed = true  # nobody active -- the phase gate passes immediately
+	order_state.players.append(order_player)
+
+	var shared_hex := Vector2i(2, 2)
+	var order_tile := HexTile.new()
+	order_tile.coord = shared_hex
+	order_tile.explored = true
+	order_state.set_hex(order_tile)
+
+	var order_legion := LegionInstance.new()
+	order_legion.id = order_state.next_nemesis_id()  # lower id -- created first
+	order_legion.card_name = "The New Emperor"  # Initiative 29
+	order_legion.coord = shared_hex
+	order_legion.activation_tokens = 1
+	order_state.legions.append(order_legion)
+
+	var order_horde := HordeInstance.new()
+	order_horde.id = order_state.next_nemesis_id()  # higher id -- created second
+	order_horde.card_name = "The Lich Queen"  # Initiative 3 -- should activate FIRST despite the higher id
+	order_horde.coord = shared_hex
+	order_horde.activation_tokens = 1
+	order_state.hordes.append(order_horde)
+
+	r = GameFlow.advance_phase(order_state, card_db)
+	_check("ordering test: ACTIONS -> NEMESIS ok", r.get("ok", false))
+	var order_tile_after := order_state.get_hex(shared_hex)
+	_check("Horde (Initiative 3) activates before Legion (Initiative 29) despite a higher id",
+		order_tile_after.garrison_level == 1 and order_tile_after.has_curse)
+
 	# --- NEMESIS -> PRODUCTION ---
 	var druwhn_salt_before := state.get_player("Druwhn").salt
 	r = GameFlow.advance_phase(state, card_db)

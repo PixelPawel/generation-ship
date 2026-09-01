@@ -15,13 +15,13 @@ extends RefCounted
 ## blocked on missing dice-color-per-Unit data). advance_phase() surfaces
 ## what's expected of the players in its "reason" string at each step.
 ##
-## Known simplification: Nemesis activation order should be the cards'
-## PRINTED INITIATIVE (rulebook p27), which isn't in the digitized CSV data
-## (same class of gap as the player-board tables, but not yet found on any
-## examined player-aid image). This resolves every Legion/Horde in ascending
-## `id` order instead (i.e. the order they entered play) -- a deterministic,
-## documented stand-in, not a transcription. Revisit if initiative numbers
-## turn up on individual card art.
+## Nemesis activation order (rulebook p27) is each card's PRINTED
+## INITIATIVE, lowest to highest, Legions and Hordes sharing ONE combined
+## order -- not in the CSV/xlsx transcription, but confirmed present on
+## every Core card's own art (see NemesisData). Ties (shouldn't happen
+## with real Core cards, but matters for test/placeholder card names that
+## all fall back to the same "unknown" value) break by `id`, i.e. entry
+## order -- the old behavior, kept only as a tiebreak now.
 
 ## Every player faction that hasn't finished this phase yet -- still has AP
 ## left and hasn't voluntarily Passed. Used to gate both Build -> Actions
@@ -121,13 +121,18 @@ static func _start_build_phase(state: GameState) -> void:
 
 
 ## Rulebook p27: activate every Legion/Horde once per Activation Token it
-## holds, card by card in (approximated, see class docstring) initiative
-## order -- fully draining one card's tokens before moving to the next.
+## holds, card by card in printed Initiative order (see NemesisData and
+## the class docstring) -- fully draining one card's tokens before moving
+## to the next.
 static func _run_nemesis_phase(state: GameState) -> void:
 	var units: Array = []
 	units.append_array(state.legions)
 	units.append_array(state.hordes)
-	units.sort_custom(func(a, b): return a.id < b.id)
+	units.sort_custom(func(a, b) -> bool:
+		var ia := NemesisData.get_initiative(a.card_name)
+		var ib := NemesisData.get_initiative(b.card_name)
+		return ia < ib if ia != ib else a.id < b.id
+	)
 
 	for u in units:
 		while u.activation_tokens > 0:
