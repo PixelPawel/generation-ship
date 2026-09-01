@@ -89,7 +89,7 @@ func _apply_action(action: Dictionary, sender_id: int) -> void:
 	if game_state == null:
 		_reject(sender_id, "no active game")
 		return
-	var result := GameActions.apply(game_state, action, sender_id)
+	var result := GameActions.apply(game_state, action, sender_id, CardDatabase)
 	if not result.get("ok", false):
 		_reject(sender_id, result.get("reason", "action rejected"))
 		return
