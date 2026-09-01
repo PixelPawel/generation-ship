@@ -60,7 +60,7 @@ static func build_new_game(
 	var petals := _reserve_petal_coords(faction_hero_pairs, used)
 	_place_home_hexes_and_players(state, card_db, faction_hero_pairs, petals, diff)
 	_place_fixed_sea_towers(state, pool, petals)
-	_place_capital_garrisons(state, used)
+	_place_capital_garrisons(state, pool, used)
 
 	var placements := _fill_board(state, pool, used)
 
@@ -169,8 +169,14 @@ static func _place_home_hexes_and_players(
 		state.players.append(player)
 
 
-## Rulebook p6: "Place 3 Garrisons on The Capital, 1 Garrison on 3 adjacent hexes."
-static func _place_capital_garrisons(state: GameState, used: Dictionary) -> void:
+## Rulebook p6: "Place 3 Garrisons on The Capital, 1 Garrison on 3 adjacent
+## hexes." Capital's ring-1 is always random hexes (confirmed by the user
+## against their TTS screenshots), the same as every other unclaimed hex --
+## these 3 just also carry a Garrison, so they draw from the same `pool`
+## _fill_board uses rather than being left card_name-less.
+static func _place_capital_garrisons(state: GameState, pool: Dictionary, used: Dictionary) -> void:
+	var normal: Array = pool["normal"]
+	var sea_tower: Array = pool["sea_tower"]
 	var placed := 0
 	for n in HexMath.neighbors(GameState.CAPITAL_COORD):
 		if placed >= 3:
@@ -181,6 +187,11 @@ static func _place_capital_garrisons(state: GameState, used: Dictionary) -> void
 		tile.coord = n
 		tile.explored = false
 		tile.garrison_level = 1
+		if not normal.is_empty():
+			tile.card_name = normal.pop_back()
+		elif not sea_tower.is_empty():
+			tile.card_name = sea_tower.pop_back()
+			tile.is_sea_tower = true
 		state.set_hex(tile)
 		used[HexMath.key(n)] = true
 		placed += 1
