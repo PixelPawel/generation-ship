@@ -25,6 +25,11 @@ const FACTION_COLORS := {
 const CARD_THUMB_SIZE := Vector2(70, 103)
 const CARD_CHOICE_SIZE := Vector2(150, 221)
 
+## Hero standee models vary wildly in native scale (same gotcha main.gd's
+## asset showcase already solved) -- normalize every one to roughly this
+## XZ footprint so it reads clearly on a hex without overwhelming it.
+const HERO_MODEL_FOOTPRINT := 1.3
+
 var state: GameState
 var current_faction: String = ""
 var selected_coord: Vector2i = NO_SELECTION
@@ -469,19 +474,42 @@ func _rebuild_hero_markers() -> void:
 	for player in state.players:
 		var marker: MeshInstance3D = _hero_markers.get(player.faction)
 		if marker == null:
-			marker = MeshInstance3D.new()
-			var mesh := SphereMesh.new()
-			mesh.radius = 0.5
-			mesh.height = 1.0
-			marker.mesh = mesh
-			var mat := StandardMaterial3D.new()
-			mat.albedo_color = FACTION_COLORS.get(player.faction, Color.WHITE)
-			marker.set_surface_override_material(0, mat)
+			marker = _build_hero_marker(player)
 			add_child(marker)
 			_hero_markers[player.faction] = marker
 		var world := HexMath.to_world(player.hero_hex)
-		world.y = 0.6
+		world.y = 0.21  # just above the hex puck's top surface (0.2)
 		marker.position = world
+
+
+## The Hero's own extracted standee model (tools/extract_unity3d.py; see
+## ModelDatabase), matched by name -- "if I move a hero named Fhayanor it
+## should be that model." Falls back to the flat colored sphere this always
+## used if a Hero somehow has no extracted model, so a lookup miss stays
+## visible instead of silently disappearing.
+func _build_hero_marker(player: PlayerFactionState) -> MeshInstance3D:
+	var marker := MeshInstance3D.new()
+	var model_path := ModelDatabase.find_model_path(player.hero_name)
+	var mesh: Mesh = load(model_path) if (model_path != "" and ResourceLoader.exists(model_path)) else null
+
+	if mesh != null:
+		marker.mesh = mesh
+		var aabb := mesh.get_aabb()
+		var footprint := maxf(aabb.size.x, aabb.size.z)
+		if footprint > 0.001:
+			var s := HERO_MODEL_FOOTPRINT / footprint
+			marker.scale = Vector3(s, s, s)
+		return marker
+
+	push_warning("game_board: no extracted model found for Hero '%s'; using a placeholder sphere" % player.hero_name)
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.5
+	sphere.height = 1.0
+	marker.mesh = sphere
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = FACTION_COLORS.get(player.faction, Color.WHITE)
+	marker.set_surface_override_material(0, mat)
+	return marker
 
 
 ## Small colored disc on top of each Haven, since the tile's own material
