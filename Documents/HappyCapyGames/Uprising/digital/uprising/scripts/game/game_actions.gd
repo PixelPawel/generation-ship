@@ -16,6 +16,12 @@ extends RefCounted
 ##   {"type": "quest",   "faction": "Krowh", "quest": "A Deal with Demons",
 ##    "guile_white": 2, "guile_yellow": 1}  -- Guile split, must sum to the
 ##    Hero's Guile; omit both for an all-White default
+##   {"type": "build_unit", "faction": "Krowh", "unit": "Deadeyes", "at": [q, r],
+##    "cost_choice": 0}  -- index into the unit's cost_options, default 0;
+##    "any_alloc": {"salt": 1, "plunder": 1} for Mohyar's ANY-cost Units,
+##    must sum to the option's "any" amount
+##   {"type": "build_defense", "faction": "Krowh", "defense": "tower", "at": [q, r]}
+##    -- defense is "tower" or "wall"
 ## More plug in the same way: add a case in apply() and a
 ## _handler(state, action, sender_id, card_db) -> {ok, reason} function.
 ## `card_db` is the CardDatabase autoload, needed by handlers (Market, Quest)
@@ -39,6 +45,10 @@ static func apply(state: GameState, action: Dictionary, sender_id: int, card_db:
 			return _market(state, action, sender_id, card_db)
 		"quest":
 			return _quest(state, action, sender_id, card_db)
+		"build_unit":
+			return _build_unit(state, action, sender_id)
+		"build_defense":
+			return _build_defense(state, action, sender_id)
 		_:
 			return {"ok": false, "reason": "unknown action type '%s'" % type}
 
@@ -352,3 +362,141 @@ static func _quest(state: GameState, action: Dictionary, sender_id: int, card_db
 		"successes_needed": quest_card.successes_needed,
 		"solved": solved,
 	}
+
+
+## True if `hex` is one of the player's own Havens, OR the player has no
+## Havens at all and `hex` is their Hero's current explored, empty hex
+## (rulebook p17: "If you have no Havens, place your Hero on any explored
+## empty hex and build Units there").
+static func _valid_build_hex(state: GameState, player: PlayerFactionState, coord: Vector2i) -> bool:
+	var tile := state.get_hex(coord)
+	if tile == null or not tile.explored:
+		return false
+	if tile.haven_faction == player.faction:
+		return true
+	return player.havens.is_empty() and player.hero_hex == coord and HexTile.is_empty(tile)
+
+
+static func _cost_affordable(player: PlayerFactionState, cost: Dictionary, any_alloc: Dictionary) -> bool:
+	if cost.has("any"):
+		var alloc_total: int = int(any_alloc.get("salt", 0)) + int(any_alloc.get("plunder", 0)) + int(any_alloc.get("food", 0))
+		if alloc_total != int(cost["any"]):
+			return false
+		return (
+			player.salt >= int(any_alloc.get("salt", 0))
+			and player.plunder >= int(any_alloc.get("plunder", 0))
+			and player.food >= int(any_alloc.get("food", 0))
+		)
+	return (
+		player.salt >= int(cost.get("salt", 0))
+		and player.plunder >= int(cost.get("plunder", 0))
+		and player.food >= int(cost.get("food", 0))
+	)
+
+
+static func _cost_pay(player: PlayerFactionState, cost: Dictionary, any_alloc: Dictionary) -> void:
+	if cost.has("any"):
+		player.salt -= int(any_alloc.get("salt", 0))
+		player.plunder -= int(any_alloc.get("plunder", 0))
+		player.food -= int(any_alloc.get("food", 0))
+	else:
+		player.salt -= int(cost.get("salt", 0))
+		player.plunder -= int(cost.get("plunder", 0))
+		player.food -= int(cost.get("food", 0))
+
+
+## How many of `unit_name` this faction already has in play, across every
+## hex -- the hard reserve cap from FactionData.UNITS' `count` field.
+static func _units_in_play(state: GameState, faction: String, unit_name: String) -> int:
+	var total := 0
+	for k in state.hexes:
+		var tile: HexTile = state.hexes[k]
+		for u in (tile.units.get(faction, []) as Array):
+			if u == unit_name:
+				total += 1
+	return total
+
+
+## Rulebook p17: Build Phase, no AP cost. Pay a Unit's printed resource cost
+## (from FactionData, the transcribed player-board table) to place one copy
+## on one of your own Havens -- or, if you have no Havens yet, on your
+## Hero's own explored empty hex. Respects both the 5-Units-per-hex cap and
+## the Unit's total reserve size (e.g. Druwhn only ever has 4 Swordsisters).
+static func _build_unit(state: GameState, action: Dictionary, sender_id: int) -> Dictionary:
+	if state.phase != GameState.Phase.BUILD:
+		return {"ok": false, "reason": "Units can only be built during the Build Phase"}
+	var auth := _get_authorized_player(state, action, sender_id)
+	if not auth.get("ok", false):
+		return auth
+	var player: PlayerFactionState = auth["player"]
+
+	var unit_name: String = action.get("unit", "")
+	var unit_def := FactionData.find_unit(player.faction, unit_name)
+	if unit_def.is_empty():
+		return {"ok": false, "reason": "unknown Unit '%s' for faction '%s'" % [unit_name, player.faction]}
+
+	var to_arr: Array = action.get("at", [])
+	if to_arr.size() != 2:
+		return {"ok": false, "reason": "missing/invalid 'at' coordinate"}
+	var coord := Vector2i(to_arr[0], to_arr[1])
+	if not _valid_build_hex(state, player, coord):
+		return {"ok": false, "reason": "hex must be one of your Havens (or, with no Havens, your Hero's own empty hex)"}
+
+	var tile := state.get_hex(coord)
+	var here: Array = (tile.units.get(player.faction, []) as Array)
+	if here.size() >= 5:
+		return {"ok": false, "reason": "hex already has 5 of your Units"}
+
+	if _units_in_play(state, player.faction, unit_name) >= int(unit_def["count"]):
+		return {"ok": false, "reason": "no more %s left in reserve" % unit_name}
+
+	var cost_options: Array = unit_def["cost_options"]
+	var choice: int = action.get("cost_choice", 0)
+	if choice < 0 or choice >= cost_options.size():
+		return {"ok": false, "reason": "invalid cost_choice"}
+	var cost: Dictionary = cost_options[choice]
+	var any_alloc: Dictionary = action.get("any_alloc", {})
+	if not _cost_affordable(player, cost, any_alloc):
+		return {"ok": false, "reason": "cannot afford this Unit's cost"}
+
+	_cost_pay(player, cost, any_alloc)
+	here.append(unit_name)
+	tile.units[player.faction] = here
+	return {"ok": true, "reason": ""}
+
+
+## Rulebook p17 + p42: Build Phase, no AP cost, 1 Plunder. Requires a Haven
+## you own on the target hex, and no existing Defense of that kind there
+## (max 1 Tower + 1 Wall per Haven).
+static func _build_defense(state: GameState, action: Dictionary, sender_id: int) -> Dictionary:
+	if state.phase != GameState.Phase.BUILD:
+		return {"ok": false, "reason": "Defenses can only be built during the Build Phase"}
+	var auth := _get_authorized_player(state, action, sender_id)
+	if not auth.get("ok", false):
+		return auth
+	var player: PlayerFactionState = auth["player"]
+
+	var defense: String = action.get("defense", "")
+	if defense != "tower" and defense != "wall":
+		return {"ok": false, "reason": "defense must be 'tower' or 'wall'"}
+
+	var to_arr: Array = action.get("at", [])
+	if to_arr.size() != 2:
+		return {"ok": false, "reason": "missing/invalid 'at' coordinate"}
+	var coord := Vector2i(to_arr[0], to_arr[1])
+	var tile := state.get_hex(coord)
+	if tile == null or tile.haven_faction != player.faction:
+		return {"ok": false, "reason": "you must have a Haven on that hex"}
+	if defense == "tower" and tile.has_tower:
+		return {"ok": false, "reason": "this Haven already has a Tower"}
+	if defense == "wall" and tile.has_wall:
+		return {"ok": false, "reason": "this Haven already has a Wall"}
+
+	if not _cost_affordable(player, FactionData.TOWER_WALL_COST, {}):
+		return {"ok": false, "reason": "not enough Plunder"}
+	_cost_pay(player, FactionData.TOWER_WALL_COST, {})
+	if defense == "tower":
+		tile.has_tower = true
+	else:
+		tile.has_wall = true
+	return {"ok": true, "reason": ""}

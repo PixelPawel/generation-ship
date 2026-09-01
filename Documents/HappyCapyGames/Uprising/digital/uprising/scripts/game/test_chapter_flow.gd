@@ -137,11 +137,20 @@ func _initialize() -> void:
 	pstate.set_hex(ice_tile)
 	player.havens = [Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)]
 
+	# Druwhn at 3 Havens: base production (FactionData) is 5 Salt/2 Plunder/
+	# 1 Food, plus +2 Plunder (Woods), +2 Food (Marshes), +2 Salt (Ice Waste)
+	# from the 3 Haven terrain bonuses above -> 7 Salt/4 Plunder/3 Food total.
 	ChapterFlow.production_phase_haven_bonus(pstate, card_db)
-	_check("production: Woods Haven gives +2 Plunder", player.plunder == 2)
-	_check("production: Marshes Haven gives +2 Food", player.food == 2)
-	_check("production: Ice Waste Haven gives +2 Salt", player.salt == 2)
+	_check("production: base production applied for 3 Havens", player.salt == 7 and player.plunder == 4 and player.food == 3)
 	_check("production: phase set to PRODUCTION", pstate.phase == GameState.Phase.PRODUCTION)
+
+	# --- Zero Havens still produces the shared baseline (0/2/1) ---
+	var pstate0 := GameState.new()
+	var player0 := PlayerFactionState.new()
+	player0.faction = "Krowh"
+	pstate0.players.append(player0)
+	ChapterFlow.production_phase_haven_bonus(pstate0, card_db)
+	_check("production: 0 Havens still gives the baseline 0 Salt/2 Plunder/1 Food", player0.salt == 0 and player0.plunder == 2 and player0.food == 1)
 
 	# ---------------------------------------------------------------
 	# check_win_loss

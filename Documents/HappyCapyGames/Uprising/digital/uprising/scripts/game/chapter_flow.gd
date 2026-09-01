@@ -1,11 +1,11 @@
 class_name ChapterFlow
 extends RefCounted
 ## The parts of the Chapter/Phase cycle (rulebook p15-31) that are fully
-## specified and don't need anything missing (dice-face data, or the
-## player-board production table, which is print artwork with no digitized
-## source -- same class of gap as Combat/Quest resolution). Phases not
-## covered here (Events' actual card text, Build's Unit/Defense purchases,
-## Nemesis activation, Actions) are handled elsewhere or stay manual.
+## automatable. Phases not covered here (Events' actual card text, Feat
+## draw/choice, Nemesis activation, Actions) are handled elsewhere or stay
+## manual; Build's Unit/Defense purchases live in GameActions
+## (build_unit/build_defense), not here, since they're player-submitted
+## actions rather than an automatic phase step.
 
 
 ## Rulebook p15: reset AP, discard+refill the Market and Quest slots
@@ -83,13 +83,19 @@ static func _add_token_to_fewest(units: Array) -> void:
 	target.activation_tokens += 1
 
 
-## Rulebook p29, PARTIAL: only the per-Haven terrain resource bonus (Woods/
-## Highlands -> +2 Plunder, Marshes/Badlands -> +2 Food, Ice Waste -> +2
-## Salt). The player-board base production table (by Haven count) isn't
-## digitized anywhere -- it's print artwork -- so applying it stays a manual
-## step; this covers only the part that's actually knowable from the CSVs.
+## Rulebook p29: gain the base production for your current Haven count (the
+## player board's "highest production uncovered" row, transcribed into
+## FactionData -- previously blocked on that being print artwork with no
+## digitized source, same gap DiceModel filled for dice faces), plus a bonus
+## from EACH Haven's terrain (Woods/Highlands -> +2 Plunder, Marshes/
+## Badlands -> +2 Food, Ice Waste -> +2 Salt).
 static func production_phase_haven_bonus(state: GameState, card_db: Node) -> void:
 	for player in state.players:
+		var base := FactionData.get_production(player.faction, player.havens.size())
+		player.salt += base["salt"]
+		player.plunder += base["plunder"]
+		player.food += base["food"]
+
 		for coord in player.havens:
 			var tile := state.get_hex(coord)
 			if tile == null or tile.card_name == "":

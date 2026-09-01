@@ -155,6 +155,93 @@ func _initialize() -> void:
 	r = GameActions.apply(state, {"type": "move", "faction": "Krowh", "to": [0, 0]}, -1, card_db)
 	checks.append(["move outside Actions Phase rejected", not r.get("ok", true)])
 
+	# ---------------------------------------------------------------
+	# build_unit / build_defense (Build Phase) -- `neighbor` already has a
+	# Druwhn Haven from the earlier Haven test above.
+	# ---------------------------------------------------------------
+	player.salt = 10
+	player.plunder = 10
+	player.food = 10
+
+	var units_before: int = (state.get_hex(neighbor).units.get("Druwhn", []) as Array).size()
+	var salt_before_build := player.salt
+	r = GameActions.apply(state, {"type": "build_unit", "faction": "Druwhn", "unit": "Sons of the Bow", "at": [neighbor.x, neighbor.y]}, -1, card_db)
+	checks.append(["build_unit ok", r.get("ok", false)])
+	checks.append(["build_unit: unit added to hex", (state.get_hex(neighbor).units.get("Druwhn", []) as Array).size() == units_before + 1])
+	checks.append(["build_unit: salt -3", player.salt == salt_before_build - 3])
+
+	r = GameActions.apply(state, {"type": "build_unit", "faction": "Druwhn", "unit": "Not A Real Unit", "at": [neighbor.x, neighbor.y]}, -1, card_db)
+	checks.append(["build_unit rejects unknown unit", not r.get("ok", true)])
+
+	r = GameActions.apply(state, {"type": "build_unit", "faction": "Druwhn", "unit": "Sons of the Bow", "at": [far.x, far.y]}, -1, card_db)
+	checks.append(["build_unit rejects an invalid hex (unexplored / no Haven)", not r.get("ok", true)])
+
+	# --- Reserve cap: Druwhn only has 2 Beastmasters total ---
+	player.salt = 20
+	player.food = 20
+	r = GameActions.apply(state, {"type": "build_unit", "faction": "Druwhn", "unit": "Beastmasters", "at": [neighbor.x, neighbor.y]}, -1, card_db)
+	checks.append(["build_unit: 1st Beastmasters ok", r.get("ok", false)])
+	r = GameActions.apply(state, {"type": "build_unit", "faction": "Druwhn", "unit": "Beastmasters", "at": [neighbor.x, neighbor.y]}, -1, card_db)
+	checks.append(["build_unit: 2nd Beastmasters ok", r.get("ok", false)])
+	r = GameActions.apply(state, {"type": "build_unit", "faction": "Druwhn", "unit": "Beastmasters", "at": [neighbor.x, neighbor.y]}, -1, card_db)
+	checks.append(["build_unit: 3rd Beastmasters rejected (reserve of 2 exhausted)", not r.get("ok", true)])
+
+	var plunder_before_defense := player.plunder
+	r = GameActions.apply(state, {"type": "build_defense", "faction": "Druwhn", "defense": "tower", "at": [neighbor.x, neighbor.y]}, -1, card_db)
+	checks.append(["build_defense (tower) ok", r.get("ok", false)])
+	checks.append(["build_defense: hex now has a Tower", state.get_hex(neighbor).has_tower])
+	checks.append(["build_defense: plunder -1", player.plunder == plunder_before_defense - 1])
+
+	r = GameActions.apply(state, {"type": "build_defense", "faction": "Druwhn", "defense": "tower", "at": [neighbor.x, neighbor.y]}, -1, card_db)
+	checks.append(["build_defense rejects a 2nd Tower on the same Haven", not r.get("ok", true)])
+
+	r = GameActions.apply(state, {"type": "build_defense", "faction": "Druwhn", "defense": "wall", "at": [neighbor.x, neighbor.y]}, -1, card_db)
+	checks.append(["build_defense (wall) ok", r.get("ok", false)])
+	checks.append(["build_defense: hex now has a Wall", state.get_hex(neighbor).has_wall])
+
+	r = GameActions.apply(state, {"type": "build_defense", "faction": "Druwhn", "defense": "tower", "at": [far.x, far.y]}, -1, card_db)
+	checks.append(["build_defense rejects a hex without your Haven", not r.get("ok", true)])
+
+	# --- OR-cost Units: Duerkhar's Younglings can be paid with either option ---
+	var or_state := GameState.new()
+	var or_player := PlayerFactionState.new()
+	or_player.faction = "Duerkhar"
+	or_player.salt = 5
+	or_player.plunder = 5
+	or_state.players.append(or_player)
+	or_state.phase = GameState.Phase.BUILD
+	var or_tile := HexTile.new()
+	or_tile.coord = Vector2i(0, 0)
+	or_tile.explored = true
+	or_tile.haven_faction = "Duerkhar"
+	or_state.set_hex(or_tile)
+
+	r = GameActions.apply(or_state, {"type": "build_unit", "faction": "Duerkhar", "unit": "Younglings", "at": [0, 0], "cost_choice": 1}, -1, card_db)
+	checks.append(["build_unit: OR-cost choice 1 (Plunder) ok", r.get("ok", false)])
+	checks.append(["build_unit: OR-cost paid with Plunder not Salt", or_player.plunder == 3 and or_player.salt == 5])
+
+	# --- ANY-cost Units: Mohyar's Sellswords need an explicit any_alloc ---
+	var any_state := GameState.new()
+	var any_player := PlayerFactionState.new()
+	any_player.faction = "Mohyar"
+	any_player.salt = 5
+	any_player.plunder = 5
+	any_player.food = 5
+	any_state.players.append(any_player)
+	any_state.phase = GameState.Phase.BUILD
+	var any_tile := HexTile.new()
+	any_tile.coord = Vector2i(0, 0)
+	any_tile.explored = true
+	any_tile.haven_faction = "Mohyar"
+	any_state.set_hex(any_tile)
+
+	r = GameActions.apply(any_state, {"type": "build_unit", "faction": "Mohyar", "unit": "Sellswords", "at": [0, 0], "any_alloc": {"food": 1, "plunder": 1}}, -1, card_db)
+	checks.append(["build_unit: ANY-cost with explicit allocation ok", r.get("ok", false)])
+	checks.append(["build_unit: ANY-cost paid food+plunder not salt", any_player.food == 4 and any_player.plunder == 4 and any_player.salt == 5])
+
+	r = GameActions.apply(any_state, {"type": "build_unit", "faction": "Mohyar", "unit": "Hunters", "at": [0, 0], "any_alloc": {"food": 1}}, -1, card_db)
+	checks.append(["build_unit: ANY-cost rejects an allocation that doesn't sum to the cost", not r.get("ok", true)])
+
 	var all_ok := true
 	for c in checks:
 		var label: String = c[0]
