@@ -8,12 +8,19 @@ extends RefCounted
 enum Phase { REFRESH, EVENTS, BUILD, ACTIONS, NEMESIS, PRODUCTION, SCORING }
 
 const CAPITAL_COORD := Vector2i.ZERO
+## Sentinel "no pending combat" value for pending_combat_hex.
+const NO_COMBAT := Vector2i(-9999, -9999)
 
 var chapter: int = 1
 var max_chapters: int = 3
 var phase: Phase = Phase.REFRESH
 var first_player_index: int = 0
 var current_player_index: int = 0
+
+## Set by NemesisAI when a Legion/Horde activation moves into a hex with
+## enemy presence -- combat resolution isn't automated yet (see
+## nemesis_ai.gd), so this just flags where it needs to be resolved manually.
+var pending_combat_hex: Vector2i = NO_COMBAT
 
 ## HexMath.key(coord) -> HexTile
 var hexes: Dictionary = {}
@@ -77,6 +84,7 @@ func to_dict() -> Dictionary:
 		"phase": phase,
 		"first_player_index": first_player_index,
 		"current_player_index": current_player_index,
+		"pending_combat_hex": [pending_combat_hex.x, pending_combat_hex.y],
 		"hexes": hex_dict,
 		"players": players.map(func(p: PlayerFactionState) -> Dictionary: return p.to_dict()),
 		"legions": legions.map(func(l: LegionInstance) -> Dictionary: return l.to_dict()),
@@ -106,6 +114,8 @@ static func from_dict(d: Dictionary) -> GameState:
 	s.phase = d.get("phase", Phase.REFRESH) as Phase
 	s.first_player_index = d.get("first_player_index", 0)
 	s.current_player_index = d.get("current_player_index", 0)
+	var pc: Array = d.get("pending_combat_hex", [NO_COMBAT.x, NO_COMBAT.y])
+	s.pending_combat_hex = Vector2i(pc[0], pc[1])
 
 	s.hexes = {}
 	for k in (d.get("hexes", {}) as Dictionary):
