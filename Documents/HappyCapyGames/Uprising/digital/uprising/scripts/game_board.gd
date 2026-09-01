@@ -22,6 +22,9 @@ const FACTION_COLORS := {
 	"Krowh": Color(0.9, 0.65, 0.1),
 }
 
+const CARD_THUMB_SIZE := Vector2(70, 103)
+const CARD_CHOICE_SIZE := Vector2(150, 221)
+
 var state: GameState
 var current_faction: String = ""
 var selected_coord: Vector2i = NO_SELECTION
@@ -52,6 +55,7 @@ var _build_unit_option: OptionButton
 var _build_unit_button: Button
 var _build_tower_button: Button
 var _build_wall_button: Button
+var _draw_feats_button: Button
 
 var _faction_option: OptionButton
 
@@ -60,12 +64,21 @@ var _quest_option_items: Array[String] = []
 var _build_unit_option_items: Array[String] = []
 var _faction_option_items: Array[String] = []
 
+## Bottom-of-screen card display: the current player's Items/Feats in play
+## (CardView.make thumbnails), and, during Build Phase with a drawn-but-
+## undecided Feat pair, a clickable choice between the two.
+var _hand_bar: CanvasLayer
+var _hand_row: HBoxContainer
+var _feat_choice_row: HBoxContainer
+var _feat_choice_label: Label
+
 
 func _ready() -> void:
 	_hex_mesh = load(HEX_MESH_PATH)
 	_setup_environment()
 	_setup_camera()
 	_setup_hud()
+	_setup_hand_bar()
 	# LobbyConfig.configured stays false, and its faction_hero_pairs/etc
 	# default to a small 2-player local test game, when this scene is
 	# launched directly (dev iteration, tools/screenshot_scene.gd,
@@ -243,6 +256,11 @@ func _setup_hud() -> void:
 	_end_phase_button.pressed.connect(_on_end_phase_pressed)
 	buttons.add_child(_end_phase_button)
 
+	_draw_feats_button = Button.new()
+	_draw_feats_button.text = "Draw Feats"
+	_draw_feats_button.pressed.connect(_on_draw_feats_pressed)
+	buttons.add_child(_draw_feats_button)
+
 	var market_row := HBoxContainer.new()
 	vbox.add_child(market_row)
 	market_row.add_child(Label.new())
@@ -283,6 +301,93 @@ func _setup_hud() -> void:
 	_build_wall_button.text = "Build Wall"
 	_build_wall_button.pressed.connect(_on_build_wall_pressed)
 	build_row.add_child(_build_wall_button)
+
+
+## Bottom-of-screen bar showing the current player's Items/Feats in play as
+## real card art (CardView), plus -- when a Build Phase draw_feats is
+## pending -- a clickable choice between the 2 drawn Feats.
+func _setup_hand_bar() -> void:
+	_hand_bar = CanvasLayer.new()
+	add_child(_hand_bar)
+
+	# Anchored to a zero-height strip pinned to the bottom edge; growing
+	# UPWARD from there by its own content's natural size (GROW_DIRECTION_
+	# BEGIN) means this is correctly placed regardless of viewport height,
+	# instead of a brittle hardcoded pixel offset that could overlap the
+	# top-left HUD panel on a small window.
+	var vbox := VBoxContainer.new()
+	vbox.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	vbox.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	vbox.offset_left = 12
+	vbox.offset_right = -12
+	vbox.offset_bottom = -12
+	_hand_bar.add_child(vbox)
+
+	_feat_choice_label = Label.new()
+	_feat_choice_label.text = "Choose a Feat:"
+	_feat_choice_label.visible = false
+	vbox.add_child(_feat_choice_label)
+
+	_feat_choice_row = HBoxContainer.new()
+	vbox.add_child(_feat_choice_row)
+
+	var hand_label := Label.new()
+	hand_label.text = "Hand (Items + Feats in play):"
+	vbox.add_child(hand_label)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, CARD_THUMB_SIZE.y + 16)
+	vbox.add_child(scroll)
+
+	_hand_row = HBoxContainer.new()
+	scroll.add_child(_hand_row)
+
+
+## Rebuilds the hand bar from scratch every call -- Items/Feats in play
+## change rarely (only via Market/Feat actions), so unlike the OptionButtons
+## there's no user selection state to lose by doing this unconditionally.
+func _update_hand_bar() -> void:
+	var player := state.get_player(current_faction)
+	if player == null:
+		return
+
+	for child in _hand_row.get_children():
+		child.queue_free()
+	for item_name in player.items_in_play:
+		var card := _find_item_card(item_name)
+		var texture_path: String = card.texture_path if card != null else ""
+		_hand_row.add_child(CardView.make(texture_path, item_name, CARD_THUMB_SIZE))
+	for feat_name in player.feats_in_play:
+		var fcard := _find_feat_card(feat_name)
+		var texture_path: String = fcard.texture_path if fcard != null else ""
+		_hand_row.add_child(CardView.make(texture_path, feat_name, CARD_THUMB_SIZE))
+
+	for child in _feat_choice_row.get_children():
+		child.queue_free()
+	var has_choice := not player.pending_feat_choice.is_empty()
+	_feat_choice_label.visible = has_choice
+	if has_choice:
+		for feat_name in player.pending_feat_choice:
+			var fcard := _find_feat_card(feat_name)
+			var texture_path: String = fcard.texture_path if fcard != null else ""
+			_feat_choice_row.add_child(CardView.make_button(
+				texture_path, feat_name, CARD_CHOICE_SIZE,
+				func() -> void: _on_choose_feat_pressed(feat_name)
+			))
+
+
+func _find_item_card(item_name: String) -> ItemCard:
+	for c in CardDatabase.items:
+		if c.lang == "EN" and c.card_name == item_name:
+			return c
+	return null
+
+
+func _find_feat_card(feat_name: String) -> FeatCard:
+	for c in CardDatabase.feats:
+		if c.lang == "EN" and c.card_name == feat_name:
+			return c
+	return null
 
 
 # ---------------------------------------------------------------------------
@@ -424,6 +529,13 @@ func _update_hud() -> void:
 		can_build_here and selected_tile.haven_faction == player.faction
 		and not selected_tile.has_wall and player.plunder >= 1
 	)
+	_draw_feats_button.disabled = not (
+		state.phase == GameState.Phase.BUILD
+		and player.pending_feat_choice.is_empty()
+		and not player.feat_deck.is_empty()
+	)
+
+	_update_hand_bar()
 
 
 ## Only rebuilds `option`'s item list when `names` actually differs from
@@ -595,3 +707,11 @@ func _on_build_wall_pressed() -> void:
 		"type": "build_defense", "faction": current_faction, "defense": "wall",
 		"at": [selected_coord.x, selected_coord.y],
 	})
+
+
+func _on_draw_feats_pressed() -> void:
+	NetworkManager.submit_action({"type": "draw_feats", "faction": current_faction})
+
+
+func _on_choose_feat_pressed(feat_name: String) -> void:
+	NetworkManager.submit_action({"type": "choose_feat", "faction": current_faction, "feat": feat_name})

@@ -135,6 +135,30 @@ func _initialize() -> void:
 		await process_frame
 	_check("hex now has a Wall", board.state.get_hex(target).has_wall)
 
+	# --- Draw Feats / Choose Feat: still Build Phase from the forcing above.
+	# Each action's state broadcast already triggers _update_hud() via
+	# call_local RPC, but _update_hand_bar() clears old children with
+	# queue_free() (not immediate free -- safe to do from inside a card
+	# button's own "pressed" handler), so child-count checks wait a few
+	# frames after the action rather than reading counts synchronously. ---
+	_check("draw feats button enabled during Build Phase", not board._draw_feats_button.disabled)
+
+	board._on_draw_feats_pressed()
+	for i in 5:
+		await process_frame
+	var druwhn_player: PlayerFactionState = board.state.get_player("Druwhn")
+	_check("2 Feats drawn into pending_feat_choice", druwhn_player.pending_feat_choice.size() == 2)
+	_check("feat choice row shows 2 clickable cards", board._feat_choice_row.get_child_count() == 2)
+	_check("draw feats button disables while a choice is pending", board._draw_feats_button.disabled)
+
+	var picked_feat: String = druwhn_player.pending_feat_choice[0]
+	board._on_choose_feat_pressed(picked_feat)
+	for i in 5:
+		await process_frame
+	_check("chosen Feat now in feats_in_play", board.state.get_player("Druwhn").feats_in_play.has(picked_feat))
+	_check("feat choice row clears once resolved", board._feat_choice_row.get_child_count() == 0)
+	_check("hand row now shows the picked Feat's card", board._hand_row.get_child_count() == 1)
+
 	var all_ok := true
 	for c in checks:
 		if not c[1]:
