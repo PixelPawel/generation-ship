@@ -45,6 +45,12 @@ var _status_label: Label
 var _resources_label: Label
 var _vp_label: Label
 var _selection_label: Label
+var _phase_log_label: Label
+var _event_row: HBoxContainer
+var _event_card_slot: HBoxContainer
+var _combats_row: HBoxContainer
+var _last_phase_message: String = ""
+var _shown_event: String = ""  # which current_event _event_card_slot currently displays, to avoid needless rebuilds
 var _trade_button: Button
 var _explore_button: Button
 var _move_button: Button
@@ -109,9 +115,19 @@ func _ready() -> void:
 func _start_from_lobby() -> void:
 	state = NetworkManager.game_state
 	current_faction = _faction_for_this_peer()
+	_connect_network_signals()
+	_rebuild_board()
+
+
+func _connect_network_signals() -> void:
 	NetworkManager.state_updated.connect(_on_state_updated)
 	NetworkManager.action_rejected.connect(_on_action_rejected)
-	_rebuild_board()
+	NetworkManager.phase_advanced.connect(_on_phase_advanced)
+
+
+func _on_phase_advanced(info: Dictionary) -> void:
+	_last_phase_message = info.get("reason", "")
+	_update_hud()
 
 
 func _faction_for_this_peer() -> String:
@@ -140,8 +156,7 @@ func _start_hosted_game() -> void:
 		push_warning("game_board: host_game failed (%s); board still renders `state` directly" % err)
 	else:
 		NetworkManager.game_state = state
-	NetworkManager.state_updated.connect(_on_state_updated)
-	NetworkManager.action_rejected.connect(_on_action_rejected)
+	_connect_network_signals()
 
 	_rebuild_board()
 
@@ -152,8 +167,7 @@ func _start_hosted_game() -> void:
 ## picker in the HUD lets the player switch which faction they're driving,
 ## same as on the host).
 func _start_joined_game() -> void:
-	NetworkManager.state_updated.connect(_on_state_updated)
-	NetworkManager.action_rejected.connect(_on_action_rejected)
+	_connect_network_signals()
 	NetworkManager.connection_failed.connect(_on_connection_failed)
 
 	_status_label.text = "Connecting to %s:%d ..." % [LobbyConfig.join_address, LobbyConfig.join_port]
@@ -252,6 +266,27 @@ func _setup_hud() -> void:
 
 	_selection_label = Label.new()
 	vbox.add_child(_selection_label)
+
+	_phase_log_label = Label.new()
+	_phase_log_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_phase_log_label.custom_minimum_size = Vector2(520, 0)
+	vbox.add_child(_phase_log_label)
+
+	_event_row = HBoxContainer.new()
+	_event_row.visible = false
+	vbox.add_child(_event_row)
+	var event_label := Label.new()
+	event_label.text = "This Chapter's Event:"
+	_event_row.add_child(event_label)
+	# A Container (not a plain Control) so it actually reserves layout space
+	# for the CardView added to it later -- a plain Control's minimum size
+	# doesn't grow with its children, so the card would visually overlap
+	# whatever renders below it instead of pushing the row's height out.
+	_event_card_slot = HBoxContainer.new()
+	_event_row.add_child(_event_card_slot)
+
+	_combats_row = HBoxContainer.new()
+	vbox.add_child(_combats_row)
 
 	var buttons := HBoxContainer.new()
 	vbox.add_child(buttons)
@@ -593,6 +628,10 @@ func _update_hud() -> void:
 		player.victory_points, state.empire_vp, state.chaos_vp
 	]
 
+	_phase_log_label.text = _last_phase_message
+	_update_event_card()
+	_update_combats_row()
+
 	if selected_coord == NO_SELECTION:
 		_selection_label.text = "(no hex selected -- click one)"
 	else:
@@ -661,6 +700,68 @@ func _update_hud() -> void:
 	)
 
 	_update_hand_bar()
+
+
+## Shows this Chapter's revealed Event card (rulebook p16 step 2 -- the
+## mechanical Threat/token step is automated, but the printed text still
+## needs a human to read and resolve it, so this just makes sure they
+## actually see WHICH card that is). Stays visible for the rest of the
+## Chapter, same as state.current_event itself.
+func _update_event_card() -> void:
+	if state.current_event == "":
+		_event_row.visible = false
+		return
+	_event_row.visible = true
+	if state.current_event == _shown_event:
+		return
+	_shown_event = state.current_event
+	for child in _event_card_slot.get_children():
+		child.queue_free()
+	var event_card := _find_event_card(state.current_event)
+	var texture_path: String = event_card.texture_path if event_card != null else ""
+	# CARD_THUMB_SIZE, not the bigger CARD_CHOICE_SIZE used for the Feat
+	# picker -- this row lives in the fixed top-left HUD panel above the
+	# separately-anchored Hand bar, and a tall card here grows the panel
+	# enough to visually collide with it on a small viewport.
+	_event_card_slot.add_child(CardView.make(texture_path, state.current_event, CARD_THUMB_SIZE))
+
+
+func _find_event_card(event_name: String) -> EventCard:
+	for c in CardDatabase.events:
+		if c.lang == "EN" and c.card_name == event_name:
+			return c
+	return null
+
+
+## Nemesis Phase auto-resolves Legion/Horde movement but stops the instant
+## one lands on enemy presence (Combat itself needs per-Unit dice-color
+## data that isn't digitized -- see NemesisAI); this is the only thing that
+## tells the player a fight is even waiting, since nothing else surfaces
+## GameState.pending_combats.
+func _update_combats_row() -> void:
+	for child in _combats_row.get_children():
+		child.queue_free()
+	if state.pending_combats.is_empty():
+		return
+	var label := Label.new()
+	label.text = "Pending Combat:"
+	_combats_row.add_child(label)
+	for coord in state.pending_combats:
+		_combats_row.add_child(_build_resolve_button(coord))
+
+
+## `coord` is this call's own parameter (a fresh local binding, not a
+## shared loop variable), same closure-safety reasoning as lobby.gd's
+## _build_faction_row.
+func _build_resolve_button(coord: Vector2i) -> Button:
+	var button := Button.new()
+	button.text = "%s [Resolve]" % [coord]
+	button.pressed.connect(func() -> void: _on_resolve_combat_pressed(coord))
+	return button
+
+
+func _on_resolve_combat_pressed(coord: Vector2i) -> void:
+	NetworkManager.submit_resolve_combat(coord)
 
 
 ## Only rebuilds `option`'s item list when `names` actually differs from

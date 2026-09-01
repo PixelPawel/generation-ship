@@ -73,6 +73,22 @@ static func events_phase_threat_step(state: GameState, max_threat: int = 7) -> v
 	state.phase = GameState.Phase.EVENTS
 
 
+## Rulebook p16 step 2: draws the top Event card for the current Chapter
+## (GameSetup already split the deck by Chapter number) and records it on
+## state.current_event so the UI actually has something to show -- nothing
+## else surfaces this once drawn, and resolving its printed text stays
+## manual/assisted like every other card-text effect in this project.
+## Returns the drawn name ("" if that Chapter's deck is already empty).
+static func draw_event_card(state: GameState) -> String:
+	var deck: Array = state.event_deck_by_chapter.get(state.chapter, [])
+	if deck.is_empty():
+		state.current_event = ""
+		return ""
+	var drawn_name: String = deck.pop_back()
+	state.current_event = drawn_name
+	return drawn_name
+
+
 static func _add_token_to_fewest(units: Array) -> void:
 	if units.is_empty():
 		return

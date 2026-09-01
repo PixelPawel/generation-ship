@@ -23,6 +23,14 @@ var current_player_index: int = 0
 ## any of them get resolved.
 var pending_combats: Array[Vector2i] = []
 
+## The current Chapter's revealed Event card (set by ChapterFlow.
+## draw_event_card during the Refresh -> Events transition). Resolving its
+## printed text stays manual/assisted, same as every other card-text
+## effect -- this just makes sure the player is actually shown WHICH card
+## to read, since nothing else surfaces it once drawn from
+## event_deck_by_chapter.
+var current_event: String = ""
+
 ## HexMath.key(coord) -> HexTile
 var hexes: Dictionary = {}
 var players: Array[PlayerFactionState] = []
@@ -92,6 +100,7 @@ func to_dict() -> Dictionary:
 		"first_player_index": first_player_index,
 		"current_player_index": current_player_index,
 		"pending_combats": pending_combats.map(func(c: Vector2i) -> Array: return [c.x, c.y]),
+		"current_event": current_event,
 		"hexes": hex_dict,
 		"players": players.map(func(p: PlayerFactionState) -> Dictionary: return p.to_dict()),
 		"legions": legions.map(func(l: LegionInstance) -> Dictionary: return l.to_dict()),
@@ -125,6 +134,7 @@ static func from_dict(d: Dictionary) -> GameState:
 	s.pending_combats = []
 	for c in (d.get("pending_combats", []) as Array):
 		s.pending_combats.append(Vector2i(c[0], c[1]))
+	s.current_event = d.get("current_event", "")
 
 	s.hexes = {}
 	for k in (d.get("hexes", {}) as Dictionary):

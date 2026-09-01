@@ -109,6 +109,25 @@ func _initialize() -> void:
 	_check("events: token goes to the Legion with fewest tokens", lb.activation_tokens == 1 and la.activation_tokens == 2)
 
 	# ---------------------------------------------------------------
+	# draw_event_card
+	# ---------------------------------------------------------------
+	var evstate := GameState.new()
+	evstate.chapter = 2
+	evstate.event_deck_by_chapter = {2: ["The Empire Strikes", "The Coven of Yssat"]}
+	var drawn := ChapterFlow.draw_event_card(evstate)
+	_check("draw_event_card returns the top (last) card", drawn == "The Coven of Yssat")
+	_check("draw_event_card records it on current_event", evstate.current_event == "The Coven of Yssat")
+	_check("draw_event_card removes it from that Chapter's deck", (evstate.event_deck_by_chapter[2] as Array).size() == 1)
+
+	var drawn2 := ChapterFlow.draw_event_card(evstate)
+	_check("2nd draw gets the next card", drawn2 == "The Empire Strikes")
+	_check("2nd draw leaves that Chapter's deck empty", (evstate.event_deck_by_chapter[2] as Array).is_empty())
+
+	var drawn3 := ChapterFlow.draw_event_card(evstate)
+	_check("drawing from an empty Chapter deck returns an empty string", drawn3 == "")
+	_check("current_event cleared when nothing is left to draw", evstate.current_event == "")
+
+	# ---------------------------------------------------------------
 	# production_phase_haven_bonus
 	# ---------------------------------------------------------------
 	var pstate := GameState.new()

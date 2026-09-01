@@ -16,6 +16,12 @@ signal connected_to_host
 signal lobby_claims_updated(claims: Dictionary)
 signal lobby_bot_enabled_updated(bot_enabled: Dictionary)
 signal game_starting(state: GameState)
+## Fires for everyone right after a successful advance_phase(), carrying
+## its full result dict (reason/event/scoring/pending_combats/game_over/
+## result -- whichever keys that phase's transition returned). Separate
+## from state_updated because the useful "what just happened, what do you
+## do next" text lives in this ephemeral result, not in GameState itself.
+signal phase_advanced(info: Dictionary)
 
 const DEFAULT_PORT := 8910
 
@@ -279,6 +285,42 @@ func _apply_advance_phase(sender_id: int) -> void:
 	if not result.get("ok", false):
 		_reject(sender_id, result.get("reason", "cannot advance yet"))
 		return
+	_receive_full_state.rpc(game_state.to_dict())
+	_receive_phase_advanced.rpc(result)
+
+
+@rpc("authority", "call_local", "reliable")
+func _receive_phase_advanced(info: Dictionary) -> void:
+	phase_advanced.emit(info)
+
+
+## Clears one hex off GameState.pending_combats -- the fight itself stays
+## manual (Combat resolution needs per-Unit dice-color data not yet
+## digitized, see NemesisAI), this is just the bookkeeping once a player
+## has fought it out at the table. Any connected peer can call this; it's
+## board housekeeping, not one faction's Action.
+func submit_resolve_combat(coord: Vector2i) -> void:
+	if is_host:
+		_apply_resolve_combat(coord, multiplayer.get_unique_id())
+	else:
+		_request_resolve_combat.rpc_id(1, coord)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _request_resolve_combat(coord: Vector2i) -> void:
+	if not is_host:
+		return
+	_apply_resolve_combat(coord, multiplayer.get_remote_sender_id())
+
+
+func _apply_resolve_combat(coord: Vector2i, sender_id: int) -> void:
+	if game_state == null:
+		_reject(sender_id, "no active game")
+		return
+	if not game_state.pending_combats.has(coord):
+		_reject(sender_id, "no pending combat at that hex")
+		return
+	game_state.pending_combats.erase(coord)
 	_receive_full_state.rpc(game_state.to_dict())
 
 

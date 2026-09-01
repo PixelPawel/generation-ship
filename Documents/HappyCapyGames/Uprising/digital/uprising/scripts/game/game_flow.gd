@@ -47,9 +47,15 @@ static func advance_phase(state: GameState, card_db: Node) -> Dictionary:
 	match state.phase:
 		GameState.Phase.REFRESH:
 			ChapterFlow.events_phase_threat_step(state)
+			var event_name := ChapterFlow.draw_event_card(state)
 			return {
 				"ok": true,
-				"reason": "Events Phase: Threat +2 applied to all Legions/Hordes and Activation Tokens placed. Resolve this Chapter's Event card text manually, then advance again for Build.",
+				"reason": (
+					"Events Phase: Threat +2 applied to all Legions/Hordes and Activation Tokens placed. Resolve '%s' manually, then advance again for Build." % event_name
+					if event_name != "" else
+					"Events Phase: Threat +2 applied to all Legions/Hordes and Activation Tokens placed. No Event card left to draw this Chapter. Advance again for Build."
+				),
+				"event": event_name,
 			}
 
 		GameState.Phase.EVENTS:

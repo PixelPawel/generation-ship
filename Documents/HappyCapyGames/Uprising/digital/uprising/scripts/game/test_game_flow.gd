@@ -23,6 +23,8 @@ func _initialize() -> void:
 	var r := GameFlow.advance_phase(state, card_db)
 	_check("REFRESH -> EVENTS ok", r.get("ok", false))
 	_check("phase is now EVENTS", state.phase == GameState.Phase.EVENTS)
+	_check("an Event card was drawn (Chapter 1 has a real deck from GameSetup)", r.get("event", "") != "")
+	_check("the drawn Event is recorded on state.current_event", state.current_event == r.get("event", ""))
 
 	# --- EVENTS -> BUILD ---
 	r = GameFlow.advance_phase(state, card_db)

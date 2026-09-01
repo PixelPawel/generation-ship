@@ -159,6 +159,28 @@ func _initialize() -> void:
 	_check("feat choice row clears once resolved", board._feat_choice_row.get_child_count() == 0)
 	_check("hand row now shows the picked Feat's card", board._hand_row.get_child_count() == 1)
 
+	# --- Pending Combat row: injected directly (Nemesis Phase itself is
+	# covered by test_nemesis_ai.gd/test_game_flow.gd already) to check the
+	# UI actually surfaces it and the Resolve button clears it. board.state
+	# and NetworkManager.game_state are the SAME object here, not separate
+	# copies -- _receive_full_state reassigns NetworkManager.game_state
+	# then emits state_updated with that exact object, and Object-derived
+	# values pass by reference through a signal, so _on_state_updated's
+	# `state = new_state` aliases board.state right back onto it. One
+	# append is enough; appending "to both" would just add the same
+	# GameState's Array twice. ---
+	var combat_coord := Vector2i(5, 5)
+	board.state.pending_combats.append(combat_coord)
+	board._update_hud()
+	_check("pending combat row shows 1 Resolve button", board._combats_row.get_child_count() == 2)  # label + 1 button
+
+	board._on_resolve_combat_pressed(combat_coord)
+	for i in 5:
+		await process_frame
+	_check("Resolve clears the pending combat", not board.state.pending_combats.has(combat_coord))
+	board._update_hud()
+	_check("pending combat row empties once resolved", board._combats_row.get_child_count() == 0)
+
 	var all_ok := true
 	for c in checks:
 		if not c[1]:
