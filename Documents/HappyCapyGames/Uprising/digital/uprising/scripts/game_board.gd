@@ -108,6 +108,9 @@ var _phase_banner_rect: TextureRect
 var _phase_banner_tween: Tween
 var _last_seen_phase: int = -1  # sentinel (no real Phase value) so the very first phase still flashes
 
+## Escape-triggered pause menu: Resume / Main Menu / Quit.
+var _pause_menu_layer: CanvasLayer
+
 
 func _ready() -> void:
 	_hex_mesh = load(HEX_MESH_PATH)
@@ -116,6 +119,7 @@ func _ready() -> void:
 	_setup_hud()
 	_setup_hand_bar()
 	_setup_phase_banner()
+	_setup_pause_menu()
 	# Reached via the Lobby (scenes/lobby.tscn): hosting/joining and the
 	# actual GameState (including bot assignment for factions nobody
 	# claimed) already happened there -- NetworkManager.game_state is
@@ -502,6 +506,76 @@ func _flash_phase_banner(phase: GameState.Phase) -> void:
 	_phase_banner_tween.tween_property(_phase_banner_rect, "modulate:a", 0.0, PHASE_BANNER_FADE_OUT)
 
 
+## Escape-triggered pause overlay: a dimmed background (also catches clicks
+## so they can't fall through to hex-picking underneath while paused) plus
+## a centered Resume / Main Menu / Quit panel. Hidden by default; toggled
+## in _unhandled_input() on the "ui_cancel" action (Escape by default).
+func _setup_pause_menu() -> void:
+	_pause_menu_layer = CanvasLayer.new()
+	_pause_menu_layer.layer = 20  # above the phase banner (10) and everything else
+	_pause_menu_layer.visible = false
+	add_child(_pause_menu_layer)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.6)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pause_menu_layer.add_child(dim)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pause_menu_layer.add_child(center)
+
+	var panel := PanelContainer.new()
+	center.add_child(panel)
+
+	var vbox := VBoxContainer.new()
+	vbox.custom_minimum_size = Vector2(240, 0)
+	panel.add_child(vbox)
+
+	var title := Label.new()
+	title.text = "Paused"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 22)
+	vbox.add_child(title)
+
+	var resume_button := Button.new()
+	resume_button.text = "Resume"
+	resume_button.pressed.connect(_on_resume_pressed)
+	vbox.add_child(resume_button)
+
+	var main_menu_button := Button.new()
+	main_menu_button.text = "Main Menu"
+	main_menu_button.pressed.connect(_on_pause_main_menu_pressed)
+	vbox.add_child(main_menu_button)
+
+	var quit_button := Button.new()
+	quit_button.text = "Quit"
+	quit_button.pressed.connect(_on_pause_quit_pressed)
+	vbox.add_child(quit_button)
+
+
+func _toggle_pause_menu() -> void:
+	_pause_menu_layer.visible = not _pause_menu_layer.visible
+
+
+func _on_resume_pressed() -> void:
+	_pause_menu_layer.visible = false
+
+
+## Leaving mid-game disconnects cleanly (closes the ENet connection --
+## whether this peer was hosting or a client) instead of abandoning it
+## silently in the background while the scene changes out from under it.
+func _on_pause_main_menu_pressed() -> void:
+	NetworkManager.disconnect_game()
+	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+
+
+func _on_pause_quit_pressed() -> void:
+	get_tree().quit()
+
+
 ## Rebuilds the hand bar from scratch every call -- Items/Feats in play
 ## change rarely (only via Market/Feat actions), so unlike the OptionButtons
 ## there's no user selection state to lose by doing this unconditionally.
@@ -879,6 +953,9 @@ func _selected_option_text(option: OptionButton) -> String:
 # ---------------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):  # Escape, by Godot's default input map
+		_toggle_pause_menu()
+		return
 	if state == null:
 		return  # client hasn't received the host's first state broadcast yet
 	if event is InputEventMouseButton:

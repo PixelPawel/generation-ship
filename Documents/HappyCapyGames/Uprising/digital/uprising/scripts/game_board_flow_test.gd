@@ -181,6 +181,23 @@ func _initialize() -> void:
 	board._update_hud()
 	_check("pending combat row empties once resolved", board._combats_row.get_child_count() == 0)
 
+	# --- Pause menu: a real InputEventKey (not a direct method call) to
+	# prove the actual "ui_cancel" (Escape) binding triggers it, not just
+	# that _toggle_pause_menu() itself works. ---
+	_check("pause menu hidden by default", not board._pause_menu_layer.visible)
+	var escape_event := InputEventKey.new()
+	escape_event.keycode = KEY_ESCAPE
+	escape_event.pressed = true
+	board._unhandled_input(escape_event)
+	_check("Escape opens the pause menu", board._pause_menu_layer.visible)
+
+	board._unhandled_input(escape_event)
+	_check("pressing Escape again closes it", not board._pause_menu_layer.visible)
+
+	board._unhandled_input(escape_event)
+	board._on_resume_pressed()
+	_check("Resume button closes it", not board._pause_menu_layer.visible)
+
 	var all_ok := true
 	for c in checks:
 		if not c[1]:
