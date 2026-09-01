@@ -20,15 +20,22 @@ extends RefCounted
 
 const BOARD_RADIUS := 3
 
-const REGIONS := ["Screaming Sea", "Howling White", "Fog Grave"]
+## Calibrated against the user's own printed board scan (assets/images/Map/
+## RegionBoard.jpg): a colored-marker overlay render compared side by side
+## with the print's own labels showed the wedge split itself (which sides
+## group together) was right, but every ring hex's NAME was rotated by
+## exactly 1 wedge from the print's -- this order is what makes side/2's
+## 0/1/2 line up with what the print actually calls that wedge.
+const REGIONS := ["Howling White", "Fog Grave", "Screaming Sea"]
 
 
-## The center hex is Screaming Sea; every other hex out to BOARD_RADIUS
-## resolves through which ring and which side of that ring it's on.
-## Returns "" for a coord outside the board entirely.
+## The center hex is Screaming Sea (also confirmed against the print, which
+## labels the center hex itself "Screaming Sea"); every other hex out to
+## BOARD_RADIUS resolves through which ring and which side of that ring
+## it's on. Returns "" for a coord outside the board entirely.
 static func region_for(coord: Vector2i, center: Vector2i = Vector2i.ZERO) -> String:
 	if coord == center:
-		return REGIONS[0]
+		return "Screaming Sea"
 	var r := HexMath.distance(coord, center)
 	if r < 1 or r > BOARD_RADIUS:
 		return ""

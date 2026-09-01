@@ -70,14 +70,6 @@ const FACTION_COLORS := {
 	"Krowh": Color(0.9, 0.65, 0.1),
 }
 
-## Flat placeholder colors for a bare Region hex (rulebook p14) -- no
-## per-region art exists yet, same situation as COLOR_UNEXPLORED etc.
-const REGION_COLORS := {
-	"Screaming Sea": Color(0.12, 0.32, 0.45),
-	"Howling White": Color(0.78, 0.83, 0.87),
-	"Fog Grave": Color(0.42, 0.38, 0.48),
-}
-
 const CARD_THUMB_SIZE := Vector2(70, 103)
 const CARD_CHOICE_SIZE := Vector2(150, 221)
 
@@ -187,6 +179,7 @@ var _pause_menu_layer: CanvasLayer
 func _ready() -> void:
 	_hex_mesh = load(HEX_MESH_PATH)
 	_setup_environment()
+	_setup_region_board()
 	_setup_camera()
 	_setup_hud()
 	_setup_hand_bar()
@@ -321,6 +314,43 @@ func _setup_environment() -> void:
 	sun.light_energy = 1.1
 	sun.shadow_enabled = true
 	add_child(sun)
+
+
+## The board mat's own printed Region art (rulebook p14: every hex belongs
+## to Howling White/Fog Grave/Screaming Sea whether or not it currently has
+## a tile) as a ground plane under the hex meshes -- a hex tile still
+## renders on top and covers it when one exists; a bare Region hex just
+## shows this straight through (see _rebuild_hexes). Cropped from the
+## user's own board photo (assets/images/Map/TheMap.jpg) down to just the
+## 37-hex flower. Sized/centered from the exact real-world extent
+## RegionMath/HexMath actually put the hexes at (not a hardcoded guess), so
+## tile edges line up with the printed hex borders underneath.
+const REGION_BOARD_TEXTURE_PATH := "res://assets/images/Map/RegionBoard.jpg"
+
+func _setup_region_board() -> void:
+	var min_pos := Vector3.INF
+	var max_pos := -Vector3.INF
+	var half_x := HexMath.TILE_HEX_SIZE
+	var half_z := HexMath.TILE_HEX_SIZE * sqrt(3.0) / 2.0
+	for coord in RegionMath.all_coords(GameState.CAPITAL_COORD):
+		var center := HexMath.to_world(coord)
+		min_pos = min_pos.min(center - Vector3(half_x, 0, half_z))
+		max_pos = max_pos.max(center + Vector3(half_x, 0, half_z))
+	var size := max_pos - min_pos
+	var mesh_center := (min_pos + max_pos) * 0.5
+
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(size.x, size.z)
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = load(REGION_BOARD_TEXTURE_PATH)
+	mat.roughness = 1.0
+
+	var inst := MeshInstance3D.new()
+	inst.mesh = plane
+	inst.set_surface_override_material(0, mat)
+	inst.position = Vector3(mesh_center.x, -0.01, mesh_center.z)  # just under the hex pucks (y=0)
+	add_child(inst)
 
 
 func _setup_camera() -> void:
@@ -762,9 +792,8 @@ func _find_feat_card(feat_name: String) -> FeatCard:
 func _rebuild_hexes() -> void:
 	for coord in RegionMath.all_coords(GameState.CAPITAL_COORD):
 		var key := HexMath.key(coord)
-		var tile: HexTile = state.get_hex(coord)
-		if tile == null:
-			tile = _bare_region_tile(coord)
+		var is_selected := coord == selected_coord
+		var real_tile: HexTile = state.get_hex(coord)
 		var inst: MeshInstance3D = _hex_instances.get(key)
 		if inst == null:
 			inst = MeshInstance3D.new()
@@ -772,7 +801,15 @@ func _rebuild_hexes() -> void:
 			inst.position = HexMath.to_world(coord)
 			add_child(inst)
 			_hex_instances[key] = inst
-		inst.set_surface_override_material(0, _material_for_tile(tile, coord == selected_coord))
+		if real_tile == null and not is_selected:
+			## Bare Region, not selected -- hide the puck entirely so the
+			## textured board mat (_setup_region_board) shows through
+			## instead of a placeholder-colored hex.
+			inst.visible = false
+			continue
+		inst.visible = true
+		var tile := real_tile if real_tile != null else _bare_region_tile(coord)
+		inst.set_surface_override_material(0, _material_for_tile(tile, is_selected))
 
 
 ## A board coord with no HexTile in state.hexes is still a permanent
@@ -851,9 +888,6 @@ func _find_hex_card(card_name: String) -> HexCard:
 func _color_for_tile(tile: HexTile, is_selected: bool) -> Color:
 	if is_selected:
 		return COLOR_SELECTED
-	if state.get_hex(tile.coord) == null:  # bare Region, no placed HexTile
-		var region := RegionMath.region_for(tile.coord, GameState.CAPITAL_COORD)
-		return REGION_COLORS.get(region, COLOR_UNEXPLORED)
 	if tile.card_name == "The Capital":
 		return COLOR_CAPITAL
 	if tile.has_curse:
