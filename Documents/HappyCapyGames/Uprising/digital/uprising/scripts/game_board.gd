@@ -40,6 +40,22 @@ var _trade_button: Button
 var _explore_button: Button
 var _move_button: Button
 var _haven_button: Button
+var _command_button: Button
+var _pass_button: Button
+var _end_phase_button: Button
+
+var _market_option: OptionButton
+var _market_button: Button
+var _quest_option: OptionButton
+var _quest_button: Button
+var _build_unit_option: OptionButton
+var _build_unit_button: Button
+var _build_tower_button: Button
+var _build_wall_button: Button
+
+var _market_option_items: Array[String] = []  # what _market_option currently lists, to avoid needless rebuilds
+var _quest_option_items: Array[String] = []
+var _build_unit_option_items: Array[String] = []
 
 
 func _ready() -> void:
@@ -54,7 +70,13 @@ func _start_local_game() -> void:
 	state = GameSetup.build_new_game(
 		CardDatabase, [["Druwhn", "Fhayanor"], ["Krowh", "Kha'al"]], "Veteran", 3
 	)
-	state.phase = GameState.Phase.ACTIONS
+	# GameSetup's output is a "post-Refresh Chapter 1" state (phase ==
+	# REFRESH) -- walk it through GameFlow the same way a real game would,
+	# rather than skipping straight to Actions, so Build purchases and the
+	# Events threat step aren't silently bypassed for local/solo testing.
+	GameFlow.advance_phase(state, CardDatabase)  # REFRESH -> EVENTS
+	GameFlow.advance_phase(state, CardDatabase)  # EVENTS -> BUILD
+	GameFlow.advance_phase(state, CardDatabase)  # BUILD -> ACTIONS
 	current_faction = state.players[0].faction
 
 	var err: Error = NetworkManager.host_game(state, NetworkManager.DEFAULT_PORT)
@@ -164,6 +186,62 @@ func _setup_hud() -> void:
 	_haven_button.pressed.connect(_on_haven_pressed)
 	buttons.add_child(_haven_button)
 
+	_command_button = Button.new()
+	_command_button.text = "Command Here"
+	_command_button.pressed.connect(_on_command_pressed)
+	buttons.add_child(_command_button)
+
+	_pass_button = Button.new()
+	_pass_button.text = "Pass"
+	_pass_button.pressed.connect(_on_pass_pressed)
+	buttons.add_child(_pass_button)
+
+	_end_phase_button = Button.new()
+	_end_phase_button.text = "End Phase"
+	_end_phase_button.pressed.connect(_on_end_phase_pressed)
+	buttons.add_child(_end_phase_button)
+
+	var market_row := HBoxContainer.new()
+	vbox.add_child(market_row)
+	market_row.add_child(Label.new())
+	(market_row.get_child(0) as Label).text = "Market:"
+	_market_option = OptionButton.new()
+	market_row.add_child(_market_option)
+	_market_button = Button.new()
+	_market_button.text = "Buy Item"
+	_market_button.pressed.connect(_on_market_pressed)
+	market_row.add_child(_market_button)
+
+	var quest_row := HBoxContainer.new()
+	vbox.add_child(quest_row)
+	quest_row.add_child(Label.new())
+	(quest_row.get_child(0) as Label).text = "Quest:"
+	_quest_option = OptionButton.new()
+	quest_row.add_child(_quest_option)
+	_quest_button = Button.new()
+	_quest_button.text = "Attempt Quest"
+	_quest_button.pressed.connect(_on_quest_pressed)
+	quest_row.add_child(_quest_button)
+
+	var build_row := HBoxContainer.new()
+	vbox.add_child(build_row)
+	build_row.add_child(Label.new())
+	(build_row.get_child(0) as Label).text = "Build:"
+	_build_unit_option = OptionButton.new()
+	build_row.add_child(_build_unit_option)
+	_build_unit_button = Button.new()
+	_build_unit_button.text = "Build Unit"
+	_build_unit_button.pressed.connect(_on_build_unit_pressed)
+	build_row.add_child(_build_unit_button)
+	_build_tower_button = Button.new()
+	_build_tower_button.text = "Build Tower"
+	_build_tower_button.pressed.connect(_on_build_tower_pressed)
+	build_row.add_child(_build_tower_button)
+	_build_wall_button = Button.new()
+	_build_wall_button.text = "Build Wall"
+	_build_wall_button.pressed.connect(_on_build_wall_pressed)
+	build_row.add_child(_build_wall_button)
+
 
 # ---------------------------------------------------------------------------
 # Board rendering
@@ -261,6 +339,59 @@ func _update_hud() -> void:
 		and hero_tile.haven_faction == "" and player.plunder >= plunder_cost
 	)
 
+	_command_button.disabled = not (
+		state.phase == GameState.Phase.ACTIONS
+		and selected_tile != null and selected_tile.explored
+		and player.action_points >= 1 and player.food >= 1
+		and not GameActions._other_faction_present(selected_tile, player.faction)
+		and (selected_tile.haven_faction == "" or selected_tile.haven_faction == player.faction)
+	)
+
+	_pass_button.disabled = not (state.phase == GameState.Phase.ACTIONS and not player.has_passed)
+	_end_phase_button.text = "End Phase (%s)" % GameState.Phase.keys()[state.phase]
+
+	_sync_option_button(_market_option, _market_option_items, state.market)
+	_market_button.disabled = not (state.phase == GameState.Phase.ACTIONS and not state.market.is_empty())
+
+	_sync_option_button(_quest_option, _quest_option_items, state.quests_available)
+	_quest_button.disabled = not (state.phase == GameState.Phase.ACTIONS and not state.quests_available.is_empty())
+
+	var unit_names: Array[String] = []
+	for u in FactionData.get_units(player.faction):
+		unit_names.append(u["name"])
+	_sync_option_button(_build_unit_option, _build_unit_option_items, unit_names)
+	var can_build_here := state.phase == GameState.Phase.BUILD and GameActions._valid_build_hex(state, player, selected_coord)
+	_build_unit_button.disabled = not (can_build_here and not unit_names.is_empty())
+	_build_tower_button.disabled = not (
+		can_build_here and selected_tile.haven_faction == player.faction
+		and not selected_tile.has_tower and player.plunder >= 1
+	)
+	_build_wall_button.disabled = not (
+		can_build_here and selected_tile.haven_faction == player.faction
+		and not selected_tile.has_wall and player.plunder >= 1
+	)
+
+
+## Only rebuilds `option`'s item list when `names` actually differs from
+## what it already shows (`cached`) -- OptionButton loses its selection on
+## every clear(), and _update_hud() runs after every action, so rebuilding
+## unconditionally would reset the player's pick constantly.
+func _sync_option_button(option: OptionButton, cached: Array[String], names: Array[String]) -> void:
+	if names == cached:
+		return
+	option.clear()
+	for n in names:
+		option.add_item(n)
+	if not names.is_empty():
+		option.select(0)
+	cached.assign(names)
+
+
+func _selected_option_text(option: OptionButton) -> String:
+	if option.selected < 0:
+		return ""
+	return option.get_item_text(option.selected)
+
 
 # ---------------------------------------------------------------------------
 # Input / picking
@@ -317,3 +448,85 @@ func _on_move_pressed() -> void:
 
 func _on_haven_pressed() -> void:
 	NetworkManager.submit_action({"type": "haven", "faction": current_faction})
+
+
+func _on_command_pressed() -> void:
+	if selected_coord == NO_SELECTION:
+		return
+	NetworkManager.submit_action({
+		"type": "command", "faction": current_faction, "to": [selected_coord.x, selected_coord.y]
+	})
+
+
+func _on_pass_pressed() -> void:
+	NetworkManager.submit_action({"type": "pass", "faction": current_faction})
+
+
+func _on_end_phase_pressed() -> void:
+	NetworkManager.submit_advance_phase()
+
+
+func _on_market_pressed() -> void:
+	var item := _selected_option_text(_market_option)
+	if item == "":
+		return
+	NetworkManager.submit_action({"type": "market", "faction": current_faction, "item": item})
+
+
+func _on_quest_pressed() -> void:
+	var quest := _selected_option_text(_quest_option)
+	if quest == "":
+		return
+	NetworkManager.submit_action({"type": "quest", "faction": current_faction, "quest": quest})
+
+
+func _on_build_unit_pressed() -> void:
+	if selected_coord == NO_SELECTION:
+		return
+	var unit_name := _selected_option_text(_build_unit_option)
+	if unit_name == "":
+		return
+	var player := state.get_player(current_faction)
+	var unit_def := FactionData.find_unit(player.faction, unit_name)
+	var action := {
+		"type": "build_unit", "faction": current_faction, "unit": unit_name,
+		"at": [selected_coord.x, selected_coord.y],
+	}
+	var cost_options: Array = unit_def.get("cost_options", [])
+	if cost_options.size() == 1 and (cost_options[0] as Dictionary).has("any"):
+		action["any_alloc"] = _greedy_any_alloc(player, int((cost_options[0] as Dictionary)["any"]))
+	NetworkManager.submit_action(action)
+
+
+## Mohyar's Units cost "N resource points, any mix" -- the UI doesn't yet
+## have a control for the player to choose the exact split, so this greedily
+## spends Salt first, then Plunder, then Food, up to the required amount.
+## Documented simplification (same class as Command's "engine picks which
+## Units move"): the backend (GameActions._build_unit) supports any explicit
+## split via "any_alloc", this default just isn't player-directed yet.
+func _greedy_any_alloc(player: PlayerFactionState, amount: int) -> Dictionary:
+	var alloc := {"salt": 0, "plunder": 0, "food": 0}
+	var remaining := amount
+	for res in ["salt", "plunder", "food"]:
+		var take: int = mini(remaining, int(player.get(res)))
+		alloc[res] = take
+		remaining -= take
+	return alloc
+
+
+func _on_build_tower_pressed() -> void:
+	if selected_coord == NO_SELECTION:
+		return
+	NetworkManager.submit_action({
+		"type": "build_defense", "faction": current_faction, "defense": "tower",
+		"at": [selected_coord.x, selected_coord.y],
+	})
+
+
+func _on_build_wall_pressed() -> void:
+	if selected_coord == NO_SELECTION:
+		return
+	NetworkManager.submit_action({
+		"type": "build_defense", "faction": current_faction, "defense": "wall",
+		"at": [selected_coord.x, selected_coord.y],
+	})

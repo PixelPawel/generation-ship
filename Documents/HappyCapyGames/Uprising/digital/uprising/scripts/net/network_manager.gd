@@ -96,6 +96,36 @@ func _apply_action(action: Dictionary, sender_id: int) -> void:
 	_receive_full_state.rpc(game_state.to_dict())
 
 
+## Requests moving to the next Phase (GameFlow.advance_phase) -- separate
+## from submit_action() since it isn't scoped to one faction; any connected
+## peer can request it (e.g. whoever notices everyone's done with Actions).
+## A refusal (still waiting on active players, etc.) surfaces the same way a
+## rejected action does, via action_rejected.
+func submit_advance_phase() -> void:
+	if is_host:
+		_apply_advance_phase(multiplayer.get_unique_id())
+	else:
+		_request_advance_phase.rpc_id(1)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _request_advance_phase() -> void:
+	if not is_host:
+		return
+	_apply_advance_phase(multiplayer.get_remote_sender_id())
+
+
+func _apply_advance_phase(sender_id: int) -> void:
+	if game_state == null:
+		_reject(sender_id, "no active game")
+		return
+	var result := GameFlow.advance_phase(game_state, CardDatabase)
+	if not result.get("ok", false):
+		_reject(sender_id, result.get("reason", "cannot advance yet"))
+		return
+	_receive_full_state.rpc(game_state.to_dict())
+
+
 func _reject(sender_id: int, reason: String) -> void:
 	if sender_id == multiplayer.get_unique_id():
 		action_rejected.emit(reason)
