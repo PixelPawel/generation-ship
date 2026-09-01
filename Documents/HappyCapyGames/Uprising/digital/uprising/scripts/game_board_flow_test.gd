@@ -181,6 +181,39 @@ func _initialize() -> void:
 	board._update_hud()
 	_check("pending combat row empties once resolved", board._combats_row.get_child_count() == 0)
 
+	# --- Events Phase: Spawn Legion/Spawn Horde buttons (place what a
+	# resolved Event's text instructs -- ChapterFlow/NemesisAI's own logic
+	# is covered by test_chapter_flow.gd/test_nemesis_ai.gd already, this
+	# just checks the UI wiring: enabled only in EVENTS with a real hex
+	# selected, and pressing it actually adds to state.legions/hordes). ---
+	board.state.phase = GameState.Phase.ACTIONS
+	board.selected_coord = target
+	board._rebuild_hexes()
+	board._update_hud()
+	_check("spawn buttons disabled outside Events Phase", board._spawn_legion_button.disabled and board._spawn_horde_button.disabled)
+
+	board.state.phase = GameState.Phase.EVENTS
+	board._update_hud()
+	_check("spawn buttons enabled in Events Phase with a hex selected", not board._spawn_legion_button.disabled and not board._spawn_horde_button.disabled)
+
+	var legions_before: int = board.state.legions.size()
+	board._spawn_threat_spin.value = 6
+	board._on_spawn_legion_pressed()
+	for i in 5:
+		await process_frame
+	_check("Spawn Legion adds a Legion to state.legions", board.state.legions.size() == legions_before + 1)
+	_check("spawned Legion carries the SpinBox's Threat", board.state.legions[-1].threat == 6)
+	_check("spawned Legion sits on the selected hex", board.state.legions[-1].coord == target)
+
+	var hordes_before: int = board.state.hordes.size()
+	board._on_spawn_horde_pressed()
+	for i in 5:
+		await process_frame
+	_check("Spawn Horde adds a Horde to state.hordes", board.state.hordes.size() == hordes_before + 1)
+
+	board._update_hud()
+	_check("nemesis label lists the newly spawned Legion/Horde", board._nemesis_label.text.find("Threat 6") != -1)
+
 	# --- Pause menu: a real InputEventKey (not a direct method call) to
 	# prove the actual "ui_cancel" (Escape) binding triggers it, not just
 	# that _toggle_pause_menu() itself works. ---

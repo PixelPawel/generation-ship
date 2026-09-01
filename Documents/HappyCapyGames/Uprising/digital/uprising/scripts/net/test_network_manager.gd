@@ -50,6 +50,28 @@ func _initialize() -> void:
 		await process_frame
 	_check("resolving a non-pending hex is rejected", rejected[0])
 
+	# --- spawn_legion/spawn_horde -- what a resolved Event's placement text
+	# instructs the player to do by hand, submitted through the same
+	# is_host-shortcut RPC path as resolve_combat/advance_phase. ---
+	var legions_before: int = net_mgr.game_state.legions.size()
+	net_mgr.submit_spawn_legion(6, GameState.CAPITAL_COORD)
+	for i in 5:
+		await process_frame
+	_check("submit_spawn_legion adds a Legion to game_state", net_mgr.game_state.legions.size() == legions_before + 1)
+	_check("spawned Legion has the requested Threat", net_mgr.game_state.legions[-1].threat == 6)
+
+	var hordes_before: int = net_mgr.game_state.hordes.size()
+	net_mgr.submit_spawn_horde(4, GameState.CAPITAL_COORD)
+	for i in 5:
+		await process_frame
+	_check("submit_spawn_horde adds a Horde to game_state", net_mgr.game_state.hordes.size() == hordes_before + 1)
+
+	rejected[0] = false
+	net_mgr.submit_spawn_legion(6, Vector2i(999, 999))
+	for i in 5:
+		await process_frame
+	_check("spawning onto a nonexistent hex is rejected", rejected[0])
+
 	net_mgr.disconnect_game()
 
 	var all_ok := true

@@ -68,6 +68,10 @@ var _event_row: HBoxContainer
 var _event_card_slot: HBoxContainer
 var _combats_row: HBoxContainer
 var _druids_label: Label
+var _nemesis_label: Label
+var _spawn_threat_spin: SpinBox
+var _spawn_legion_button: Button
+var _spawn_horde_button: Button
 var _last_phase_message: String = ""
 var _shown_event: String = ""  # which current_event _event_card_slot currently displays, to avoid needless rebuilds
 var _trade_button: Button
@@ -323,6 +327,30 @@ func _setup_hud() -> void:
 	_druids_label.autowrap_mode = TextServer.AUTOWRAP_WORD
 	_druids_label.custom_minimum_size = Vector2(520, 0)
 	vbox.add_child(_druids_label)
+
+	_nemesis_label = Label.new()
+	_nemesis_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_nemesis_label.custom_minimum_size = Vector2(520, 0)
+	vbox.add_child(_nemesis_label)
+
+	var spawn_row := HBoxContainer.new()
+	vbox.add_child(spawn_row)
+	var spawn_label := Label.new()
+	spawn_label.text = "Spawn at selected hex, Threat:"
+	spawn_row.add_child(spawn_label)
+	_spawn_threat_spin = SpinBox.new()
+	_spawn_threat_spin.min_value = 1
+	_spawn_threat_spin.max_value = 20
+	_spawn_threat_spin.value = 4
+	spawn_row.add_child(_spawn_threat_spin)
+	_spawn_legion_button = Button.new()
+	_spawn_legion_button.text = "Spawn Legion"
+	_spawn_legion_button.pressed.connect(_on_spawn_legion_pressed)
+	spawn_row.add_child(_spawn_legion_button)
+	_spawn_horde_button = Button.new()
+	_spawn_horde_button.text = "Spawn Horde"
+	_spawn_horde_button.pressed.connect(_on_spawn_horde_pressed)
+	spawn_row.add_child(_spawn_horde_button)
 
 	var buttons := HBoxContainer.new()
 	vbox.add_child(buttons)
@@ -801,6 +829,11 @@ func _update_hud() -> void:
 	_update_event_card()
 	_update_combats_row()
 	_update_druids_label()
+	_update_nemesis_label()
+
+	var can_spawn := state.phase == GameState.Phase.EVENTS and selected_coord != NO_SELECTION and state.get_hex(selected_coord) != null
+	_spawn_legion_button.disabled = not can_spawn
+	_spawn_horde_button.disabled = not can_spawn
 
 	if selected_coord == NO_SELECTION:
 		_selection_label.text = "(no hex selected -- click one)"
@@ -934,6 +967,22 @@ func _update_druids_label() -> void:
 	_druids_label.text = "Druids: " + ", ".join(parts)
 
 
+## Shows every Legion/Horde currently in play -- otherwise there's no way to
+## see what an Event's manual Spawn Legion/Spawn Horde actions actually
+## placed, or how many Activation Tokens events_phase_token_step handed
+## out, since nothing renders their standees on the board itself yet.
+func _update_nemesis_label() -> void:
+	if state.legions.is_empty() and state.hordes.is_empty():
+		_nemesis_label.text = ""
+		return
+	var parts: Array[String] = []
+	for l in state.legions:
+		parts.append("%s Legion @%s (Threat %d, %d tokens)" % [l.card_name, l.coord, l.threat, l.activation_tokens])
+	for h in state.hordes:
+		parts.append("%s Horde @%s (Threat %d, %d tokens)" % [h.card_name, h.coord, h.threat, h.activation_tokens])
+	_nemesis_label.text = "In play: " + ", ".join(parts)
+
+
 ## `coord` is this call's own parameter (a fresh local binding, not a
 ## shared loop variable), same closure-safety reasoning as lobby.gd's
 ## _build_faction_row.
@@ -946,6 +995,23 @@ func _build_resolve_button(coord: Vector2i) -> Button:
 
 func _on_resolve_combat_pressed(coord: Vector2i) -> void:
 	NetworkManager.submit_resolve_combat(coord)
+
+
+## Mechanically places what an Events Phase card instructs ("Place 1 Legion/
+## Horde at Threat N..."): the player reads that text off the revealed
+## Event card, clicks the hex it names (or the best legal match -- see
+## NemesisAI.spawn_legion's docstring on why exact free-text region parsing
+## stays out of scope), sets the Threat via the SpinBox, and presses this.
+func _on_spawn_legion_pressed() -> void:
+	if selected_coord == NO_SELECTION:
+		return
+	NetworkManager.submit_spawn_legion(int(_spawn_threat_spin.value), selected_coord)
+
+
+func _on_spawn_horde_pressed() -> void:
+	if selected_coord == NO_SELECTION:
+		return
+	NetworkManager.submit_spawn_horde(int(_spawn_threat_spin.value), selected_coord)
 
 
 ## Only rebuilds `option`'s item list when `names` actually differs from

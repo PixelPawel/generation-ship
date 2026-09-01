@@ -94,7 +94,10 @@ func _initialize() -> void:
 
 	# --- Fast-forward through Chapter 2 (the final Chapter, max_chapters=2) to SCORING ---
 	GameFlow.advance_phase(state, card_db)  # REFRESH -> EVENTS
+	_check("Threat step ran again -- Legion/Horde from Chapter 1 gained more Threat", legion.threat > 0 and horde.threat > 0)
+	_check("Threat step alone still doesn't touch tokens", legion.activation_tokens == 0 and horde.activation_tokens == 0)
 	GameFlow.advance_phase(state, card_db)  # EVENTS -> BUILD
+	_check("Events Phase token step doubles on the final Chapter (2 == max_chapters)", legion.activation_tokens == 2 and horde.activation_tokens == 2)
 	GameFlow.advance_phase(state, card_db)  # BUILD -> ACTIONS
 	for p in state.players:
 		p.has_passed = true

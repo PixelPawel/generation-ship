@@ -67,6 +67,44 @@ static func activate_horde(state: GameState, horde_id: int) -> Dictionary:
 	return {"ok": true, "reason": "moved to %s" % dest}
 
 
+## Rulebook p47/p16: "whenever a Legion enters play, draw top Legion card,
+## place its standee, set its Threat" -- an Event/Quest/hex effect decides
+## WHEN, at what Threat, and (per p360) usually where, but the acting
+## player is trusted to choose a legal hex per that instruction (same trust
+## boundary as Explore's flip-effect resolution); this only automates the
+## mechanical "a new Legion enters play" part, not the exact-region parsing
+## of the triggering card's free text. 0 Activation Tokens to start --
+## events_phase_token_step (or whatever else placed it) hands those out
+## separately, same as it always has.
+static func spawn_legion(state: GameState, threat: int, coord: Vector2i) -> Dictionary:
+	if state.get_hex(coord) == null:
+		return {"ok": false, "reason": "target hex does not exist"}
+	if state.legion_deck.is_empty():
+		return {"ok": false, "reason": "no Legion cards left in the deck"}
+	var legion := LegionInstance.new()
+	legion.id = state.next_nemesis_id()
+	legion.card_name = state.legion_deck.pop_back()
+	legion.threat = threat
+	legion.coord = coord
+	state.legions.append(legion)
+	return {"ok": true, "reason": "", "card_name": legion.card_name, "id": legion.id}
+
+
+## Same as spawn_legion, for Hordes (rulebook p49).
+static func spawn_horde(state: GameState, threat: int, coord: Vector2i) -> Dictionary:
+	if state.get_hex(coord) == null:
+		return {"ok": false, "reason": "target hex does not exist"}
+	if state.horde_deck.is_empty():
+		return {"ok": false, "reason": "no Horde cards left in the deck"}
+	var horde := HordeInstance.new()
+	horde.id = state.next_nemesis_id()
+	horde.card_name = state.horde_deck.pop_back()
+	horde.threat = threat
+	horde.coord = coord
+	state.hordes.append(horde)
+	return {"ok": true, "reason": "", "card_name": horde.card_name, "id": horde.id}
+
+
 static func _find_legion(state: GameState, legion_id: int) -> LegionInstance:
 	for l in state.legions:
 		if l.id == legion_id:

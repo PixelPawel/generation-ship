@@ -48,18 +48,19 @@ static func advance_phase(state: GameState, card_db: Node) -> Dictionary:
 			return {
 				"ok": true,
 				"reason": (
-					"Events Phase: Threat +2 applied to all Legions/Hordes and Activation Tokens placed. Resolve '%s' manually, then advance again for Build." % event_name
+					"Events Phase: Threat +2 applied to all Legions/Hordes. Resolve '%s' manually -- use Spawn Legion/Spawn Horde for anything it places, then advance again to hand out Activation Tokens and move to Build." % event_name
 					if event_name != "" else
-					"Events Phase: Threat +2 applied to all Legions/Hordes and Activation Tokens placed. No Event card left to draw this Chapter. Advance again for Build."
+					"Events Phase: Threat +2 applied to all Legions/Hordes. No Event card left to draw this Chapter. Advance again to hand out Activation Tokens and move to Build."
 				),
 				"event": event_name,
 			}
 
 		GameState.Phase.EVENTS:
+			ChapterFlow.events_phase_token_step(state)
 			state.phase = GameState.Phase.BUILD
 			return {
 				"ok": true,
-				"reason": "Build Phase: draw 2 Feats and pick 1 manually per Hero, then submit build_unit/build_defense actions. Advance again once everyone's done building.",
+				"reason": "1 Activation Token placed on every Legion/Horde in play. Build Phase: draw 2 Feats and pick 1 manually per Hero, then submit build_unit/build_defense actions. Advance again once everyone's done building.",
 			}
 
 		GameState.Phase.BUILD:

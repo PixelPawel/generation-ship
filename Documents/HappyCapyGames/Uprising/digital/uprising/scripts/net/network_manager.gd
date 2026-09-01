@@ -324,6 +324,61 @@ func _apply_resolve_combat(coord: Vector2i, sender_id: int) -> void:
 	_receive_full_state.rpc(game_state.to_dict())
 
 
+## Mechanically places a new Legion/Horde in play (NemesisAI.spawn_legion/
+## spawn_horde) -- what an Events Phase card instructs the resolving player
+## to do by hand, same "board housekeeping, not one faction's Action" shape
+## as submit_resolve_combat. `threat` and `coord` come from whatever the
+## player is reading off the Event/Legion/Horde card text.
+func submit_spawn_legion(threat: int, coord: Vector2i) -> void:
+	if is_host:
+		_apply_spawn_legion(threat, coord, multiplayer.get_unique_id())
+	else:
+		_request_spawn_legion.rpc_id(1, threat, coord)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _request_spawn_legion(threat: int, coord: Vector2i) -> void:
+	if not is_host:
+		return
+	_apply_spawn_legion(threat, coord, multiplayer.get_remote_sender_id())
+
+
+func _apply_spawn_legion(threat: int, coord: Vector2i, sender_id: int) -> void:
+	if game_state == null:
+		_reject(sender_id, "no active game")
+		return
+	var result := NemesisAI.spawn_legion(game_state, threat, coord)
+	if not result.get("ok", false):
+		_reject(sender_id, result.get("reason", "spawn rejected"))
+		return
+	_receive_full_state.rpc(game_state.to_dict())
+
+
+func submit_spawn_horde(threat: int, coord: Vector2i) -> void:
+	if is_host:
+		_apply_spawn_horde(threat, coord, multiplayer.get_unique_id())
+	else:
+		_request_spawn_horde.rpc_id(1, threat, coord)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _request_spawn_horde(threat: int, coord: Vector2i) -> void:
+	if not is_host:
+		return
+	_apply_spawn_horde(threat, coord, multiplayer.get_remote_sender_id())
+
+
+func _apply_spawn_horde(threat: int, coord: Vector2i, sender_id: int) -> void:
+	if game_state == null:
+		_reject(sender_id, "no active game")
+		return
+	var result := NemesisAI.spawn_horde(game_state, threat, coord)
+	if not result.get("ok", false):
+		_reject(sender_id, result.get("reason", "spawn rejected"))
+		return
+	_receive_full_state.rpc(game_state.to_dict())
+
+
 func _reject(sender_id: int, reason: String) -> void:
 	if sender_id == multiplayer.get_unique_id():
 		action_rejected.emit(reason)

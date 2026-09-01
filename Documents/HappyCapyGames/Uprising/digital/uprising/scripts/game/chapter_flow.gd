@@ -55,11 +55,9 @@ static func _refill(deck: Array, discard: Array, slot: Array, count: int) -> voi
 			slot.append(deck.pop_back())
 
 
-## Rulebook p16 step 1 + step 3 (the mechanical parts -- resolving the actual
-## Event card's text stays manual/assisted). Adds 2 Threat to every Legion/
-## Horde in play, converting overflow past `max_threat` into VP for that
-## faction, then places 1 Activation Token on whichever Legion/Horde card
-## currently has the fewest (twice, on the last Chapter).
+## Rulebook p16 step 1 (the mechanical part -- resolving the actual Event
+## card's text stays manual/assisted). Adds 2 Threat to every Legion/Horde
+## in play, converting overflow past `max_threat` into VP for that faction.
 static func events_phase_threat_step(state: GameState, max_threat: int = 7) -> void:
 	for legion in state.legions:
 		var overflow: int = legion.threat + 2 - max_threat
@@ -77,12 +75,22 @@ static func events_phase_threat_step(state: GameState, max_threat: int = 7) -> v
 		else:
 			horde.threat += 2
 
-	var rounds := 2 if state.chapter == state.max_chapters else 1
-	for _i in range(rounds):
-		_add_token_to_fewest(state.legions)
-		_add_token_to_fewest(state.hordes)
-
 	state.phase = GameState.Phase.EVENTS
+
+
+## Rulebook p16 step 3: "Place 1 Activation Token on the card of EACH Legion
+## and Horde" (in play at the time this runs -- so any the Event just
+## spawned count too), doubled on the last Chapter. NOT the same rule as an
+## off-schedule token grant elsewhere in the text (e.g. a hex/Quest effect
+## that says "place 1 Activation Token"), which instead goes on whichever
+## card currently has the fewest -- that's a different primitive, not yet
+## needed by any automated effect.
+static func events_phase_token_step(state: GameState) -> void:
+	var rounds := 2 if state.chapter == state.max_chapters else 1
+	for legion in state.legions:
+		legion.activation_tokens += rounds
+	for horde in state.hordes:
+		horde.activation_tokens += rounds
 
 
 ## Rulebook p16 step 2: draws the top Event card for the current Chapter
@@ -99,16 +107,6 @@ static func draw_event_card(state: GameState) -> String:
 	var drawn_name: String = deck.pop_back()
 	state.current_event = drawn_name
 	return drawn_name
-
-
-static func _add_token_to_fewest(units: Array) -> void:
-	if units.is_empty():
-		return
-	var target = units[0]
-	for u in units:
-		if u.activation_tokens < target.activation_tokens:
-			target = u
-	target.activation_tokens += 1
 
 
 ## Rulebook p29: gain the base production for your current Haven count (the

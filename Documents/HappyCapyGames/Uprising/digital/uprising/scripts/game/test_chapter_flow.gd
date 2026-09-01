@@ -119,33 +119,29 @@ func _initialize() -> void:
 	_check("events: overflow Legion caps at max_threat", legion_overflow.threat == 7)
 	_check("events: overflow grants Empire 1 VP (8-7)", estate.empire_vp == empire_vp_before + 1)
 	_check("events: Horde threat +2", horde.threat == 6)
-	_check("events: non-last-chapter places 1 token per unit", legion.activation_tokens == 1 and horde.activation_tokens == 1)
+	_check("events: threat step does NOT touch Activation Tokens", legion.activation_tokens == 0 and horde.activation_tokens == 0)
 	_check("events: phase set to EVENTS", estate.phase == GameState.Phase.EVENTS)
 
-	# --- Last Chapter should place 2 tokens ---
+	# ---------------------------------------------------------------
+	# events_phase_token_step -- rulebook p16 step 3: EVERY Legion/Horde in
+	# play gets a token (not just whichever has fewest -- that off-schedule
+	# rule is a separate, unrelated primitive).
+	# ---------------------------------------------------------------
+	ChapterFlow.events_phase_token_step(estate)
+	_check("token step: every revealed Legion/Horde gains 1 token", legion.activation_tokens == 1 and legion_overflow.activation_tokens == 1 and horde.activation_tokens == 1)
+
+	# --- Last Chapter should place 2 tokens on every card ---
 	var estate2 := GameState.new()
 	estate2.chapter = 3
 	estate2.max_chapters = 3
 	var legion2 := LegionInstance.new()
 	legion2.id = estate2.next_nemesis_id()
 	estate2.legions.append(legion2)
-	ChapterFlow.events_phase_threat_step(estate2, 7)
-	_check("events: last Chapter places 2 tokens", legion2.activation_tokens == 2)
-
-	# --- Token placement prefers whichever unit has fewest ---
-	var estate3 := GameState.new()
-	estate3.chapter = 1
-	estate3.max_chapters = 3
-	var la := LegionInstance.new()
-	la.id = estate3.next_nemesis_id()
-	la.activation_tokens = 2
-	var lb := LegionInstance.new()
-	lb.id = estate3.next_nemesis_id()
-	lb.activation_tokens = 0
-	estate3.legions.append(la)
-	estate3.legions.append(lb)
-	ChapterFlow.events_phase_threat_step(estate3, 7)
-	_check("events: token goes to the Legion with fewest tokens", lb.activation_tokens == 1 and la.activation_tokens == 2)
+	var horde2 := HordeInstance.new()
+	horde2.id = estate2.next_nemesis_id()
+	estate2.hordes.append(horde2)
+	ChapterFlow.events_phase_token_step(estate2)
+	_check("token step: last Chapter places 2 tokens on every card", legion2.activation_tokens == 2 and horde2.activation_tokens == 2)
 
 	# ---------------------------------------------------------------
 	# draw_event_card

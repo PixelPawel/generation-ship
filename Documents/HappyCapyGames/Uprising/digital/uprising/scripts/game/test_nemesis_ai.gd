@@ -179,6 +179,37 @@ func _initialize() -> void:
 		and state_multi.pending_combats.has(Vector2i(2, 0))
 		and state_multi.pending_combats.has(Vector2i(-2, 0)))
 
+	# ---------------------------------------------------------------
+	# spawn_legion / spawn_horde -- the mechanical "a new Legion/Horde
+	# enters play" step an Event's free text triggers (rulebook p16/p47/p49).
+	# ---------------------------------------------------------------
+	var spawn_state := _blank_state()
+	spawn_state.set_hex(_tile(Vector2i(1, 0)))
+	spawn_state.legion_deck = ["The Butcher", "Oda the Fallen"]
+	spawn_state.horde_deck = ["Lichqueen"]
+
+	var legion_result := NemesisAI.spawn_legion(spawn_state, 6, GameState.CAPITAL_COORD)
+	_check("spawn_legion ok", legion_result.get("ok", false))
+	_check("spawn_legion drew the top (last) card of the deck", legion_result.get("card_name", "") == "Oda the Fallen")
+	_check("spawn_legion added a LegionInstance to state.legions", spawn_state.legions.size() == 1)
+	_check("spawned Legion has the requested Threat", spawn_state.legions[0].threat == 6)
+	_check("spawned Legion sits at the requested coord", spawn_state.legions[0].coord == GameState.CAPITAL_COORD)
+	_check("spawned Legion starts with 0 Activation Tokens", spawn_state.legions[0].activation_tokens == 0)
+	_check("spawn_legion shrank the Legion deck by 1", spawn_state.legion_deck.size() == 1)
+
+	var horde_result := NemesisAI.spawn_horde(spawn_state, 4, Vector2i(1, 0))
+	_check("spawn_horde ok", horde_result.get("ok", false))
+	_check("spawn_horde drew the deck's only card", horde_result.get("card_name", "") == "Lichqueen")
+	_check("spawn_horde added a HordeInstance to state.hordes", spawn_state.hordes.size() == 1)
+	_check("spawned Horde has the requested Threat", spawn_state.hordes[0].threat == 4)
+
+	var rejected_hex := NemesisAI.spawn_legion(spawn_state, 4, Vector2i(999, 999))
+	_check("spawn_legion rejects a hex that doesn't exist", not rejected_hex.get("ok", true))
+
+	var empty_deck_result := NemesisAI.spawn_horde(spawn_state, 4, GameState.CAPITAL_COORD)
+	_check("spawn_horde rejects an already-empty deck", not empty_deck_result.get("ok", true))
+	_check("a rejected spawn doesn't add a Horde anyway", spawn_state.hordes.size() == 1)
+
 	var all_ok := true
 	for c in checks:
 		var label: String = c[0]
