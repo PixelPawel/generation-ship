@@ -5,13 +5,15 @@ extends RefCounted
 ## scope decision) -- Arch-Nemesis/Titans content stays in CardDatabase but
 ## is filtered out of decks/setup here.
 ##
-## The exact printed board layout (the symmetric "petal" diagrams on p7)
-## isn't digitized anywhere in the CSVs -- they're print artwork, not data.
-## This generates a functionally equivalent layout instead: Capital at the
-## center, one home hex per faction spread across directions, everything
-## else filled from a shuffled pool of Core hexes on an expanding hex
-## spiral. Adjacency/pathing/exploration all work correctly; it just won't
-## visually match the physical board's exact arrangement.
+## The printed p7 setup diagrams aren't digitized in any CSV (they're print
+## artwork), so this pattern was transcribed from TTS screenshots of the
+## 2/3/4-player setups instead: Capital at the center; its 6 ring-1
+## neighbors are random hexes, 3 of them Garrisoned (rulebook p6); each
+## player gets one ring-2 "petal" -- a Home Hex plus a Sea Tower
+## SEA_TOWER_RING_OFFSET steps further around that same ring -- spaced
+## evenly around the 12-hex ring-2 (12 / player count is exactly 6, 4, or 3,
+## so this divides evenly for 2/3/4 players). Everything else, ring-2 and
+## beyond, fills from the shuffled Core pool same as before.
 
 ## Core box home hex per faction, from CardDatabase.hexes (Type == "Home").
 const HOME_HEX_BY_FACTION := {
@@ -33,7 +35,8 @@ const DIFFICULTY_TABLE := {
 }
 
 const STARTING_AP := 8
-const HOME_DISTANCE := 3
+const HOME_RING_DISTANCE := 2
+const SEA_TOWER_RING_OFFSET := 2
 const SPIRAL_RADIUS := 6
 
 
@@ -51,13 +54,14 @@ static func build_new_game(
 	var diff: Dictionary = DIFFICULTY_TABLE.get(difficulty, DIFFICULTY_TABLE["Veteran"])
 
 	var used: Dictionary = {}  # HexMath.key -> true, for coords already spoken for
+	var pool := _gather_core_hex_pool(card_db)
 
 	_place_capital(state, used)
-	var home_coords := _reserve_home_coords(faction_hero_pairs, used)
-	_place_home_hexes_and_players(state, card_db, faction_hero_pairs, home_coords, diff)
+	var petals := _reserve_petal_coords(faction_hero_pairs, used)
+	_place_home_hexes_and_players(state, card_db, faction_hero_pairs, petals, diff)
+	_place_fixed_sea_towers(state, pool, petals)
 	_place_capital_garrisons(state, used)
 
-	var pool := _gather_core_hex_pool(card_db)
 	var placements := _fill_board(state, pool, used)
 
 	_place_curses(state, placements, diff.get("curses", 0))
@@ -80,16 +84,43 @@ static func _place_capital(state: GameState, used: Dictionary) -> void:
 	used[HexMath.key(capital.coord)] = true
 
 
-## One home coord per faction, spread across the 6 axial directions.
-static func _reserve_home_coords(faction_hero_pairs: Array, used: Dictionary) -> Dictionary:
-	var home_coords := {}
+## The 12 hex-distance-2 neighbors of `center`, in walk order (consecutive
+## entries are hex-adjacent) -- HexMath.spiral(center, 2)'s first 7 entries
+## are center plus its 6 ring-1 neighbors, so the ring-2 hexes start at 7.
+static func _ring2(center: Vector2i) -> Array[Vector2i]:
+	return HexMath.spiral(center, HOME_RING_DISTANCE).slice(7, 19)
+
+
+## One {"home": coord, "sea_tower": coord} pair per faction, spread evenly
+## around Capital's ring-2 (see the class doc comment). Marks both used.
+static func _reserve_petal_coords(faction_hero_pairs: Array, used: Dictionary) -> Dictionary:
+	var ring := _ring2(GameState.CAPITAL_COORD)
+	var step := ring.size() / faction_hero_pairs.size()
+	var petals := {}
 	for i in faction_hero_pairs.size():
-		var dir: Vector2i = HexMath.DIRECTIONS[i % HexMath.DIRECTIONS.size()]
-		var coord := GameState.CAPITAL_COORD + dir * HOME_DISTANCE
 		var faction: String = faction_hero_pairs[i][0]
-		home_coords[faction] = coord
-		used[HexMath.key(coord)] = true
-	return home_coords
+		var home_coord: Vector2i = ring[(i * step) % ring.size()]
+		var sea_tower_coord: Vector2i = ring[(i * step + SEA_TOWER_RING_OFFSET) % ring.size()]
+		petals[faction] = {"home": home_coord, "sea_tower": sea_tower_coord}
+		used[HexMath.key(home_coord)] = true
+		used[HexMath.key(sea_tower_coord)] = true
+	return petals
+
+
+## Places each faction's fixed Sea Tower (see _reserve_petal_coords) with a
+## name popped from `pool`'s sea_tower list, so the random fill below
+## doesn't also place it a second time.
+static func _place_fixed_sea_towers(state: GameState, pool: Dictionary, petals: Dictionary) -> void:
+	var sea_tower: Array = pool["sea_tower"]
+	for faction in petals:
+		if sea_tower.is_empty():
+			break
+		var tile := HexTile.new()
+		tile.coord = petals[faction]["sea_tower"]
+		tile.explored = false
+		tile.card_name = sea_tower.pop_back()
+		tile.is_sea_tower = true
+		state.set_hex(tile)
 
 
 ## `faction_hero_pairs` entries are either the plain [faction, hero] form
@@ -98,14 +129,14 @@ static func _reserve_home_coords(faction_hero_pairs: Array, used: Dictionary) ->
 ## (unclaimed/no controller) and is_bot to false when omitted, so both
 ## forms build an identical PlayerFactionState for a human pair.
 static func _place_home_hexes_and_players(
-	state: GameState, card_db: Node, faction_hero_pairs: Array, home_coords: Dictionary, diff: Dictionary
+	state: GameState, card_db: Node, faction_hero_pairs: Array, petals: Dictionary, diff: Dictionary
 ) -> void:
 	for pair in faction_hero_pairs:
 		var faction: String = pair[0]
 		var hero_name: String = pair[1]
 		var peer_id: int = int(pair[2]) if pair.size() > 2 else -1
 		var is_bot: bool = bool(pair[3]) if pair.size() > 3 else false
-		var coord: Vector2i = home_coords[faction]
+		var coord: Vector2i = petals[faction]["home"]
 
 		var tile := HexTile.new()
 		tile.coord = coord
