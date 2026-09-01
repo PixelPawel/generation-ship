@@ -8,6 +8,52 @@ extends Node3D
 const HEX_MESH_PATH := "res://assets/images/3d/hex.obj"
 const NO_SELECTION := Vector2i(999999, 999999)
 
+## Each file here is a single 1900x1900 atlas with a hex's own face-down
+## "unexplored" art in the top half and its printed explored-front art in
+## the bottom half (verified by content, not filename -- several filenames
+## are red herrings, e.g. Abyssal.png is actually Haunted Hollows and
+## Depths.png is actually Shriek of the Abyss). Keyed by HexTile.card_name /
+## HexCard.card_name (Core box only, matching game_setup.gd's current
+## Core-only scope; Arch/Titans hexes fall back to the legacy single-image
+## path below, same as before this dict existed).
+const HEX_ATLAS_DIR := "res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/"
+const HEX_ATLAS_BY_NAME := {
+	"The Capital": "Capital.png",
+	"Capital": "Capital.png",
+	"Bruthgaard": "Bruthgaard.png",
+	"Golgardei": "Golgardei.png",
+	"Plains of Rhun": "Rhun.png",
+	"Frosthold Pass": "Frosthold.png",
+	"Imperial Slave Mines": "Slavemines.png",
+	"Tomb of the Elder Kings": "tomboftheelder.png",
+	"Black Ice": "Blackice.png",
+	"Grim Fangs": "Grimfangs.png",
+	"Raufrost": "Raufrost.png",
+	"Shadowdawn": "Shadowdawn.png",
+	"Taurel Caravan Passage": "Taurel.png",
+	"Torment": "Torment.png",
+	"Fyrnhalla": "Fyrnhalla.png",
+	"Kyushis Tavern": "Tavern.png",
+	"Rigga": "Rigga.png",
+	"Dunkelholm": "Dunkelholm.png",
+	"Fjoelja Stone Circle": "Fjoelja.png",
+	"Netherwood": "Netherwood.png",
+	"Trollward": "Trollward.png",
+	"Dawngaard": "Dawngaard.png",
+	"Guragi Tower": "Guragi.png",
+	"Hellhound Tower": "Hellhound.png",
+	"Zeegard": "Zeegaard.png",
+	"Midnight Tower": "Midnight.png",
+	"Graveyard of the Armada": "Graveyard.png",
+	"Haunted Hollows": "Abyssal.png",
+	"Shriek of the Abyss": "Depths.png",
+	"O-Meido Prison": "Omeido.png",
+	"Yfelskog": "Druwhn.png",
+	"Khatrak Kautil": "Duerkhar.png",
+	"Pak Glandris": "Krowh.png",
+	"Winterholm": "Moyhar.png",
+}
+
 const COLOR_UNEXPLORED := Color(0.25, 0.25, 0.28)
 const COLOR_EXPLORED := Color(0.62, 0.55, 0.38)
 const COLOR_CAPITAL := Color(0.55, 0.1, 0.55)
@@ -176,13 +222,12 @@ func _start_hosted_game() -> void:
 	state = GameSetup.build_new_game(
 		CardDatabase, LobbyConfig.faction_hero_pairs, LobbyConfig.difficulty, LobbyConfig.max_chapters
 	)
-	# GameSetup's output is a "post-Refresh Chapter 1" state (phase ==
-	# REFRESH) -- walk it through GameFlow the same way a real game would,
-	# rather than skipping straight to Actions, so Build purchases and the
-	# Events threat step aren't silently bypassed for local/solo testing.
-	GameFlow.advance_phase(state, CardDatabase)  # REFRESH -> EVENTS
-	GameFlow.advance_phase(state, CardDatabase)  # EVENTS -> BUILD
-	GameFlow.advance_phase(state, CardDatabase)  # BUILD -> ACTIONS
+	# GameSetup's output is already the game's real starting state -- phase
+	# == REFRESH, same as a Lobby-started game (NetworkManager.start_game).
+	# Left as-is rather than fast-forwarded to Actions, so Refresh/Events/
+	# Build actually happen where a player (or this dev shortcut) can see
+	# and drive them, instead of being silently skipped before anyone's
+	# looking.
 	current_faction = state.players[0].faction
 
 	var err: Error = NetworkManager.host_game(LobbyConfig.port)
@@ -674,15 +719,16 @@ func _rebuild_hexes() -> void:
 		inst.set_surface_override_material(0, _material_for_tile(tile, tile.coord == selected_coord))
 
 
-## Explored hexes show their actual printed card art (HexCard.texture_path,
-## already wired up since the asset pipeline was built -- CardView proved
-## the pattern for Feat/Item cards, this is the same idea applied to the
-## board itself) with a color tint for Selected/Curse; anything without art
-## (unexplored hexes -- there's no card-back scan to show, or The Capital,
-## which has no Core-box HexCard entry) falls back to the flat color scheme
-## this always used. Haven ownership moved to a small marker (see
-## _rebuild_haven_markers) instead of replacing the tile's color entirely,
-## so the terrain art underneath stays visible.
+## Hexes with a HEX_ATLAS_BY_NAME entry show their real printed art in both
+## states -- the atlas's back half while unexplored, front half once
+## explored -- with a color tint for Selected/Curse. Anything else (Arch/
+## Titans hexes not yet in the atlas map) falls back to the legacy
+## explored-only art (HexCard.texture_path, CardView proved the pattern for
+## Feat/Item cards, this is the same idea applied to the board itself), or
+## to the flat color scheme this always used if that has no art either.
+## Haven ownership moved to a small marker (see _rebuild_haven_markers)
+## instead of replacing the tile's color entirely, so the terrain art
+## underneath stays visible.
 func _material_for_tile(tile: HexTile, is_selected: bool) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	var texture := _texture_for_tile(tile)
@@ -701,12 +747,34 @@ func _material_for_tile(tile: HexTile, is_selected: bool) -> StandardMaterial3D:
 
 
 func _texture_for_tile(tile: HexTile) -> Texture2D:
-	if not tile.explored or tile.card_name == "" or tile.card_name == "The Capital":
+	if tile.card_name == "":
+		return null
+
+	var atlas_file: String = HEX_ATLAS_BY_NAME.get(tile.card_name, "")
+	if atlas_file != "":
+		return _hex_atlas_region(atlas_file, tile.explored)
+
+	if not tile.explored or tile.card_name == "The Capital":
 		return null
 	var hex_card := _find_hex_card(tile.card_name)
 	if hex_card == null or hex_card.texture_path == "" or not ResourceLoader.exists(hex_card.texture_path):
 		return null
 	return load(hex_card.texture_path)
+
+
+## `front` picks the atlas's bottom half (explored card art) vs top half
+## (unexplored back art) -- see HEX_ATLAS_BY_NAME's doc comment for the
+## file layout this relies on.
+func _hex_atlas_region(filename: String, front: bool) -> Texture2D:
+	var path := HEX_ATLAS_DIR + filename
+	if not ResourceLoader.exists(path):
+		return null
+	var base: Texture2D = load(path)
+	var half := base.get_height() / 2.0
+	var atlas := AtlasTexture.new()
+	atlas.atlas = base
+	atlas.region = Rect2(0, half if front else 0.0, base.get_width(), half)
+	return atlas
 
 
 func _find_hex_card(card_name: String) -> HexCard:
