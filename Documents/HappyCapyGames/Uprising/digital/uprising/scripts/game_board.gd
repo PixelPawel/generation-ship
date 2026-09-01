@@ -32,6 +32,7 @@ var selected_coord: Vector2i = NO_SELECTION
 var _hex_mesh: Mesh
 var _hex_instances: Dictionary = {}  # HexMath.key -> MeshInstance3D
 var _hero_markers: Dictionary = {}  # faction -> MeshInstance3D
+var _haven_markers: Dictionary = {}  # HexMath.key -> MeshInstance3D, once placed (Havens are never removed)
 
 var _pivot: OrbitCamera
 var _hud: CanvasLayer
@@ -147,6 +148,7 @@ func _on_action_rejected(reason: String) -> void:
 func _rebuild_board() -> void:
 	_rebuild_hexes()
 	_rebuild_hero_markers()
+	_rebuild_haven_markers()
 	_update_hud()
 
 
@@ -404,9 +406,49 @@ func _rebuild_hexes() -> void:
 			inst.position = HexMath.to_world(tile.coord)
 			add_child(inst)
 			_hex_instances[key] = inst
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = _color_for_tile(tile, tile.coord == selected_coord)
-		inst.set_surface_override_material(0, mat)
+		inst.set_surface_override_material(0, _material_for_tile(tile, tile.coord == selected_coord))
+
+
+## Explored hexes show their actual printed card art (HexCard.texture_path,
+## already wired up since the asset pipeline was built -- CardView proved
+## the pattern for Feat/Item cards, this is the same idea applied to the
+## board itself) with a color tint for Selected/Curse; anything without art
+## (unexplored hexes -- there's no card-back scan to show, or The Capital,
+## which has no Core-box HexCard entry) falls back to the flat color scheme
+## this always used. Haven ownership moved to a small marker (see
+## _rebuild_haven_markers) instead of replacing the tile's color entirely,
+## so the terrain art underneath stays visible.
+func _material_for_tile(tile: HexTile, is_selected: bool) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	var texture := _texture_for_tile(tile)
+	if texture == null:
+		mat.albedo_color = _color_for_tile(tile, is_selected)
+		return mat
+
+	mat.albedo_texture = texture
+	if is_selected:
+		mat.albedo_color = COLOR_SELECTED
+	elif tile.has_curse:
+		mat.albedo_color = COLOR_CURSE
+	else:
+		mat.albedo_color = Color.WHITE
+	return mat
+
+
+func _texture_for_tile(tile: HexTile) -> Texture2D:
+	if not tile.explored or tile.card_name == "" or tile.card_name == "The Capital":
+		return null
+	var hex_card := _find_hex_card(tile.card_name)
+	if hex_card == null or hex_card.texture_path == "" or not ResourceLoader.exists(hex_card.texture_path):
+		return null
+	return load(hex_card.texture_path)
+
+
+func _find_hex_card(card_name: String) -> HexCard:
+	for h in CardDatabase.hexes:
+		if h.lang == "EN" and h.card_name == card_name:
+			return h
+	return null
 
 
 func _color_for_tile(tile: HexTile, is_selected: bool) -> Color:
@@ -440,6 +482,33 @@ func _rebuild_hero_markers() -> void:
 		var world := HexMath.to_world(player.hero_hex)
 		world.y = 0.6
 		marker.position = world
+
+
+## Small colored disc on top of each Haven, since the tile's own material
+## now shows real terrain art instead of a flat faction color. Havens are
+## never removed once placed, so this only ever adds markers, never frees
+## them (same simplification _rebuild_hero_markers already relies on).
+func _rebuild_haven_markers() -> void:
+	for key in state.hexes:
+		if _haven_markers.has(key):
+			continue
+		var tile: HexTile = state.hexes[key]
+		if tile.haven_faction == "":
+			continue
+		var marker := MeshInstance3D.new()
+		var mesh := CylinderMesh.new()
+		mesh.top_radius = 0.4
+		mesh.bottom_radius = 0.4
+		mesh.height = 0.1
+		marker.mesh = mesh
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = FACTION_COLORS.get(tile.haven_faction, COLOR_HAVEN)
+		marker.set_surface_override_material(0, mat)
+		add_child(marker)
+		var world := HexMath.to_world(tile.coord)
+		world.y = 0.25
+		marker.position = world
+		_haven_markers[key] = marker
 
 
 func _update_hud() -> void:
