@@ -242,6 +242,52 @@ func _initialize() -> void:
 	r = GameActions.apply(any_state, {"type": "build_unit", "faction": "Mohyar", "unit": "Hunters", "at": [0, 0], "any_alloc": {"food": 1}}, -1, card_db)
 	checks.append(["build_unit: ANY-cost rejects an allocation that doesn't sum to the cost", not r.get("ok", true)])
 
+	# --- draw_feats / choose_feat ---
+	var feat_state := GameState.new()
+	var feat_player := PlayerFactionState.new()
+	feat_player.faction = "Druwhn"
+	feat_player.feat_deck = ["Ambush", "Assasins", "Beastmasters"]
+	feat_state.players.append(feat_player)
+	feat_state.phase = GameState.Phase.BUILD
+
+	r = GameActions.apply(feat_state, {"type": "draw_feats", "faction": "Druwhn"}, -1, card_db)
+	checks.append(["draw_feats ok", r.get("ok", false)])
+	checks.append(["draw_feats: 2 cards drawn into pending_feat_choice", feat_player.pending_feat_choice.size() == 2])
+	checks.append(["draw_feats: feat_deck shrank by 2", feat_player.feat_deck.size() == 1])
+
+	r = GameActions.apply(feat_state, {"type": "draw_feats", "faction": "Druwhn"}, -1, card_db)
+	checks.append(["draw_feats rejects a second draw before choosing", not r.get("ok", true)])
+
+	var chosen_feat: String = feat_player.pending_feat_choice[0]
+	var other_feat: String = feat_player.pending_feat_choice[1]
+	r = GameActions.apply(feat_state, {"type": "choose_feat", "faction": "Druwhn", "feat": chosen_feat}, -1, card_db)
+	checks.append(["choose_feat ok", r.get("ok", false)])
+	checks.append(["choose_feat: chosen Feat now in feats_in_play", feat_player.feats_in_play.has(chosen_feat)])
+	checks.append(["choose_feat: pending_feat_choice cleared", feat_player.pending_feat_choice.is_empty()])
+	checks.append(["choose_feat: other Feat returned to feat_deck", feat_player.feat_deck.has(other_feat)])
+	checks.append(["choose_feat: other Feat placed at the bottom of the deck", feat_player.feat_deck[0] == other_feat])
+
+	r = GameActions.apply(feat_state, {"type": "choose_feat", "faction": "Druwhn", "feat": "Not A Real Feat"}, -1, card_db)
+	checks.append(["choose_feat rejects a Feat that wasn't drawn", not r.get("ok", true)])
+
+	# --- draw_feats with only 1 card left in the deck draws just that 1 ---
+	feat_player.feat_deck = ["Teleport"]
+	r = GameActions.apply(feat_state, {"type": "draw_feats", "faction": "Druwhn"}, -1, card_db)
+	checks.append(["draw_feats with 1 card left draws just that 1", feat_player.pending_feat_choice == ["Teleport"]])
+	r = GameActions.apply(feat_state, {"type": "choose_feat", "faction": "Druwhn", "feat": "Teleport"}, -1, card_db)
+	checks.append(["choose_feat with only 1 drawn returns nothing to the deck", feat_player.feat_deck.is_empty()])
+
+	# --- draw_feats with an empty deck should fail ---
+	feat_player.feat_deck = []
+	r = GameActions.apply(feat_state, {"type": "draw_feats", "faction": "Druwhn"}, -1, card_db)
+	checks.append(["draw_feats rejects an empty deck", not r.get("ok", true)])
+
+	# --- draw_feats outside Build Phase should fail ---
+	feat_state.phase = GameState.Phase.ACTIONS
+	feat_player.feat_deck = ["Ambush"]
+	r = GameActions.apply(feat_state, {"type": "draw_feats", "faction": "Druwhn"}, -1, card_db)
+	checks.append(["draw_feats outside Build Phase rejected", not r.get("ok", true)])
+
 	var all_ok := true
 	for c in checks:
 		var label: String = c[0]

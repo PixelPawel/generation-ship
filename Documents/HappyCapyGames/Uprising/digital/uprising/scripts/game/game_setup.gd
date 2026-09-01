@@ -124,6 +124,7 @@ static func _place_home_hexes_and_players(
 			player.leadership = hero_card.lead
 			player.guile = hero_card.guile
 
+		player.feat_deck = _build_feat_deck(card_db, faction)
 		state.players.append(player)
 
 
@@ -149,6 +150,19 @@ static func _find_hero(card_db: Node, hero_name: String) -> HeroCard:
 		if h.lang == "EN" and h.card_name == hero_name:
 			return h
 	return null
+
+
+## Rulebook p13: 10 Feat cards per faction (CardDatabase.feats' "Faction"
+## column, shared by both of that faction's Heroes -- only one is ever in
+## play per game, so this is effectively that Hero's own deck). Shuffled
+## and ready for GameActions.draw_feats/choose_feat during Build Phase.
+static func _build_feat_deck(card_db: Node, faction: String) -> Array[String]:
+	var names: Array[String] = []
+	for f in card_db.feats:
+		if f.lang == "EN" and f.faction == faction:
+			names.append(f.card_name)
+	names.shuffle()
+	return names
 
 
 ## Core-box hex names, split into the Normal fill pool and Sea Towers.
@@ -285,4 +299,6 @@ static func _pick_druids(state: GameState, card_db: Node) -> void:
 		if c.lang == "EN":
 			names.append(c.card_name)
 	names.shuffle()
-	state.druids_in_play = names.slice(0, mini(4, names.size()))
+	var revealed := mini(4, names.size())
+	state.druids_in_play = names.slice(0, revealed)
+	state.druid_deck = names.slice(revealed)

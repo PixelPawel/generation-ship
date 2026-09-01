@@ -23,6 +23,16 @@ var items_in_play: Array[String] = []
 var havens: Array[Vector2i] = []
 var hero_hex: Vector2i = Vector2i.ZERO
 
+## This faction's Feat deck (rulebook p13: 10 Feat cards per Core faction).
+## Only one Hero per faction is ever in play in a given game, so in
+## practice this is "that Hero's Feat deck" even though the underlying CSV
+## data is faction-scoped, not printed per individual Hero name.
+var feat_deck: Array[String] = []
+## The 2 Feats just drawn (Build Phase), waiting on choose_feat to pick one
+## and return the other to the bottom of feat_deck. Empty outside that
+## window.
+var pending_feat_choice: Array[String] = []
+
 var victory_points: int = 0
 var has_passed: bool = false  # passed for the remainder of this Actions Phase
 
@@ -46,6 +56,8 @@ func to_dict() -> Dictionary:
 		"hero_hex": [hero_hex.x, hero_hex.y],
 		"victory_points": victory_points,
 		"has_passed": has_passed,
+		"feat_deck": feat_deck.duplicate(),
+		"pending_feat_choice": pending_feat_choice.duplicate(),
 	}
 
 
@@ -71,4 +83,6 @@ static func from_dict(d: Dictionary) -> PlayerFactionState:
 	s.hero_hex = Vector2i(hh[0], hh[1])
 	s.victory_points = d.get("victory_points", 0)
 	s.has_passed = d.get("has_passed", false)
+	s.feat_deck.assign(d.get("feat_deck", []))
+	s.pending_feat_choice.assign(d.get("pending_feat_choice", []))
 	return s

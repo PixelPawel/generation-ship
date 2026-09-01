@@ -25,6 +25,11 @@ extends RefCounted
 ##   {"type": "pass", "faction": "Krowh"}  -- done taking Actions for this
 ##    Chapter even if AP remains; GameFlow's turn loop treats 0 AP and a
 ##    voluntary Pass the same way
+##   {"type": "draw_feats", "faction": "Krowh"}  -- Build Phase, draws 2 into
+##    pending_feat_choice
+##   {"type": "choose_feat", "faction": "Krowh", "feat": "Tribesmen"}  --
+##    picks 1 of the 2 pending Feats; the other returns to the bottom of the
+##    Feat deck
 ## More plug in the same way: add a case in apply() and a
 ## _handler(state, action, sender_id, card_db) -> {ok, reason} function.
 ## `card_db` is the CardDatabase autoload, needed by handlers (Market, Quest)
@@ -54,6 +59,10 @@ static func apply(state: GameState, action: Dictionary, sender_id: int, card_db:
 			return _build_defense(state, action, sender_id)
 		"pass":
 			return _pass(state, action, sender_id)
+		"draw_feats":
+			return _draw_feats(state, action, sender_id)
+		"choose_feat":
+			return _choose_feat(state, action, sender_id)
 		_:
 			return {"ok": false, "reason": "unknown action type '%s'" % type}
 
@@ -517,4 +526,52 @@ static func _build_defense(state: GameState, action: Dictionary, sender_id: int)
 		tile.has_tower = true
 	else:
 		tile.has_wall = true
+	return {"ok": true, "reason": ""}
+
+
+## Rulebook p17: Build Phase, no AP cost. Draws 2 Feats from your faction's
+## Feat deck into pending_feat_choice for choose_feat to resolve. Rejects if
+## a choice is already pending (resolve it first) or the deck is empty --
+## if only 1 card is left, draws that single one instead of failing.
+static func _draw_feats(state: GameState, action: Dictionary, sender_id: int) -> Dictionary:
+	if state.phase != GameState.Phase.BUILD:
+		return {"ok": false, "reason": "Feats can only be drawn during the Build Phase"}
+	var auth := _get_authorized_player(state, action, sender_id)
+	if not auth.get("ok", false):
+		return auth
+	var player: PlayerFactionState = auth["player"]
+
+	if not player.pending_feat_choice.is_empty():
+		return {"ok": false, "reason": "resolve your pending Feat choice first"}
+	if player.feat_deck.is_empty():
+		return {"ok": false, "reason": "no Feats left in your deck"}
+
+	var draw_count: int = mini(2, player.feat_deck.size())
+	for _i in range(draw_count):
+		player.pending_feat_choice.append(player.feat_deck.pop_back())
+	return {"ok": true, "reason": "", "drawn": player.pending_feat_choice.duplicate()}
+
+
+## Rulebook p17: picks 1 of the 2 Feats drawn by draw_feats to add to
+## feats_in_play (immediately active). The other returns to the BOTTOM of
+## the Feat deck -- Feats have no discard pile, unlike Items/Quests.
+static func _choose_feat(state: GameState, action: Dictionary, sender_id: int) -> Dictionary:
+	if state.phase != GameState.Phase.BUILD:
+		return {"ok": false, "reason": "Feats can only be chosen during the Build Phase"}
+	var auth := _get_authorized_player(state, action, sender_id)
+	if not auth.get("ok", false):
+		return auth
+	var player: PlayerFactionState = auth["player"]
+
+	var feat_name: String = action.get("feat", "")
+	if not player.pending_feat_choice.has(feat_name):
+		return {"ok": false, "reason": "that Feat wasn't one of your drawn choices"}
+
+	var leftover: Array = player.pending_feat_choice.duplicate()
+	leftover.erase(feat_name)
+	for other in leftover:
+		player.feat_deck.push_front(other)
+
+	player.feats_in_play.append(feat_name)
+	player.pending_feat_choice.clear()
 	return {"ok": true, "reason": ""}

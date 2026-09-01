@@ -48,6 +48,12 @@ var horde_deck: Array[String] = []
 
 var event_deck_by_chapter: Dictionary = {}  # chapter (int) -> Array[String] event names, in play order
 var druids_in_play: Array[String] = []
+## Remaining Druid ("Blessing") cards not revealed at setup. Nothing in the
+## rulebook currently draws further from this once the initial 4 are placed
+## (p6: "Place 4 random Druid cards face-up"), but it's modeled as a real
+## deck like everything else for consistency and in case a future Quest/
+## Event effect reveals more.
+var druid_deck: Array[String] = []
 
 
 func get_hex(coord: Vector2i) -> HexTile:
@@ -105,6 +111,7 @@ func to_dict() -> Dictionary:
 		"horde_deck": horde_deck.duplicate(),
 		"event_deck_by_chapter": event_dict,
 		"druids_in_play": druids_in_play.duplicate(),
+		"druid_deck": druid_deck.duplicate(),
 	}
 
 
@@ -153,4 +160,5 @@ static func from_dict(d: Dictionary) -> GameState:
 		s.event_deck_by_chapter[int(chap_str)] = (d["event_deck_by_chapter"][chap_str] as Array).duplicate()
 
 	s.druids_in_play.assign(d.get("druids_in_play", []))
+	s.druid_deck.assign(d.get("druid_deck", []))
 	return s

@@ -63,6 +63,20 @@ func _initialize() -> void:
 	checks.append(["horde deck non-empty", state.horde_deck.size() > 0])
 	checks.append(["event chapter 1 non-empty", (state.event_deck_by_chapter.get(1, []) as Array).size() > 0])
 	checks.append(["druids_in_play == 4", state.druids_in_play.size() == 4])
+	checks.append(["druid_deck holds the remaining 5 (9 EN Core Druids total)", state.druid_deck.size() == 5])
+	var no_druid_overlap := true
+	for d in state.druids_in_play:
+		if state.druid_deck.has(d):
+			no_druid_overlap = false
+	checks.append(["no overlap between druids_in_play and druid_deck", no_druid_overlap])
+
+	checks.append(["player0 feat_deck has 10 cards (1 Core faction's worth)", p0.feat_deck.size() == 10])
+	var unique_feats := {}
+	for f in p0.feat_deck:
+		unique_feats[f] = true
+	checks.append(["player0 feat_deck has no duplicates", unique_feats.size() == 10])
+	checks.append(["player0 starts with no pending Feat choice", p0.pending_feat_choice.is_empty()])
+	checks.append(["player0 starts with no Feats in play yet", p0.feats_in_play.is_empty()])
 
 	# No duplicate card names should appear across market vs remaining item_deck.
 	var item_overlap := false
