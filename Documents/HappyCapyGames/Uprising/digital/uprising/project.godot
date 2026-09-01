@@ -11,12 +11,13 @@ config_version=5
 [application]
 
 config/name="Uprising"
-run/main_scene="res://scenes/lobby.tscn"
+run/main_scene="res://scenes/main_menu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
 
+Settings="*res://scripts/settings.gd"
 CardDatabase="*res://scripts/data/card_database.gd"
 NetworkManager="*res://scripts/net/network_manager.gd"
 LobbyConfig="*res://scripts/net/lobby_config.gd"

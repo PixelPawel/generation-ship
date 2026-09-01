@@ -1,9 +1,9 @@
 extends Control
-## Pre-game lobby, the project's actual entry point (run/main_scene). Choose
-## to Host (pick which of the 4 Core factions are playing, their Heroes,
-## difficulty, Chapter count) or Join an existing host by address/port.
-## Fills in the LobbyConfig autoload and hands off to game_board.tscn, which
-## reads it back in _ready() -- Godot's change_scene_to_file() doesn't pass
+## Pre-game lobby, reached from the main menu's Start button. Choose to Host
+## (pick which of the 4 Core factions are playing, their Heroes, difficulty,
+## Chapter count) or Join an existing host by address/port. Fills in the
+## LobbyConfig autoload and hands off to game_board.tscn, which reads it
+## back in _ready() -- Godot's change_scene_to_file() doesn't pass
 ## arguments directly, so LobbyConfig is the bridge between the two scenes.
 
 const FACTIONS := ["Druwhn", "Duerkhar", "Krowh", "Mohyar"]
@@ -55,6 +55,11 @@ func _build_ui() -> void:
 	join_mode_button.text = "Join Game"
 	join_mode_button.pressed.connect(func() -> void: _set_mode(false))
 	mode_row.add_child(join_mode_button)
+
+	var back_button := Button.new()
+	back_button.text = "Back to Main Menu"
+	back_button.pressed.connect(_on_back_pressed)
+	mode_row.add_child(back_button)
 
 	_status_label = Label.new()
 	root.add_child(_status_label)
@@ -203,3 +208,7 @@ func _on_join_pressed() -> void:
 	LobbyConfig.join_port = int(_join_port_edit.text) if _join_port_edit.text.is_valid_int() else NetworkManager.DEFAULT_PORT
 
 	get_tree().change_scene_to_file("res://scenes/game_board.tscn")
+
+
+func _on_back_pressed() -> void:
+	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
