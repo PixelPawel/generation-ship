@@ -1,0 +1,59 @@
+No.,Name,Link,Color,Cost,Art,Flavor,Printed Star,Star Card,Backside,Optimize 1,Optimize 2,Optimize 3,Effect,Effect 2,Done,Artist
+1,Central Transport,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+1+67x44mm.png,Metals,2,,"Tech bros reinventing trains, again.",,No,Hibernators,Metals,Metals,Metals,Fuse 1:1 for each Metals card and Electrix card here. (including this),(Optimize three times to fully optimize),Done,Daniel
+2,Central Transport,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+1+67x44mm.png,Metals,2,,"Tech bros reinventing trains, again.",,No,Simulators,Metals,Metals,Metals,Fuse 1:1 for each Metals card and Electrix card here. (including this),(Optimize three times to fully optimize),Done,Daniel
+3,Fabrication,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+3+67x44mm.png,Metals,3,,You‘re just making shit up.,,No,Bioreactor,"Dust, Dust","Metals, Metals",,"Gain 6 Dust OR fuse 1:1, three times.
+",(Optimize twice to fully optimize),Done,Daniel
+4,Fabrication,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+3+67x44mm.png,Metals,3,,You‘re just making shit up.,,No,Habitation Ring,"Dust, Dust","Metals, Metals",,"Gain 6 Dust OR fuse 1:1, three times.
+",(Optimize twice to fully optimize),Done,Daniel
+5,Preservation,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+5+67x44mm.png,Metals,3,,1 part fruit 3 parts sugar.,,No,Operations,"Any, Any","Any, Any",,"Gain 2 Dust per different color here, including this.
+",(Optimize twice to fully optimize),Done,Daniel
+6,Preservation,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+5+67x44mm.png,Metals,3,,1 part fruit 3 parts sugar.,,No,Cargo Bays,"Any, Any","Any, Any",,"Gain 2 Dust per different color here, including this.
+",(Optimize twice to fully optimize),Done,Daniel
+7,Space Bazaar,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+1+67x44mm2.png,Liquids,2,,Feel the quality. That‘s none of your goat.,,No,Hibernators,"Dust, Electrix","Liquids, Liquids",,"Recycle up to 3, then draw that many.
+",(Optimize twice to fully optimize),Done,Daniel
+8,Space Bazaar,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+1+67x44mm2.png,Liquids,2,,Feel the quality. That‘s none of your goat.,,No,Simulators,"Dust, Electrix","Liquids, Liquids",,"Recycle up to 3, then draw that many.
+",(Optimize twice to fully optimize),Done,Daniel
+9,Greenhouses,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+3+67x44mm2.png,Liquids,2,,Green is not a creative color.,⭐⭐,Yes,Bioreactor,Liquids,Liquids,Liquids,"Store 1 Liquids here. Gain 1⭐ per Liquids here.
+",(Stored supplies are 1⭐ ),Done,Daniel
+10,Greenhouses,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+3+67x44mm2.png,Liquids,2,,Green is not a creative color.,⭐⭐,Yes,Habitation Ring,Liquids,Liquids,Liquids,"Store 1 Liquids here. Gain 1⭐ per Liquids here.
+",(Stored supplies are 1⭐ ),Done,Daniel
+11,Academies,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+5+67x44mm2.png,Liquids,2,,Publish or perish!,,No,Operations,"Liquids, Metals, Organix",,,"Draw 3
+",(Optimize once to fully optimize),Done,Daniel
+12,Academies,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+5+67x44mm2.png,Liquids,2,,Publish or perish!,,No,Cargo Bays,"Liquids, Metals, Organix",,,"Draw 3
+",(Optimize once to fully optimize),Done,Daniel
+13,Exosampling,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+1+67x44mm3.png,Organix,2,,Wow! Superfish!,⭐,Yes,Hibernators,Organix,Organix,Organix,"Tuck 1 card faceup here. 
+",(Gain printed ⭐ on faceup cards),Done,Daniel
+14,Exosampling,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+1+67x44mm3.png,Organix,2,,Wow! Superfish!,⭐,Yes,Simulators,Organix,Organix,Organix,"Tuck 1 card faceup here. 
+",(Gain printed ⭐ on faceup cards),Done,Daniel
+15,Parliament,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+3+67x44mm3.png,Organix,2,,Most of all we need the funk.,,No,Bioreactor,"Metals, Liquids","Organix, Thrust",,"Draw equal to the printed cost of the card just placed.
+",(Optimize twice to fully optimize),Done,Daniel
+16,Parliament,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+3+67x44mm3.png,Organix,2,,Most of all we need the funk.,,No,Habitation Ring,"Metals, Liquids","Organix, Thrust",,"Draw equal to the printed cost of the card just placed.
+",(Optimize twice to fully optimize),Done,Daniel
+17,Cultivation,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+5+67x44mm3.png,Organix,2,,Introducing mosqitoes to new planets.,⭐,Yes,Operations,"Organix, Metals, Electrix, Thrust",,,"Draw 4, tuck up to 4 cards facedown under any sectors.
+",(Facedown cards are 1⭐ ),Done,Daniel
+18,Cultivation,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+5+67x44mm3.png,Organix,2,,Introducing mosqitoes to new planets.,⭐,Yes,Cargo Bays,"Organix, Metals, Electrix, Thrust",,,"Draw 4, tuck up to 4 cards facedown under any sectors.
+",(Facedown cards are 1⭐ ),Done,Daniel
+19,Holoprinters,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+1+67x44mm4.png,Electrix,2,,Let your imagination run wild.,⭐,Yes,Hibernators,"Dust, Metals","Organix, Electrix",,"Store any 2 supplies on any sectors.
+",(Stored supplies are 1⭐ ),Done,Daniel
+20,Holoprinters,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+1+67x44mm4.png,Electrix,2,,Let your imagination run wild.,⭐,Yes,Simulators,"Dust, Metals","Organix, Electrix",,"Store any 2 supplies on any sectors.
+",(Stored supplies are 1⭐ ),Done,Daniel
+21,Probe Launcher,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+3+67x44mm4.png,Electrix,2,,Probing Uranus.,⭐,Yes,Bioreactor,Electrix,Electrix,Electrix,"Reveal 1 expedition.You may bid on any expedition.
+",(Stored supplies are 1⭐ ),Done,Daniel
+22,Probe Launcher,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+3+67x44mm4.png,Electrix,2,,Probing Uranus.,⭐,Yes,Habitation Ring,Electrix,Electrix,Electrix,"Reveal 1 expedition.You may bid on any expedition.
+",(Stored supplies are 1⭐ ),Done,Daniel
+23,Engines,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+5+67x44mm4.png,Electrix,2,,More mass means you can accelerate faster.,,No,Operations,"Metals, Liquids","Electrix, Thrust",,"Gain 1 Electrix per sector you have.
+",(Optimize twice to fully optimize),Done,Daniel
+24,Engines,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+5+67x44mm4.png,Electrix,2,,More mass means you can accelerate faster.,,No,Cargo Bays,"Metals, Liquids","Electrix, Thrust",,"Gain 1 Electrix per sector you have.
+",(Optimize twice to fully optimize),Done,Daniel
+25,Astrogation,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+1+67x44mm5.png,Thrrust,2,,Stars in a galaxy are like cream in your coffee.,,No,Hibernators,"Dust, Organix","Liquids, Electrix",,"Gain 2 Thrust.
+",(Optimize twice to fully optimize),Done,Daniel
+26,Astrogation,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+1+67x44mm5.png,Thrrust,2,,Stars in a galaxy are like cream in your coffee.,,No,Simulators,"Dust, Organix","Liquids, Electrix",,"Gain 2 Thrust.
+",(Optimize twice to fully optimize),Done,Daniel
+27,Astra Cultura,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+3+67x44mm5.png,Thrrust,3,,The sky is no longer the limit.,⭐,Yes,Bioreactor,"Metals, Electrix, Thrust",,,"Store 2 Thrust here. Gain 2⭐ per Thrust  here.
+",(Optimize once to fully optimize),Done,Daniel
+28,Astra Cultura,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+3+67x44mm5.png,Thrrust,3,,The sky is no longer the limit.,⭐,Yes,Habitation Ring,"Metals, Electrix, Thrust",,,"Store 2 Thrust here. Gain 2⭐ per Thrust  here.
+",(Optimize once to fully optimize),Done,Daniel
+29,Central AI,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+5+67x44mm5.png,Thrrust,3,,I can‘t do that due to copyright issues.,,No,Operations,"Dust, Organix","Metals, Thrust",,"Draw 3.
+",(Optimize twice to fully optimize),Done,Daniel
+30,Central AI,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Sector/GS+Sector+5+67x44mm5.png,Thrrust,3,,I can‘t do that due to copyright issues.,,No,Cargo Bays,"Dust, Organix","Metals, Thrust",,"Draw 3.
+",(Optimize twice to fully optimize),Done,Daniel

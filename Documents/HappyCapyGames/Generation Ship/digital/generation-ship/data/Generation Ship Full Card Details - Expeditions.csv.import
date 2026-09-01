@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://c4qm4mdp02t4x"
+
+[deps]
+
+files=["res://data/Generation Ship Full Card Details - Expeditions.Name.translation", "res://data/Generation Ship Full Card Details - Expeditions.Link.translation", "res://data/Generation Ship Full Card Details - Expeditions.Color.translation", "res://data/Generation Ship Full Card Details - Expeditions.Cost.translation", "res://data/Generation Ship Full Card Details - Expeditions.Flavor.translation", "res://data/Generation Ship Full Card Details - Expeditions.Printed Star.translation", "res://data/Generation Ship Full Card Details - Expeditions.Star card.translation", "res://data/Generation Ship Full Card Details - Expeditions.Type.translation", "res://data/Generation Ship Full Card Details - Expeditions.Effect.translation", "res://data/Generation Ship Full Card Details - Expeditions.Effect 2.translation", "res://data/Generation Ship Full Card Details - Expeditions.Done.translation", "res://data/Generation Ship Full Card Details - Expeditions.Artist.translation", "res://data/Generation Ship Full Card Details - Expeditions.en.translation"]
+
+source_file="res://data/Generation Ship Full Card Details - Expeditions.csv"
+dest_files=["res://data/Generation Ship Full Card Details - Expeditions.Name.translation", "res://data/Generation Ship Full Card Details - Expeditions.Link.translation", "res://data/Generation Ship Full Card Details - Expeditions.Color.translation", "res://data/Generation Ship Full Card Details - Expeditions.Cost.translation", "res://data/Generation Ship Full Card Details - Expeditions.Flavor.translation", "res://data/Generation Ship Full Card Details - Expeditions.Printed Star.translation", "res://data/Generation Ship Full Card Details - Expeditions.Star card.translation", "res://data/Generation Ship Full Card Details - Expeditions.Type.translation", "res://data/Generation Ship Full Card Details - Expeditions.Effect.translation", "res://data/Generation Ship Full Card Details - Expeditions.Effect 2.translation", "res://data/Generation Ship Full Card Details - Expeditions.Done.translation", "res://data/Generation Ship Full Card Details - Expeditions.Artist.translation", "res://data/Generation Ship Full Card Details - Expeditions.en.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true
