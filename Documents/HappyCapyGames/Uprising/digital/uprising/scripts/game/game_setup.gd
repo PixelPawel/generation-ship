@@ -12,8 +12,18 @@ extends RefCounted
 ## player gets one ring-2 "petal" -- a Home Hex plus a Sea Tower
 ## SEA_TOWER_RING_OFFSET steps further around that same ring -- spaced
 ## evenly around the 12-hex ring-2 (12 / player count is exactly 6, 4, or 3,
-## so this divides evenly for 2/3/4 players). Everything else, ring-2 and
-## beyond, fills from the shuffled Core pool same as before.
+## so this divides evenly for 2/3/4 players).
+##
+## Everything else fills from the shuffled Core pool, same as before, but
+## only out to RegionMath.BOARD_RADIUS -- the board is a fixed 37-hex disk
+## (also confirmed against the user's TTS board), not an arbitrarily large
+## spiral. The Core pool (25 non-Home cards) doesn't fill all 37 -- 32 at
+## most, and fewer once petals/garrisons consume some -- so some coords
+## always end up with no HexTile at all. That's correct, not a shortfall:
+## per rulebook p14, every hex belongs permanently to one of 3 Regions
+## (Howling White/Fog Grave/Screaming Sea) whether or not it currently has
+## a tile, and GameBoard renders a coord with no HexTile as its bare
+## Region instead of a gap (see RegionMath, GameBoard._bare_region_tile).
 
 ## Core box home hex per faction, from CardDatabase.hexes (Type == "Home").
 const HOME_HEX_BY_FACTION := {
@@ -37,7 +47,6 @@ const DIFFICULTY_TABLE := {
 const STARTING_AP := 8
 const HOME_RING_DISTANCE := 2
 const SEA_TOWER_RING_OFFSET := 2
-const SPIRAL_RADIUS := 6
 
 
 ## `faction_hero_pairs`: Array of [faction_name, hero_name], 1-4 entries.
@@ -236,12 +245,19 @@ static func _gather_core_hex_pool(card_db: Node) -> Dictionary:
 ## Places every pooled hex (unexplored) on an expanding spiral around the
 ## Capital, skipping coords already claimed. Returns the list of coords used
 ## for fill hexes, for later Curse/Skeleton placement.
+##
+## The board itself is the fixed 37-hex disk RegionMath knows about (1
+## center + 3 rings) -- not a bigger arbitrary spiral -- so a board coord
+## this doesn't reach stays without a HexTile entirely, and the caller can
+## show RegionMath.region_for() there instead (rulebook p14's Regions: the
+## permanent Howling White / Fog Grave / Screaming Sea labels every hex
+## carries whether or not it currently has a tile).
 static func _fill_board(state: GameState, pool: Dictionary, used: Dictionary) -> Array[Vector2i]:
 	var normal: Array = pool["normal"]
 	var sea_tower: Array = pool["sea_tower"]
 	var placements: Array[Vector2i] = []
 
-	var candidates := HexMath.spiral(GameState.CAPITAL_COORD, SPIRAL_RADIUS)
+	var candidates := RegionMath.all_coords(GameState.CAPITAL_COORD)
 	var i := 0
 	for coord in candidates:
 		if normal.is_empty() and sea_tower.is_empty():

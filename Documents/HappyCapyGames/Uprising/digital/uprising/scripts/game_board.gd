@@ -68,6 +68,14 @@ const FACTION_COLORS := {
 	"Krowh": Color(0.9, 0.65, 0.1),
 }
 
+## Flat placeholder colors for a bare Region hex (rulebook p14) -- no
+## per-region art exists yet, same situation as COLOR_UNEXPLORED etc.
+const REGION_COLORS := {
+	"Screaming Sea": Color(0.12, 0.32, 0.45),
+	"Howling White": Color(0.78, 0.83, 0.87),
+	"Fog Grave": Color(0.42, 0.38, 0.48),
+}
+
 const CARD_THUMB_SIZE := Vector2(70, 103)
 const CARD_CHOICE_SIZE := Vector2(150, 221)
 
@@ -743,17 +751,39 @@ func _find_feat_card(feat_name: String) -> FeatCard:
 # Board rendering
 # ---------------------------------------------------------------------------
 
+## Iterates the full 37-hex board (RegionMath.all_coords), not just
+## state.hexes' keys, so a coord with no placed HexTile still renders --
+## as its permanent Region (rulebook p14) rather than a gap. That also
+## means a tile removed from state.hexes later (not implemented yet, but
+## the whole reason this is 2 layers) will correctly fall back to its bare
+## Region on the next rebuild, with no extra bookkeeping.
 func _rebuild_hexes() -> void:
-	for key in state.hexes:
-		var tile: HexTile = state.hexes[key]
+	for coord in RegionMath.all_coords(GameState.CAPITAL_COORD):
+		var key := HexMath.key(coord)
+		var tile: HexTile = state.get_hex(coord)
+		if tile == null:
+			tile = _bare_region_tile(coord)
 		var inst: MeshInstance3D = _hex_instances.get(key)
 		if inst == null:
 			inst = MeshInstance3D.new()
 			inst.mesh = _hex_mesh
-			inst.position = HexMath.to_world(tile.coord)
+			inst.position = HexMath.to_world(coord)
 			add_child(inst)
 			_hex_instances[key] = inst
-		inst.set_surface_override_material(0, _material_for_tile(tile, tile.coord == selected_coord))
+		inst.set_surface_override_material(0, _material_for_tile(tile, coord == selected_coord))
+
+
+## A board coord with no HexTile in state.hexes is still a permanent
+## board space -- one of the 3 Regions (Howling White/Fog Grave/Screaming
+## Sea), already explored, no Haven ever allowed there (p14). Synthesized
+## on the fly rather than stored, so there's nothing to clean up if a real
+## tile is placed there later.
+func _bare_region_tile(coord: Vector2i) -> HexTile:
+	var tile := HexTile.new()
+	tile.coord = coord
+	tile.explored = true
+	tile.no_haven = true
+	return tile
 
 
 ## Hexes with a HEX_ATLAS_BY_NAME entry show their real printed art in both
@@ -819,6 +849,9 @@ func _find_hex_card(card_name: String) -> HexCard:
 func _color_for_tile(tile: HexTile, is_selected: bool) -> Color:
 	if is_selected:
 		return COLOR_SELECTED
+	if state.get_hex(tile.coord) == null:  # bare Region, no placed HexTile
+		var region := RegionMath.region_for(tile.coord, GameState.CAPITAL_COORD)
+		return REGION_COLORS.get(region, COLOR_UNEXPLORED)
 	if tile.card_name == "The Capital":
 		return COLOR_CAPITAL
 	if tile.has_curse:

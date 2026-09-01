@@ -31,6 +31,11 @@ func _initialize() -> void:
 		filler.coord = neighbor
 		filler.explored = false
 		state.set_hex(filler)
+	# A random Curse can legitimately land here (rules-correct rejection,
+	# not a bug -- GameActions._explore refuses a cursed hex on purpose)
+	# and would otherwise make this test flaky, since this section isn't
+	# about testing that specific rule.
+	state.get_hex(neighbor).has_curse = false
 
 	var ap_before_move := player.action_points
 	r = GameActions.apply(state, {"type": "move", "faction": "Druwhn", "to": [neighbor.x, neighbor.y]}, -1, card_db)
