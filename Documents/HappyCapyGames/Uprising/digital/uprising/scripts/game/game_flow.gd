@@ -23,10 +23,11 @@ extends RefCounted
 ## documented stand-in, not a transcription. Revisit if initiative numbers
 ## turn up on individual card art.
 
-## Every player faction that hasn't finished their Actions Phase turn yet
-## (still has AP left and hasn't voluntarily Passed). Exposed for the UI to
-## show "waiting on: ..." as well as being used internally to gate the
-## Actions -> Nemesis transition.
+## Every player faction that hasn't finished this phase yet -- still has AP
+## left and hasn't voluntarily Passed. Used to gate both Build -> Actions
+## (nobody spends AP in Build, so this collapses to "hasn't Passed yet",
+## i.e. hasn't declared themselves ready) and Actions -> Nemesis (AP either
+## ran out or they Passed early). Exposed for the UI to show "waiting on: ...".
 static func active_players(state: GameState) -> Array[String]:
 	var active: Array[String] = []
 	for p in state.players:
@@ -57,13 +58,16 @@ static func advance_phase(state: GameState, card_db: Node) -> Dictionary:
 
 		GameState.Phase.EVENTS:
 			ChapterFlow.events_phase_token_step(state)
-			state.phase = GameState.Phase.BUILD
+			_start_build_phase(state)
 			return {
 				"ok": true,
-				"reason": "1 Activation Token placed on every Legion/Horde in play. Build Phase: draw 2 Feats and pick 1 manually per Hero, then submit build_unit/build_defense actions. Advance again once everyone's done building.",
+				"reason": "1 Activation Token placed on every Legion/Horde in play. Build Phase: draw 2 Feats and keep 1, build Units on your Havens (generally the only time this is possible), then Pass when ready. Advance again once everyone's ready.",
 			}
 
 		GameState.Phase.BUILD:
+			var waiting_build := active_players(state)
+			if not waiting_build.is_empty():
+				return {"ok": false, "reason": "still waiting on: %s" % ", ".join(waiting_build), "waiting_on": waiting_build}
 			_start_actions_phase(state)
 			return {"ok": true, "reason": "Actions Phase started -- players spend AP via GameActions until out or Pass."}
 
@@ -102,6 +106,17 @@ static func _start_actions_phase(state: GameState) -> void:
 	for p in state.players:
 		p.has_passed = p.is_bot
 	state.phase = GameState.Phase.ACTIONS
+
+
+## Same "bots start already-Passed" reasoning as _start_actions_phase, one
+## Chapter earlier -- a bot never draws Feats or builds Units either, so it
+## has nothing to be "not ready" about. Real players' has_passed resets
+## here too (a leftover true from last Chapter's Actions Phase must not
+## leak into this one and instantly satisfy the Build -> Actions gate).
+static func _start_build_phase(state: GameState) -> void:
+	for p in state.players:
+		p.has_passed = p.is_bot
+	state.phase = GameState.Phase.BUILD
 
 
 ## Rulebook p27: activate every Legion/Horde once per Activation Token it

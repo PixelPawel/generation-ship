@@ -941,7 +941,9 @@ func _update_hud() -> void:
 		and (selected_tile.haven_faction == "" or selected_tile.haven_faction == player.faction)
 	)
 
-	_pass_button.disabled = not (state.phase == GameState.Phase.ACTIONS and not player.has_passed)
+	var can_pass := (state.phase == GameState.Phase.ACTIONS or state.phase == GameState.Phase.BUILD) and not player.has_passed
+	_pass_button.disabled = not can_pass
+	_pass_button.text = "Ready (done building)" if state.phase == GameState.Phase.BUILD else "Pass"
 	_end_phase_button.text = "End Phase (%s)" % GameState.Phase.keys()[state.phase]
 
 	_sync_option_button(_market_option, _market_option_items, state.market)

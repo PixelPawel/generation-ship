@@ -38,19 +38,48 @@ func _initialize() -> void:
 	for i in 5:
 		await process_frame
 	_check("Events -> Build", board.state.phase == GameState.Phase.BUILD)
+
+	# --- Build -> Actions is gated on everyone declaring themselves ready
+	# (Pass -- draw-2-keep-1 Feats and Building Units are both optional, so
+	# this is a voluntary "I'm done" signal, not a hard requirement to have
+	# actually drawn/built anything), same shape as the Actions -> Nemesis
+	# gate. Confirm the refusal before satisfying it. ---
 	net_mgr.submit_advance_phase()
 	for i in 5:
 		await process_frame
-	_check("Build -> Actions", board.state.phase == GameState.Phase.ACTIONS)
+	_check("Build -> Actions refused before anyone is ready", board.state.phase == GameState.Phase.BUILD)
+
+	board._update_hud()
+	_check("Pass button reads 'Ready' during Build Phase", board._pass_button.text == "Ready (done building)")
+	_check("Pass button enabled before Druwhn has Passed", not board._pass_button.disabled)
+	board._on_pass_pressed()  # board.current_faction is "Druwhn"
+	for i in 5:
+		await process_frame
+	_check("Druwhn marked ready via the real Pass button", board.state.get_player("Druwhn").has_passed)
+	board._update_hud()
+	_check("Pass button disables once Druwhn is ready", board._pass_button.disabled)
+
+	net_mgr.submit_action({"type": "pass", "faction": "Krowh"})
+	for i in 5:
+		await process_frame
+	net_mgr.submit_advance_phase()
+	for i in 5:
+		await process_frame
+	_check("Build -> Actions once everyone's ready", board.state.phase == GameState.Phase.ACTIONS)
 
 	var player = board.state.get_player("Druwhn")
 	var home: Vector2i = player.hero_hex
 	var target := Vector2i(999999, 999999)  # sentinel "not found"
+	# Skip a cursed neighbor -- board generation isn't seeded, so occasionally
+	# one lands right next to home, and Explore correctly refuses a cursed
+	# hex (rulebook-accurate), which would otherwise cascade-fail every
+	# check below that depends on `target` becoming explored/Havened.
 	for n in HexMath.neighbors(home):
-		if board.state.get_hex(n) != null:
+		var candidate: HexTile = board.state.get_hex(n)
+		if candidate != null and not candidate.has_curse:
 			target = n
 			break
-	_check("found an existing neighbor of home to move to", target != Vector2i(999999, 999999))
+	_check("found an existing, uncursed neighbor of home to move to", target != Vector2i(999999, 999999))
 	var target_tile_before = board.state.get_hex(target)
 	_check("target hex starts unexplored", target_tile_before != null and not target_tile_before.explored)
 

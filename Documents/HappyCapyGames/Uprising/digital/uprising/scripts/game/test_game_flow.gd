@@ -30,12 +30,25 @@ func _initialize() -> void:
 	r = GameFlow.advance_phase(state, card_db)
 	_check("EVENTS -> BUILD ok", r.get("ok", false))
 	_check("phase is now BUILD", state.phase == GameState.Phase.BUILD)
+	_check("nobody has Passed yet at the start of Build", GameFlow.active_players(state).size() == state.players.size())
+
+	# --- BUILD gate: nobody has declared themselves ready, so advancing is refused ---
+	r = GameFlow.advance_phase(state, card_db)
+	_check("BUILD -> ACTIONS refused while players aren't ready", not r.get("ok", true))
+	_check("phase still BUILD after the refused advance", state.phase == GameState.Phase.BUILD)
+	_check("refusal names the not-yet-ready factions", (r.get("waiting_on", []) as Array).has("Druwhn"))
+
+	# --- Both players declare themselves ready (Pass has no AP cost, works in any phase) ---
+	GameActions.apply(state, {"type": "pass", "faction": "Druwhn"}, 0)
+	GameActions.apply(state, {"type": "pass", "faction": "Krowh"}, 0)
+	_check("both players' Feats/Units are untouched by Pass", state.get_player("Druwhn").action_points == 8)
 
 	# --- BUILD -> ACTIONS ---
 	r = GameFlow.advance_phase(state, card_db)
-	_check("BUILD -> ACTIONS ok", r.get("ok", false))
+	_check("BUILD -> ACTIONS ok once everyone's ready", r.get("ok", false))
 	_check("phase is now ACTIONS", state.phase == GameState.Phase.ACTIONS)
 	_check("current_player_index reset to first_player_index", state.current_player_index == state.first_player_index)
+	_check("has_passed reset for real Actions-Phase gating, not left over from Build", not state.get_player("Druwhn").has_passed and not state.get_player("Krowh").has_passed)
 
 	# --- ACTIONS gate: everyone still has AP, so advancing should be refused ---
 	_check("active_players lists everyone at the start of Actions", GameFlow.active_players(state).size() == state.players.size())
@@ -98,6 +111,9 @@ func _initialize() -> void:
 	_check("Threat step alone still doesn't touch tokens", legion.activation_tokens == 0 and horde.activation_tokens == 0)
 	GameFlow.advance_phase(state, card_db)  # EVENTS -> BUILD
 	_check("Events Phase token step doubles on the final Chapter (2 == max_chapters)", legion.activation_tokens == 2 and horde.activation_tokens == 2)
+	_check("has_passed reset for the new Build Phase, not left over from Chapter 1", not state.get_player("Druwhn").has_passed and not state.get_player("Krowh").has_passed)
+	GameActions.apply(state, {"type": "pass", "faction": "Druwhn"}, 0)
+	GameActions.apply(state, {"type": "pass", "faction": "Krowh"}, 0)
 	GameFlow.advance_phase(state, card_db)  # BUILD -> ACTIONS
 	for p in state.players:
 		p.has_passed = true
