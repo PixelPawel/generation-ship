@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bx1j50gjeetts"
-path="res://.godot/imported/Ghostmonolith.png-83155b316d35dc9f237c62d6cb09ffd7.ctex"
+path="res://.godot/imported/Ghostmonolith.png-ffb93854e7b82498057f4b372505a713.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Ghostmonolith.png"
-dest_files=["res://.godot/imported/Ghostmonolith.png-83155b316d35dc9f237c62d6cb09ffd7.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/SeaTowers/Ghostmonolith.png"
+dest_files=["res://.godot/imported/Ghostmonolith.png-ffb93854e7b82498057f4b372505a713.ctex"]
 
 [params]
 

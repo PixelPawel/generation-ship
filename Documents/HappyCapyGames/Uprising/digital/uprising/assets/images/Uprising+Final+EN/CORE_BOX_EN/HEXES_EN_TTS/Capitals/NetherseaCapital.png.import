@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cqvdxuyuku2u3"
-path="res://.godot/imported/NetherseaCapital.png-ef6dd37471b5badd637ccdcbe9764bff.ctex"
+path="res://.godot/imported/NetherseaCapital.png-c6e7d0981834674b0ba8f3a0ea88cfe8.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/NetherseaCapital.png"
-dest_files=["res://.godot/imported/NetherseaCapital.png-ef6dd37471b5badd637ccdcbe9764bff.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Capitals/NetherseaCapital.png"
+dest_files=["res://.godot/imported/NetherseaCapital.png-c6e7d0981834674b0ba8f3a0ea88cfe8.ctex"]
 
 [params]
 

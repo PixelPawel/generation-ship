@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c52bnpgwk35ja"
-path="res://.godot/imported/Golgardei.png-cb34bc88a441267e453a4897f5922b6e.ctex"
+path="res://.godot/imported/Golgardei.png-514bd29f28cbe04f2ce98187ac075009.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Golgardei.png"
-dest_files=["res://.godot/imported/Golgardei.png-cb34bc88a441267e453a4897f5922b6e.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Regular/Golgardei.png"
+dest_files=["res://.godot/imported/Golgardei.png-514bd29f28cbe04f2ce98187ac075009.ctex"]
 
 [params]
 

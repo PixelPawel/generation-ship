@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bjlt75iygo4nt"
-path="res://.godot/imported/Depths.png-63d33ae6ff7444a30cf84c71b7a59788.ctex"
+path="res://.godot/imported/Depths.png-e9b5bae114c86c47b1afafa5afad86a9.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Depths.png"
-dest_files=["res://.godot/imported/Depths.png-63d33ae6ff7444a30cf84c71b7a59788.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Regular/Depths.png"
+dest_files=["res://.godot/imported/Depths.png-e9b5bae114c86c47b1afafa5afad86a9.ctex"]
 
 [params]
 

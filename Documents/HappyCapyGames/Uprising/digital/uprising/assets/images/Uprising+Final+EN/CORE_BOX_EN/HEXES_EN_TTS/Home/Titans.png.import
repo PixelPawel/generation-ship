@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cxcirsg8agdfo"
-path="res://.godot/imported/Titans.png-41b6f21b2c8eeca33af4c9ab72049c0a.ctex"
+path="res://.godot/imported/Titans.png-8f44474934e0d3a88d10d6bdf233b682.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Titans.png"
-dest_files=["res://.godot/imported/Titans.png-41b6f21b2c8eeca33af4c9ab72049c0a.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Home/Titans.png"
+dest_files=["res://.godot/imported/Titans.png-8f44474934e0d3a88d10d6bdf233b682.ctex"]
 
 [params]
 

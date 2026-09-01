@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dn1feo50k7k6c"
-path="res://.godot/imported/Guragi.png-9a086867ec68d93901cf4e2cda10f718.ctex"
+path="res://.godot/imported/Guragi.png-86474017a028ee82abf7c3cee50c1a02.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Guragi.png"
-dest_files=["res://.godot/imported/Guragi.png-9a086867ec68d93901cf4e2cda10f718.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/SeaTowers/Guragi.png"
+dest_files=["res://.godot/imported/Guragi.png-86474017a028ee82abf7c3cee50c1a02.ctex"]
 
 [params]
 

@@ -6,13 +6,19 @@ extends RefCounted
 ## is filtered out of decks/setup here.
 ##
 ## The printed p7 setup diagrams aren't digitized in any CSV (they're print
-## artwork), so this pattern was transcribed from TTS screenshots of the
-## 2/3/4-player setups instead: Capital at the center; its 6 ring-1
-## neighbors are random hexes, 3 of them Garrisoned (rulebook p6); each
-## player gets one ring-2 "petal" -- a Home Hex plus a Sea Tower
-## SEA_TOWER_RING_OFFSET steps further around that same ring -- spaced
-## evenly around the 12-hex ring-2 (12 / player count is exactly 6, 4, or 3,
-## so this divides evenly for 2/3/4 players).
+## artwork), so this pattern was extracted directly from the TTS mod's own
+## "2/3/4 Player Normal" setup buttons instead: each one's Lua script has
+## explicit void.takeObject / towers.takeObject / garrison.takeObject calls
+## with literal world positions, converted here to axial coords (see
+## GARRISON_COORDS / SETUP_BY_PLAYER_COUNT). That's exact data, not a
+## transcription of a diagram -- and it turned out to NOT be one uniform
+## formula: Sea Towers sit at hex-distance 2 from Capital for 2 and 3
+## players, but distance 3 for 4 players. Garrisons are identical across
+## all 3 counts. Home Hex coords were derived by elimination (whichever
+## ring-2 coord the setup script never touches with a random hex or Sea
+## Tower) -- exact for 3 and 4 players; for 2 players the raw data left 3
+## symmetric candidate pairs, resolved using the user's own "2 steps away
+## going up and down" description to pick the zero-horizontal-offset pair.
 ##
 ## Everything else fills from the shuffled Core pool, same as before, but
 ## only out to RegionMath.BOARD_RADIUS -- the board is a fixed 37-hex disk
@@ -45,8 +51,27 @@ const DIFFICULTY_TABLE := {
 }
 
 const STARTING_AP := 8
-const HOME_RING_DISTANCE := 2
-const SEA_TOWER_RING_OFFSET := 2
+
+## Always the same 3 of Capital's 6 ring-1 neighbors, every player count.
+const GARRISON_COORDS: Array[Vector2i] = [Vector2i(1, -1), Vector2i(0, 1), Vector2i(-1, 0)]
+
+## Home Hex / Sea Tower coords per player count, index i going to
+## faction_hero_pairs[i]. See the class doc comment for how these were
+## extracted/derived.
+const SETUP_BY_PLAYER_COUNT := {
+	2: {
+		"home": [Vector2i(0, -2), Vector2i(0, 2)],
+		"sea_tower": [Vector2i(2, 0), Vector2i(-2, 0)],
+	},
+	3: {
+		"home": [Vector2i(2, 0), Vector2i(0, -2), Vector2i(-2, 2)],
+		"sea_tower": [Vector2i(-2, 0), Vector2i(0, 2), Vector2i(2, -2)],
+	},
+	4: {
+		"home": [Vector2i(-2, 0), Vector2i(1, -2), Vector2i(-1, 2), Vector2i(2, 0)],
+		"sea_tower": [Vector2i(3, -2), Vector2i(1, 2), Vector2i(-3, 2), Vector2i(-1, -2)],
+	},
+}
 
 
 ## `faction_hero_pairs`: Array of [faction_name, hero_name], 1-4 entries.
@@ -93,23 +118,21 @@ static func _place_capital(state: GameState, used: Dictionary) -> void:
 	used[HexMath.key(capital.coord)] = true
 
 
-## The 12 hex-distance-2 neighbors of `center`, in walk order (consecutive
-## entries are hex-adjacent) -- HexMath.spiral(center, 2)'s first 7 entries
-## are center plus its 6 ring-1 neighbors, so the ring-2 hexes start at 7.
-static func _ring2(center: Vector2i) -> Array[Vector2i]:
-	return HexMath.spiral(center, HOME_RING_DISTANCE).slice(7, 19)
-
-
-## One {"home": coord, "sea_tower": coord} pair per faction, spread evenly
-## around Capital's ring-2 (see the class doc comment). Marks both used.
+## One {"home": coord, "sea_tower": coord} pair per faction, using the
+## exact TTS-derived coords for this player count (see SETUP_BY_PLAYER_
+## COUNT and the class doc comment). Marks both used. Player counts
+## outside 2-4 (solo with a single faction, in practice) fall back to the
+## nearest supported layout, since there's no real board data for those.
 static func _reserve_petal_coords(faction_hero_pairs: Array, used: Dictionary) -> Dictionary:
-	var ring := _ring2(GameState.CAPITAL_COORD)
-	var step := ring.size() / faction_hero_pairs.size()
+	var count: int = clampi(faction_hero_pairs.size(), 2, 4)
+	var layout: Dictionary = SETUP_BY_PLAYER_COUNT[count]
+	var homes: Array = layout["home"]
+	var sea_towers: Array = layout["sea_tower"]
 	var petals := {}
 	for i in faction_hero_pairs.size():
 		var faction: String = faction_hero_pairs[i][0]
-		var home_coord: Vector2i = ring[(i * step) % ring.size()]
-		var sea_tower_coord: Vector2i = ring[(i * step + SEA_TOWER_RING_OFFSET) % ring.size()]
+		var home_coord: Vector2i = homes[i]
+		var sea_tower_coord: Vector2i = sea_towers[i]
 		petals[faction] = {"home": home_coord, "sea_tower": sea_tower_coord}
 		used[HexMath.key(home_coord)] = true
 		used[HexMath.key(sea_tower_coord)] = true
@@ -179,21 +202,19 @@ static func _place_home_hexes_and_players(
 
 
 ## Rulebook p6: "Place 3 Garrisons on The Capital, 1 Garrison on 3 adjacent
-## hexes." Capital's ring-1 is always random hexes (confirmed by the user
-## against their TTS screenshots), the same as every other unclaimed hex --
-## these 3 just also carry a Garrison, so they draw from the same `pool`
-## _fill_board uses rather than being left card_name-less.
+## hexes" -- always the same 3 (GARRISON_COORDS), every player count. That
+## ring-1 hex is still a random hex like any other unclaimed one (confirmed
+## by the user against their TTS screenshots), just also carrying a
+## Garrison, so it draws from the same `pool` _fill_board uses rather than
+## being left card_name-less.
 static func _place_capital_garrisons(state: GameState, pool: Dictionary, used: Dictionary) -> void:
 	var normal: Array = pool["normal"]
 	var sea_tower: Array = pool["sea_tower"]
-	var placed := 0
-	for n in HexMath.neighbors(GameState.CAPITAL_COORD):
-		if placed >= 3:
-			break
-		if used.has(HexMath.key(n)):
+	for coord in GARRISON_COORDS:
+		if used.has(HexMath.key(coord)):
 			continue
 		var tile := HexTile.new()
-		tile.coord = n
+		tile.coord = coord
 		tile.explored = false
 		tile.garrison_level = 1
 		if not normal.is_empty():
@@ -202,8 +223,7 @@ static func _place_capital_garrisons(state: GameState, pool: Dictionary, used: D
 			tile.card_name = sea_tower.pop_back()
 			tile.is_sea_tower = true
 		state.set_hex(tile)
-		used[HexMath.key(n)] = true
-		placed += 1
+		used[HexMath.key(coord)] = true
 
 
 static func _find_hero(card_db: Node, hero_name: String) -> HeroCard:

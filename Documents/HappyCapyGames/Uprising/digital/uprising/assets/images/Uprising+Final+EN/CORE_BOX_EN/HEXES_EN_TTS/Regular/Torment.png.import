@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://doxpt6mxk2om7"
-path="res://.godot/imported/Torment.png-a93629aa26bd63e97917ecfbebc99ff4.ctex"
+path="res://.godot/imported/Torment.png-9f0b60168ffc273dba69405f4ac40f0b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Torment.png"
-dest_files=["res://.godot/imported/Torment.png-a93629aa26bd63e97917ecfbebc99ff4.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Regular/Torment.png"
+dest_files=["res://.godot/imported/Torment.png-9f0b60168ffc273dba69405f4ac40f0b.ctex"]
 
 [params]
 

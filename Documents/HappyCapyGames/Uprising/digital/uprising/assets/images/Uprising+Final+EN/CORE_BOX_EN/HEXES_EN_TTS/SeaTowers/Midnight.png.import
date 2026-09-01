@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cobqg1ucxk0ux"
-path="res://.godot/imported/Midnight.png-ab7ccdb62960807f6a5858288b4b22b6.ctex"
+path="res://.godot/imported/Midnight.png-0f1a27b897e9778bf719d385ad09be03.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Midnight.png"
-dest_files=["res://.godot/imported/Midnight.png-ab7ccdb62960807f6a5858288b4b22b6.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/SeaTowers/Midnight.png"
+dest_files=["res://.godot/imported/Midnight.png-0f1a27b897e9778bf719d385ad09be03.ctex"]
 
 [params]
 

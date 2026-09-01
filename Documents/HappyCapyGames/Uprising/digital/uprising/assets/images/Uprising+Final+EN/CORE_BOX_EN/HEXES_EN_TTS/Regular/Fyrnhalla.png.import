@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dcm21ho0hesw8"
-path="res://.godot/imported/Fyrnhalla.png-f6f126cdb4660e9ccab8a68d17fdbeb0.ctex"
+path="res://.godot/imported/Fyrnhalla.png-967c07567491fe056f0cdd432ca95de9.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Fyrnhalla.png"
-dest_files=["res://.godot/imported/Fyrnhalla.png-f6f126cdb4660e9ccab8a68d17fdbeb0.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Regular/Fyrnhalla.png"
+dest_files=["res://.godot/imported/Fyrnhalla.png-967c07567491fe056f0cdd432ca95de9.ctex"]
 
 [params]
 

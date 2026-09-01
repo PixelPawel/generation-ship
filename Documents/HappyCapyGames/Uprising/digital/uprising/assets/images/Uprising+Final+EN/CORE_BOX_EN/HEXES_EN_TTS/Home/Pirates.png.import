@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ry1udy8jktt0"
-path="res://.godot/imported/Pirates.png-80ef9f4984ccd86ad9329236ae49eaf4.ctex"
+path="res://.godot/imported/Pirates.png-e9a44155918488dcee4a71d5428fe2ac.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Pirates.png"
-dest_files=["res://.godot/imported/Pirates.png-80ef9f4984ccd86ad9329236ae49eaf4.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Home/Pirates.png"
+dest_files=["res://.godot/imported/Pirates.png-e9a44155918488dcee4a71d5428fe2ac.ctex"]
 
 [params]
 

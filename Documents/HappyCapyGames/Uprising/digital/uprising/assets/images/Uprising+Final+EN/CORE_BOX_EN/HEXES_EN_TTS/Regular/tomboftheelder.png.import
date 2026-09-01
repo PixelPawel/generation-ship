@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://itw4bfwgdlyi"
-path="res://.godot/imported/tomboftheelder.png-59d2cd9a9f6f1c0a6b56f010ceb67c7c.ctex"
+path="res://.godot/imported/tomboftheelder.png-b6e73e9e99bc8ef375a4378850991a4b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/tomboftheelder.png"
-dest_files=["res://.godot/imported/tomboftheelder.png-59d2cd9a9f6f1c0a6b56f010ceb67c7c.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Regular/tomboftheelder.png"
+dest_files=["res://.godot/imported/tomboftheelder.png-b6e73e9e99bc8ef375a4378850991a4b.ctex"]
 
 [params]
 

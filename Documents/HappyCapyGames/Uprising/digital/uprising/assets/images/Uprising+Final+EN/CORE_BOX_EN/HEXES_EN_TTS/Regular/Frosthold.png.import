@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://byujfwrm1ti8w"
-path="res://.godot/imported/Frosthold.png-df915c6d52b3afc5ceda00248ea7973e.ctex"
+path="res://.godot/imported/Frosthold.png-e018844ce8451dba22e3c2cc3461687a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Frosthold.png"
-dest_files=["res://.godot/imported/Frosthold.png-df915c6d52b3afc5ceda00248ea7973e.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Regular/Frosthold.png"
+dest_files=["res://.godot/imported/Frosthold.png-e018844ce8451dba22e3c2cc3461687a.ctex"]
 
 [params]
 

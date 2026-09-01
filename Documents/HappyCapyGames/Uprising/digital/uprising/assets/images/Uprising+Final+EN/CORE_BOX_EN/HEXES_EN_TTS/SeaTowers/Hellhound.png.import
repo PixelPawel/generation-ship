@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://drm7qpt4evrlc"
-path="res://.godot/imported/Hellhound.png-7077a19aa28338debd9787f7dde08ec6.ctex"
+path="res://.godot/imported/Hellhound.png-777cf9f57e2d29530866dc54f248fbdd.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Hellhound.png"
-dest_files=["res://.godot/imported/Hellhound.png-7077a19aa28338debd9787f7dde08ec6.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/SeaTowers/Hellhound.png"
+dest_files=["res://.godot/imported/Hellhound.png-777cf9f57e2d29530866dc54f248fbdd.ctex"]
 
 [params]
 

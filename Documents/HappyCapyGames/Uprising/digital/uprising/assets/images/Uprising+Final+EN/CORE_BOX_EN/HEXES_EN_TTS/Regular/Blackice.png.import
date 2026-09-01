@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://4k2tnqpukm3b"
-path="res://.godot/imported/Blackice.png-2f3aa8e2a86b01e3e446af8f9b2aeb80.ctex"
+path="res://.godot/imported/Blackice.png-43cad92d168d6f923c7f26c148520dbc.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Blackice.png"
-dest_files=["res://.godot/imported/Blackice.png-2f3aa8e2a86b01e3e446af8f9b2aeb80.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Regular/Blackice.png"
+dest_files=["res://.godot/imported/Blackice.png-43cad92d168d6f923c7f26c148520dbc.ctex"]
 
 [params]
 

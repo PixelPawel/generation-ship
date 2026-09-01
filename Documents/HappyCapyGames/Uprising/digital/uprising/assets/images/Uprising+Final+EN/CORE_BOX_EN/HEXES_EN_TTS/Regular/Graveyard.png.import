@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://byc3shsjjybo0"
-path="res://.godot/imported/Graveyard.png-98e3c7d4c7e4bc98559b254a22c55ebc.ctex"
+path="res://.godot/imported/Graveyard.png-5419ee9b667d095ac342862966b3793f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Graveyard.png"
-dest_files=["res://.godot/imported/Graveyard.png-98e3c7d4c7e4bc98559b254a22c55ebc.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Regular/Graveyard.png"
+dest_files=["res://.godot/imported/Graveyard.png-5419ee9b667d095ac342862966b3793f.ctex"]
 
 [params]
 

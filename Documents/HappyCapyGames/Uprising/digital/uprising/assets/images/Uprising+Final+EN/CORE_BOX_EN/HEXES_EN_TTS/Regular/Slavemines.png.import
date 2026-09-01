@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://fghcewnj6g1x"
-path="res://.godot/imported/Slavemines.png-76a77d651df5bea6dec8648ee2052c92.ctex"
+path="res://.godot/imported/Slavemines.png-b76d7d3c768b3eef2910f0f99c4e6171.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Slavemines.png"
-dest_files=["res://.godot/imported/Slavemines.png-76a77d651df5bea6dec8648ee2052c92.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Regular/Slavemines.png"
+dest_files=["res://.godot/imported/Slavemines.png-b76d7d3c768b3eef2910f0f99c4e6171.ctex"]
 
 [params]
 

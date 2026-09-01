@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cwx2cbvhkdf3y"
-path="res://.godot/imported/Rigga.png-173dab37ae2381d0a1ab097b020a20a3.ctex"
+path="res://.godot/imported/Rigga.png-ce55ed41ed538a35180b75094df84a37.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Rigga.png"
-dest_files=["res://.godot/imported/Rigga.png-173dab37ae2381d0a1ab097b020a20a3.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Regular/Rigga.png"
+dest_files=["res://.godot/imported/Rigga.png-ce55ed41ed538a35180b75094df84a37.ctex"]
 
 [params]
 

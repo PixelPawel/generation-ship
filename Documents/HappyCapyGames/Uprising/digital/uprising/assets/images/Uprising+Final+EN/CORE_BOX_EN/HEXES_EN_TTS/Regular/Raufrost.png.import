@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://e13kojgstbhn"
-path="res://.godot/imported/Raufrost.png-3fc54d93171835ea4ad176f38712ab71.ctex"
+path="res://.godot/imported/Raufrost.png-c1b2686ffe9c0cbbefb1601a9c0dbe98.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Raufrost.png"
-dest_files=["res://.godot/imported/Raufrost.png-3fc54d93171835ea4ad176f38712ab71.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Regular/Raufrost.png"
+dest_files=["res://.godot/imported/Raufrost.png-c1b2686ffe9c0cbbefb1601a9c0dbe98.ctex"]
 
 [params]
 

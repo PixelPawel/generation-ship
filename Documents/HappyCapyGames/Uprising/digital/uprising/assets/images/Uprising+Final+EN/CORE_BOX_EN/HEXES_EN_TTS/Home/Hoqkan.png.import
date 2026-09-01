@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://byw5tqhgagu56"
-path="res://.godot/imported/Hoqkan.png-c7a1f680ef6ef2d103ceeecdabcf44ba.ctex"
+path="res://.godot/imported/Hoqkan.png-92b5aeb247ec7316fe0f9a3007725648.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Hoqkan.png"
-dest_files=["res://.godot/imported/Hoqkan.png-c7a1f680ef6ef2d103ceeecdabcf44ba.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Home/Hoqkan.png"
+dest_files=["res://.godot/imported/Hoqkan.png-92b5aeb247ec7316fe0f9a3007725648.ctex"]
 
 [params]
 

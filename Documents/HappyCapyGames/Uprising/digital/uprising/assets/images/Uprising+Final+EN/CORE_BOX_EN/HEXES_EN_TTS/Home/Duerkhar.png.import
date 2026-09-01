@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://q026qeupouuw"
-path="res://.godot/imported/Duerkhar.png-841d314ba926e6cf4c391c1c3cf1ccdf.ctex"
+path="res://.godot/imported/Duerkhar.png-f3a83ce9e821ef78b0f19a99e332c402.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Duerkhar.png"
-dest_files=["res://.godot/imported/Duerkhar.png-841d314ba926e6cf4c391c1c3cf1ccdf.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Home/Duerkhar.png"
+dest_files=["res://.godot/imported/Duerkhar.png-f3a83ce9e821ef78b0f19a99e332c402.ctex"]
 
 [params]
 

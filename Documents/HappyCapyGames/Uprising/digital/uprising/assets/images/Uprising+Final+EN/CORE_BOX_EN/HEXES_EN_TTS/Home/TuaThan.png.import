@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://nvtje3yq6k5e"
-path="res://.godot/imported/TuaThan.png-ef76928188a0444aead1dc8435b9e935.ctex"
+path="res://.godot/imported/TuaThan.png-754d6bdb5c6a2a59d7b4beed8a6ce9b1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/TuaThan.png"
-dest_files=["res://.godot/imported/TuaThan.png-ef76928188a0444aead1dc8435b9e935.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Home/TuaThan.png"
+dest_files=["res://.godot/imported/TuaThan.png-754d6bdb5c6a2a59d7b4beed8a6ce9b1.ctex"]
 
 [params]
 

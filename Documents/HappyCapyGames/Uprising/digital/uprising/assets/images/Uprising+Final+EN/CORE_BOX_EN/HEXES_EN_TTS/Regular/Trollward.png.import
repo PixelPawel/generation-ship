@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dyk1igau1gsdr"
-path="res://.godot/imported/Trollward.png-1762d6d7bc3028408dac8b0d730b8327.ctex"
+path="res://.godot/imported/Trollward.png-89253cf0a04e8bb458b8b122f0c9e121.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Trollward.png"
-dest_files=["res://.godot/imported/Trollward.png-1762d6d7bc3028408dac8b0d730b8327.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Regular/Trollward.png"
+dest_files=["res://.godot/imported/Trollward.png-89253cf0a04e8bb458b8b122f0c9e121.ctex"]
 
 [params]
 

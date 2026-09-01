@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ch6vfskwpmv32"
-path="res://.godot/imported/Dawngaard.png-3f67f98582f6dd38cc2b6f2e403bb074.ctex"
+path="res://.godot/imported/Dawngaard.png-0d023268a841aa4be901c5cb5d2ade7d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Dawngaard.png"
-dest_files=["res://.godot/imported/Dawngaard.png-3f67f98582f6dd38cc2b6f2e403bb074.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/SeaTowers/Dawngaard.png"
+dest_files=["res://.godot/imported/Dawngaard.png-0d023268a841aa4be901c5cb5d2ade7d.ctex"]
 
 [params]
 

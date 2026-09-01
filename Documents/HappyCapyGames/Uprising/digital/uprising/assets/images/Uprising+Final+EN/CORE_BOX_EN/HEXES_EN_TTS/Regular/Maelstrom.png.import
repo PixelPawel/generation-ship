@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bhj6ow31clupy"
-path="res://.godot/imported/Maelstrom.png-a105cad0c1af59a68cb3458d038b6cd6.ctex"
+path="res://.godot/imported/Maelstrom.png-baa6c760fd7739fc94c57e832550a36b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Maelstrom.png"
-dest_files=["res://.godot/imported/Maelstrom.png-a105cad0c1af59a68cb3458d038b6cd6.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Regular/Maelstrom.png"
+dest_files=["res://.godot/imported/Maelstrom.png-baa6c760fd7739fc94c57e832550a36b.ctex"]
 
 [params]
 

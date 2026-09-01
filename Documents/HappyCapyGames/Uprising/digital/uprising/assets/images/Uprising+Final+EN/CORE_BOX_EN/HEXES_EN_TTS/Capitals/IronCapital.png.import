@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bpywxwyrcydd4"
-path="res://.godot/imported/IronCapital.png-7ce225b68ca3d65a5e89472b4a7f43b6.ctex"
+path="res://.godot/imported/IronCapital.png-9bb40cfd6520b3142d7c8b4180c5ae5d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/IronCapital.png"
-dest_files=["res://.godot/imported/IronCapital.png-7ce225b68ca3d65a5e89472b4a7f43b6.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Capitals/IronCapital.png"
+dest_files=["res://.godot/imported/IronCapital.png-9bb40cfd6520b3142d7c8b4180c5ae5d.ctex"]
 
 [params]
 

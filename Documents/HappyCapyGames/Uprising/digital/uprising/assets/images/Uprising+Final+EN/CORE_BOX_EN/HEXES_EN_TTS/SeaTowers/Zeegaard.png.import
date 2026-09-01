@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://fl3keneacb1g"
-path="res://.godot/imported/Zeegaard.png-e46d4a245828add3445b9bb18cbf727c.ctex"
+path="res://.godot/imported/Zeegaard.png-2286f57d0862aee5ae93f52a33fea0ac.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Zeegaard.png"
-dest_files=["res://.godot/imported/Zeegaard.png-e46d4a245828add3445b9bb18cbf727c.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/SeaTowers/Zeegaard.png"
+dest_files=["res://.godot/imported/Zeegaard.png-2286f57d0862aee5ae93f52a33fea0ac.ctex"]
 
 [params]
 

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c5v6ya2sejkj1"
-path="res://.godot/imported/Blackspire.png-343553aa3f4f064cd953e050e951ba00.ctex"
+path="res://.godot/imported/Blackspire.png-5fbd2ff48c012f25ae4a4cd8006decad.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/Blackspire.png"
-dest_files=["res://.godot/imported/Blackspire.png-343553aa3f4f064cd953e050e951ba00.ctex"]
+source_file="res://assets/images/Uprising+Final+EN/CORE_BOX_EN/HEXES_EN_TTS/SeaTowers/Blackspire.png"
+dest_files=["res://.godot/imported/Blackspire.png-5fbd2ff48c012f25ae4a4cd8006decad.ctex"]
 
 [params]
 
