@@ -92,12 +92,19 @@ static func _reserve_home_coords(faction_hero_pairs: Array, used: Dictionary) ->
 	return home_coords
 
 
+## `faction_hero_pairs` entries are either the plain [faction, hero] form
+## (every pre-Lobby caller, including all the tests) or the Lobby's richer
+## [faction, hero, peer_id, is_bot] form -- peer_id defaults to -1
+## (unclaimed/no controller) and is_bot to false when omitted, so both
+## forms build an identical PlayerFactionState for a human pair.
 static func _place_home_hexes_and_players(
 	state: GameState, card_db: Node, faction_hero_pairs: Array, home_coords: Dictionary, diff: Dictionary
 ) -> void:
 	for pair in faction_hero_pairs:
 		var faction: String = pair[0]
 		var hero_name: String = pair[1]
+		var peer_id: int = int(pair[2]) if pair.size() > 2 else -1
+		var is_bot: bool = bool(pair[3]) if pair.size() > 3 else false
 		var coord: Vector2i = home_coords[faction]
 
 		var tile := HexTile.new()
@@ -110,6 +117,8 @@ static func _place_home_hexes_and_players(
 		var player := PlayerFactionState.new()
 		player.faction = faction
 		player.hero_name = hero_name
+		player.controlled_by_peer_id = peer_id
+		player.is_bot = is_bot
 		player.salt = diff.get("resources", 5)
 		player.plunder = diff.get("resources", 5)
 		player.food = diff.get("resources", 5)

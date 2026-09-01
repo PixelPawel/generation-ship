@@ -1,9 +1,15 @@
 extends SceneTree
 ## Headless smoke test: `godot --headless --script res://scripts/test_lobby.gd`
-## Drives the Lobby scene's Host/Join button logic directly and checks what
-## it writes into the LobbyConfig autoload -- not a render check (see
-## tools/screenshot_scene.gd for that), just "does pressing the buttons
-## produce the config game_board.gd expects."
+## Exercises NetworkManager's Lobby claim/release/start_game logic directly
+## as the host (is_host lets request_claim/request_release skip the RPC
+## layer and hit _apply_claim/_apply_release synchronously), plus the Lobby
+## scene's claim-button wiring. Other peers' claims are simulated by
+## calling _apply_claim/_apply_release with an arbitrary peer_id directly --
+## the same "call the underscore-prefixed handler straight" pattern used
+## throughout this test suite. See test_lobby_host.gd/test_lobby_client.gd
+## for a real 2-process ENet round trip of the same claim flow.
+
+const TEST_PORT := 8934  # distinct from NetworkManager.DEFAULT_PORT, so a real run isn't disturbed
 
 var checks: Array = []
 
@@ -14,69 +20,102 @@ func _check(label: String, ok: bool) -> void:
 
 func _initialize() -> void:
 	await process_frame
-	# Autoload bare names only resolve inside a normal scene node's own
-	# lifecycle -- a SceneTree script's _initialize() needs the explicit
-	# node-path lookup instead (same gotcha noted in every other test here).
-	var lobby_config := root.get_node("/root/LobbyConfig")
-	var network_manager := root.get_node("/root/NetworkManager")
+	var net_mgr := root.get_node("/root/NetworkManager")
 
+	var err: Error = net_mgr.host_game(TEST_PORT)
+	_check("host_game succeeds", err == OK)
+	_check("is_host true after hosting", net_mgr.is_host)
+	_check("lobby_claims starts empty", net_mgr.lobby_claims.is_empty())
+
+	# --- Claiming (host's own peer_id is always 1) ---
+	var my_id: int = net_mgr.multiplayer.get_unique_id()
+	net_mgr.request_claim("Druwhn", "Fhayanor")
+	_check("claim recorded", net_mgr.lobby_claims.has("Druwhn"))
+	_check(
+		"claim carries the right peer_id and hero",
+		int(net_mgr.lobby_claims["Druwhn"]["peer_id"]) == my_id and net_mgr.lobby_claims["Druwhn"]["hero"] == "Fhayanor"
+	)
+
+	# --- Switching factions releases the old one -- nobody holds two ---
+	net_mgr.request_claim("Krowh", "Dugpa")
+	_check("claiming a new faction releases the old one", not net_mgr.lobby_claims.has("Druwhn"))
+	_check("new faction claimed", net_mgr.lobby_claims.has("Krowh"))
+
+	# --- A different (simulated) peer can't steal an already-claimed faction ---
+	net_mgr._apply_claim("Krowh", "Kha'al", 7)
+	_check("a different peer can't steal an already-claimed faction", int(net_mgr.lobby_claims["Krowh"]["peer_id"]) == my_id)
+
+	# --- ...but can claim a different, open one ---
+	net_mgr._apply_claim("Duerkhar", "Yanny", 7)
+	_check("a different peer can claim an open faction", int(net_mgr.lobby_claims["Duerkhar"]["peer_id"]) == 7)
+
+	# --- Releasing frees the faction for someone else ---
+	net_mgr._apply_release(7)
+	_check("release frees the faction", not net_mgr.lobby_claims.has("Duerkhar"))
+
+	# --- start_game fills unclaimed factions with bots ---
+	net_mgr._apply_claim("Duerkhar", "Baranth", 7)  # Krowh(host)+Duerkhar(7) claimed, Druwhn/Mohyar open
+	net_mgr.start_game(["Druwhn", "Duerkhar", "Krowh", "Mohyar"], "Veteran", 3)
+	_check("start_game populates game_state", net_mgr.game_state != null)
+	_check("4 players in the started game", net_mgr.game_state.players.size() == 4)
+
+	var krowh: PlayerFactionState = net_mgr.game_state.get_player("Krowh")
+	_check("claimed faction is not a bot", krowh != null and not krowh.is_bot)
+	_check("claimed faction keeps its claimed Hero and peer_id", krowh.hero_name == "Dugpa" and krowh.controlled_by_peer_id == my_id)
+
+	var duerkhar: PlayerFactionState = net_mgr.game_state.get_player("Duerkhar")
+	_check("2nd claimed faction correct", duerkhar != null and not duerkhar.is_bot and duerkhar.controlled_by_peer_id == 7)
+
+	var druwhn: PlayerFactionState = net_mgr.game_state.get_player("Druwhn")
+	_check("unclaimed faction becomes a bot", druwhn != null and druwhn.is_bot)
+	_check("bot got a real default Hero, not blank", druwhn.hero_name != "")
+	_check("bot has no controlling peer", druwhn.controlled_by_peer_id == -1)
+
+	var mohyar: PlayerFactionState = net_mgr.game_state.get_player("Mohyar")
+	_check("2nd unclaimed faction also becomes a bot", mohyar != null and mohyar.is_bot)
+
+	_check("started game is already in Actions Phase", net_mgr.game_state.phase == GameState.Phase.ACTIONS)
+	_check("bots are already marked has_passed (simple dummy, never acts)", druwhn.has_passed and mohyar.has_passed)
+	_check("claimed factions have NOT auto-passed", not krowh.has_passed and not duerkhar.has_passed)
+
+	net_mgr.disconnect_game()
+	_check("disconnect_game clears lobby_claims", net_mgr.lobby_claims.is_empty())
+	_check("disconnect_game clears game_state", net_mgr.game_state == null)
+
+	# --- Lobby scene UI wiring ---
 	var scene: PackedScene = load("res://scenes/lobby.tscn")
 	var lobby := scene.instantiate()
 	root.add_child(lobby)
 	await process_frame
 
-	_check("Lobby defaults to Host mode", lobby._host_panel.visible and not lobby._join_panel.visible)
-	lobby._set_mode(false)
-	_check("switching to Join mode hides Host panel and shows Join panel", not lobby._host_panel.visible and lobby._join_panel.visible)
-	lobby._set_mode(true)
+	_check("setup panel visible before connecting", lobby._setup_panel.visible)
+	_check("room panel hidden before connecting", not lobby._room_panel.visible)
 
-	# --- Start Hosting with the defaults (Druwhn + Krowh pre-checked) ---
 	lobby._on_start_hosting_pressed()
-	_check("LobbyConfig marked configured after Start Hosting", lobby_config.configured)
-	_check("LobbyConfig.is_host true after Start Hosting", lobby_config.is_host)
-	_check("2 faction/hero pairs chosen (Druwhn + Krowh pre-checked)", (lobby_config.faction_hero_pairs as Array).size() == 2)
+	_check("room panel visible after hosting", lobby._room_panel.visible)
+	_check("setup panel hidden after hosting", not lobby._setup_panel.visible)
+	_check("Start Game button visible for the host", lobby._start_game_button.visible)
 
-	var factions_chosen: Array = []
-	for pair in lobby_config.faction_hero_pairs:
-		factions_chosen.append(pair[0])
-	_check("chosen factions are Druwhn and Krowh", factions_chosen.has("Druwhn") and factions_chosen.has("Krowh"))
+	var druwhn_button: Button = lobby._faction_claim_buttons["Druwhn"]
+	_check("faction row starts as Open/Claim", druwhn_button.text == "Claim")
 
-	var hero_names: Array = []
-	for pair in lobby_config.faction_hero_pairs:
-		hero_names.append(pair[1])
-	_check("chosen Heroes are non-empty real names", hero_names.all(func(h: String) -> bool: return h != ""))
+	# _apply_claim's own broadcast round-trips through an RPC (even for the
+	# host's own call_local delivery) before lobby.gd's _refresh_room()
+	# actually updates button text -- not synchronous, same reason every
+	# other NetworkManager-driven UI test here waits a few frames post-action.
+	lobby._on_claim_pressed("Druwhn")
+	for i in 5:
+		await process_frame
+	_check("pressing Claim claims the faction", net_mgr.lobby_claims.has("Druwhn"))
+	_check("claim button now offers Release", druwhn_button.text == "Release")
 
-	_check("difficulty defaults to Veteran", lobby_config.difficulty == "Veteran")
-	_check("chapters defaults to 3", lobby_config.max_chapters == 3)
-	_check("port defaults to NetworkManager.DEFAULT_PORT", lobby_config.port == network_manager.DEFAULT_PORT)
+	lobby._on_claim_pressed("Druwhn")
+	for i in 5:
+		await process_frame
+	_check("pressing Release frees the faction again", not net_mgr.lobby_claims.has("Druwhn"))
+	_check("claim button offers Claim again", druwhn_button.text == "Claim")
 
-	# --- Unchecking every faction should refuse to start (no players) ---
-	lobby_config.configured = false
-	for faction in lobby._faction_checks:
-		(lobby._faction_checks[faction] as CheckBox).button_pressed = false
-	lobby._on_start_hosting_pressed()
-	_check("Start Hosting with no factions checked leaves LobbyConfig unconfigured", not lobby_config.configured)
-
-	# --- A custom port should be picked up ---
-	for faction in lobby._faction_checks:
-		if faction == "Druwhn":
-			(lobby._faction_checks[faction] as CheckBox).button_pressed = true
-	lobby._host_port_edit.text = "12345"
-	lobby._on_start_hosting_pressed()
-	_check("custom host port captured", lobby_config.port == 12345)
-
-	# --- Join mode ---
-	lobby._join_address_edit.text = "192.168.1.50"
-	lobby._join_port_edit.text = "9999"
-	lobby._on_join_pressed()
-	_check("LobbyConfig.is_host false after Join", not lobby_config.is_host)
-	_check("join address captured", lobby_config.join_address == "192.168.1.50")
-	_check("join port captured", lobby_config.join_port == 9999)
-
-	# --- A non-numeric port falls back to the default instead of erroring ---
-	lobby._join_port_edit.text = "not a number"
-	lobby._on_join_pressed()
-	_check("non-numeric join port falls back to the default", lobby_config.join_port == network_manager.DEFAULT_PORT)
+	net_mgr.disconnect_game()
 
 	var all_ok := true
 	for c in checks:

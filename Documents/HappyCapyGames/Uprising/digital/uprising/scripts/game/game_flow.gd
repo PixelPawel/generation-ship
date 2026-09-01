@@ -90,10 +90,13 @@ static func advance_phase(state: GameState, card_db: Node) -> Dictionary:
 			return {"ok": false, "reason": "unknown phase"}
 
 
+## Bots start already-Passed -- a "simple dummy" never takes an Action, so
+## there's nothing to wait for and no separate bot-turn logic is needed;
+## active_players()/the Actions -> Nemesis gate above already just works.
 static func _start_actions_phase(state: GameState) -> void:
 	state.current_player_index = state.first_player_index
 	for p in state.players:
-		p.has_passed = false
+		p.has_passed = p.is_bot
 	state.phase = GameState.Phase.ACTIONS
 
 

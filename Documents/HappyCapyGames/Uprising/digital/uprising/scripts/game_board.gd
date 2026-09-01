@@ -85,15 +85,41 @@ func _ready() -> void:
 	_setup_camera()
 	_setup_hud()
 	_setup_hand_bar()
-	# LobbyConfig.configured stays false, and its faction_hero_pairs/etc
-	# default to a small 2-player local test game, when this scene is
+	# Reached via the Lobby (scenes/lobby.tscn): hosting/joining and the
+	# actual GameState (including bot assignment for factions nobody
+	# claimed) already happened there -- NetworkManager.game_state is
+	# already populated and broadcast to everyone. Otherwise this scene was
 	# launched directly (dev iteration, tools/screenshot_scene.gd,
-	# game_board_flow_test.gd) rather than reached via scenes/lobby.tscn --
-	# so is_host defaulting true there still does the right thing.
-	if LobbyConfig.is_host:
+	# game_board_flow_test.gd), so fall back to LobbyConfig's defaults,
+	# which reproduce a small 2-player local test game exactly like before
+	# the Lobby existed.
+	if NetworkManager.game_state != null:
+		_start_from_lobby()
+	elif LobbyConfig.is_host:
 		_start_hosted_game()
 	else:
 		_start_joined_game()
+
+
+## Both host and client land here once NetworkManager.game_state is
+## populated (see NetworkManager.start_game/_game_starting) -- hosting/
+## joining the ENet connection itself already happened in the Lobby, so
+## this only needs to pick up the state and figure out which faction (if
+## any) this peer controls.
+func _start_from_lobby() -> void:
+	state = NetworkManager.game_state
+	current_faction = _faction_for_this_peer()
+	NetworkManager.state_updated.connect(_on_state_updated)
+	NetworkManager.action_rejected.connect(_on_action_rejected)
+	_rebuild_board()
+
+
+func _faction_for_this_peer() -> String:
+	var my_id := NetworkManager.multiplayer.get_unique_id()
+	for p in state.players:
+		if p.controlled_by_peer_id == my_id:
+			return p.faction
+	return state.players[0].faction if not state.players.is_empty() else ""
 
 
 func _start_hosted_game() -> void:
@@ -109,9 +135,11 @@ func _start_hosted_game() -> void:
 	GameFlow.advance_phase(state, CardDatabase)  # BUILD -> ACTIONS
 	current_faction = state.players[0].faction
 
-	var err: Error = NetworkManager.host_game(state, LobbyConfig.port)
+	var err: Error = NetworkManager.host_game(LobbyConfig.port)
 	if err != OK:
 		push_warning("game_board: host_game failed (%s); board still renders `state` directly" % err)
+	else:
+		NetworkManager.game_state = state
 	NetworkManager.state_updated.connect(_on_state_updated)
 	NetworkManager.action_rejected.connect(_on_action_rejected)
 

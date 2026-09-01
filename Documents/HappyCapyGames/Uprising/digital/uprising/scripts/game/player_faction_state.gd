@@ -7,6 +7,12 @@ extends RefCounted
 var faction: String = ""
 var hero_name: String = ""
 var controlled_by_peer_id: int = -1  # multiplayer peer id of the human controlling this faction
+## A "simple dummy" bot: no human claimed this faction in the Lobby.
+## GameFlow auto-passes it every Actions Phase (see _start_actions_phase)
+## so it never blocks the game waiting for input nobody will give it --
+## it still exists fully on the board (Haven, resources, Hero standee),
+## it just never spends AP or buys anything.
+var is_bot: bool = false
 
 var salt: int = 0
 var plunder: int = 0
@@ -58,6 +64,7 @@ func to_dict() -> Dictionary:
 		"has_passed": has_passed,
 		"feat_deck": feat_deck.duplicate(),
 		"pending_feat_choice": pending_feat_choice.duplicate(),
+		"is_bot": is_bot,
 	}
 
 
@@ -85,4 +92,5 @@ static func from_dict(d: Dictionary) -> PlayerFactionState:
 	s.has_passed = d.get("has_passed", false)
 	s.feat_deck.assign(d.get("feat_deck", []))
 	s.pending_feat_choice.assign(d.get("pending_feat_choice", []))
+	s.is_bot = d.get("is_bot", false)
 	return s

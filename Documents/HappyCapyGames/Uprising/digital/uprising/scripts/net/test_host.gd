@@ -19,7 +19,8 @@ func _initialize() -> void:
 	var starting_salt: int = state.get_player("Krowh").salt
 	print("HOST starting Krowh salt: ", starting_salt)
 
-	var err: Error = net_mgr.host_game(state, PORT)
+	var err: Error = net_mgr.host_game(PORT)
+	net_mgr.game_state = state
 	print("host_game result: ", err, " (OK == 0)")
 
 	# See test_client.gd for why this is a 1-element Array, not a plain bool.
