@@ -9,7 +9,7 @@ extends RefCounted
 ## here" -- actual combat resolution needs Hero/Unit dice-face data that
 ## doesn't exist anywhere in the CSVs or rulebook text (same gap noted for
 ## Quest in game_actions.gd). When a move lands on a hex with enemy
-## presence, this marks GameState.pending_combat_hex and returns without
+## presence, this queues it onto GameState.pending_combats and returns without
 ## doing the p54/p55 steps 4-5 (Haven removal, Legion retarget) that only
 ## make sense once combat is actually resolved -- those pick back up once
 ## combat resolution exists.
@@ -37,7 +37,7 @@ static func activate_legion(state: GameState, legion_id: int) -> Dictionary:
 
 	var dest_tile := state.get_hex(dest)
 	if dest_tile != null and _has_enemy_of_empire(dest_tile):
-		state.pending_combat_hex = dest
+		state.pending_combats.append(dest)
 		return {"ok": true, "reason": "moved into combat at %s -- resolve manually" % dest}
 
 	return {"ok": true, "reason": "moved to %s" % dest}
@@ -61,7 +61,7 @@ static func activate_horde(state: GameState, horde_id: int) -> Dictionary:
 
 	var dest_tile := state.get_hex(dest)
 	if dest_tile != null and _has_enemy_of_chaos(dest_tile):
-		state.pending_combat_hex = dest
+		state.pending_combats.append(dest)
 		return {"ok": true, "reason": "moved into combat at %s -- resolve manually" % dest}
 
 	return {"ok": true, "reason": "moved to %s" % dest}

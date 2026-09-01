@@ -108,7 +108,7 @@ func _initialize() -> void:
 	legion3.activation_tokens = 1
 	state_c.legions.append(legion3)
 	NemesisAI.activate_legion(state_c, legion3.id)
-	_check("moving into enemy Units flags pending_combat_hex", state_c.pending_combat_hex == Vector2i(2, 0))
+	_check("moving into enemy Units queues a pending combat", state_c.pending_combats == [Vector2i(2, 0)])
 
 	# --- Full Horde activation: Curse placement + movement toward not-farther-from-Capital ---
 	var state_h := _blank_state()
@@ -141,11 +141,43 @@ func _initialize() -> void:
 	NemesisAI.activate_horde(state_h2, horde2.id)
 	_check("re-cursing gives Chaos VP instead", state_h2.chaos_vp == chaos_vp_before + 1)
 
-	# --- Round-trip pending_combat_hex through to_dict/from_dict ---
+	# --- Round-trip pending_combats through to_dict/from_dict ---
 	var restored := GameState.from_dict(state_c.to_dict())
-	_check("pending_combat_hex survives serialization", restored.pending_combat_hex == Vector2i(2, 0))
+	_check("pending_combats survives serialization", restored.pending_combats == [Vector2i(2, 0)])
 	var restored_none := GameState.from_dict(state.to_dict())
-	_check("no-combat state round-trips to NO_COMBAT sentinel", restored_none.pending_combat_hex == GameState.NO_COMBAT)
+	_check("no-combat state round-trips to an empty queue", restored_none.pending_combats.is_empty())
+
+	# --- Multiple activations in one pass queue up multiple combats, not overwrite ---
+	var state_multi := _blank_state()
+	state_multi.set_hex(_tile(Vector2i(1, 0)))
+	var occupied_a := _tile(Vector2i(2, 0))
+	occupied_a.units["Duerkhar"] = ["Spearsingers"]
+	state_multi.set_hex(occupied_a)
+	state_multi.set_hex(_tile(Vector2i(-1, 0)))
+	var occupied_b := _tile(Vector2i(-2, 0))
+	occupied_b.units["Krowh"] = ["Tribesmen"]
+	state_multi.set_hex(occupied_b)
+
+	var legion_multi := LegionInstance.new()
+	legion_multi.id = state_multi.next_nemesis_id()
+	legion_multi.coord = Vector2i(1, 0)
+	legion_multi.target_hex = Vector2i(2, 0)
+	legion_multi.activation_tokens = 1
+	state_multi.legions.append(legion_multi)
+
+	var legion_multi_b := LegionInstance.new()
+	legion_multi_b.id = state_multi.next_nemesis_id()
+	legion_multi_b.coord = Vector2i(-1, 0)
+	legion_multi_b.target_hex = Vector2i(-2, 0)
+	legion_multi_b.activation_tokens = 1
+	state_multi.legions.append(legion_multi_b)
+
+	NemesisAI.activate_legion(state_multi, legion_multi.id)
+	NemesisAI.activate_legion(state_multi, legion_multi_b.id)
+	_check("two activations in one pass queue both combats, not just the last",
+		state_multi.pending_combats.size() == 2
+		and state_multi.pending_combats.has(Vector2i(2, 0))
+		and state_multi.pending_combats.has(Vector2i(-2, 0)))
 
 	var all_ok := true
 	for c in checks:

@@ -23,7 +23,7 @@ func _initialize() -> void:
 	original.chapter = 2
 	original.phase = GameState.Phase.ACTIONS
 	original.players[0].salt = 42
-	original.pending_combat_hex = Vector2i(3, -2)
+	original.pending_combats = [Vector2i(3, -2)]
 
 	var err := SaveLoad.save_game(original, "test_slot")
 	_check("save_game returns OK", err == OK)
@@ -36,7 +36,7 @@ func _initialize() -> void:
 	_check("hex count round-tripped", loaded.hexes.size() == original.hexes.size())
 	_check("player count round-tripped", loaded.players.size() == original.players.size())
 	_check("modified player stat round-tripped", loaded.get_player("Druwhn").salt == 42)
-	_check("pending_combat_hex round-tripped", loaded.pending_combat_hex == Vector2i(3, -2))
+	_check("pending_combats round-tripped", loaded.pending_combats == [Vector2i(3, -2)])
 	_check("market round-tripped", loaded.market == original.market)
 	_check("druids round-tripped", loaded.druids_in_play == original.druids_in_play)
 

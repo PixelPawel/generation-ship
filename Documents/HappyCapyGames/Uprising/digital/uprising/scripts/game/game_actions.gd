@@ -22,6 +22,9 @@ extends RefCounted
 ##    must sum to the option's "any" amount
 ##   {"type": "build_defense", "faction": "Krowh", "defense": "tower", "at": [q, r]}
 ##    -- defense is "tower" or "wall"
+##   {"type": "pass", "faction": "Krowh"}  -- done taking Actions for this
+##    Chapter even if AP remains; GameFlow's turn loop treats 0 AP and a
+##    voluntary Pass the same way
 ## More plug in the same way: add a case in apply() and a
 ## _handler(state, action, sender_id, card_db) -> {ok, reason} function.
 ## `card_db` is the CardDatabase autoload, needed by handlers (Market, Quest)
@@ -49,6 +52,8 @@ static func apply(state: GameState, action: Dictionary, sender_id: int, card_db:
 			return _build_unit(state, action, sender_id)
 		"build_defense":
 			return _build_defense(state, action, sender_id)
+		"pass":
+			return _pass(state, action, sender_id)
 		_:
 			return {"ok": false, "reason": "unknown action type '%s'" % type}
 
@@ -76,6 +81,19 @@ static func _trade(state: GameState, action: Dictionary, sender_id: int) -> Dict
 		return {"ok": false, "reason": "no Action Points left"}
 	player.action_points -= 1
 	player.salt += 1
+	return {"ok": true, "reason": ""}
+
+
+## Voluntarily done taking Actions this Chapter, even with AP remaining
+## (unlike running out of AP, which GameFlow's turn loop already detects on
+## its own). Always available, like Trade -- there's no rule against passing
+## outside the Actions Phase, it just has no effect there.
+static func _pass(state: GameState, action: Dictionary, sender_id: int) -> Dictionary:
+	var auth := _get_authorized_player(state, action, sender_id)
+	if not auth.get("ok", false):
+		return auth
+	var player: PlayerFactionState = auth["player"]
+	player.has_passed = true
 	return {"ok": true, "reason": ""}
 
 
