@@ -213,6 +213,23 @@ func _initialize() -> void:
 		await process_frame
 	_check("hex now has a Wall", board.state.get_hex(target).has_wall)
 
+	# --- Destroy Unit: Combat resolution stays manual/assisted, but "move a
+	# destroyed Unit into the graveyard that killed it" (rulebook p30 --
+	# whichever side gets the 2 VP/faction credit at Scoring) is this
+	# simple mechanical step. `target` has a real Unit on it from the
+	# Build Unit action just above; board.selected_coord is still `target`. ---
+	board._update_hud()
+	_check("destroy-unit option lists the Unit just built", board._destroy_unit_option.item_count > 0)
+	_check("Empire/Chaos destroy buttons enabled with a Unit present", not board._destroy_imperial_button.disabled and not board._destroy_chaos_button.disabled)
+	var units_before_destroy: int = (board.state.get_hex(target).units.get("Druwhn", []) as Array).size()
+	board._on_destroy_imperial_pressed()
+	for i in 5:
+		await process_frame
+	_check("Unit removed from the hex", (board.state.get_hex(target).units.get("Druwhn", []) as Array).size() == units_before_destroy - 1)
+	_check("Imperial Graveyard credits Druwhn", int(board.state.imperial_graveyard.get("Druwhn", 0)) == 1)
+	board._update_hud()
+	_check("Graveyard label shows the credited faction", board._graveyard_label.text.find("Druwhn") != -1)
+
 	# --- Draw Feats / Choose Feat: still Build Phase from the forcing above.
 	# Each action's state broadcast already triggers _update_hud() via
 	# call_local RPC, but _update_hand_bar() clears old children with

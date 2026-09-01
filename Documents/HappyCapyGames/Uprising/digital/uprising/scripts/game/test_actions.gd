@@ -397,6 +397,44 @@ func _initialize() -> void:
 	r = GameActions.apply(feat_state, {"type": "draw_feats", "faction": "Druwhn"}, -1, card_db)
 	checks.append(["draw_feats outside Build Phase rejected", not r.get("ok", true)])
 
+	# ---------------------------------------------------------------
+	# destroy_unit -- Combat resolution stays manual/assisted (still
+	# blocked on missing per-Unit dice-color data), but "move a destroyed
+	# Unit into the graveyard that killed it" is the simple mechanical
+	# step this reports. Scoring._score_empire/_score_chaos's graveyard
+	# math is already covered by test_scoring.gd against hand-set
+	# graveyard Dictionaries -- this tests what actually POPULATES them.
+	# ---------------------------------------------------------------
+	var dstate := GameState.new()
+	var dplayer := PlayerFactionState.new()
+	dplayer.faction = "Druwhn"
+	dstate.players.append(dplayer)
+	var dcoord := Vector2i(9, 9)
+	var dtile := HexTile.new()
+	dtile.coord = dcoord
+	dtile.units["Druwhn"] = ["Rangers", "Rangers", "Swordsisters"]
+	dstate.set_hex(dtile)
+
+	r = GameActions.apply(dstate, {"type": "destroy_unit", "faction": "Druwhn", "unit": "Rangers", "at": [dcoord.x, dcoord.y], "graveyard": "imperial"}, -1, card_db)
+	checks.append(["destroy_unit ok", r.get("ok", false)])
+	checks.append(["destroy_unit: only 1 Rangers removed from the hex (2nd stays)", dtile.units["Druwhn"] == ["Rangers", "Swordsisters"]])
+	checks.append(["destroy_unit: imperial_graveyard incremented for Druwhn", int(dstate.imperial_graveyard.get("Druwhn", 0)) == 1])
+	checks.append(["destroy_unit: chaos_graveyard untouched", not dstate.chaos_graveyard.has("Druwhn")])
+
+	r = GameActions.apply(dstate, {"type": "destroy_unit", "faction": "Druwhn", "unit": "Swordsisters", "at": [dcoord.x, dcoord.y], "graveyard": "chaos"}, -1, card_db)
+	checks.append(["destroy_unit to the Chaos graveyard ok", r.get("ok", false)])
+	checks.append(["destroy_unit: chaos_graveyard incremented for Druwhn", int(dstate.chaos_graveyard.get("Druwhn", 0)) == 1])
+	checks.append(["destroy_unit: imperial_graveyard unaffected by the 2nd call", int(dstate.imperial_graveyard.get("Druwhn", 0)) == 1])
+
+	r = GameActions.apply(dstate, {"type": "destroy_unit", "faction": "Druwhn", "unit": "Not A Real Unit", "at": [dcoord.x, dcoord.y], "graveyard": "imperial"}, -1, card_db)
+	checks.append(["destroy_unit rejects a Unit that isn't on that hex", not r.get("ok", true)])
+
+	r = GameActions.apply(dstate, {"type": "destroy_unit", "faction": "Druwhn", "unit": "Rangers", "at": [dcoord.x, dcoord.y], "graveyard": "not_a_side"}, -1, card_db)
+	checks.append(["destroy_unit rejects an invalid graveyard value", not r.get("ok", true)])
+
+	r = GameActions.apply(dstate, {"type": "destroy_unit", "faction": "Druwhn", "unit": "Rangers", "at": [999, 999], "graveyard": "imperial"}, -1, card_db)
+	checks.append(["destroy_unit rejects a hex that doesn't exist", not r.get("ok", true)])
+
 	var all_ok := true
 	for c in checks:
 		var label: String = c[0]

@@ -34,6 +34,15 @@ extends RefCounted
 ##   {"type": "choose_feat", "faction": "Krowh", "feat": "Tribesmen"}  --
 ##    picks 1 of the 2 pending Feats; the other returns to the bottom of the
 ##    Feat deck
+##   {"type": "destroy_unit", "faction": "Krowh", "unit": "Tribesmen", "at": [q, r],
+##    "graveyard": "imperial"}  -- Combat resolution is manual/assisted (see
+##    NemesisAI's own scope note), so once it's fought out at the table this
+##    is how a player reports one of their own Units died: removes it from
+##    the hex and moves it into the graveyard side that killed it ("imperial"
+##    or "chaos" -- whichever destroys a player faction's Units gets credit
+##    for it at Scoring, rulebook p30). No AP cost, no phase restriction --
+##    combat can happen during Actions (Command into an enemy hex) or
+##    Nemesis (a Legion/Horde moving in), not just one specific phase.
 ## More plug in the same way: add a case in apply() and a
 ## _handler(state, action, sender_id, card_db) -> {ok, reason} function.
 ## `card_db` is the CardDatabase autoload, needed by handlers (Market, Quest)
@@ -69,6 +78,8 @@ static func apply(state: GameState, action: Dictionary, sender_id: int, card_db:
 			return _draw_feats(state, action, sender_id)
 		"choose_feat":
 			return _choose_feat(state, action, sender_id)
+		"destroy_unit":
+			return _destroy_unit(state, action, sender_id)
 		_:
 			return {"ok": false, "reason": "unknown action type '%s'" % type}
 
@@ -664,4 +675,46 @@ static func _choose_feat(state: GameState, action: Dictionary, sender_id: int) -
 
 	player.feats_in_play.append(feat_name)
 	player.pending_feat_choice.clear()
+	return {"ok": true, "reason": ""}
+
+
+## Rulebook p30/p41-ish: Combat resolution itself stays manual/assisted
+## (see NemesisAI's class docstring -- still blocked on missing per-Unit
+## dice-color data), but "move a destroyed Unit into the graveyard that
+## killed it" is a simple, structured mechanical step, so it gets its own
+## primitive the resolving player calls once combat is fought out at the
+## table -- same shape as NemesisAI.spawn_legion/spawn_horde for a
+## resolved Event. `graveyard` is "imperial" or "chaos": whichever side
+## destroyed the Unit is who gets the 2 VP/faction credit for it at
+## Scoring (Scoring._score_empire/_score_chaos already read
+## imperial_graveyard/chaos_graveyard -- this is what actually populates
+## them, which nothing did before).
+static func _destroy_unit(state: GameState, action: Dictionary, sender_id: int) -> Dictionary:
+	var auth := _get_authorized_player(state, action, sender_id)
+	if not auth.get("ok", false):
+		return auth
+	var player: PlayerFactionState = auth["player"]
+
+	var graveyard: String = action.get("graveyard", "")
+	if graveyard != "imperial" and graveyard != "chaos":
+		return {"ok": false, "reason": "graveyard must be 'imperial' or 'chaos'"}
+
+	var to_arr: Array = action.get("at", [])
+	if to_arr.size() != 2:
+		return {"ok": false, "reason": "missing/invalid 'at' coordinate"}
+	var coord := Vector2i(to_arr[0], to_arr[1])
+	var tile := state.get_hex(coord)
+	if tile == null:
+		return {"ok": false, "reason": "target hex does not exist"}
+
+	var unit_name: String = action.get("unit", "")
+	var here: Array = (tile.units.get(player.faction, []) as Array)
+	if not here.has(unit_name):
+		return {"ok": false, "reason": "%s has no '%s' on that hex" % [player.faction, unit_name]}
+
+	here.erase(unit_name)
+	tile.units[player.faction] = here
+
+	var target_graveyard: Dictionary = state.imperial_graveyard if graveyard == "imperial" else state.chaos_graveyard
+	target_graveyard[player.faction] = int(target_graveyard.get(player.faction, 0)) + 1
 	return {"ok": true, "reason": ""}

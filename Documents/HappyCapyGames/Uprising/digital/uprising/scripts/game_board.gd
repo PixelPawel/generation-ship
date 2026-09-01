@@ -118,6 +118,10 @@ var _nemesis_label: Label
 var _spawn_threat_spin: SpinBox
 var _spawn_legion_button: Button
 var _spawn_horde_button: Button
+var _graveyard_label: Label
+var _destroy_unit_option: OptionButton
+var _destroy_imperial_button: Button
+var _destroy_chaos_button: Button
 var _last_phase_message: String = ""
 var _shown_event: String = ""  # which current_event _event_card_slot currently displays, to avoid needless rebuilds
 var _trade_button: Button
@@ -144,6 +148,7 @@ var _faction_option: OptionButton
 var _market_option_items: Array[String] = []  # what _market_option currently lists, to avoid needless rebuilds
 var _quest_option_items: Array[String] = []
 var _build_unit_option_items: Array[String] = []
+var _destroy_unit_option_items: Array[String] = []
 var _faction_option_items: Array[String] = []
 
 ## Bottom-of-screen card display: the current player's Items/Feats in play
@@ -397,6 +402,27 @@ func _setup_hud() -> void:
 	_spawn_horde_button.text = "Spawn Horde"
 	_spawn_horde_button.pressed.connect(_on_spawn_horde_pressed)
 	spawn_row.add_child(_spawn_horde_button)
+
+	_graveyard_label = Label.new()
+	_graveyard_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_graveyard_label.custom_minimum_size = Vector2(520, 0)
+	vbox.add_child(_graveyard_label)
+
+	var destroy_row := HBoxContainer.new()
+	vbox.add_child(destroy_row)
+	var destroy_label := Label.new()
+	destroy_label.text = "Your Unit on selected hex died, killed by:"
+	destroy_row.add_child(destroy_label)
+	_destroy_unit_option = OptionButton.new()
+	destroy_row.add_child(_destroy_unit_option)
+	_destroy_imperial_button = Button.new()
+	_destroy_imperial_button.text = "Empire"
+	_destroy_imperial_button.pressed.connect(_on_destroy_imperial_pressed)
+	destroy_row.add_child(_destroy_imperial_button)
+	_destroy_chaos_button = Button.new()
+	_destroy_chaos_button.text = "Chaos"
+	_destroy_chaos_button.pressed.connect(_on_destroy_chaos_pressed)
+	destroy_row.add_child(_destroy_chaos_button)
 
 	var buttons := HBoxContainer.new()
 	vbox.add_child(buttons)
@@ -904,10 +930,20 @@ func _update_hud() -> void:
 	_update_combats_row()
 	_update_druids_label()
 	_update_nemesis_label()
+	_update_graveyard_label()
 
 	var can_spawn := state.phase == GameState.Phase.EVENTS and selected_coord != NO_SELECTION and state.get_hex(selected_coord) != null
 	_spawn_legion_button.disabled = not can_spawn
 	_spawn_horde_button.disabled = not can_spawn
+
+	var selected_tile_for_units := state.get_hex(selected_coord) if selected_coord != NO_SELECTION else null
+	var units_here: Array[String] = []
+	if selected_tile_for_units != null:
+		for u in (selected_tile_for_units.units.get(player.faction, []) as Array):
+			units_here.append(u)
+	_sync_option_button(_destroy_unit_option, _destroy_unit_option_items, units_here)
+	_destroy_imperial_button.disabled = units_here.is_empty()
+	_destroy_chaos_button.disabled = units_here.is_empty()
 
 	if selected_coord == NO_SELECTION:
 		_selection_label.text = "(no hex selected -- click one)"
@@ -1075,6 +1111,29 @@ func _update_nemesis_label() -> void:
 	_nemesis_label.text = "In play: " + ", ".join(parts)
 
 
+## Shows who's actually in the two Graveyards -- otherwise there'd be no
+## way to see the 2 VP/faction Scoring._score_empire/_score_chaos credit
+## for them building up, since GameState.imperial_graveyard/chaos_graveyard
+## are just faction -> count Dictionaries with no board presence of
+## their own.
+func _update_graveyard_label() -> void:
+	if state.imperial_graveyard.is_empty() and state.chaos_graveyard.is_empty():
+		_graveyard_label.text = ""
+		return
+	var imperial_parts: Array[String] = []
+	for f in state.imperial_graveyard:
+		if int(state.imperial_graveyard[f]) > 0:
+			imperial_parts.append("%s (%d)" % [f, state.imperial_graveyard[f]])
+	var chaos_parts: Array[String] = []
+	for f in state.chaos_graveyard:
+		if int(state.chaos_graveyard[f]) > 0:
+			chaos_parts.append("%s (%d)" % [f, state.chaos_graveyard[f]])
+	_graveyard_label.text = "Imperial Graveyard: %s  |  Chaos Graveyard: %s" % [
+		", ".join(imperial_parts) if not imperial_parts.is_empty() else "-",
+		", ".join(chaos_parts) if not chaos_parts.is_empty() else "-",
+	]
+
+
 ## `coord` is this call's own parameter (a fresh local binding, not a
 ## shared loop variable), same closure-safety reasoning as lobby.gd's
 ## _build_faction_row.
@@ -1104,6 +1163,26 @@ func _on_spawn_horde_pressed() -> void:
 	if selected_coord == NO_SELECTION:
 		return
 	NetworkManager.submit_spawn_horde(int(_spawn_threat_spin.value), selected_coord)
+
+
+func _on_destroy_imperial_pressed() -> void:
+	_submit_destroy_unit("imperial")
+
+
+func _on_destroy_chaos_pressed() -> void:
+	_submit_destroy_unit("chaos")
+
+
+func _submit_destroy_unit(graveyard: String) -> void:
+	if selected_coord == NO_SELECTION:
+		return
+	var unit_name := _selected_option_text(_destroy_unit_option)
+	if unit_name == "":
+		return
+	NetworkManager.submit_action({
+		"type": "destroy_unit", "faction": current_faction, "unit": unit_name,
+		"at": [selected_coord.x, selected_coord.y], "graveyard": graveyard,
+	})
 
 
 ## Only rebuilds `option`'s item list when `names` actually differs from
