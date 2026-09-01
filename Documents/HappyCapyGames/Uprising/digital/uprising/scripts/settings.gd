@@ -31,9 +31,16 @@ func save_settings() -> void:
 
 ## Pushes the current settings values into the engine (window mode, audio
 ## bus). Call after changing fullscreen/master_volume from a settings UI.
+## "Not fullscreen" means Maximized, not plain Windowed -- project.godot's
+## own window/size/mode already starts the game maximized (its resolution
+## following whatever screen it's on, at a native 1:1 pixel scale, not a
+## smaller fixed window) and this needs to keep reapplying that on every
+## future launch instead of fighting it back down to the small design-time
+## window/size/viewport_width/height. True Fullscreen (borderless, no
+## window chrome) is still its own explicit opt-in via the Settings menu.
 func apply_settings() -> void:
 	DisplayServer.window_set_mode(
-		DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
+		DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_MAXIMIZED
 	)
 	var bus := AudioServer.get_bus_index("Master")
 	if bus >= 0:

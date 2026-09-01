@@ -24,8 +24,10 @@ LobbyConfig="*res://scripts/net/lobby_config.gd"
 
 [display]
 
-window/stretch/mode="canvas_items"
-window/stretch/aspect="expand"
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/size/mode=2
+window/stretch/mode="disabled"
 
 [physics]
 
