@@ -123,6 +123,7 @@ static func _place_home_hexes_and_players(
 		player.plunder = diff.get("resources", 5)
 		player.food = diff.get("resources", 5)
 		player.action_points = STARTING_AP
+		player.max_action_points = STARTING_AP
 		player.havens = [coord]
 		player.hero_hex = coord
 
@@ -309,5 +310,9 @@ static func _pick_druids(state: GameState, card_db: Node) -> void:
 			names.append(c.card_name)
 	names.shuffle()
 	var revealed := mini(4, names.size())
-	state.druids_in_play = names.slice(0, revealed)
+	state.druids_in_play = []
+	for n in names.slice(0, revealed):
+		var d := DruidInstance.new()
+		d.card_name = n
+		state.druids_in_play.append(d)
 	state.druid_deck = names.slice(revealed)

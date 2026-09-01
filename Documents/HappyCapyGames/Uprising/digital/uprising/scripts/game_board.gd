@@ -67,6 +67,7 @@ var _phase_log_label: Label
 var _event_row: HBoxContainer
 var _event_card_slot: HBoxContainer
 var _combats_row: HBoxContainer
+var _druids_label: Label
 var _last_phase_message: String = ""
 var _shown_event: String = ""  # which current_event _event_card_slot currently displays, to avoid needless rebuilds
 var _trade_button: Button
@@ -317,6 +318,11 @@ func _setup_hud() -> void:
 
 	_combats_row = HBoxContainer.new()
 	vbox.add_child(_combats_row)
+
+	_druids_label = Label.new()
+	_druids_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_druids_label.custom_minimum_size = Vector2(520, 0)
+	vbox.add_child(_druids_label)
 
 	var buttons := HBoxContainer.new()
 	vbox.add_child(buttons)
@@ -794,6 +800,7 @@ func _update_hud() -> void:
 	_phase_log_label.text = _last_phase_message
 	_update_event_card()
 	_update_combats_row()
+	_update_druids_label()
 
 	if selected_coord == NO_SELECTION:
 		_selection_label.text = "(no hex selected -- click one)"
@@ -911,6 +918,20 @@ func _update_combats_row() -> void:
 	_combats_row.add_child(label)
 	for coord in state.pending_combats:
 		_combats_row.add_child(_build_resolve_button(coord))
+
+
+## Shows the 4 Druids revealed at Setup and how much AETHER each has
+## accrued -- otherwise ChapterFlow.refresh_phase's AETHER placement
+## (DruidData.check_condition, checked fresh every Refresh) would be
+## invisible; nothing else in the UI surfaces druids_in_play at all.
+func _update_druids_label() -> void:
+	if state.druids_in_play.is_empty():
+		_druids_label.text = ""
+		return
+	var parts: Array[String] = []
+	for d in state.druids_in_play:
+		parts.append("%s (AETHER %d)" % [d.card_name, d.aether])
+	_druids_label.text = "Druids: " + ", ".join(parts)
 
 
 ## `coord` is this call's own parameter (a fresh local binding, not a

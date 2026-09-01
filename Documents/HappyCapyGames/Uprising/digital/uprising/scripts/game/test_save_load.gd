@@ -38,7 +38,13 @@ func _initialize() -> void:
 	_check("modified player stat round-tripped", loaded.get_player("Druwhn").salt == 42)
 	_check("pending_combats round-tripped", loaded.pending_combats == [Vector2i(3, -2)])
 	_check("market round-tripped", loaded.market == original.market)
-	_check("druids round-tripped", loaded.druids_in_play == original.druids_in_play)
+	var druids_match := loaded.druids_in_play.size() == original.druids_in_play.size()
+	for i in original.druids_in_play.size():
+		var o: DruidInstance = original.druids_in_play[i]
+		var l: DruidInstance = loaded.druids_in_play[i]
+		if l.card_name != o.card_name or l.aether != o.aether:
+			druids_match = false
+	_check("druids round-tripped", druids_match)
 
 	var deleted := SaveLoad.delete_save("test_slot")
 	_check("delete_save succeeds", deleted)

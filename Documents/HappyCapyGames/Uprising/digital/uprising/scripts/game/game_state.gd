@@ -55,7 +55,11 @@ var legion_deck: Array[String] = []
 var horde_deck: Array[String] = []
 
 var event_deck_by_chapter: Dictionary = {}  # chapter (int) -> Array[String] event names, in play order
-var druids_in_play: Array[String] = []
+## The 4 Druid cards revealed at Setup (p6), each tracking its own AETHER
+## count -- see DruidInstance/DruidData. Revealed once, not re-drawn each
+## Chapter: the rulebook's own Refresh Phase step list (p15) doesn't
+## mention Druids at all, only their "Refresh Phase" condition text does.
+var druids_in_play: Array[DruidInstance] = []
 ## Remaining Druid ("Blessing") cards not revealed at setup. Nothing in the
 ## rulebook currently draws further from this once the initial 4 are placed
 ## (p6: "Place 4 random Druid cards face-up"), but it's modeled as a real
@@ -119,7 +123,7 @@ func to_dict() -> Dictionary:
 		"legion_deck": legion_deck.duplicate(),
 		"horde_deck": horde_deck.duplicate(),
 		"event_deck_by_chapter": event_dict,
-		"druids_in_play": druids_in_play.duplicate(),
+		"druids_in_play": druids_in_play.map(func(d: DruidInstance) -> Dictionary: return d.to_dict()),
 		"druid_deck": druid_deck.duplicate(),
 	}
 
@@ -169,6 +173,8 @@ static func from_dict(d: Dictionary) -> GameState:
 	for chap_str in (d.get("event_deck_by_chapter", {}) as Dictionary):
 		s.event_deck_by_chapter[int(chap_str)] = (d["event_deck_by_chapter"][chap_str] as Array).duplicate()
 
-	s.druids_in_play.assign(d.get("druids_in_play", []))
+	s.druids_in_play.assign((d.get("druids_in_play", []) as Array).map(
+		func(dd: Dictionary) -> DruidInstance: return DruidInstance.from_dict(dd)
+	))
 	s.druid_deck.assign(d.get("druid_deck", []))
 	return s

@@ -89,7 +89,7 @@ func _initialize() -> void:
 	_check("SCORING -> next Chapter ok", r.get("ok", false))
 	_check("chapter incremented", state.chapter == chapter_before + 1)
 	_check("phase reset to REFRESH for the new Chapter", state.phase == GameState.Phase.REFRESH)
-	_check("AP reset for the new Chapter", state.get_player("Druwhn").action_points == GameFlow.STARTING_AP)
+	_check("AP reset for the new Chapter", state.get_player("Druwhn").action_points == state.get_player("Druwhn").max_action_points)
 	_check("not game_over yet (more Chapters remain)", not r.get("game_over", false))
 
 	# --- Fast-forward through Chapter 2 (the final Chapter, max_chapters=2) to SCORING ---

@@ -31,7 +31,7 @@ func _initialize() -> void:
 	var old_first := state.first_player_index
 	var old_market_size := state.market.size()
 	var old_deck_size := state.item_deck.size()
-	ChapterFlow.refresh_phase(state, 8)
+	ChapterFlow.refresh_phase(state)
 
 	var ap_reset := true
 	for player in state.players:
@@ -45,15 +45,54 @@ func _initialize() -> void:
 	_check("refresh: item deck shrank by 3", state.item_deck.size() == old_deck_size - 3)
 	_check("refresh: phase set to REFRESH", state.phase == GameState.Phase.REFRESH)
 
+	# --- AP is restored to each player's OWN max, not a flat number -- a
+	# player whose max_action_points was permanently lowered by some effect
+	# must stay lowered across Refreshes instead of being reset to 8. ---
+	var ap_state := GameState.new()
+	var full_ap_player := PlayerFactionState.new()
+	full_ap_player.action_points = 0
+	full_ap_player.max_action_points = 8
+	var reduced_ap_player := PlayerFactionState.new()
+	reduced_ap_player.action_points = 0
+	reduced_ap_player.max_action_points = 6
+	ap_state.players.append(full_ap_player)
+	ap_state.players.append(reduced_ap_player)
+	ChapterFlow.refresh_phase(ap_state)
+	_check("refresh: AP restored to a player's own max (8)", full_ap_player.action_points == 8)
+	_check("refresh: a lowered max_action_points is respected, not flattened to 8", reduced_ap_player.action_points == 6)
+
 	# --- Reshuffle-from-discard when the deck runs dry ---
 	var drain_state := GameState.new()
 	drain_state.players.append(PlayerFactionState.new())
 	drain_state.item_deck = ["A", "B"]
 	drain_state.item_discard = ["C", "D", "E", "F"]
 	drain_state.market = []
-	ChapterFlow.refresh_phase(drain_state, 8)
+	ChapterFlow.refresh_phase(drain_state)
 	_check("refresh: reshuffles discard back into the deck when it runs dry",
 		drain_state.market.size() == 3 and drain_state.item_deck.size() == 3)
+
+	# ---------------------------------------------------------------
+	# refresh_phase: Druid AETHER conditions (DruidData)
+	# ---------------------------------------------------------------
+	var dstate := GameState.new()
+	dstate.players.append(PlayerFactionState.new())
+	var deep_dweller := DruidInstance.new()
+	deep_dweller.card_name = "Deep Dweller"  # needs 1+ Horde in play
+	var watcher := DruidInstance.new()
+	watcher.card_name = "Watcher"  # needs 7+ hexes with Garrisons
+	dstate.druids_in_play = [deep_dweller, watcher]
+
+	ChapterFlow.refresh_phase(dstate)
+	_check("refresh: condition NOT met places no AETHER", deep_dweller.aether == 0 and watcher.aether == 0)
+
+	var druid_horde := HordeInstance.new()
+	druid_horde.id = dstate.next_nemesis_id()
+	dstate.hordes.append(druid_horde)
+	ChapterFlow.refresh_phase(dstate)
+	_check("refresh: condition met places 1 AETHER on that Druid only", deep_dweller.aether == 1 and watcher.aether == 0)
+
+	ChapterFlow.refresh_phase(dstate)
+	_check("refresh: AETHER accumulates across multiple Refreshes", deep_dweller.aether == 2)
 
 	# ---------------------------------------------------------------
 	# events_phase_threat_step

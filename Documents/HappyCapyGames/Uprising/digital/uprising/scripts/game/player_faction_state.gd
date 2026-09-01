@@ -18,6 +18,13 @@ var salt: int = 0
 var plunder: int = 0
 var food: int = 0
 var action_points: int = 0
+## What Refresh Phase restores action_points to. Starts at GameSetup.
+## STARTING_AP for everyone; a future card/Event effect that permanently
+## reduces a player's AP pool should lower this instead of touching
+## action_points directly, so Refresh Phase (ChapterFlow.refresh_phase)
+## restores each player to THEIR OWN max rather than a flat reset that
+## would erase the penalty every Chapter.
+var max_action_points: int = 8
 
 var might: int = 0
 var magic: int = 0
@@ -52,6 +59,7 @@ func to_dict() -> Dictionary:
 		"plunder": plunder,
 		"food": food,
 		"action_points": action_points,
+		"max_action_points": max_action_points,
 		"might": might,
 		"magic": magic,
 		"leadership": leadership,
@@ -77,6 +85,7 @@ static func from_dict(d: Dictionary) -> PlayerFactionState:
 	s.plunder = d.get("plunder", 0)
 	s.food = d.get("food", 0)
 	s.action_points = d.get("action_points", 0)
+	s.max_action_points = d.get("max_action_points", 8)
 	s.might = d.get("might", 0)
 	s.magic = d.get("magic", 0)
 	s.leadership = d.get("leadership", 0)

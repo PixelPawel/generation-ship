@@ -64,10 +64,14 @@ func _initialize() -> void:
 	checks.append(["event chapter 1 non-empty", (state.event_deck_by_chapter.get(1, []) as Array).size() > 0])
 	checks.append(["druids_in_play == 4", state.druids_in_play.size() == 4])
 	checks.append(["druid_deck holds the remaining 5 (9 EN Core Druids total)", state.druid_deck.size() == 5])
+	var druids_start_at_zero_aether := true
 	var no_druid_overlap := true
 	for d in state.druids_in_play:
-		if state.druid_deck.has(d):
+		if d.aether != 0:
+			druids_start_at_zero_aether = false
+		if state.druid_deck.has(d.card_name):
 			no_druid_overlap = false
+	checks.append(["druids_in_play start with 0 AETHER", druids_start_at_zero_aether])
 	checks.append(["no overlap between druids_in_play and druid_deck", no_druid_overlap])
 
 	checks.append(["player0 feat_deck has 10 cards (1 Core faction's worth)", p0.feat_deck.size() == 10])

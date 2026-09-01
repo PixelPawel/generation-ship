@@ -8,14 +8,26 @@ extends RefCounted
 ## actions rather than an automatic phase step.
 
 
-## Rulebook p15: reset AP, discard+refill the Market and Quest slots
+## Rulebook p15: restore AP, discard+refill the Market and Quest slots
 ## (reshuffling each discard pile back in if its deck runs dry), pass the
-## first-player token. Always call this between Chapters -- GameSetup's
-## output already represents a "post-refresh" Chapter 1, matching the
-## rulebook's explicit "ignore Pass First Player Token on Chapter 1".
-static func refresh_phase(state: GameState, starting_ap: int = 8) -> void:
+## first-player token, and check every in-play Druid's Refresh Phase
+## condition (its card text, see DruidData), placing 1 AETHER on any Druid
+## whose condition currently holds. Always call this between Chapters --
+## GameSetup's output already represents a "post-refresh" Chapter 1,
+## matching the rulebook's explicit "ignore Pass First Player Token on
+## Chapter 1".
+##
+## AP is restored to each player's OWN max_action_points, not a flat
+## number -- a card/Event effect that permanently lowers a player's AP pool
+## lowers max_action_points instead of action_points directly, so it stays
+## in effect across Refreshes instead of being silently erased here.
+static func refresh_phase(state: GameState) -> void:
 	for player in state.players:
-		player.action_points = starting_ap
+		player.action_points = player.max_action_points
+
+	for druid in state.druids_in_play:
+		if DruidData.check_condition(druid.card_name, state):
+			druid.aether += 1
 
 	state.item_discard.append_array(state.market)
 	state.market.clear()

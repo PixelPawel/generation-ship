@@ -23,9 +23,6 @@ extends RefCounted
 ## documented stand-in, not a transcription. Revisit if initiative numbers
 ## turn up on individual card art.
 
-const STARTING_AP := 8
-
-
 ## Every player faction that hasn't finished their Actions Phase turn yet
 ## (still has AP left and hasn't voluntarily Passed). Exposed for the UI to
 ## show "waiting on: ..." as well as being used internally to gate the
@@ -130,5 +127,5 @@ static func _end_chapter_or_game(state: GameState) -> Dictionary:
 		var result := ChapterFlow.check_win_loss(state)
 		return {"ok": true, "reason": "Final Chapter scored -- game over.", "game_over": true, "result": result}
 	state.chapter += 1
-	ChapterFlow.refresh_phase(state, STARTING_AP)
+	ChapterFlow.refresh_phase(state)
 	return {"ok": true, "reason": "Chapter %d begins." % state.chapter}
