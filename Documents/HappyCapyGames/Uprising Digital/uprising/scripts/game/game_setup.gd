@@ -200,9 +200,9 @@ static func build_2p_normal_game_state(card_db: Node, rng: RandomNumberGenerator
 	# got built and networked, since nothing upstream of this loop had
 	# created these coords yet).
 	for coord: Vector2i in layout.curse_coords:
-		_ensure_hex(state, coord, "outer")
+		state.ensure_hex(coord, "outer")
 	for coord: Vector2i in layout.skeleton_counts.keys():
-		_ensure_hex(state, coord, "outer")
+		state.ensure_hex(coord, "outer")
 
 	for coord: Vector2i in layout.garrison_counts.keys():
 		state.hexes[coord].garrison_level = layout.garrison_counts[coord]
@@ -276,11 +276,6 @@ static func _place_hex(state: GameState, coord: Vector2i, role: String, card_nam
 	state.hexes[coord] = tile
 
 
-static func _ensure_hex(state: GameState, coord: Vector2i, default_role: String) -> void:
-	if not state.hexes.has(coord):
-		var tile := HexTileState.new()
-		tile.role = default_role
-		state.hexes[coord] = tile
 
 
 static func _first_hero_for_faction(card_db: Node, faction: String) -> HeroCard:

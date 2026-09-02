@@ -128,6 +128,25 @@ static func from_dict(d: Dictionary) -> GameState:
 	return s
 
 
+func find_player(faction: String) -> PlayerFactionState:
+	for p: PlayerFactionState in players:
+		if p.faction == faction:
+			return p
+	return null
+
+
+func get_hex(coord: Vector2i) -> HexTileState:
+	return hexes.get(coord)
+
+
+func ensure_hex(coord: Vector2i, default_role: String = "outer") -> HexTileState:
+	if not hexes.has(coord):
+		var tile := HexTileState.new()
+		tile.role = default_role
+		hexes[coord] = tile
+	return hexes[coord]
+
+
 static func _coord_key(coord: Vector2i) -> String:
 	return "%d,%d" % [coord.x, coord.y]
 
