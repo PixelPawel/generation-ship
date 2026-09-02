@@ -1,0 +1,16 @@
+[gd_scene load_steps=2 format=3 uid="uid://bqm1board1milestone"]
+
+[ext_resource type="Script" path="res://scripts/ui/game_board_setup.gd" id="1_setup"]
+
+[node name="GameBoard" type="Node3D"]
+script = ExtResource("1_setup")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+position = Vector3(0, 20, 0)
+rotation_degrees = Vector3(-55, -30, 0)
+shadow_enabled = true
+
+[node name="Camera3D" type="Camera3D" parent="."]
+position = Vector3(0, 26, 4)
+rotation_degrees = Vector3(-78, 0, 0)
+current = true
