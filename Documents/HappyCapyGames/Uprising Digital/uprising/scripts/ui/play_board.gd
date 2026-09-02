@@ -97,16 +97,15 @@ func _rebuild_hexes(state: GameState) -> void:
 		inst.name = "Hex_%d_%d" % [coord.x, coord.y]
 		hexes_root.add_child(inst)
 		inst.position = HexMath.to_world(coord)
-		var mat := StandardMaterial3D.new()
-		var base_color: Color = ROLE_COLORS.get(tile.role, Color.GRAY)
+		var fallback_color: Color = ROLE_COLORS.get(tile.role, Color.GRAY)
 		if not tile.explored and tile.role != "capital" and tile.role != "home" and tile.role != "sea_tower":
-			base_color = Color(0.15, 0.15, 0.15)
+			fallback_color = Color(0.15, 0.15, 0.15)
+		var tint := Color.WHITE
 		if tile.curse:
-			base_color = Color(0.5, 0.05, 0.4)
+			tint = Color(1.0, 0.3, 0.85)  # magenta-ish curse tint, multiplied over real art or fallback alike.
 		if has_selected_coord and coord == selected_coord:
-			base_color = base_color.lightened(0.5)
-		mat.albedo_color = base_color
-		inst.material_override = mat
+			tint = tint.lightened(0.5)
+		HexTextureLibrary.apply_material(inst, tile.role, tile.hex_card_name, tile.owning_faction, tile.explored, fallback_color, tint)
 
 
 func _update_hud(state: GameState) -> void:

@@ -75,14 +75,17 @@ func _build() -> void:
 	hexes_root.name = "Hexes"
 	_add_owned(self, hexes_root)
 
-	_add_hex(hexes_root, hex_mesh, layout.capital_coord, "Capital", "capital")
+	_add_hex(hexes_root, hex_mesh, layout.capital_coord, "Capital", "capital", "", "")
 	for coord: Vector2i in layout.home_coords:
 		var faction: String = layout.home_factions.get(coord, "?")
-		_add_hex(hexes_root, hex_mesh, coord, "Home_%s" % faction, "home")
+		var home_card: HexCard = layout.home_hex_cards.get(coord)
+		_add_hex(hexes_root, hex_mesh, coord, "Home_%s" % faction, "home", home_card.card_name if home_card else "", faction)
 	for coord: Vector2i in layout.sea_tower_coords:
-		_add_hex(hexes_root, hex_mesh, coord, "SeaTower_%d_%d" % [coord.x, coord.y], "sea_tower")
+		var st_card: HexCard = layout.sea_tower_hex_cards.get(coord)
+		_add_hex(hexes_root, hex_mesh, coord, "SeaTower_%d_%d" % [coord.x, coord.y], "sea_tower", st_card.card_name if st_card else "", "")
 	for coord: Vector2i in layout.interior_coords:
-		_add_hex(hexes_root, hex_mesh, coord, "Interior_%d_%d" % [coord.x, coord.y], "interior")
+		var int_card: HexCard = layout.interior_hex_cards.get(coord)
+		_add_hex(hexes_root, hex_mesh, coord, "Interior_%d_%d" % [coord.x, coord.y], "interior", int_card.card_name if int_card else "", "")
 
 	var pieces_root := Node3D.new()
 	pieces_root.name = "Pieces"
@@ -105,13 +108,15 @@ func _build() -> void:
 	_add_home_hero_standees(standees_root, layout, card_db)
 
 
-func _add_hex(parent: Node3D, mesh: Mesh, coord: Vector2i, node_name: String, role: String) -> void:
+func _add_hex(parent: Node3D, mesh: Mesh, coord: Vector2i, node_name: String, role: String, card_name: String, faction: String) -> void:
 	var inst := MeshInstance3D.new()
 	inst.mesh = mesh
 	inst.name = node_name
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = ROLE_COLORS.get(role, Color.WHITE)
-	inst.material_override = mat
+	# Real card art (Milestone-1-restart addition) via HexTextureLibrary,
+	# falling back to the original flat ROLE_COLORS for anything out of
+	# V1 scope it has no art mapped for (see that file's own doc comment
+	# on which filenames/cards are deliberately excluded).
+	HexTextureLibrary.apply_material(inst, role, card_name, faction, false, ROLE_COLORS.get(role, Color.WHITE))
 	_add_owned(parent, inst)
 	inst.position = HexMath.to_world(coord)
 
