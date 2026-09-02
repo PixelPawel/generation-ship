@@ -24,6 +24,7 @@ window/stretch/aspect="expand"
 CardDatabase="*res://scripts/data/card_database.gd"
 ImageManifest="*res://scripts/data/image_manifest.gd"
 ModelManifest="*res://scripts/data/model_manifest.gd"
+NetworkManager="*res://scripts/net/network_manager.gd"
 
 [physics]
 
