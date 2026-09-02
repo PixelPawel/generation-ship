@@ -175,6 +175,7 @@ static func build_2p_normal_game_state(card_db: Node, rng: RandomNumberGenerator
 	state.chapter = 1
 	state.max_chapters = 2
 	state.difficulty = "Veteran"
+	state.capital_coord = layout.capital_coord
 
 	_place_hex(state, layout.capital_coord, "capital", "", true, "", layout.capital_garrison_count)
 	for coord: Vector2i in layout.home_coords:
