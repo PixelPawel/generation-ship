@@ -1,0 +1,11 @@
+newmtl Krowh_Kha_al_Back
+Kd 1.0000 1.0000 1.0000
+map_Kd khaal_back.png
+
+newmtl GameObject_Red
+Kd 0.7490 0.1373 0.1333
+
+newmtl Krowh_Kha_al_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd khaal_front.png
+

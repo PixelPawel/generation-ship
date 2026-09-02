@@ -1,0 +1,7 @@
+newmtl GameObject_Brown
+Kd 0.7098 0.4745 0.3529
+
+newmtl Ytuma_Herdmaster
+Kd 1.0000 1.0000 1.0000
+map_Kd herdmaster.png
+

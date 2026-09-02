@@ -1,0 +1,11 @@
+newmtl Legion_Magebreaker_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd the-mage-breaker_front.png
+
+newmtl GameObject_Purple
+Kd 0.6784 0.0627 0.5804
+
+newmtl Legion_Magebreaker_Back
+Kd 1.0000 1.0000 1.0000
+map_Kd the-mage-breaker_back.png
+

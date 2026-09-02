@@ -1,0 +1,11 @@
+newmtl Duerkhar_Yanny_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd yanny_front.png
+
+newmtl GameObject_Teal
+Kd 0.3059 0.6824 0.7686
+
+newmtl Duerkhar_Yanny_Back
+Kd 1.0000 1.0000 1.0000
+map_Kd yanny_back.png
+

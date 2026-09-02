@@ -1,0 +1,11 @@
+newmtl Druwhn_Fhayanor_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd fhayanor_front.png
+
+newmtl Druwhn_Fhayanor_Back
+Kd 1.0000 1.0000 1.0000
+map_Kd fhayanor_back.png
+
+newmtl GameObject_Bone
+Kd 0.9490 0.9098 0.7686
+

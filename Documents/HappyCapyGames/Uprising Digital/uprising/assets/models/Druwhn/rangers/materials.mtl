@@ -1,0 +1,7 @@
+newmtl Druwhn_Rangers
+Kd 1.0000 1.0000 1.0000
+map_Kd rangers.png
+
+newmtl GameObject_Bone
+Kd 0.9490 0.9098 0.7686
+

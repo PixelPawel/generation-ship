@@ -1,0 +1,11 @@
+newmtl Legion_Warlock_Back
+Kd 1.0000 1.0000 1.0000
+map_Kd warlock_back.png
+
+newmtl GameObject_Purple
+Kd 0.6902 0.0431 0.5804
+
+newmtl Legion_Warlock_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd warlock_front.png
+

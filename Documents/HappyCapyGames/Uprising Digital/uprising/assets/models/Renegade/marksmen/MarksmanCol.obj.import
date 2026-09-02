@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://iqpkw2if1csu"
+path="res://.godot/imported/MarksmanCol.obj-a2e3bfe46d32f33f5632c3d5582f468e.mesh"
+
+[deps]
+
+files=["res://.godot/imported/MarksmanCol.obj-a2e3bfe46d32f33f5632c3d5582f468e.mesh"]
+
+source_file="res://assets/models/Renegade/marksmen/MarksmanCol.obj"
+dest_files=["res://.godot/imported/MarksmanCol.obj-a2e3bfe46d32f33f5632c3d5582f468e.mesh", "res://.godot/imported/MarksmanCol.obj-a2e3bfe46d32f33f5632c3d5582f468e.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

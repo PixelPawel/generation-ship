@@ -1,0 +1,254 @@
+Lang,Box,Name,Faction,Phase,Text,Restrictions
+EN,Core,Guile Leadership,,,"When you gain this, gain 3 resoures. + Choose Leadership or Guile and place it under your Hero card.",
+DE,Core,Gerissenheit Charisma,,,Wenn du dies erhältst: Erhalte 3 Ressourcen + Wähle Charisma oder List und platziere dies unter deiner Heldenkarte.,
+EN,Core,Might Magic,,,"When you gain this, gain 3 resoures. + Choose Might or Magic and place it under your Hero card.",
+DE,Core,Macht Magie,,,Wenn du dies erhältst: Erhalte 3 Ressourcen + Wähle Macht oder Magie und platziere dies unter deiner Heldenkarte.,
+EN,Core,Ambush,Druwhn,Archery,Reroll up to 2 of your dice.,Before Damage Once per Round on your Hero's Hex
+DE,Core,Hinterhalt,Druwhn,Fernkampf,Du kannst bis zu 2 deiner Würfel erneut werfen.,Vor dem Schaden Einmal pro Runde Hexfeld des Helden
+EN,Core,Assasins,Druwhn,Clash,Pay 1 SALT to turn any 1 of your dice to show 1 single SKULL.,Before Damage Once per Round on your Hero's Hex
+DE,Core,Assassinen,Druwhn,Nahkampf,Zahle 1 SALZ: Drehe 1 deiner Würfel auf eine Seite mit 1 einzelnen SCHÄDEL.,Vor dem Schaden
+EN,Core,Beastmasters,Druwhn,Clash,"Flip this, to gain 1 SHIELD for every Beastmaster here.",Before Damage Once per Round on your Hero's Hex
+DE,Core,Bezwinger,Druwhn,Nahkampf,Umdrehen: Pro Bezwinger hier: Erhalte 1 SCHILD,Vor dem Schaden
+EN,Core,Caravans,Druwhn,Always,"Items cost you 1 less SALT. When you discard an Item, gain 1 SALT.",
+DE,Core,Karawanen,Druwhn,Jederzeit,Items kosten dich 1 SALZ weniger. Wenn du ein Item abwirfst: Erhalte 1 SALZ.,
+EN,Core,Hit and Run,Druwhn,Archery & Clash,"If your enemy has more Units or Threat here, gain 1 BLUE.",Before Rolling Once per Round
+DE,Core,Nadelstiche,Druwhn,Fern- & Nahkampf,Wenn dein Gegner mehr Einheiten oder Bedrohung hat: Erhalte 1 BLAU.,Vor dem Wurf Einmal pro Runde
+EN,Core,Illusionist,Druwhn,Archery & Clash,BOLT = SHIELD,Before Damage Once per Round on your Hero's Hex
+DE,Core,Trugbilder,Druwhn,Fern- & Nahkampf,BOLZEN = 1 SCHILD,Vor dem Schaden Einmal pro Runde Hexfeld des Helden
+EN,Core,Informants,Druwhn,Actions,"Discard this, when you make a roll outside of combat, to double the dice you roll.",Before Rolling
+DE,Core,Kundschafter,Druwhn,Aktionen,Abwerfen: Verdoppel deine Würfel in einem Wurf außerhalb des Kampfes.,Vor dem Wurf
+EN,Core,Intuition,Druwhn,Always,"You may use any Item, even if your attribute is not high enough.",
+DE,Core,Intuition,Druwhn,Jederzeit,"Du kannst beliebige Items nutzen, selbst wenn dein Attribut nicht hoch genug ist.",
+EN,Core,Swordsisters,Druwhn,Actions,"Flip this, to gain 1 SALT for every Swordsister in play.",
+DE,Core,Schwertschwestern,Druwhn,Aktionen,Umdrehen: Erhalte 1 SALZ pro Schwertschwester im Spiel.,
+EN,Core,Teleport,Druwhn,Actions,Pay 1 SALT to move your Hero to any hex.,
+DE,Core,Teleport,Druwhn,Aktionen,Zahle 1 SALZ: Platziere deinen Helden auf einem beliebigen Hexfeld.,
+EN,Core,Astute,Duerkhar,Always,"If you solve a Quest, gain the reward of 1 quest goal, even if you gained it already.",
+DE,Core,Scharfsinn,Duerkhar,Jederzeit,"Wenn du eine Quest löst: Erhalte die Belohnung eines Questziels, selbst, wenn du diese bereits erhalten hast.",
+EN,Core,Asheforge,Duerkhar,Actions,"When you place a Haven, you may build Units and Defenses here.",On your Hero's Hex
+DE,Core,Aschenschmiede,Duerkhar,Aktionen,Wenn du eine Zuflucht platzierst: Du kannst hier Einheiten und Verteidigungen bauen.,
+EN,Core,Call to Arms,Duerkhar,Actions,"Flip this, to place 1 Basic Unit on a Haven. -- OR-- Discard this, to place 1 Unit on a Haven.",
+DE,Core,Zu den Waffen!,Duerkhar,Aktionen,Umdrehen: Platziere 1 Basis-Einheit auf einer Zuflucht -- ODER -- Abwerfen: Platziere 1 Einheit auf einer Zuflucht.,
+EN,Core,Elder,Duerkhar,Always,Gain any 1 die in any of your rolls outside of combat.,Before Rolling
+DE,Core,Ältestenrat,Duerkhar,Jederzeit,Erhalte 1 beliebigen Würfel in allen deinen Würfen außerhalb des Kampfes.,Vor dem Wurf
+EN,Core,Glory,Duerkhar,Archery & Clash,"Flip this, to lose 1 SHIELD and gain 1 BOLT.",Before Damage
+DE,Core,Kampfesruhm,Duerkhar,Fern- & Nahkampf,Umdrehen: Verliere 1 SCHILD: Erhalte 1 BOLZEN.,Vor dem Schaden
+EN,Core,Koloth,Duerkhar,Archery & Clash,"Discard this, then destroy your Koloth here, to ignore all of your enemies SKULLS.",Before Damage
+DE,Core,Koloth,Duerkhar,Fern- & Nahkampf,Abwerfen: Zerstöre dein Koloth hier. Ignoriere alle SCHÄDEL deines Gegners.,Vor dem Schaden
+EN,Core,Phalanx,Duerkhar,Archery & Clash,You may turn 1 of your dice to show 1 single SHIELD.,Before Damage Once per Combat On your Hero's Hex
+DE,Core,Phalanx,Duerkhar,Fern- & Nahkampf,Du kannst 1 deiner Würfel auf eine Seite mit 1 einzelnen SCHILD drehen.,Vor dem Schaden Einmal pro Kampf Hexfeld des Helden
+EN,Core,Traps,Duerkhar,Archery,Ignore 1 SKULL or SHIELD on 1 of your enemy's dice.,Before Damage Once per Round On your Hero's Hex
+DE,Core,Fallen,Duerkhar,Fernkampf,Ignoriere 1 SCHÄDEL oder SCHILD auf 1 Würfel deines Gegners.,Vor dem Schaden Einmal pro Runde Hexfeld des Helden
+EN,Core,Warsong,Duerkhar,Clash,"If you have 2+ Oathsworn here, gain 1 BLUE.",Before Rolling Once per Round
+DE,Core,Kriegslied,Duerkhar,Nahkampf,Wenn hier 2+ Eidgeschworene sind: Erhalte 1 BLAU.,Vor dem Wurf Einmal pro Runde
+EN,Core,Younglings,Duerkhar,After Combat,"Flip this, to exchange 1 Youngling here with 1 Oathsworn.",
+DE,Core,Frischlinge,Duerkhar,Nach dem Kampf,Umdrehen: Ersetze 1 Frischlinge hier mit 1 Eidgeschworene.,
+EN,Arch,Farstrider,Hokqan,Actions,"Flip this, to flip 1 unexplored hex and resolve its effects.",
+DE,Arch,Weitläufer,Hokqan,Aktionen,Umdrehen: Drehe 1 Hexfeld um und führe dessen Effekte aus.,
+EN,Arch,Hide in Plain Sight,Hokqan,Archery & Clash,"Flip this, to move all of your Units here to any adjacent explored empty hexes, and skip Damage",Before Damage On your Hero's Hex
+DE,Arch,Taktischer Rückzug,Hokqan,Fern- & Nahkampf,"Umdrehen: Bewege alle deine Einheiten hier in angrenzende, erkundete, leere Hexfelder. Überspringe Schaden.",Vor dem Schaden Hexfeld des Helden
+EN,Arch,Into the Wild,Hokqan,Actions,Flip this to build your Units on 1 explored hex without enemy Units.,
+DE,Arch,Herrscher der Wildnis,Hokqan,Aktionen,Umdrehen: Baue deine Einheiten auf einem erkundeten Hexfeld ohne gegnerische Einheiten.,
+EN,Arch,Nimble Reflexes,Hokqan,Archery & Clash,"Flip this, to ignore 1 SKULL on enemy dice per blank you AND your enemy rolled.",Before Damage On your Hero's Hex
+DE,Arch,Flinke Reflexe,Hokqan,Fern- & Nahkampf,"Umdrehen: Ignoriere 1 SCHÄDEL deines Gegners pro Leerseite, die du UND dein Gegner geworfen haben.",Vor dem Schaden Hexfeld des Helden
+EN,Arch,Ranger Veil,Hokqan,Always,Your Hero and Units are considered adjacent from 2 hexes away. Units cannot cross IMPASSABLE TERRAIN,
+DE,Arch,Schleier des Waldläufers,Hokqan,Jederzeit,Dein Held und Einheiten gelten auch als angrenzend an Hexfelder die 2 Hexfelder entfernt sind. Einheiten können kein IP überqueren.,
+EN,Arch,Stalkers,Hokqan,Archery & Clash,"Flip this. For every Stalkers here, you may turn 1 of your dice to show a single SHIELD.",
+DE,Arch,Pirscher,Hokqan,Fern- & Nahkampf,Umdrehen: Du kannst 1 deiner Würfel auf eine Seite mit 1 einzelnen SCHILD drehen pro Pirscher hier.,Vor dem Schaden
+EN,Arch,Stealthy,Hokqan,Always,"Flip this, when you roll your Hero Dice, to roll YELLOW & WHITE for your Guile (instead of choosing).",
+DE,Arch,Listenreich,Hokqan,Jederzeit,Umdrehen: Wenn du deine Heldenwürfel wirfst: Erhalte GELB UND WEIß für Gerissenheit (statt zu wählen).,
+EN,Arch,Tireless Hunt,Hokqan,Actions,"Flip this, when you use the Command Action; your Units may ignore IMPASSABLE TERRAIN and terrain effects.",
+DE,Arch,Unermüdliche Jagd,Hokqan,Aktionen,"Umdrehen: Deine Einheiten können UNPASSIERBARES GELÄNDE und Geländeeffekte ignorieren, wenn du die Kommando-Aktion nutzt.",
+EN,Arch,Flanking Strike,Hokqan,Archery,"Flip this, to gain 1 YELLOW for every hex that your Units moved from.",Before rolling On your Hero's hex
+DE,Arch,Zangenangriff,Hokqan,Fernkampf,"Umdrehen: Erhalte 1 GELB pro Hexfeld, von dem sich deine Einheiten hierher bewegt haben.",Vor dem Wurf Hexfeld des Helden
+EN,Arch,Zealots,Hokqan,Archery & Clash,If you have 1+ Zealots here: BOLT = Flip 1 face-down feat up.,Before Damage Once per Round
+DE,Arch,Fanatiker,Hokqan,Fern- & Nahkampf,Wenn hier 1+ Fanatiker sind: BOLZEN = Decke 1 umgedrehte Fähigkeit auf.,Vor dem Schaden Einmal pro Runde
+EN,Core,Bloodlust,Krowh,Clash,"Discard this, to roll the dice of your Units that were destroyed here this Round and apply SKULLS.",After Damage On your Hero's Hex
+DE,Core,Blutrausch,Krowh,Nahkampf,Abwerfen: Wirf die Würfel deiner in dieser Runde zerstörten Einheiten und wende SCHÄDEL an.,Nach dem Schaden Hexfeld des Helden
+EN,Core,Bonefires,Krowh,Actions,"Discard this, to gain 1 Basic Unit on any of your Havens, for every Horde and Legion in play.",
+DE,Core,Knochenfeuer,Krowh,Aktionen,Abwerfen: Erhalte 1 Basis-Einheit in einer beliebigen deiner Zufluchten pro Horde und Legion im Spiel.,
+EN,Core,Dark Ritual,Krowh,Clash,"Remove 1 of your Units (from the reserve) from the game, to gain: Basic Unit: SHIELD + BOLT Elite Unit: SKULL + BOLT",Before Damage Once per round On your Hero's Hex
+DE,Core,Dunkles Ritual,Krowh,Nahkampf,Entferne 1 deiner Einheiten (aus der Reserve) aus dem Spiel: Basis-Einheit: SCHILD + BOLZEN Elite-Einheit: SCHÄDEL + BOLZEN,Vor dem Schaden Einmal pro Runde Hexfeld des Helden
+EN,Core,Deathsworn,Krowh,Actions,"Discard this, to remove any of your Units in 1 hex from the game. Destroy 1 Skeleton or 1 Garrison for each of your removed Units, in 1 adjacent hex.",
+DE,Core,Todesgerschworene,Krowh,Aktionen,Abwerfen: Entferne beliebig viele deiner Einheiten auf einem Hexfeld aus dem Spiel. Pro entfernter Einheit: Zerstöre 1 Skelett oder 1 Garnison in 1 angrenzenden Hexfeld.,
+EN,Core,Trolls,Krowh,Clash,If the Troll was destroyed here roll 1 BLACK and apply SKULL (BOLT=2 SKULL),After Damage
+DE,Core,Trolle,Krowh,Nahkampf,Wenn dein Troll hier zerstört wurde: Wirf 1 SCHWARZ und wende SCHÄDEL an.,Nach dem Schaden
+EN,Core,Frenzy,Krowh,Archery & Clash,"Flip this, to lose 1 SKULL and gain 1 BOLT.",Before Damage
+DE,Core,Raserei,Krowh,Fern- & Nahkampf,Umdrehen: Verliere 1 SCHÄDEL: Erhalte 1 BOLZEN.,Vor dem Schaden
+EN,Core,Gravedigger,Krowh,Actions,"Discard this, to gain 1 Item from the market discard, even if you could not use it.",
+DE,Core,Totengräber,Krowh,Aktionen,"Abwerfen: Erhalte 1 Item von der Marktablage, selbst wenn du es nicht nutzen könntest.",
+EN,Core,Necromancy,Krowh,Archery & Clash,"Flip this, to place 1 Basic Unit destroyed here, back here. -- OR -- Discard this, to place 1 Unit destroyed here, back here.",After Damage On your Hero's Hex
+DE,Core,Nekromantie,Krowh,Fern- & Nahkampf,Umdrehen: Platziere 1 hier zerstörte Basis-Einheit wieder hier. -- ODER -- Abwerfen: Platziere 1 hier zerstörte Einheit wieder hier.,Nach dem Schaden Hexfeld des Helden
+EN,Core,Pillage,Krowh,After Combat,"If you have 1+ Units here, gain 2 resources.",On your Hero's Hex
+DE,Core,Plünderung,Krowh,Nach dem Kampf,Wenn 1+ deiner Einheiten hier sind: Erhalte 2 Ressourcen.,Hexfeld des Helden
+EN,Core,Vargs,Krowh,Archery,"If you have 2+ Vargs here, gain 1 YELLOW.",Before rolling
+DE,Core,Varge,Krowh,Fernkampf,Wenn 2+ Varge hier sind: Erhalte 1 GELB.,Vor dem Wurf
+EN,Core,Berserkers,Mohyar,Clash,Gain 1 SKULL for every Berserker destroyed here this round.,After Damage On your Hero's Hex
+DE,Core,Berseker,Mohyar,Nahkampf,"Pro Berserker, der diese Runde hier zerstört wurde: Erhalte 1 SCHÄDEL",Nach dem Schaden
+EN,Core,Crossfire,Mohyar,Archery,"If you have 2+ Hunters here, gain 1 BLUE.",Before Rolling Once per Round
+DE,Core,Kreuzfeuer,Mohyar,Fernkampf,Wenn 2+ Jäger hier sind: Erhalte 1 BLAU.,Vor dem Wurf Einmal pro Runde
+EN,Core,Imperial Connections,Mohyar,Actions,"Flip this, to discard up to 3 Items from the Market and gain 1 SALT per discarded Item.",
+DE,Core,Imperiale Verbindungen,Mohyar,Aktionen,Umdrehen: Werfe bis zu 3 Items vom Markt ab. Pro abgeworfenem Item: Erhalte 1 SALZ.,
+EN,Core,Rebel Marksmen,Mohyar,Archery,Flip this to reroll any of your WHITE.,Before Damage
+DE,Core,Treffsicher,Mohyar,Fernkampf,Umdrehen: Wirf beliebig viele deiner WEIßEN erneut.,Vor dem Schaden
+EN,Core,Slavers,Mohyar,After Combat,"If you have 1+ Slaver here and destroyed a Legion or Garrison, you may place 1 Basic Unit on any Haven.",
+DE,Core,Sklavenhändler,Mohyar,Nach dem Kampf,Wenn 1+ Sklavenhändler hier sind UND eine Legion oder Garnison zerstört wurde: Du kannst 1 Basis-Einheit auf einer Zuflucht platzieren.,
+EN,Core,Spoils of War,Mohyar,After Combat,"If you destroyed ALL Imperial Units here, gain 1 Item from the Market that you can use.",
+DE,Core,Kriegsbeute,Mohyar,Nach dem Kampf,"Wenn ALLE Imperialen Einheiten hier zerstört wurden: Erhalte 1 Item vom Markt, das du nutzen kannst.",
+EN,Core,Tomb Raiders,Mohyar,Always,"When you use the Trade Action, gain 1 additional SALT. You may trade with Heros in adjacent hexes.",
+DE,Core,Grabräuber,Mohyar,Jederzeit,Wenn du die Handel-Aktion nutzt: Erhalte 1 zusätzliches SALZ. Du kannst mit Helden in angrenzenden Hexfeldern handeln.,
+EN,Core,Treachery,Mohyar,Archery & Clash,Pay 1 SALT to ignore 1 enemy SHIELD.,Before damage On your Hero's hex
+DE,Core,Verrätter,Mohyar,Fern- & Nahkampf,Zahle 1 SALZ: Ignoriere 1 gegnerisches SCHILD.,Vor dem Schaden Hexfeld des Helden
+EN,Core,Tricky,Mohyar,Always,"Flip this, to reroll ANY of your dice. In combat, this can only be used on your Hero's Hex.",
+DE,Core,Trickreich,Mohyar,Jederzeit,Umdrehen: Wirf beliebig viele deiner Würfel erneut. Im Kampf kann dies nur auf dem Hexfeld deines Helden genutzt werden.,
+EN,Core,Wiles,Mohyar,Actions,"Flip this, to use the Command, Haven or Move Action without paying AP and resources.",
+DE,Core,List,Mohyar,Aktionen,"Umdrehen: Nutze die Kommando-, Zuflucht- oder Bewegen-Aktion ohne AP und Ressourcen zu zahlen.",
+EN,Titans,Asgari Ballista,Pirates,Clash,"Flip this, to gain 1 WHITE for every adjacent hex with any Bladeships.",Before Rolling
+DE,Titans,Asgari Ballista,Pirates,Nahkampf,Umdrehen: Pro angrenzendem Hexfeld mit Klingenschiffen: Erhalte 1 WEIß.,
+EN,Titans,Cardshark,Pirates,Always,"If there is no die here, you may remove 1 die from your roll (without using it) and place it here. -- OR -- Discard the die here, to add its symbols to your roll.",After Rolling On your Hero's hex
+DE,Titans,Kartenhai,Pirates,Jederzeit,Wenn kein Würfel hier ist: Du kannst 1 Würfel von deinem Wurf hier platzieren (ohne ihn zu nutzen). -- ODER -- Werfe den Würfel hier ab und erhalte die Symbole in deinem Wurf.,
+EN,Titans,Krakens Lash,Pirates,Actions,"Flip this, to place 1 Mercenary from the reserve or a Graveyard on any explored hex without enemy units.",
+DE,Titans,Krakenpeitsche,Pirates,Aktionen,Umdrehen: Platziere 1 Söldner aus der Reserve oder Friedhof auf einem erkundeten Hexfeld ohne gegnerische Einheiten.,
+EN,Titans,Nethersea Queen,Pirates,Clash,"Flip this, to double the die of 1 of your Mercenaries for this round.",Before rolling On your Hero's hex
+DE,Titans,Wille der Königin,Pirates,Nahkampf,Umdrehen: verdoppel den Würfel von 1 deiner Söldner diese Runde.,
+EN,Titans,Raiders,Pirates,Clash,Ignore 1 enemy SHIELD for every SKULL on your YELLOW.,Before damage Once per combat
+DE,Titans,Seeräuber,Pirates,Nahkampf,Pro SCHÄDEL auf deinen GELB: Ignoriere 1 gegnerischen SCHILD,
+EN,Titans,Sharkskald,Pirates,Always,"If you have 1+ Sharkskald in play, you may re-roll 1 die. In combat this can only be used on the Sharkskald's hex. ",Once per roll
+DE,Titans,Haiskalde,Pirates,Jederzeit,Wenn 1+ Haiskalden im Spiel sind: Du kannst 1 Würfel erneut werfen. Im Kampf kann dies nur auf dem Hexfeld des Haiskaldens genutzt werden.,
+EN,Titans,Shoot FIrst,Pirates,Archery,"Flip this, to roll your Archery (and apply SKULL) before your enemy. ",On your Hero's hex
+DE,Titans,Schnellfeuer,Pirates,Fernkampf,"Umdrehen: FERNKAMPFUmdrehen: Führedeinen Fernkampf vordeinem Gegner ausund wende SCHÄDEL an.",
+EN,Titans,Smugglers Guild,Pirates,Actions,"When you use the Quest Action you may exchange the reward of any quest goal with ""Gain 1 item from the Market that you could use.""",Before rolling
+DE,Titans,Gilde der Schmuggler,Pirates,Aktionen,"Wenn du die Quest-Aktion nutzt: Du kannst die Belohnung eines Questziels mit ""Erhalte 1 Item vom Markt, das du nutzen kannst"" ersetzen.",
+EN,Titans,Third Eye Navigators,Pirates,Actions,"When you use the Sail Action, you may move your Bladeships 3 more times.",
+DE,Titans,Navigatoren des Dritten Auges,Pirates,Aktionen,Wenn du die Segeln-Aktion nutzt: Du kannst deine Klingenschiffe 3 zusätzliche Male bewegen.,
+EN,Titans,Nethersea Throne,Pirates,Actions,"Remove this card from the game, to place the Undernest hex next to the map. You can Move and Command there from a Sea Tower.",
+DE,Titans,Unternest,Pirates,Aktionen,Entferne diese Karte aus dem Spiel: Platziere das Unternest neben dem Spielfeld. Das Unternest grenzt an jedes Seeturm-Hexfeld an.,
+EN,Arch,Imperial Engineers,Renegade,Archery & Clash,You may remove 1 Wall or Tower here instead of 1 Unit.,After Damage
+DE,Arch,Imperiale Pioniere,Renegade,Fern- & Nahkampf,"Du kannst 1 Wall oder Turm hier zerstören, statt 1 deiner Einheiten.",Nach dem Schaden
+EN,Arch,Know your Enemy,Renegade,Always,"Discard this, to ignore a Legion or Horde's immediate effect. Targets are placed normally.",
+DE,Arch,Kenne deinen Gegner,Renegade,Jederzeit,Abwerfen: Ignoriere den Soforteffekt einer Horde oder Legion. Ziele werden normal platziert.,
+EN,Arch,Legionnaires,Renegade,Clash,"Flip this, to change all your BLUE to show 1 single SHIELD.",Before Damage
+DE,Arch,Legionäre,Renegade,Nahkampf,Umdrehen: Drehe alle deine BLAU auf 1 einzelnes SCHILD.,Vor dem Schaden
+EN,Arch,Imperial Marksmen,Renegade,Archery,"If you have 1+ Marksmen here, gain 1 BLUE.",Before Rolling
+DE,Arch,Scharfschützen,Renegade,Fernkampf,Wenn 1+ Scharfschützen hier sind: Erhalte 1 BLAU.,Vor dem Wurf
+EN,Arch,Mutant Instincts,Renegade,Clash,You may reroll ALL dice of 1 color you rolled.,Before Damage Once per Combat On your Hero's Hex
+DE,Arch,Mutanteninstinkte,Renegade,Nahkampf,Du kannst ALLE Würfel einer Farbe neu werfen.,Vor dem Schaden Einmal pro Kampf Hexfeld des Helden
+EN,Arch,Oda s Vestiges,Renegade,Before Combat,Discard this. Your enemy can NOT use BOLT in this combat.,
+DE,Arch,Odas Vermächtnis,Renegade,Vor dem Kampf,Abwerfen: Dein Gegner kann in diesem Kampf KEINE BOLZEN nutzen.,
+EN,Arch,Prismatic Magic,Renegade,Archery & Clash,"If you roll 3+ different color dice, exchange 1 die with PURPLE.",Before Rolling Once per Round On your Hero's Hex
+DE,Arch,Prismatische Magie,Renegade,Fern- & Nahkampf,Wenn du 3+ verschieden farbige Würfel wirfst: Ersetze 1 Würfel mit LILA.,Vor dem Wurf Einmal pro Runde Hexfeld des Helden
+EN,Arch,Sneak Attack,Renegade,Before Combat,"Flip this, to skip the Archery round.",On your Hero's Hex
+DE,Arch,Überraschungsangriff,Renegade,Vor dem Kampf,Umdrehen: Überspringe die Fernkampfrunde.,Hexfeld des Helden
+EN,Arch,Imperial Arsenal,Renegade,Always,"Flip this, when you would discard an Item to flip it instead.",
+DE,Arch,Imperiales Arsenal,Renegade,Jederzeit,"Umdrehen, wenn du 1 Item abwerfen würdest: Drehe das Item stattdessen um.",
+EN,Arch,Insatiable Courtesans,Renegade,Actions,Discard this. You may buy any number of Items from the Market. (10-Card Limit),
+DE,Arch,Unersättliche Kurtisanen,Renegade,Aktionen,Abwerfen: Du kannst eine beliebige Anzahl von Items vom Markt kaufen. (10-Karten Limit),
+EN,Titans,Blood of the Gods,Titans,Actions,"When you use the Devour Action, you may use the Feast Action once for zero AP -- OR -- gain the resources shown on the hex.",
+DE,Titans,Blut der Götter,Titans,Aktionen,"Wenn du die Verschlingen-Aktion nutzt: Du kannst du die Göttermahl-Aktion für 0 AP nutzen. -- ODER -- Erhalte die Ressourcen 
+von diesem Hexfeld.",
+EN,Titans,Father of Thunder,Titans,Clash,Discard 1 Bane to gain BOLT,
+DE,Titans,Vater des Donners,Titans,Nahkampf,Wirf eine Geissel ab: Erhalte BOLT.,
+EN,Titans,Huntress Prime,Titans,Archery & Clash,Pay 2 Salt or discard 1 Bane to gain 1 PURPLE,
+DE,Titans,Geborene Jägerin,Titans,Fern- & Nahkampf,Zahle 2 SALZ oder werfe 1 Geissel ab: Erhalte 1 LILA,
+EN,Titans,Ley Lines,Titans,Always,"When you devour a EMPIRE hex you gain Empire Bane.
+When you devour a CHAOS hex you gain Chaos Bane.",
+DE,Titans,Ley-Linien,Titans,Jederzeit,"Wenn du ein Imp.
+Hexfeld verzehrst:
+Erhalte 1 Imp. Geissel
+Wenn du ein
+Hexfeld verzehrst:
+Erhalte 1 Chaos Geissel",
+EN,Titans,Maw of the Titan,Titans,Actions,"Discard this, to place your Hero on any hex. Devour that hex, even if unexplored. If there is a Curse here, remove it.",
+DE,Titans,Maul des Titanen,Titans,Aktionen,"Abwerfen: Platziere
+deinen Helden auf einem
+beliebigen Hexfeld.
+Verzehre das Hexfeld,
+selbst, wenn unerkundetet.
+Befindet sich ein Fluch dort, entferne ihn.",
+EN,Titans,Eyes of the Titan,Titans,Always,"In any of your rolls outside of Combat you may spend resources to gain:
+1 FOOD = Bronze
+2 PLUNDER = Silver
+3 SALT = Gold",Once per roll Before rolling
+DE,Titans,Auge des Titans,Titans,Jederzeit,"Zahle Ressourcen in deinem Wurf außerhalb des Kampfes, um Würfel zu erhalten:
+1: Erhalte Bronze
+2: Erhalte Silber
+3: Erhalte Gold",
+EN,Titans,Mother of Night,Titans,Actions,"After you use the Primal Lore Action, you may move your Hero for ZERO AP to that Hex.",
+DE,Titans,Mutter der Nacht,Titans,Aktionen,Nachdem du die Primal Lore-Aktion genutzt hast: Du kannst deinen Helden auf diese Hexfeld für 0 AP bewegen.,
+EN,Titans,Primordial,Titans,Actions,"Flip this, instead of discarding a Bane.",
+DE,Titans,Urzeitlich,Titans,Aktionen,Umdrehen: Statt einer Geissel abzuwerfen.,
+EN,Titans,Skaga the Splitter,Titans,Archery & Clash,"remove 1 die
+from your roll
+(without using it)
+and place it here.
+-- or --
+Flip to roll all dice here.",Before Damage
+DE,Titans,Skaga der Spalter,Titans,Fern- & Nahkampf,"    =  Enfterne 1 Würfel
+von deinem Wurf 
+(ohne ihn zu nutzen),
+platziere ihn hier.
+ODER
+Umdrehen: Wirf 
+alle Würfel hier.",Vor dem Schaden
+EN,Titans,Souldrinker,Titans,Always,"When you destroy a Legion or Horde, gain its Banes.",
+DE,Titans,Seelentrinker,Titans,Jederzeit,"Wenn du eine Legion oder Horde zerstörst, erhalte dessen Geisseln.",
+EN,Titans,Soulsworn,Titans,Always,"ALWAYS | Pay 2 PLUNDER, to turn any1 of your diceto show2       .",
+DE,Titans,Seelengeschworen,Titans,Jederzeit,Zahle 2 BEUTE: Drehe 1 beliebigen Würfel um 2 SCHILDE zu zeigen.,"After rollingOnce per roll"
+EN,Titans,Stoneskin,Titans,Always,"Discard this, to ignore all enemy SKULL in a combat round, and /or any effect that would reduce your threat.","Nach dem Wurf, Einmal pro Wurf"
+DE,Titans,Steinhaut,Titans,Jederzeit,Abwerfen: Ignoriere alle gegnerischen SCHÄDEL in einer Kampfrunde und/oder einen Effekt der deine Bedrohung reduzieren würde.,
+EN,Titans,Vargmother,Titans,Archery & Clash,BOLT= gain 1 of your enemy's Bane.,After damage
+DE,Titans,Vargmutter,Titans,Fern- & Nahkampf,BOLZEN = Erhalte 1 gegnerische Geissel,
+EN,Titans,Mortal Worshippers,Titans,Actions,"Flip this, to gain the resources shown on your heros hex. - OR - Discard this, to gain the resources shown on your devoured hexes.",
+DE,Titans,Sterbliche Anbeter,Titans,Aktionen,"Umdrehen:Erhalte die Ressourcen auf dem Hexfeld des Helden
+ODER
+Abwerfen:Erhalte die Ressourcen auf deinen verzehrten Hexfeldern.",
+EN,Arch,Blood of the Than,Tua Than,Always,"Discard this, then pick the Chaos or Imperial Graveyard, and return ALL player Units there to the reserve.",
+DE,Arch,Blut des Than,Tua Than,Jederzeit,Abwerfen: Wähle den Chaos oder Imperium Friedhof: Platziere alle Spieler-Einheiten dort zurück in die Reserve(n).,
+EN,Arch,Cartographer,Tua Than,Always,"When you succeed at a Quest and would discard it, place it in front of you instead. Discard it, to add its bonus die in Clash. ",Before Rolling
+DE,Arch,Kartograph,Tua Than,Jederzeit,"Wenn du eine Quest löst und abwerfen würdest, platziere diese statt-dessen vor dir. Werfe eine dieser Quests ab, um deren Bonus Würfel im Nahkampf zu erhalten.",Vor dem Wurf
+EN,Arch,Coral Spikes,Tua Than,Clash,"Remove 1 Wall here, to pick a color of enemy dice and ignore all SKULL on it.",Before Damage
+DE,Arch,Korallenwall,Tua Than,Nahkampf,Entferne 1 Wall hier: Wähle eine Würfelfarbe deines Gegners und ignoriere alle SCHÄDEL auf dieser.,
+EN,Arch,Dream of the Than,Tua Than,Always,Choose 1 Druid from the Druids deck and place it on this card (this is now a card that is both a Druid and Feat). Any player may use this Druid.,
+DE,Arch,Traum des Than,Tua Than,Jederzeit,Wähle 1 Druiden aus der Box und platziere ihn auf dieser Karte. Er gilt jetzt als Druide UND als Fähigkeit. Alle Spieler können ihn nutzen.,
+EN,Arch,Harponeers,Tua Than,Archery & Clash,If you have 1+ Harponeer here BOLT: Gain 1 FOOD.,Before Damage Once per Harponeer
+DE,Arch,Harpuniere,Tua Than,Fern- & Nahkampf,Wenn 1+ Harpuniere hier sind: BOLZEN = Erhalte 1 NAHRUNG.,Vor dem Schaden Einmal pro Harpunier
+EN,Arch,Kyunnections,Tua Than,Actions,"Flip this, to look at the top Quest. Discard it OR put it into play, if there is a free slot.",
+DE,Arch,Verbindungen,Tua Than,Aktionen,"Umdrehen: Schaue dir die oberste Karte des Questdecks an. Werfe sie ab oder platziere sie im Spiel, wenn Platz ist.",
+EN,Arch,Song of the Than,Tua Than,Actions,"Flip this, when you use the Quest Action to succeed at any quest goal.",
+DE,Arch,Das Lied des Than,Tua Than,Aktionen,"Umdrehen, wenn du die Quest-Aktion nutzt: Erfülle 1 Questziel.",
+EN,Arch,Light of the Than,Tua Than,Archery & Clash,"If you rolled 1+ blanks, gain 1 BOLT.",Before Damage On your Hero's Hex
+DE,Arch,Licht des Than,Tua Than,Fern- & Nahkampf,Wenn du 1+ Leerseiten geworfen hast: Erhalte 1 BOLZEN.,Vor dem Schaden Hexfeld des Helden
+EN,Arch,Stoneshells,Tua Than,Clash,Gain WHITE for every Stoneshell that was destroyed last Round.,Before Rolling
+DE,Arch,Steinpanzer,Tua Than,Nahkampf,"Pro Steinpanzer, der letzte Runde zerstört wurde: Erhalte 1 WEIß.",Vor dem Wurf
+EN,Arch,Tua-Tsugo,Tua Than,Clash,"Flip this, to double your SHIELD this round.",Before Damage
+DE,Arch,Tua-Tsugo,Tua Than,Nahkampf,Umdrehen: Verdoppel deine Würfel in einem Wurf außerhalb des Kampfes.,Vor dem Schaden
+EN,Arch,Drivers,Ytuma,Archery & Clash,For each Driver here ignore 1 enemy SHIELD.,Before Damage
+DE,Arch,Treiber,Ytuma,Fern- & Nahkampf,Pro Treiber hier: Ignoriere 1 gegnerisches SCHILD.,Vor dem Schaden
+EN,Arch,Eyes of Stone,Ytuma,Always,Your BOLT also count as SKULL in rolls outside of combat.,
+DE,Arch,Augen aus Stein,Ytuma,Jederzeit,Deine BOLZEN gelten auch als SCHÄDEL in Würfen außerhalb des Kampfes.,
+EN,Arch,Fertility of the Herd,Ytuma,Actions,"Discard this, to decrease the Herdsize, then gain 1 Unit on your Hero's hex for each Herdsize lost.",
+DE,Arch,Fruchtbarkeit der Herde,Ytuma,Aktionen,Abwerfen: Reduziere deine Herdengröße. Pro reduzierter Herdengröße: Erhalte 1 Einheit auf dem Hexfeld deines Helden.,
+EN,Arch,Shepherd,Ytuma,Actions,"When you place a Haven, gain the resources and VP shown on that hex.",
+DE,Arch,Hirte,Ytuma,Aktionen,Wenn du eine Zuflucht platzierst: Erhalte die Ressourcen und VP von diesem Hexfeld.,
+EN,Arch,Heedless Charge,Ytuma,Archery & Clash,"Discard this, to double ALL SKULL from you and your enemy this round.",Before Damage
+DE,Arch,Zerstampfen,Ytuma,Fern- & Nahkampf,Abwerfen: Verdoppel ALLE deine und gegnerische SCHÄDEL diese Runde.,Vor dem Schaden
+EN,Arch,Lore of the Herd,Ytuma,Actions,"When you use the Market: Your attributes are +1 each to use any Item, and you may pay any resource.",
+DE,Arch,Erbe der Herde,Ytuma,Aktionen,Wenn du die Markt-Aktion nutzt: Deine Attribute gelten als +1 und du kannst mit beliebigen Ressourcen bezahlen.,
+EN,Arch,Migration,Ytuma,Actions,"When you use the Command Action, you may Command a second time without paying AP and FOOD.",
+DE,Arch,Migration,Ytuma,Aktionen,Wenn du die Kommando-Aktion nutzt: Du kannst eine weitere Kommando-Aktion nutzen ohne AP oder NAHRUNG zu zahlen.,
+EN,Arch,Herdmaster,Ytuma,Always,"When you place a Haven, you may build Units on the Herdmaster's hex.",
+DE,Arch,Herdenvater,Ytuma,Jederzeit,Wenn du eine Zuflucht platzierst: Du kannst auf dem Hexfeld des Herdenvaters Einheiten bauen.,
+EN,Arch,Stampede,Ytuma,Clash,Gain your Unit's dice that were destroyed here last Round.,Before rolling Once per combat On your Hero's hex
+DE,Arch,Ansturm,Ytuma,Nahkampf,Erhalte die Würfel deiner in der letzten Runde zerstörten Einheiten.,Vor dem Wurf Einmal pro Kampf Hexfeld des Helden
+EN,Arch,Nomads,Ytuma,Actions,"Discard this, to place one of your Havens on any explored hex without an X and enemy Units.",
+DE,Arch,Nomaden,Ytuma,Aktionen,Abwerfen: Platziere eine deiner Zufluchten auf einem erkundeten Hexfeld ohne X und gegnerische Einheiten.,
+EN,Arch,The Herd Card Back,Ytuma,,The Herd,
+DE,Arch,Die Herde Rückseite,Ytuma,,Die Herde,
+EN,Arch,The Herd Card,Ytuma,,"The herd standee is not a Unit, just a placeholder. You may exchange it at any time with your Units and place your Units here, or vice versa. Your Unit limit on a hex is equal to the Herdsize track. Place a Threat Tracker on this card starting at 5. When you place a Haven, increase the Herdsize by 1 permanently. Ytuma may only roll 5 of their Unit dice in combat.",
+DE,Arch,Die Herde,Ytuma,,"Die Herdenfigur ist keine Einheit, nur ein Platzhalter. Du kannst diesen zu jedem Zeitpunkt mit deinen Einheiten ersetzen und die Einheiten auf dieser Karte platzieren.
+
+Dein Einheitenlimit auf einem Hexfeld entspricht der Herdengröße. Setze die Herdengröße zum Start mit einen Bedrohungmarker auf 5.
+
+Wenn du eine Zuflucht platzierst: Erhöhe die Herdengröße dauerhaft um 1. 
+
+Ytuma können nicht mehr als 5 Einheitenwürfel im Kampf werfen.",

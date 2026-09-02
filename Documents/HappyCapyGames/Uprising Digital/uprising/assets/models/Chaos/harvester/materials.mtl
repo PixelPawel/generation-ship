@@ -1,0 +1,11 @@
+newmtl Horde_Harvester_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd harvester_front.png
+
+newmtl GameObject_Green
+Kd 0.7765 0.8118 0.2235
+
+newmtl Horde_Harvester_Back
+Kd 1.0000 1.0000 1.0000
+map_Kd harvester_back.png
+

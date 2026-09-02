@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://cayl67opin2gh"
+path="res://.godot/imported/BaseSmall_col.obj-b69ec33b761ce72482bade1de5c8afdf.mesh"
+
+[deps]
+
+files=["res://.godot/imported/BaseSmall_col.obj-b69ec33b761ce72482bade1de5c8afdf.mesh"]
+
+source_file="res://assets/models/Hoqkan/stalker/BaseSmall_col.obj"
+dest_files=["res://.godot/imported/BaseSmall_col.obj-b69ec33b761ce72482bade1de5c8afdf.mesh", "res://.godot/imported/BaseSmall_col.obj-b69ec33b761ce72482bade1de5c8afdf.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

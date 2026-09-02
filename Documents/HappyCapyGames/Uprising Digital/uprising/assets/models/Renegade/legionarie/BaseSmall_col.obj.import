@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://cw7fr4ew68j86"
+path="res://.godot/imported/BaseSmall_col.obj-7a0168bbe268c12a32eed2ad54b128c0.mesh"
+
+[deps]
+
+files=["res://.godot/imported/BaseSmall_col.obj-7a0168bbe268c12a32eed2ad54b128c0.mesh"]
+
+source_file="res://assets/models/Renegade/legionarie/BaseSmall_col.obj"
+dest_files=["res://.godot/imported/BaseSmall_col.obj-7a0168bbe268c12a32eed2ad54b128c0.mesh", "res://.godot/imported/BaseSmall_col.obj-7a0168bbe268c12a32eed2ad54b128c0.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

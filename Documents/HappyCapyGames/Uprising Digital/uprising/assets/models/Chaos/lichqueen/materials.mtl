@@ -1,0 +1,11 @@
+newmtl Horde_LichQueen_Back
+Kd 1.0000 1.0000 1.0000
+map_Kd queen_back.png
+
+newmtl GameObject_Green
+Kd 0.7765 0.8118 0.2235
+
+newmtl Horde_LichQueen_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd queen_front.png
+

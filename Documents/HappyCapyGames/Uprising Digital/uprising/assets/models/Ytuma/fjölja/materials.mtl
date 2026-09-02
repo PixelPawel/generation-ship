@@ -1,0 +1,11 @@
+newmtl Ytuma_Fj_lja_Back
+Kd 1.0000 1.0000 1.0000
+map_Kd fjoelja_back.png
+
+newmtl Ytuma_Fj_lja_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd fjoelja.png
+
+newmtl GameObject_Brown
+Kd 0.7098 0.4745 0.3529
+

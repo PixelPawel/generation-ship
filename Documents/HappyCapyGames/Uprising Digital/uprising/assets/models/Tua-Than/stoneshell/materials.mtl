@@ -1,0 +1,7 @@
+newmtl TuaThan_HeavyFootman
+Kd 1.0000 1.0000 1.0000
+map_Kd heavy-footman.png
+
+newmtl GameObject_TuaThanTeal
+Kd 0.2392 0.7765 0.6745
+

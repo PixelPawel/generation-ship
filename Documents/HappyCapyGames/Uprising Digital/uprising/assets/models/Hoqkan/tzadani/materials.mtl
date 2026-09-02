@@ -1,0 +1,11 @@
+newmtl Hokqan_Tzadani_Back
+Kd 1.0000 1.0000 1.0000
+map_Kd tzadani_back.png
+
+newmtl Hokqan_Tzadani_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd tzadani.png
+
+newmtl GameObject_Yellow
+Kd 1.0000 0.9059 0.4196
+

@@ -1,0 +1,11 @@
+newmtl GameObject_Teal
+Kd 0.3059 0.6824 0.7686
+
+newmtl Duerkhar_Baranth_Back
+Kd 1.0000 1.0000 1.0000
+map_Kd baranth_back.png
+
+newmtl Duerkhar_Baranth_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd baranth_front.png
+

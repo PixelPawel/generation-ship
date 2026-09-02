@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://bnsbl22f85nt2"
+path="res://.godot/imported/Haven_Walls.obj-28cb7c200c53dd1d41f9eb79d4b6ff6f.mesh"
+
+[deps]
+
+files=["res://.godot/imported/Haven_Walls.obj-28cb7c200c53dd1d41f9eb79d4b6ff6f.mesh"]
+
+source_file="res://assets/models/walls/Haven_Walls.obj"
+dest_files=["res://.godot/imported/Haven_Walls.obj-28cb7c200c53dd1d41f9eb79d4b6ff6f.mesh", "res://.godot/imported/Haven_Walls.obj-28cb7c200c53dd1d41f9eb79d4b6ff6f.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

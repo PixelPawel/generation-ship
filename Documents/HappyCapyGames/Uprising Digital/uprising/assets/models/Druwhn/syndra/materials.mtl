@@ -1,0 +1,11 @@
+newmtl GameObject_Bone
+Kd 0.9490 0.9098 0.7686
+
+newmtl Druwhn_Syndra_Front
+Kd 1.0000 1.0000 1.0000
+map_Kd syndra_front.png
+
+newmtl Druwhn_Syndra_Back
+Kd 1.0000 1.0000 1.0000
+map_Kd syndra_back.png
+

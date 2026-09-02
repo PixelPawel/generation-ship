@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://22a1d6qrbx0i"
+path="res://.godot/imported/SwordsistersCol.obj-c48ae2e0437fd2a91710dddc9c775e7c.mesh"
+
+[deps]
+
+files=["res://.godot/imported/SwordsistersCol.obj-c48ae2e0437fd2a91710dddc9c775e7c.mesh"]
+
+source_file="res://assets/models/Druwhn/swordsisters/SwordsistersCol.obj"
+dest_files=["res://.godot/imported/SwordsistersCol.obj-c48ae2e0437fd2a91710dddc9c775e7c.mesh", "res://.godot/imported/SwordsistersCol.obj-c48ae2e0437fd2a91710dddc9c775e7c.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

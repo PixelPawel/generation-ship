@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://ctldaejikxxod"
+path="res://.godot/imported/OrgonUnit.obj-9c979b063b598aa92eedac006d413cba.mesh"
+
+[deps]
+
+files=["res://.godot/imported/OrgonUnit.obj-9c979b063b598aa92eedac006d413cba.mesh"]
+
+source_file="res://assets/models/Renegade/orgon/OrgonUnit.obj"
+dest_files=["res://.godot/imported/OrgonUnit.obj-9c979b063b598aa92eedac006d413cba.mesh", "res://.godot/imported/OrgonUnit.obj-9c979b063b598aa92eedac006d413cba.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

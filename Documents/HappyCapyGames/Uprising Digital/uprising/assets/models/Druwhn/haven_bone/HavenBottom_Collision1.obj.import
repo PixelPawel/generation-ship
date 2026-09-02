@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://bomq8wa30jrjn"
+path="res://.godot/imported/HavenBottom_Collision1.obj-b45d5ab9d93738fba66d21bd79ada69f.mesh"
+
+[deps]
+
+files=["res://.godot/imported/HavenBottom_Collision1.obj-b45d5ab9d93738fba66d21bd79ada69f.mesh"]
+
+source_file="res://assets/models/Druwhn/haven_bone/HavenBottom_Collision1.obj"
+dest_files=["res://.godot/imported/HavenBottom_Collision1.obj-b45d5ab9d93738fba66d21bd79ada69f.mesh", "res://.godot/imported/HavenBottom_Collision1.obj-b45d5ab9d93738fba66d21bd79ada69f.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

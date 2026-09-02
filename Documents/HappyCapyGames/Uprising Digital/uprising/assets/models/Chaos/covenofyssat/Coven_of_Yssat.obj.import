@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://c5jtfq7gqvl1x"
+path="res://.godot/imported/Coven_of_Yssat.obj-79824688dbd149247e3959094394e4d7.mesh"
+
+[deps]
+
+files=["res://.godot/imported/Coven_of_Yssat.obj-79824688dbd149247e3959094394e4d7.mesh"]
+
+source_file="res://assets/models/Chaos/covenofyssat/Coven_of_Yssat.obj"
+dest_files=["res://.godot/imported/Coven_of_Yssat.obj-79824688dbd149247e3959094394e4d7.mesh", "res://.godot/imported/Coven_of_Yssat.obj-79824688dbd149247e3959094394e4d7.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

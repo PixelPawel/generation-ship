@@ -13,3 +13,7 @@ Documents/HappyCapyGames/Generation Ship/*
 Documents/HappyCapyGames/Uprising/*
 !Documents/HappyCapyGames/Uprising/digital/
 !Documents/HappyCapyGames/Uprising/digital/**
+!Documents/HappyCapyGames/Uprising Digital/
+Documents/HappyCapyGames/Uprising Digital/*
+!Documents/HappyCapyGames/Uprising Digital/uprising/
+!Documents/HappyCapyGames/Uprising Digital/uprising/**
