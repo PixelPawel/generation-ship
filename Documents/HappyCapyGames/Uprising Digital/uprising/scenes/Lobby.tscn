@@ -1,0 +1,41 @@
+[gd_scene load_steps=2 format=3 uid="uid://blobby001"]
+
+[ext_resource type="Script" path="res://scripts/lobby.gd" id="1_lobby"]
+
+[node name="Lobby" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_lobby")
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer"]
+layout_mode = 2
+
+[node name="PortEdit" type="LineEdit" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+text = "8955"
+placeholder_text = "Port"
+
+[node name="HostButton" type="Button" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+text = "Host Game (2 Player Normal)"
+
+[node name="AddressEdit" type="LineEdit" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+text = "127.0.0.1"
+placeholder_text = "Address"
+
+[node name="JoinButton" type="Button" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+text = "Join Game"
+
+[node name="StatusLabel" type="Label" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+text = ""

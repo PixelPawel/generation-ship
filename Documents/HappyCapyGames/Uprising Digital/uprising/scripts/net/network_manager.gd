@@ -25,6 +25,40 @@ var action_handler: Callable = Callable()
 
 var current_state: GameState = null
 
+## peer_id -> faction. Host-only bookkeeping (simple first-pass claim: the
+## host assigns the first N connecting peers, in join order, to the first
+## N unclaimed factions in current_state.players - a full pick-your-
+## faction lobby UI is a reasonable follow-up, not built for this first
+## playable pass). Set by whoever calls host_game() + assign_faction().
+var peer_factions: Dictionary = {}
+
+
+func assign_faction(peer_id: int, faction: String) -> void:
+	peer_factions[peer_id] = faction
+
+
+## Resolves which faction THIS process controls: the host is always
+## whichever faction it assigned itself (peer id 1, ENet's own id for the
+## local/server peer); a client looks up its own unique_id.
+func my_faction() -> String:
+	return str(peer_factions.get(multiplayer.get_unique_id(), ""))
+
+
+## Default host-side action_handler: wraps GameActions with the
+## peer_id->faction lookup NetworkManager itself doesn't otherwise need
+## (GameActions is deliberately faction-based, not peer-based, so it
+## stays testable without any networking). Bound to THIS autoload (not a
+## scene node) specifically because scene nodes get freed on
+## change_scene_to_file() - binding a Callable to e.g. the Lobby scene's
+## own node would silently go invalid the moment the scene changed away
+## from Lobby, right when the game actually needs the handler.
+func default_action_handler(state: GameState, action: Dictionary, sender_id: int) -> Dictionary:
+	var faction: String = str(peer_factions.get(sender_id, ""))
+	if faction.is_empty():
+		return {"ok": false, "reason": "sender has no assigned faction yet"}
+	var card_db: Node = get_node("/root/CardDatabase")
+	return GameActions.apply(state, action, faction, card_db)
+
 
 func _ready() -> void:
 	multiplayer.peer_connected.connect(_on_peer_connected)

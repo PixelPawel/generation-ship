@@ -1,0 +1,102 @@
+[gd_scene load_steps=2 format=3 uid="uid://bplayboard001"]
+
+[ext_resource type="Script" path="res://scripts/ui/play_board.gd" id="1_play"]
+
+[node name="PlayBoard" type="Node3D"]
+script = ExtResource("1_play")
+
+[node name="Hexes" type="Node3D" parent="."]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+position = Vector3(0, 20, 0)
+rotation_degrees = Vector3(-55, -30, 0)
+
+[node name="Camera3D" type="Camera3D" parent="."]
+position = Vector3(0, 26, 4)
+rotation_degrees = Vector3(-78, 0, 0)
+current = true
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Panel" type="Panel" parent="HUD"]
+offset_right = 420.0
+offset_bottom = 420.0
+
+[node name="VBox" type="VBoxContainer" parent="HUD/Panel"]
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 412.0
+offset_bottom = 412.0
+
+[node name="StatusLabel" type="Label" parent="HUD/Panel/VBox"]
+layout_mode = 2
+text = "Status"
+
+[node name="ResourcesLabel" type="Label" parent="HUD/Panel/VBox"]
+layout_mode = 2
+text = "Resources"
+
+[node name="SelectedLabel" type="Label" parent="HUD/Panel/VBox"]
+layout_mode = 2
+text = "Selected: (none)"
+
+[node name="LogLabel" type="Label" parent="HUD/Panel/VBox"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Log"
+
+[node name="Actions" type="GridContainer" parent="HUD/Panel/VBox"]
+layout_mode = 2
+columns = 3
+
+[node name="MoveButton" type="Button" parent="HUD/Panel/VBox/Actions"]
+layout_mode = 2
+text = "Move"
+
+[node name="TradeButton" type="Button" parent="HUD/Panel/VBox/Actions"]
+layout_mode = 2
+text = "Trade"
+
+[node name="CommandButton" type="Button" parent="HUD/Panel/VBox/Actions"]
+layout_mode = 2
+text = "Command"
+
+[node name="ExploreButton" type="Button" parent="HUD/Panel/VBox/Actions"]
+layout_mode = 2
+text = "Explore"
+
+[node name="HavenButton" type="Button" parent="HUD/Panel/VBox/Actions"]
+layout_mode = 2
+text = "Haven"
+
+[node name="MarketButton" type="Button" parent="HUD/Panel/VBox/Actions"]
+layout_mode = 2
+text = "Market"
+
+[node name="QuestButton" type="Button" parent="HUD/Panel/VBox/Actions"]
+layout_mode = 2
+text = "Quest"
+
+[node name="BuildUnitButton" type="Button" parent="HUD/Panel/VBox/Actions"]
+layout_mode = 2
+text = "Build Unit"
+
+[node name="BuildTowerButton" type="Button" parent="HUD/Panel/VBox/Actions"]
+layout_mode = 2
+text = "Build Tower"
+
+[node name="BuildWallButton" type="Button" parent="HUD/Panel/VBox/Actions"]
+layout_mode = 2
+text = "Build Wall"
+
+[node name="EndTurnButton" type="Button" parent="HUD/Panel/VBox/Actions"]
+layout_mode = 2
+text = "End Turn"
+
+[node name="PassButton" type="Button" parent="HUD/Panel/VBox/Actions"]
+layout_mode = 2
+text = "Pass"
+
+[node name="EndPhaseButton" type="Button" parent="HUD/Panel/VBox/Actions"]
+layout_mode = 2
+text = "End Phase"

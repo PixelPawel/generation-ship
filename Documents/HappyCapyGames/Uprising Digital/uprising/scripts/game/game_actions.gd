@@ -42,6 +42,12 @@ static func apply(state: GameState, action: Dictionary, faction: String, card_db
 			return _end_turn(state, faction)
 		"pass":
 			return _pass(state, faction)
+		"end_phase":
+			# Any player may request the phase advance - ChapterFlow itself
+			# enforces the real readiness gates (Build/Actions won't move
+			# until every active player is done), so this isn't a
+			# privilege-escalation risk despite not checking whose turn it is.
+			return ChapterFlow.advance_phase(state, card_db)
 	return {"ok": false, "reason": "unknown action type '%s'" % type}
 
 
