@@ -278,20 +278,37 @@ static func broadcast_bot_states(main: Main) -> void:
 
 # Resolves the subset of effect steps that are pure resource/hand/slot
 # mutations (draw, gain/store supply, tuck, recycle). Auction/market- and
-# UI-flow-integrated step types (reveal_*, offer_bid_*, interfleet_comms,
-# cargo_drones, black_hole_encounter, seedbanks, reflectors_choice,
-# recycle_tuck*, caldera_colony, fuse_dust_1to1, fuse_notice's 1:1 token,
-# ...) are intentionally left as a no-op for bots — wiring those into the
-# live auction/UI flow is a separate, much larger effort. slot_idx is the
-# board slot the triggering card belongs to (-1 if none), used by the
-# slot-scoped step types.
+# UI-flow-integrated step types (reveal_*, offer_bid_*, cargo_drones,
+# black_hole_encounter, seedbanks, reflectors_choice, recycle_tuck*,
+# caldera_colony, fuse_dust_1to1, fuse_notice's 1:1 token, ...) are
+# intentionally left as a no-op for bots — wiring those into the live
+# auction/UI flow is a separate, much larger effort. slot_idx is the board
+# slot the triggering card belongs to (-1 if none), used by the slot-scoped
+# step types.
+#
+# interfleet_comms is a deliberate simplification, not the real card: a
+# human's Interfleet Comms draws 1/player then runs a synced pass-left pick
+# among the pool. Wiring bots into that live draft is scoped out along with
+# the rest of the UI-flow types above, so a bot placing it just resolves as
+# draw_all_players(1) — everyone (including the bot) draws 1 straight from
+# their own deck, no passing.
 static func apply_bot_effect_steps(main: Main, bot_id: int, steps: Array[Dictionary], slot_idx: int = -1) -> void:
 	for step: Dictionary in steps:
 		match String(step.get("type", "")):
-			"draw", "draw_recycle_top", "draw_all_players":
+			"draw", "draw_recycle_top":
 				var hand: Array[CardData] = bot_hand(main, bot_id)
 				hand.append_array(main.get_node("Board").draw_card_data(int(step.get("count", 1))))
 				bot_set_hand(main, bot_id, hand)
+			"draw_all_players", "interfleet_comms":
+				# Unlike a plain "draw", this must also reach every real peer
+				# and every other bot (see main.gd:_effect_step_draw_all_players
+				# for the human-initiated counterpart) — a bare local draw here
+				# would silently skip everyone but the bot that placed the card.
+				# interfleet_comms collapses to a 1-card draw_all_players here;
+				# see the comment on this function for why.
+				var count: int = 1 if step.get("type") == "interfleet_comms" else int(step.get("count", 1))
+				var source: String = str(step.get("_source_name", "Effect"))
+				main._server_handle_draw_all_players(count, bot_id, source)
 			"gain_supply":
 				var c: int = int(step.get("color", 0))
 				main.bot_supplies[bot_id][c] = (main.bot_supplies[bot_id].get(c, 0) as int) + int(step.get("amount", 1))
