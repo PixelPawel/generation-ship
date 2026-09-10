@@ -121,6 +121,22 @@ func tech_back_path() -> String:
 func expedition_back_path() -> String:
 	return _resolve_art("Expedition", "GS Expeditions Back 44x67mm", 1)
 
+# pause_menu.gd is the only place a user can change locale mid-session, and
+# it happens long after _ready() already baked every card's local_art_path
+# for whatever locale was persisted at boot — without this, art silently
+# stays on the old language until the app is fully restarted (fresh
+# _ready() call re-reading the now-updated settings.cfg). Call this from
+# there, then ImageCache.refresh_local_art() and a live-card broadcast so
+# already-instantiated Card nodes pick up the change too.
+func refresh_locale() -> void:
+	for cd: CardData in sectors:
+		cd.local_art_path = _dust_sector_art_path(cd.card_name)
+		cd.adv_local_art_path = _adv_sector_art_path(cd.adv_name)
+	for cd: CardData in techs:
+		cd.local_art_path = _tech_art_path(cd.id)
+	for cd: CardData in expeditions:
+		cd.local_art_path = _expedition_art_path(cd.id)
+
 func _load_sector_cards() -> void:
 	# Build dust side lookup by name
 	var dust_rows := _read_csv("res://data/Generation Ship Full Card Details - Dust Sectors.csv")

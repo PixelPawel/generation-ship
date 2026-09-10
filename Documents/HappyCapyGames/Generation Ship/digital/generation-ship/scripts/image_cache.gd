@@ -175,7 +175,24 @@ func preload_local_art() -> void:
 	# set_face_down() so no preloading needed here.
 
 func _cache_local_art(cache_key: String, art_path: String) -> void:
-	if cache_key.is_empty() or art_path.is_empty() or _memory.has(cache_key):
+	if _memory.has(cache_key):
+		return
+	_set_local_art(cache_key, art_path)
+
+# Same as preload_local_art(), but overwrites entries already in the cache —
+# used after a mid-session language change (see CardDatabase.refresh_locale())
+# where the old locale's texture is already cached under the same key.
+func refresh_local_art() -> void:
+	var cards: Array = []
+	cards.append_array(CardDatabase.sectors)
+	cards.append_array(CardDatabase.techs)
+	cards.append_array(CardDatabase.expeditions)
+	for cd: CardData in cards:
+		_set_local_art(cd.image_url, cd.local_art_path)
+		_set_local_art(cd.adv_image_url, cd.adv_local_art_path)
+
+func _set_local_art(cache_key: String, art_path: String) -> void:
+	if cache_key.is_empty() or art_path.is_empty():
 		return
 	var tex: Texture2D = load(art_path) as Texture2D
 	if tex:

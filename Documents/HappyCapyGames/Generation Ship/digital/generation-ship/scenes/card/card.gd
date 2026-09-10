@@ -61,6 +61,7 @@ var _discount_badge: Label3D = null
 @onready var collider: Area3D = $Collider
 
 func _ready() -> void:
+	add_to_group("cards")
 	var mat := card_mesh.get_surface_override_material(0) as ShaderMaterial
 	if mat:
 		var m: ShaderMaterial = mat.duplicate() as ShaderMaterial
@@ -91,6 +92,16 @@ func set_card_data(data: CardData) -> void:
 	var tex: Texture2D = ImageCache.get_texture(url)
 	if tex:
 		_apply_texture(tex)
+
+# Broadcast via get_tree().call_group("cards", ...) from pause_menu.gd after
+# a locale change, so face-up cards already on screen re-pull their texture
+# (card_data's local_art_path/adv_local_art_path were just re-resolved by
+# CardDatabase.refresh_locale()). Face-down cards aren't covered — deck-back
+# art is currently English-only regardless of locale, so there's nothing to
+# refresh there yet.
+func refresh_locale_art() -> void:
+	if card_data:
+		set_card_data(card_data)
 
 func _instantiate_glb(card_type: CardData.CardType) -> void:
 	if _card_glb:

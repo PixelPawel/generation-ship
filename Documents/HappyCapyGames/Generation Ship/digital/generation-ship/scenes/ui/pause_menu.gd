@@ -377,6 +377,13 @@ func _on_language_selected(idx: int) -> void:
 	cfg.set_value("game", "locale", locale)
 	cfg.save(SETTINGS_PATH)
 	_refresh_all_ui_text()
+	# CardDatabase resolved every card's art for the boot-time locale in
+	# _ready() and never revisits it — without this, card faces keep showing
+	# the old language until the app is fully restarted. See
+	# CardDatabase.refresh_locale() for why.
+	CardDatabase.refresh_locale()
+	ImageCache.refresh_local_art()
+	get_tree().call_group("cards", "refresh_locale_art")
 
 # Re-applies tr() to every UI element after a live locale change. Most
 # labels/buttons are simple key lookups tracked in _tr_targets; OptionButton
