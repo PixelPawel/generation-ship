@@ -2,8 +2,6 @@ extends Node3D
 
 const DRAG_Y := 0.55
 const HAND_CARD_SCALE := 0.392
-const TECH_BACK_PATH := "res://assets/cards/tech/GS_Techs_Back_44x67mm.png"
-const EXPEDITION_BACK_PATH := "res://assets/cards/expedition/GS_Expeditions_Back_44x67mm.png"
 const DROP_RADIUS := 0.4
 const TECH_COLUMN_HALF_X := 0.1
 const PENDING_HOVER_Y := 0.05
@@ -172,20 +170,20 @@ func set_card_scene(scene: PackedScene) -> void:
 	_card_scene = scene
 
 func setup_tech_deck(cards: Array[CardData]) -> void:
-	_tech_deck.setup(cards, TECH_BACK_PATH)
+	_tech_deck.setup(cards, CardDatabase.tech_back_path())
 
 func setup_expedition_deck(cards: Array[CardData]) -> void:
-	_expedition_deck.setup(cards, EXPEDITION_BACK_PATH)
+	_expedition_deck.setup(cards, CardDatabase.expedition_back_path())
 
 func setup_market_ordered(sector_order: Array) -> void:
 	_market.setup_ordered(_card_scene, CardDatabase.sectors, sector_order)
 	_connect_market_signals()
 
 func setup_expedition_deck_ordered(exp_order: Array) -> void:
-	_expedition_deck.setup_ordered(CardDatabase.expeditions, exp_order, EXPEDITION_BACK_PATH)
+	_expedition_deck.setup_ordered(CardDatabase.expeditions, exp_order, CardDatabase.expedition_back_path())
 
 func setup_tech_deck_ordered(tech_order: Array) -> void:
-	_tech_deck.setup_ordered(CardDatabase.techs, tech_order, TECH_BACK_PATH)
+	_tech_deck.setup_ordered(CardDatabase.techs, tech_order, CardDatabase.tech_back_path())
 
 func setup_sector_deck(cards: Array[CardData]) -> void:
 	_sector_deck.setup(cards)

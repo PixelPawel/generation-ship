@@ -157,83 +157,26 @@ func get_texture(url: String) -> Texture2D:
 		return load(url) as Texture2D
 	return _memory.get(url, null) as Texture2D
 
-const _S3_PREFIX := "https://generationship.s3.eu-central-1.amazonaws.com/TTS/"
-const _DIR_MAP: Dictionary = {
-	"Tech/": "res://assets/cards/tech/",
-	"Sector/": "res://assets/cards/sector/",
-	"Expedition/": "res://assets/cards/expedition/",
-}
-
 func preload_local_art() -> void:
-	# "Back" files in the sector directory are the dust-side face images,
-	# keyed by sector column number extracted from the filename.
-	var sector_backs: Dictionary = _build_sector_back_map()
-
+	# CardDatabase already resolved each card's current-locale print art into
+	# local_art_path/adv_local_art_path (see card_database.gd) — just load
+	# and cache it here, keyed the same way set_card_data() looks it up
+	# (by image_url/adv_image_url, so the existing get_texture() call sites
+	# in card.gd don't need to change).
 	var cards: Array = []
 	cards.append_array(CardDatabase.sectors)
 	cards.append_array(CardDatabase.techs)
 	cards.append_array(CardDatabase.expeditions)
 	for cd: CardData in cards:
-		if cd.card_type == CardData.CardType.SECTOR:
-			# Dust side: prefer the "Back" file for this sector column
-			_cache_sector_dust_url(cd.image_url, sector_backs)
-			# Advanced side: numbered file via URL
-			_cache_url(cd.adv_image_url)
-		else:
-			_cache_url(cd.image_url)
-			_cache_url(cd.adv_image_url)
+		_cache_local_art(cd.image_url, cd.local_art_path)
+		_cache_local_art(cd.adv_image_url, cd.adv_local_art_path)
 
 	# Deck-back images for tech and expedition have a load() fallback in
-	# set_face_down() so no DirAccess scan needed here.
+	# set_face_down() so no preloading needed here.
 
-func _build_sector_back_map() -> Dictionary:
-	var result: Dictionary = {}
-	var base: String = "res://assets/cards/sector/"
-	# After space→_ rename, sector backs have varying underscore counts from
-	# original double-space filenames. Try all known patterns per sector.
-	var patterns: Array[String] = [
-		base + "GS_Sector_%d_Back_67x44mm.png",
-		base + "GS_Sector_%d_Back__67x44mm.png",
-		base + "GS_Sector_%d__Back__67x44mm.png",
-	]
-	for n: int in range(1, 7):
-		for pattern: String in patterns:
-			var path: String = pattern % n
-			if ResourceLoader.exists(path):
-				result[n] = path
-				break
-	return result
-
-func _cache_sector_dust_url(url: String, sector_backs: Dictionary) -> void:
-	if url.is_empty() or _memory.has(url):
+func _cache_local_art(cache_key: String, art_path: String) -> void:
+	if cache_key.is_empty() or art_path.is_empty() or _memory.has(cache_key):
 		return
-	var fname: String = _url_to_local(url).get_file()
-	var parts: PackedStringArray = fname.split("_")
-	if parts.size() > 2:
-		var num: int = parts[2].to_int()
-		if sector_backs.has(num):
-			var tex: Texture2D = load(sector_backs[num]) as Texture2D
-			if tex:
-				_memory[url] = tex
-				return
-	_cache_url(url)
-
-func _cache_url(url: String) -> void:
-	if url.is_empty() or _memory.has(url):
-		return
-	var local_path: String = _url_to_local(url)
-	if local_path.is_empty() or not ResourceLoader.exists(local_path):
-		return
-	var tex: Texture2D = load(local_path) as Texture2D
+	var tex: Texture2D = load(art_path) as Texture2D
 	if tex:
-		_memory[url] = tex
-
-func _url_to_local(url: String) -> String:
-	if not url.begins_with(_S3_PREFIX):
-		return ""
-	var rel: String = url.substr(_S3_PREFIX.length())
-	for sub: String in _DIR_MAP:
-		if rel.begins_with(sub):
-			var fname: String = rel.substr(sub.length()).replace("+", "_")
-			return _DIR_MAP[sub] + fname
-	return ""
+		_memory[cache_key] = tex

@@ -4,43 +4,55 @@ var sectors: Array[CardData] = []
 var techs: Array[CardData] = []
 var expeditions: Array[CardData] = []
 
-var _local_art: Dictionary = {}  # normalized_name -> res:// path
+# Print-export card art lives under res://assets/cards/<Deck>/<LANG>/, one
+# PNG per physical card, exported page-by-page from the InDesign print files
+# (page 1 has no number suffix, page N>=1 appends N — InDesign's own
+# multi-page export naming, left as-is rather than renamed). Locale is read
+# directly from the same settings.cfg pause_menu.gd writes to, rather than
+# trusting TranslationServer.get_locale(): CardDatabase is an autoload and
+# runs before any scene (including the pause menu, the only thing that ever
+# calls TranslationServer.set_locale()) has had a chance to apply it.
+const _SETTINGS_PATH: String = "user://settings.cfg"
+const _LANGUAGE_CODES: Array[String] = ["en", "de", "it", "pl", "es", "fr"]
+
+# Advanced Sectors: each of the 3 unique cards per color is printed twice
+# (2 physical copies -> 2 CSV rows, same name, same art); only one physical
+# location per unique name is needed here since art is looked up by name.
+# normalized name -> [png file base, page number]
+const _ADV_SECTOR_ART: Dictionary = {
+	"centraltransport": ["GS Sector 1 67x44mm", 1],
+	"spacebazaar":       ["GS Sector 1 67x44mm", 2],
+	"exosampling":       ["GS Sector 1 67x44mm", 3],
+	"holoprinters":      ["GS Sector 1 67x44mm", 4],
+	"astrogation":       ["GS Sector 1 67x44mm", 5],
+	"fabrication":       ["GS Sector 3 67x44mm", 1],
+	"greenhouse":        ["GS Sector 3 67x44mm", 2],
+	"parliament":        ["GS Sector 3 67x44mm", 3],
+	"probelauncher":     ["GS Sector 3 67x44mm", 4],
+	"astracultura":      ["GS Sector 3 67x44mm", 5],
+	"preservation":      ["GS Sector 5 67x44mm", 1],
+	"academies":         ["GS Sector 5 67x44mm", 2],
+	"cultivation":       ["GS Sector 5 67x44mm", 3],
+	"engines":           ["GS Sector 5 67x44mm", 4],
+	"centralai":         ["GS Sector 5 67x44mm", 5],
+}
+# Dust Sectors: 6 unique cards, one per "Sector N Back" file (single page).
+const _DUST_SECTOR_ART: Dictionary = {
+	"hibernators":     ["GS Sector 1 Back 67x44mm", 1],
+	"simulators":      ["GS Sector 2 Back 67x44mm", 1],
+	"bioreactor":      ["GS Sector 3 Back  67x44mm", 1],
+	"habitationring":  ["GS Sector 4 Back  67x44mm", 1],
+	"operations":      ["GS Sector 5 Back  67x44mm", 1],
+	"cargobays":       ["GS Sector 6  Back  67x44mm", 1],
+}
 
 func _ready() -> void:
-	_build_local_art_lookup()
 	_load_sector_cards()
 	_load_techs()
 	_load_expeditions()
 	print("CardDatabase loaded: %d sectors, %d techs, %d expeditions" % [sectors.size(), techs.size(), expeditions.size()])
 
-func _build_local_art_lookup() -> void:
-	var dirs: Array[String] = [
-		"res://assets/art/tech",
-		"res://assets/art/expeditions",
-		"res://assets/art/sectors",
-	]
-	for dir_path: String in dirs:
-		var dir: DirAccess = DirAccess.open(dir_path)
-		if not dir:
-			continue
-		dir.list_dir_begin()
-		var fname: String = dir.get_next()
-		while fname != "":
-			if fname.ends_with(".png"):
-				var key: String = _normalize(fname.get_basename())
-				if not _local_art.has(key):
-					_local_art[key] = dir_path + "/" + fname
-			fname = dir.get_next()
-		dir.list_dir_end()
-
 static func _normalize(s: String) -> String:
-	var r: RegEx = RegEx.new()
-	r.compile("^(?:TCH|GS|EXP|SEC|CBK)_\\d+_")
-	s = r.sub(s, "")
-	r.compile("^(?:Technologies|Expedition)[-_]\\d+[-_]")
-	s = r.sub(s, "")
-	r.compile("[_ ]\\d+$")
-	s = r.sub(s, "")
 	var out: String = ""
 	for ch: String in s:
 		var code: int = ch.unicode_at(0)
@@ -50,8 +62,64 @@ static func _normalize(s: String) -> String:
 			out += ch
 	return out
 
-func _local_art_url(card_name: String) -> String:
-	return _local_art.get(_normalize(card_name), "")
+func _current_lang() -> String:
+	var cfg: ConfigFile = ConfigFile.new()
+	var locale: String = "en"
+	if cfg.load(_SETTINGS_PATH) == OK:
+		locale = str(cfg.get_value("game", "locale", "en"))
+	if not _LANGUAGE_CODES.has(locale):
+		locale = "en"
+	return locale.to_upper()
+
+# Resolves to the current-locale PNG, falling back to EN if that language's
+# art is somehow missing (all 6 languages were exported in full, so this is
+# a safety net, not an expected path).
+func _resolve_art(deck_folder: String, file_base: String, page: int) -> String:
+	var fname: String = file_base + ("" if page == 1 else str(page)) + ".png"
+	var lang: String = _current_lang()
+	var path: String = "res://assets/cards/%s/%s/%s" % [deck_folder, lang, fname]
+	if ResourceLoader.exists(path):
+		return path
+	if lang != "EN":
+		var fallback: String = "res://assets/cards/%s/EN/%s" % [deck_folder, fname]
+		if ResourceLoader.exists(fallback):
+			return fallback
+	return ""
+
+func _tech_art_path(id: int) -> String:
+	return _resolve_art("Tech", "GS Techs 44x67mm", id)
+
+func _expedition_art_path(id: int) -> String:
+	# The Expeditions deck prints in exact reverse order of CSV "No."
+	# (page 1 = No. 26, page 26 = No. 1) — verified against every page,
+	# not assumed from Techs' direct id==page pattern, which does NOT hold
+	# here. See the equivalent Advanced/Dust Sector tables above for the
+	# same reason: print page order isn't guaranteed to match CSV order.
+	return _resolve_art("Expedition", "GS Expeditions 44x67mm", 27 - id)
+
+func _adv_sector_art_path(name: String) -> String:
+	var entry: Variant = _ADV_SECTOR_ART.get(_normalize(name))
+	if entry == null:
+		return ""
+	return _resolve_art("Sector", entry[0], entry[1])
+
+func _dust_sector_art_path(name: String) -> String:
+	var entry: Variant = _DUST_SECTOR_ART.get(_normalize(name))
+	if entry == null:
+		return ""
+	return _resolve_art("Sector", entry[0], entry[1])
+
+# Generic deck-back art (the face-down "TECH"/"EXPEDITIONS" card design, not
+# any single card) — same folder convention as per-card art, single page
+# each. Callers that need a hardcoded path at parse time (a `const`) can't
+# call an autoload function, so this is exposed for them to call once at
+# runtime instead — see tech_deck_back_path()/expedition_deck_back_path()
+# callers in board.gd, sector_slot.gd, sector_info_popup.gd.
+func tech_back_path() -> String:
+	return _resolve_art("Tech", "GS Techs Back 44x67mm", 1)
+
+func expedition_back_path() -> String:
+	return _resolve_art("Expedition", "GS Expeditions Back 44x67mm", 1)
 
 func _load_sector_cards() -> void:
 	# Build dust side lookup by name
@@ -83,7 +151,7 @@ func _load_sector_cards() -> void:
 		card.effect_text = dust.get("Effect", "").strip_edges()
 		card.flavor_text = dust.get("Flavor", "").strip_edges()
 		card.image_url = dust.get("Link", "").strip_edges()
-		card.local_art_path = _local_art_url(card.card_name)
+		card.local_art_path = _dust_sector_art_path(card.card_name)
 		card.opt1_req = _parse_color_list(dust.get("Optimize 1", ""))
 
 		# Advanced side
@@ -93,7 +161,7 @@ func _load_sector_cards() -> void:
 		card.adv_effect_text = row.get("Effect", "").strip_edges()
 		card.adv_flavor_text = row.get("Flavor", "").strip_edges()
 		card.adv_image_url = row.get("Link", "").strip_edges()
-		card.adv_local_art_path = _local_art_url(card.adv_name)
+		card.adv_local_art_path = _adv_sector_art_path(card.adv_name)
 		card.adv_opt1_req = _parse_color_list(row.get("Optimize 1", ""))
 		card.adv_opt2_req = _parse_color_list(row.get("Optimize 2", ""))
 		card.adv_opt3_req = _parse_color_list(row.get("Optimize 3", ""))
@@ -129,7 +197,7 @@ func _populate_base_fields(card: CardData, row: Dictionary) -> void:
 	card.effect_text    = row.get("Effect", "").strip_edges()
 	card.flavor_text    = row.get("Flavor", "").strip_edges()
 	card.image_url      = row.get("Link", "")
-	card.local_art_path = _local_art_url(card.card_name)
+	card.local_art_path = _tech_art_path(card.id) if card.card_type == CardData.CardType.TECH else _expedition_art_path(card.id)
 	card.stars          = row.get("Printed Star", "").count("⭐")
 	card.is_star_card   = _parse_yes_no(row.get("Star Card", row.get("Star card", "No")))
 	card.trigger_type   = _parse_trigger(row.get("Type", ""))

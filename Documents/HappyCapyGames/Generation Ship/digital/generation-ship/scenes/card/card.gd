@@ -79,6 +79,12 @@ func set_card_data(data: CardData) -> void:
 	var child_scale := _LANDSCAPE_CHILD_SCALE if is_landscape else Vector3.ONE
 	card_mesh.scale = child_scale
 	collider.scale = child_scale
+	var art_path: String = data.adv_local_art_path if is_advanced else data.local_art_path
+	if not art_path.is_empty():
+		var local_tex: Texture2D = load(art_path) as Texture2D
+		if local_tex:
+			_apply_texture(local_tex)
+			return
 	var url: String = data.adv_image_url if is_advanced else data.image_url
 	if url.is_empty():
 		return

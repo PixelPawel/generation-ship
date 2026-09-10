@@ -208,7 +208,7 @@ func _build_choose_step() -> void:
 			var entry: Dictionary = slot.tucked_cards[i]
 			var cd: CardData = entry.get("data") as CardData
 			var face_up: bool = entry.get("face_up", false)
-			var url: String = (cd.image_url if cd else "") if face_up else SectorInfoPopup.TECH_BACK_PATH
+			var url: String = (cd.image_url if cd else "") if face_up else SectorInfoPopup.tech_back_path()
 			var tex: Texture2D = ImageCache.get_texture(url) if not url.is_empty() else null
 
 			var row := HBoxContainer.new()

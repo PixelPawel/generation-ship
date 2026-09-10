@@ -9,7 +9,8 @@ const SUPPLY_ICON_PATHS: Array[String] = [
 	"res://assets/ui/supply/Electrix.png",
 	"res://assets/ui/supply/Thrust.png",
 ]
-const TECH_BACK_PATH := "res://assets/cards/tech/GS_Techs_Back_44x67mm.png"
+static func tech_back_path() -> String:
+	return CardDatabase.tech_back_path()
 
 var _content_vbox: VBoxContainer = null
 var _scroll_container: ScrollContainer = null
@@ -194,7 +195,7 @@ static func make_card_row(cards: Array, face_up: bool, viewport_size: Vector2) -
 	for idx: int in cards.size():
 		var tuck: Dictionary = cards[idx]
 		var cd: CardData = tuck.get("data") as CardData
-		var url: String = (cd.image_url if cd else "") if face_up else TECH_BACK_PATH
+		var url: String = (cd.image_url if cd else "") if face_up else tech_back_path()
 		var tex: Texture2D = ImageCache.get_texture(url) if not url.is_empty() else null
 
 		var card_vbox := VBoxContainer.new()

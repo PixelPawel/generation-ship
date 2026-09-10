@@ -2,7 +2,6 @@ class_name SectorSlot
 extends Node3D
 
 const TechSlotScript := preload("res://scenes/board/tech_slot.gd")
-const TECH_BACK_PATH := "res://assets/cards/tech/GS_Techs_Back_44x67mm.png"
 
 # Supply icon paths, indexed by SupplyColor enum (DUST=0 .. THRUST=5)
 const SUPPLY_ICON_PATHS := [
@@ -282,7 +281,7 @@ func _refresh_tuck_display() -> void:
 		var face_up: bool = entry.get("face_up", false)
 		var data: CardData = entry.get("data") as CardData
 
-		var url: String = (data.image_url if data else "") if face_up else TECH_BACK_PATH
+		var url: String = (data.image_url if data else "") if face_up else CardDatabase.tech_back_path()
 		var tex: Texture2D = ImageCache.get_texture(url) if not url.is_empty() else null
 
 		var plane := PlaneMesh.new()
@@ -323,7 +322,7 @@ func _refresh_tuck_display() -> void:
 	if _facedown_vp_label:
 		_facedown_vp_label.text = "⭐ %d" % facedown_count
 		_facedown_vp_label.visible = facedown_count > 0
-	var back_tex: Texture2D = ImageCache.get_texture(TECH_BACK_PATH)
+	var back_tex: Texture2D = ImageCache.get_texture(CardDatabase.tech_back_path())
 	_update_count_badge(_faceup_count_icon, _faceup_count_label, faceup_idx, back_tex)
 	_update_count_badge(_facedown_count_icon, _facedown_count_label, facedown_idx, back_tex)
 
