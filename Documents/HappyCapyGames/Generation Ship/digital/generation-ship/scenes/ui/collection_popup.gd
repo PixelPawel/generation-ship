@@ -99,6 +99,14 @@ func _build_ui() -> void:
 	close_btn.pressed.connect(func(): visible = false)
 	title_row.add_child(close_btn)
 
+	var hint: Label = Label.new()
+	hint.text = tr("Right-click on a card to zoom")
+	_tr_targets[hint] = "Right-click on a card to zoom"
+	hint.add_theme_font_size_override("font_size", 13)
+	hint.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(hint)
+
 	var sep: HSeparator = HSeparator.new()
 	sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
 	vbox.add_child(sep)
