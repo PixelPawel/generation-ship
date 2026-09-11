@@ -391,6 +391,7 @@ func _on_language_selected(idx: int) -> void:
 	CardDatabase.refresh_locale()
 	ImageCache.refresh_local_art()
 	get_tree().call_group("cards", "refresh_locale_art")
+	get_tree().call_group("locale_refresh", "refresh_locale_text")
 
 # Re-applies tr() to every UI element after a live locale change. Most
 # labels/buttons are simple key lookups tracked in _tr_targets; OptionButton

@@ -19,14 +19,28 @@ const _PORTRAIT_SIZE: Vector2 = Vector2(120, 168)
 const _PORTRAIT_COLUMNS: int = 6
 const _LANDSCAPE_SIZE: Vector2 = Vector2(184, 121)
 const _LANDSCAPE_COLUMNS: int = 4
+const _THUMB_BRIGHTEN: Color = Color(1.2, 1.2, 1.2, 1.0)
 
 var _active_tab: int = 0
 var _tab_buttons: Array[Button] = []
 var _grid: GridContainer = null
+var _tr_targets: Dictionary = {}   # Control (Label/Button) -> untranslated key, refreshed on locale change
 
 func _ready() -> void:
+	add_to_group("locale_refresh")
 	_build_ui()
 	visible = false
+
+# This popup is built once, long before the pause menu's language dropdown
+# ever runs — tr() calls made at _build_ui() time freeze to whatever locale
+# was active at that moment (see CardDatabase.refresh_locale() for the same
+# issue with card art). pause_menu.gd broadcasts to the "locale_refresh"
+# group on every language change so static text like the tab labels and
+# title actually follow it instead of staying stuck on the boot locale.
+func refresh_locale_text() -> void:
+	for ctrl: Control in _tr_targets:
+		if is_instance_valid(ctrl):
+			ctrl.text = tr(_tr_targets[ctrl] as String)
 
 func open() -> void:
 	_select_tab(0)
@@ -55,6 +69,7 @@ func _build_ui() -> void:
 
 	var title: Label = Label.new()
 	title.text = tr("COLLECTION")
+	_tr_targets[title] = "COLLECTION"
 	title.add_theme_font_size_override("font_size", 18)
 	title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -78,7 +93,9 @@ func _build_ui() -> void:
 	var group: ButtonGroup = ButtonGroup.new()
 	for i: int in _DECKS.size():
 		var deck: Dictionary = _DECKS[i]
-		var btn: Button = _make_button(tr(deck.get("label_key", "") as String))
+		var label_key: String = deck.get("label_key", "") as String
+		var btn: Button = _make_button(tr(label_key))
+		_tr_targets[btn] = label_key
 		btn.custom_minimum_size = Vector2(150, 40)
 		btn.toggle_mode = true
 		btn.button_group = group
@@ -95,12 +112,20 @@ func _build_ui() -> void:
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.custom_minimum_size = Vector2(0, 660)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	vbox.add_child(scroll)
+
+	# CenterContainer fills the scroll area's width (no horizontal scrolling,
+	# so ScrollContainer stretches it) and centers the grid within that —
+	# without it the grid just hugs the left edge.
+	var center: CenterContainer = CenterContainer.new()
+	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(center)
 
 	_grid = GridContainer.new()
 	_grid.add_theme_constant_override("h_separation", 14)
 	_grid.add_theme_constant_override("v_separation", 14)
-	scroll.add_child(_grid)
+	center.add_child(_grid)
 
 func _make_button(label: String) -> Button:
 	var btn: Button = Button.new()
@@ -131,6 +156,7 @@ func _populate_grid() -> void:
 		rect.custom_minimum_size = box_size
 		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		rect.modulate = _THUMB_BRIGHTEN
 		var mat: ShaderMaterial = ShaderMaterial.new()
 		mat.shader = load("res://shaders/card_rounded.gdshader")
 		rect.material = mat

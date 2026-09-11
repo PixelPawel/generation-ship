@@ -17,11 +17,25 @@ var _page_image: TextureRect = null
 var _scroll: ScrollContainer = null
 var _page_label: Label = null
 var _zoom_label: Label = null
+var _tr_targets: Dictionary = {}   # Control (Label/Button) -> untranslated key, refreshed on locale change
 
 func _ready() -> void:
+	add_to_group("locale_refresh")
 	_load_pages()
 	_build_ui()
 	visible = false
+
+# Same fix as CollectionPopup.refresh_locale_text() — this popup's static
+# text is built once via tr() long before the pause menu's language dropdown
+# ever runs, so it freezes on the boot locale unless something re-applies
+# tr() after a live language change. pause_menu.gd broadcasts to the
+# "locale_refresh" group on every change.
+func refresh_locale_text() -> void:
+	for ctrl: Control in _tr_targets:
+		if is_instance_valid(ctrl):
+			ctrl.text = tr(_tr_targets[ctrl] as String)
+	_go_to(_page)
+	_set_zoom(_zoom)
 
 func _load_pages() -> void:
 	_pages.resize(PAGE_COUNT)
@@ -58,6 +72,7 @@ func _build_ui() -> void:
 
 	var title: Label = Label.new()
 	title.text = tr("RULE BOOK")
+	_tr_targets[title] = "RULE BOOK"
 	title.add_theme_font_size_override("font_size", 18)
 	title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -97,6 +112,7 @@ func _build_ui() -> void:
 	vbox.add_child(nav)
 
 	var prev_btn: Button = _make_button(tr("◀  Prev"))
+	_tr_targets[prev_btn] = "◀  Prev"
 	prev_btn.pressed.connect(_on_prev)
 	nav.add_child(prev_btn)
 
@@ -108,6 +124,7 @@ func _build_ui() -> void:
 	nav.add_child(_page_label)
 
 	var next_btn: Button = _make_button(tr("Next  ▶"))
+	_tr_targets[next_btn] = "Next  ▶"
 	next_btn.pressed.connect(_on_next)
 	nav.add_child(next_btn)
 
