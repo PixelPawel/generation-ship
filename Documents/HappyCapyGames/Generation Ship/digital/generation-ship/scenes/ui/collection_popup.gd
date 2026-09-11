@@ -23,10 +23,15 @@ const _LANDSCAPE_COLUMNS: int = 4
 # grid, just scaled up (matches the pattern in bid_popup.gd).
 const _PORTRAIT_ENLARGE_SIZE: Vector2 = Vector2(340, 476)
 const _LANDSCAPE_ENLARGE_SIZE: Vector2 = Vector2(520, 342)
-# Cursor "light" on hover — a flat window-wide brighten looked wrong, so
-# instead each card lights up individually as the mouse crosses it. Same
-# tween shape as main_menu.gd's button hover glow.
-const _HOVER_MODULATE: Color = Color(1.45, 1.45, 1.45, 1.0)
+# Cursor "light" on hover — a flat window-wide brighten didn't read right,
+# so instead each card lights up individually as the mouse crosses it.
+# card_rounded.gdshader writes COLOR straight from the sampled texture and
+# never reads the node's built-in MODULATE, so a modulate tween is a no-op
+# here — its own "brightness" uniform (shared shader default: 0.70, i.e.
+# dimmed) is what actually has to move. Tween shape matches main_menu.gd's
+# button hover glow.
+const _REST_BRIGHTNESS: float = 1.0
+const _HOVER_BRIGHTNESS: float = 1.35
 const _HOVER_SCALE: Vector2 = Vector2(1.06, 1.06)
 const _HOVER_IN_SEC: float = 0.15
 const _HOVER_OUT_SEC: float = 0.22
@@ -153,6 +158,7 @@ func _build_ui() -> void:
 	_enlarge_image.visible = false
 	var enlarge_mat: ShaderMaterial = ShaderMaterial.new()
 	enlarge_mat.shader = load("res://shaders/card_rounded.gdshader")
+	enlarge_mat.set_shader_parameter("brightness", _REST_BRIGHTNESS)
 	_enlarge_image.material = enlarge_mat
 	_enlarge_image.anchor_left = 0.5
 	_enlarge_image.anchor_right = 0.5
@@ -199,20 +205,23 @@ func _populate_grid() -> void:
 		rect.mouse_exited.connect(func() -> void: _on_thumb_hover(rect, false))
 		var mat: ShaderMaterial = ShaderMaterial.new()
 		mat.shader = load("res://shaders/card_rounded.gdshader")
+		mat.set_shader_parameter("brightness", _REST_BRIGHTNESS)
 		rect.material = mat
 		_grid.add_child(rect)
 
 func _on_thumb_hover(rect: TextureRect, entered: bool) -> void:
+	var mat: ShaderMaterial = rect.material as ShaderMaterial
+	if not mat:
+		return
 	var prev: Tween = _thumb_tweens.get(rect) as Tween
 	if prev and prev.is_valid():
 		prev.kill()
 	var tw: Tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	if entered:
-		tw.tween_property(rect, "modulate", _HOVER_MODULATE, _HOVER_IN_SEC)
-		tw.parallel().tween_property(rect, "scale", _HOVER_SCALE, _HOVER_IN_SEC)
-	else:
-		tw.tween_property(rect, "modulate", Color(1.0, 1.0, 1.0, 1.0), _HOVER_OUT_SEC)
-		tw.parallel().tween_property(rect, "scale", Vector2.ONE, _HOVER_OUT_SEC)
+	var target_brightness: float = _HOVER_BRIGHTNESS if entered else _REST_BRIGHTNESS
+	var target_scale: Vector2 = _HOVER_SCALE if entered else Vector2.ONE
+	var dur: float = _HOVER_IN_SEC if entered else _HOVER_OUT_SEC
+	tw.tween_property(mat, "shader_parameter/brightness", target_brightness, dur)
+	tw.parallel().tween_property(rect, "scale", target_scale, dur)
 	_thumb_tweens[rect] = tw
 
 func _on_thumb_gui_input(event: InputEvent, tex: Texture2D, landscape: bool) -> void:
