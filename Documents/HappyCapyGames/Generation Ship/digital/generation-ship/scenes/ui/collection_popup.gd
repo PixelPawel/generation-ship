@@ -19,7 +19,9 @@ const _PORTRAIT_SIZE: Vector2 = Vector2(120, 168)
 const _PORTRAIT_COLUMNS: int = 6
 const _LANDSCAPE_SIZE: Vector2 = Vector2(184, 121)
 const _LANDSCAPE_COLUMNS: int = 4
-const _THUMB_BRIGHTEN: Color = Color(1.2, 1.2, 1.2, 1.0)
+# Applied to the whole popup's modulate (not per-thumbnail) so the panel,
+# buttons and text brighten along with the card art, uniformly.
+const _WINDOW_BRIGHTEN: Color = Color(1.2, 1.2, 1.2, 1.0)
 # Right-click close-up sizes — same portrait/landscape split as the thumbnail
 # grid, just scaled up (matches the pattern in bid_popup.gd).
 const _PORTRAIT_ENLARGE_SIZE: Vector2 = Vector2(340, 476)
@@ -56,6 +58,7 @@ func open() -> void:
 func _build_ui() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	modulate = _WINDOW_BRIGHTEN
 
 	var panel: Control = load("res://scenes/ui/scifi_panel.gd").new()
 	panel.set_content_margin(20)
@@ -142,7 +145,6 @@ func _build_ui() -> void:
 	_enlarge_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_enlarge_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_enlarge_image.mouse_filter = Control.MOUSE_FILTER_STOP
-	_enlarge_image.modulate = _THUMB_BRIGHTEN
 	_enlarge_image.gui_input.connect(_on_enlarge_gui_input)
 	_enlarge_image.visible = false
 	var enlarge_mat: ShaderMaterial = ShaderMaterial.new()
@@ -185,7 +187,6 @@ func _populate_grid() -> void:
 		rect.custom_minimum_size = box_size
 		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		rect.modulate = _THUMB_BRIGHTEN
 		rect.mouse_filter = Control.MOUSE_FILTER_STOP
 		rect.gui_input.connect(func(event: InputEvent) -> void: _on_thumb_gui_input(event, tex, landscape))
 		var mat: ShaderMaterial = ShaderMaterial.new()
