@@ -38,9 +38,13 @@ const _PORTRAIT_COLUMNS: int = 6
 const _LANDSCAPE_SIZE: Vector2 = Vector2(184, 121)
 const _LANDSCAPE_COLUMNS: int = 4
 # Right-click close-up sizes — same portrait/landscape split as the thumbnail
-# grid, just scaled up (matches the pattern in bid_popup.gd).
+# grid, just scaled up (matches the pattern in bid_popup.gd). Two of these
+# show side by side (English + current language) with a gap and a small
+# language-code label above each — see _show_enlarged().
 const _PORTRAIT_ENLARGE_SIZE: Vector2 = Vector2(340, 476)
 const _LANDSCAPE_ENLARGE_SIZE: Vector2 = Vector2(520, 342)
+const _ENLARGE_GAP: float = 24.0
+const _ENLARGE_LABEL_HEIGHT: float = 20.0
 # Cursor "light" on hover — a flat window-wide brighten didn't read right,
 # so instead each card lights up individually as the mouse crosses it.
 # card_rounded.gdshader writes COLOR straight from the sampled texture and
@@ -57,7 +61,10 @@ const _HOVER_OUT_SEC: float = 0.22
 var _active_tab: int = 0
 var _tab_buttons: Array[Button] = []
 var _grid: GridContainer = null
-var _enlarge_image: TextureRect = null
+var _enlarge_left: TextureRect = null
+var _enlarge_right: TextureRect = null
+var _enlarge_left_label: Label = null
+var _enlarge_right_label: Label = null
 var _thumb_tweens: Dictionary = {}   # TextureRect -> Tween, so a re-hover kills the fade-out mid-flight
 var _tr_targets: Dictionary = {}   # Control (Label/Button) -> untranslated key, refreshed on locale change
 
@@ -78,8 +85,7 @@ func refresh_locale_text() -> void:
 			ctrl.text = tr(_tr_targets[ctrl] as String)
 
 func open() -> void:
-	if _enlarge_image:
-		_enlarge_image.visible = false
+	_hide_enlarged()
 	_select_tab(0)
 	visible = true
 
@@ -174,23 +180,47 @@ func _build_ui() -> void:
 
 	# Right-click-to-enlarge close-up, added last so it paints above the
 	# panel and everything in it — same pattern as bid_popup.gd's
-	# _card_enlarge_image. Centered on the whole popup, sized per-tab in
-	# _on_thumb_gui_input() since cards can be portrait or landscape.
-	_enlarge_image = TextureRect.new()
-	_enlarge_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_enlarge_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_enlarge_image.mouse_filter = Control.MOUSE_FILTER_STOP
-	_enlarge_image.gui_input.connect(_on_enlarge_gui_input)
-	_enlarge_image.visible = false
-	var enlarge_mat: ShaderMaterial = ShaderMaterial.new()
-	enlarge_mat.shader = load("res://shaders/card_rounded.gdshader")
-	enlarge_mat.set_shader_parameter("brightness", _REST_BRIGHTNESS)
-	_enlarge_image.material = enlarge_mat
-	_enlarge_image.anchor_left = 0.5
-	_enlarge_image.anchor_right = 0.5
-	_enlarge_image.anchor_top = 0.5
-	_enlarge_image.anchor_bottom = 0.5
-	add_child(_enlarge_image)
+	# _card_enlarge_image, but two images side by side (English + the
+	# current language) instead of one, sized/positioned per-tab in
+	# _show_enlarged() since cards can be portrait or landscape.
+	_enlarge_left = _make_enlarge_rect()
+	add_child(_enlarge_left)
+	_enlarge_right = _make_enlarge_rect()
+	add_child(_enlarge_right)
+	_enlarge_left_label = _make_enlarge_label()
+	add_child(_enlarge_left_label)
+	_enlarge_right_label = _make_enlarge_label()
+	add_child(_enlarge_right_label)
+
+func _make_enlarge_rect() -> TextureRect:
+	var rect: TextureRect = TextureRect.new()
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.mouse_filter = Control.MOUSE_FILTER_STOP
+	rect.gui_input.connect(_on_enlarge_gui_input)
+	rect.visible = false
+	var mat: ShaderMaterial = ShaderMaterial.new()
+	mat.shader = load("res://shaders/card_rounded.gdshader")
+	mat.set_shader_parameter("brightness", _REST_BRIGHTNESS)
+	rect.material = mat
+	rect.anchor_left = 0.5
+	rect.anchor_right = 0.5
+	rect.anchor_top = 0.5
+	rect.anchor_bottom = 0.5
+	return rect
+
+func _make_enlarge_label() -> Label:
+	var lbl: Label = Label.new()
+	lbl.add_theme_font_size_override("font_size", 13)
+	lbl.add_theme_color_override("font_color", Color(0.7, 0.75, 0.85))
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lbl.visible = false
+	lbl.anchor_left = 0.5
+	lbl.anchor_right = 0.5
+	lbl.anchor_top = 0.5
+	lbl.anchor_bottom = 0.5
+	return lbl
 
 func _make_button(label: String) -> Button:
 	var btn: Button = Button.new()
@@ -206,8 +236,7 @@ func _select_tab(idx: int) -> void:
 	_populate_grid()
 
 func _populate_grid() -> void:
-	if _enlarge_image:
-		_enlarge_image.visible = false
+	_hide_enlarged()
 	_thumb_tweens.clear()
 	for child: Node in _grid.get_children():
 		child.queue_free()
@@ -215,7 +244,8 @@ func _populate_grid() -> void:
 	var landscape: bool = deck.get("landscape", false)
 	_grid.columns = _LANDSCAPE_COLUMNS if landscape else _PORTRAIT_COLUMNS
 	var box_size: Vector2 = _LANDSCAPE_SIZE if landscape else _PORTRAIT_SIZE
-	for path: String in _list_deck_files(deck):
+	for entry: Dictionary in _list_deck_files(deck):
+		var path: String = entry.get("path", "") as String
 		var tex: Texture2D = load(path) as Texture2D
 		if not tex:
 			continue
@@ -226,7 +256,7 @@ func _populate_grid() -> void:
 		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		rect.mouse_filter = Control.MOUSE_FILTER_STOP
-		rect.gui_input.connect(func(event: InputEvent) -> void: _on_thumb_gui_input(event, tex, landscape))
+		rect.gui_input.connect(func(event: InputEvent) -> void: _on_thumb_gui_input(event, entry, landscape))
 		rect.mouse_entered.connect(func() -> void: _on_thumb_hover(rect, true))
 		rect.mouse_exited.connect(func() -> void: _on_thumb_hover(rect, false))
 		var mat: ShaderMaterial = ShaderMaterial.new()
@@ -250,27 +280,72 @@ func _on_thumb_hover(rect: TextureRect, entered: bool) -> void:
 	tw.parallel().tween_property(rect, "scale", target_scale, dur)
 	_thumb_tweens[rect] = tw
 
-func _on_thumb_gui_input(event: InputEvent, tex: Texture2D, landscape: bool) -> void:
+func _on_thumb_gui_input(event: InputEvent, entry: Dictionary, landscape: bool) -> void:
 	if not (event is InputEventMouseButton):
 		return
 	var mb: InputEventMouseButton = event as InputEventMouseButton
 	if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
-		var sz: Vector2 = _LANDSCAPE_ENLARGE_SIZE if landscape else _PORTRAIT_ENLARGE_SIZE
-		_enlarge_image.offset_left = -sz.x / 2.0
-		_enlarge_image.offset_right = sz.x / 2.0
-		_enlarge_image.offset_top = -sz.y / 2.0
-		_enlarge_image.offset_bottom = sz.y / 2.0
-		_enlarge_image.texture = tex
-		_enlarge_image.visible = true
+		_show_enlarged(entry, landscape)
 		get_viewport().set_input_as_handled()
+
+# English on the left, the current language on the right — if the current
+# language IS English (or that specific card's art is missing and already
+# fell back to English), there's nothing to compare, so just show the one
+# image centered, same as before.
+func _show_enlarged(entry: Dictionary, landscape: bool) -> void:
+	var folder: String = entry.get("folder", "") as String
+	var fname: String = entry.get("fname", "") as String
+	var current_path: String = entry.get("path", "") as String
+	var en_path: String = "res://assets/cards/%s/EN/%s" % [folder, fname]
+	if not ResourceLoader.exists(en_path):
+		en_path = current_path
+	var sz: Vector2 = _LANDSCAPE_ENLARGE_SIZE if landscape else _PORTRAIT_ENLARGE_SIZE
+
+	if en_path == current_path:
+		_position_enlarge(_enlarge_left, _enlarge_left_label, sz, Vector2.ZERO, "")
+		_enlarge_left.texture = load(current_path) as Texture2D
+		_enlarge_left.visible = true
+		_enlarge_right.visible = false
+		_enlarge_right_label.visible = false
+	else:
+		var half_gap: float = _ENLARGE_GAP / 2.0
+		_position_enlarge(_enlarge_left, _enlarge_left_label, sz, Vector2(-sz.x / 2.0 - half_gap, 0.0), "EN")
+		_position_enlarge(_enlarge_right, _enlarge_right_label, sz, Vector2(sz.x / 2.0 + half_gap, 0.0), _current_lang())
+		_enlarge_left.texture = load(en_path) as Texture2D
+		_enlarge_right.texture = load(current_path) as Texture2D
+		_enlarge_left.visible = true
+		_enlarge_right.visible = true
+
+func _position_enlarge(rect: TextureRect, lbl: Label, sz: Vector2, center: Vector2, label_text: String) -> void:
+	rect.offset_left = center.x - sz.x / 2.0
+	rect.offset_right = center.x + sz.x / 2.0
+	rect.offset_top = center.y - sz.y / 2.0
+	rect.offset_bottom = center.y + sz.y / 2.0
+	if label_text.is_empty():
+		lbl.visible = false
+		return
+	lbl.text = label_text
+	lbl.offset_left = rect.offset_left
+	lbl.offset_right = rect.offset_right
+	lbl.offset_bottom = rect.offset_top - 4.0
+	lbl.offset_top = lbl.offset_bottom - _ENLARGE_LABEL_HEIGHT
+	lbl.visible = true
 
 func _on_enlarge_gui_input(event: InputEvent) -> void:
 	if not (event is InputEventMouseButton):
 		return
 	var mb: InputEventMouseButton = event as InputEventMouseButton
 	if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
-		_enlarge_image.visible = false
+		_hide_enlarged()
 		get_viewport().set_input_as_handled()
+
+func _hide_enlarged() -> void:
+	if not _enlarge_left:
+		return
+	_enlarge_left.visible = false
+	_enlarge_right.visible = false
+	_enlarge_left_label.visible = false
+	_enlarge_right_label.visible = false
 
 func _current_lang() -> String:
 	var cfg: ConfigFile = ConfigFile.new()
@@ -292,7 +367,7 @@ func _current_lang() -> String:
 # ResourceLoader.exists() is the same proven approach as
 # CardDatabase._resolve_art(), just applied to a whole deck instead of one
 # card at a time.
-func _list_deck_files(deck: Dictionary) -> Array[String]:
+func _list_deck_files(deck: Dictionary) -> Array[Dictionary]:
 	var folder: String = deck.get("folder", "") as String
 	var file_bases: Array[String] = []
 	if folder == "Sector":
@@ -306,11 +381,14 @@ func _list_deck_files(deck: Dictionary) -> Array[String]:
 		for page: int in range(1, count + 1):
 			file_bases.append(_paged_filename(base, page))
 
-	var out: Array[String] = []
+	# fname/folder are carried alongside the resolved path so the right-click
+	# close-up can independently resolve the EN version of the same card for
+	# the side-by-side comparison, regardless of which locale "path" landed on.
+	var out: Array[Dictionary] = []
 	for fname: String in file_bases:
 		var resolved: String = _resolve_file(folder, fname)
 		if not resolved.is_empty():
-			out.append(resolved)
+			out.append({"path": resolved, "fname": fname, "folder": folder})
 	return out
 
 func _paged_filename(file_base: String, page: int) -> String:
