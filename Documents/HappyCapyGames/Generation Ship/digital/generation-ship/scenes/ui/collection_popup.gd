@@ -19,18 +19,23 @@ const _PORTRAIT_SIZE: Vector2 = Vector2(120, 168)
 const _PORTRAIT_COLUMNS: int = 6
 const _LANDSCAPE_SIZE: Vector2 = Vector2(184, 121)
 const _LANDSCAPE_COLUMNS: int = 4
-# Applied to the whole popup's modulate (not per-thumbnail) so the panel,
-# buttons and text brighten along with the card art, uniformly.
-const _WINDOW_BRIGHTEN: Color = Color(1.2, 1.2, 1.2, 1.0)
 # Right-click close-up sizes — same portrait/landscape split as the thumbnail
 # grid, just scaled up (matches the pattern in bid_popup.gd).
 const _PORTRAIT_ENLARGE_SIZE: Vector2 = Vector2(340, 476)
 const _LANDSCAPE_ENLARGE_SIZE: Vector2 = Vector2(520, 342)
+# Cursor "light" on hover — a flat window-wide brighten looked wrong, so
+# instead each card lights up individually as the mouse crosses it. Same
+# tween shape as main_menu.gd's button hover glow.
+const _HOVER_MODULATE: Color = Color(1.45, 1.45, 1.45, 1.0)
+const _HOVER_SCALE: Vector2 = Vector2(1.06, 1.06)
+const _HOVER_IN_SEC: float = 0.15
+const _HOVER_OUT_SEC: float = 0.22
 
 var _active_tab: int = 0
 var _tab_buttons: Array[Button] = []
 var _grid: GridContainer = null
 var _enlarge_image: TextureRect = null
+var _thumb_tweens: Dictionary = {}   # TextureRect -> Tween, so a re-hover kills the fade-out mid-flight
 var _tr_targets: Dictionary = {}   # Control (Label/Button) -> untranslated key, refreshed on locale change
 
 func _ready() -> void:
@@ -58,7 +63,6 @@ func open() -> void:
 func _build_ui() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	modulate = _WINDOW_BRIGHTEN
 
 	var panel: Control = load("res://scenes/ui/scifi_panel.gd").new()
 	panel.set_content_margin(20)
@@ -172,6 +176,7 @@ func _select_tab(idx: int) -> void:
 func _populate_grid() -> void:
 	if _enlarge_image:
 		_enlarge_image.visible = false
+	_thumb_tweens.clear()
 	for child: Node in _grid.get_children():
 		child.queue_free()
 	var deck: Dictionary = _DECKS[_active_tab]
@@ -185,14 +190,30 @@ func _populate_grid() -> void:
 		var rect: TextureRect = TextureRect.new()
 		rect.texture = tex
 		rect.custom_minimum_size = box_size
+		rect.pivot_offset = box_size / 2.0
 		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		rect.mouse_filter = Control.MOUSE_FILTER_STOP
 		rect.gui_input.connect(func(event: InputEvent) -> void: _on_thumb_gui_input(event, tex, landscape))
+		rect.mouse_entered.connect(func() -> void: _on_thumb_hover(rect, true))
+		rect.mouse_exited.connect(func() -> void: _on_thumb_hover(rect, false))
 		var mat: ShaderMaterial = ShaderMaterial.new()
 		mat.shader = load("res://shaders/card_rounded.gdshader")
 		rect.material = mat
 		_grid.add_child(rect)
+
+func _on_thumb_hover(rect: TextureRect, entered: bool) -> void:
+	var prev: Tween = _thumb_tweens.get(rect) as Tween
+	if prev and prev.is_valid():
+		prev.kill()
+	var tw: Tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	if entered:
+		tw.tween_property(rect, "modulate", _HOVER_MODULATE, _HOVER_IN_SEC)
+		tw.parallel().tween_property(rect, "scale", _HOVER_SCALE, _HOVER_IN_SEC)
+	else:
+		tw.tween_property(rect, "modulate", Color(1.0, 1.0, 1.0, 1.0), _HOVER_OUT_SEC)
+		tw.parallel().tween_property(rect, "scale", Vector2.ONE, _HOVER_OUT_SEC)
+	_thumb_tweens[rect] = tw
 
 func _on_thumb_gui_input(event: InputEvent, tex: Texture2D, landscape: bool) -> void:
 	if not (event is InputEventMouseButton):
