@@ -20,10 +20,15 @@ const _PORTRAIT_COLUMNS: int = 6
 const _LANDSCAPE_SIZE: Vector2 = Vector2(184, 121)
 const _LANDSCAPE_COLUMNS: int = 4
 const _THUMB_BRIGHTEN: Color = Color(1.2, 1.2, 1.2, 1.0)
+# Right-click close-up sizes — same portrait/landscape split as the thumbnail
+# grid, just scaled up (matches the pattern in bid_popup.gd).
+const _PORTRAIT_ENLARGE_SIZE: Vector2 = Vector2(340, 476)
+const _LANDSCAPE_ENLARGE_SIZE: Vector2 = Vector2(520, 342)
 
 var _active_tab: int = 0
 var _tab_buttons: Array[Button] = []
 var _grid: GridContainer = null
+var _enlarge_image: TextureRect = null
 var _tr_targets: Dictionary = {}   # Control (Label/Button) -> untranslated key, refreshed on locale change
 
 func _ready() -> void:
@@ -43,6 +48,8 @@ func refresh_locale_text() -> void:
 			ctrl.text = tr(_tr_targets[ctrl] as String)
 
 func open() -> void:
+	if _enlarge_image:
+		_enlarge_image.visible = false
 	_select_tab(0)
 	visible = true
 
@@ -127,6 +134,26 @@ func _build_ui() -> void:
 	_grid.add_theme_constant_override("v_separation", 14)
 	center.add_child(_grid)
 
+	# Right-click-to-enlarge close-up, added last so it paints above the
+	# panel and everything in it — same pattern as bid_popup.gd's
+	# _card_enlarge_image. Centered on the whole popup, sized per-tab in
+	# _on_thumb_gui_input() since cards can be portrait or landscape.
+	_enlarge_image = TextureRect.new()
+	_enlarge_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_enlarge_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_enlarge_image.mouse_filter = Control.MOUSE_FILTER_STOP
+	_enlarge_image.modulate = _THUMB_BRIGHTEN
+	_enlarge_image.gui_input.connect(_on_enlarge_gui_input)
+	_enlarge_image.visible = false
+	var enlarge_mat: ShaderMaterial = ShaderMaterial.new()
+	enlarge_mat.shader = load("res://shaders/card_rounded.gdshader")
+	_enlarge_image.material = enlarge_mat
+	_enlarge_image.anchor_left = 0.5
+	_enlarge_image.anchor_right = 0.5
+	_enlarge_image.anchor_top = 0.5
+	_enlarge_image.anchor_bottom = 0.5
+	add_child(_enlarge_image)
+
 func _make_button(label: String) -> Button:
 	var btn: Button = Button.new()
 	btn.text = label
@@ -141,6 +168,8 @@ func _select_tab(idx: int) -> void:
 	_populate_grid()
 
 func _populate_grid() -> void:
+	if _enlarge_image:
+		_enlarge_image.visible = false
 	for child: Node in _grid.get_children():
 		child.queue_free()
 	var deck: Dictionary = _DECKS[_active_tab]
@@ -157,10 +186,34 @@ func _populate_grid() -> void:
 		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		rect.modulate = _THUMB_BRIGHTEN
+		rect.mouse_filter = Control.MOUSE_FILTER_STOP
+		rect.gui_input.connect(func(event: InputEvent) -> void: _on_thumb_gui_input(event, tex, landscape))
 		var mat: ShaderMaterial = ShaderMaterial.new()
 		mat.shader = load("res://shaders/card_rounded.gdshader")
 		rect.material = mat
 		_grid.add_child(rect)
+
+func _on_thumb_gui_input(event: InputEvent, tex: Texture2D, landscape: bool) -> void:
+	if not (event is InputEventMouseButton):
+		return
+	var mb: InputEventMouseButton = event as InputEventMouseButton
+	if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+		var sz: Vector2 = _LANDSCAPE_ENLARGE_SIZE if landscape else _PORTRAIT_ENLARGE_SIZE
+		_enlarge_image.offset_left = -sz.x / 2.0
+		_enlarge_image.offset_right = sz.x / 2.0
+		_enlarge_image.offset_top = -sz.y / 2.0
+		_enlarge_image.offset_bottom = sz.y / 2.0
+		_enlarge_image.texture = tex
+		_enlarge_image.visible = true
+		get_viewport().set_input_as_handled()
+
+func _on_enlarge_gui_input(event: InputEvent) -> void:
+	if not (event is InputEventMouseButton):
+		return
+	var mb: InputEventMouseButton = event as InputEventMouseButton
+	if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+		_enlarge_image.visible = false
+		get_viewport().set_input_as_handled()
 
 func _current_lang() -> String:
 	var cfg: ConfigFile = ConfigFile.new()
