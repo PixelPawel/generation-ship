@@ -19,6 +19,7 @@ const LANGUAGE_CODES: Array[String] = ["en", "de", "it", "pl", "es", "fr"]
 
 var _settings_panel: Control = null
 var _manual: Control = null
+var _collection: Control = null
 var _main_panel: Control = null
 var _resolution_option: OptionButton = null
 var _monitor_option: OptionButton = null
@@ -100,6 +101,10 @@ func _build_ui() -> void:
 	manual_btn.pressed.connect(_on_manual_pressed)
 	vbox.add_child(manual_btn)
 
+	var collection_btn := _make_button("Collection")
+	collection_btn.pressed.connect(_on_collection_pressed)
+	vbox.add_child(collection_btn)
+
 	var sep2 := HSeparator.new()
 	sep2.modulate = Color(0.4, 0.4, 0.5, 0.3)
 	vbox.add_child(sep2)
@@ -112,6 +117,8 @@ func _build_ui() -> void:
 	_build_settings_panel()
 	_manual = load("res://scenes/ui/manual_popup.gd").new()
 	add_child(_manual)
+	_collection = load("res://scenes/ui/collection_popup.gd").new()
+	add_child(_collection)
 
 func _make_button(key: String) -> Button:
 	var btn := Button.new()
@@ -432,6 +439,9 @@ func _refresh_language_items() -> void:
 
 func _on_manual_pressed() -> void:
 	_manual.open()
+
+func _on_collection_pressed() -> void:
+	_collection.open()
 
 func _on_settings_pressed() -> void:
 	_settings_panel.visible = true
