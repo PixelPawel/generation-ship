@@ -7,13 +7,31 @@ const _LANGUAGE_CODES: Array[String] = ["en", "de", "it", "pl", "es", "fr"]
 # ("Destiniations" keeps the source export's spelling — not renaming assets).
 # label_key: tr() key shown on the tab button.
 # landscape: true for wide cards (Sector, Destination), false for portrait.
+# file_base/count: same print-export naming convention as CardDatabase's
+# _resolve_art() — page 1 has no numeric suffix, page N>=2 appends N.
+# Sector doesn't fit that single-file_base shape (6 groups x 5 fronts + 1
+# back each), so it's handled separately via _SECTOR_GROUPS below.
 const _DECKS: Array[Dictionary] = [
-	{"folder": "Tech", "label_key": "Tech", "landscape": false},
+	{"folder": "Tech", "label_key": "Tech", "landscape": false, "file_base": "GS Techs 44x67mm", "count": 137},
 	{"folder": "Sector", "label_key": "Sector", "landscape": true},
-	{"folder": "Expedition", "label_key": "Expedition", "landscape": false},
-	{"folder": "Dangers", "label_key": "Danger", "landscape": false},
-	{"folder": "Destiniations", "label_key": "Destination", "landscape": true},
+	{"folder": "Expedition", "label_key": "Expedition", "landscape": false, "file_base": "GS Expeditions 44x67mm", "count": 26},
+	{"folder": "Dangers", "label_key": "Danger", "landscape": false, "file_base": "GS Dangers 63,5x89mm", "count": 30},
+	{"folder": "Destiniations", "label_key": "Destination", "landscape": true, "file_base": "GS Destiniations 89x63,5mm", "count": 18},
 ]
+
+# Exact on-disk base filenames for each of the 6 sector groups — spacing is
+# irregular (group 6 has a double space) so these can't be generated
+# algorithmically; matches _ADV_SECTOR_ART/_DUST_SECTOR_ART in
+# card_database.gd exactly, keep in sync if the print export ever changes.
+const _SECTOR_GROUPS: Array[Dictionary] = [
+	{"front": "GS Sector 1 67x44mm", "back": "GS Sector 1 Back 67x44mm"},
+	{"front": "GS Sector 2 67x44mm", "back": "GS Sector 2 Back 67x44mm"},
+	{"front": "GS Sector 3 67x44mm", "back": "GS Sector 3 Back  67x44mm"},
+	{"front": "GS Sector 4 67x44mm", "back": "GS Sector 4 Back  67x44mm"},
+	{"front": "GS Sector 5 67x44mm", "back": "GS Sector 5 Back  67x44mm"},
+	{"front": "GS Sector 6  67x44mm", "back": "GS Sector 6  Back  67x44mm"},
+]
+const _SECTOR_FRONT_PAGES: int = 5
 
 const _PORTRAIT_SIZE: Vector2 = Vector2(120, 168)
 const _PORTRAIT_COLUMNS: int = 6
@@ -197,7 +215,7 @@ func _populate_grid() -> void:
 	var landscape: bool = deck.get("landscape", false)
 	_grid.columns = _LANDSCAPE_COLUMNS if landscape else _PORTRAIT_COLUMNS
 	var box_size: Vector2 = _LANDSCAPE_SIZE if landscape else _PORTRAIT_SIZE
-	for path: String in _list_deck_files(deck.get("folder", "") as String):
+	for path: String in _list_deck_files(deck):
 		var tex: Texture2D = load(path) as Texture2D
 		if not tex:
 			continue
@@ -263,54 +281,51 @@ func _current_lang() -> String:
 		locale = "en"
 	return locale.to_upper()
 
-func _list_deck_files(folder: String) -> Array[String]:
-	var lang: String = _current_lang()
-	var files: Array[String] = _scan_png_dir("res://assets/cards/%s/%s" % [folder, lang])
-	if files.is_empty() and lang != "EN":
-		files = _scan_png_dir("res://assets/cards/%s/EN" % folder)
-	return files
 
-func _scan_png_dir(path: String) -> Array[String]:
+# Builds the exact expected filename list for a deck rather than scanning the
+# folder at runtime: DirAccess.list_dir_begin() doesn't reliably enumerate
+# imported/remapped resources inside an exported PCK (this is why the
+# Collection showed every card in the editor/debug run but none at all in
+# the Steam export, while CardDatabase's per-card art — which resolves exact
+# paths via ResourceLoader.exists()/load(), never a directory scan — worked
+# fine there the whole time). Generating the filename and checking it with
+# ResourceLoader.exists() is the same proven approach as
+# CardDatabase._resolve_art(), just applied to a whole deck instead of one
+# card at a time.
+func _list_deck_files(deck: Dictionary) -> Array[String]:
+	var folder: String = deck.get("folder", "") as String
+	var file_bases: Array[String] = []
+	if folder == "Sector":
+		for group: Dictionary in _SECTOR_GROUPS:
+			for page: int in range(1, _SECTOR_FRONT_PAGES + 1):
+				file_bases.append(_paged_filename(group.get("front", "") as String, page))
+			file_bases.append(_paged_filename(group.get("back", "") as String, 1))
+	else:
+		var base: String = deck.get("file_base", "") as String
+		var count: int = deck.get("count", 0) as int
+		for page: int in range(1, count + 1):
+			file_bases.append(_paged_filename(base, page))
+
 	var out: Array[String] = []
-	var dir: DirAccess = DirAccess.open(path)
-	if not dir:
-		return out
-	dir.list_dir_begin()
-	var f: String = dir.get_next()
-	while f != "":
-		if f != "." and f != ".." and not dir.current_is_dir() and f.get_extension().to_lower() == "png":
-			out.append(path + "/" + f)
-		f = dir.get_next()
-	dir.list_dir_end()
-	out.sort_custom(_natural_less)
+	for fname: String in file_bases:
+		var resolved: String = _resolve_file(folder, fname)
+		if not resolved.is_empty():
+			out.append(resolved)
 	return out
 
-# Plain string sort would order "...10.png" before "...2.png" — this compares
-# runs of digits numerically (and everything else lexically) so multi-page
-# decks like Tech (137 cards) browse in the same order they print in.
-static func _natural_less(a: String, b: String) -> bool:
-	var ai: int = 0
-	var bi: int = 0
-	while ai < a.length() and bi < b.length():
-		var ac: String = a[ai]
-		var bc: String = b[bi]
-		if ac.is_valid_int() and bc.is_valid_int():
-			var a_start: int = ai
-			var b_start: int = bi
-			while ai < a.length() and a[ai].is_valid_int():
-				ai += 1
-			while bi < b.length() and b[bi].is_valid_int():
-				bi += 1
-			var an: int = int(a.substr(a_start, ai - a_start))
-			var bn: int = int(b.substr(b_start, bi - b_start))
-			if an != bn:
-				return an < bn
-		else:
-			if ac != bc:
-				return ac < bc
-			ai += 1
-			bi += 1
-	return a.length() < b.length()
+func _paged_filename(file_base: String, page: int) -> String:
+	return file_base + ("" if page == 1 else str(page)) + ".png"
+
+func _resolve_file(folder: String, fname: String) -> String:
+	var lang: String = _current_lang()
+	var path: String = "res://assets/cards/%s/%s/%s" % [folder, lang, fname]
+	if ResourceLoader.exists(path):
+		return path
+	if lang != "EN":
+		var fallback: String = "res://assets/cards/%s/EN/%s" % [folder, fname]
+		if ResourceLoader.exists(fallback):
+			return fallback
+	return ""
 
 func _input(event: InputEvent) -> void:
 	if not visible:
