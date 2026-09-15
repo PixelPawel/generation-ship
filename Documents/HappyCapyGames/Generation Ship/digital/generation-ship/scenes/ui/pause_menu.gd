@@ -25,6 +25,9 @@ var _resolution_option: OptionButton = null
 var _monitor_option: OptionButton = null
 var _music_slider: HSlider = null
 var _sfx_slider: HSlider = null
+var _voice_slider: HSlider = null
+var _output_device_option: OptionButton = null
+var _input_device_option: OptionButton = null
 var _shake_check: CheckButton = null
 var _tutorial_check: CheckButton = null
 var _language_option: OptionButton = null
@@ -255,7 +258,7 @@ func _build_settings_panel() -> void:
 	audio_title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
 	vbox.add_child(audio_title)
 
-	var audio_rows: Array = [["Music", "Music"], ["Sound Effects", "SFX"]]
+	var audio_rows: Array = [["Music", "Music"], ["Sound Effects", "SFX"], ["Voice Chat", "Voice"]]
 	for entry: Array in audio_rows:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
@@ -281,8 +284,44 @@ func _build_settings_panel() -> void:
 		row.add_child(slider)
 		if bus_name == "Music":
 			_music_slider = slider
-		else:
+		elif bus_name == "SFX":
 			_sfx_slider = slider
+		else:
+			_voice_slider = slider
+
+	var out_row := HBoxContainer.new()
+	out_row.add_theme_constant_override("separation", 10)
+	vbox.add_child(out_row)
+	var out_lbl := Label.new()
+	_tr_set(out_lbl, "Output Device")
+	out_lbl.custom_minimum_size = Vector2(130, 0)
+	out_lbl.add_theme_font_size_override("font_size", 15)
+	out_lbl.add_theme_color_override("font_color", Color(0.75, 0.8, 1.0))
+	out_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	out_row.add_child(out_lbl)
+	_output_device_option = OptionButton.new()
+	_output_device_option.add_theme_font_size_override("font_size", 13)
+	_output_device_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_output_device_option.item_selected.connect(_on_output_device_selected)
+	out_row.add_child(_output_device_option)
+
+	var in_row := HBoxContainer.new()
+	in_row.add_theme_constant_override("separation", 10)
+	vbox.add_child(in_row)
+	var in_lbl := Label.new()
+	_tr_set(in_lbl, "Input Device")
+	in_lbl.custom_minimum_size = Vector2(130, 0)
+	in_lbl.add_theme_font_size_override("font_size", 15)
+	in_lbl.add_theme_color_override("font_color", Color(0.75, 0.8, 1.0))
+	in_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	in_row.add_child(in_lbl)
+	_input_device_option = OptionButton.new()
+	_input_device_option.add_theme_font_size_override("font_size", 13)
+	_input_device_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_input_device_option.item_selected.connect(_on_input_device_selected)
+	in_row.add_child(_input_device_option)
+	_refresh_output_device_items()
+	_refresh_input_device_items()
 
 	var close_btn := _make_button("Close")
 	close_btn.pressed.connect(func() -> void:
@@ -294,6 +333,8 @@ func _build_settings_panel() -> void:
 	_load_resolution_setting()
 	_load_monitor_setting()
 	_load_audio_settings()
+	_load_output_device_setting()
+	_load_input_device_setting()
 	_load_shake_setting()
 	_load_tutorial_setting()
 	_load_language_setting()
@@ -309,22 +350,111 @@ func _load_audio_settings() -> void:
 	var cfg: ConfigFile = ConfigFile.new()
 	var music_vol: float = 1.0
 	var sfx_vol: float = 1.0
+	var voice_vol: float = 1.0
 	if cfg.load(SETTINGS_PATH) == OK:
 		music_vol = float(cfg.get_value("audio", "music_volume", 1.0))
 		sfx_vol = float(cfg.get_value("audio", "sfx_volume", 1.0))
+		voice_vol = float(cfg.get_value("audio", "voice_volume", 1.0))
 	if _music_slider:
 		_music_slider.value = music_vol
 	if _sfx_slider:
 		_sfx_slider.value = sfx_vol
+	if _voice_slider:
+		_voice_slider.value = voice_vol
 	_set_bus_volume("Music", music_vol)
 	_set_bus_volume("SFX", sfx_vol)
+	_set_bus_volume("Voice", voice_vol)
 
 func _save_audio_settings() -> void:
 	var cfg: ConfigFile = ConfigFile.new()
 	cfg.load(SETTINGS_PATH)
 	cfg.set_value("audio", "music_volume", _music_slider.value if _music_slider else 1.0)
 	cfg.set_value("audio", "sfx_volume", _sfx_slider.value if _sfx_slider else 1.0)
+	cfg.set_value("audio", "voice_volume", _voice_slider.value if _voice_slider else 1.0)
 	cfg.save(SETTINGS_PATH)
+
+# ── Audio devices ────────────────────────────────────────────────────────────
+# Devices are matched and persisted by name rather than list index — the
+# index a device sits at can shift between launches (a USB headset plugged
+# in later, etc.), so re-selecting by index on a refreshed list could pick
+# the wrong device. "Default" (index 0 on both lists) always exists and is
+# the fallback when a saved device is no longer present.
+
+func _refresh_output_device_items() -> void:
+	if not _output_device_option:
+		return
+	var current: String = _output_device_option.get_item_text(_output_device_option.selected) if _output_device_option.item_count > 0 else ""
+	_output_device_option.clear()
+	for d: String in AudioServer.get_output_device_list():
+		_output_device_option.add_item(d)
+	_select_device_item(_output_device_option, current)
+
+func _refresh_input_device_items() -> void:
+	if not _input_device_option:
+		return
+	var current: String = _input_device_option.get_item_text(_input_device_option.selected) if _input_device_option.item_count > 0 else ""
+	_input_device_option.clear()
+	for d: String in AudioServer.get_input_device_list():
+		_input_device_option.add_item(d)
+	_select_device_item(_input_device_option, current)
+
+func _select_device_item(option: OptionButton, device_name: String) -> void:
+	for i: int in option.item_count:
+		if option.get_item_text(i) == device_name:
+			option.selected = i
+			return
+	option.selected = 0
+
+func _on_output_device_selected(index: int) -> void:
+	var device_name: String = _output_device_option.get_item_text(index)
+	AudioServer.output_device = device_name
+	var cfg: ConfigFile = ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
+	cfg.set_value("audio", "output_device", device_name)
+	cfg.save(SETTINGS_PATH)
+
+func _on_input_device_selected(index: int) -> void:
+	var device_name: String = _input_device_option.get_item_text(index)
+	AudioServer.input_device = device_name
+	var cfg: ConfigFile = ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
+	cfg.set_value("audio", "input_device", device_name)
+	cfg.save(SETTINGS_PATH)
+
+func _load_output_device_setting() -> void:
+	_refresh_output_device_items()
+	if not _output_device_option:
+		return
+	# get_output_device_list() can come back empty for a frame or two while
+	# the audio driver is still enumerating devices at boot; if so the
+	# OptionButton has no item 0 to read, and assigning "" to
+	# AudioServer.output_device (unlike "Default") silences all audio
+	# instead of falling back to the system default.
+	if _output_device_option.item_count == 0:
+		return
+	var cfg: ConfigFile = ConfigFile.new()
+	var saved: String = "Default"
+	if cfg.load(SETTINGS_PATH) == OK:
+		saved = String(cfg.get_value("audio", "output_device", "Default"))
+	_select_device_item(_output_device_option, saved)
+	var device_name: String = _output_device_option.get_item_text(_output_device_option.selected)
+	if device_name != "":
+		AudioServer.output_device = device_name
+
+func _load_input_device_setting() -> void:
+	_refresh_input_device_items()
+	if not _input_device_option:
+		return
+	if _input_device_option.item_count == 0:
+		return
+	var cfg: ConfigFile = ConfigFile.new()
+	var saved: String = "Default"
+	if cfg.load(SETTINGS_PATH) == OK:
+		saved = String(cfg.get_value("audio", "input_device", "Default"))
+	_select_device_item(_input_device_option, saved)
+	var device_name: String = _input_device_option.get_item_text(_input_device_option.selected)
+	if device_name != "":
+		AudioServer.input_device = device_name
 
 func _load_shake_setting() -> void:
 	var cfg: ConfigFile = ConfigFile.new()
@@ -446,6 +576,8 @@ func _on_collection_pressed() -> void:
 
 func _on_settings_pressed() -> void:
 	_settings_panel.visible = true
+	_refresh_output_device_items()
+	_refresh_input_device_items()
 	_load_tutorial_setting()
 	_load_language_setting()
 
