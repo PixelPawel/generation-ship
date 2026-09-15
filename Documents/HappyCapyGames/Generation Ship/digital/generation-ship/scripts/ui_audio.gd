@@ -31,6 +31,15 @@ func _ready() -> void:
 
 	var auction_stream: AudioStreamWAV = load("res://assets/music/auction.wav") as AudioStreamWAV
 	if auction_stream:
+		# Don't rely on the .import file's baked loop_mode/loop_end — Godot's
+		# WAV importer has been observed to bake loop_end as 0 regardless of
+		# the "edit/loop_end" import setting (see main.gd/main_menu.gd
+		# _setup_music() for the same fix and how it was diagnosed). A
+		# loop_end of 0 makes the player loop back to the start after a
+		# single sample, which sounds identical to no music playing at all.
+		auction_stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		if auction_stream.loop_end <= auction_stream.loop_begin:
+			auction_stream.loop_end = int(auction_stream.get_length() * auction_stream.mix_rate)
 		_auction_player = AudioStreamPlayer.new()
 		_auction_player.stream = auction_stream
 		_auction_player.bus = &"Music"

@@ -203,6 +203,7 @@ var es_viewport: Control = null
 var _bid_popup: Control = null
 var _scoreboard: Control = null
 var _pause_menu: Control = null
+var _chat_panel: Control = null
 var _tutorial: FirstTurnTutorial = null
 var info_panels: Array[Control] = []
 var bot_hands: Dictionary = {}      # bot_id → Array[CardData]
@@ -250,6 +251,9 @@ func _ready() -> void:
 	_scoreboard = $UILayer/Scoreboard
 	_pause_menu = $UILayer/PauseMenu
 	_pause_menu.main_menu_pressed.connect(_on_pause_main_menu)
+	if GameNetwork.is_multiplayer:
+		_chat_panel = load("res://scenes/ui/chat_panel.gd").new()
+		$UILayer.add_child(_chat_panel)
 	_bid_popup.bid_confirmed.connect(_on_bid_confirmed)
 	_bid_popup.bid_cancelled.connect(_on_bid_cancelled)
 	_bid_popup.bid_raised.connect(_on_bid_raised)
@@ -3534,10 +3538,26 @@ func _setup_music() -> void:
 	var music_stream: AudioStreamWAV = load("res://assets/music/ambience.wav") as AudioStreamWAV
 	if not music_stream:
 		return
+	# Don't rely solely on the .import file's baked loop_mode — set it AND
+	# also connect finished as a belt-and-suspenders guarantee it actually
+	# loops (same fix as main_menu.gd's _setup_music()). Without this, the
+	# track reaching its end while a player has the Music slider down (e.g.
+	# muted at 0%) leaves it stopped forever — raising the volume back up
+	# doesn't help since nothing is playing anymore to be heard.
+	#
+	# Also don't rely on the import's baked loop_end — Godot's WAV importer
+	# has been observed to bake it as 0 regardless of the "edit/loop_end"
+	# import setting (confirmed by forcing a clean reimport with an
+	# explicit frame count and it still coming back 0). A loop_end of 0
+	# makes the player loop back to the start after a single sample, which
+	# sounds identical to no music playing at all.
 	music_stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	if music_stream.loop_end <= music_stream.loop_begin:
+		music_stream.loop_end = int(music_stream.get_length() * music_stream.mix_rate)
 	_music_player = AudioStreamPlayer.new()
 	_music_player.stream = music_stream
 	_music_player.bus = &"Music"
+	_music_player.finished.connect(_music_player.play)
 	add_child(_music_player)
 	_music_player.play()
 

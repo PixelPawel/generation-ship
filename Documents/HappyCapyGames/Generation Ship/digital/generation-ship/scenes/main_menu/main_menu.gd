@@ -72,10 +72,16 @@ func _setup_music() -> void:
 	var stream: AudioStreamWAV = load("res://assets/music/ambience.wav") as AudioStreamWAV
 	if not stream:
 		return
-	# Don't rely solely on the .import file's baked loop_mode — set it
-	# explicitly here too, and fall back to manually restarting on
-	# "finished" as a belt-and-suspenders guarantee it actually loops.
+	# Don't rely on the .import file's baked loop_mode/loop_end — Godot's WAV
+	# importer has been observed to bake loop_end as 0 regardless of the
+	# "edit/loop_end" import setting (confirmed by forcing a clean reimport
+	# with an explicit frame count and it still coming back 0). A loop_end
+	# of 0 makes the player loop back to the start after a single sample,
+	# which sounds like no music is playing at all. Set both explicitly
+	# from the stream's own real length instead of trusting the import.
 	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	if stream.loop_end <= stream.loop_begin:
+		stream.loop_end = int(stream.get_length() * stream.mix_rate)
 	_music_player = AudioStreamPlayer.new()
 	_music_player.stream = stream
 	_music_player.bus = &"Music"
