@@ -45,7 +45,7 @@ var _speaking: Dictionary = {}            # peer_id -> bool
 func _ready() -> void:
 	if not InputMap.has_action("voice_ptt"):
 		InputMap.add_action("voice_ptt")
-	_capture_sample_rate = AudioServer.get_mix_rate()
+	_capture_sample_rate = int(AudioServer.get_mix_rate())
 	_setup_capture()
 	set_process(true)
 
