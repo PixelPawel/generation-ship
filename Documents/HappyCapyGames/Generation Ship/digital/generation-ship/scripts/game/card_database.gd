@@ -97,14 +97,14 @@ func _expedition_art_path(id: int) -> String:
 	# same reason: print page order isn't guaranteed to match CSV order.
 	return _resolve_art("Expedition", "GS Expeditions 44x67mm", 27 - id)
 
-func _adv_sector_art_path(name: String) -> String:
-	var entry: Variant = _ADV_SECTOR_ART.get(_normalize(name))
+func _adv_sector_art_path(card_name: String) -> String:
+	var entry: Variant = _ADV_SECTOR_ART.get(_normalize(card_name))
 	if entry == null:
 		return ""
 	return _resolve_art("Sector", entry[0], entry[1])
 
-func _dust_sector_art_path(name: String) -> String:
-	var entry: Variant = _DUST_SECTOR_ART.get(_normalize(name))
+func _dust_sector_art_path(card_name: String) -> String:
+	var entry: Variant = _DUST_SECTOR_ART.get(_normalize(card_name))
 	if entry == null:
 		return ""
 	return _resolve_art("Sector", entry[0], entry[1])
