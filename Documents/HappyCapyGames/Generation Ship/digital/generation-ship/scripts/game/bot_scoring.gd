@@ -1,15 +1,13 @@
 class_name BotScoring
 extends RefCounted
 
-# Approximate VP estimator for bot decision-making and the bot's end-game
-# scoreboard line. Deliberately NOT a port of Scoring.gd (which is tightly
-# coupled to a live SectorSlot/Node3D board and has ~20 bespoke expedition
-# formulas) — implements the straightforward majority of those formulas
-# against the bot's lightweight Dictionary board model, and falls back to a
-# card's printed stars for the handful it doesn't special-case (Equatorial
-# Superloop, Urbanized Planet, Self Replication, Polar Planet, Alliance).
-# Good enough to make bots value plays sensibly and show a believable final
-# score — not meant to reproduce a human's Scoring.gd result exactly.
+# VP estimator against a lightweight Dictionary board model, decoupled from
+# any live SectorSlot/Node3D scene tree — used for bot decision-making and
+# the bot's end-game scoreboard line, and reused as the scoring core for the
+# photo-scan feature (which reconstructs a board from a tableau photo with no
+# live game session at all). Ports every formula from Scoring.gd, the
+# authoritative scorer for a real Node3D board, so board_vp_lines()/board_vp()
+# match Scoring.calculate() exactly for an equivalent board state.
 
 # A "choice" step's option "steps" list is written as a plain Dictionary-
 # literal array in place_effects.gd/score_effects.gd/etc. (e.g. `steps =
@@ -105,7 +103,7 @@ static func board_vp_lines(board: Array) -> Array[Dictionary]:
 
 	var stars: int = 0
 	for cd: CardData in all_cards:
-		if cd.stars > 0 and cd.card_type != CardData.CardType.SECTOR:
+		if cd.stars > 0 and cd.card_type != CardData.CardType.SECTOR and not _is_conditional_tech(cd.card_name):
 			stars += cd.stars
 	_add(lines, "Stars", stars)
 
@@ -142,6 +140,10 @@ static func board_vp_lines(board: Array) -> Array[Dictionary]:
 			expeditions.append(cd)
 	for cd: CardData in expeditions:
 		_add(lines, cd.card_name, _expedition_vp(cd.card_name, cd.stars, board, all_cards, expeditions))
+
+	for cd: CardData in all_cards:
+		if cd.card_type == CardData.CardType.TECH and _is_conditional_tech(cd.card_name):
+			_add(lines, cd.card_name, _tech_condition_vp(cd.card_name, board))
 
 	return lines
 
@@ -228,9 +230,108 @@ static func _expedition_vp(name: String, fallback_stars: int, board: Array,
 					if not bool((tuck as Dictionary).get("face_up", false)):
 						count += 1
 			return count
-	# Not modeled (Equatorial Superloop, Urbanized Planet, Self Replication,
-	# Polar Planet, Alliance) — fall back to printed stars (usually 0).
+
+		"Equatorial Superloop":
+			# Copy up to 6 VP from the top card in each sector (last entry of
+			# slot_cards: the sector card itself, or its topmost placed tech).
+			var total: int = 0
+			for entry: Variant in board:
+				var slot: Dictionary = entry as Dictionary
+				var cards: Array[CardData] = slot_cards(slot)
+				if not cards.is_empty():
+					var top: CardData = cards[cards.size() - 1]
+					var top_vp: int
+					if top.card_type == CardData.CardType.EXPEDITION and top.card_name != "Equatorial Superloop":
+						top_vp = _expedition_vp(top.card_name, top.stars, board, all_cards, expeditions)
+					elif top.card_type == CardData.CardType.TECH and _is_conditional_tech(top.card_name):
+						top_vp = _tech_condition_vp(top.card_name, board)
+					elif top.card_type != CardData.CardType.EXPEDITION:
+						top_vp = top.stars
+					else:
+						top_vp = 0
+					total += mini(top_vp, 6)
+			return total
+
+		"Urbanized Planet":
+			# 15 VP per complete set of all 6 stored supply colors.
+			var totals: Dictionary = {}
+			for entry: Variant in board:
+				var stored: Dictionary = (entry as Dictionary).get("stored_supply", {}) as Dictionary
+				for color: Variant in stored:
+					totals[int(color)] = int(totals.get(int(color), 0)) + int(stored[color])
+			var min_count: int = 9999
+			var all_colors: Array[int] = [
+				CardData.SupplyColor.DUST, CardData.SupplyColor.METALS,
+				CardData.SupplyColor.LIQUIDS, CardData.SupplyColor.ORGANIX,
+				CardData.SupplyColor.ELECTRIX, CardData.SupplyColor.THRUST,
+			]
+			for color: int in all_colors:
+				min_count = mini(min_count, int(totals.get(color, 0)))
+			return 15 * (min_count if min_count < 9999 else 0)
+
+		"Polar Planet":
+			# 2 VP per different stored supply color on the best single sector.
+			var best: int = 0
+			for entry: Variant in board:
+				var stored: Dictionary = (entry as Dictionary).get("stored_supply", {}) as Dictionary
+				best = maxi(best, stored.size())
+			return 2 * best
+
+		"Self Replication":
+			# 2 VP per Metals card in the best single sector (including self).
+			var best: int = 0
+			for entry: Variant in board:
+				var count: int = 0
+				for cd: CardData in slot_cards(entry as Dictionary):
+					if int(cd.color) == CardData.SupplyColor.METALS:
+						count += 1
+				best = maxi(best, count)
+			return 2 * best
+
+		"Alliance":
+			return 0  # multiplayer only
+
 	return fallback_stars
+
+static func _is_conditional_tech(name: String) -> bool:
+	match name:
+		"Tectonic Accelarator", "Magnetosphere", "Genesis Device", "Space Elevator", "Atmosphere Processor":
+			return true
+	return false
+
+static func _tech_condition_vp(name: String, board: Array) -> int:
+	match name:
+		"Tectonic Accelarator":  # note: typo preserved from CSV
+			var count: int = 0
+			for entry: Variant in board:
+				if is_slot_optimized(entry as Dictionary):
+					count += 1
+			return 9 if count >= 6 else 0
+
+		"Magnetosphere":
+			var count: int = 0
+			for entry: Variant in board:
+				count += ((entry as Dictionary).get("tucked_cards", []) as Array).size()
+			return 6 if count >= 9 else 0
+
+		"Genesis Device":
+			var count: int = _count_by_color(_all_cards(board), CardData.SupplyColor.THRUST)
+			return 6 if count >= 6 else 0
+
+		"Space Elevator":
+			var total: int = 0
+			for entry: Variant in board:
+				total += slot_total_stored(entry as Dictionary)
+			return 6 if total >= 12 else 0
+
+		"Atmosphere Processor":
+			var count: int = 0
+			for entry: Variant in board:
+				if is_slot_complete(entry as Dictionary):
+					count += 1
+			return 9 if count >= 6 else 0
+
+	return 0
 
 # ── Candidate-play valuation (used by BotAI) ──────────────────────────────────
 
