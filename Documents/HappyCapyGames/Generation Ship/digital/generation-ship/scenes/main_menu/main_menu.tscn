@@ -136,6 +136,12 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 32
 text = "Collection"
 
+[node name="LeaderboardBtn" type="Button" parent="Panels/MainView/VBox"]
+custom_minimum_size = Vector2(440, 64)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Leaderboard"
+
 [node name="QuitBtn" type="Button" parent="Panels/MainView/VBox"]
 custom_minimum_size = Vector2(440, 64)
 layout_mode = 2
@@ -397,6 +403,7 @@ script = ExtResource("4_pause_menu")
 [connection signal="pressed" from="Panels/MainView/VBox/SettingsBtn" to="." method="_on_settings_btn_pressed"]
 [connection signal="pressed" from="Panels/MainView/VBox/RuleBookBtn" to="." method="_on_rule_book_pressed"]
 [connection signal="pressed" from="Panels/MainView/VBox/CollectionBtn" to="." method="_on_collection_pressed"]
+[connection signal="pressed" from="Panels/MainView/VBox/LeaderboardBtn" to="." method="_on_leaderboard_pressed"]
 [connection signal="pressed" from="Panels/MainView/VBox/QuitBtn" to="." method="_on_quit_pressed"]
 [connection signal="pressed" from="Panels/LobbyView/LobbyPanel/HostBtn" to="Panels/LobbyView" method="_on_host_pressed"]
 [connection signal="pressed" from="Panels/LobbyView/LobbyPanel/GamesRow/RefreshBtn" to="Panels/LobbyView" method="_on_refresh_pressed"]

@@ -19,15 +19,19 @@ config/icon="uid://byiy34u3x50eb"
 [audio]
 
 driver/output_latency=100
+driver/enable_input=true
 driver/mix_rate=48000
 
 [autoload]
 
 SteamManager="*res://scripts/net/steam_manager.gd"
+LeaderboardManager="*res://scripts/net/leaderboard_manager.gd"
 CardDatabase="*res://scripts/game/card_database.gd"
 ImageCache="*res://scripts/image_cache.gd"
 CursorManager="*res://scripts/cursor_manager.gd"
 GameNetwork="*res://scripts/net/game_network.gd"
+ChatManager="*res://scripts/net/chat_manager.gd"
+VoiceManager="*res://scripts/net/voice_manager.gd"
 SceneTransition="*res://scripts/scene_transition.gd"
 UIAudio="*res://scripts/ui_audio.gd"
 KeybindManager="*res://scripts/keybind_manager.gd"

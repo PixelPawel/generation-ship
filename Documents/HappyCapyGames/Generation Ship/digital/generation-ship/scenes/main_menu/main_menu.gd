@@ -9,6 +9,7 @@ var _btn_tweens: Dictionary = {}
 var _music_player: AudioStreamPlayer = null
 var _manual: Control = null
 var _collection: Control = null
+var _leaderboard: Control = null
 
 const RESOLUTIONS: Array[Vector2i] = [
 	Vector2i(1280, 720),
@@ -37,11 +38,14 @@ func _ready() -> void:
 	$Panels/MainView/VBox/SettingsBtn.modulate.a = 0.0
 	$Panels/MainView/VBox/RuleBookBtn.modulate.a = 0.0
 	$Panels/MainView/VBox/CollectionBtn.modulate.a = 0.0
+	$Panels/MainView/VBox/LeaderboardBtn.modulate.a = 0.0
 	$Panels/MainView/VBox/QuitBtn.modulate.a = 0.0
 	_manual = load("res://scenes/ui/manual_popup.gd").new()
 	add_child(_manual)
 	_collection = load("res://scenes/ui/collection_popup.gd").new()
 	add_child(_collection)
+	_leaderboard = load("res://scenes/ui/leaderboard_popup.gd").new()
+	add_child(_leaderboard)
 	call_deferred("_start_animations")
 
 	var ver_lbl := Label.new()
@@ -99,6 +103,7 @@ func _start_animations() -> void:
 	_setup_button_hover($Panels/MainView/VBox/SettingsBtn as Button)
 	_setup_button_hover($Panels/MainView/VBox/RuleBookBtn as Button)
 	_setup_button_hover($Panels/MainView/VBox/CollectionBtn as Button)
+	_setup_button_hover($Panels/MainView/VBox/LeaderboardBtn as Button)
 	_setup_button_hover($Panels/MainView/VBox/QuitBtn as Button)
 
 func _animate_logo() -> void:
@@ -128,6 +133,7 @@ func _animate_buttons() -> void:
 		$Panels/MainView/VBox/SettingsBtn,
 		$Panels/MainView/VBox/RuleBookBtn,
 		$Panels/MainView/VBox/CollectionBtn,
+		$Panels/MainView/VBox/LeaderboardBtn,
 		$Panels/MainView/VBox/QuitBtn,
 	]
 	for i: int in buttons.size():
@@ -164,6 +170,9 @@ func _on_rule_book_pressed() -> void:
 
 func _on_collection_pressed() -> void:
 	_collection.open()
+
+func _on_leaderboard_pressed() -> void:
+	_leaderboard.open()
 
 func _on_settings_btn_pressed() -> void:
 	$PauseMenu.open_settings()

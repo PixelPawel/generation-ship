@@ -1506,6 +1506,10 @@ func _game_over() -> void:
 	var total: int = 0
 	for line: Dictionary in lines:
 		total += int(line.get("vp", 0))
+	# Every client submits only its own final score — Steam always attributes
+	# an upload to whichever account is locally logged in, so there's no
+	# "submit on behalf of an opponent" path to worry about here.
+	LeaderboardManager.submit_score(total)
 	if not GameNetwork.is_multiplayer:
 		_scoreboard.show_scores(lines, total)
 		return
