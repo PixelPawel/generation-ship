@@ -190,16 +190,22 @@ func _add_row(entry: Dictionary) -> void:
 	arrow_lbl.custom_minimum_size = Vector2(20, 0)
 	row.add_child(arrow_lbl)
 
-	var detail: Control = null
-	var built: bool = false
+	# A lambda captures locals by value — mutating a plain `var` inside it
+	# does NOT persist to the next time this same Callable runs (confirmed:
+	# a minimal repro toggling a captured bool across 3 calls printed
+	# "true" all three times instead of true/false/true). Use a 1-element
+	# Array as a mutable cell instead, so state actually survives between
+	# clicks on this row.
+	var state: Array = [null]  # [0] = the detail Control once built, else null
 	row.gui_input.connect(func(event: InputEvent) -> void:
 		if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
 			return
-		if not built:
-			built = true
-			detail = _build_detail(entry)
+		if state[0] == null:
+			var detail: Control = _build_detail(entry)
 			detail.visible = false
 			outer.add_child(detail)
+			state[0] = detail
+		var detail: Control = state[0]
 		detail.visible = not detail.visible
 		arrow_lbl.text = "▼" if detail.visible else "▶"
 	)
