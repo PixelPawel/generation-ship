@@ -117,6 +117,10 @@ func _on_top_scores_ready(entries: Array[Dictionary]) -> void:
 	for entry: Dictionary in entries:
 		_add_row(entry)
 
+const _THUMB_PORTRAIT: Vector2 = Vector2(60, 84)
+const _THUMB_LANDSCAPE: Vector2 = Vector2(92, 60)
+const _THUMB_COLUMNS: int = 8
+
 func _add_row(entry: Dictionary) -> void:
 	var rank: int = int(entry.get("global_rank", 0))
 	var score: int = int(entry.get("score", 0))
@@ -130,9 +134,15 @@ func _add_row(entry: Dictionary) -> void:
 		wrap.add_theme_stylebox_override("panel", box)
 	_rows_container.add_child(wrap)
 
+	var outer: VBoxContainer = VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 4)
+	wrap.add_child(outer)
+
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
-	wrap.add_child(row)
+	row.mouse_filter = Control.MOUSE_FILTER_STOP
+	row.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	outer.add_child(row)
 
 	var rank_color: Color = Color(0.85, 0.85, 0.9)
 	if rank == 1:
@@ -172,6 +182,105 @@ func _add_row(entry: Dictionary) -> void:
 	score_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	score_lbl.custom_minimum_size = Vector2(90, 0)
 	row.add_child(score_lbl)
+
+	var arrow_lbl: Label = Label.new()
+	arrow_lbl.text = "▶"
+	arrow_lbl.add_theme_font_size_override("font_size", 13)
+	arrow_lbl.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
+	arrow_lbl.custom_minimum_size = Vector2(20, 0)
+	row.add_child(arrow_lbl)
+
+	var detail: Control = null
+	var built: bool = false
+	row.gui_input.connect(func(event: InputEvent) -> void:
+		if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
+			return
+		if not built:
+			built = true
+			detail = _build_detail(entry)
+			detail.visible = false
+			outer.add_child(detail)
+		detail.visible = not detail.visible
+		arrow_lbl.text = "▼" if detail.visible else "▶"
+	)
+
+func _build_detail(entry: Dictionary) -> Control:
+	var refs: Array[Dictionary] = LeaderboardManager.decode_snapshot(entry)
+	var box: PanelContainer = PanelContainer.new()
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = Color(0.0, 0.0, 0.0, 0.2)
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+	box.add_theme_stylebox_override("panel", style)
+
+	if refs.is_empty():
+		var lbl: Label = Label.new()
+		lbl.text = tr("No snapshot available for this game.")
+		lbl.add_theme_font_size_override("font_size", 13)
+		lbl.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
+		box.add_child(lbl)
+		return box
+
+	var grid: GridContainer = GridContainer.new()
+	grid.columns = _THUMB_COLUMNS
+	grid.add_theme_constant_override("h_separation", 6)
+	grid.add_theme_constant_override("v_separation", 6)
+	box.add_child(grid)
+	for ref: Dictionary in refs:
+		grid.add_child(_make_thumb(ref))
+	return box
+
+func _make_thumb(ref: Dictionary) -> Control:
+	var cd: CardData = ref.get("cd") as CardData
+	var flag: bool = bool(ref.get("flag", false))
+	var is_sector: bool = cd.card_type == CardData.CardType.SECTOR
+	var is_tucked: bool = int(ref.get("slot_index", 0)) >= CardSnapshotCodec.TUCKED_START
+	var size: Vector2 = _THUMB_LANDSCAPE if is_sector else _THUMB_PORTRAIT
+
+	# A tucked card the player left face-down was deliberately hidden — don't
+	# leak its identity here just because we happen to know it internally.
+	# Show a plain placeholder instead of a blank gap (an untextured
+	# TextureRect renders as nothing at all).
+	if is_tucked and not flag:
+		var placeholder: PanelContainer = PanelContainer.new()
+		placeholder.custom_minimum_size = size
+		placeholder.tooltip_text = tr("Face-down")
+		var pstyle: StyleBoxFlat = StyleBoxFlat.new()
+		pstyle.bg_color = Color(0.08, 0.09, 0.14, 1.0)
+		pstyle.corner_radius_top_left = 6
+		pstyle.corner_radius_top_right = 6
+		pstyle.corner_radius_bottom_left = 6
+		pstyle.corner_radius_bottom_right = 6
+		placeholder.add_theme_stylebox_override("panel", pstyle)
+		var qlbl: Label = Label.new()
+		qlbl.text = "?"
+		qlbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		qlbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		qlbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		qlbl.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		qlbl.add_theme_font_size_override("font_size", 20)
+		qlbl.add_theme_color_override("font_color", Color(0.4, 0.45, 0.55))
+		placeholder.add_child(qlbl)
+		return placeholder
+
+	var rect: TextureRect = TextureRect.new()
+	rect.custom_minimum_size = size
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.tooltip_text = cd.adv_name if (is_sector and flag) else cd.card_name
+	var art_path: String = (cd.adv_local_art_path if flag else cd.local_art_path) if is_sector else cd.local_art_path
+	if not art_path.is_empty():
+		var tex: Texture2D = load(art_path) as Texture2D
+		if tex:
+			rect.texture = tex
+
+	var mat: ShaderMaterial = ShaderMaterial.new()
+	mat.shader = load("res://shaders/card_rounded.gdshader")
+	mat.set_shader_parameter("brightness", 1.0)
+	rect.material = mat
+	return rect
 
 func _on_entry_name_resolved(steam_id: int, name: String) -> void:
 	var lbl: Label = _row_by_steam_id.get(steam_id) as Label

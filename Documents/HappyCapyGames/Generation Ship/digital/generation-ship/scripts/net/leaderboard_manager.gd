@@ -27,6 +27,7 @@ signal entry_name_resolved(steam_id: int, name: String)
 var _leaderboard_handle: int = 0
 var _finding: bool = false
 var _pending_score: int = -1
+var _pending_details: PackedInt32Array = PackedInt32Array()
 var _pending_download: bool = false
 var _name_cache: Dictionary = {}          # steam_id (int) -> persona name (String)
 var _requested_names: Dictionary = {}     # steam_id (int) -> true, once requestUserInformation() called
@@ -37,10 +38,11 @@ func _ready() -> void:
 	Steam.leaderboard_scores_downloaded.connect(_on_leaderboard_scores_downloaded)
 	Steam.persona_state_change.connect(_on_persona_state_change)
 
-func submit_score(score: int) -> void:
+func submit_score(score: int, details: PackedInt32Array = PackedInt32Array()) -> void:
 	if not SteamManager.is_initialized:
 		return
 	_pending_score = score
+	_pending_details = details
 	_ensure_leaderboard()
 
 func request_top_scores() -> void:
@@ -66,6 +68,13 @@ func resolve_name(steam_id: int) -> String:
 		Steam.requestUserInformation(steam_id, true)
 	return ""
 
+# Decodes a downloaded entry's "details" field into resolved CardData refs.
+# See CardSnapshotCodec for the packing scheme this reverses.
+func decode_snapshot(entry: Dictionary) -> Array[Dictionary]:
+	var raw: Variant = entry.get("details", PackedInt32Array())
+	var details: PackedInt32Array = raw if raw is PackedInt32Array else PackedInt32Array(raw)
+	return CardSnapshotCodec.decode_details(details)
+
 func _ensure_leaderboard() -> void:
 	if _leaderboard_handle != 0:
 		_run_pending()
@@ -78,8 +87,10 @@ func _ensure_leaderboard() -> void:
 func _run_pending() -> void:
 	if _pending_score >= 0:
 		var score: int = _pending_score
+		var details: PackedInt32Array = _pending_details
 		_pending_score = -1
-		Steam.uploadLeaderboardScore(score, true, PackedInt32Array(), _leaderboard_handle)
+		_pending_details = PackedInt32Array()
+		Steam.uploadLeaderboardScore(score, true, details, _leaderboard_handle)
 	if _pending_download:
 		_pending_download = false
 		Steam.downloadLeaderboardEntries(1, TOP_COUNT, Steam.LEADERBOARD_DATA_REQUEST_GLOBAL, _leaderboard_handle)
@@ -92,6 +103,7 @@ func _on_leaderboard_find_result(leaderboard_handle: int, found: int) -> void:
 			_pending_download = false
 			top_scores_failed.emit()
 		_pending_score = -1
+		_pending_details = PackedInt32Array()
 		return
 	_leaderboard_handle = leaderboard_handle
 	_run_pending()

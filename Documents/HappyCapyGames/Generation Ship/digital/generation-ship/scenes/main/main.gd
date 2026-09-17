@@ -1509,7 +1509,7 @@ func _game_over() -> void:
 	# Every client submits only its own final score — Steam always attributes
 	# an upload to whichever account is locally logged in, so there's no
 	# "submit on behalf of an opponent" path to worry about here.
-	LeaderboardManager.submit_score(total)
+	LeaderboardManager.submit_score(total, $Board.get_leaderboard_snapshot())
 	if not GameNetwork.is_multiplayer:
 		_scoreboard.show_scores(lines, total)
 		return

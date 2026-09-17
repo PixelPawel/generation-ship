@@ -547,6 +547,40 @@ func get_all_sector_slots() -> Array[SectorSlot]:
 		result.append(slot)
 	return result
 
+# Packs this board's final state for LeaderboardManager.submit_score()'s
+# "details" upload — see CardSnapshotCodec for the exact layout/cap.
+func get_leaderboard_snapshot() -> PackedInt32Array:
+	var out: PackedInt32Array = PackedInt32Array()
+	out.resize(CardSnapshotCodec.TOTAL_SIZE)
+	var slots: Array[SectorSlot] = get_all_sector_slots()
+	var tech_i: int = 0
+	var tuck_i: int = 0
+	for si: int in slots.size():
+		var slot: SectorSlot = slots[si]
+		if not slot.occupied:
+			continue
+		var placed: Array[Node3D] = slot.get_all_placed_cards()
+		if placed.size() > 0:
+			var sector_card: Node3D = placed[0]
+			var sector_cd: CardData = sector_card.get("card_data")
+			var is_adv: bool = bool(sector_card.get("is_advanced"))
+			if si < CardSnapshotCodec.SECTORS_COUNT:
+				out[CardSnapshotCodec.SECTORS_START + si] = CardSnapshotCodec.encode_ref(sector_cd, is_adv)
+			for ti: int in range(1, placed.size()):
+				if tech_i >= CardSnapshotCodec.TECHS_COUNT:
+					break
+				var tech_cd: CardData = placed[ti].get("card_data")
+				out[CardSnapshotCodec.TECHS_START + tech_i] = CardSnapshotCodec.encode_ref(tech_cd, false)
+				tech_i += 1
+		for tuck: Dictionary in slot.tucked_cards:
+			if tuck_i >= CardSnapshotCodec.TUCKED_COUNT:
+				break
+			var tucked_cd: CardData = tuck.get("data")
+			var face_up: bool = bool(tuck.get("face_up", false))
+			out[CardSnapshotCodec.TUCKED_START + tuck_i] = CardSnapshotCodec.encode_ref(tucked_cd, face_up)
+			tuck_i += 1
+	return out
+
 func get_all_placed_expeditions() -> Array[CardData]:
 	var result: Array[CardData] = []
 	for slot: SectorSlot in _sector_row.get_children():
