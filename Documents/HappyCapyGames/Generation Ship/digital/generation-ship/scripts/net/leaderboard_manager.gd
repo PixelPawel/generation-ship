@@ -68,12 +68,12 @@ func resolve_name(steam_id: int) -> String:
 		Steam.requestUserInformation(steam_id, true)
 	return ""
 
-# Decodes a downloaded entry's "details" field into resolved CardData refs.
-# See CardSnapshotCodec for the packing scheme this reverses.
+# Decodes a downloaded entry's "details" field into {label, vp} scoring
+# lines. See ScoringSnapshotCodec for the packing scheme this reverses.
 func decode_snapshot(entry: Dictionary) -> Array[Dictionary]:
 	var raw: Variant = entry.get("details", PackedInt32Array())
 	var details: PackedInt32Array = raw if raw is PackedInt32Array else PackedInt32Array(raw)
-	return CardSnapshotCodec.decode_details(details)
+	return ScoringSnapshotCodec.decode_lines(details)
 
 func _ensure_leaderboard() -> void:
 	if _leaderboard_handle != 0:
