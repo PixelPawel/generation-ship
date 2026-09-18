@@ -15,6 +15,16 @@ const SupplyDetectorScript := preload("res://scripts/photo_scan/supply_detector.
 const CardPickerScript := preload("res://scenes/photo_scan/card_picker.gd")
 const CLUSTER_PADDING_PX: int = 24
 
+# Every cluster-derived sector's auto-detected guess gets snapshotted the
+# moment it's built (before the user can touch anything) and paired with
+# whatever it ends up as when confirmed/skipped, appended as one JSON line
+# each — this is the ground-truth data calibrating CardDetector/CardMatcher
+# against real photos needs, per the plan's calibration notes. user:// maps
+# to the same app-private storage the camera plugin's captured_photos/
+# already lives in on Android, so it's reachable via the same
+# `adb exec-out run-as <pkg> cat files/...` pattern.
+const CALIBRATION_LOG_PATH: String = "user://scan_calibration_log.jsonl"
+
 # A sector always shows exactly 6 slots: 1 sector card + 5 tech/expedition
 # (its physical maximum), never fewer or more — unused slots just stay
 # blank rather than being added/removed. Review columns are sized to fit
@@ -98,6 +108,17 @@ var _tucked_up_stars_spinbox: SpinBox = null # total printed stars across those 
 var _tucked_down_spinbox: SpinBox = null     # count of face-down tucked cards (identity/stars n/a)
 var _card_picker: Control = null
 var _picker_callback: Callable = Callable()   # armed while a row's Edit flow is waiting on a pick
+
+# Calibration logging — see CALIBRATION_LOG_PATH. Only meaningful when a
+# sector came from an actual detected cluster; manually-added sectors
+# ("+ Add Sector") have no auto-detected guess to compare against, so they
+# never set _pending_from_cluster and never get logged.
+var _current_photo_path: String = ""
+var _cluster_counter: int = 0
+var _pending_from_cluster: bool = false
+var _pending_source_photo: String = ""
+var _pending_cluster_index: int = -1
+var _pending_initial_snapshot: Dictionary = {}
 
 func _ready() -> void:
 	_build_ui()
@@ -370,6 +391,58 @@ func _match_as_sector(card_name: String) -> Dictionary:
 		return {"found": true, "is_advanced": true}
 	return {"found": false, "is_advanced": false}
 
+# ── Calibration logging ──────────────────────────────────────────────────────
+
+## Captures the review screen's current state (whatever's in _pending plus
+## the live supply/tucked spinbox values) in the same JSON-able shape for
+## both the "initial" (auto-detected, untouched) and "corrected" (whatever
+## the user left it as) sides of a calibration record.
+func _snapshot_pending_state() -> Dictionary:
+	var slots: Array = []
+	for entry: Dictionary in _pending:
+		slots.append({"name": entry["name"], "is_advanced": entry["is_advanced"]})
+	# Keyed by the enum's own name (DUST/METALS/...), not CardData.color_name()
+	# — that's routed through TranslationServer for on-screen display, which
+	# would make this log's keys shift with the player's language setting.
+	var stored_supply: Dictionary = {}
+	for color_int: int in _supply_spinboxes:
+		stored_supply[CardData.SupplyColor.keys()[color_int]] = int((_supply_spinboxes[color_int] as SpinBox).value)
+	return {
+		"slots": slots,
+		"stored_supply": stored_supply,
+		"tucked_up_count": int(_tucked_up_spinbox.value),
+		"tucked_up_stars": int(_tucked_up_stars_spinbox.value),
+		"tucked_down_count": int(_tucked_down_spinbox.value),
+	}
+
+## Appends one JSON line per cluster-derived sector, pairing its untouched
+## auto-detected guess with what it was confirmed/skipped as — the labeled
+## data needed to actually measure (and then improve) CardDetector/
+## CardMatcher accuracy against real photos instead of guessing at it.
+## corrected is null for a skipped cluster (discarded, nothing to compare).
+func _log_calibration_record(outcome: String, initial: Dictionary, corrected: Variant) -> void:
+	var record: Dictionary = {
+		"timestamp": Time.get_datetime_string_from_system(true),
+		"source_photo": _pending_source_photo,
+		"cluster_index": _pending_cluster_index,
+		"outcome": outcome,
+		"initial": initial,
+	}
+	if corrected != null:
+		record["corrected"] = corrected
+	var file: FileAccess
+	if FileAccess.file_exists(CALIBRATION_LOG_PATH):
+		file = FileAccess.open(CALIBRATION_LOG_PATH, FileAccess.READ_WRITE)
+		if file:
+			file.seek_end()
+	else:
+		file = FileAccess.open(CALIBRATION_LOG_PATH, FileAccess.WRITE)
+	if not file:
+		push_warning("Scan Tableau: could not open calibration log (%s)" % error_string(FileAccess.get_open_error()))
+		return
+	file.store_line(JSON.stringify(record))
+	file.close()
+
 # ── View switching ───────────────────────────────────────────────────────────
 
 func _show_list_view() -> void:
@@ -406,6 +479,8 @@ func _on_photo_selected(path: String) -> void:
 		push_warning("Scan Tableau: could not load %s" % path)
 		return
 	_source_image = img
+	_current_photo_path = path
+	_cluster_counter = 0
 	var candidates: Array[Dictionary] = CardDetectorScript.detect(img)
 	_cluster_queue = CardDetectorScript.cluster_candidates(candidates)
 	if _cluster_queue.is_empty():
@@ -460,6 +535,12 @@ func _start_reviewing_next_cluster() -> void:
 	_tucked_up_stars_spinbox.value = 0
 	_tucked_down_spinbox.value = 0
 
+	_pending_from_cluster = true
+	_pending_source_photo = _current_photo_path.get_file()
+	_pending_cluster_index = _cluster_counter
+	_cluster_counter += 1
+	_pending_initial_snapshot = _snapshot_pending_state()
+
 	_populate_review_cards()
 	_show_review_view()
 
@@ -473,12 +554,16 @@ func _cluster_region(cluster: Array) -> Rect2i:
 	return union.grow(CLUSTER_PADDING_PX)
 
 func _on_skip_sector_pressed() -> void:
+	if _pending_from_cluster:
+		_log_calibration_record("skipped", _pending_initial_snapshot, null)
 	_start_reviewing_next_cluster()
 
 ## Lets the user build a sector entirely by hand, starting fresh from the
 ## list view — always the full 6 blank slots (1 sector + 5 tech/expedition),
-## same shape as a detected cluster.
+## same shape as a detected cluster. No auto-detected guess exists here, so
+## it's never logged for calibration (see _pending_from_cluster).
 func _on_add_sector_pressed() -> void:
+	_pending_from_cluster = false
 	_pending = []
 	for i: int in range(SECTOR_SLOT_COUNT):
 		_pending.append(_blank_entry())
@@ -632,6 +717,8 @@ func _on_confirm_sector_pressed() -> void:
 		"tucked_cards": tucked,
 		"stored_supply": stored,
 	})
+	if _pending_from_cluster:
+		_log_calibration_record("confirmed", _pending_initial_snapshot, _snapshot_pending_state())
 	_refresh_sector_list()
 	_start_reviewing_next_cluster()
 
