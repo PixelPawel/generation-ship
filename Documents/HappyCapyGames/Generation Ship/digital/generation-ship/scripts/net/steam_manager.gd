@@ -3,6 +3,12 @@ extends Node
 var is_initialized: bool = false
 
 func _ready() -> void:
+	# The Steamworks client API needs a locally running desktop Steam client to
+	# provide steamclient.so/.dll over IPC — there's no such client on Android
+	# (the mobile Steam app is a separate store/community client and doesn't
+	# expose it), so init there is a guaranteed, noisy failure. Skip it outright.
+	if OS.get_name() == "Android":
+		return
 	var result: Dictionary = Steam.steamInitEx()
 	if result["status"] == Steam.STEAM_API_INIT_RESULT_OK:
 		is_initialized = true

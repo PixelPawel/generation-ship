@@ -31,6 +31,7 @@ var _pending_join_lobby_id: int = 0
 var _password_prompt: Control = null
 var _password_prompt_input: LineEdit = null
 var _password_prompt_error: Label = null
+var _chat_panel: Control = null
 
 const _SPINNER_FRAMES: Array[String] = [
 	"|", "/", "—", "\\", "|", "/", "—", "\\", "|", "/",
@@ -69,6 +70,8 @@ func _ready() -> void:
 	($LobbyPanel/DirectRow as Control).visible = false
 	_manual = load("res://scenes/ui/manual_popup.gd").new()
 	add_child(_manual)
+	_chat_panel = load("res://scenes/ui/chat_panel.gd").new()
+	add_child(_chat_panel)
 	_build_password_prompt()
 	_load_saved_name()
 	_request_lobby_list()
@@ -154,6 +157,8 @@ func _show_lobby() -> void:
 # ── Lobby list ────────────────────────────────────────────────────────────────
 
 func _request_lobby_list() -> void:
+	if not SteamManager.is_initialized:
+		return
 	Steam.addRequestLobbyListDistanceFilter(Steam.LOBBY_DISTANCE_FILTER_WORLDWIDE)
 	Steam.addRequestLobbyListStringFilter("game", "generation_ship", Steam.LOBBY_COMPARISON_EQUAL)
 	Steam.requestLobbyList()
@@ -394,6 +399,7 @@ func _on_leave_pressed() -> void:
 	_add_bot_btn = null
 	_remove_bot_btn = null
 	_diff_btn = null
+	ChatManager.clear_history()
 	_show_lobby()
 
 func _on_rule_book_pressed() -> void:
@@ -406,6 +412,7 @@ func _on_back_pressed() -> void:
 	if multiplayer.multiplayer_peer:
 		multiplayer.multiplayer_peer.close()
 		multiplayer.multiplayer_peer = null
+	ChatManager.clear_history()
 	if back_requested.get_connections().size() > 0:
 		back_requested.emit()
 	else:
@@ -441,6 +448,7 @@ func _on_server_disconnected() -> void:
 		Steam.leaveLobby(_steam_lobby_id)
 		_steam_lobby_id = 0
 	multiplayer.multiplayer_peer = null
+	ChatManager.clear_history()
 	_show_lobby()
 
 # ── RPCs ──────────────────────────────────────────────────────────────────────
