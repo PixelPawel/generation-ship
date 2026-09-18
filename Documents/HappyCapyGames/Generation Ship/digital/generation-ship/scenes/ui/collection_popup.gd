@@ -37,8 +37,8 @@ const _PORTRAIT_SIZE: Vector2 = Vector2(120, 168)
 const _PORTRAIT_COLUMNS: int = 6
 const _LANDSCAPE_SIZE: Vector2 = Vector2(184, 121)
 const _LANDSCAPE_COLUMNS: int = 4
-# Right-click close-up sizes — same portrait/landscape split as the thumbnail
-# grid, just scaled up (matches the pattern in bid_popup.gd). Two of these
+# Click-to-enlarge close-up sizes — same portrait/landscape split as the
+# thumbnail grid, just scaled up (matches the pattern in bid_popup.gd). Two of these
 # show side by side (English + current language) with a gap and a small
 # language-code label above each — see _show_enlarged().
 const _PORTRAIT_ENLARGE_SIZE: Vector2 = Vector2(340, 476)
@@ -124,8 +124,8 @@ func _build_ui() -> void:
 	title_row.add_child(close_btn)
 
 	var hint: Label = Label.new()
-	hint.text = tr("Right-click on a card to zoom")
-	_tr_targets[hint] = "Right-click on a card to zoom"
+	hint.text = tr("Click a card to zoom")
+	_tr_targets[hint] = "Click a card to zoom"
 	hint.add_theme_font_size_override("font_size", 13)
 	hint.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -178,7 +178,7 @@ func _build_ui() -> void:
 	_grid.add_theme_constant_override("v_separation", 14)
 	center.add_child(_grid)
 
-	# Right-click-to-enlarge close-up, added last so it paints above the
+	# Click-to-enlarge close-up, added last so it paints above the
 	# panel and everything in it — same pattern as bid_popup.gd's
 	# _card_enlarge_image, but two images side by side (English + the
 	# current language) instead of one, sized/positioned per-tab in
@@ -284,7 +284,7 @@ func _on_thumb_gui_input(event: InputEvent, entry: Dictionary, landscape: bool) 
 	if not (event is InputEventMouseButton):
 		return
 	var mb: InputEventMouseButton = event as InputEventMouseButton
-	if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+	if (mb.button_index == MOUSE_BUTTON_LEFT or mb.button_index == MOUSE_BUTTON_RIGHT) and mb.pressed:
 		_show_enlarged(entry, landscape)
 		get_viewport().set_input_as_handled()
 
@@ -335,7 +335,7 @@ func _on_enlarge_gui_input(event: InputEvent) -> void:
 	if not (event is InputEventMouseButton):
 		return
 	var mb: InputEventMouseButton = event as InputEventMouseButton
-	if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+	if (mb.button_index == MOUSE_BUTTON_LEFT or mb.button_index == MOUSE_BUTTON_RIGHT) and mb.pressed:
 		_hide_enlarged()
 		get_viewport().set_input_as_handled()
 
@@ -381,9 +381,10 @@ func _list_deck_files(deck: Dictionary) -> Array[Dictionary]:
 		for page: int in range(1, count + 1):
 			file_bases.append(_paged_filename(base, page))
 
-	# fname/folder are carried alongside the resolved path so the right-click
-	# close-up can independently resolve the EN version of the same card for
-	# the side-by-side comparison, regardless of which locale "path" landed on.
+	# fname/folder are carried alongside the resolved path so the click-to-
+	# enlarge close-up can independently resolve the EN version of the same
+	# card for the side-by-side comparison, regardless of which locale "path"
+	# landed on.
 	var out: Array[Dictionary] = []
 	for fname: String in file_bases:
 		var resolved: String = _resolve_file(folder, fname)
