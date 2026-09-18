@@ -219,6 +219,19 @@ func _lobby_has_friend(lobby_id: int) -> bool:
 
 func _on_host_pressed() -> void:
 	_player_name = _read_name()
+	if not SteamManager.is_initialized:
+		# No Steam session to host a real lobby through (Android, or Steam
+		# unavailable on desktop) — go straight to a local solo session
+		# instead, leaving multiplayer.multiplayer_peer at its default
+		# (Godot's own offline placeholder peer). is_server() is true in
+		# that state and @rpc-annotated calls just resolve locally, so the
+		# bot-staging/start flow below works unchanged with no real
+		# networking involved. Verified via a headless test forcing
+		# SteamManager.is_initialized false.
+		_is_host = true
+		_players[1] = _player_name
+		_show_staging()
+		return
 	_pending_password = _password_input.text.strip_edges()
 	_set_controls_locked(true)
 	_spinner_active = true
