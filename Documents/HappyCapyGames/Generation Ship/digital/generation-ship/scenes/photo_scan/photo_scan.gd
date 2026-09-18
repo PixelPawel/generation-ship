@@ -12,7 +12,15 @@ extends Control
 const CardDetectorScript := preload("res://scripts/photo_scan/card_detector.gd")
 const CardMatcherScript := preload("res://scripts/photo_scan/card_matcher.gd")
 const SupplyDetectorScript := preload("res://scripts/photo_scan/supply_detector.gd")
+const CardPickerScript := preload("res://scenes/photo_scan/card_picker.gd")
 const CLUSTER_PADDING_PX: int = 24
+
+# A sector can hold up to 6 cards at once (1 sector card + up to 5
+# tech/tucked), so review columns are sized to fit that many across one
+# phone-width screen rather than needing horizontal scrolling for the
+# common case.
+const REVIEW_COL_WIDTH: float = 210.0
+const REVIEW_THUMB_SIZE: Vector2 = Vector2(180, 252)
 
 # Sized for touch on a phone screen, not desktop-popup scale — this whole
 # popup is Android-only in practice (see main_menu.gd), unlike the other
@@ -59,6 +67,8 @@ var _calculate_btn: Button = null
 var _review_cards_box: HBoxContainer = null
 var _confirm_btn: Button = null
 var _supply_spinboxes: Dictionary = {}        # SupplyColor(int) -> SpinBox
+var _card_picker: Control = null
+var _picker_callback: Callable = Callable()   # armed while a row's Edit flow is waiting on a pick
 
 func _ready() -> void:
 	_build_ui()
@@ -126,6 +136,9 @@ func _build_ui() -> void:
 	_file_dialog.file_selected.connect(_on_photo_selected)
 	add_child(_file_dialog)
 
+	_card_picker = CardPickerScript.new()
+	add_child(_card_picker)
+
 func _build_list_view() -> Control:
 	var box: VBoxContainer = VBoxContainer.new()
 	box.add_theme_constant_override("separation", 14)
@@ -170,14 +183,14 @@ func _build_review_view() -> Control:
 	box.add_theme_constant_override("separation", 14)
 	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
-	var hint: Label = _make_hint_label("Check each card's role and name (auto-detected — correct anything wrong, or add/remove cards by hand). Stored supply below is also auto-detected and much less reliable than card identity — check it carefully.")
+	var hint: Label = _make_hint_label("Check each card's role, then tap Edit to pick its real identity from the collection (auto-detected as a starting guess where possible). Stored supply below is also auto-detected and much less reliable than card identity — check it carefully.")
 	box.add_child(hint)
 
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(scroll)
 	_review_cards_box = HBoxContainer.new()
-	_review_cards_box.add_theme_constant_override("separation", 20)
+	_review_cards_box.add_theme_constant_override("separation", 14)
 	scroll.add_child(_review_cards_box)
 
 	var add_card_btn: Button = _make_button("+ Add Card")
@@ -350,14 +363,14 @@ func _populate_review_cards() -> void:
 
 func _build_card_review_row(entry: Dictionary, index: int) -> Control:
 	var col: VBoxContainer = VBoxContainer.new()
-	col.custom_minimum_size = Vector2(260, 0)
-	col.add_theme_constant_override("separation", 10)
+	col.custom_minimum_size = Vector2(REVIEW_COL_WIDTH, 0)
+	col.add_theme_constant_override("separation", 8)
 
 	var thumb: TextureRect = TextureRect.new()
 	var thumbnail: Image = entry.get("thumbnail")
 	if thumbnail != null:
 		thumb.texture = ImageTexture.create_from_image(thumbnail)
-	thumb.custom_minimum_size = Vector2(200, 280)
+	thumb.custom_minimum_size = REVIEW_THUMB_SIZE
 	thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	col.add_child(thumb)
@@ -370,12 +383,19 @@ func _build_card_review_row(entry: Dictionary, index: int) -> Control:
 	role_btn.select(_ROLES.find(entry["role"]))
 	col.add_child(role_btn)
 
+	# Read-only display of the picked name — typing a name by hand used to
+	# silently fail the CardDatabase lookup on any typo, so the only way to
+	# set it now is through the "Edit" -> CardPicker flow below, which can
+	# only ever hand back a real card name.
 	var name_edit: LineEdit = LineEdit.new()
 	name_edit.text = entry["name"]
+	name_edit.editable = false
 	name_edit.custom_minimum_size = Vector2(0, CONTROL_MIN_HEIGHT)
 	name_edit.add_theme_font_size_override("font_size", CONTROL_FONT_SIZE)
 	col.add_child(name_edit)
-	name_edit.text_changed.connect(func(t: String): entry["name"] = t)
+
+	var edit_btn: Button = _make_button("Edit")
+	col.add_child(edit_btn)
 
 	var adv_check: CheckBox = CheckBox.new()
 	adv_check.text = "Advanced side"
@@ -386,10 +406,16 @@ func _build_card_review_row(entry: Dictionary, index: int) -> Control:
 	col.add_child(adv_check)
 	adv_check.toggled.connect(func(pressed: bool): entry["is_advanced"] = pressed)
 
+	edit_btn.pressed.connect(func() -> void:
+		if _picker_callback.is_valid() and _card_picker.picked.is_connected(_picker_callback):
+			_card_picker.picked.disconnect(_picker_callback)
+		_picker_callback = _on_card_picked.bind(entry, name_edit, adv_check)
+		_card_picker.picked.connect(_picker_callback, CONNECT_ONE_SHOT)
+		_card_picker.open())
+
 	role_btn.item_selected.connect(func(idx: int) -> void:
 		entry["role"] = _ROLES[idx]
-		adv_check.visible = entry["role"] == "sector"
-		name_edit.editable = entry["role"] != "tucked_down")
+		adv_check.visible = entry["role"] == "sector")
 
 	var remove_btn: Button = _make_button("Remove")
 	remove_btn.pressed.connect(func():
@@ -398,6 +424,13 @@ func _build_card_review_row(entry: Dictionary, index: int) -> Control:
 	col.add_child(remove_btn)
 
 	return col
+
+func _on_card_picked(card_name: String, is_advanced: bool, entry: Dictionary, name_edit: LineEdit, adv_check: CheckBox) -> void:
+	entry["name"] = card_name
+	name_edit.text = card_name
+	if entry["role"] == "sector":
+		entry["is_advanced"] = is_advanced
+		adv_check.button_pressed = is_advanced
 
 # ── Confirm sector / calculate ──────────────────────────────────────────────
 
