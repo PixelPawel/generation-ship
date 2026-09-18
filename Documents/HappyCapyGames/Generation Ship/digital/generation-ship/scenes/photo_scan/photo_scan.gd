@@ -34,9 +34,9 @@ const CONTROL_FONT_SIZE: int = 22
 const CONTROL_MIN_HEIGHT: float = 72.0
 
 # Shrunk from a first pass at 48px icons / 72px-tall spinboxes — this row
-# also now carries the 2 tucked-card counters (see ESTIMATED_TUCKED_UP_STARS
-# below), so each entry needs to be more compact to keep the whole row
-# on one phone-width screen.
+# also now carries the tucked-card counters (see the note further down
+# about how face-up tucked cards are tallied), so each entry needs to be
+# more compact to keep the whole row on one phone-width screen.
 const _SUPPLY_ICON_SIZE: Vector2 = Vector2(36, 36)
 const SUPPLY_CONTROL_HEIGHT: float = 56.0
 const SUPPLY_FONT_SIZE: int = 18
@@ -66,10 +66,10 @@ const _SUPPLY_COLORS: Array[CardData.SupplyColor] = [
 # exposed tech stack. Tucked cards (which don't get their own slot/art
 # anymore) are tracked as plain counts instead: face-down ones score as pure
 # counts anyway (BotScoring never needs their identity), and face-up ones
-# use this rounded corpus average (measured 0.828 stars/card across every
-# Tech+Expedition card) as a rough per-card estimate in place of a real,
-# tracked star value.
-const ESTIMATED_TUCKED_UP_STARS: int = 1
+# split into a card count plus a separately entered total-stars value (the
+# printed star icons are visible on a face-up tucked card even without
+# identifying exactly which card it is), rather than guessing at an assumed
+# average.
 
 var _matcher: RefCounted = null
 var _sectors: Array[Dictionary] = []          # board entries confirmed so far, BotScoring-shaped
@@ -86,8 +86,9 @@ var _calculate_btn: Button = null
 var _review_cards_box: HBoxContainer = null
 var _confirm_btn: Button = null
 var _supply_spinboxes: Dictionary = {}        # SupplyColor(int) -> SpinBox
-var _tucked_up_spinbox: SpinBox = null
-var _tucked_down_spinbox: SpinBox = null
+var _tucked_up_spinbox: SpinBox = null       # count of face-up tucked cards
+var _tucked_up_stars_spinbox: SpinBox = null # total printed stars across those cards
+var _tucked_down_spinbox: SpinBox = null     # count of face-down tucked cards (identity/stars n/a)
 var _card_picker: Control = null
 var _picker_callback: Callable = Callable()   # armed while a row's Edit flow is waiting on a pick
 
@@ -220,7 +221,7 @@ func _build_review_view() -> Control:
 
 	box.add_child(HSeparator.new())
 
-	var supply_label: Label = _make_hint_label("Stored supply and tucked cards on this sector (tucked cards' exact identity isn't tracked — face-up ones score using a rough per-card average):")
+	var supply_label: Label = _make_hint_label("Stored supply and tucked cards on this sector (tucked cards' exact identity isn't tracked — for face-up ones, enter how many and the total stars printed on them):")
 	box.add_child(supply_label)
 	var supply_row: HBoxContainer = HBoxContainer.new()
 	supply_row.add_theme_constant_override("separation", 8)
@@ -256,6 +257,8 @@ func _build_review_view() -> Control:
 
 	supply_row.add_child(VSeparator.new())
 	_tucked_up_spinbox = _make_tucked_counter(supply_row, "Tucked ▲")
+	_tucked_up_stars_spinbox = _make_tucked_counter(supply_row, "▲ Stars ★")
+	supply_row.add_child(VSeparator.new())
 	_tucked_down_spinbox = _make_tucked_counter(supply_row, "Tucked ▼")
 
 	var btn_row: HBoxContainer = HBoxContainer.new()
@@ -388,6 +391,7 @@ func _start_reviewing_next_cluster() -> void:
 	for color_int: int in _supply_spinboxes:
 		(_supply_spinboxes[color_int] as SpinBox).value = int(detected_supply.get(color_int, 0))
 	_tucked_up_spinbox.value = 0
+	_tucked_up_stars_spinbox.value = 0
 	_tucked_down_spinbox.value = 0
 
 	_populate_review_cards()
@@ -412,6 +416,7 @@ func _on_add_sector_pressed() -> void:
 	for color_int: int in _supply_spinboxes:
 		(_supply_spinboxes[color_int] as SpinBox).value = 0
 	_tucked_up_spinbox.value = 0
+	_tucked_up_stars_spinbox.value = 0
 	_tucked_down_spinbox.value = 0
 	_populate_review_cards()
 	_show_review_view()
@@ -427,8 +432,8 @@ func _populate_review_cards() -> void:
 		_review_cards_box.add_child(_build_card_review_row(_pending[i], i))
 
 ## index 0 is always the sector; every other reviewed card is always its
-## exposed tech stack — there's no longer a per-card role to choose (see
-## ESTIMATED_TUCKED_UP_STARS above for where "tucked" went instead).
+## exposed tech stack — there's no longer a per-card role to choose (tucked
+## cards are tracked as counts in the supply panel instead, see there).
 func _build_card_review_row(entry: Dictionary, index: int) -> Control:
 	var is_sector: bool = index == 0
 	var col: VBoxContainer = VBoxContainer.new()
@@ -527,14 +532,20 @@ func _on_confirm_sector_pressed() -> void:
 		else:
 			push_warning("Scan Tableau: unknown card name '%s', skipped" % name)
 
-	# Tucked cards no longer carry their own identity (see
-	# ESTIMATED_TUCKED_UP_STARS) — face-down ones score as pure counts either
-	# way, and face-up ones get a placeholder CardData just so BotScoring's
-	# existing "sum of .stars" line has something to add up.
+	# Tucked cards no longer carry their own identity — face-down ones score
+	# as pure counts either way, and face-up ones are entered as a card
+	# count plus the total stars printed across them (visible without
+	# knowing exactly which cards they are). BotScoring's "Faceup tucked"
+	# line just sums every entry's .stars, and other formulas only care
+	# about tucked_cards.size(), so it doesn't matter which placeholder
+	# entry carries the total as long as the count and the sum are both
+	# right — dump it all on the first one.
 	var tucked: Array[Dictionary] = []
-	for i: int in range(int(_tucked_up_spinbox.value)):
+	var tucked_up_count: int = int(_tucked_up_spinbox.value)
+	var tucked_up_stars: int = int(_tucked_up_stars_spinbox.value)
+	for i: int in range(tucked_up_count):
 		var placeholder := CardData.new()
-		placeholder.stars = ESTIMATED_TUCKED_UP_STARS
+		placeholder.stars = tucked_up_stars if i == 0 else 0
 		tucked.append({"data": placeholder, "face_up": true})
 	for i: int in range(int(_tucked_down_spinbox.value)):
 		tucked.append({"data": null, "face_up": false})
