@@ -55,6 +55,11 @@ const _SUPPLY_ICON_SIZE: Vector2 = Vector2(36, 36)
 const SUPPLY_CONTROL_HEIGHT: float = 72.0
 const SUPPLY_FONT_SIZE: int = 22
 const SUPPLY_SPIN_WIDTH: float = 56.0
+# Half of SUPPLY_SPIN_WIDTH — the tucked counters sit beside the 6 cards in
+# their own scrollable row now, and were juuust wide enough to force a
+# scrollbar there; the number field itself doesn't need to be as wide as
+# the supply row's (it's flanked by big +/- buttons either way).
+const TUCKED_SPIN_WIDTH: float = 28.0
 const STEPPER_BUTTON_SIZE: float = 72.0
 const STEPPER_BUTTON_FONT_SIZE: int = 30
 # Fixed label width for the 3 tucked-card rows (stacked vertically beside
@@ -332,7 +337,7 @@ func _make_tucked_counter(parent: VBoxContainer, label_text: String) -> SpinBox:
 	var spin: SpinBox = SpinBox.new()
 	spin.min_value = 0
 	spin.max_value = 99
-	spin.custom_minimum_size = Vector2(SUPPLY_SPIN_WIDTH, SUPPLY_CONTROL_HEIGHT)
+	spin.custom_minimum_size = Vector2(TUCKED_SPIN_WIDTH, SUPPLY_CONTROL_HEIGHT)
 	spin.get_line_edit().add_theme_font_size_override("font_size", SUPPLY_FONT_SIZE)
 	row.add_child(_make_stepper_row(spin))
 	parent.add_child(row)
