@@ -37,7 +37,14 @@ func _ready() -> void:
 	_build_ui()
 	visible = false
 
-func open(start_tab: int = TAB_SECTOR_DUST) -> void:
+## allowed_tabs restricts which tabs are shown at all (e.g. a Scan Tableau
+## slot that must be a sector only ever shows the 2 Sector tabs) so a wrong
+## pick — a card of a type that slot can't legally hold — isn't reachable
+## through the picker in the first place. Empty means "no restriction."
+func open(start_tab: int = TAB_SECTOR_DUST, allowed_tabs: Array[int] = []) -> void:
+	var allowed: Array[int] = allowed_tabs if not allowed_tabs.is_empty() else [TAB_SECTOR_DUST, TAB_SECTOR_ADVANCED, TAB_TECH, TAB_EXPEDITION]
+	for i: int in _tab_buttons.size():
+		_tab_buttons[i].visible = allowed.has(i)
 	_select_tab(start_tab)
 	visible = true
 

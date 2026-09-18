@@ -322,6 +322,19 @@ func _resolve_art_path(card_name: String, is_advanced: bool) -> String:
 		return cd.local_art_path
 	return ""
 
+## Whether a name is a sector's dust or advanced identity (as opposed to a
+## tech/expedition) — used to sanity-check CardMatcher's auto-detected
+## guesses against which slot they'd land in (slot 0 must be a sector,
+## every other slot must not be).
+func _match_as_sector(card_name: String) -> Dictionary:
+	if card_name.is_empty():
+		return {"found": false, "is_advanced": false}
+	if CardDatabase.find_sector_by_name(card_name, false):
+		return {"found": true, "is_advanced": false}
+	if CardDatabase.find_sector_by_name(card_name, true):
+		return {"found": true, "is_advanced": true}
+	return {"found": false, "is_advanced": false}
+
 # ── View switching ───────────────────────────────────────────────────────────
 
 func _show_list_view() -> void:
@@ -378,10 +391,26 @@ func _start_reviewing_next_cluster() -> void:
 	for c: Dictionary in cluster:
 		var crop: Image = CardDetectorScript.extract_card(_source_image, c)
 		var result: Dictionary = _matcher.match_card(crop)
+		var is_sector_slot: bool = _pending.is_empty()
+		var guessed_name: String = String(result.get("name", ""))
+		var guessed_is_advanced: bool = false
+		var sector_match: Dictionary = _match_as_sector(guessed_name)
+		if is_sector_slot:
+			if sector_match["found"]:
+				guessed_is_advanced = sector_match["is_advanced"]
+			else:
+				# Slot 0 has to be a sector — a guess that resolves to a
+				# tech/expedition instead is never trustworthy here, so
+				# leave it blank rather than pre-fill something wrong.
+				guessed_name = ""
+		elif sector_match["found"]:
+			# Slots 1-5 have to be tech/expedition — a guess that resolves
+			# to a sector card is never trustworthy here either.
+			guessed_name = ""
 		_pending.append({
 			"thumbnail": crop,
-			"name": String(result.get("name", "")),
-			"is_advanced": false,
+			"name": guessed_name,
+			"is_advanced": guessed_is_advanced,
 		})
 	if _pending.size() > SECTOR_SLOT_COUNT:
 		push_warning("Scan Tableau: detected %d cards in one sector, a sector can only hold %d — dropping the extras" % [_pending.size(), SECTOR_SLOT_COUNT])
@@ -485,16 +514,24 @@ func _build_card_review_row(entry: Dictionary, index: int) -> Control:
 	var edit_btn: Button = _make_button("Edit")
 	col.add_child(edit_btn)
 
-	# Sector slots default to the matching Dust/Advanced tab; every other slot
-	# is always a Tech or Expedition card, so jump straight to the Tech tab
-	# instead of making the user navigate away from Sector every time.
-	var default_tab: int = (1 if entry["is_advanced"] else 0) if is_sector else CardPickerScript.TAB_TECH
+	# Slot 0 MUST be a sector and 1-5 MUST be a tech/expedition — never the
+	# other way round — so the picker only ever shows the tabs that slot can
+	# legally hold, not just defaults to one. That makes a wrong-type pick
+	# structurally impossible rather than just discouraged.
+	var default_tab: int
+	var allowed_tabs: Array[int]
+	if is_sector:
+		default_tab = CardPickerScript.TAB_SECTOR_ADVANCED if entry["is_advanced"] else CardPickerScript.TAB_SECTOR_DUST
+		allowed_tabs = [CardPickerScript.TAB_SECTOR_DUST, CardPickerScript.TAB_SECTOR_ADVANCED]
+	else:
+		default_tab = CardPickerScript.TAB_TECH
+		allowed_tabs = [CardPickerScript.TAB_TECH, CardPickerScript.TAB_EXPEDITION]
 	edit_btn.pressed.connect(func() -> void:
 		if _picker_callback.is_valid() and _card_picker.picked.is_connected(_picker_callback):
 			_card_picker.picked.disconnect(_picker_callback)
 		_picker_callback = _on_card_picked.bind(entry)
 		_card_picker.picked.connect(_picker_callback, CONNECT_ONE_SHOT)
-		_card_picker.open(default_tab))
+		_card_picker.open(default_tab, allowed_tabs))
 
 	return col
 
