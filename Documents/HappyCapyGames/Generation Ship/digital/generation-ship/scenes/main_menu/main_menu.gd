@@ -10,6 +10,7 @@ var _music_player: AudioStreamPlayer = null
 var _manual: Control = null
 var _collection: Control = null
 var _leaderboard: Control = null
+var _photo_scan: Control = null
 
 const RESOLUTIONS: Array[Vector2i] = [
 	Vector2i(1280, 720),
@@ -25,6 +26,11 @@ func _ready() -> void:
 	_apply_saved_settings()
 	_setup_video()
 	_setup_music()
+
+	# Photo-scan is a phone-camera feature — nothing to scan a photo of, or
+	# capture one with, on a desktop build.
+	if OS.get_name() != "Android":
+		$Panels/MainView/VBox/ScanTableauBtn.visible = false
 
 	var vp: Vector2 = get_viewport_rect().size
 	$Panels.position = Vector2.ZERO
@@ -42,6 +48,8 @@ func _ready() -> void:
 	add_child(_collection)
 	_leaderboard = load("res://scenes/ui/leaderboard_popup.gd").new()
 	add_child(_leaderboard)
+	_photo_scan = load("res://scenes/photo_scan/photo_scan.gd").new()
+	add_child(_photo_scan)
 	call_deferred("_start_animations")
 
 	var ver_lbl := Label.new()
@@ -168,9 +176,8 @@ func _on_multiplayer_pressed() -> void:
 func _on_quit_pressed() -> void:
 	get_tree().quit()
 
-# TODO: opens the photo-scan VP calculator once scenes/photo_scan/ exists.
 func _on_scan_tableau_pressed() -> void:
-	print("Scan Tableau: not implemented yet")
+	_photo_scan.open()
 
 func _on_lobby_back_requested() -> void:
 	_slide_to_main()
