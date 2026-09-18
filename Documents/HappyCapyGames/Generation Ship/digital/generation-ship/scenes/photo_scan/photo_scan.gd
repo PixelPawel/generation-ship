@@ -118,7 +118,7 @@ func _build_list_view() -> Control:
 	var btn_row: HBoxContainer = HBoxContainer.new()
 	box.add_child(btn_row)
 	var add_btn: Button = _make_button("Add Sector Photo")
-	add_btn.pressed.connect(func(): _file_dialog.popup_centered())
+	add_btn.pressed.connect(_on_add_photo_pressed)
 	btn_row.add_child(add_btn)
 	_calculate_btn = _make_button("Calculate Score")
 	_calculate_btn.pressed.connect(_on_calculate_pressed)
@@ -198,6 +198,24 @@ func _show_review_view() -> void:
 	_review_view.visible = true
 
 # ── Capture -> detect -> review ─────────────────────────────────────────────
+
+# The real camera-intent plugin only exists in Android builds (it's Kotlin
+# source added directly to android/build/, not a GDExtension, so there's
+# nothing to check for on other platforms) — fall back to the file-picker
+# stub elsewhere so the rest of the flow stays testable on desktop.
+func _on_add_photo_pressed() -> void:
+	if Engine.has_singleton("CameraIntentPlugin"):
+		var plugin: Object = Engine.get_singleton("CameraIntentPlugin")
+		if not plugin.photo_captured.is_connected(_on_photo_selected):
+			plugin.photo_captured.connect(_on_photo_selected)
+		if not plugin.photo_canceled.is_connected(_on_photo_canceled):
+			plugin.photo_canceled.connect(_on_photo_canceled)
+		plugin.capture_photo()
+	else:
+		_file_dialog.popup_centered()
+
+func _on_photo_canceled() -> void:
+	pass  # user backed out of the camera app — stay on the sector list
 
 func _on_photo_selected(path: String) -> void:
 	var img := Image.new()

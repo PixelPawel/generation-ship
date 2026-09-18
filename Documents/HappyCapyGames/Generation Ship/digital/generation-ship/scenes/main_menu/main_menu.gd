@@ -27,11 +27,6 @@ func _ready() -> void:
 	_setup_video()
 	_setup_music()
 
-	# Photo-scan is a phone-camera feature — nothing to scan a photo of, or
-	# capture one with, on a desktop build.
-	if OS.get_name() != "Android":
-		$Panels/MainView/VBox/ScanTableauBtn.visible = false
-
 	var vp: Vector2 = get_viewport_rect().size
 	$Panels.position = Vector2.ZERO
 	$Panels/MainView.size = vp

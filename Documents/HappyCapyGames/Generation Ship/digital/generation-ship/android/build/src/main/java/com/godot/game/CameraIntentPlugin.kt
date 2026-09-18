@@ -1,0 +1,67 @@
+package com.godot.game
+
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import android.provider.MediaStore
+import androidx.core.content.FileProvider
+import org.godotengine.godot.Godot
+import org.godotengine.godot.plugin.GodotPlugin
+import org.godotengine.godot.plugin.SignalInfo
+import org.godotengine.godot.plugin.UsedByGodot
+import java.io.File
+
+// Captures a single photo via the device's own camera app (ACTION_IMAGE_CAPTURE)
+// for the photo-scan feature — deliberately not a live camera preview, since
+// handing off to the camera app avoids needing our own camera-permission UI
+// and preview surface. The photo goes to a FileProvider-shared cache path
+// (required since Android 7 — raw file:// URIs handed to another app now
+// throw FileUriExposedException) and the resulting local path is returned to
+// GDScript via a signal, matching the async nature of leaving the app.
+class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
+
+	companion object {
+		private const val REQUEST_IMAGE_CAPTURE = 4173
+		private val PHOTO_CAPTURED_SIGNAL = SignalInfo("photo_captured", String::class.java)
+		private val PHOTO_CANCELED_SIGNAL = SignalInfo("photo_canceled")
+	}
+
+	private var pendingPhotoPath: String? = null
+
+	override fun getPluginName() = "CameraIntentPlugin"
+
+	override fun getPluginSignals(): Set<SignalInfo> = setOf(PHOTO_CAPTURED_SIGNAL, PHOTO_CANCELED_SIGNAL)
+
+	@UsedByGodot
+	fun capture_photo() {
+		runOnUiThread {
+			val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+			if (intent.resolveActivity(activity.packageManager) == null) {
+				emitSignal(PHOTO_CANCELED_SIGNAL)
+				return@runOnUiThread
+			}
+			val photoDir = File(activity.cacheDir, "captured_photos")
+			photoDir.mkdirs()
+			val photoFile = File(photoDir, "scan_${System.currentTimeMillis()}.jpg")
+			pendingPhotoPath = photoFile.absolutePath
+			val photoUri: Uri = FileProvider.getUriForFile(
+				activity, "${activity.packageName}.fileprovider", photoFile)
+			intent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
+			intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+			activity.startActivityForResult(intent, REQUEST_IMAGE_CAPTURE)
+		}
+	}
+
+	override fun onMainActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+		if (requestCode != REQUEST_IMAGE_CAPTURE) {
+			return
+		}
+		val path = pendingPhotoPath
+		pendingPhotoPath = null
+		if (resultCode == Activity.RESULT_OK && path != null) {
+			emitSignal(PHOTO_CAPTURED_SIGNAL, path)
+		} else {
+			emitSignal(PHOTO_CANCELED_SIGNAL)
+		}
+	}
+}

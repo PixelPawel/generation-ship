@@ -1,6 +1,21 @@
 # Godot 4+ specific ignores
 .godot/
-/android/
+/android/*
+# ...except our own hand-written Android plugin customizations, which
+# "Install Android Build Template" can't regenerate (everything else under
+# /android/ — the Gradle project, cached dependencies, and a full copy of
+# the project's own assets — genuinely is regenerable, hence ignored).
+!/android/build/
+/android/build/*
+!/android/build/src/
+/android/build/src/*
+!/android/build/src/main/
+/android/build/src/main/*
+!/android/build/src/main/AndroidManifest.xml
+!/android/build/src/main/java/
+!/android/build/src/main/res/
+/android/build/src/main/res/*
+!/android/build/src/main/res/xml/
 
 # Build outputs
 GS.exe
@@ -31,7 +46,7 @@ assets/frames/
 
 # Runtime HTTP card image cache
 assets/cards/
-Build/
+/Build/
 
 # Steam upload bundle — too large for plain git, built locally as needed
 /GS.zip
