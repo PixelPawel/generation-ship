@@ -14,7 +14,18 @@ const CardMatcherScript := preload("res://scripts/photo_scan/card_matcher.gd")
 const SupplyDetectorScript := preload("res://scripts/photo_scan/supply_detector.gd")
 const CLUSTER_PADDING_PX: int = 24
 
-const _SUPPLY_ICON_SIZE: Vector2 = Vector2(32, 32)
+# Sized for touch on a phone screen, not desktop-popup scale — this whole
+# popup is Android-only in practice (see main_menu.gd), unlike the other
+# code-built popups it otherwise mirrors the style of.
+const TITLE_FONT_SIZE: int = 32
+const HINT_FONT_SIZE: int = 22
+const LABEL_FONT_SIZE: int = 22
+const BUTTON_FONT_SIZE: int = 26
+const BUTTON_MIN_HEIGHT: float = 88.0
+const CONTROL_FONT_SIZE: int = 22
+const CONTROL_MIN_HEIGHT: float = 72.0
+
+const _SUPPLY_ICON_SIZE: Vector2 = Vector2(48, 48)
 # Same res://assets/ui/supply/<Name>.png set supply_ui.gd uses elsewhere —
 # the real resource-token graphics, not the card-frame icon set.
 const _SUPPLY_ICON_PATHS: Dictionary = {
@@ -77,28 +88,25 @@ func _build_ui() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
 	var panel: Control = load("res://scenes/ui/scifi_panel.gd").new()
-	panel.set_content_margin(20)
-	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	panel.custom_minimum_size = Vector2(1000, 760)
+	panel.set_content_margin(28)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(panel)
 
 	var vbox: VBoxContainer = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 12)
-	vbox.custom_minimum_size = Vector2(960, 0)
+	vbox.add_theme_constant_override("separation", 16)
+	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	panel.add_child(vbox)
 
 	var title_row: HBoxContainer = HBoxContainer.new()
 	vbox.add_child(title_row)
 	var title: Label = Label.new()
 	title.text = "SCAN TABLEAU"
-	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_font_size_override("font_size", TITLE_FONT_SIZE)
 	title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_row.add_child(title)
 	var close_btn: Button = _make_button("✕")
-	close_btn.custom_minimum_size = Vector2(36, 0)
+	close_btn.custom_minimum_size = Vector2(BUTTON_MIN_HEIGHT, BUTTON_MIN_HEIGHT)
 	close_btn.pressed.connect(func(): visible = false)
 	title_row.add_child(close_btn)
 
@@ -120,64 +128,67 @@ func _build_ui() -> void:
 
 func _build_list_view() -> Control:
 	var box: VBoxContainer = VBoxContainer.new()
-	box.add_theme_constant_override("separation", 10)
+	box.add_theme_constant_override("separation", 14)
+	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
-	var hint: Label = Label.new()
-	hint.text = "Photograph your whole ship in one shot — fan out each sector's cards (sector, tech stack, tucked cards) so each is at least partly visible, with a gap between sectors. You'll review one sector at a time next."
-	hint.autowrap_mode = TextServer.AUTOWRAP_WORD
+	var hint: Label = _make_hint_label("Photograph your whole ship in one shot — fan out each sector's cards (sector, tech stack, tucked cards) so each is at least partly visible, with a gap between sectors. You'll review one sector at a time next.")
 	box.add_child(hint)
 
 	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 300)
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(scroll)
 	_sector_list_box = VBoxContainer.new()
+	_sector_list_box.add_theme_constant_override("separation", 10)
 	_sector_list_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_sector_list_box)
 
 	var btn_row: HBoxContainer = HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 16)
 	box.add_child(btn_row)
 	var add_btn: Button = _make_button("Scan Ship")
+	add_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_btn.pressed.connect(_on_scan_ship_pressed)
 	btn_row.add_child(add_btn)
 	_calculate_btn = _make_button("Calculate Score")
+	_calculate_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_calculate_btn.pressed.connect(_on_calculate_pressed)
 	btn_row.add_child(_calculate_btn)
 
 	box.add_child(HSeparator.new())
 	_results_box = VBoxContainer.new()
+	_results_box.add_theme_constant_override("separation", 6)
 	box.add_child(_results_box)
 
 	return box
 
 func _build_review_view() -> Control:
 	var box: VBoxContainer = VBoxContainer.new()
-	box.add_theme_constant_override("separation", 10)
+	box.add_theme_constant_override("separation", 14)
+	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
-	var hint: Label = Label.new()
-	hint.text = "Check each card's role and name (auto-detected — correct anything wrong). Stored supply below is also auto-detected and much less reliable than card identity — check it carefully."
-	hint.autowrap_mode = TextServer.AUTOWRAP_WORD
+	var hint: Label = _make_hint_label("Check each card's role and name (auto-detected — correct anything wrong). Stored supply below is also auto-detected and much less reliable than card identity — check it carefully.")
 	box.add_child(hint)
 
 	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 340)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(scroll)
 	_review_cards_box = HBoxContainer.new()
-	_review_cards_box.add_theme_constant_override("separation", 14)
+	_review_cards_box.add_theme_constant_override("separation", 20)
 	scroll.add_child(_review_cards_box)
 
 	box.add_child(HSeparator.new())
 
-	var supply_label: Label = Label.new()
-	supply_label.text = "Stored supply on this sector:"
+	var supply_label: Label = _make_hint_label("Stored supply on this sector:")
 	box.add_child(supply_label)
 	var supply_row: HBoxContainer = HBoxContainer.new()
-	supply_row.add_theme_constant_override("separation", 12)
+	supply_row.add_theme_constant_override("separation", 16)
 	box.add_child(supply_row)
 	_supply_spinboxes.clear()
 	for color: CardData.SupplyColor in _SUPPLY_COLORS:
 		var col_box: VBoxContainer = VBoxContainer.new()
+		col_box.add_theme_constant_override("separation", 8)
 		col_box.alignment = BoxContainer.ALIGNMENT_CENTER
+		col_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var icon: TextureRect = TextureRect.new()
 		icon.texture = load(_SUPPLY_ICON_PATHS[color]) as Texture2D
 		icon.custom_minimum_size = _SUPPLY_ICON_SIZE
@@ -191,17 +202,21 @@ func _build_review_view() -> Control:
 		var spin: SpinBox = SpinBox.new()
 		spin.min_value = 0
 		spin.max_value = 99
-		spin.custom_minimum_size = Vector2(70, 0)
+		spin.custom_minimum_size = Vector2(0, CONTROL_MIN_HEIGHT)
+		spin.get_line_edit().add_theme_font_size_override("font_size", CONTROL_FONT_SIZE)
 		col_box.add_child(spin)
 		supply_row.add_child(col_box)
 		_supply_spinboxes[int(color)] = spin
 
 	var btn_row: HBoxContainer = HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 16)
 	box.add_child(btn_row)
 	var cancel_btn: Button = _make_button("Skip Sector")
+	cancel_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cancel_btn.pressed.connect(_on_skip_sector_pressed)
 	btn_row.add_child(cancel_btn)
 	_confirm_btn = _make_button("Confirm Sector")
+	_confirm_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_confirm_btn.pressed.connect(_on_confirm_sector_pressed)
 	btn_row.add_child(_confirm_btn)
 
@@ -210,9 +225,17 @@ func _build_review_view() -> Control:
 func _make_button(label: String) -> Button:
 	var btn: Button = Button.new()
 	btn.text = label
-	btn.add_theme_font_size_override("font_size", 14)
+	btn.custom_minimum_size = Vector2(0, BUTTON_MIN_HEIGHT)
+	btn.add_theme_font_size_override("font_size", BUTTON_FONT_SIZE)
 	GameTheme.apply_to_button(btn)
 	return btn
+
+func _make_hint_label(text: String) -> Label:
+	var lbl: Label = Label.new()
+	lbl.text = text
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+	lbl.add_theme_font_size_override("font_size", HINT_FONT_SIZE)
+	return lbl
 
 # ── View switching ───────────────────────────────────────────────────────────
 
@@ -306,17 +329,19 @@ func _populate_review_cards() -> void:
 
 func _build_card_review_row(entry: Dictionary) -> Control:
 	var col: VBoxContainer = VBoxContainer.new()
-	col.custom_minimum_size = Vector2(150, 0)
-	col.add_theme_constant_override("separation", 4)
+	col.custom_minimum_size = Vector2(260, 0)
+	col.add_theme_constant_override("separation", 10)
 
 	var thumb: TextureRect = TextureRect.new()
 	thumb.texture = ImageTexture.create_from_image(entry["thumbnail"] as Image)
-	thumb.custom_minimum_size = Vector2(120, 168)
+	thumb.custom_minimum_size = Vector2(200, 280)
 	thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	col.add_child(thumb)
 
 	var role_btn: OptionButton = OptionButton.new()
+	role_btn.custom_minimum_size = Vector2(0, CONTROL_MIN_HEIGHT)
+	role_btn.add_theme_font_size_override("font_size", CONTROL_FONT_SIZE)
 	for label: String in _ROLE_LABELS:
 		role_btn.add_item(label)
 	role_btn.select(_ROLES.find(entry["role"]))
@@ -324,11 +349,15 @@ func _build_card_review_row(entry: Dictionary) -> Control:
 
 	var name_edit: LineEdit = LineEdit.new()
 	name_edit.text = entry["name"]
+	name_edit.custom_minimum_size = Vector2(0, CONTROL_MIN_HEIGHT)
+	name_edit.add_theme_font_size_override("font_size", CONTROL_FONT_SIZE)
 	col.add_child(name_edit)
 	name_edit.text_changed.connect(func(t: String): entry["name"] = t)
 
 	var adv_check: CheckBox = CheckBox.new()
 	adv_check.text = "Advanced side"
+	adv_check.custom_minimum_size = Vector2(0, CONTROL_MIN_HEIGHT)
+	adv_check.add_theme_font_size_override("font_size", CONTROL_FONT_SIZE)
 	adv_check.button_pressed = entry["is_advanced"]
 	adv_check.visible = entry["role"] == "sector"
 	col.add_child(adv_check)
@@ -400,6 +429,7 @@ func _refresh_sector_list() -> void:
 		lbl.text = "Sector %d: %s — %d tech, %d tucked" % [
 			i + 1, name, (entry["techs"] as Array).size(), (entry["tucked_cards"] as Array).size(),
 		]
+		lbl.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
 		_sector_list_box.add_child(lbl)
 	_calculate_btn.disabled = _sectors.is_empty()
 
@@ -410,9 +440,10 @@ func _on_calculate_pressed() -> void:
 	for line: Dictionary in lines:
 		var lbl: Label = Label.new()
 		lbl.text = "%s: %d" % [line["label"], line["vp"]]
+		lbl.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
 		_results_box.add_child(lbl)
 	var total_lbl: Label = Label.new()
 	total_lbl.text = "TOTAL: %d" % BotScoring.board_vp(_sectors)
-	total_lbl.add_theme_font_size_override("font_size", 18)
+	total_lbl.add_theme_font_size_override("font_size", TITLE_FONT_SIZE)
 	total_lbl.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
 	_results_box.add_child(total_lbl)
