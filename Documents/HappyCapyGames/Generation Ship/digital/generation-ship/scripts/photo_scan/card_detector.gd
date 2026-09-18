@@ -87,6 +87,67 @@ static func detect(source: Image) -> Array[Dictionary]:
 		return (a["rect"] as Rect2i).position.x < (b["rect"] as Rect2i).position.x)
 	return candidates
 
+## Groups detected candidates into per-sector clusters by spatial proximity —
+## for a single whole-tableau photo covering every sector at once: each
+## sector's own card group (sector + techs + tucked) sits close together,
+## with a visible gap to the next sector's group. Returns Array[Array] of
+## candidate-dictionary arrays, one per cluster, sorted left-to-right by the
+## cluster's own leftmost edge. Untested against real photos (see file-level
+## note) — the gap threshold below is a starting guess, not a tuned value.
+static func cluster_candidates(candidates: Array[Dictionary]) -> Array:
+	if candidates.is_empty():
+		return []
+	var widths: Array[float] = []
+	for c: Dictionary in candidates:
+		widths.append(float((c["rect"] as Rect2i).size.x))
+	widths.sort()
+	var median_width: float = widths[widths.size() / 2]
+	var gap_threshold: float = median_width * 0.75
+
+	var n: int = candidates.size()
+	var parent: Array[int] = []
+	for i: int in range(n):
+		parent.append(i)
+	var find_root: Callable = func(start: int) -> int:
+		var x: int = start
+		while parent[x] != x:
+			parent[x] = parent[parent[x]]
+			x = parent[x]
+		return x
+
+	for i: int in range(n):
+		for j: int in range(i + 1, n):
+			var a: Rect2 = candidates[i]["rect"] as Rect2i
+			var b: Rect2 = candidates[j]["rect"] as Rect2i
+			if _rect_gap(a, b) < gap_threshold:
+				var ri: int = find_root.call(i)
+				var rj: int = find_root.call(j)
+				if ri != rj:
+					parent[ri] = rj
+
+	var groups: Dictionary = {}
+	for i: int in range(n):
+		var root: int = find_root.call(i)
+		if not groups.has(root):
+			groups[root] = []
+		(groups[root] as Array).append(candidates[i])
+
+	var clusters: Array = groups.values()
+	clusters.sort_custom(func(a: Array, b: Array) -> bool:
+		return _cluster_left_edge(a) < _cluster_left_edge(b))
+	return clusters
+
+static func _rect_gap(a: Rect2, b: Rect2) -> float:
+	var dx: float = maxf(0.0, maxf(a.position.x - b.end.x, b.position.x - a.end.x))
+	var dy: float = maxf(0.0, maxf(a.position.y - b.end.y, b.position.y - a.end.y))
+	return Vector2(dx, dy).length()
+
+static func _cluster_left_edge(cluster: Array) -> float:
+	var min_x: float = INF
+	for c: Dictionary in cluster:
+		min_x = minf(min_x, (c["rect"] as Rect2i).position.x)
+	return min_x
+
 ## Straightens a detected card to a canonical upright crop of out_size,
 ## sampled from the ORIGINAL (full-res) image, by inverse-mapping each output
 ## pixel through the detected rotation with bilinear sampling — Godot's Image

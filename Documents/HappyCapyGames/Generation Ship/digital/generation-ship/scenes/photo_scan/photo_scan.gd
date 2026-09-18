@@ -1,14 +1,30 @@
 extends Control
 
-# Guided per-sector photo-scan VP calculator (see the plan for the full
-# design). Capture is stubbed with a plain file picker for now — the real
-# camera-intent Android plugin doesn't exist yet, and this lets the rest of
-# the pipeline (detect -> review/correct -> score) be built and tested today
-# without it. Follows the same code-built-UI convention as collection_popup.gd
-# / manual_popup.gd (no companion .tscn).
+# Photo-scan VP calculator (see the plan for the full design). One photo
+# covers the whole ship; CardDetector.cluster_candidates() groups the
+# detected cards into per-sector clusters by spatial proximity, and each
+# cluster is reviewed/corrected one at a time through the same screen a
+# per-sector capture would have used. Capture uses the real CameraIntentPlugin
+# on Android (falls back to a plain file picker elsewhere, since the plugin
+# only exists in Android builds). Follows the same code-built-UI convention
+# as collection_popup.gd / manual_popup.gd (no companion .tscn).
 
 const CardDetectorScript := preload("res://scripts/photo_scan/card_detector.gd")
 const CardMatcherScript := preload("res://scripts/photo_scan/card_matcher.gd")
+const SupplyDetectorScript := preload("res://scripts/photo_scan/supply_detector.gd")
+const CLUSTER_PADDING_PX: int = 24
+
+const _SUPPLY_ICON_SIZE: Vector2 = Vector2(32, 32)
+# Same res://assets/ui/supply/<Name>.png set supply_ui.gd uses elsewhere —
+# the real resource-token graphics, not the card-frame icon set.
+const _SUPPLY_ICON_PATHS: Dictionary = {
+	CardData.SupplyColor.DUST:     "res://assets/ui/supply/Dust.png",
+	CardData.SupplyColor.METALS:   "res://assets/ui/supply/Metals.png",
+	CardData.SupplyColor.LIQUIDS:  "res://assets/ui/supply/Liquids.png",
+	CardData.SupplyColor.ORGANIX:  "res://assets/ui/supply/Organix.png",
+	CardData.SupplyColor.ELECTRIX: "res://assets/ui/supply/Electrix.png",
+	CardData.SupplyColor.THRUST:   "res://assets/ui/supply/Thrust.png",
+}
 
 const _SUPPLY_COLORS: Array[CardData.SupplyColor] = [
 	CardData.SupplyColor.DUST, CardData.SupplyColor.METALS, CardData.SupplyColor.LIQUIDS,
@@ -19,7 +35,9 @@ const _ROLE_LABELS: Array[String] = ["Sector", "Tech", "Tucked (face up)", "Tuck
 
 var _matcher: RefCounted = null
 var _sectors: Array[Dictionary] = []          # board entries confirmed so far, BotScoring-shaped
-var _pending: Array[Dictionary] = []          # current in-review capture's candidates
+var _pending: Array[Dictionary] = []          # current in-review cluster's candidates
+var _source_image: Image = null               # the one whole-ship photo, kept for supply detection per cluster
+var _cluster_queue: Array = []                 # remaining clusters (Array[Dictionary]) still to review
 
 var _file_dialog: FileDialog = null
 var _list_view: Control = null
@@ -37,6 +55,8 @@ func _ready() -> void:
 
 func open() -> void:
 	_sectors.clear()
+	_cluster_queue.clear()
+	_source_image = null
 	if _matcher == null:
 		_matcher = CardMatcherScript.new()
 	_refresh_sector_list()
@@ -103,7 +123,7 @@ func _build_list_view() -> Control:
 	box.add_theme_constant_override("separation", 10)
 
 	var hint: Label = Label.new()
-	hint.text = "Photograph one sector's cards at a time — sector card, its tech stack, and any tucked cards, fanned out so each is at least partly visible. Add sectors one by one, then calculate."
+	hint.text = "Photograph your whole ship in one shot — fan out each sector's cards (sector, tech stack, tucked cards) so each is at least partly visible, with a gap between sectors. You'll review one sector at a time next."
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD
 	box.add_child(hint)
 
@@ -117,8 +137,8 @@ func _build_list_view() -> Control:
 
 	var btn_row: HBoxContainer = HBoxContainer.new()
 	box.add_child(btn_row)
-	var add_btn: Button = _make_button("Add Sector Photo")
-	add_btn.pressed.connect(_on_add_photo_pressed)
+	var add_btn: Button = _make_button("Scan Ship")
+	add_btn.pressed.connect(_on_scan_ship_pressed)
 	btn_row.add_child(add_btn)
 	_calculate_btn = _make_button("Calculate Score")
 	_calculate_btn.pressed.connect(_on_calculate_pressed)
@@ -135,7 +155,7 @@ func _build_review_view() -> Control:
 	box.add_theme_constant_override("separation", 10)
 
 	var hint: Label = Label.new()
-	hint.text = "Check each card's role and name (auto-detected — correct anything wrong), then enter this sector's stored supply."
+	hint.text = "Check each card's role and name (auto-detected — correct anything wrong). Stored supply below is also auto-detected and much less reliable than card identity — check it carefully."
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD
 	box.add_child(hint)
 
@@ -157,10 +177,13 @@ func _build_review_view() -> Control:
 	_supply_spinboxes.clear()
 	for color: CardData.SupplyColor in _SUPPLY_COLORS:
 		var col_box: VBoxContainer = VBoxContainer.new()
-		var lbl: Label = Label.new()
-		lbl.text = CardData.color_name(color)
-		lbl.add_theme_font_size_override("font_size", 13)
-		col_box.add_child(lbl)
+		col_box.alignment = BoxContainer.ALIGNMENT_CENTER
+		var icon: TextureRect = TextureRect.new()
+		icon.texture = load(_SUPPLY_ICON_PATHS[color]) as Texture2D
+		icon.custom_minimum_size = _SUPPLY_ICON_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.tooltip_text = CardData.color_name(color)
+		col_box.add_child(icon)
 		var spin: SpinBox = SpinBox.new()
 		spin.min_value = 0
 		spin.max_value = 99
@@ -171,8 +194,8 @@ func _build_review_view() -> Control:
 
 	var btn_row: HBoxContainer = HBoxContainer.new()
 	box.add_child(btn_row)
-	var cancel_btn: Button = _make_button("Cancel")
-	cancel_btn.pressed.connect(_show_list_view)
+	var cancel_btn: Button = _make_button("Skip Sector")
+	cancel_btn.pressed.connect(_on_skip_sector_pressed)
 	btn_row.add_child(cancel_btn)
 	_confirm_btn = _make_button("Confirm Sector")
 	_confirm_btn.pressed.connect(_on_confirm_sector_pressed)
@@ -203,7 +226,7 @@ func _show_review_view() -> void:
 # source added directly to android/build/, not a GDExtension, so there's
 # nothing to check for on other platforms) — fall back to the file-picker
 # stub elsewhere so the rest of the flow stays testable on desktop.
-func _on_add_photo_pressed() -> void:
+func _on_scan_ship_pressed() -> void:
 	if Engine.has_singleton("CameraIntentPlugin"):
 		var plugin: Object = Engine.get_singleton("CameraIntentPlugin")
 		if not plugin.photo_captured.is_connected(_on_photo_selected):
@@ -222,10 +245,26 @@ func _on_photo_selected(path: String) -> void:
 	if img.load(path) != OK:
 		push_warning("Scan Tableau: could not load %s" % path)
 		return
+	_source_image = img
 	var candidates: Array[Dictionary] = CardDetectorScript.detect(img)
+	_cluster_queue = CardDetectorScript.cluster_candidates(candidates)
+	if _cluster_queue.is_empty():
+		push_warning("Scan Tableau: no cards detected in that photo")
+		return
+	_start_reviewing_next_cluster()
+
+## Pops the next queued cluster and populates the review screen for it —
+## one whole-ship photo yields several clusters (one per sector), reviewed
+## one at a time through the same screen a per-sector capture would have used.
+func _start_reviewing_next_cluster() -> void:
+	if _cluster_queue.is_empty():
+		_show_list_view()
+		return
+	var cluster: Array = _cluster_queue.pop_front()
+
 	_pending = []
-	for c: Dictionary in candidates:
-		var crop: Image = CardDetectorScript.extract_card(img, c)
+	for c: Dictionary in cluster:
+		var crop: Image = CardDetectorScript.extract_card(_source_image, c)
 		var result: Dictionary = _matcher.match_card(crop)
 		_pending.append({
 			"thumbnail": crop,
@@ -235,10 +274,25 @@ func _on_photo_selected(path: String) -> void:
 		})
 	if not _pending.is_empty():
 		_pending[0]["role"] = "sector"
-	for spin: SpinBox in _supply_spinboxes.values():
-		spin.value = 0
+
+	var detected_supply: Dictionary = SupplyDetectorScript.detect(_source_image, _cluster_region(cluster))
+	for color_int: int in _supply_spinboxes:
+		(_supply_spinboxes[color_int] as SpinBox).value = int(detected_supply.get(color_int, 0))
+
 	_populate_review_cards()
 	_show_review_view()
+
+## The cluster's own card candidates only cover the cards themselves —
+## stored-supply tokens usually sit on or beside them, so search a padded
+## region around the whole cluster rather than just the cards' own boxes.
+func _cluster_region(cluster: Array) -> Rect2i:
+	var union: Rect2i = (cluster[0]["rect"] as Rect2i)
+	for c: Dictionary in cluster:
+		union = union.merge(c["rect"] as Rect2i)
+	return union.grow(CLUSTER_PADDING_PX)
+
+func _on_skip_sector_pressed() -> void:
+	_start_reviewing_next_cluster()
 
 func _populate_review_cards() -> void:
 	for child: Node in _review_cards_box.get_children():
@@ -328,7 +382,7 @@ func _on_confirm_sector_pressed() -> void:
 		"stored_supply": stored,
 	})
 	_refresh_sector_list()
-	_show_list_view()
+	_start_reviewing_next_cluster()
 
 func _refresh_sector_list() -> void:
 	for child: Node in _sector_list_box.get_children():
