@@ -80,10 +80,10 @@ const SUMMARY_THUMB_SIZE: Vector2 = Vector2(270, 378)
 const SUMMARY_SUPPLY_ICON_SIZE: Vector2 = Vector2(44, 44)
 const SUMMARY_FONT_SIZE: int = 24
 const SUMMARY_COLUMN_WIDTH: float = 270.0  # matches SUMMARY_THUMB_SIZE.x
-# 3x the original 220x220 — the whole-ship photo previously rendered much
-# smaller than the empty space actually available beside it (confirmed via
-# screenshot of the running debug build).
-const PHOTO_PREVIEW_SIZE: Vector2 = Vector2(660, 660)
+# 3x the original 220x220, then dialed back 30% — full 3x left too little
+# room for the sector overview below it (see _build_list_view's outer
+# scroll, added for the same reason).
+const PHOTO_PREVIEW_SIZE: Vector2 = Vector2(462, 462)
 # Same res://assets/ui/supply/<Name>.png set supply_ui.gd uses elsewhere —
 # the real resource-token graphics, not the card-frame icon set.
 const _SUPPLY_ICON_PATHS: Dictionary = {
@@ -246,8 +246,23 @@ func _build_list_view() -> Control:
 	box.add_theme_constant_override("separation", 14)
 	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
+	# Hint + photo preview + detected-sectors row all scroll together
+	# vertically — the photo preview alone can be taller than the space
+	# left for everything below it, which used to squeeze the sector
+	# overview down to nothing/off-screen. The action buttons and results
+	# stay outside this scroll, pinned at the bottom, always reachable.
+	var outer_scroll: ScrollContainer = ScrollContainer.new()
+	outer_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	outer_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(outer_scroll)
+
+	var scroll_content: VBoxContainer = VBoxContainer.new()
+	scroll_content.add_theme_constant_override("separation", 14)
+	scroll_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	outer_scroll.add_child(scroll_content)
+
 	var hint: Label = _make_hint_label("Photograph your whole ship in one shot to auto-detect a starting point, or add sectors by hand — either way you'll review and can add/remove cards before confirming each sector.")
-	box.add_child(hint)
+	scroll_content.add_child(hint)
 
 	_photo_preview = TextureRect.new()
 	_photo_preview.custom_minimum_size = PHOTO_PREVIEW_SIZE
@@ -260,23 +275,25 @@ func _build_list_view() -> Control:
 		if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
 			_photo_enlarge.texture = _photo_preview.texture
 			_photo_enlarge.visible = true)
-	box.add_child(_photo_preview)
+	scroll_content.add_child(_photo_preview)
 
 	_review_clusters_btn = _make_button("Review Detected Sectors")
 	_review_clusters_btn.pressed.connect(_start_reviewing_next_cluster)
 	_review_clusters_btn.visible = false
-	box.add_child(_review_clusters_btn)
+	scroll_content.add_child(_review_clusters_btn)
 
 	# Sectors sit side by side (up to 6, a ship's physical max) rather than
 	# stacked in a long vertical list, each one's own card stack running
 	# vertically underneath it — the same layout the real board uses
 	# (sectors across, tech stack per-sector deepening in one direction).
-	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	box.add_child(scroll)
+	# Horizontal-only scroll here (vertical scrolling is outer_scroll's job
+	# above) so the two don't fight over a vertical drag gesture.
+	var sector_scroll: ScrollContainer = ScrollContainer.new()
+	sector_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll_content.add_child(sector_scroll)
 	_sector_list_box = HBoxContainer.new()
 	_sector_list_box.add_theme_constant_override("separation", 14)
-	scroll.add_child(_sector_list_box)
+	sector_scroll.add_child(_sector_list_box)
 
 	var btn_row: HBoxContainer = HBoxContainer.new()
 	btn_row.add_theme_constant_override("separation", 16)
