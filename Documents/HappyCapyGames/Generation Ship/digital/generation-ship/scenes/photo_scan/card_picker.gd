@@ -11,6 +11,14 @@ extends Control
 
 signal picked(card_name: String, is_advanced: bool)
 
+# Exposed so callers can jump straight to the relevant tab (e.g. a Scan
+# Tableau slot that's always a Tech/Expedition never needs to land on
+# Sector first) instead of always opening on tab 0.
+const TAB_SECTOR_DUST: int = 0
+const TAB_SECTOR_ADVANCED: int = 1
+const TAB_TECH: int = 2
+const TAB_EXPEDITION: int = 3
+
 const _TAB_LABELS: Array[String] = ["Sector (Dust)", "Sector (Advanced)", "Tech", "Expedition"]
 const _PORTRAIT_SIZE: Vector2 = Vector2(140, 196)
 const _PORTRAIT_COLUMNS: int = 5
@@ -29,8 +37,8 @@ func _ready() -> void:
 	_build_ui()
 	visible = false
 
-func open() -> void:
-	_select_tab(0)
+func open(start_tab: int = TAB_SECTOR_DUST) -> void:
+	_select_tab(start_tab)
 	visible = true
 
 func _build_ui() -> void:

@@ -15,10 +15,11 @@ const SupplyDetectorScript := preload("res://scripts/photo_scan/supply_detector.
 const CardPickerScript := preload("res://scenes/photo_scan/card_picker.gd")
 const CLUSTER_PADDING_PX: int = 24
 
-# A sector can hold up to 6 cards at once (1 sector card + up to 5
-# tech/tucked), so review columns are sized to fit that many across one
-# phone-width screen rather than needing horizontal scrolling for the
-# common case.
+# A sector always shows exactly 6 slots: 1 sector card + 5 tech/expedition
+# (its physical maximum), never fewer or more — unused slots just stay
+# blank rather than being added/removed. Review columns are sized to fit
+# all 6 across one phone-width screen without horizontal scrolling.
+const SECTOR_SLOT_COUNT: int = 6
 const REVIEW_COL_WIDTH: float = 210.0
 const REVIEW_THUMB_SIZE: Vector2 = Vector2(180, 252)
 
@@ -205,7 +206,7 @@ func _build_review_view() -> Control:
 	box.add_theme_constant_override("separation", 14)
 	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
-	var hint: Label = _make_hint_label("The first card is the sector; the rest are its exposed tech. Tap Edit on any card to pick its real identity from the collection (auto-detected as a starting guess where possible). Stored supply and tucked-card counts below are also auto-detected and much less reliable than card identity — check them carefully.")
+	var hint: Label = _make_hint_label("Every sector always shows 6 slots: the first is the sector, the other 5 are its tech/expedition stack (leave any unused ones blank). Tap Edit to pick a card's real identity from the collection (auto-detected as a starting guess where possible). Stored supply and tucked-card counts below are also auto-detected and much less reliable than card identity — check them carefully.")
 	box.add_child(hint)
 
 	var scroll: ScrollContainer = ScrollContainer.new()
@@ -214,10 +215,6 @@ func _build_review_view() -> Control:
 	_review_cards_box = HBoxContainer.new()
 	_review_cards_box.add_theme_constant_override("separation", 14)
 	scroll.add_child(_review_cards_box)
-
-	var add_card_btn: Button = _make_button("+ Add Card")
-	add_card_btn.pressed.connect(_on_add_card_pressed)
-	box.add_child(add_card_btn)
 
 	box.add_child(HSeparator.new())
 
@@ -386,6 +383,11 @@ func _start_reviewing_next_cluster() -> void:
 			"name": String(result.get("name", "")),
 			"is_advanced": false,
 		})
+	if _pending.size() > SECTOR_SLOT_COUNT:
+		push_warning("Scan Tableau: detected %d cards in one sector, a sector can only hold %d — dropping the extras" % [_pending.size(), SECTOR_SLOT_COUNT])
+		_pending = _pending.slice(0, SECTOR_SLOT_COUNT)
+	while _pending.size() < SECTOR_SLOT_COUNT:
+		_pending.append(_blank_entry())
 
 	var detected_supply: Dictionary = SupplyDetectorScript.detect(_source_image, _cluster_region(cluster))
 	for color_int: int in _supply_spinboxes:
@@ -409,10 +411,13 @@ func _cluster_region(cluster: Array) -> Rect2i:
 func _on_skip_sector_pressed() -> void:
 	_start_reviewing_next_cluster()
 
-## Lets the user build a sector entirely by hand, whether starting fresh from
-## the list view or supplementing a cluster the detector under-found.
+## Lets the user build a sector entirely by hand, starting fresh from the
+## list view — always the full 6 blank slots (1 sector + 5 tech/expedition),
+## same shape as a detected cluster.
 func _on_add_sector_pressed() -> void:
-	_pending = [{"thumbnail": null, "name": "", "is_advanced": false}]
+	_pending = []
+	for i: int in range(SECTOR_SLOT_COUNT):
+		_pending.append(_blank_entry())
 	for color_int: int in _supply_spinboxes:
 		(_supply_spinboxes[color_int] as SpinBox).value = 0
 	_tucked_up_spinbox.value = 0
@@ -421,9 +426,8 @@ func _on_add_sector_pressed() -> void:
 	_populate_review_cards()
 	_show_review_view()
 
-func _on_add_card_pressed() -> void:
-	_pending.append({"thumbnail": null, "name": "", "is_advanced": false})
-	_populate_review_cards()
+func _blank_entry() -> Dictionary:
+	return {"thumbnail": null, "name": "", "is_advanced": false}
 
 func _populate_review_cards() -> void:
 	for child: Node in _review_cards_box.get_children():
@@ -456,7 +460,7 @@ func _build_card_review_row(entry: Dictionary, index: int) -> Control:
 	col.add_child(thumb)
 
 	var role_label: Label = Label.new()
-	role_label.text = "Sector" if is_sector else "Tech"
+	role_label.text = "Sector" if is_sector else "Tech / Exp."
 	role_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	role_label.add_theme_font_size_override("font_size", CONTROL_FONT_SIZE)
 	col.add_child(role_label)
@@ -486,18 +490,16 @@ func _build_card_review_row(entry: Dictionary, index: int) -> Control:
 		entry["is_advanced"] = pressed
 		_populate_review_cards())
 
+	# Sector slots default to the matching Dust/Advanced tab; every other slot
+	# is always a Tech or Expedition card, so jump straight to the Tech tab
+	# instead of making the user navigate away from Sector every time.
+	var default_tab: int = (1 if entry["is_advanced"] else 0) if is_sector else CardPickerScript.TAB_TECH
 	edit_btn.pressed.connect(func() -> void:
 		if _picker_callback.is_valid() and _card_picker.picked.is_connected(_picker_callback):
 			_card_picker.picked.disconnect(_picker_callback)
 		_picker_callback = _on_card_picked.bind(entry)
 		_card_picker.picked.connect(_picker_callback, CONNECT_ONE_SHOT)
-		_card_picker.open())
-
-	var remove_btn: Button = _make_button("Remove")
-	remove_btn.pressed.connect(func():
-		_pending.remove_at(index)
-		_populate_review_cards())
-	col.add_child(remove_btn)
+		_card_picker.open(default_tab))
 
 	return col
 
