@@ -459,8 +459,14 @@ func _build_card_review_row(entry: Dictionary, index: int) -> Control:
 	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	col.add_child(thumb)
 
+	# Dust vs Advanced is decided entirely by which CardPicker tab the sector
+	# was picked from (no separate toggle needed anymore) — shown here so
+	# that's still visible at a glance.
 	var role_label: Label = Label.new()
-	role_label.text = "Sector" if is_sector else "Tech / Exp."
+	if is_sector:
+		role_label.text = "Sector (Advanced)" if entry["is_advanced"] else "Sector (Dust)"
+	else:
+		role_label.text = "Tech / Exp."
 	role_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	role_label.add_theme_font_size_override("font_size", CONTROL_FONT_SIZE)
 	col.add_child(role_label)
@@ -478,17 +484,6 @@ func _build_card_review_row(entry: Dictionary, index: int) -> Control:
 
 	var edit_btn: Button = _make_button("Edit")
 	col.add_child(edit_btn)
-
-	var adv_check: CheckBox = CheckBox.new()
-	adv_check.text = "Advanced side"
-	adv_check.custom_minimum_size = Vector2(0, CONTROL_MIN_HEIGHT)
-	adv_check.add_theme_font_size_override("font_size", CONTROL_FONT_SIZE)
-	adv_check.button_pressed = entry["is_advanced"]
-	adv_check.visible = is_sector
-	col.add_child(adv_check)
-	adv_check.toggled.connect(func(pressed: bool):
-		entry["is_advanced"] = pressed
-		_populate_review_cards())
 
 	# Sector slots default to the matching Dust/Advanced tab; every other slot
 	# is always a Tech or Expedition card, so jump straight to the Tech tab
