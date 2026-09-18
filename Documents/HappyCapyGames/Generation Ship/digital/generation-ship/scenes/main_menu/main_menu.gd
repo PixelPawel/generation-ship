@@ -34,12 +34,8 @@ func _ready() -> void:
 	$Panels/LobbyView/StagingPanel.position = Vector2(0.0, vp.y)
 	$Panels/LobbyView/StagingPanel.size = vp
 
-	$Panels/MainView/VBox/MultiplayerBtn.modulate.a = 0.0
-	$Panels/MainView/VBox/SettingsBtn.modulate.a = 0.0
-	$Panels/MainView/VBox/RuleBookBtn.modulate.a = 0.0
-	$Panels/MainView/VBox/CollectionBtn.modulate.a = 0.0
-	$Panels/MainView/VBox/LeaderboardBtn.modulate.a = 0.0
-	$Panels/MainView/VBox/QuitBtn.modulate.a = 0.0
+	for btn: Node in $Panels/MainView/VBox.get_children():
+		(btn as CanvasItem).modulate.a = 0.0
 	_manual = load("res://scenes/ui/manual_popup.gd").new()
 	add_child(_manual)
 	_collection = load("res://scenes/ui/collection_popup.gd").new()
@@ -99,12 +95,8 @@ func _setup_music() -> void:
 func _start_animations() -> void:
 	_animate_logo()
 	_animate_buttons()
-	_setup_button_hover($Panels/MainView/VBox/MultiplayerBtn as Button)
-	_setup_button_hover($Panels/MainView/VBox/SettingsBtn as Button)
-	_setup_button_hover($Panels/MainView/VBox/RuleBookBtn as Button)
-	_setup_button_hover($Panels/MainView/VBox/CollectionBtn as Button)
-	_setup_button_hover($Panels/MainView/VBox/LeaderboardBtn as Button)
-	_setup_button_hover($Panels/MainView/VBox/QuitBtn as Button)
+	for btn: Node in $Panels/MainView/VBox.get_children():
+		_setup_button_hover(btn as Button)
 
 func _animate_logo() -> void:
 	const LOGO_PATH: String = "res://assets/video/logo.webm"
@@ -128,14 +120,7 @@ func _animate_logo() -> void:
 	logo_vp.set_video_path(LOGO_PATH)
 
 func _animate_buttons() -> void:
-	var buttons: Array[Node] = [
-		$Panels/MainView/VBox/MultiplayerBtn,
-		$Panels/MainView/VBox/SettingsBtn,
-		$Panels/MainView/VBox/RuleBookBtn,
-		$Panels/MainView/VBox/CollectionBtn,
-		$Panels/MainView/VBox/LeaderboardBtn,
-		$Panels/MainView/VBox/QuitBtn,
-	]
+	var buttons: Array[Node] = $Panels/MainView/VBox.get_children()
 	for i: int in buttons.size():
 		var btn: Control = buttons[i] as Control
 		var tw: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
@@ -182,6 +167,10 @@ func _on_multiplayer_pressed() -> void:
 
 func _on_quit_pressed() -> void:
 	get_tree().quit()
+
+# TODO: opens the photo-scan VP calculator once scenes/photo_scan/ exists.
+func _on_scan_tableau_pressed() -> void:
+	print("Scan Tableau: not implemented yet")
 
 func _on_lobby_back_requested() -> void:
 	_slide_to_main()

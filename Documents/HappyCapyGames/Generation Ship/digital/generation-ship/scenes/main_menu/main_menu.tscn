@@ -100,15 +100,14 @@ stretch_mode = 5
 
 [node name="VBox" type="VBoxContainer" parent="Panels/MainView"]
 layout_mode = 1
-anchors_preset = 8
 anchor_left = 0.5
-anchor_top = 0.5
+anchor_top = 0.4
 anchor_right = 0.5
-anchor_bottom = 0.5
+anchor_bottom = 0.4
 offset_top = 40.0
 offset_bottom = 40.0
 grow_horizontal = 2
-grow_vertical = 2
+grow_vertical = 1
 theme_override_constants/separation = 16
 alignment = 1
 
@@ -135,6 +134,12 @@ custom_minimum_size = Vector2(440, 64)
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
 text = "Collection"
+
+[node name="ScanTableauBtn" type="Button" parent="Panels/MainView/VBox"]
+custom_minimum_size = Vector2(440, 64)
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Scan Tableau"
 
 [node name="LeaderboardBtn" type="Button" parent="Panels/MainView/VBox"]
 custom_minimum_size = Vector2(440, 64)
@@ -403,6 +408,7 @@ script = ExtResource("4_pause_menu")
 [connection signal="pressed" from="Panels/MainView/VBox/SettingsBtn" to="." method="_on_settings_btn_pressed"]
 [connection signal="pressed" from="Panels/MainView/VBox/RuleBookBtn" to="." method="_on_rule_book_pressed"]
 [connection signal="pressed" from="Panels/MainView/VBox/CollectionBtn" to="." method="_on_collection_pressed"]
+[connection signal="pressed" from="Panels/MainView/VBox/ScanTableauBtn" to="." method="_on_scan_tableau_pressed"]
 [connection signal="pressed" from="Panels/MainView/VBox/LeaderboardBtn" to="." method="_on_leaderboard_pressed"]
 [connection signal="pressed" from="Panels/MainView/VBox/QuitBtn" to="." method="_on_quit_pressed"]
 [connection signal="pressed" from="Panels/LobbyView/LobbyPanel/HostBtn" to="Panels/LobbyView" method="_on_host_pressed"]
