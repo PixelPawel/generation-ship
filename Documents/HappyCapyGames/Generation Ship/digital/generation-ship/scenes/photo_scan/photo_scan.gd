@@ -237,7 +237,7 @@ func _build_ui() -> void:
 	_photo_enlarge.mouse_filter = Control.MOUSE_FILTER_STOP
 	_photo_enlarge.visible = false
 	_photo_enlarge.gui_input.connect(func(event: InputEvent) -> void:
-		if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+		if _is_tap(event):
 			_photo_enlarge.visible = false)
 	add_child(_photo_enlarge)
 
@@ -268,11 +268,15 @@ func _build_list_view() -> Control:
 	_photo_preview.custom_minimum_size = PHOTO_PREVIEW_SIZE
 	_photo_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_photo_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_photo_preview.mouse_filter = Control.MOUSE_FILTER_STOP
+	# PASS, not STOP: still gets its own gui_input (for tap-to-enlarge) but
+	# also lets the event bubble up to the outer ScrollContainer — with STOP,
+	# a mouse wheel scroll over the image was swallowed here and never
+	# scrolled the page at all.
+	_photo_preview.mouse_filter = Control.MOUSE_FILTER_PASS
 	_photo_preview.tooltip_text = "Tap to enlarge"
 	_photo_preview.visible = false
 	_photo_preview.gui_input.connect(func(event: InputEvent) -> void:
-		if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+		if _is_tap(event):
 			_photo_enlarge.texture = _photo_preview.texture
 			_photo_enlarge.visible = true)
 	scroll_content.add_child(_photo_preview)
@@ -407,6 +411,18 @@ func _make_hint_label(text: String) -> Label:
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
 	lbl.add_theme_font_size_override("font_size", HINT_FONT_SIZE)
 	return lbl
+
+## True for an actual click/tap (left or right press) — NOT for a mouse
+## wheel scroll, which Godot also delivers as an InputEventMouseButton with
+## pressed=true (button_index MOUSE_BUTTON_WHEEL_UP/DOWN), so a plain
+## "is InputEventMouseButton and pressed" check would wrongly fire on
+## scrolling over the control too (this is exactly how the photo preview's
+## tap-to-enlarge used to trigger just from scrolling past it).
+func _is_tap(event: InputEvent) -> bool:
+	if not (event is InputEventMouseButton):
+		return false
+	var mb: InputEventMouseButton = event as InputEventMouseButton
+	return mb.pressed and (mb.button_index == MOUSE_BUTTON_LEFT or mb.button_index == MOUSE_BUTTON_RIGHT)
 
 ## Built as label-then-stepper, stacked vertically 3-high in the leftover
 ## space beside the 6 review cards (rather than side by side in the supply

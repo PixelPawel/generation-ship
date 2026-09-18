@@ -42,7 +42,13 @@ func _ready() -> void:
 ## pick — a card of a type that slot can't legally hold — isn't reachable
 ## through the picker in the first place. Empty means "no restriction."
 func open(start_tab: int = TAB_SECTOR_DUST, allowed_tabs: Array[int] = []) -> void:
-	var allowed: Array[int] = allowed_tabs if not allowed_tabs.is_empty() else [TAB_SECTOR_DUST, TAB_SECTOR_ADVANCED, TAB_TECH, TAB_EXPEDITION]
+	# A ternary between allowed_tabs (Array[int]) and an untyped array
+	# literal infers a plain Array, which then fails to assign into the
+	# Array[int]-typed local below — reassigning after the fact instead
+	# (into an already-typed variable) converts cleanly either way.
+	var allowed: Array[int] = allowed_tabs
+	if allowed.is_empty():
+		allowed = [TAB_SECTOR_DUST, TAB_SECTOR_ADVANCED, TAB_TECH, TAB_EXPEDITION]
 	for i: int in _tab_buttons.size():
 		_tab_buttons[i].visible = allowed.has(i)
 	_select_tab(start_tab)
@@ -132,12 +138,15 @@ func _populate_grid() -> void:
 		rect.custom_minimum_size = box_size
 		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		rect.mouse_filter = Control.MOUSE_FILTER_STOP
+		# PASS, not STOP: still gets its own gui_input (for tap-to-pick) but
+		# also lets the event bubble up to the grid's ScrollContainer — with
+		# STOP, a mouse wheel scroll over any tile never scrolled the grid.
+		rect.mouse_filter = Control.MOUSE_FILTER_PASS
 		rect.tooltip_text = entry["name"]
 		var card_name: String = entry["name"]
 		var is_adv: bool = entry["is_advanced"]
 		rect.gui_input.connect(func(event: InputEvent) -> void:
-			if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+			if _is_tap(event):
 				picked.emit(card_name, is_adv)
 				visible = false)
 		_grid.add_child(rect)
@@ -175,3 +184,14 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		visible = false
 		get_viewport().set_input_as_handled()
+
+## True for an actual click/tap (left or right press) — NOT for a mouse
+## wheel scroll, which Godot also delivers as an InputEventMouseButton with
+## pressed=true (button_index MOUSE_BUTTON_WHEEL_UP/DOWN), so a plain
+## "is InputEventMouseButton and pressed" check would wrongly fire on
+## scrolling over a tile too.
+func _is_tap(event: InputEvent) -> bool:
+	if not (event is InputEventMouseButton):
+		return false
+	var mb: InputEventMouseButton = event as InputEventMouseButton
+	return mb.pressed and (mb.button_index == MOUSE_BUTTON_LEFT or mb.button_index == MOUSE_BUTTON_RIGHT)
