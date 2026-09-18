@@ -73,6 +73,8 @@ const TUCKED_LABEL_WIDTH: float = 150.0
 # alongside several others.
 const SUMMARY_THUMB_SIZE: Vector2 = Vector2(90, 126)
 const SUMMARY_SUPPLY_ICON_SIZE: Vector2 = Vector2(28, 28)
+const SUMMARY_FONT_SIZE: int = 16  # smaller than LABEL_FONT_SIZE — up to 6 of these columns sit side by side
+const SUMMARY_COLUMN_WIDTH: float = 90.0  # matches SUMMARY_THUMB_SIZE.x
 const PHOTO_PREVIEW_SIZE: Vector2 = Vector2(220, 220)
 # Same res://assets/ui/supply/<Name>.png set supply_ui.gd uses elsewhere —
 # the real resource-token graphics, not the card-frame icon set.
@@ -110,7 +112,7 @@ var _cluster_queue: Array = []                 # remaining clusters (Array[Dicti
 var _file_dialog: FileDialog = null
 var _list_view: Control = null
 var _review_view: Control = null
-var _sector_list_box: VBoxContainer = null
+var _sector_list_box: HBoxContainer = null    # sector columns side by side (see _build_list_view)
 var _results_box: VBoxContainer = null
 var _calculate_btn: Button = null
 var _review_clusters_btn: Button = null       # "Review Detected Sectors (N)" — only visible while _cluster_queue is non-empty
@@ -257,12 +259,15 @@ func _build_list_view() -> Control:
 	_review_clusters_btn.visible = false
 	box.add_child(_review_clusters_btn)
 
+	# Sectors sit side by side (up to 6, a ship's physical max) rather than
+	# stacked in a long vertical list, each one's own card stack running
+	# vertically underneath it — the same layout the real board uses
+	# (sectors across, tech stack per-sector deepening in one direction).
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(scroll)
-	_sector_list_box = VBoxContainer.new()
-	_sector_list_box.add_theme_constant_override("separation", 10)
-	_sector_list_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_sector_list_box = HBoxContainer.new()
+	_sector_list_box.add_theme_constant_override("separation", 14)
 	scroll.add_child(_sector_list_box)
 
 	var btn_row: HBoxContainer = HBoxContainer.new()
@@ -827,41 +832,41 @@ func _refresh_cluster_review_button() -> void:
 	if count > 0:
 		_review_clusters_btn.text = "Review Detected Sector%s (%d)" % ["s" if count != 1 else "", count]
 
-## A confirmed sector's row on the list view: its name, its card stack shown
-## as real art (same visual language as the review screen and the main
-## game's board — art + supply icons + tuck counts — rather than a plain
-## text summary), and an Edit button to reopen it in the review screen.
+## A confirmed sector's column on the list view — sectors run left to right
+## (up to 6, a ship's physical max), each one's own card stack running
+## vertically underneath it (sector card, then its tech/expedition stack),
+## matching the real board's layout instead of a flat text summary. Real
+## art throughout (same source images the review screen and CardPicker
+## use), plus supply icons and tuck counts, with an Edit button to reopen
+## it in the review screen.
 func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 	var outer: VBoxContainer = VBoxContainer.new()
-	outer.add_theme_constant_override("separation", 8)
+	outer.add_theme_constant_override("separation", 6)
+	outer.custom_minimum_size = Vector2(SUMMARY_COLUMN_WIDTH, 0)
 
 	var sector_cd: CardData = entry["sector"]
 	var is_advanced: bool = entry["is_advanced"]
 	var name: String = sector_cd.adv_name if (is_advanced and not sector_cd.adv_name.is_empty()) else sector_cd.card_name
 	var header: Label = Label.new()
-	header.text = "Sector %d: %s" % [index + 1, name]
-	header.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
+	header.text = "%d. %s" % [index + 1, name]
+	header.autowrap_mode = TextServer.AUTOWRAP_WORD
+	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	header.add_theme_font_size_override("font_size", SUMMARY_FONT_SIZE)
 	outer.add_child(header)
 
-	var cards_scroll: ScrollContainer = ScrollContainer.new()
-	cards_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	cards_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	outer.add_child(cards_scroll)
-	var cards_box: HBoxContainer = HBoxContainer.new()
-	cards_box.add_theme_constant_override("separation", 8)
-	cards_scroll.add_child(cards_box)
 	var sector_art: String = sector_cd.adv_local_art_path if is_advanced else sector_cd.local_art_path
-	cards_box.add_child(_make_summary_thumb(sector_art))
+	outer.add_child(_make_summary_thumb(sector_art))
 	for cd: CardData in (entry["techs"] as Array):
-		cards_box.add_child(_make_summary_thumb(cd.local_art_path))
+		outer.add_child(_make_summary_thumb(cd.local_art_path))
 
-	var info_row: HBoxContainer = HBoxContainer.new()
-	info_row.add_theme_constant_override("separation", 12)
-	outer.add_child(info_row)
+	var info_box: VBoxContainer = VBoxContainer.new()
+	info_box.add_theme_constant_override("separation", 2)
+	info_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	outer.add_child(info_box)
 	var stored: Dictionary = entry["stored_supply"]
 	for color_int: int in stored:
 		if int(stored[color_int]) > 0:
-			info_row.add_child(_make_summary_supply_badge(color_int, int(stored[color_int])))
+			info_box.add_child(_make_summary_supply_badge(color_int, int(stored[color_int])))
 	var up_count: int = 0
 	var up_stars: int = 0
 	var down_count: int = 0
@@ -874,14 +879,13 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 		else:
 			down_count += 1
 	if up_count > 0:
-		info_row.add_child(_make_summary_text_badge("▲%d (★%d)" % [up_count, up_stars]))
+		info_box.add_child(_make_summary_text_badge("▲%d (★%d)" % [up_count, up_stars]))
 	if down_count > 0:
-		info_row.add_child(_make_summary_text_badge("▼%d" % down_count))
+		info_box.add_child(_make_summary_text_badge("▼%d" % down_count))
 
-	var edit_btn: Button = _make_button("Edit Sector")
+	var edit_btn: Button = _make_button("Edit")
 	edit_btn.pressed.connect(_on_edit_sector_pressed.bind(index))
 	outer.add_child(edit_btn)
-	outer.add_child(HSeparator.new())
 
 	return outer
 
@@ -897,6 +901,7 @@ func _make_summary_thumb(art_path: String) -> TextureRect:
 func _make_summary_supply_badge(color_int: int, amount: int) -> Control:
 	var box: HBoxContainer = HBoxContainer.new()
 	box.add_theme_constant_override("separation", 4)
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	var icon: TextureRect = TextureRect.new()
 	icon.texture = load(_SUPPLY_ICON_PATHS[color_int]) as Texture2D
 	icon.custom_minimum_size = SUMMARY_SUPPLY_ICON_SIZE
@@ -910,7 +915,8 @@ func _make_summary_supply_badge(color_int: int, amount: int) -> Control:
 func _make_summary_text_badge(text: String) -> Label:
 	var lbl: Label = Label.new()
 	lbl.text = text
-	lbl.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", SUMMARY_FONT_SIZE)
 	return lbl
 
 ## Pulls a confirmed sector back out for editing: removed from _sectors (so
