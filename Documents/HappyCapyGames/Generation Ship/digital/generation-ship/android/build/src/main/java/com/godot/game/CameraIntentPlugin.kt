@@ -14,10 +14,17 @@ import java.io.File
 // Captures a single photo via the device's own camera app (ACTION_IMAGE_CAPTURE)
 // for the photo-scan feature — deliberately not a live camera preview, since
 // handing off to the camera app avoids needing our own camera-permission UI
-// and preview surface. The photo goes to a FileProvider-shared cache path
-// (required since Android 7 — raw file:// URIs handed to another app now
-// throw FileUriExposedException) and the resulting local path is returned to
+// and preview surface. The photo goes to a FileProvider-shared path (required
+// since Android 7 — raw file:// URIs handed to another app now throw
+// FileUriExposedException) and the resulting local path is returned to
 // GDScript via a signal, matching the async nature of leaving the app.
+//
+// Reuses Godot's own FileProvider (godot-lib's AndroidManifest already
+// declares one at authority "${applicationId}.fileprovider") rather than
+// declaring a second one — two <provider> tags with the same authority is a
+// manifest-merge error, not just redundant. Godot's own res/xml/godot_
+// provider_paths.xml only maps a <files-path> (Context.getFilesDir()), not
+// a cache path, so the photo goes under filesDir instead of cacheDir.
 class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 
 	companion object {
@@ -40,7 +47,7 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 				emitSignal(PHOTO_CANCELED_SIGNAL)
 				return@runOnUiThread
 			}
-			val photoDir = File(activity.cacheDir, "captured_photos")
+			val photoDir = File(activity.filesDir, "captured_photos")
 			photoDir.mkdirs()
 			val photoFile = File(photoDir, "scan_${System.currentTimeMillis()}.jpg")
 			pendingPhotoPath = photoFile.absolutePath

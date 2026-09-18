@@ -43,16 +43,6 @@
             android:name="org.godotengine.plugin.v2.CameraIntentPlugin"
             android:value="com.godot.game.CameraIntentPlugin"/>
 
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
-        </provider>
-
         <activity
             android:name=".GodotApp"
             android:theme="@style/GodotAppSplashTheme"
