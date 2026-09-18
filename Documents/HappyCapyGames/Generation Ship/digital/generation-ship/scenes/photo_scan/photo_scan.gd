@@ -84,6 +84,9 @@ const SUMMARY_COLUMN_WIDTH: float = 270.0  # matches SUMMARY_THUMB_SIZE.x
 # room for the sector overview below it (see _build_list_view's outer
 # scroll, added for the same reason).
 const PHOTO_PREVIEW_SIZE: Vector2 = Vector2(462, 462)
+const SCORE_FONT_SIZE: int = 96
+const SCORE_STAR_COLOR: Color = Color(1.0, 0.85, 0.2)
+const SCORE_COLOR: Color = Color(0.9, 0.85, 0.7)
 # Same res://assets/ui/supply/<Name>.png set supply_ui.gd uses elsewhere —
 # the real resource-token graphics, not the card-frame icon set.
 const _SUPPLY_ICON_PATHS: Dictionary = {
@@ -137,6 +140,13 @@ var _skip_btn: Button = null                  # relabeled "Cancel" while editing
 var _photo_preview: TextureRect = null        # small tap-to-enlarge thumbnail of the last scanned photo, on the list view
 var _photo_enlarge: TextureRect = null        # full-screen enlarged copy, shown/hidden by tapping the preview
 
+# Replaces the photo preview once Calculate Score is pressed — a big ★
+# and the total VP, in the same spot the photo occupied. Reverts back to
+# the photo (see _refresh_sector_list) as soon as the board changes, so it
+# never sits there showing a stale number after an edit.
+var _score_display: Control = null
+var _score_total_label: Label = null
+
 # Set while re-opening an already-confirmed sector for editing (via the
 # list view's "Edit Sector" button) — the sector is pulled back out of
 # _sectors into _pending for the same review screen a fresh scan uses.
@@ -165,6 +175,7 @@ func open() -> void:
 	_source_image = null
 	_photo_preview.texture = null
 	_photo_preview.visible = false
+	_score_display.visible = false
 	_editing_sector_index = -1
 	_editing_original_sector = {}
 	if _matcher == null:
@@ -280,6 +291,25 @@ func _build_list_view() -> Control:
 			_photo_enlarge.texture = _photo_preview.texture
 			_photo_enlarge.visible = true)
 	scroll_content.add_child(_photo_preview)
+
+	# Takes the photo preview's spot once Calculate Score is pressed (see
+	# _on_calculate_pressed/_refresh_sector_list) — a big, celebratory total
+	# instead of the photo, which isn't useful to keep looking at once
+	# you've got a number.
+	_score_display = HBoxContainer.new()
+	_score_display.alignment = BoxContainer.ALIGNMENT_CENTER
+	_score_display.add_theme_constant_override("separation", 20)
+	_score_display.visible = false
+	var star_lbl: Label = Label.new()
+	star_lbl.text = "★"
+	star_lbl.add_theme_font_size_override("font_size", SCORE_FONT_SIZE)
+	star_lbl.add_theme_color_override("font_color", SCORE_STAR_COLOR)
+	_score_display.add_child(star_lbl)
+	_score_total_label = Label.new()
+	_score_total_label.add_theme_font_size_override("font_size", SCORE_FONT_SIZE)
+	_score_total_label.add_theme_color_override("font_color", SCORE_COLOR)
+	_score_display.add_child(_score_total_label)
+	scroll_content.add_child(_score_display)
 
 	_review_clusters_btn = _make_button("Review Detected Sectors")
 	_review_clusters_btn.pressed.connect(_start_reviewing_next_cluster)
@@ -589,6 +619,7 @@ func _on_photo_selected(path: String) -> void:
 	_cluster_counter = 0
 	_photo_preview.texture = ImageTexture.create_from_image(img)
 	_photo_preview.visible = true
+	_score_display.visible = false
 	var candidates: Array[Dictionary] = CardDetectorScript.detect(img)
 	_cluster_queue = CardDetectorScript.cluster_candidates(candidates)
 	if _cluster_queue.is_empty():
@@ -866,6 +897,12 @@ func _refresh_sector_list() -> void:
 	for i: int in _sectors.size():
 		_sector_list_box.add_child(_build_sector_summary_row(_sectors[i], i))
 	_calculate_btn.disabled = _sectors.is_empty()
+	# The board just changed (a sector was confirmed/edited), so any score
+	# already on screen is now stale — go back to showing the photo (if
+	# there is one) until Calculate Score is pressed again.
+	if _score_display.visible:
+		_score_display.visible = false
+		_photo_preview.visible = _photo_preview.texture != null
 
 func _refresh_cluster_review_button() -> void:
 	var count: int = _cluster_queue.size()
@@ -1017,8 +1054,11 @@ func _on_calculate_pressed() -> void:
 		lbl.text = "%s: %d" % [line["label"], line["vp"]]
 		lbl.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
 		_results_box.add_child(lbl)
-	var total_lbl: Label = Label.new()
-	total_lbl.text = "TOTAL: %d" % BotScoring.board_vp(_sectors)
-	total_lbl.add_theme_font_size_override("font_size", TITLE_FONT_SIZE)
-	total_lbl.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
-	_results_box.add_child(total_lbl)
+
+	# board_vp_lines() is just the itemized breakdown (no total of its own)
+	# — the total, previously its own small line appended at the bottom of
+	# that list, now gets a much more prominent home up where the photo
+	# preview was instead.
+	_score_total_label.text = str(BotScoring.board_vp(_sectors))
+	_score_display.visible = true
+	_photo_preview.visible = false
