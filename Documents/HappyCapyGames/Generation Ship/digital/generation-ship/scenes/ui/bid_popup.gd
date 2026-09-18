@@ -238,7 +238,7 @@ func _on_card_image_gui_input(event: InputEvent) -> void:
 	if not (event is InputEventMouseButton):
 		return
 	var mb: InputEventMouseButton = event as InputEventMouseButton
-	if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed and _card_image.texture:
+	if (mb.button_index == MOUSE_BUTTON_LEFT or mb.button_index == MOUSE_BUTTON_RIGHT) and mb.pressed and _card_image.texture:
 		_card_enlarge_image.texture = _card_image.texture
 		_card_enlarge_image.visible = true
 		get_viewport().set_input_as_handled()
@@ -247,7 +247,7 @@ func _on_card_enlarge_gui_input(event: InputEvent) -> void:
 	if not (event is InputEventMouseButton):
 		return
 	var mb: InputEventMouseButton = event as InputEventMouseButton
-	if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+	if (mb.button_index == MOUSE_BUTTON_LEFT or mb.button_index == MOUSE_BUTTON_RIGHT) and mb.pressed:
 		_card_enlarge_image.visible = false
 		get_viewport().set_input_as_handled()
 

@@ -1,5 +1,7 @@
 extends Control
 
+const LongPressGestureScript := preload("res://scenes/ui/long_press_gesture.gd")
+
 signal sector_advanced_pressed(slot_idx: int)
 signal sector_dust_pressed(slot_idx: int)
 signal expedition_pressed(slot_idx: int)
@@ -288,13 +290,19 @@ func _build_ui() -> void:
 		slot.add_child(tutorial_highlight)
 		_tutorial_dust_highlights.append(tutorial_highlight)
 		var idx: int = i
+		var gesture := LongPressGestureScript.new()
 		slot.gui_input.connect(func(ev: InputEvent) -> void:
 			if ev is InputEventMouseButton:
 				var mb: InputEventMouseButton = ev as InputEventMouseButton
-				if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
-					sector_dust_pressed.emit(idx)
+				if mb.button_index == MOUSE_BUTTON_LEFT:
+					if mb.pressed:
+						gesture.begin(slot.get_tree(), mb.position, func(): card_inspect_requested.emit("dust", idx))
+					elif gesture.end():
+						sector_dust_pressed.emit(idx)
 				elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
 					card_inspect_requested.emit("dust", idx)
+			elif ev is InputEventMouseMotion:
+				gesture.update_position((ev as InputEventMouseMotion).position)
 		)
 		slot.mouse_entered.connect(func() -> void:
 			CursorManager.set_hover()
@@ -323,13 +331,19 @@ func _build_ui() -> void:
 		_adv_rects.append(rect)
 		_adv_counts.append(count_lbl)
 		var idx: int = i
+		var gesture := LongPressGestureScript.new()
 		slot.gui_input.connect(func(ev: InputEvent) -> void:
 			if ev is InputEventMouseButton:
 				var mb: InputEventMouseButton = ev as InputEventMouseButton
-				if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
-					sector_advanced_pressed.emit(idx)
+				if mb.button_index == MOUSE_BUTTON_LEFT:
+					if mb.pressed:
+						gesture.begin(slot.get_tree(), mb.position, func(): card_inspect_requested.emit("advanced", idx))
+					elif gesture.end():
+						sector_advanced_pressed.emit(idx)
 				elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
 					card_inspect_requested.emit("advanced", idx)
+			elif ev is InputEventMouseMotion:
+				gesture.update_position((ev as InputEventMouseMotion).position)
 		)
 		slot.mouse_entered.connect(func() -> void:
 			CursorManager.set_hover()
@@ -367,13 +381,19 @@ func _build_ui() -> void:
 		slot.add_child(tutorial_highlight)
 		_tutorial_exp_highlights.append(tutorial_highlight)
 		var idx: int = i
+		var gesture := LongPressGestureScript.new()
 		slot.gui_input.connect(func(ev: InputEvent) -> void:
 			if ev is InputEventMouseButton:
 				var mb: InputEventMouseButton = ev as InputEventMouseButton
-				if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
-					expedition_pressed.emit(idx)
+				if mb.button_index == MOUSE_BUTTON_LEFT:
+					if mb.pressed:
+						gesture.begin(slot.get_tree(), mb.position, func(): card_inspect_requested.emit("expedition", idx))
+					elif gesture.end():
+						expedition_pressed.emit(idx)
 				elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
 					card_inspect_requested.emit("expedition", idx)
+			elif ev is InputEventMouseMotion:
+				gesture.update_position((ev as InputEventMouseMotion).position)
 		)
 		slot.mouse_entered.connect(func() -> void:
 			CursorManager.set_hover()

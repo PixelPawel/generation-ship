@@ -1,6 +1,8 @@
 class_name CockpitRig
 extends RefCounted
 
+const LongPressGestureScript := preload("res://scenes/ui/long_press_gesture.gd")
+
 # One-time construction/wiring for the 3D cockpit screens (control panel, info
 # screen, log screen, cockpit switches) and their SubViewport input forwarding.
 # All state (viewports, meshes, materials) lives on the owning Main node and is
@@ -222,6 +224,7 @@ static func setup_screen_enlarge(main: Main) -> void:
 			cshape.position = aabb.get_center()
 			area.add_child(cshape)
 			mesh.add_child(area)
+		var gesture := LongPressGestureScript.new()
 		area.input_event.connect(func(_cam: Node, event: InputEvent, _pos: Vector3, _norm: Vector3, _idx: int) -> void:
 			if event is InputEventMouseButton:
 				var mb: InputEventMouseButton = event as InputEventMouseButton
@@ -236,6 +239,18 @@ static func setup_screen_enlarge(main: Main) -> void:
 						if Time.get_ticks_msec() - main._last_card_elevation_toggle_ms > CARD_ELEVATION_IGNORE_WINDOW_MS:
 							_toggle_screen_enlarge(main, node)
 					).call_deferred()
+				elif mb.button_index == MOUSE_BUTTON_LEFT:
+					# Touch has no right-click — long-press is its equivalent
+					# here (this area has no competing left-click action of
+					# its own to conflict with).
+					if mb.pressed:
+						gesture.begin(main.get_tree(), mb.position, func() -> void:
+							if Time.get_ticks_msec() - main._last_card_elevation_toggle_ms > CARD_ELEVATION_IGNORE_WINDOW_MS:
+								_toggle_screen_enlarge(main, node))
+					else:
+						gesture.end()
+			elif event is InputEventMouseMotion:
+				gesture.update_position((event as InputEventMouseMotion).position)
 		)
 		area.mouse_entered.connect(func() -> void:
 			main._show_tooltip("", main.tr("Right-click to enlarge/shrink this screen."))

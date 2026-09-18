@@ -158,17 +158,25 @@ func _on_input_event(_camera: Node, event: InputEvent, _pos: Vector3, _normal: V
 		else:
 			_drag_armed = false
 			if is_placed:
+				# No touch equivalent of right-click exists, but a placed
+				# card has no other tap action to conflict with — a plain
+				# tap can just do what right-click does here directly.
+				_try_toggle_placed_elevation()
 				return
 			if (not can_drag or not is_dragging) and not _any_dragging:
 				clicked.emit(self)
 	elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
-		if is_placed:
-			if can_elevate and not _any_dragging:
-				toggle_elevation(_elevate_target_local(global_position), Vector3.ONE * PLACED_LIFT_SCALE, 0.0)
-		elif _placed_elevated:
-			toggle_elevation(Vector3.ZERO, Vector3.ONE, 0.0)
+		if is_placed or _placed_elevated:
+			_try_toggle_placed_elevation()
 		else:
 			right_clicked.emit(self)
+
+func _try_toggle_placed_elevation() -> void:
+	if is_placed:
+		if can_elevate and not _any_dragging:
+			toggle_elevation(_elevate_target_local(global_position), Vector3.ONE * PLACED_LIFT_SCALE, 0.0)
+	elif _placed_elevated:
+		toggle_elevation(Vector3.ZERO, Vector3.ONE, 0.0)
 
 func _input(event: InputEvent) -> void:
 	if not _drag_armed:

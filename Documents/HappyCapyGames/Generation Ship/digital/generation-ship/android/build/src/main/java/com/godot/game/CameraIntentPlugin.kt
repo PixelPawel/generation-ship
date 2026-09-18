@@ -42,6 +42,13 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 	@UsedByGodot
 	fun capture_photo() {
 		runOnUiThread {
+			// GodotPlugin.activity is nullable (the host Activity may not be
+			// alive at call time) — bind it to a local non-null val once so
+			// every use below doesn't need its own null-check.
+			val activity = activity ?: run {
+				emitSignal(PHOTO_CANCELED_SIGNAL)
+				return@runOnUiThread
+			}
 			val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
 			if (intent.resolveActivity(activity.packageManager) == null) {
 				emitSignal(PHOTO_CANCELED_SIGNAL)

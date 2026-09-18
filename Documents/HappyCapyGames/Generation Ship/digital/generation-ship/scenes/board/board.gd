@@ -881,12 +881,15 @@ func _input(event: InputEvent) -> void:
 	# Right-click-to-shrink a market-inspect clone used to be handled by the
 	# clone's own 3D collider — no longer possible now that it's deliberately
 	# unpickable (see inspect_market_card), so it's replaced with a plain
-	# "right-click anywhere dismisses the inspect view" here instead. Handled
-	# (and consumed) before any of the drag-specific logic below, since
-	# there's no dragged card at all while just inspecting.
+	# "right-click (or, since touch has no right-click, a plain tap — there's
+	# no competing left-click action while inspecting) anywhere dismisses the
+	# inspect view" here instead. Handled (and consumed) before any of the
+	# drag-specific logic below, since there's no dragged card at all while
+	# just inspecting.
 	if _inspecting_card and is_instance_valid(_inspecting_card) and event is InputEventMouseButton:
 		var mb_inspect: InputEventMouseButton = event as InputEventMouseButton
-		if mb_inspect.button_index == MOUSE_BUTTON_RIGHT and mb_inspect.pressed:
+		var dismiss_button: bool = mb_inspect.button_index == MOUSE_BUTTON_RIGHT or mb_inspect.button_index == MOUSE_BUTTON_LEFT
+		if dismiss_button and mb_inspect.pressed:
 			_dismiss_inspecting_card()
 			get_viewport().set_input_as_handled()
 			return
