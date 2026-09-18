@@ -34,17 +34,19 @@ const BUTTON_MIN_HEIGHT: float = 88.0
 const CONTROL_FONT_SIZE: int = 22
 const CONTROL_MIN_HEIGHT: float = 72.0
 
-# Shrunk from a first pass at 48px icons / 72px-tall spinboxes — this row
-# also now carries the tucked-card counters (see the note further down
-# about how face-up tucked cards are tallied), so each entry needs to be
-# more compact to keep the whole row on one phone-width screen.
+# A SpinBox's own built-in up/down arrows are tiny and don't scale with its
+# height — nowhere near big enough to hit reliably on a phone — so every
+# counter here pairs one with big dedicated -/+ buttons instead
+# (_make_stepper_row) and only relies on the SpinBox itself to hold/display
+# the value. The whole row scrolls horizontally (see _build_review_view)
+# since 6 supply counters plus 3 tucked ones, each now with 2 extra big
+# buttons, no longer fit one phone-width screen at a readable size.
 const _SUPPLY_ICON_SIZE: Vector2 = Vector2(36, 36)
-const SUPPLY_CONTROL_HEIGHT: float = 56.0
-const SUPPLY_FONT_SIZE: int = 18
-# Fixed narrow width for the 6 supply number fields (shrink-to-content
-# instead of sharing the row equally with the tucked counters) — just wide
-# enough for a 2-digit value plus the SpinBox's own up/down arrows.
-const SUPPLY_SPIN_WIDTH: float = 64.0
+const SUPPLY_CONTROL_HEIGHT: float = 72.0
+const SUPPLY_FONT_SIZE: int = 22
+const SUPPLY_SPIN_WIDTH: float = 56.0
+const STEPPER_BUTTON_SIZE: float = 72.0
+const STEPPER_BUTTON_FONT_SIZE: int = 30
 # Same res://assets/ui/supply/<Name>.png set supply_ui.gd uses elsewhere —
 # the real resource-token graphics, not the card-frame icon set.
 const _SUPPLY_ICON_PATHS: Dictionary = {
@@ -220,18 +222,18 @@ func _build_review_view() -> Control:
 
 	var supply_label: Label = _make_hint_label("Stored supply and tucked cards on this sector (tucked cards' exact identity isn't tracked — for face-up ones, enter how many and the total stars printed on them):")
 	box.add_child(supply_label)
+	var supply_scroll: ScrollContainer = ScrollContainer.new()
+	supply_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	supply_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(supply_scroll)
 	var supply_row: HBoxContainer = HBoxContainer.new()
-	supply_row.add_theme_constant_override("separation", 8)
-	box.add_child(supply_row)
+	supply_row.add_theme_constant_override("separation", 12)
+	supply_scroll.add_child(supply_row)
 	_supply_spinboxes.clear()
 	for color: CardData.SupplyColor in _SUPPLY_COLORS:
 		var col_box: VBoxContainer = VBoxContainer.new()
 		col_box.add_theme_constant_override("separation", 4)
 		col_box.alignment = BoxContainer.ALIGNMENT_CENTER
-		# Shrink-to-content instead of expand-fill: with 6 of these plus the
-		# 2 tucked counters all sharing the row, letting the number fields
-		# stay narrow (SUPPLY_SPIN_WIDTH) leaves the tucked counters
-		# (still expand-fill) the rest of the row's width.
 		col_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		var icon: TextureRect = TextureRect.new()
 		icon.texture = load(_SUPPLY_ICON_PATHS[color]) as Texture2D
@@ -248,7 +250,7 @@ func _build_review_view() -> Control:
 		spin.max_value = 99
 		spin.custom_minimum_size = Vector2(SUPPLY_SPIN_WIDTH, SUPPLY_CONTROL_HEIGHT)
 		spin.get_line_edit().add_theme_font_size_override("font_size", SUPPLY_FONT_SIZE)
-		col_box.add_child(spin)
+		col_box.add_child(_make_stepper_row(spin))
 		supply_row.add_child(col_box)
 		_supply_spinboxes[int(color)] = spin
 
@@ -291,7 +293,7 @@ func _make_tucked_counter(parent: HBoxContainer, label_text: String) -> SpinBox:
 	var col_box: VBoxContainer = VBoxContainer.new()
 	col_box.add_theme_constant_override("separation", 4)
 	col_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	col_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	var lbl: Label = Label.new()
 	lbl.text = label_text
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -300,11 +302,35 @@ func _make_tucked_counter(parent: HBoxContainer, label_text: String) -> SpinBox:
 	var spin: SpinBox = SpinBox.new()
 	spin.min_value = 0
 	spin.max_value = 99
-	spin.custom_minimum_size = Vector2(0, SUPPLY_CONTROL_HEIGHT)
+	spin.custom_minimum_size = Vector2(SUPPLY_SPIN_WIDTH, SUPPLY_CONTROL_HEIGHT)
 	spin.get_line_edit().add_theme_font_size_override("font_size", SUPPLY_FONT_SIZE)
-	col_box.add_child(spin)
+	col_box.add_child(_make_stepper_row(spin))
 	parent.add_child(col_box)
 	return spin
+
+## A SpinBox's own up/down arrows are too small to hit reliably on a phone
+## (see the const block above), so every counter on this screen pairs one
+## with a big dedicated -/+ button instead — the SpinBox itself just holds
+## and displays the value, clamped the same way tapping its own arrows would.
+func _make_stepper_row(spin: SpinBox) -> HBoxContainer:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	var minus_btn: Button = _make_stepper_button("−")
+	minus_btn.pressed.connect(func(): spin.value = maxf(spin.min_value, spin.value - 1.0))
+	row.add_child(minus_btn)
+	row.add_child(spin)
+	var plus_btn: Button = _make_stepper_button("+")
+	plus_btn.pressed.connect(func(): spin.value = minf(spin.max_value, spin.value + 1.0))
+	row.add_child(plus_btn)
+	return row
+
+func _make_stepper_button(label: String) -> Button:
+	var btn: Button = Button.new()
+	btn.text = label
+	btn.custom_minimum_size = Vector2(STEPPER_BUTTON_SIZE, STEPPER_BUTTON_SIZE)
+	btn.add_theme_font_size_override("font_size", STEPPER_BUTTON_FONT_SIZE)
+	GameTheme.apply_to_button(btn)
+	return btn
 
 ## Looks up the official art for a card name the same way the review row's
 ## thumbnail and CardPicker's own tiles do, so a picked (or auto-detected,
