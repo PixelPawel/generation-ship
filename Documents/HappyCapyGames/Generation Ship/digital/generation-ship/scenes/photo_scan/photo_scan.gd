@@ -131,7 +131,7 @@ func _build_list_view() -> Control:
 	box.add_theme_constant_override("separation", 14)
 	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
-	var hint: Label = _make_hint_label("Photograph your whole ship in one shot — fan out each sector's cards (sector, tech stack, tucked cards) so each is at least partly visible, with a gap between sectors. You'll review one sector at a time next.")
+	var hint: Label = _make_hint_label("Photograph your whole ship in one shot to auto-detect a starting point, or add sectors by hand — either way you'll review and can add/remove cards before confirming each sector.")
 	box.add_child(hint)
 
 	var scroll: ScrollContainer = ScrollContainer.new()
@@ -149,6 +149,10 @@ func _build_list_view() -> Control:
 	add_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_btn.pressed.connect(_on_scan_ship_pressed)
 	btn_row.add_child(add_btn)
+	var add_sector_btn: Button = _make_button("+ Add Sector")
+	add_sector_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	add_sector_btn.pressed.connect(_on_add_sector_pressed)
+	btn_row.add_child(add_sector_btn)
 	_calculate_btn = _make_button("Calculate Score")
 	_calculate_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_calculate_btn.pressed.connect(_on_calculate_pressed)
@@ -166,7 +170,7 @@ func _build_review_view() -> Control:
 	box.add_theme_constant_override("separation", 14)
 	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
-	var hint: Label = _make_hint_label("Check each card's role and name (auto-detected — correct anything wrong). Stored supply below is also auto-detected and much less reliable than card identity — check it carefully.")
+	var hint: Label = _make_hint_label("Check each card's role and name (auto-detected — correct anything wrong, or add/remove cards by hand). Stored supply below is also auto-detected and much less reliable than card identity — check it carefully.")
 	box.add_child(hint)
 
 	var scroll: ScrollContainer = ScrollContainer.new()
@@ -175,6 +179,10 @@ func _build_review_view() -> Control:
 	_review_cards_box = HBoxContainer.new()
 	_review_cards_box.add_theme_constant_override("separation", 20)
 	scroll.add_child(_review_cards_box)
+
+	var add_card_btn: Button = _make_button("+ Add Card")
+	add_card_btn.pressed.connect(_on_add_card_pressed)
+	box.add_child(add_card_btn)
 
 	box.add_child(HSeparator.new())
 
@@ -321,19 +329,34 @@ func _cluster_region(cluster: Array) -> Rect2i:
 func _on_skip_sector_pressed() -> void:
 	_start_reviewing_next_cluster()
 
+## Lets the user build a sector entirely by hand, whether starting fresh from
+## the list view or supplementing a cluster the detector under-found.
+func _on_add_sector_pressed() -> void:
+	_pending = [{"thumbnail": null, "role": "sector", "name": "", "is_advanced": false}]
+	for color_int: int in _supply_spinboxes:
+		(_supply_spinboxes[color_int] as SpinBox).value = 0
+	_populate_review_cards()
+	_show_review_view()
+
+func _on_add_card_pressed() -> void:
+	_pending.append({"thumbnail": null, "role": "tech", "name": "", "is_advanced": false})
+	_populate_review_cards()
+
 func _populate_review_cards() -> void:
 	for child: Node in _review_cards_box.get_children():
 		child.queue_free()
-	for entry: Dictionary in _pending:
-		_review_cards_box.add_child(_build_card_review_row(entry))
+	for i: int in range(_pending.size()):
+		_review_cards_box.add_child(_build_card_review_row(_pending[i], i))
 
-func _build_card_review_row(entry: Dictionary) -> Control:
+func _build_card_review_row(entry: Dictionary, index: int) -> Control:
 	var col: VBoxContainer = VBoxContainer.new()
 	col.custom_minimum_size = Vector2(260, 0)
 	col.add_theme_constant_override("separation", 10)
 
 	var thumb: TextureRect = TextureRect.new()
-	thumb.texture = ImageTexture.create_from_image(entry["thumbnail"] as Image)
+	var thumbnail: Image = entry.get("thumbnail")
+	if thumbnail != null:
+		thumb.texture = ImageTexture.create_from_image(thumbnail)
 	thumb.custom_minimum_size = Vector2(200, 280)
 	thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -367,6 +390,12 @@ func _build_card_review_row(entry: Dictionary) -> Control:
 		entry["role"] = _ROLES[idx]
 		adv_check.visible = entry["role"] == "sector"
 		name_edit.editable = entry["role"] != "tucked_down")
+
+	var remove_btn: Button = _make_button("Remove")
+	remove_btn.pressed.connect(func():
+		_pending.remove_at(index)
+		_populate_review_cards())
+	col.add_child(remove_btn)
 
 	return col
 
