@@ -67,15 +67,23 @@ const STEPPER_BUTTON_FONT_SIZE: int = 30
 # label's text length ("Tucked ▲" vs "▲ Stars ★" vs "Tucked ▼").
 const TUCKED_LABEL_WIDTH: float = 150.0
 
-# Small view-only card art in each confirmed sector's summary row on the
-# list view — same aspect ratio as the review screen's thumbnails, just
-# much smaller since a whole sector's stack has to read at a glance
-# alongside several others.
-const SUMMARY_THUMB_SIZE: Vector2 = Vector2(90, 126)
-const SUMMARY_SUPPLY_ICON_SIZE: Vector2 = Vector2(28, 28)
-const SUMMARY_FONT_SIZE: int = 16  # smaller than LABEL_FONT_SIZE — up to 6 of these columns sit side by side
-const SUMMARY_COLUMN_WIDTH: float = 90.0  # matches SUMMARY_THUMB_SIZE.x
-const PHOTO_PREVIEW_SIZE: Vector2 = Vector2(220, 220)
+# View-only card art in each confirmed sector's summary column on the list
+# view — same aspect ratio as the review screen's thumbnails. Sized to
+# fill the row: with up to 6 columns, 14px separation between them, and
+# the panel's own 28px content margin on each side, a 1936px-wide screen
+# (the Windows debug window's actual size, checked via screenshot) has
+# ~1880px to divide 6 ways. Filling that completely allows ~302px-wide
+# cards, but 90% of it — leaving headroom for narrower real devices and
+# per-column padding — lands at ~270px, which happens to fall almost
+# exactly at 3x the original 90x126 thumbnail size.
+const SUMMARY_THUMB_SIZE: Vector2 = Vector2(270, 378)
+const SUMMARY_SUPPLY_ICON_SIZE: Vector2 = Vector2(44, 44)
+const SUMMARY_FONT_SIZE: int = 24
+const SUMMARY_COLUMN_WIDTH: float = 270.0  # matches SUMMARY_THUMB_SIZE.x
+# 3x the original 220x220 — the whole-ship photo previously rendered much
+# smaller than the empty space actually available beside it (confirmed via
+# screenshot of the running debug build).
+const PHOTO_PREVIEW_SIZE: Vector2 = Vector2(660, 660)
 # Same res://assets/ui/supply/<Name>.png set supply_ui.gd uses elsewhere —
 # the real resource-token graphics, not the card-frame icon set.
 const _SUPPLY_ICON_PATHS: Dictionary = {
