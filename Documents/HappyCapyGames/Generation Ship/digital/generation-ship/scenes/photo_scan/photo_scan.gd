@@ -66,6 +66,14 @@ const STEPPER_BUTTON_FONT_SIZE: int = 30
 # the cards) so their steppers all line up in a column regardless of each
 # label's text length ("Tucked ▲" vs "▲ Stars ★" vs "Tucked ▼").
 const TUCKED_LABEL_WIDTH: float = 150.0
+
+# Small view-only card art in each confirmed sector's summary row on the
+# list view — same aspect ratio as the review screen's thumbnails, just
+# much smaller since a whole sector's stack has to read at a glance
+# alongside several others.
+const SUMMARY_THUMB_SIZE: Vector2 = Vector2(90, 126)
+const SUMMARY_SUPPLY_ICON_SIZE: Vector2 = Vector2(28, 28)
+const PHOTO_PREVIEW_SIZE: Vector2 = Vector2(220, 220)
 # Same res://assets/ui/supply/<Name>.png set supply_ui.gd uses elsewhere —
 # the real resource-token graphics, not the card-frame icon set.
 const _SUPPLY_ICON_PATHS: Dictionary = {
@@ -113,6 +121,17 @@ var _tucked_up_stars_spinbox: SpinBox = null # total printed stars across those 
 var _tucked_down_spinbox: SpinBox = null     # count of face-down tucked cards (identity/stars n/a)
 var _card_picker: Control = null
 var _picker_callback: Callable = Callable()   # armed while a row's Edit flow is waiting on a pick
+var _skip_btn: Button = null                  # relabeled "Cancel" while editing an already-confirmed sector
+
+var _photo_preview: TextureRect = null        # small tap-to-enlarge thumbnail of the last scanned photo, on the list view
+var _photo_enlarge: TextureRect = null        # full-screen enlarged copy, shown/hidden by tapping the preview
+
+# Set while re-opening an already-confirmed sector for editing (via the
+# list view's "Edit Sector" button) — the sector is pulled back out of
+# _sectors into _pending for the same review screen a fresh scan uses.
+# _editing_original_sector is kept aside so Cancel can restore it unchanged.
+var _editing_sector_index: int = -1
+var _editing_original_sector: Dictionary = {}
 
 # Calibration logging — see CALIBRATION_LOG_PATH. Only meaningful when a
 # sector came from an actual detected cluster; manually-added sectors
@@ -133,6 +152,10 @@ func open() -> void:
 	_sectors.clear()
 	_cluster_queue.clear()
 	_source_image = null
+	_photo_preview.texture = null
+	_photo_preview.visible = false
+	_editing_sector_index = -1
+	_editing_original_sector = {}
 	if _matcher == null:
 		_matcher = CardMatcherScript.new()
 	_refresh_sector_list()
@@ -194,6 +217,18 @@ func _build_ui() -> void:
 	_card_picker = CardPickerScript.new()
 	add_child(_card_picker)
 
+	# Full-screen enlarged copy of the photo preview — tap the small one on
+	# the list view to show this, tap it again (or anywhere on it) to hide.
+	_photo_enlarge = TextureRect.new()
+	_photo_enlarge.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_photo_enlarge.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_photo_enlarge.mouse_filter = Control.MOUSE_FILTER_STOP
+	_photo_enlarge.visible = false
+	_photo_enlarge.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+			_photo_enlarge.visible = false)
+	add_child(_photo_enlarge)
+
 func _build_list_view() -> Control:
 	var box: VBoxContainer = VBoxContainer.new()
 	box.add_theme_constant_override("separation", 14)
@@ -201,6 +236,19 @@ func _build_list_view() -> Control:
 
 	var hint: Label = _make_hint_label("Photograph your whole ship in one shot to auto-detect a starting point, or add sectors by hand — either way you'll review and can add/remove cards before confirming each sector.")
 	box.add_child(hint)
+
+	_photo_preview = TextureRect.new()
+	_photo_preview.custom_minimum_size = PHOTO_PREVIEW_SIZE
+	_photo_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_photo_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_photo_preview.mouse_filter = Control.MOUSE_FILTER_STOP
+	_photo_preview.tooltip_text = "Tap to enlarge"
+	_photo_preview.visible = false
+	_photo_preview.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+			_photo_enlarge.texture = _photo_preview.texture
+			_photo_enlarge.visible = true)
+	box.add_child(_photo_preview)
 
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -297,10 +345,10 @@ func _build_review_view() -> Control:
 	var btn_row: HBoxContainer = HBoxContainer.new()
 	btn_row.add_theme_constant_override("separation", 16)
 	box.add_child(btn_row)
-	var cancel_btn: Button = _make_button("Skip Sector")
-	cancel_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cancel_btn.pressed.connect(_on_skip_sector_pressed)
-	btn_row.add_child(cancel_btn)
+	_skip_btn = _make_button("Skip Sector")
+	_skip_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_skip_btn.pressed.connect(_on_skip_sector_pressed)
+	btn_row.add_child(_skip_btn)
 	_confirm_btn = _make_button("Confirm Sector")
 	_confirm_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_confirm_btn.pressed.connect(_on_confirm_sector_pressed)
@@ -486,6 +534,8 @@ func _on_photo_selected(path: String) -> void:
 	_source_image = img
 	_current_photo_path = path
 	_cluster_counter = 0
+	_photo_preview.texture = ImageTexture.create_from_image(img)
+	_photo_preview.visible = true
 	var candidates: Array[Dictionary] = CardDetectorScript.detect(img)
 	_cluster_queue = CardDetectorScript.cluster_candidates(candidates)
 	if _cluster_queue.is_empty():
@@ -559,6 +609,15 @@ func _cluster_region(cluster: Array) -> Rect2i:
 	return union.grow(CLUSTER_PADDING_PX)
 
 func _on_skip_sector_pressed() -> void:
+	if _editing_sector_index >= 0:
+		_sectors.insert(_editing_sector_index, _editing_original_sector)
+		_editing_sector_index = -1
+		_editing_original_sector = {}
+		_confirm_btn.text = "Confirm Sector"
+		_skip_btn.text = "Skip Sector"
+		_refresh_sector_list()
+		_show_list_view()
+		return
 	if _pending_from_cluster:
 		_log_calibration_record("skipped", _pending_initial_snapshot, null)
 	_start_reviewing_next_cluster()
@@ -715,15 +774,23 @@ func _on_confirm_sector_pressed() -> void:
 		if amount > 0:
 			stored[color_int] = amount
 
-	_sectors.append({
+	var new_sector: Dictionary = {
 		"sector": sector_cd,
 		"is_advanced": is_advanced,
 		"techs": techs,
 		"tucked_cards": tucked,
 		"stored_supply": stored,
-	})
-	if _pending_from_cluster:
-		_log_calibration_record("confirmed", _pending_initial_snapshot, _snapshot_pending_state())
+	}
+	if _editing_sector_index >= 0:
+		_sectors.insert(_editing_sector_index, new_sector)
+		_editing_sector_index = -1
+		_editing_original_sector = {}
+		_confirm_btn.text = "Confirm Sector"
+		_skip_btn.text = "Skip Sector"
+	else:
+		if _pending_from_cluster:
+			_log_calibration_record("confirmed", _pending_initial_snapshot, _snapshot_pending_state())
+		_sectors.append(new_sector)
 	_refresh_sector_list()
 	_start_reviewing_next_cluster()
 
@@ -731,16 +798,142 @@ func _refresh_sector_list() -> void:
 	for child: Node in _sector_list_box.get_children():
 		child.queue_free()
 	for i: int in _sectors.size():
-		var entry: Dictionary = _sectors[i]
-		var sector_cd: CardData = entry["sector"]
-		var name: String = sector_cd.adv_name if (entry["is_advanced"] and not sector_cd.adv_name.is_empty()) else sector_cd.card_name
-		var lbl: Label = Label.new()
-		lbl.text = "Sector %d: %s — %d tech, %d tucked" % [
-			i + 1, name, (entry["techs"] as Array).size(), (entry["tucked_cards"] as Array).size(),
-		]
-		lbl.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
-		_sector_list_box.add_child(lbl)
+		_sector_list_box.add_child(_build_sector_summary_row(_sectors[i], i))
 	_calculate_btn.disabled = _sectors.is_empty()
+
+## A confirmed sector's row on the list view: its name, its card stack shown
+## as real art (same visual language as the review screen and the main
+## game's board — art + supply icons + tuck counts — rather than a plain
+## text summary), and an Edit button to reopen it in the review screen.
+func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
+	var outer: VBoxContainer = VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 8)
+
+	var sector_cd: CardData = entry["sector"]
+	var is_advanced: bool = entry["is_advanced"]
+	var name: String = sector_cd.adv_name if (is_advanced and not sector_cd.adv_name.is_empty()) else sector_cd.card_name
+	var header: Label = Label.new()
+	header.text = "Sector %d: %s" % [index + 1, name]
+	header.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
+	outer.add_child(header)
+
+	var cards_scroll: ScrollContainer = ScrollContainer.new()
+	cards_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	cards_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	outer.add_child(cards_scroll)
+	var cards_box: HBoxContainer = HBoxContainer.new()
+	cards_box.add_theme_constant_override("separation", 8)
+	cards_scroll.add_child(cards_box)
+	var sector_art: String = sector_cd.adv_local_art_path if is_advanced else sector_cd.local_art_path
+	cards_box.add_child(_make_summary_thumb(sector_art))
+	for cd: CardData in (entry["techs"] as Array):
+		cards_box.add_child(_make_summary_thumb(cd.local_art_path))
+
+	var info_row: HBoxContainer = HBoxContainer.new()
+	info_row.add_theme_constant_override("separation", 12)
+	outer.add_child(info_row)
+	var stored: Dictionary = entry["stored_supply"]
+	for color_int: int in stored:
+		if int(stored[color_int]) > 0:
+			info_row.add_child(_make_summary_supply_badge(color_int, int(stored[color_int])))
+	var up_count: int = 0
+	var up_stars: int = 0
+	var down_count: int = 0
+	for t: Dictionary in (entry["tucked_cards"] as Array):
+		if t["face_up"]:
+			up_count += 1
+			var tcd: CardData = t.get("data")
+			if tcd:
+				up_stars += tcd.stars
+		else:
+			down_count += 1
+	if up_count > 0:
+		info_row.add_child(_make_summary_text_badge("▲%d (★%d)" % [up_count, up_stars]))
+	if down_count > 0:
+		info_row.add_child(_make_summary_text_badge("▼%d" % down_count))
+
+	var edit_btn: Button = _make_button("Edit Sector")
+	edit_btn.pressed.connect(_on_edit_sector_pressed.bind(index))
+	outer.add_child(edit_btn)
+	outer.add_child(HSeparator.new())
+
+	return outer
+
+func _make_summary_thumb(art_path: String) -> TextureRect:
+	var thumb: TextureRect = TextureRect.new()
+	if not art_path.is_empty():
+		thumb.texture = load(art_path) as Texture2D
+	thumb.custom_minimum_size = SUMMARY_THUMB_SIZE
+	thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	return thumb
+
+func _make_summary_supply_badge(color_int: int, amount: int) -> Control:
+	var box: HBoxContainer = HBoxContainer.new()
+	box.add_theme_constant_override("separation", 4)
+	var icon: TextureRect = TextureRect.new()
+	icon.texture = load(_SUPPLY_ICON_PATHS[color_int]) as Texture2D
+	icon.custom_minimum_size = SUMMARY_SUPPLY_ICON_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	box.add_child(icon)
+	var lbl: Label = _make_summary_text_badge(str(amount))
+	box.add_child(lbl)
+	return box
+
+func _make_summary_text_badge(text: String) -> Label:
+	var lbl: Label = Label.new()
+	lbl.text = text
+	lbl.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
+	return lbl
+
+## Pulls a confirmed sector back out for editing: removed from _sectors (so
+## the list doesn't show it twice while it's being edited) and reconstructed
+## into the same 6-slot _pending shape a fresh scan/add would build, with
+## supply/tucked fields pre-filled from what it was confirmed as. Cancel
+## restores _editing_original_sector unchanged; Confirm re-inserts whatever
+## it's edited to at the same index.
+func _on_edit_sector_pressed(index: int) -> void:
+	_editing_sector_index = index
+	_editing_original_sector = _sectors[index]
+	_sectors.remove_at(index)
+	_pending_from_cluster = false
+	_pending = _rebuild_pending_from_sector(_editing_original_sector)
+
+	var stored: Dictionary = _editing_original_sector.get("stored_supply", {})
+	for color_int: int in _supply_spinboxes:
+		(_supply_spinboxes[color_int] as SpinBox).value = int(stored.get(color_int, 0))
+	var up_count: int = 0
+	var up_stars: int = 0
+	var down_count: int = 0
+	for t: Dictionary in (_editing_original_sector.get("tucked_cards", []) as Array):
+		if t["face_up"]:
+			up_count += 1
+			var tcd: CardData = t.get("data")
+			if tcd:
+				up_stars += tcd.stars
+		else:
+			down_count += 1
+	_tucked_up_spinbox.value = up_count
+	_tucked_up_stars_spinbox.value = up_stars
+	_tucked_down_spinbox.value = down_count
+
+	_confirm_btn.text = "Save Changes"
+	_skip_btn.text = "Cancel"
+	_populate_review_cards()
+	_show_review_view()
+
+func _rebuild_pending_from_sector(sector_entry: Dictionary) -> Array[Dictionary]:
+	var pending: Array[Dictionary] = []
+	var sector_cd: CardData = sector_entry["sector"]
+	var is_advanced: bool = sector_entry["is_advanced"]
+	var sector_name: String = sector_cd.adv_name if is_advanced else sector_cd.card_name
+	pending.append({"thumbnail": null, "name": sector_name, "is_advanced": is_advanced})
+	for cd: CardData in (sector_entry["techs"] as Array):
+		pending.append({"thumbnail": null, "name": cd.card_name, "is_advanced": false})
+	while pending.size() < SECTOR_SLOT_COUNT:
+		pending.append(_blank_entry())
+	return pending
 
 func _on_calculate_pressed() -> void:
 	for child: Node in _results_box.get_children():
