@@ -7,6 +7,7 @@
 # the project's own assets — genuinely is regenerable, hence ignored).
 !/android/build/
 /android/build/*
+!/android/build/gradle.properties
 !/android/build/src/
 /android/build/src/*
 !/android/build/src/main/
