@@ -113,6 +113,7 @@ var _review_view: Control = null
 var _sector_list_box: VBoxContainer = null
 var _results_box: VBoxContainer = null
 var _calculate_btn: Button = null
+var _review_clusters_btn: Button = null       # "Review Detected Sectors (N)" — only visible while _cluster_queue is non-empty
 var _review_cards_box: HBoxContainer = null
 var _confirm_btn: Button = null
 var _supply_spinboxes: Dictionary = {}        # SupplyColor(int) -> SpinBox
@@ -159,6 +160,7 @@ func open() -> void:
 	if _matcher == null:
 		_matcher = CardMatcherScript.new()
 	_refresh_sector_list()
+	_refresh_cluster_review_button()
 	_show_list_view()
 	visible = true
 
@@ -249,6 +251,11 @@ func _build_list_view() -> Control:
 			_photo_enlarge.texture = _photo_preview.texture
 			_photo_enlarge.visible = true)
 	box.add_child(_photo_preview)
+
+	_review_clusters_btn = _make_button("Review Detected Sectors")
+	_review_clusters_btn.pressed.connect(_start_reviewing_next_cluster)
+	_review_clusters_btn.visible = false
+	box.add_child(_review_clusters_btn)
 
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -540,17 +547,24 @@ func _on_photo_selected(path: String) -> void:
 	_cluster_queue = CardDetectorScript.cluster_candidates(candidates)
 	if _cluster_queue.is_empty():
 		push_warning("Scan Tableau: no cards detected in that photo")
-		return
-	_start_reviewing_next_cluster()
+	# Stay on the list view rather than jumping straight into reviewing the
+	# first detected sector — the photo's now loaded/previewed, and the
+	# player decides when to actually go review what was found via
+	# _review_clusters_btn (see _refresh_cluster_review_button).
+	_refresh_cluster_review_button()
 
 ## Pops the next queued cluster and populates the review screen for it —
-## one whole-ship photo yields several clusters (one per sector), reviewed
-## one at a time through the same screen a per-sector capture would have used.
+## one whole-ship photo yields several clusters (one per sector). The first
+## one only starts once the player taps _review_clusters_btn; once started,
+## confirming/skipping one keeps chaining through the rest of the same
+## batch the same way, only returning to the list view once it's empty.
 func _start_reviewing_next_cluster() -> void:
 	if _cluster_queue.is_empty():
+		_refresh_cluster_review_button()
 		_show_list_view()
 		return
 	var cluster: Array = _cluster_queue.pop_front()
+	_refresh_cluster_review_button()
 
 	_pending = []
 	for c: Dictionary in cluster:
@@ -787,10 +801,16 @@ func _on_confirm_sector_pressed() -> void:
 		_editing_original_sector = {}
 		_confirm_btn.text = "Confirm Sector"
 		_skip_btn.text = "Skip Sector"
-	else:
-		if _pending_from_cluster:
-			_log_calibration_record("confirmed", _pending_initial_snapshot, _snapshot_pending_state())
-		_sectors.append(new_sector)
+		_refresh_sector_list()
+		# Never auto-chain into a pending cluster queue after finishing an
+		# edit — editing an already-confirmed sector is a separate action
+		# from scanning, and should always land back on the list view
+		# regardless of what's still queued there.
+		_show_list_view()
+		return
+	if _pending_from_cluster:
+		_log_calibration_record("confirmed", _pending_initial_snapshot, _snapshot_pending_state())
+	_sectors.append(new_sector)
 	_refresh_sector_list()
 	_start_reviewing_next_cluster()
 
@@ -800,6 +820,12 @@ func _refresh_sector_list() -> void:
 	for i: int in _sectors.size():
 		_sector_list_box.add_child(_build_sector_summary_row(_sectors[i], i))
 	_calculate_btn.disabled = _sectors.is_empty()
+
+func _refresh_cluster_review_button() -> void:
+	var count: int = _cluster_queue.size()
+	_review_clusters_btn.visible = count > 0
+	if count > 0:
+		_review_clusters_btn.text = "Review Detected Sector%s (%d)" % ["s" if count != 1 else "", count]
 
 ## A confirmed sector's row on the list view: its name, its card stack shown
 ## as real art (same visual language as the review screen and the main
