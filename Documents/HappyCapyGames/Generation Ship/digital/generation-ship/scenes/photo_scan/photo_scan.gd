@@ -182,6 +182,10 @@ func _build_review_view() -> Control:
 		icon.texture = load(_SUPPLY_ICON_PATHS[color]) as Texture2D
 		icon.custom_minimum_size = _SUPPLY_ICON_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		# custom_minimum_size alone doesn't shrink a TextureRect below its
+		# texture's own native pixel size — EXPAND_IGNORE_SIZE is needed too
+		# (same fix as supply_ui.gd/collection_popup.gd/market_panel.gd).
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.tooltip_text = CardData.color_name(color)
 		col_box.add_child(icon)
 		var spin: SpinBox = SpinBox.new()
@@ -309,6 +313,7 @@ func _build_card_review_row(entry: Dictionary) -> Control:
 	thumb.texture = ImageTexture.create_from_image(entry["thumbnail"] as Image)
 	thumb.custom_minimum_size = Vector2(120, 168)
 	thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	col.add_child(thumb)
 
 	var role_btn: OptionButton = OptionButton.new()
