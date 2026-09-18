@@ -40,6 +40,10 @@ const CONTROL_MIN_HEIGHT: float = 72.0
 const _SUPPLY_ICON_SIZE: Vector2 = Vector2(36, 36)
 const SUPPLY_CONTROL_HEIGHT: float = 56.0
 const SUPPLY_FONT_SIZE: int = 18
+# Fixed narrow width for the 6 supply number fields (shrink-to-content
+# instead of sharing the row equally with the tucked counters) — just wide
+# enough for a 2-digit value plus the SpinBox's own up/down arrows.
+const SUPPLY_SPIN_WIDTH: float = 64.0
 # Same res://assets/ui/supply/<Name>.png set supply_ui.gd uses elsewhere —
 # the real resource-token graphics, not the card-frame icon set.
 const _SUPPLY_ICON_PATHS: Dictionary = {
@@ -226,7 +230,11 @@ func _build_review_view() -> Control:
 		var col_box: VBoxContainer = VBoxContainer.new()
 		col_box.add_theme_constant_override("separation", 4)
 		col_box.alignment = BoxContainer.ALIGNMENT_CENTER
-		col_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		# Shrink-to-content instead of expand-fill: with 6 of these plus the
+		# 2 tucked counters all sharing the row, letting the number fields
+		# stay narrow (SUPPLY_SPIN_WIDTH) leaves the tucked counters
+		# (still expand-fill) the rest of the row's width.
+		col_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		var icon: TextureRect = TextureRect.new()
 		icon.texture = load(_SUPPLY_ICON_PATHS[color]) as Texture2D
 		icon.custom_minimum_size = _SUPPLY_ICON_SIZE
@@ -240,7 +248,7 @@ func _build_review_view() -> Control:
 		var spin: SpinBox = SpinBox.new()
 		spin.min_value = 0
 		spin.max_value = 99
-		spin.custom_minimum_size = Vector2(0, SUPPLY_CONTROL_HEIGHT)
+		spin.custom_minimum_size = Vector2(SUPPLY_SPIN_WIDTH, SUPPLY_CONTROL_HEIGHT)
 		spin.get_line_edit().add_theme_font_size_override("font_size", SUPPLY_FONT_SIZE)
 		col_box.add_child(spin)
 		supply_row.add_child(col_box)
