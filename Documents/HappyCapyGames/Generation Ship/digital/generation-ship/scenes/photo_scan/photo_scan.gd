@@ -100,6 +100,12 @@ const SUMMARY_HOVER_OUT_SEC: float = 0.18
 # scroll, added for the same reason).
 const PHOTO_PREVIEW_SIZE: Vector2 = Vector2(462, 462)
 const SCORE_FONT_SIZE: int = 96
+# The star's own size (SCORE_FONT_SIZE*1.25) plus centering both labels
+# still wasn't enough to make them read as level with each other — the
+# digits themselves were just too small next to the star's glyph. Doubling
+# the number specifically (not the star, which was already sized up) is
+# the actual fix.
+const SCORE_NUMBER_FONT_SIZE: int = SCORE_FONT_SIZE * 2
 const SCORE_STAR_COLOR: Color = Color(1.0, 0.85, 0.2)
 const SCORE_COLOR: Color = Color(0.9, 0.85, 0.7)
 # Same res://assets/ui/supply/<Name>.png set supply_ui.gd uses elsewhere —
@@ -329,7 +335,7 @@ func _build_list_view() -> Control:
 	star_lbl.size_flags_vertical = Control.SIZE_FILL
 	_score_display.add_child(star_lbl)
 	_score_total_label = Label.new()
-	_score_total_label.add_theme_font_size_override("font_size", SCORE_FONT_SIZE)
+	_score_total_label.add_theme_font_size_override("font_size", SCORE_NUMBER_FONT_SIZE)
 	_score_total_label.add_theme_color_override("font_color", SCORE_COLOR)
 	_score_total_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_score_total_label.size_flags_vertical = Control.SIZE_FILL
