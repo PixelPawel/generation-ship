@@ -330,11 +330,16 @@ func _build_list_view() -> Control:
 	# stacked in a long vertical list, each one's own card stack running
 	# vertically underneath it — the same layout the real board uses
 	# (sectors across, tech stack per-sector deepening in one direction).
-	# Horizontal-only scroll here (vertical scrolling is outer_scroll's job
-	# above) so the two don't fight over a vertical drag gesture.
+	# A sibling of outer_scroll now (not nested inside it) so it's free to
+	# scroll both ways on its own — vertically too, since even overlapped
+	# 50% a full 6-card column is still tall. Both scrolls share the
+	# remaining vertical space (stretch ratio 2:1) so the board — the main
+	# visual focus, like in the real game — gets the bigger share rather
+	# than being squeezed by the hint/photo section above it.
 	var sector_scroll: ScrollContainer = ScrollContainer.new()
-	sector_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll_content.add_child(sector_scroll)
+	sector_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sector_scroll.size_flags_stretch_ratio = 2.0
+	box.add_child(sector_scroll)
 	_sector_list_box = HBoxContainer.new()
 	_sector_list_box.add_theme_constant_override("separation", 14)
 	sector_scroll.add_child(_sector_list_box)
@@ -773,14 +778,14 @@ func _build_card_review_row(entry: Dictionary, index: int) -> Control:
 	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	col.add_child(thumb)
 
-	# Dust vs Advanced is decided entirely by which CardPicker tab the sector
-	# was picked from (no separate toggle needed anymore) — shown here so
-	# that's still visible at a glance.
+	# Just "Sector" / "Tech / Exp." — no Dust/Advanced suffix. That distinction
+	# is still fully tracked (via entry["is_advanced"], set by which CardPicker
+	# tab the sector was picked from) and visible in the card art itself; the
+	# longer "Sector (Advanced)" text used to widen this one column past
+	# REVIEW_COL_WIDTH whenever an advanced sector was picked, which pushed
+	# the whole row wide enough to need a horizontal scrollbar.
 	var role_label: Label = Label.new()
-	if is_sector:
-		role_label.text = "Sector (Advanced)" if entry["is_advanced"] else "Sector (Dust)"
-	else:
-		role_label.text = "Tech / Exp."
+	role_label.text = "Sector" if is_sector else "Tech / Exp."
 	role_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	role_label.add_theme_font_size_override("font_size", CONTROL_FONT_SIZE)
 	col.add_child(role_label)
@@ -939,10 +944,21 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 	# the row alignment. The name's still there as a tooltip on the sector
 	# card instead of a fixed line of layout.
 	var name: String = sector_cd.adv_name if (is_advanced and not sector_cd.adv_name.is_empty()) else sector_cd.card_name
+
+	# Cards overlap 50% of their own height (a negative separation equal to
+	# half SUMMARY_THUMB_SIZE.y) so a full 6-card stack takes roughly half
+	# the vertical space a plain stacked list would, needing much less
+	# scrolling — in its own VBoxContainer so this doesn't also pull the
+	# info/Edit section below into the last card. Later siblings paint over
+	# earlier ones by default, so each card correctly covers the bottom of
+	# the one above it rather than being hidden behind it.
+	var card_stack: VBoxContainer = VBoxContainer.new()
+	card_stack.add_theme_constant_override("separation", -roundi(SUMMARY_THUMB_SIZE.y * 0.5))
+	outer.add_child(card_stack)
 	var sector_art: String = sector_cd.adv_local_art_path if is_advanced else sector_cd.local_art_path
-	outer.add_child(_make_summary_thumb(sector_art, "%d. %s" % [index + 1, name]))
+	card_stack.add_child(_make_summary_thumb(sector_art, "%d. %s" % [index + 1, name]))
 	for cd: CardData in (entry["techs"] as Array):
-		outer.add_child(_make_summary_thumb(cd.local_art_path, cd.card_name))
+		card_stack.add_child(_make_summary_thumb(cd.local_art_path, cd.card_name))
 
 	var info_box: VBoxContainer = VBoxContainer.new()
 	info_box.add_theme_constant_override("separation", 2)
