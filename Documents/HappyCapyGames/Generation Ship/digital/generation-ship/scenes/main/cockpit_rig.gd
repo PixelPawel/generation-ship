@@ -48,6 +48,7 @@ static func setup_control_screen_display(main: Main) -> void:
 		mat.set_shader_parameter("vignette_falloff", 3.0)
 		screen_mesh.set_surface_override_material(0, mat)
 		setup_screen_input(main, screen_mesh)
+		main.get_node("Board").set_control_screen_mesh(screen_mesh)
 
 	var btn_callbacks: Array[Callable] = [main._on_research_pressed, main._on_pass_pressed, main._on_end_turn_pressed]
 	var btn_tooltip_titles: Array[String] = [main.tr("Research"), main.tr("Pass"), main.tr("End Turn")]

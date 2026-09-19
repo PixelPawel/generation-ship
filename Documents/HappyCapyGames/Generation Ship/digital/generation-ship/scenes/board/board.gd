@@ -75,6 +75,7 @@ var _drag_preview_rect: TextureRect = null
 var _major_action_taken: bool = false
 var _effect_active: bool = false  # kept in sync by Main whenever _effect_mode changes — see set_effect_active()
 var _supply_ui: Control = null
+var _control_screen_mesh: MeshInstance3D = null
 var _card_scene: PackedScene = null
 var _inspecting_card: Node3D = null
 var _reveal_display_card: Node3D = null
@@ -503,6 +504,12 @@ func add_expedition_round_cards() -> void:
 
 func set_supply_ui(ui: Control) -> void:
 	_supply_ui = ui
+
+# Lets a hand-card drag be dropped onto the cockpit's control screen (where
+# the supply totals live) as a drag-based equivalent of right-click-to-
+# recycle — see _mouse_over_control_screen() and _try_drop().
+func set_control_screen_mesh(mesh: MeshInstance3D) -> void:
+	_control_screen_mesh = mesh
 
 func set_hand(hand_node: Node3D) -> void:
 	_hand = hand_node
@@ -1012,10 +1019,53 @@ func resume_auction_win_drag(spent: Dictionary) -> void:
 func _try_drop() -> void:
 	_end_arrow_drag()
 	_clear_slot_highlights()
+	if _drag_origin == DragOrigin.HAND and _mouse_over_control_screen():
+		_try_drop_recycle()
+		return
 	if _is_sector_card():
 		_try_drop_sector()
 	else:
 		_try_drop_tech()
+
+# Touch has no right-click, so dragging a hand card onto the control screen
+# (where the supply totals it would turn into are displayed) is the
+# platform-agnostic replacement for right-click-to-recycle — works
+# identically on desktop, since a plain mouse drag ends the same way.
+func _try_drop_recycle() -> void:
+	_cleanup_pending_dynamic_slot()
+	var card: Node3D = _dragged_card
+	_dragged_card = null
+	_drag_origin = DragOrigin.NONE
+	_is_free_gain = false
+	card.visible = true
+	card.end_drag()
+	request_recycle(card)
+
+func _mouse_over_control_screen() -> bool:
+	if not _control_screen_mesh:
+		return false
+	var cam: Camera3D = get_viewport().get_camera_3d()
+	if not cam:
+		return false
+	var aabb: AABB = _control_screen_mesh.mesh.get_aabb()
+	var corners: Array[Vector3] = [
+		aabb.position,
+		aabb.position + Vector3(aabb.size.x, 0.0, 0.0),
+		aabb.position + Vector3(0.0, aabb.size.y, 0.0),
+		aabb.position + aabb.size,
+	]
+	var min_x: float = INF
+	var min_y: float = INF
+	var max_x: float = -INF
+	var max_y: float = -INF
+	for corner: Vector3 in corners:
+		var p: Vector2 = cam.unproject_position(_control_screen_mesh.to_global(corner))
+		min_x = minf(min_x, p.x)
+		min_y = minf(min_y, p.y)
+		max_x = maxf(max_x, p.x)
+		max_y = maxf(max_y, p.y)
+	var rect := Rect2(Vector2(min_x, min_y), Vector2(max_x - min_x, max_y - min_y))
+	return rect.has_point(get_viewport().get_mouse_position())
 
 func request_recycle(card: Node3D) -> void:
 	if _pending_recycle_card or not is_instance_valid(card):
