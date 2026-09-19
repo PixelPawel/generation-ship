@@ -32,6 +32,7 @@ const _LANDSCAPE_CHILD_SCALE := Vector3(0.88 / 0.63, 0.63 / 0.88, 1.0)
 const _TECH_GLB := preload("res://assets/3d/gs_card_tech.glb")
 const _SECTOR_GLB := preload("res://assets/3d/gs_card_sector.glb")
 const _EXPEDITION_GLB := preload("res://assets/3d/gs_card_expedition.glb")
+const LongPressGestureScript := preload("res://scenes/ui/long_press_gesture.gd")
 
 static var _elev_counter: int = 0
 static var _any_dragging: bool = false
@@ -53,6 +54,7 @@ var _placed_elevated: bool = false
 var _destroy_on_collapse: bool = false
 var _drag_armed: bool = false
 var _drag_arm_pos: Vector2 = Vector2.ZERO
+var _recycle_long_press: LongPressGesture = LongPressGestureScript.new()
 var _card_glb: Node3D = null
 var _face_surface: MeshInstance3D = null
 var _discount_badge: Label3D = null
@@ -147,6 +149,14 @@ func _on_input_event(_camera: Node, event: InputEvent, _pos: Vector3, _normal: V
 		return
 	if event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
+			# Touch has no right-click, and an unplaced hand card's plain tap
+			# already does something else (drag, or `clicked` below) — long-
+			# press is the equivalent here instead, mirroring right-click's
+			# own free-recycle trigger further down. Canceled below the
+			# moment an actual drag starts, from whichever path that happens
+			# (immediate, or threshold-crossed in _input()).
+			if not is_placed:
+				_recycle_long_press.begin(get_tree(), get_viewport().get_mouse_position(), func(): right_clicked.emit(self))
 			if not is_placed and can_drag and not is_dragging:
 				if drag_needs_movement:
 					_drag_armed = true
@@ -155,14 +165,18 @@ func _on_input_event(_camera: Node, event: InputEvent, _pos: Vector3, _normal: V
 					is_dragging = true
 					_any_dragging = true
 					drag_started.emit(self)
+					_recycle_long_press.cancel()
 		else:
 			_drag_armed = false
+			var was_tap: bool = _recycle_long_press.end()
 			if is_placed:
 				# No touch equivalent of right-click exists, but a placed
 				# card has no other tap action to conflict with — a plain
 				# tap can just do what right-click does here directly.
 				_try_toggle_placed_elevation()
 				return
+			if not was_tap:
+				return  # the long-press already fired the free-recycle above
 			if (not can_drag or not is_dragging) and not _any_dragging:
 				clicked.emit(self)
 	elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
@@ -179,6 +193,11 @@ func _try_toggle_placed_elevation() -> void:
 		toggle_elevation(Vector3.ZERO, Vector3.ONE, 0.0)
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		# Harmless no-op unless this specific card is the one mid-press (see
+		# LongPressGesture.update_position) — cancels the free-recycle
+		# long-press the moment it turns into an actual drag.
+		_recycle_long_press.update_position(event.position)
 	if not _drag_armed:
 		return
 	if event is InputEventMouseMotion:
@@ -187,6 +206,7 @@ func _input(event: InputEvent) -> void:
 			is_dragging = true
 			_any_dragging = true
 			drag_started.emit(self)
+			_recycle_long_press.cancel()
 
 func _elevate_target_local(from_world_pos: Vector3) -> Vector3:
 	var elev_global := Vector3(
