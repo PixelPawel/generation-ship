@@ -300,14 +300,24 @@ func _build_list_view() -> Control:
 	_score_display.alignment = BoxContainer.ALIGNMENT_CENTER
 	_score_display.add_theme_constant_override("separation", 20)
 	_score_display.visible = false
+	# A "★" glyph optically sits smaller and higher within its own em-box
+	# than a digit does at the same nominal font size — matching font_size
+	# alone (the original approach) left it looking small and floating
+	# above the number instead of level with it. Sizing it up and forcing
+	# both labels to center within the row's full height, rather than each
+	# defaulting to top-aligned, gets them reading as one unit.
 	var star_lbl: Label = Label.new()
 	star_lbl.text = "★"
-	star_lbl.add_theme_font_size_override("font_size", SCORE_FONT_SIZE)
+	star_lbl.add_theme_font_size_override("font_size", roundi(SCORE_FONT_SIZE * 1.25))
 	star_lbl.add_theme_color_override("font_color", SCORE_STAR_COLOR)
+	star_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	star_lbl.size_flags_vertical = Control.SIZE_FILL
 	_score_display.add_child(star_lbl)
 	_score_total_label = Label.new()
 	_score_total_label.add_theme_font_size_override("font_size", SCORE_FONT_SIZE)
 	_score_total_label.add_theme_color_override("font_color", SCORE_COLOR)
+	_score_total_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_score_total_label.size_flags_vertical = Control.SIZE_FILL
 	_score_display.add_child(_score_total_label)
 	scroll_content.add_child(_score_display)
 
