@@ -92,6 +92,9 @@ const SUMMARY_TECH_THUMB_SIZE: Vector2 = Vector2(SUMMARY_CARD_SHORT, SUMMARY_CAR
 const SUMMARY_SECTOR_THUMB_SIZE: Vector2 = Vector2(SUMMARY_CARD_LONG, SUMMARY_CARD_SHORT)
 const SUMMARY_SUPPLY_ICON_SIZE: Vector2 = Vector2(44, 44)
 const SUMMARY_FONT_SIZE: int = 24
+const SUMMARY_HOVER_SCALE: Vector2 = Vector2(1.08, 1.08)
+const SUMMARY_HOVER_IN_SEC: float = 0.12
+const SUMMARY_HOVER_OUT_SEC: float = 0.18
 # 3x the original 220x220, then dialed back 30% — full 3x left too little
 # room for the sector overview below it (see _build_list_view's outer
 # scroll, added for the same reason).
@@ -1021,6 +1024,31 @@ func _make_summary_thumb(art_path: String, tooltip: String = "", size: Vector2 =
 	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	thumb.mouse_filter = Control.MOUSE_FILTER_PASS
 	thumb.tooltip_text = tooltip
+	thumb.pivot_offset = size / 2.0
+
+	# Cards overlap in their stack (see card_stack above), so whichever one
+	# was added last always draws on top regardless of which one you're
+	# actually looking at — z_index (not just sibling order) is what
+	# actually controls draw order, so hovering bumps it above every
+	# neighbor, plus a small scale-up so it's obvious which card responded.
+	# Stays elevated through the shrink-back tween on exit (reset via
+	# tween_callback once it's actually done) so it doesn't visually duck
+	# back behind a neighbor mid-animation.
+	var hover_tween_cell: Array = [null]
+	thumb.mouse_entered.connect(func() -> void:
+		thumb.z_index = 10
+		if hover_tween_cell[0] and (hover_tween_cell[0] as Tween).is_valid():
+			(hover_tween_cell[0] as Tween).kill()
+		var tw: Tween = thumb.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		tw.tween_property(thumb, "scale", SUMMARY_HOVER_SCALE, SUMMARY_HOVER_IN_SEC)
+		hover_tween_cell[0] = tw)
+	thumb.mouse_exited.connect(func() -> void:
+		if hover_tween_cell[0] and (hover_tween_cell[0] as Tween).is_valid():
+			(hover_tween_cell[0] as Tween).kill()
+		var tw: Tween = thumb.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		tw.tween_property(thumb, "scale", Vector2.ONE, SUMMARY_HOVER_OUT_SEC)
+		tw.tween_callback(func(): thumb.z_index = 0)
+		hover_tween_cell[0] = tw)
 	return thumb
 
 func _make_summary_supply_badge(color_int: int, amount: int) -> Control:
