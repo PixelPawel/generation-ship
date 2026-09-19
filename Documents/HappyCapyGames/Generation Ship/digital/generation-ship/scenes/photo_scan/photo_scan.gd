@@ -77,19 +77,19 @@ const TUCKED_LABEL_WIDTH: float = 150.0
 # per-column padding — lands at ~270px, which happens to fall almost
 # exactly at 3x the original 90x126 thumbnail size.
 # Sector cards are physically 67x44mm (landscape); tech/expedition cards
-# are the same stock rotated, 44x67mm (portrait) — genuinely different
-# shapes, not just a rendering choice. A single shared box (the original
-# approach, 270x378 for both) let a sector's art fill only its width and
-# leave ~180px of empty vertical padding above/below it, while tech cards
-# nearly filled theirs — the sector visibly looked much smaller/thinner
-# than a tech card even in an equal-height slot. Giving each its own
-# correctly-proportioned box at the same column width (270) instead makes
-# both fill their box completely — same real card, same real size, just
-# each rendered at its own true shape rather than squeezed into the
-# other's.
-const SUMMARY_COLUMN_WIDTH: float = 270.0
-const SUMMARY_TECH_THUMB_SIZE: Vector2 = Vector2(270, 411)    # 270 / (44/67)
-const SUMMARY_SECTOR_THUMB_SIZE: Vector2 = Vector2(270, 177)  # 270 / (67/44)
+# are the exact same card stock rotated, 44x67mm (portrait) — same real
+# measurements, just transposed. SUMMARY_CARD_LONG/_SHORT are those two
+# measurements at a shared scale (long edge sized to fill the 6-column
+# row — see the sizing note above); tech/expedition use them as
+# (short, long) — portrait — and sector uses the same two numbers
+# swapped, (long, short) — landscape. Not independently-fitted boxes (an
+# earlier, wrong attempt at this gave them different absolute sizes to
+# each "fill their own shape") — literally the same rectangle, rotated.
+const SUMMARY_CARD_LONG: float = 270.0
+const SUMMARY_CARD_SHORT: float = 177.0  # roundi(270 * 44.0/67.0)
+const SUMMARY_COLUMN_WIDTH: float = SUMMARY_CARD_LONG
+const SUMMARY_TECH_THUMB_SIZE: Vector2 = Vector2(SUMMARY_CARD_SHORT, SUMMARY_CARD_LONG)
+const SUMMARY_SECTOR_THUMB_SIZE: Vector2 = Vector2(SUMMARY_CARD_LONG, SUMMARY_CARD_SHORT)
 const SUMMARY_SUPPLY_ICON_SIZE: Vector2 = Vector2(44, 44)
 const SUMMARY_FONT_SIZE: int = 24
 # 3x the original 220x220, then dialed back 30% — full 3x left too little
@@ -1011,6 +1011,12 @@ func _make_summary_thumb(art_path: String, tooltip: String = "", size: Vector2 =
 	if not art_path.is_empty():
 		thumb.texture = load(art_path) as Texture2D
 	thumb.custom_minimum_size = size
+	# Tech's box is narrower than the column (sized for the wider sector
+	# box — see SUMMARY_COLUMN_WIDTH) — without SHRINK_CENTER, the
+	# VBoxContainer's default fill behavior would stretch it back out to
+	# the full column width, undoing the whole point of giving it its own
+	# true (short, long) size.
+	thumb.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	thumb.mouse_filter = Control.MOUSE_FILTER_PASS
