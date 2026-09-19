@@ -108,6 +108,7 @@ const SCORE_FONT_SIZE: int = 96
 const SCORE_NUMBER_FONT_SIZE: int = SCORE_FONT_SIZE * 2
 const SCORE_STAR_COLOR: Color = Color(1.0, 0.85, 0.2)
 const SCORE_COLOR: Color = Color(0.9, 0.85, 0.7)
+const SCORE_STAR_NUDGE_UP: int = 14
 # Same res://assets/ui/supply/<Name>.png set supply_ui.gd uses elsewhere —
 # the real resource-token graphics, not the card-frame icon set.
 const _SUPPLY_ICON_PATHS: Dictionary = {
@@ -333,7 +334,15 @@ func _build_list_view() -> Control:
 	star_lbl.add_theme_color_override("font_color", SCORE_STAR_COLOR)
 	star_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	star_lbl.size_flags_vertical = Control.SIZE_FILL
-	_score_display.add_child(star_lbl)
+	# The ★ glyph's own optical center still sits a bit low even box-centered
+	# against the number's much taller line height — a small bottom-only
+	# margin shrinks the star's available box from below, nudging its
+	# centered content up without touching the number.
+	var star_wrap: MarginContainer = MarginContainer.new()
+	star_wrap.add_theme_constant_override("margin_bottom", SCORE_STAR_NUDGE_UP)
+	star_wrap.size_flags_vertical = Control.SIZE_FILL
+	star_wrap.add_child(star_lbl)
+	_score_display.add_child(star_wrap)
 	_score_total_label = Label.new()
 	_score_total_label.add_theme_font_size_override("font_size", SCORE_NUMBER_FONT_SIZE)
 	_score_total_label.add_theme_color_override("font_color", SCORE_COLOR)
