@@ -7,7 +7,7 @@ signal lobby_view_requested
 const MAX_PLAYERS: int = 4
 const SETTINGS_PATH: String = "user://settings.cfg"
 const LOBBY_REFRESH_INTERVAL: float = 5.0
-const BOT_NAMES: Array[String] = ["Wally", "Bender", "Deep Blue"]  # Easy, Normal, Hard — proper nouns, not translated
+const BOT_NAMES: Array[String] = ["Rusty", "Circuit", "Quantum"]  # Easy, Normal, Hard — proper nouns, not translated; original names, not references to copyrighted characters/products
 
 var _player_name: String = ""
 var _players: Dictionary = {}      # peer_id (int) -> name (String)
