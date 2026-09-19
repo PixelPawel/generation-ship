@@ -924,18 +924,15 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 
 	var sector_cd: CardData = entry["sector"]
 	var is_advanced: bool = entry["is_advanced"]
+	# No header label — a variable-length sector name wrapping to 1 or 2
+	# lines made every column's cards start at a different height, breaking
+	# the row alignment. The name's still there as a tooltip on the sector
+	# card instead of a fixed line of layout.
 	var name: String = sector_cd.adv_name if (is_advanced and not sector_cd.adv_name.is_empty()) else sector_cd.card_name
-	var header: Label = Label.new()
-	header.text = "%d. %s" % [index + 1, name]
-	header.autowrap_mode = TextServer.AUTOWRAP_WORD
-	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	header.add_theme_font_size_override("font_size", SUMMARY_FONT_SIZE)
-	outer.add_child(header)
-
 	var sector_art: String = sector_cd.adv_local_art_path if is_advanced else sector_cd.local_art_path
-	outer.add_child(_make_summary_thumb(sector_art))
+	outer.add_child(_make_summary_thumb(sector_art, "%d. %s" % [index + 1, name]))
 	for cd: CardData in (entry["techs"] as Array):
-		outer.add_child(_make_summary_thumb(cd.local_art_path))
+		outer.add_child(_make_summary_thumb(cd.local_art_path, cd.card_name))
 
 	var info_box: VBoxContainer = VBoxContainer.new()
 	info_box.add_theme_constant_override("separation", 2)
@@ -967,13 +964,15 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 
 	return outer
 
-func _make_summary_thumb(art_path: String) -> TextureRect:
+func _make_summary_thumb(art_path: String, tooltip: String = "") -> TextureRect:
 	var thumb: TextureRect = TextureRect.new()
 	if not art_path.is_empty():
 		thumb.texture = load(art_path) as Texture2D
 	thumb.custom_minimum_size = SUMMARY_THUMB_SIZE
 	thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	thumb.mouse_filter = Control.MOUSE_FILTER_PASS
+	thumb.tooltip_text = tooltip
 	return thumb
 
 func _make_summary_supply_badge(color_int: int, amount: int) -> Control:
