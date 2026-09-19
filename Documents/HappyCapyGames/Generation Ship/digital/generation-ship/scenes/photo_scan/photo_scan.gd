@@ -951,14 +951,16 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 	# scrolling — in its own VBoxContainer so this doesn't also pull the
 	# info/Edit section below into the last card. Later siblings paint over
 	# earlier ones by default, so each card correctly covers the bottom of
-	# the one above it rather than being hidden behind it.
+	# the one above it rather than being hidden behind it — the sector card
+	# is added LAST (bottom of the stack) so it ends up fully visible and
+	# anchoring the pile, with its tech/expedition cards fanned above it.
 	var card_stack: VBoxContainer = VBoxContainer.new()
 	card_stack.add_theme_constant_override("separation", -roundi(SUMMARY_THUMB_SIZE.y * 0.5))
 	outer.add_child(card_stack)
-	var sector_art: String = sector_cd.adv_local_art_path if is_advanced else sector_cd.local_art_path
-	card_stack.add_child(_make_summary_thumb(sector_art, "%d. %s" % [index + 1, name]))
 	for cd: CardData in (entry["techs"] as Array):
 		card_stack.add_child(_make_summary_thumb(cd.local_art_path, cd.card_name))
+	var sector_art: String = sector_cd.adv_local_art_path if is_advanced else sector_cd.local_art_path
+	card_stack.add_child(_make_summary_thumb(sector_art, "%d. %s" % [index + 1, name]))
 
 	var info_box: VBoxContainer = VBoxContainer.new()
 	info_box.add_theme_constant_override("separation", 2)
