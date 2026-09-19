@@ -76,10 +76,22 @@ const TUCKED_LABEL_WIDTH: float = 150.0
 # cards, but 90% of it — leaving headroom for narrower real devices and
 # per-column padding — lands at ~270px, which happens to fall almost
 # exactly at 3x the original 90x126 thumbnail size.
-const SUMMARY_THUMB_SIZE: Vector2 = Vector2(270, 378)
+# Sector cards are physically 67x44mm (landscape); tech/expedition cards
+# are the same stock rotated, 44x67mm (portrait) — genuinely different
+# shapes, not just a rendering choice. A single shared box (the original
+# approach, 270x378 for both) let a sector's art fill only its width and
+# leave ~180px of empty vertical padding above/below it, while tech cards
+# nearly filled theirs — the sector visibly looked much smaller/thinner
+# than a tech card even in an equal-height slot. Giving each its own
+# correctly-proportioned box at the same column width (270) instead makes
+# both fill their box completely — same real card, same real size, just
+# each rendered at its own true shape rather than squeezed into the
+# other's.
+const SUMMARY_COLUMN_WIDTH: float = 270.0
+const SUMMARY_TECH_THUMB_SIZE: Vector2 = Vector2(270, 411)    # 270 / (44/67)
+const SUMMARY_SECTOR_THUMB_SIZE: Vector2 = Vector2(270, 177)  # 270 / (67/44)
 const SUMMARY_SUPPLY_ICON_SIZE: Vector2 = Vector2(44, 44)
 const SUMMARY_FONT_SIZE: int = 24
-const SUMMARY_COLUMN_WIDTH: float = 270.0  # matches SUMMARY_THUMB_SIZE.x
 # 3x the original 220x220, then dialed back 30% — full 3x left too little
 # room for the sector overview below it (see _build_list_view's outer
 # scroll, added for the same reason).
@@ -945,22 +957,24 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 	# card instead of a fixed line of layout.
 	var name: String = sector_cd.adv_name if (is_advanced and not sector_cd.adv_name.is_empty()) else sector_cd.card_name
 
-	# Cards overlap 50% of their own height (a negative separation equal to
-	# half SUMMARY_THUMB_SIZE.y) so a full 6-card stack takes roughly half
-	# the vertical space a plain stacked list would, needing much less
-	# scrolling — in its own VBoxContainer so this doesn't also pull the
-	# info/Edit section below into the last card. Later siblings paint over
-	# earlier ones by default, so each card correctly covers the bottom of
-	# the one above it rather than being hidden behind it — the sector card
-	# is added LAST (bottom of the stack) so it ends up fully visible and
-	# anchoring the pile, with its tech/expedition cards fanned above it.
+	# Cards overlap 50% of a tech card's own height (a negative separation —
+	# the sector's box is a different shape, see SUMMARY_SECTOR_THUMB_SIZE
+	# above, but most of the stack is tech cards, so that's what the overlap
+	# amount is based on) so a full 6-card stack takes roughly half the
+	# vertical space a plain stacked list would, needing much less scrolling
+	# — in its own VBoxContainer so this doesn't also pull the info/Edit
+	# section below into the last card. Later siblings paint over earlier
+	# ones by default, so each card correctly covers the bottom of the one
+	# above it rather than being hidden behind it — the sector card is added
+	# LAST (bottom of the stack) so it ends up fully visible and anchoring
+	# the pile, with its tech/expedition cards fanned above it.
 	var card_stack: VBoxContainer = VBoxContainer.new()
-	card_stack.add_theme_constant_override("separation", -roundi(SUMMARY_THUMB_SIZE.y * 0.5))
+	card_stack.add_theme_constant_override("separation", -roundi(SUMMARY_TECH_THUMB_SIZE.y * 0.5))
 	outer.add_child(card_stack)
 	for cd: CardData in (entry["techs"] as Array):
-		card_stack.add_child(_make_summary_thumb(cd.local_art_path, cd.card_name))
+		card_stack.add_child(_make_summary_thumb(cd.local_art_path, cd.card_name, SUMMARY_TECH_THUMB_SIZE))
 	var sector_art: String = sector_cd.adv_local_art_path if is_advanced else sector_cd.local_art_path
-	card_stack.add_child(_make_summary_thumb(sector_art, "%d. %s" % [index + 1, name]))
+	card_stack.add_child(_make_summary_thumb(sector_art, "%d. %s" % [index + 1, name], SUMMARY_SECTOR_THUMB_SIZE))
 
 	var info_box: VBoxContainer = VBoxContainer.new()
 	info_box.add_theme_constant_override("separation", 2)
@@ -992,11 +1006,11 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 
 	return outer
 
-func _make_summary_thumb(art_path: String, tooltip: String = "") -> TextureRect:
+func _make_summary_thumb(art_path: String, tooltip: String = "", size: Vector2 = SUMMARY_TECH_THUMB_SIZE) -> TextureRect:
 	var thumb: TextureRect = TextureRect.new()
 	if not art_path.is_empty():
 		thumb.texture = load(art_path) as Texture2D
-	thumb.custom_minimum_size = SUMMARY_THUMB_SIZE
+	thumb.custom_minimum_size = size
 	thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	thumb.mouse_filter = Control.MOUSE_FILTER_PASS
