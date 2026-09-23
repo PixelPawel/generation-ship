@@ -111,7 +111,7 @@ func _on_leaderboard_find_result(leaderboard_handle: int, found: int) -> void:
 func _on_leaderboard_score_uploaded(success: bool, _this_handle: int, _this_score: Dictionary) -> void:
 	score_uploaded.emit(success)
 
-func _on_leaderboard_scores_downloaded(_message: String, _leaderboard_handle: int, leaderboard_entries: Array) -> void:
+func _on_leaderboard_scores_downloaded(_message: String, _this_handle: int, leaderboard_entries: Array) -> void:
 	var entries: Array[Dictionary] = []
 	for e: Dictionary in leaderboard_entries:
 		entries.append(e)
