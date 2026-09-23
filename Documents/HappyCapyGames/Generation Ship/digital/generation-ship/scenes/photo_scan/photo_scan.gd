@@ -877,14 +877,14 @@ func _on_confirm_sector_pressed() -> void:
 
 	var techs: Array[CardData] = []
 	for i: int in range(1, _pending.size()):
-		var name: String = (_pending[i]["name"] as String).strip_edges()
-		if name.is_empty():
+		var card_name: String = (_pending[i]["name"] as String).strip_edges()
+		if card_name.is_empty():
 			continue
-		var cd: CardData = CardDatabase.find_any_by_name(name)
+		var cd: CardData = CardDatabase.find_any_by_name(card_name)
 		if cd:
 			techs.append(cd)
 		else:
-			push_warning("Scan Tableau: unknown card name '%s', skipped" % name)
+			push_warning("Scan Tableau: unknown card name '%s', skipped" % card_name)
 
 	# Tucked cards no longer carry their own identity — face-down ones score
 	# as pure counts either way, and face-up ones are entered as a card
@@ -973,7 +973,7 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 	# lines made every column's cards start at a different height, breaking
 	# the row alignment. The name's still there as a tooltip on the sector
 	# card instead of a fixed line of layout.
-	var name: String = sector_cd.adv_name if (is_advanced and not sector_cd.adv_name.is_empty()) else sector_cd.card_name
+	var sector_name: String = sector_cd.adv_name if (is_advanced and not sector_cd.adv_name.is_empty()) else sector_cd.card_name
 
 	# Cards overlap 50% of a tech card's own height (a negative separation —
 	# the sector's box is a different shape, see SUMMARY_SECTOR_THUMB_SIZE
@@ -992,7 +992,7 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 	for cd: CardData in (entry["techs"] as Array):
 		card_stack.add_child(_make_summary_thumb(cd.local_art_path, cd.card_name, SUMMARY_TECH_THUMB_SIZE))
 	var sector_art: String = sector_cd.adv_local_art_path if is_advanced else sector_cd.local_art_path
-	card_stack.add_child(_make_summary_thumb(sector_art, "%d. %s" % [index + 1, name], SUMMARY_SECTOR_THUMB_SIZE))
+	card_stack.add_child(_make_summary_thumb(sector_art, "%d. %s" % [index + 1, sector_name], SUMMARY_SECTOR_THUMB_SIZE))
 
 	var info_box: VBoxContainer = VBoxContainer.new()
 	info_box.add_theme_constant_override("separation", 2)
@@ -1024,11 +1024,11 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 
 	return outer
 
-func _make_summary_thumb(art_path: String, tooltip: String = "", size: Vector2 = SUMMARY_TECH_THUMB_SIZE) -> TextureRect:
+func _make_summary_thumb(art_path: String, tooltip: String = "", thumb_size: Vector2 = SUMMARY_TECH_THUMB_SIZE) -> TextureRect:
 	var thumb: TextureRect = TextureRect.new()
 	if not art_path.is_empty():
 		thumb.texture = load(art_path) as Texture2D
-	thumb.custom_minimum_size = size
+	thumb.custom_minimum_size = thumb_size
 	# Tech's box is narrower than the column (sized for the wider sector
 	# box — see SUMMARY_COLUMN_WIDTH) — without SHRINK_CENTER, the
 	# VBoxContainer's default fill behavior would stretch it back out to
@@ -1039,7 +1039,7 @@ func _make_summary_thumb(art_path: String, tooltip: String = "", size: Vector2 =
 	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	thumb.mouse_filter = Control.MOUSE_FILTER_PASS
 	thumb.tooltip_text = tooltip
-	thumb.pivot_offset = size / 2.0
+	thumb.pivot_offset = thumb_size / 2.0
 
 	# Cards overlap in their stack (see card_stack above), so whichever one
 	# was added last always draws on top regardless of which one you're

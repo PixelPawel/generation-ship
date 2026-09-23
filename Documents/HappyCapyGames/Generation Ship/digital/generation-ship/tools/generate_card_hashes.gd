@@ -32,8 +32,9 @@ func _card_entries() -> Array[Dictionary]:
 # Multiple physical copies of the same tech share one name/art (e.g. this
 # deck prints "Hibernators" several times) and legitimately hash near-
 # identically — only a same-name pair with genuinely different art (an
-# actual data problem) should ever get flagged.
-const SUSPICIOUS_DISTANCE: int = 8
+# actual data problem) should ever get flagged. Scaled proportionally
+# (8/96 -> ~55/666) when CardHash grew from a 96-bit to a 666-bit hash.
+const SUSPICIOUS_DISTANCE: int = 55
 
 func _process(_delta: float) -> bool:
 	var table: Dictionary = {}

@@ -66,15 +66,12 @@ shadow_enabled = true
 
 [node name="SunLayer" type="CanvasLayer" parent="." unique_id=1000000001]
 layer = 0
-offset = Vector2(898.15, 353.495)
-scale = Vector2(0.3, 0.3)
-transform = Transform2D(0.3, 0, 0, 0.3, 898.15, 353.495)
 
 [node name="SunVideo" type="Control" parent="SunLayer" unique_id=1000000002]
 layout_mode = 3
 anchors_preset = 0
-offset_right = 400.0
-offset_bottom = 300.0
+offset_right = 120.0
+offset_bottom = 90.0
 script = ExtResource("23_sun_video")
 path = "res://assets/video/sun.webm"
 enable_audio = false

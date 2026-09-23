@@ -215,6 +215,10 @@ var es_back_btn: Button = null
 
 func _ready() -> void:
 	get_tree().node_added.connect(_on_node_added_to_tree)
+	# Must run before anything below caches a screen's position as a "base"/
+	# "rest" pose (rumble, enlarge/shrink) -- otherwise those effects would
+	# snap back to the pre-adjustment position instead of the corrected one.
+	CockpitRig.setup_responsive_screen_positions(self)
 	for node: Node3D in [$UiControl, $UiInfo, $UiLog, $UiCockpit]:
 		_rumble_base_pos[node] = node.position
 		_rumble_base_rot[node] = node.rotation

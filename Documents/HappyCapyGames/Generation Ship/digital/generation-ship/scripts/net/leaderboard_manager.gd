@@ -59,10 +59,10 @@ func request_top_scores() -> void:
 func resolve_name(steam_id: int) -> String:
 	if _name_cache.has(steam_id):
 		return _name_cache[steam_id]
-	var name: String = Steam.getFriendPersonaName(steam_id)
-	if name != "" and name != "[unknown]":
-		_name_cache[steam_id] = name
-		return name
+	var persona: String = Steam.getFriendPersonaName(steam_id)
+	if persona != "" and persona != "[unknown]":
+		_name_cache[steam_id] = persona
+		return persona
 	if not _requested_names.has(steam_id):
 		_requested_names[steam_id] = true
 		Steam.requestUserInformation(steam_id, true)
@@ -120,7 +120,7 @@ func _on_leaderboard_scores_downloaded(_message: String, _leaderboard_handle: in
 func _on_persona_state_change(steam_id: int, _flags: int) -> void:
 	if not _requested_names.has(steam_id):
 		return
-	var name: String = Steam.getFriendPersonaName(steam_id)
-	if name != "" and name != "[unknown]":
-		_name_cache[steam_id] = name
-		entry_name_resolved.emit(steam_id, name)
+	var persona: String = Steam.getFriendPersonaName(steam_id)
+	if persona != "" and persona != "[unknown]":
+		_name_cache[steam_id] = persona
+		entry_name_resolved.emit(steam_id, persona)

@@ -194,6 +194,147 @@ const SCREEN_DUCK_IN_SEC: float = 0.30
 const SCREEN_DUCK_OUT_SEC: float = 0.45
 const CARD_ELEVATION_IGNORE_WINDOW_MS: int = 50
 
+# The cockpit's control/info(market)/log screens were laid out by eye against
+# a 16:9 monitor. Camera3D defaults to KEEP_HEIGHT, so a wider aspect ratio
+# (e.g. a phone in landscape) keeps the same vertical framing but reveals
+# extra horizontal FOV beyond what the cockpit fills, leaving empty space to
+# both sides. setup_responsive_screen_positions() keeps each screen's
+# horizontal on-screen position pinned to whatever fraction of the frame it
+# occupies at that reference 16:9 aspect, sliding it outward/inward along the
+# camera's local right axis as the real aspect ratio changes. Recomputed from
+# each screen's ORIGINAL authored position every time the viewport resizes,
+# never incrementally, so repeated resizes/rotations can't compound drift.
+const SCREEN_LAYOUT_REFERENCE_ASPECT: float = 16.0 / 9.0
+# Aspect ratio at which the grow/lift boost below reaches its maximum -- 2.0
+# (18:9) is a common, not especially extreme, phone landscape ratio, so most
+# phones sit at or past full boost rather than only partway up the ramp.
+const SCREEN_LAYOUT_MAX_ASPECT: float = 2.0
+# Control and market only (log excluded per explicit request) get bigger and
+# shifted a bit as the aspect ratio widens past the reference, since a
+# phone's extra revealed width otherwise just sits unused beside them -- 0
+# boost at the reference aspect (desktop, unchanged), ramping linearly to
+# each screen's own cap at SCREEN_LAYOUT_MAX_ASPECT. Started as one shared
+# scale/lift pair (1.3x/0.08 read as no change; 1.75x/0.16, after fixing the
+# pivot bug below, read as too big/close; 1.45x/0.1 still too big; 1.35x/0.1
+# closer but a phone screenshot showed both screens' top row clipping off
+# the top edge) -- split per-screen once a second screenshot showed control
+# and market don't actually need the same treatment: control reads right at
+# 1.25x but was still clipping its header, needing a nudge DOWN rather than
+# up; market's base mesh is larger than control's, so the same multiplier
+# oversizes it more in absolute terms and it needs a smaller boost. Each
+# screen can also get an extra_shift_x (beyond the aspect-fill delta, e.g.
+# to pull market further from control, or push log clear of control once
+# control grew bigger) and its own lift -- all ramped in by boost_t so
+# desktop (reference aspect) is always untouched.
+const SCREEN_LAYOUT_CONTROL_MAX_SCALE_BOOST: float = 1.725
+const SCREEN_LAYOUT_CONTROL_MAX_LIFT: float = -0.42
+const SCREEN_LAYOUT_CONTROL_MAX_SHIFT_X: float = -0.36
+# Growing/shifting control this far made it overlap a fixed cockpit console
+# strut that sits at roughly the same depth, so it started clipping through
+# instead of appearing over it -- pulling it toward the camera (reducing its
+# depth) puts it unambiguously in front instead of backing off position.
+const SCREEN_LAYOUT_CONTROL_MAX_SHIFT_TOWARD_CAMERA: float = 0.15
+const SCREEN_LAYOUT_MARKET_MAX_SCALE_BOOST: float = 1.12
+const SCREEN_LAYOUT_MARKET_MAX_LIFT: float = -0.04
+const SCREEN_LAYOUT_MARKET_MAX_SHIFT_X: float = -0.06
+const SCREEN_LAYOUT_MARKET_MAX_SHIFT_TOWARD_CAMERA: float = 0.0
+const SCREEN_LAYOUT_LOG_MAX_SCALE_BOOST: float = 1.0
+const SCREEN_LAYOUT_LOG_MAX_LIFT: float = 0.0
+const SCREEN_LAYOUT_LOG_MAX_SHIFT_X: float = 0.07
+const SCREEN_LAYOUT_LOG_MAX_SHIFT_TOWARD_CAMERA: float = 0.0
+
+static func setup_responsive_screen_positions(main: Main) -> void:
+	var cam: Camera3D = main.get_node("Camera3D")
+	var cam_inv: Transform3D = cam.global_transform.affine_inverse()
+
+	# All three screens go through the same mesh-center-anchored mechanism
+	# now (log included, at scale_boost 1.0 -- a no-op for its scale, but it
+	# still benefits from the shared extra_shift_x/lift support). Anchored on
+	# the actual SCREEN MESH's own AABB-center global position, not the
+	# prop's root origin -- the root's pivot isn't necessarily centered on
+	# the visible screen, so scaling the root about its own origin drags the
+	# visible screen's apparent position along with it (toward or away from
+	# center depending on which side of the mesh the pivot sits), silently
+	# fighting the horizontal-fill effect. Tracking the mesh's own center and
+	# solving for whatever root position puts that center where it should be
+	# keeps the two effects independent.
+	var screen_defs: Array[Dictionary] = [
+		{
+			"root": main.get_node("UiControl"), "mesh_name": "gs_ui_control_screen",
+			"max_scale_boost": SCREEN_LAYOUT_CONTROL_MAX_SCALE_BOOST,
+			"max_lift": SCREEN_LAYOUT_CONTROL_MAX_LIFT,
+			"max_shift_x": SCREEN_LAYOUT_CONTROL_MAX_SHIFT_X,
+			"max_shift_toward_camera": SCREEN_LAYOUT_CONTROL_MAX_SHIFT_TOWARD_CAMERA,
+		},
+		{
+			"root": main.get_node("UiInfo"), "mesh_name": "gs_ui_info_screen",
+			"max_scale_boost": SCREEN_LAYOUT_MARKET_MAX_SCALE_BOOST,
+			"max_lift": SCREEN_LAYOUT_MARKET_MAX_LIFT,
+			"max_shift_x": SCREEN_LAYOUT_MARKET_MAX_SHIFT_X,
+			"max_shift_toward_camera": SCREEN_LAYOUT_MARKET_MAX_SHIFT_TOWARD_CAMERA,
+		},
+		{
+			"root": main.get_node("UiLog"), "mesh_name": "gs_ui_log_screen",
+			"max_scale_boost": SCREEN_LAYOUT_LOG_MAX_SCALE_BOOST,
+			"max_lift": SCREEN_LAYOUT_LOG_MAX_LIFT,
+			"max_shift_x": SCREEN_LAYOUT_LOG_MAX_SHIFT_X,
+			"max_shift_toward_camera": SCREEN_LAYOUT_LOG_MAX_SHIFT_TOWARD_CAMERA,
+		},
+	]
+	var baselines: Array[Dictionary] = []
+	for def: Dictionary in screen_defs:
+		var node: Node3D = def["root"]
+		var mesh: MeshInstance3D = node.find_child(def["mesh_name"], true, false) as MeshInstance3D
+		var mesh_center: Vector3 = mesh.to_global(mesh.mesh.get_aabb().get_center()) if mesh else node.global_position
+		var root_original: Vector3 = node.global_position
+		var local0: Vector3 = cam_inv * mesh_center
+		baselines.append({
+			"node": node,
+			"mesh_center_original": mesh_center,
+			"root_offset0": root_original - mesh_center,
+			"local_x": local0.x,
+			"depth": -local0.z,
+			"original_scale": node.scale,
+			"max_scale_boost": def["max_scale_boost"],
+			"max_lift": def["max_lift"],
+			"max_shift_x": def["max_shift_x"],
+			"max_shift_toward_camera": def["max_shift_toward_camera"],
+		})
+
+	var reposition := func() -> void:
+		var vp_size: Vector2 = main.get_viewport().get_visible_rect().size
+		if vp_size.x <= 0.0 or vp_size.y <= 0.0:
+			return
+		var cur_aspect: float = vp_size.x / vp_size.y
+		var half_vfov: float = deg_to_rad(cam.fov) * 0.5
+		var half_hfov_ref: float = atan(tan(half_vfov) * SCREEN_LAYOUT_REFERENCE_ASPECT)
+		var half_hfov_cur: float = atan(tan(half_vfov) * cur_aspect)
+		var boost_t: float = clampf(
+			(cur_aspect - SCREEN_LAYOUT_REFERENCE_ASPECT) / (SCREEN_LAYOUT_MAX_ASPECT - SCREEN_LAYOUT_REFERENCE_ASPECT),
+			0.0, 1.0
+		)
+
+		for b: Dictionary in baselines:
+			var depth: float = b["depth"]
+			var ndc_x_ref: float = b["local_x"] / (depth * tan(half_hfov_ref))
+			var target_local_x: float = ndc_x_ref * depth * tan(half_hfov_cur)
+			var delta_local_x: float = target_local_x - b["local_x"] + b["max_shift_x"] * boost_t
+			var scale_factor: float = lerpf(1.0, b["max_scale_boost"], boost_t)
+			var lift: float = b["max_lift"] * boost_t
+			var toward_camera: float = b["max_shift_toward_camera"] * boost_t
+			var target_mesh_center: Vector3 = (
+				b["mesh_center_original"]
+				+ cam.global_transform.basis.x * delta_local_x
+				+ Vector3(0.0, lift, 0.0)
+				+ cam.global_transform.basis.z * toward_camera
+			)
+			var node: Node3D = b["node"]
+			node.scale = b["original_scale"] * scale_factor
+			node.global_position = target_mesh_center + b["root_offset0"] * scale_factor
+
+	main.get_viewport().size_changed.connect(reposition)
+	reposition.call()
+
 # Right-click toggle that pulls a cockpit screen (control/info/log) closer to
 # the camera — brought back from an earlier hover-triggered version of this
 # same effect (removed because hover was the wrong trigger); the tween

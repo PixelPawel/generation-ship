@@ -158,10 +158,10 @@ func _on_input_event(_camera: Node, event: InputEvent, _pos: Vector3, _normal: V
 		else:
 			_drag_armed = false
 			if is_placed:
-				# No touch equivalent of right-click exists, but a placed
-				# card has no other tap action to conflict with — a plain
-				# tap can just do what right-click does here directly.
-				_try_toggle_placed_elevation()
+				# Left-click/tap-to-enlarge is intentionally Collection-only
+				# (see collection_popup.gd) — a placed card on the actual
+				# board only enlarges via right-click (desktop), matching
+				# the original pre-touch-parity behavior here.
 				return
 			if (not can_drag or not is_dragging) and not _any_dragging:
 				clicked.emit(self)

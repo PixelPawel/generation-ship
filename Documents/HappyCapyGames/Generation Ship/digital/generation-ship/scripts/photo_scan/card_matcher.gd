@@ -18,8 +18,9 @@ func _init() -> void:
 
 ## Returns {"name": String, "distance": int} for the closest known card to
 ## the given image, or an empty Dictionary if the hash table failed to load.
-## `distance` is out of 96 bits — the caller decides what counts as
-## confident enough to accept without user confirmation.
+## `distance` is out of CardHash's current bit count (see that file) — the
+## caller decides what counts as confident enough to accept without user
+## confirmation.
 ##
 ## Tries the image both as given and rotated 180 degrees, keeping whichever
 ## matches better. A card's orientation (upright vs. upside-down) can't be

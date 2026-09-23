@@ -123,16 +123,16 @@ func _add_row(entry: Dictionary) -> void:
 	var steam_id: int = int(entry.get("steam_id", 0))
 	var is_me: bool = steam_id != 0 and steam_id == _my_steam_id
 
-	var wrap: PanelContainer = PanelContainer.new()
+	var row_panel: PanelContainer = PanelContainer.new()
 	if is_me:
 		var box: StyleBoxFlat = StyleBoxFlat.new()
 		box.bg_color = Color(1.0, 0.85, 0.2, 0.12)
-		wrap.add_theme_stylebox_override("panel", box)
-	_rows_container.add_child(wrap)
+		row_panel.add_theme_stylebox_override("panel", box)
+	_rows_container.add_child(row_panel)
 
 	var outer: VBoxContainer = VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 4)
-	wrap.add_child(outer)
+	row_panel.add_child(outer)
 
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
@@ -155,14 +155,14 @@ func _add_row(entry: Dictionary) -> void:
 	rank_lbl.custom_minimum_size = Vector2(44, 0)
 	row.add_child(rank_lbl)
 
-	var name: String = LeaderboardManager.resolve_name(steam_id) if steam_id != 0 else ""
-	if name == "":
-		name = tr("Player #%d") % (steam_id % 10000)
+	var player_name: String = LeaderboardManager.resolve_name(steam_id) if steam_id != 0 else ""
+	if player_name == "":
+		player_name = tr("Player #%d") % (steam_id % 10000)
 	if is_me:
-		name = tr("%s (You)") % name
+		player_name = tr("%s (You)") % player_name
 
 	var name_lbl: Label = Label.new()
-	name_lbl.text = name
+	name_lbl.text = player_name
 	name_lbl.add_theme_font_size_override("font_size", 15)
 	name_lbl.add_theme_color_override("font_color", Color(0.95, 0.95, 1.0) if is_me else Color(0.85, 0.85, 0.9))
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -253,11 +253,11 @@ func _make_score_line_row(line: Dictionary) -> Control:
 	row.add_child(vp_lbl)
 	return row
 
-func _on_entry_name_resolved(steam_id: int, name: String) -> void:
+func _on_entry_name_resolved(steam_id: int, player_name: String) -> void:
 	var lbl: Label = _row_by_steam_id.get(steam_id) as Label
 	if not lbl:
 		return
-	lbl.text = tr("%s (You)") % name if steam_id == _my_steam_id else name
+	lbl.text = tr("%s (You)") % player_name if steam_id == _my_steam_id else player_name
 
 func _input(event: InputEvent) -> void:
 	if not visible:

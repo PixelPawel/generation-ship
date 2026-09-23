@@ -167,14 +167,14 @@ static func _dedupe(cards: Array[CardData], name_fn: Callable, art_fn: Callable,
 	var seen: Dictionary = {}
 	var out: Array[Dictionary] = []
 	for cd: CardData in cards:
-		var name: String = name_fn.call(cd)
-		if name.is_empty() or seen.has(name):
+		var card_name: String = name_fn.call(cd)
+		if card_name.is_empty() or seen.has(card_name):
 			continue
 		var art: String = art_fn.call(cd)
 		if art.is_empty():
 			continue
-		seen[name] = true
-		out.append({"name": name, "art": art, "is_advanced": is_advanced})
+		seen[card_name] = true
+		out.append({"name": card_name, "art": art, "is_advanced": is_advanced})
 	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return (a["name"] as String) < (b["name"] as String))
 	return out
 

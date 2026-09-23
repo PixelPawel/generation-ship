@@ -52,7 +52,9 @@ static func decode_line(packed: int) -> Dictionary:
 	if packed <= 0:
 		return {}
 	var vp: int = packed % 1000
+	@warning_ignore("integer_division")  # intentional: unpacking the base-1000 digits encode_line() packed in
 	var rest: int = packed / 1000
+	@warning_ignore("integer_division")
 	var category: int = rest / 1000
 	var subcode: int = rest % 1000
 	match category:
