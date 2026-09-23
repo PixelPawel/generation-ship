@@ -250,6 +250,7 @@ static func cluster_candidates(candidates: Array[Dictionary]) -> Array:
 	for c: Dictionary in candidates:
 		widths.append(float((c["rect"] as Rect2i).size.x))
 	widths.sort()
+	@warning_ignore("integer_division")  # intentional: middle index of the sorted array
 	var median_width: float = widths[widths.size() / 2]
 	var gap_threshold: float = median_width * 0.75
 
@@ -496,6 +497,7 @@ static func _sample_background(img: Image) -> Dictionary:
 	var w: int = img.get_width()
 	var h: int = img.get_height()
 	var margin: int = maxi(4, roundi(minf(w, h) * BG_MARGIN_FRACTION))
+	@warning_ignore("integer_division")  # intentional: whole-pixel inset
 	var half_margin: int = margin / 2
 
 	var samples: Array[Color] = []
