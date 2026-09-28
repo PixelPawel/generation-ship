@@ -136,6 +136,7 @@ theme_override_font_sizes/font_size = 32
 text = "Collection"
 
 [node name="ScanTableauBtn" type="Button" parent="Panels/MainView/VBox"]
+visible = false
 custom_minimum_size = Vector2(440, 64)
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
