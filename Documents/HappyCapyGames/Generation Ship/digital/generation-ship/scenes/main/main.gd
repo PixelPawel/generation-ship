@@ -172,6 +172,7 @@ var _log_font: FontVariation = null
 var _tooltip_panel: Control = null
 var _tooltip_title: Label = null
 var _tooltip_desc: Label = null
+var _tooltip_scale: float = 1.0  # set by CockpitRig.setup_floating_tooltip (>1 on phones)
 var _sun_elevated_count: int = 0
 
 var rumble_tweens: Dictionary = {}   # Node3D -> Tween
@@ -508,7 +509,7 @@ func _process(_delta: float) -> void:
 
 func _update_tooltip_position() -> void:
 	var vp_size: Vector2 = get_viewport().get_visible_rect().size
-	var target: Vector2 = get_viewport().get_mouse_position() + Vector2(20.0, 24.0)
+	var target: Vector2 = get_viewport().get_mouse_position() + Vector2(20.0, 24.0) * _tooltip_scale
 	target.x = clamp(target.x, 8.0, max(8.0, vp_size.x - _tooltip_panel.size.x - 8.0))
 	target.y = clamp(target.y, 8.0, max(8.0, vp_size.y - _tooltip_panel.size.y - 8.0))
 	_tooltip_panel.position = target

@@ -751,40 +751,61 @@ static func setup_log_screen_display(main: Main) -> void:
 		screen_mesh.set_surface_override_material(0, mat)
 		setup_viewport_input(main, screen_mesh, main.log_viewport)
 
+# Desktop needs no extra tooltip scaling: canvas_items stretch (1920x1080
+# base) already grows the UI with the window. A phone, though, gets the same
+# canvas scale as a 1080p monitor on a screen a few cm tall, so the tooltip is
+# scaled up there by the screen's physical height (from its DPI).
+const TOOLTIP_MOBILE_REF_HEIGHT_IN: float = 4.5  # screens this tall (inches) or taller need no boost
+const TOOLTIP_MOBILE_MAX_SCALE: float = 1.8
+const TOOLTIP_MOBILE_FALLBACK_SCALE: float = 1.6  # device reports no usable DPI
+
+static func tooltip_scale() -> float:
+	if not OS.has_feature("mobile"):
+		return 1.0
+	var dpi: int = DisplayServer.screen_get_dpi()
+	if dpi <= 0:
+		return TOOLTIP_MOBILE_FALLBACK_SCALE
+	var screen_size: Vector2i = DisplayServer.screen_get_size()
+	var screen_h_px: float = float(mini(screen_size.x, screen_size.y))  # short side = height in landscape
+	var screen_h_in: float = screen_h_px / float(dpi)
+	return clampf(TOOLTIP_MOBILE_REF_HEIGHT_IN / screen_h_in, 1.0, TOOLTIP_MOBILE_MAX_SCALE)
+
 # Free-floating screen-space tooltip, parented directly to UILayer (not any
 # in-world SubViewport) so it can size itself to its text and be positioned
 # anywhere on screen instead of being confined to a small fixed-resolution
 # viewport.
 static func setup_floating_tooltip(main: Main) -> void:
+	var s: float = tooltip_scale()
+	main._tooltip_scale = s
 	var panel: PanelContainer = PanelContainer.new()
 	panel.visible = false
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var style: StyleBoxFlat = StyleBoxFlat.new()
 	style.bg_color = Color(0.05, 0.07, 0.15, 0.94)
 	style.border_color = Color(0.3, 0.55, 0.85, 0.55)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(4)
-	style.content_margin_left = 12.0
-	style.content_margin_right = 12.0
-	style.content_margin_top = 8.0
-	style.content_margin_bottom = 8.0
+	style.set_border_width_all(maxi(1, roundi(s)))
+	style.set_corner_radius_all(roundi(4.0 * s))
+	style.content_margin_left = 12.0 * s
+	style.content_margin_right = 12.0 * s
+	style.content_margin_top = 8.0 * s
+	style.content_margin_bottom = 8.0 * s
 	panel.add_theme_stylebox_override("panel", style)
 	var vbox: VBoxContainer = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 3)
+	vbox.add_theme_constant_override("separation", roundi(3.0 * s))
 	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(vbox)
 	main._tooltip_title = Label.new()
-	main._tooltip_title.add_theme_font_size_override("font_size", 18)
+	main._tooltip_title.add_theme_font_size_override("font_size", roundi(18.0 * s))
 	main._tooltip_title.add_theme_color_override("font_color", Color(0.82, 0.93, 1.0))
 	main._tooltip_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	main._tooltip_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(main._tooltip_title)
 	main._tooltip_desc = Label.new()
-	main._tooltip_desc.add_theme_font_size_override("font_size", 16)
+	main._tooltip_desc.add_theme_font_size_override("font_size", roundi(16.0 * s))
 	main._tooltip_desc.add_theme_color_override("font_color", Color(0.60, 0.68, 0.82))
 	main._tooltip_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	main._tooltip_desc.autowrap_mode = TextServer.AUTOWRAP_WORD
-	main._tooltip_desc.custom_minimum_size = Vector2(280, 0)
+	main._tooltip_desc.custom_minimum_size = Vector2(280.0 * s, 0)
 	main._tooltip_desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(main._tooltip_desc)
 	main.get_node("UILayer").add_child(panel)
