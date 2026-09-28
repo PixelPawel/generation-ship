@@ -12,6 +12,14 @@ var _collection: Control = null
 var _leaderboard: Control = null
 var _photo_scan: Control = null
 
+const GAMEFOUND_LOGO: String = "res://assets/ui/gamefound_logo_white.png"
+const GAMEFOUND_URL: String = "https://gamefound.com/en/projects/happy-capy-games/generation-ship#/section/project-story"
+const DISCORD_LOGO: String = "res://assets/ui/Discord-Logo-Blurple.png"
+const DISCORD_URL: String = "https://discord.gg/AGJvpkrpFX"
+const _LINK_MARGIN: float = 28.0
+
+var _link_buttons: Array[TextureButton] = []
+
 const RESOLUTIONS: Array[Vector2i] = [
 	Vector2i(1280, 720),
 	Vector2i(1600, 900),
@@ -55,6 +63,38 @@ func _ready() -> void:
 	ver_lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.45))
 	ver_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(ver_lbl)
+
+	_add_link_button(GAMEFOUND_LOGO, GAMEFOUND_URL, 44.0, false)
+	_add_link_button(DISCORD_LOGO, DISCORD_URL, 34.0, true)
+
+# Logo button pinned to a bottom corner of MainView (so it slides away with the
+# menu). Height drives size; width follows the logo's aspect ratio.
+func _add_link_button(tex_path: String, url: String, height: float, right: bool) -> void:
+	var tex: Texture2D = load(tex_path) as Texture2D
+	if tex == null:
+		return
+	var btn := TextureButton.new()
+	btn.texture_normal = tex
+	btn.ignore_texture_size = true
+	btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn.tooltip_text = url
+	btn.modulate.a = 0.0
+	btn.pressed.connect(func() -> void: OS.shell_open(url))
+	$Panels/MainView.add_child(btn)
+	var w: float = height * float(tex.get_width()) / float(tex.get_height())
+	var x_anchor: float = 1.0 if right else 0.0
+	btn.anchor_left = x_anchor
+	btn.anchor_right = x_anchor
+	btn.anchor_top = 1.0
+	btn.anchor_bottom = 1.0
+	# Right-side button sits a bit higher to clear the version label.
+	var bottom: float = -_LINK_MARGIN - (16.0 if right else 0.0)
+	btn.offset_left = -_LINK_MARGIN - w if right else _LINK_MARGIN
+	btn.offset_right = -_LINK_MARGIN if right else _LINK_MARGIN + w
+	btn.offset_top = bottom - height
+	btn.offset_bottom = bottom
+	_link_buttons.append(btn)
 
 func _setup_video() -> void:
 	const VIDEO_PATH: String = "res://assets/video/flythrough.mp4"
@@ -100,6 +140,11 @@ func _start_animations() -> void:
 	_animate_buttons()
 	for btn: Node in $Panels/MainView/VBox.get_children():
 		_setup_button_hover(btn as Button)
+	for btn: TextureButton in _link_buttons:
+		_setup_button_hover(btn)
+		var tw: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		tw.tween_interval(1.2)
+		tw.tween_property(btn, "modulate:a", 1.0, 0.5)
 
 func _animate_logo() -> void:
 	const LOGO_PATH: String = "res://assets/video/logo.webm"
@@ -130,12 +175,12 @@ func _animate_buttons() -> void:
 		tw.tween_interval(0.35 + float(i) * 0.15)
 		tw.tween_property(btn, "modulate:a", 1.0, 0.40)
 
-func _setup_button_hover(btn: Button) -> void:
+func _setup_button_hover(btn: BaseButton) -> void:
 	btn.pivot_offset = btn.size / 2.0
 	btn.mouse_entered.connect(func() -> void: _on_btn_hover_enter(btn))
 	btn.mouse_exited.connect(func() -> void: _on_btn_hover_exit(btn))
 
-func _on_btn_hover_enter(btn: Button) -> void:
+func _on_btn_hover_enter(btn: BaseButton) -> void:
 	var tw: Tween = _btn_tweens.get(btn) as Tween
 	if tw and tw.is_valid():
 		tw.kill()
@@ -144,7 +189,7 @@ func _on_btn_hover_enter(btn: Button) -> void:
 	tw.parallel().tween_property(btn, "modulate", Color(1.4, 1.4, 1.4, 1.0), _BTN_HOVER_IN_SEC)
 	_btn_tweens[btn] = tw
 
-func _on_btn_hover_exit(btn: Button) -> void:
+func _on_btn_hover_exit(btn: BaseButton) -> void:
 	var tw: Tween = _btn_tweens.get(btn) as Tween
 	if tw and tw.is_valid():
 		tw.kill()
