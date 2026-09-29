@@ -616,7 +616,7 @@ func get_purchase_discount(target: CardData, placement_slot: SectorSlot = null) 
 				"Industrial Academy":
 					if target.card_type == CardData.CardType.TECH and target.color == CardData.SupplyColor.METALS:
 						discount += 1
-				"Cloning Labs":
+				"Cloning Lab":
 					if target.card_type == CardData.CardType.TECH and target.color == CardData.SupplyColor.ORGANIX:
 						discount += 1
 				"Physics Academy":

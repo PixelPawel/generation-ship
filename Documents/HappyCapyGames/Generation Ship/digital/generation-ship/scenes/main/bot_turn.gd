@@ -423,7 +423,7 @@ static func bot_decide_bid(main: Main, bot_id: int) -> void:
 # card attaches to an existing sector's card stack (Expedition cards — the
 # real game attaches them the same way as Tech cards), false means it
 # occupies a brand-new sector slot (an advanced Sector card revealed via an
-# effect like Cargo Bays/Transformable Hull).
+# effect like Cargo Bays/Transforming Hull).
 static func bot_resolve_auction_win(
 	main: Main, bot_id: int, card_ref: Dictionary, final_bid: int,
 	cost_color: CardData.SupplyColor, is_tech: bool, is_adv: bool

@@ -23,7 +23,7 @@ static func to_dict_array(raw: Array) -> Array[Dictionary]:
 	return result
 
 const SECTOR_STORED_BONUS: Dictionary = {
-	"Greenhouses": {"color": CardData.SupplyColor.LIQUIDS, "per": 1},
+	"Greenhouse": {"color": CardData.SupplyColor.LIQUIDS, "per": 1},
 	"Astra Cultura": {"color": CardData.SupplyColor.THRUST, "per": 2},
 }
 
@@ -154,7 +154,7 @@ static func _expedition_vp(name: String, fallback_stars: int, board: Array,
 	match name:
 		"Exodus Fleets":
 			return 2 * _count_by_color(all_cards, CardData.SupplyColor.THRUST)
-		"Bio-Compatible World":
+		"Compatible World":
 			return _count_by_color(all_cards, CardData.SupplyColor.ORGANIX)
 		"Hive Mind":
 			return _count_by_color(all_cards, CardData.SupplyColor.ELECTRIX)
@@ -333,7 +333,7 @@ static func card_value(cd: CardData) -> float:
 		v += 3.0
 	return v
 
-# Exodus Fleets/Bio-Compatible World/Hive Mind's own printed text is explicit
+# Exodus Fleets/Compatible World/Hive Mind's own printed text is explicit
 # that their per-color count includes the card itself ("Gain X per <color>
 # card (including this)"). board_vp_lines already gets this right for real,
 # already-won cards, since a placed expedition sits in slot_cards() like any
@@ -343,7 +343,7 @@ static func card_value(cd: CardData) -> float:
 # saw these three as worth exactly 0, and could never justify the very bid
 # that would start building that color — a chicken-and-egg dead end, not a
 # deliberate "not worth it" judgment.
-const _INCLUDES_SELF_EXPEDITIONS: PackedStringArray = ["Exodus Fleets", "Bio-Compatible World", "Hive Mind"]
+const _INCLUDES_SELF_EXPEDITIONS: PackedStringArray = ["Exodus Fleets", "Compatible World", "Hive Mind"]
 
 # Rough "what is winning this auction worth" estimate for bid EV. For
 # expedition cards, reuses the same approximate VP formulas as the end-game

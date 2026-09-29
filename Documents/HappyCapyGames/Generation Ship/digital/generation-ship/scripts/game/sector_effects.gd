@@ -98,7 +98,7 @@ static func _build(name: String, placed_colors: Array[int], last_placed_tech_cos
 			# Recycle up to 3, draw that many
 			steps.append({type = "recycle_optional", max = 3})
 
-		"Greenhouses":
+		"Greenhouse":
 			steps.append({type = "store_on_slot", color = CardData.SupplyColor.LIQUIDS, amount = 1})
 
 		"Academies":

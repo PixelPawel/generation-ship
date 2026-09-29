@@ -71,7 +71,7 @@ static func _build(name: String, _cd: CardData, placed_colors: Array[int],
 		"Passing Comet":
 			steps.append({type = "draw_recycle_top"})
 
-		"Atmospheric Control System":
+		"Atmospheric System":
 			if is_new:
 				steps.append({type = "draw", count = 1})
 
@@ -143,7 +143,7 @@ static func _build(name: String, _cd: CardData, placed_colors: Array[int],
 			if is_new:
 				steps.append({type = "recycle_optional", max = 2})
 
-		"Transformable Hull":
+		"Transforming Hull":
 			steps.append({type = "reveal_sector", may_bid = true, gain_supply = true})
 			steps.append({type = "offer_bid_pool"})
 
@@ -237,7 +237,7 @@ static func _build(name: String, _cd: CardData, placed_colors: Array[int],
 			for color: int in placed_colors:
 				steps.append({type = "store_on_slot", color = color, amount = 1})
 
-		"Quantum Entangled Radio":
+		"Entangled Radio":
 			steps.append({type = "recycle_tuck", count = 2})
 
 		"Containers":

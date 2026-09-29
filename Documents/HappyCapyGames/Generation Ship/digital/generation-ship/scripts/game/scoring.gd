@@ -103,7 +103,7 @@ static func _score_sector_stored(lines: Array[Dictionary], slots: Array) -> void
 		var is_adv: bool = bool(slot.placed_card.get("is_advanced"))
 		var name: String = slot.placed_card.card_data.adv_name if is_adv else slot.placed_card.card_data.card_name
 		match name:
-			"Greenhouses":
+			"Greenhouse":
 				# +1 bonus VP per stored Liquids (base gives another 1 VP = 2 VP total per Liquids)
 				var vp: int = slot.get_stored_supply(CardData.SupplyColor.LIQUIDS)
 				_add_line(lines, "Greenhouses (Liquids bonus)", vp)
@@ -181,7 +181,7 @@ static func _expedition_vp(name: String, slots: Array, expeditions: Array, all_c
 				colors[_card_color(card)] = true
 			return 3 * colors.size()
 
-		"Bio-Compatible World":
+		"Compatible World":
 			# 1 VP per Organix card placed (including self)
 			return _count_by_color(all_cards, CardData.SupplyColor.ORGANIX)
 

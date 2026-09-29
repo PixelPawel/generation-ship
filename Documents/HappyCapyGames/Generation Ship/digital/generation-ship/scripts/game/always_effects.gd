@@ -30,9 +30,9 @@ static func get_colocated_steps(placed_card: CardData, placed_card_node: Node3D,
 		# need — _is_new_color() already excludes the placed card on its own.
 		var is_self: bool = card_node == placed_card_node
 		match cd.card_name:
-			"Insects":
+			"Pollinators":
 				if _is_new_color(placed_card, slot):
-					steps.append({type = "store_on_slot", color = placed_card.color, amount = 1, _source_name = "Insects"})
+					steps.append({type = "store_on_slot", color = placed_card.color, amount = 1, _source_name = "Pollinators"})
 			"Crops":
 				if not is_self and placed_card.stars > 0:
 					steps.append({type = "gain_supply", color = CardData.SupplyColor.ORGANIX, amount = placed_card.stars, _source_name = "Crops"})
@@ -98,7 +98,7 @@ static func get_global_expedition_steps(placed_card: CardData, placed_expedition
 				# Draw 1 when you buy an expedition
 				if placed_card.card_type == CardData.CardType.EXPEDITION:
 					steps.append({type = "draw", count = 1, _source_name = "Galactic Capital"})
-			"Galacttic Museum":
+			"Galactic Museum":
 				# Tuck 1 card faceup or facedown when you buy an expedition
 				if placed_card.card_type == CardData.CardType.EXPEDITION:
 					steps.append(CardData.tag_step_source({
@@ -108,7 +108,7 @@ static func get_global_expedition_steps(placed_card: CardData, placed_expedition
 							{label = "Faceup",   steps = [{type = "tuck", count = 1, face_up = true}]},
 							{label = "Facedown", steps = [{type = "tuck", count = 1, face_up = false}]},
 						],
-					}, "Galacttic Museum"))
+					}, "Galactic Museum"))
 			"Industrial Cradle":
 				# Gain 1 Electrix when you buy an expedition
 				if placed_card.card_type == CardData.CardType.EXPEDITION:

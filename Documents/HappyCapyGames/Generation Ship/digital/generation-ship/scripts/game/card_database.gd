@@ -63,6 +63,12 @@ static func _normalize(s: String) -> String:
 			out += ch
 	return out
 
+# Card names are matched literally all over the code (effects, scoring), so
+# normalise typographic apostrophes the sheet sometimes has — e.g.
+# "Artists‘ Quarter" with a backwards opening quote — to a plain '.
+static func _clean_name(s: String) -> String:
+	return s.strip_edges().replace("‘", "'").replace("’", "'")
+
 # Case/punctuation-insensitive and tolerant of a trailing plural "s".
 static func _dust_key(s: String) -> String:
 	return _normalize(s).trim_suffix("s")
@@ -178,7 +184,7 @@ func _load_sector_cards() -> void:
 		card.is_star_card = _parse_yes_no(row.get("Star Card", row.get("Star card", "No")))
 
 		# Dust side (shown face-up in the deck / base display)
-		card.card_name = dust.get("Name", backside_name).strip_edges()
+		card.card_name = _clean_name(dust.get("Name", backside_name))
 		card.color = CardData.SupplyColor.DUST
 		card.cost = int(dust.get("Cost", "2")) if dust.get("Cost", "").is_valid_int() else 2
 		card.effect_text = dust.get("Effect", "").strip_edges()
@@ -188,7 +194,7 @@ func _load_sector_cards() -> void:
 		card.opt1_req = _parse_color_list(dust.get("Optimize 1", ""))
 
 		# Advanced side
-		card.adv_name = row.get("Name", "").strip_edges()
+		card.adv_name = _clean_name(row.get("Name", ""))
 		card.adv_color = _parse_color(row.get("Color", ""))
 		card.adv_cost = int(row.get("Cost", "0")) if row.get("Cost", "").is_valid_int() else 0
 		card.adv_effect_text = row.get("Effect", "").strip_edges()
@@ -244,7 +250,7 @@ func _load_expeditions() -> void:
 		expeditions.append(card)
 
 func _populate_base_fields(card: CardData, row: Dictionary) -> void:
-	card.card_name      = row.get("Name", "")
+	card.card_name      = _clean_name(row.get("Name", ""))
 	card.color          = _parse_color(row.get("Color", ""))
 	card.cost           = int(row.get("Cost", "0")) if row.get("Cost", "").is_valid_int() else 0
 	card.effect_text    = row.get("Effect", "").strip_edges()
