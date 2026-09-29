@@ -197,10 +197,10 @@ func _add_row(entry: Dictionary) -> void:
 		if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
 			return
 		if state[0] == null:
-			var detail: Control = _build_detail(entry)
-			detail.visible = false
-			outer.add_child(detail)
-			state[0] = detail
+			var built: Control = _build_detail(entry)
+			built.visible = false
+			outer.add_child(built)
+			state[0] = built
 		var detail: Control = state[0]
 		detail.visible = not detail.visible
 		arrow_lbl.text = "▼" if detail.visible else "▶"
