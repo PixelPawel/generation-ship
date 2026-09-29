@@ -25,7 +25,7 @@ matching this table's tone.
 
 | EN | DE | IT | PL | ES | FR |
 |---|---|---|---|---|---|
-| Supply (generic) | Vorrat / Vorräte | risorsa / risorse | zasób / zasoby | suministro | ressource |
+| Supply (generic) | Vorrat / Vorräte | risorsa / risorse | zasób / zasoby | suministro | matériel / matériels |
 | Dust | Staub | Polvere | Pył | Polvo | Poussière |
 | Metals | Metalle | Metalli | Metale | Metales | Métaux |
 | Liquids | Wasser | Liquidi | Płyny | Líquidos | Liquides |
@@ -36,6 +36,11 @@ matching this table's tone.
 Note: German "Liquids" was deliberately shortened from the literal
 Flüssigkeiten to Wasser — Flüssigkeiten was too long for the supply
 label/icon UI (see commit 626e32a).
+
+Note: French "Supply" is "matériel" (masculine: "1 matériel stocké",
+"les matériels stockés", "Chaîne de Matériel"), not "ressource". It had
+been "ressource" on cards/aids/game data and "matériel" in the rule book;
+all were unified to "matériel" on 2026-09-29.
 
 ## Actions
 
