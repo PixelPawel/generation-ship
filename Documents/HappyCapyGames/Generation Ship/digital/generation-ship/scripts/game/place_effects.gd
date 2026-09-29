@@ -24,40 +24,27 @@ static func get_steps(cd: CardData, slot: SectorSlot) -> Array[Dictionary]:
 	var is_complete: bool = slot.is_complete()
 	var is_opt: bool = slot.is_optimized
 	var placed_colors: Array[int] = _slot_placed_colors(slot)
-	return get_steps_for_state(cd, is_new, is_complete, is_opt, placed_colors, slot_effective_colors(slot))
+	return get_steps_for_state(cd, is_new, is_complete, is_opt, placed_colors)
 
-# Every card on the slot by its CURRENT color (an advanced sector counts as
-# its advanced color, not Dust). Only Biodiversity reads this — see
-# get_steps_for_state for why the older cards keep using raw colors.
-static func slot_effective_colors(slot: SectorSlot) -> Array[int]:
-	var colors: Array[int] = []
-	for c: Node3D in slot.get_all_placed_cards():
-		var cdata: CardData = c.get("card_data")
-		if cdata:
-			colors.append(int(CardData.effective_color(cdata, bool(c.get("is_advanced")))))
-	return colors
-
+# Every card on the slot by its visible side's color — an advanced sector
+# counts as its advanced color, not Dust.
 static func _slot_placed_colors(slot: SectorSlot) -> Array[int]:
 	var placed_colors: Array[int] = []
 	for c: Node3D in slot.get_all_placed_cards():
 		var cdata: CardData = c.get("card_data")
 		if cdata:
-			placed_colors.append(int(cdata.color))
+			placed_colors.append(int(CardData.effective_color(cdata, bool(c.get("is_advanced")))))
 	return placed_colors
 
 # State-only entry point — no SectorSlot/Node3D required, so bots can resolve
 # the exact same card effects a real player would without a live scene.
-# placed_colors is every card currently on the slot (sector + techs), each
-# card's raw .color field (matches the original slot.get_all_placed_cards()
-# based logic below, including its historical use of .color rather than
-# effective_color for advanced sectors).
-# effective_colors is the same list by current color (see
-# slot_effective_colors); empty falls back to placed_colors.
+# placed_colors is every card currently on the slot (sector + techs) by its
+# visible side's color (see _slot_placed_colors; bots pass
+# BotScoring.slot_effective_placed_colors).
 static func get_steps_for_state(cd: CardData, is_new: bool, is_complete: bool, is_opt: bool,
-		placed_colors: Array[int], effective_colors: Array[int] = []) -> Array[Dictionary]:
+		placed_colors: Array[int]) -> Array[Dictionary]:
 	var steps: Array[Dictionary] = []
-	var eff: Array[int] = effective_colors if not effective_colors.is_empty() else placed_colors
-	_build(cd.card_name, cd, placed_colors, eff, is_new, is_complete, is_opt, steps)
+	_build(cd.card_name, cd, placed_colors, is_new, is_complete, is_opt, steps)
 	return CardData.tag_effect_source(steps, cd.card_name)
 
 static func _all_colors_choice(prompt: String, step_type: String) -> Dictionary:
@@ -67,7 +54,7 @@ static func _all_colors_choice(prompt: String, step_type: String) -> Dictionary:
 		options.append({label = CardData.color_name(c), tint = CardData.color_tint(c), steps = [{type = step_type, color = c}]})
 	return {type = "choice", prompt = prompt, options = options}
 
-static func _build(name: String, _cd: CardData, placed_colors: Array[int], effective_colors: Array[int],
+static func _build(name: String, _cd: CardData, placed_colors: Array[int],
 		is_new: bool, is_complete: bool, is_opt: bool,
 		steps: Array[Dictionary]) -> void:
 	match name:
@@ -275,7 +262,7 @@ static func _build(name: String, _cd: CardData, placed_colors: Array[int], effec
 
 		"Biodiversity":
 			var seen: Dictionary = {}
-			for color: int in effective_colors:
+			for color: int in placed_colors:
 				if not seen.has(color):
 					seen[color] = true
 					steps.append({type = "gain_supply", color = color, amount = 1})

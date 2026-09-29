@@ -1300,16 +1300,6 @@ func preview_placement_steps(card: Node3D, slot: SectorSlot) -> Array[Dictionary
 	var sector_cd: CardData = slot.placed_card.card_data
 	var sector_is_adv: bool = bool(slot.placed_card.get("is_advanced"))
 
-	# PlaceEffects' placed_colors: every card already on the slot (sector +
-	# techs) plus this incoming card, each by raw .color — mirrors
-	# PlaceEffects._slot_placed_colors/get_steps exactly.
-	var place_colors: Array[int] = []
-	for c: Node3D in slot.get_all_placed_cards():
-		var c_cd: CardData = c.get("card_data")
-		if c_cd:
-			place_colors.append(int(c_cd.color))
-	place_colors.append(int(cd.color))
-
 	# Optimize-trigger pool: tech colors only, never the sector itself
 	# (mirrors _update_optimize_state), plus this incoming card.
 	var opt_pool: Array[int] = slot.get_placed_tech_colors()
@@ -1329,9 +1319,9 @@ func preview_placement_steps(card: Node3D, slot: SectorSlot) -> Array[Dictionary
 		slot.optimize_count, slot.max_optimizations, slot.triggered_levels.duplicate())
 	var is_opt: bool = opt_result["is_optimized"]
 
-	# SectorEffects' placed_colors: every card on the slot (sector + techs),
-	# EFFECTIVE color, plus this incoming card — mirrors
-	# SectorEffects._slot_effective_colors/get_optimize_steps exactly.
+	# Every card on the slot (sector + techs) by visible-side color, plus this
+	# incoming card — what both PlaceEffects._slot_placed_colors and
+	# SectorEffects._slot_effective_colors compute for the real placement.
 	var opt_effect_colors: Array[int] = []
 	for c2: Node3D in slot.get_all_placed_cards():
 		var c2_cd: CardData = c2.get("card_data")
@@ -1339,7 +1329,7 @@ func preview_placement_steps(card: Node3D, slot: SectorSlot) -> Array[Dictionary
 			opt_effect_colors.append(int(CardData.effective_color(c2_cd, bool(c2.get("is_advanced")))))
 	opt_effect_colors.append(int(cd.color))
 
-	var steps: Array[Dictionary] = PlaceEffects.get_steps_for_state(cd, is_new, is_complete, is_opt, place_colors, opt_effect_colors)
+	var steps: Array[Dictionary] = PlaceEffects.get_steps_for_state(cd, is_new, is_complete, is_opt, opt_effect_colors)
 
 	var triggered: Array = opt_result["triggered"]
 	for _level: int in triggered:
@@ -1931,19 +1921,14 @@ func apply_placing_color(slot: SectorSlot, color: CardData.SupplyColor) -> Array
 	cd.placing_color_override = -1
 	return levels
 
-# allow_untrigger is only true after a removal (see
-# revalidate_optimize_after_removal). On placements it stays false: a card
-# whose color changes after landing (Karma Chameleon reverting to Dust) must
-# not un-trigger the level it satisfied, or that level could fire again.
-func _update_optimize_state(slot: SectorSlot, allow_untrigger: bool = false) -> Array[int]:
+func _update_optimize_state(slot: SectorSlot) -> Array[int]:
 	if not slot.occupied or not slot.placed_card or not slot.placed_card.card_data:
 		return []
 	var cd: CardData = slot.placed_card.card_data
 	var is_adv: bool = bool(slot.placed_card.get("is_advanced"))
 	var pool: Array[int] = slot.get_placed_tech_colors()
 	var result: Dictionary = OptimizeLogic.update_optimize_state(
-		cd, is_adv, pool, slot.optimize_count, slot.max_optimizations, slot.triggered_levels,
-		allow_untrigger)
+		cd, is_adv, pool, slot.optimize_count, slot.max_optimizations, slot.triggered_levels)
 	slot.optimize_count = result["optimize_count"]
 	slot.is_optimized = result["is_optimized"]
 	slot.triggered_levels = result["triggered_levels"] as Array[bool]
@@ -1958,7 +1943,7 @@ func _update_optimize_state(slot: SectorSlot, allow_untrigger: bool = false) -> 
 # indirectly lets an untriggered level satisfy now (see
 # OptimizeLogic.update_optimize_state).
 func revalidate_optimize_after_removal(slot: SectorSlot) -> void:
-	for level: int in _update_optimize_state(slot, true):
+	for level: int in _update_optimize_state(slot):
 		optimize_triggered.emit(slot, level)
 
 func _handle_failed_drop() -> void:

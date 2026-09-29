@@ -2313,7 +2313,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 				for c: Node3D in _effect_slot.get_all_placed_cards():
 					var cd: CardData = c.get("card_data")
 					if cd:
-						_effect_slot.add_stored_supply(cd.color, 1)
+						_effect_slot.add_stored_supply(CardData.effective_color(cd, bool(c.get("is_advanced"))), 1)
 			_process_next_effect()
 
 		"gain_supply_per_stored":

@@ -265,10 +265,9 @@ static func _tech_effect_payoff(slot: Dictionary, card: CardData) -> float:
 	var sim_techs: Array = (slot.get("techs", []) as Array).duplicate()
 	sim_techs.append(card)
 	sim["techs"] = sim_techs
-	var raw_colors: Array[int] = BotScoring.slot_raw_placed_colors(sim)
 	var steps: Array[Dictionary] = PlaceEffects.get_steps_for_state(
 		card, BotScoring.is_slot_new(sim), BotScoring.is_slot_complete(sim),
-		BotScoring.is_slot_optimized(sim), raw_colors)
+		BotScoring.is_slot_optimized(sim), BotScoring.slot_effective_placed_colors(sim))
 	return BotScoring.effect_payoff(steps)
 
 static func _would_trigger_optimize(slot: Dictionary, new_card: CardData) -> bool:

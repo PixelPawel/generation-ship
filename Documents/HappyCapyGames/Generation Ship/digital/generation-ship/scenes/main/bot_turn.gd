@@ -204,10 +204,9 @@ static func _attach_stack_card(main: Main, bot_id: int, slot_idx: int, card_data
 	if card_data.card_type == CardData.CardType.TECH:
 		slot["last_placed_tech_cost"] = card_data.cost
 
-	var raw_colors: Array[int] = BotScoring.slot_raw_placed_colors(slot)
 	var place_steps: Array[Dictionary] = PlaceEffects.get_steps_for_state(
 		card_data, BotScoring.is_slot_new(slot), BotScoring.is_slot_complete(slot),
-		BotScoring.is_slot_optimized(slot), raw_colors, BotScoring.slot_effective_placed_colors(slot))
+		BotScoring.is_slot_optimized(slot), BotScoring.slot_effective_placed_colors(slot))
 	apply_bot_effect_steps(main, bot_id, place_steps, slot_idx)
 
 	var sector: CardData = slot.get("sector") as CardData
@@ -329,7 +328,7 @@ static func apply_bot_effect_steps(main: Main, bot_id: int, steps: Array[Diction
 				_bot_store(main, bot_id, _bot_any_slot(main, bot_id), int(step.get("color", 0)), int(step.get("amount", 1)))
 			"store_per_card_here":
 				if slot_idx >= 0 and slot_idx < main.bot_boards[bot_id].size():
-					for color: int in BotScoring.slot_raw_placed_colors(main.bot_boards[bot_id][slot_idx] as Dictionary):
+					for color: int in BotScoring.slot_effective_placed_colors(main.bot_boards[bot_id][slot_idx] as Dictionary):
 						_bot_store(main, bot_id, slot_idx, color, 1)
 			"tuck":
 				_bot_tuck(main, bot_id, slot_idx, int(step.get("count", 1)), bool(step.get("face_up", false)))

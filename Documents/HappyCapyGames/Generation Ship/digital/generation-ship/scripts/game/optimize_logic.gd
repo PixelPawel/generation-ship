@@ -83,16 +83,12 @@ static func max_optimizations(cd: CardData, is_advanced: bool) -> int:
 # but a removal (e.g. Caldera Colony recycling a tucked tech) can shrink the
 # pool enough that a color the level depended on is gone, in which case it's
 # earnable again rather than staying permanently triggered off a
-# combination the sector no longer actually has.
-#
-# allow_untrigger=false skips that un-triggering: after a placement the
-# pool can still shrink when a card's color changes once it has landed
-# (Karma Chameleon reverts to Dust), and un-triggering there would let the
-# same level fire twice.
+# combination the sector no longer actually has. Karma Chameleon reverting
+# to Dust after its placement shrinks the pool the same way — and per the
+# rules its level may then be earned (and fire) again.
 static func update_optimize_state(
 	cd: CardData, is_advanced: bool, placed_tech_colors: Array[int],
-	optimize_count: int, max_opt: int, triggered_levels: Array[bool],
-	allow_untrigger: bool = true
+	optimize_count: int, max_opt: int, triggered_levels: Array[bool]
 ) -> Dictionary:
 	var level_reqs: Array = [
 		(cd.adv_opt1_req if is_advanced else cd.opt1_req),
@@ -115,7 +111,7 @@ static func update_optimize_state(
 		if level_idx < triggered_levels.size() and triggered_levels[level_idx]:
 			if satisfies_optimize(pool, req):
 				consume_from_pool(pool, req)
-			elif allow_untrigger:
+			else:
 				triggered_levels[level_idx] = false
 				optimize_count -= 1
 			continue

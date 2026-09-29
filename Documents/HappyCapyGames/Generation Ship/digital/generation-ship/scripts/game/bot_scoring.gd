@@ -51,16 +51,8 @@ static func slot_effective_color(slot: Dictionary) -> int:
 		return -1
 	return int(CardData.effective_color(sector, bool(slot.get("is_advanced", false))))
 
-# Raw (non-effective) colors of every card on the slot — matches
-# PlaceEffects' historical use of .color rather than effective_color.
-static func slot_raw_placed_colors(slot: Dictionary) -> Array[int]:
-	var result: Array[int] = []
-	for cd: CardData in slot_cards(slot):
-		result.append(int(cd.color))
-	return result
-
 # Effective colors (advanced sector's adv_color where relevant) of every card
-# on the slot — matches SectorEffects' use of CardData.effective_color.
+# on the slot — matches PlaceEffects/SectorEffects' use of CardData.effective_color.
 static func slot_effective_placed_colors(slot: Dictionary) -> Array[int]:
 	var result: Array[int] = []
 	var sector: CardData = slot.get("sector") as CardData
