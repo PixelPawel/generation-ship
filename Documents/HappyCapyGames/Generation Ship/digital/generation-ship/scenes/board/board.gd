@@ -65,6 +65,9 @@ var market_origin_3d: Vector3 = Vector3.ZERO
 # Wormhole Surfing: color the next auction started by _start_bid is paid in
 # instead of the card's own (-1 = none). Consumed by that one bid.
 var bid_color_override: int = -1
+# World position placed cards fly in from (the payment/info screen), set by
+# CockpitRig. Unset -> market_origin_3d.
+var placement_origin_provider: Callable = Callable()
 var _drag_start_global_pos: Vector3 = Vector3.ZERO
 var _drag_start_scale: Vector3 = Vector3.ONE
 # A 2D screen-space "what am I holding" readout for a hand-origin drag only,
@@ -1360,6 +1363,15 @@ func confirm_pending_placement() -> void:
 # places directly there instead of coming through here). action_committed
 # re-firing for an auction win is harmless too, since starting the auction
 # already committed the major action.
+# Real placements (hand or market) fly in from the payment screen — the
+# slot's accept_card reads this meta (see Card.fly_to_rest). Snapshot
+# restores don't set it and still snap straight into place.
+func _tag_fly_origin(card: Node3D) -> void:
+	var origin: Vector3 = market_origin_3d
+	if placement_origin_provider.is_valid():
+		origin = placement_origin_provider.call()
+	card.set_meta(&"place_from", origin)
+
 func _finalize_placement(card: Node3D, slot: SectorSlot, is_tech: bool, spent: Dictionary) -> void:
 	_dragged_card = null
 	_drag_origin = DragOrigin.NONE
@@ -1369,6 +1381,7 @@ func _finalize_placement(card: Node3D, slot: SectorSlot, is_tech: bool, spent: D
 	action_committed.emit()
 	for col: CardData.SupplyColor in spent:
 		_supply_ui.spend_supply(col, spent[col])
+	_tag_fly_origin(card)
 	if is_tech:
 		_mark_color_choice_pending(card)
 		slot.accept_tech_card(card)
@@ -1486,6 +1499,7 @@ func complete_purchase(spent: Dictionary = {}) -> void:
 			for col: CardData.SupplyColor in spent:
 				_supply_ui.spend_supply(col, spent[col])
 			_mark_color_choice_pending(card)
+			_tag_fly_origin(card)
 			sector_slot.accept_tech_card(card)
 			card.place()
 			var opt_levels_bid: Array[int] = _update_optimize_state(sector_slot)
@@ -1511,6 +1525,7 @@ func complete_purchase(spent: Dictionary = {}) -> void:
 		if not sector_slot.occupied:
 			for col: CardData.SupplyColor in spent:
 				_supply_ui.spend_supply(col, spent[col])
+			_tag_fly_origin(card)
 			sector_slot.accept_card(card)
 			card.place()
 			card_placed.emit(card, sector_slot)

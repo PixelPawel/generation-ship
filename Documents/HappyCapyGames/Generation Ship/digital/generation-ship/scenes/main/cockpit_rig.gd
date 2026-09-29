@@ -572,6 +572,9 @@ static func setup_info_screen_display(main: Main) -> void:
 	var screen_mesh: MeshInstance3D = main.get_node("UiInfo").find_child("gs_ui_info_screen", true, false) as MeshInstance3D
 	if screen_mesh:
 		main._info_screen_mesh = screen_mesh
+		# Placed cards (hand or market) fly in from the payment/info screen.
+		main.get_node("Board").placement_origin_provider = func() -> Vector3:
+			return screen_mesh.to_global(screen_mesh.mesh.get_aabb().get_center())
 		var aabb: AABB = screen_mesh.mesh.get_aabb()
 		var shader: Shader = load("res://shaders/screen_display.gdshader") as Shader
 		var mat: ShaderMaterial = ShaderMaterial.new()

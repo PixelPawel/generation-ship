@@ -49,6 +49,7 @@ var _elev_rest_scale: Vector3 = Vector3.ONE
 var _elev_rest_rotation: Vector3 = Vector3.ZERO
 var _elev_rest_sort_order: float = 0.0
 var _tween: Tween
+var _flying: bool = false  # mid fly_to_rest()
 var _placed_elevated: bool = false
 var _destroy_on_collapse: bool = false
 var _drag_armed: bool = false
@@ -217,6 +218,8 @@ func enlarge_from(elev_target_world: Vector3, vanish_target_world: Vector3, elev
 	toggle_elevation(target_local, elev_scale, 0.0)
 
 func toggle_elevation(elev_pos: Vector3, elev_scale: Vector3, grace_sec: float) -> void:
+	if _flying:
+		return
 	if _placed_elevated:
 		_collapse_elevation()
 		return
@@ -315,9 +318,54 @@ func place() -> void:
 	is_placed = true
 	visible = true
 	_kill_tween()
-	_spawn_sparkle()
-	_shake_camera()
+	# A card flying in from the market screen gets its sparkle/shake on
+	# landing instead (see fly_to_rest), not back at the screen.
+	if not _flying:
+		_spawn_sparkle()
+		_shake_camera()
 	set_discount(0)
+
+# Market placements: the card emerges small from the market screen
+# (from_global), arcs up and over to its slot while turning onto the board,
+# then settles with the same overshoot as the market reveal animation
+# (see ExpeditionMarket._play_reveal_animation). rest_pos/rest_rot are local
+# to the card's (already reparented) slot. done runs after it lands.
+const FLY_DURATION: float = 0.55
+const FLY_SETTLE_DURATION: float = 0.32
+const FLY_ARC_HEIGHT: float = 0.6
+const FLY_SETTLE_LIFT: float = 0.12
+
+func fly_to_rest(from_global: Vector3, rest_pos: Vector3, rest_rot: Vector3, done: Callable = Callable()) -> void:
+	var parent: Node3D = get_parent() as Node3D
+	if not parent:
+		position = rest_pos
+		rotation = rest_rot
+		return
+	_flying = true
+	_kill_tween()
+	var start: Vector3 = parent.to_local(from_global)
+	var hover: Vector3 = rest_pos + Vector3(0.0, FLY_SETTLE_LIFT, 0.0)
+	var mid_global: Vector3 = (from_global + parent.to_global(hover)) * 0.5 + Vector3.UP * FLY_ARC_HEIGHT
+	var control: Vector3 = parent.to_local(mid_global)
+	position = start
+	scale = Vector3.ONE * 0.35
+	var t: Tween = create_tween()
+	t.tween_method(func(k: float) -> void:
+		var a: Vector3 = start.lerp(control, k)
+		var b: Vector3 = control.lerp(hover, k)
+		position = a.lerp(b, k)
+	, 0.0, 1.0, FLY_DURATION).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+	t.parallel().tween_property(self, "rotation", rest_rot, FLY_DURATION).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_CUBIC)
+	t.parallel().tween_property(self, "scale", Vector3.ONE * 1.12, FLY_DURATION).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	t.tween_property(self, "position", rest_pos, FLY_SETTLE_DURATION).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	t.parallel().tween_property(self, "scale", Vector3.ONE, FLY_SETTLE_DURATION).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	t.tween_callback(func() -> void:
+		_flying = false
+		_spawn_sparkle()
+		_shake_camera()
+		if done.is_valid():
+			done.call()
+	)
 
 func _spawn_sparkle() -> void:
 	var fx: CPUParticles3D = load("res://scenes/card/card_sparkle.gd").new()
