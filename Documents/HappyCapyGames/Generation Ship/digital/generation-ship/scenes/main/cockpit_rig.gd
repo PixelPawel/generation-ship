@@ -125,9 +125,11 @@ static func animate_button_press(main: Main, btn_mesh: MeshInstance3D) -> void:
 	if not btn_mesh.has_meta("rest_pos"):
 		btn_mesh.set_meta("rest_pos", btn_mesh.position)
 	var rest_pos: Vector3 = btn_mesh.get_meta("rest_pos")
-	var prev: Tween = btn_mesh.get_meta("press_tween", null) as Tween
-	if prev and prev.is_valid():
-		prev.kill()
+	# has_meta first: get_meta() with a null default still errors when unset.
+	if btn_mesh.has_meta("press_tween"):
+		var prev: Tween = btn_mesh.get_meta("press_tween") as Tween
+		if prev and prev.is_valid():
+			prev.kill()
 	btn_mesh.position = rest_pos
 	var tween: Tween = main.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	btn_mesh.set_meta("press_tween", tween)
