@@ -473,10 +473,15 @@ func _refresh() -> void:
 		_refresh_dust(i)
 		_refresh_exp(i)
 
+# Local print-export art first (same files the 3D cards use, and in the
+# current language); the CSV link is only a fallback.
+static func _art(local_path: String, url: String) -> String:
+	return local_path if not local_path.is_empty() else url
+
 func _refresh_adv(i: int) -> void:
 	var cd: CardData = _sector_market.get_advanced_card_data(i)
 	if cd:
-		var url: String = cd.adv_image_url if not cd.adv_image_url.is_empty() else cd.image_url
+		var url: String = _art(cd.adv_local_art_path, cd.adv_image_url)
 		_adv_rects[i].texture = ImageCache.get_texture(url) if not url.is_empty() else null
 	else:
 		_adv_rects[i].texture = null
@@ -486,7 +491,8 @@ func _refresh_adv(i: int) -> void:
 func _refresh_dust(i: int) -> void:
 	var cd: CardData = _sector_market.get_dust_card_data(i)
 	if cd:
-		_dust_rects[i].texture = ImageCache.get_texture(cd.image_url) if not cd.image_url.is_empty() else null
+		var url: String = _art(cd.local_art_path, cd.image_url)
+		_dust_rects[i].texture = ImageCache.get_texture(url) if not url.is_empty() else null
 	else:
 		_dust_rects[i].texture = null
 	var cnt: int = _sector_market.get_dust_count(i)
@@ -495,7 +501,8 @@ func _refresh_dust(i: int) -> void:
 func _refresh_exp(i: int) -> void:
 	var cd: CardData = _expedition_market.get_card_data(i)
 	if cd:
-		_exp_rects[i].texture = ImageCache.get_texture(cd.image_url) if not cd.image_url.is_empty() else null
+		var url: String = _art(cd.local_art_path, cd.image_url)
+		_exp_rects[i].texture = ImageCache.get_texture(url) if not url.is_empty() else null
 	else:
 		_exp_rects[i].texture = null
 	var cnt: int = _expedition_market.get_count(i)

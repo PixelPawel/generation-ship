@@ -49,7 +49,7 @@ static func _build(name: String, placed_colors: Array[int], last_placed_tech_cos
 		"Simulators":
 			steps.append({type = "draw", count = 2})
 
-		"Bioreactor":
+		"Bioreactor", "Bioreactors":
 			# Recycle up to 4, draw that many
 			steps.append({type = "recycle_optional", max = 4})
 

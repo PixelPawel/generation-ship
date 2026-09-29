@@ -41,6 +41,7 @@ const _DUST_SECTOR_ART: Dictionary = {
 	"hibernators":     ["GS Sector 1 Back 67x44mm", 1],
 	"simulators":      ["GS Sector 2 Back 67x44mm", 1],
 	"bioreactor":      ["GS Sector 3 Back  67x44mm", 1],
+	"bioreactors":     ["GS Sector 3 Back  67x44mm", 1],
 	"habitationring":  ["GS Sector 4 Back  67x44mm", 1],
 	"operations":      ["GS Sector 5 Back  67x44mm", 1],
 	"cargobays":       ["GS Sector 6  Back  67x44mm", 1],
@@ -61,6 +62,10 @@ static func _normalize(s: String) -> String:
 		elif code >= 48 and code <= 57:
 			out += ch
 	return out
+
+# Case/punctuation-insensitive and tolerant of a trailing plural "s".
+static func _dust_key(s: String) -> String:
+	return _normalize(s).trim_suffix("s")
 
 func _current_lang() -> String:
 	var cfg: ConfigFile = ConfigFile.new()
@@ -146,11 +151,15 @@ func refresh_locale() -> void:
 func _load_sector_cards() -> void:
 	# Build dust side lookup by name
 	var dust_rows := _read_csv("res://data/Generation Ship Full Card Details - Dust Sectors.csv")
+	# Keyed loosely (_dust_key): the Advanced sheet's "Backside" column isn't
+	# always updated when a Dust card is renamed — e.g. "Bioreactor" vs the
+	# printed "Bioreactors" — and an exact-match miss silently left that
+	# sector with no effect, cost, optimize requirement or market art.
 	var dust_by_name: Dictionary = {}
 	for row in dust_rows:
 		var card_name: String = row.get("Name", "").strip_edges()
 		if not card_name.is_empty():
-			dust_by_name[card_name] = row
+			dust_by_name[_dust_key(card_name)] = row
 
 	# Each row in the advanced CSV is one physical card (30 total)
 	var adv_rows := _read_csv("res://data/Generation Ship Full Card Details - Advanced Sectors.csv")
@@ -158,7 +167,9 @@ func _load_sector_cards() -> void:
 		if not _valid_id(row.get("No.", "")):
 			continue
 		var backside_name: String = row.get("Backside", "").strip_edges()
-		var dust: Dictionary = dust_by_name.get(backside_name, {})
+		var dust: Dictionary = dust_by_name.get(_dust_key(backside_name), {})
+		if dust.is_empty():
+			push_warning("CardDatabase: no Dust sector matches Backside '%s'" % backside_name)
 
 		var card := CardData.new()
 		card.id = int(row["No."])
