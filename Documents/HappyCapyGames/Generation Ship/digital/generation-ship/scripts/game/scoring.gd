@@ -307,43 +307,46 @@ static func _score_tech_conditions(lines: Array[Dictionary], slots: Array, all_c
 
 static func _is_conditional_tech(name: String) -> bool:
 	match name:
-		"Tectonic Accelarator", "Magnetosphere", "Genesis Device", "Space Elevator", "Atmosphere Processor":
+		"Tectonic Accelerator", "Magnetosphere", "Genesis Device", "Space Elevator", "Atmosphere Processor":
 			return true
 	return false
 
+# All five Thrust requirement cards score 12⭐ when their condition is met.
+const CONDITIONAL_TECH_VP: int = 12
+
 static func _tech_condition_vp(name: String, slots: Array, all_cards: Array) -> int:
 	match name:
-		"Tectonic Accelarator":  # note: typo preserved from CSV
+		"Tectonic Accelerator":  # 6 fully optimized sectors
 			var count: int = 0
 			for slot: SectorSlot in slots:
 				if slot.is_optimized:
 					count += 1
-			return 9 if count >= 6 else 0
+			return CONDITIONAL_TECH_VP if count >= 6 else 0
 
-		"Magnetosphere":
+		"Magnetosphere":  # 9+ tucked cards
 			var count: int = 0
 			for slot: SectorSlot in slots:
 				count += slot.tucked_cards.size()
-			return 6 if count >= 9 else 0
+			return CONDITIONAL_TECH_VP if count >= 9 else 0
 
-		"Genesis Device":
+		"Genesis Device":  # 6+ thrust cards
 			var count: int = 0
 			for card: Node3D in all_cards:
 				if _card_color(card) == CardData.SupplyColor.THRUST:
 					count += 1
-			return 6 if count >= 6 else 0
+			return CONDITIONAL_TECH_VP if count >= 6 else 0
 
-		"Space Elevator":
+		"Space Elevator":  # 9+ stored supply
 			var total: int = 0
 			for slot: SectorSlot in slots:
 				total += slot.get_total_stored_supply()
-			return 6 if total >= 12 else 0
+			return CONDITIONAL_TECH_VP if total >= 9 else 0
 
-		"Atmosphere Processor":
+		"Atmosphere Processor":  # 6 complete sectors
 			var count: int = 0
 			for slot: SectorSlot in slots:
 				if slot.is_complete():
 					count += 1
-			return 9 if count >= 6 else 0
+			return CONDITIONAL_TECH_VP if count >= 6 else 0
 
 	return 0

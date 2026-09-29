@@ -287,41 +287,41 @@ static func _expedition_vp(name: String, fallback_stars: int, board: Array,
 
 static func _is_conditional_tech(name: String) -> bool:
 	match name:
-		"Tectonic Accelarator", "Magnetosphere", "Genesis Device", "Space Elevator", "Atmosphere Processor":
+		"Tectonic Accelerator", "Magnetosphere", "Genesis Device", "Space Elevator", "Atmosphere Processor":
 			return true
 	return false
 
 static func _tech_condition_vp(name: String, board: Array) -> int:
 	match name:
-		"Tectonic Accelarator":  # note: typo preserved from CSV
+		"Tectonic Accelerator":  # 6 fully optimized sectors
 			var count: int = 0
 			for entry: Variant in board:
 				if is_slot_optimized(entry as Dictionary):
 					count += 1
-			return 9 if count >= 6 else 0
+			return Scoring.CONDITIONAL_TECH_VP if count >= 6 else 0
 
-		"Magnetosphere":
+		"Magnetosphere":  # 9+ tucked cards
 			var count: int = 0
 			for entry: Variant in board:
 				count += ((entry as Dictionary).get("tucked_cards", []) as Array).size()
-			return 6 if count >= 9 else 0
+			return Scoring.CONDITIONAL_TECH_VP if count >= 9 else 0
 
-		"Genesis Device":
+		"Genesis Device":  # 6+ thrust cards
 			var count: int = _count_by_color(_all_cards(board), CardData.SupplyColor.THRUST)
-			return 6 if count >= 6 else 0
+			return Scoring.CONDITIONAL_TECH_VP if count >= 6 else 0
 
-		"Space Elevator":
+		"Space Elevator":  # 9+ stored supply
 			var total: int = 0
 			for entry: Variant in board:
 				total += slot_total_stored(entry as Dictionary)
-			return 6 if total >= 12 else 0
+			return Scoring.CONDITIONAL_TECH_VP if total >= 9 else 0
 
-		"Atmosphere Processor":
+		"Atmosphere Processor":  # 6 complete sectors
 			var count: int = 0
 			for entry: Variant in board:
 				if is_slot_complete(entry as Dictionary):
 					count += 1
-			return 9 if count >= 6 else 0
+			return Scoring.CONDITIONAL_TECH_VP if count >= 6 else 0
 
 	return 0
 
