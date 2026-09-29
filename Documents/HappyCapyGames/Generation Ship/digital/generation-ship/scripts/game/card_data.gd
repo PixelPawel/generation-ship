@@ -123,6 +123,24 @@ static func effective_cost(cd: CardData, is_advanced: bool) -> int:
 
 @export var local_art_path: String = ""
 
+# Promo Techs are ordinary TECH cards in every way except where their art and
+# CSV row live (assets/cards/Promo/, "... - Promos.csv"): promo_no is the
+# card's 1-based "No." within that deck, 0 for every non-promo card.
+@export var promo_no: int = 0
+
+# Karma Chameleon: the color it counts as for the optimize check of its own
+# placement only (-1 = none). Cleared right after that check — per the card
+# it reverts to Dust for everything else.
+var placing_color_override: int = -1
+
+# Rich Asteroid gives 2 Metals when recycled instead of 1 of its color.
+# Every recycle path (hand, sector, deck top, bots) should read this rather
+# than assuming 1 of cd.color.
+static func recycle_amount(cd: CardData) -> int:
+	if cd != null and cd.card_name == "Rich Asteroid":
+		return 2
+	return 1
+
 # Advanced side (sector cards only)
 @export var adv_name: String = ""
 @export var adv_color: SupplyColor = SupplyColor.DUST

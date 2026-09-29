@@ -71,7 +71,7 @@ func notify_escape_pressed() -> void:
 	if _current_step == "closing":
 		_dismissed = true
 
-func _on_card_recycled(_color: int) -> void:
+func _on_card_recycled(_color: int, _amount: int) -> void:
 	_recycled_during_bid_payment = true
 
 func _on_card_placed(card: Node3D, _slot: SectorSlot) -> void:

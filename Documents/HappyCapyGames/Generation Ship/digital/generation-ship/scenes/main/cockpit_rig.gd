@@ -124,7 +124,7 @@ static func animate_button_press(main: Main, btn_mesh: MeshInstance3D) -> void:
 	# sank a little deeper each time and never came back up.
 	if not btn_mesh.has_meta("rest_pos"):
 		btn_mesh.set_meta("rest_pos", btn_mesh.position)
-	var rest_pos: Vector3 = btn_mesh.get_meta("rest_pos") as Vector3
+	var rest_pos: Vector3 = btn_mesh.get_meta("rest_pos")
 	var prev: Tween = btn_mesh.get_meta("press_tween", null) as Tween
 	if prev and prev.is_valid():
 		prev.kill()

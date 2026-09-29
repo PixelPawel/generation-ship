@@ -90,9 +90,12 @@ static func decide_bid(
 	supplies: Dictionary,
 	card: CardData,
 	is_adv: bool,
-	bot_board: Array
+	bot_board: Array,
+	cost_color: int = -1
 ) -> int:
-	var color: int = int(card.adv_color if is_adv else card.color)
+	# cost_color is the auction's actual payment color, which Wormhole
+	# Surfing can change away from the card's own.
+	var color: int = cost_color if cost_color >= 0 else int(card.adv_color if is_adv else card.color)
 	var budget: int = supplies.get(color, 0) as int
 	# Keep raising while the next bid is both affordable (leaving one unit
 	# of headroom rather than spending the color down to zero) and still

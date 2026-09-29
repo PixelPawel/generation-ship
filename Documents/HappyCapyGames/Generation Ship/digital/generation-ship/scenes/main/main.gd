@@ -1676,11 +1676,12 @@ func _process_hand_choice(index: int) -> void:
 		EffectMode.EFFECT_RECYCLE:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
 			var recycled_name: String = card.card_data.card_name if card.card_data else tr("a card")
-			_cs_display.add_supply(color, 1)
+			var r_amount: int = CardData.recycle_amount(card.card_data)
+			_cs_display.add_supply(color, r_amount)
 			_apply_recycle_bonus(color)
 			$Board.add_to_discard(card.card_data)
 			_recycle_card_to_supply(card, color)
-			_log_effect(tr("recycled %s, gained 1 %s") % [recycled_name, CardData.color_name(color)])
+			_log_effect(tr("recycled %s, gained %d %s") % [recycled_name, r_amount, CardData.color_name(color)])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				_finish_interactive_step()
@@ -1690,12 +1691,13 @@ func _process_hand_choice(index: int) -> void:
 		EffectMode.EFFECT_RECYCLE_OPTIONAL:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
 			var recycled_name: String = card.card_data.card_name if card.card_data else tr("a card")
-			_cs_display.add_supply(color, 1)
+			var ro_amount: int = CardData.recycle_amount(card.card_data)
+			_cs_display.add_supply(color, ro_amount)
 			_apply_recycle_bonus(color)
 			$Board.add_to_discard(card.card_data)
 			_recycle_card_to_supply(card, color)
 			$Board.draw_cards(1)
-			_log_effect(tr("recycled %s, gained 1 %s, drew 1") % [recycled_name, CardData.color_name(color)])
+			_log_effect(tr("recycled %s, gained %d %s, drew 1") % [recycled_name, ro_amount, CardData.color_name(color)])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				_finish_interactive_step()
@@ -1743,12 +1745,13 @@ func _process_hand_choice(index: int) -> void:
 		EffectMode.EFFECT_RECYCLE_TUCK:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
 			var rt_name: String = card.card_data.card_name if card.card_data else tr("a card")
-			_cs_display.add_supply(color, 1)
+			var rt_amount: int = CardData.recycle_amount(card.card_data)
+			_cs_display.add_supply(color, rt_amount)
 			_apply_recycle_bonus(color)
 			if _effect_slot and card.card_data:
 				_effect_slot.add_tucked_card(card.card_data, false)
 			_recycle_card_to_supply(card, color)
-			_log_effect(tr("recycled & tucked %s facedown, gained 1 %s") % [rt_name, CardData.color_name(color)])
+			_log_effect(tr("recycled & tucked %s facedown, gained %d %s") % [rt_name, rt_amount, CardData.color_name(color)])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				var tucked_count: int = int(_effect_slot.tucked_cards.size()) if _effect_slot else 0
@@ -1761,11 +1764,12 @@ func _process_hand_choice(index: int) -> void:
 		EffectMode.EFFECT_RECYCLE_DOUBLE:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
 			var rd_name: String = card.card_data.card_name if card.card_data else tr("a card")
-			_cs_display.add_supply(color, 2)
+			var rd_amount: int = 2 * CardData.recycle_amount(card.card_data)
+			_cs_display.add_supply(color, rd_amount)
 			_apply_recycle_bonus(color)
 			$Board.add_to_discard(card.card_data)
 			_recycle_card_to_supply(card, color)
-			_log_effect(tr("recycled %s, gained 2 %s") % [rd_name, CardData.color_name(color)])
+			_log_effect(tr("recycled %s, gained %d %s") % [rd_name, rd_amount, CardData.color_name(color)])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				_finish_interactive_step()
@@ -1858,7 +1862,7 @@ func _apply_seedbanks(indices: Array[int]) -> void:
 		var card: Node3D = _pending_recycle_cards[i]
 		var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
 		if _effect_slot:
-			_effect_slot.add_stored_supply(color, 1)
+			_effect_slot.add_stored_supply(color, CardData.recycle_amount(card.card_data))
 		$Hand.remove_card_fly_out(card)
 		count += 1
 	_pending_recycle_cards = []
@@ -1873,7 +1877,7 @@ func _apply_recycle_optional_multiselect(indices: Array[int]) -> void:
 			continue
 		var card: Node3D = _pending_recycle_cards[i]
 		var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-		_cs_display.add_supply(color, 1)
+		_cs_display.add_supply(color, CardData.recycle_amount(card.card_data))
 		_apply_recycle_bonus(color)
 		$Board.add_to_discard(card.card_data)
 		_recycle_card_to_supply(card, color)
@@ -1910,7 +1914,7 @@ func _apply_recycle_tuck_multiselect(indices: Array[int]) -> void:
 			continue
 		var card: Node3D = _pending_recycle_cards[i]
 		var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-		_cs_display.add_supply(color, 1)
+		_cs_display.add_supply(color, CardData.recycle_amount(card.card_data))
 		_apply_recycle_bonus(color)
 		if _effect_slot and card.card_data:
 			_effect_slot.add_tucked_card(card.card_data, false)
@@ -1941,11 +1945,12 @@ func _apply_recycle_tuck_store_decision(store_on_sector: bool) -> void:
 	for card: Node3D in _pending_store_nodes:
 		var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
 		var screen_pos: Vector2 = $Camera3D.unproject_position(card.global_position)
+		var ts_amount: int = CardData.recycle_amount(card.card_data)
 		if store_on_sector and target:
-			target.add_stored_supply(color, 1)
+			target.add_stored_supply(color, ts_amount)
 		else:
 			_cs_display.animate_supply_incoming(screen_pos, color)
-			_cs_display.add_supply(color, 1)
+			_cs_display.add_supply(color, ts_amount)
 			_apply_recycle_bonus(color)
 		if target and card.card_data:
 			target.add_tucked_card(card.card_data, false)
@@ -1988,7 +1993,7 @@ func _apply_caldera_recycle(indices: Array[int]) -> void:
 		var card: Node3D = _pending_recycle_cards[i]
 		var cd: CardData = card.get("card_data") as CardData
 		if cd:
-			_pending_target_slot.add_stored_supply(cd.color, 1)
+			_pending_target_slot.add_stored_supply(cd.color, CardData.recycle_amount(cd))
 		_pending_target_slot.remove_tech_card(card)
 		card.queue_free()
 		count += 1
@@ -2267,14 +2272,16 @@ func _execute_effect_step(step: Dictionary) -> void:
 			# Lambdas capture locals by value, so plain reassignment inside one
 			# never reaches the outer variable — box it in an Array (captured by
 			# reference) so the connected callback can actually report back.
-			var recycled_color_box: Array = [null]
-			var capture_color: Callable = func(c: CardData.SupplyColor) -> void: recycled_color_box[0] = c
+			var recycled_color_box: Array = [null, 1]
+			var capture_color: Callable = func(c: CardData.SupplyColor, amt: int) -> void:
+				recycled_color_box[0] = c
+				recycled_color_box[1] = amt
 			$Board.card_recycled.connect(capture_color, CONNECT_ONE_SHOT)
 			$Board.draw_and_recycle_top()
 			if $Board.card_recycled.is_connected(capture_color):
 				$Board.card_recycled.disconnect(capture_color)
 			if recycled_color_box[0] != null:
-				_log_effect(tr("drew and recycled the top card, gained 1 %s") % CardData.color_name(recycled_color_box[0] as CardData.SupplyColor))
+				_log_effect(tr("drew and recycled the top card, gained %d %s") % [int(recycled_color_box[1]), CardData.color_name(recycled_color_box[0] as CardData.SupplyColor)])
 			else:
 				_log_effect(tr("drew and recycled the top card"))
 			_process_next_effect()
@@ -2438,6 +2445,11 @@ func _execute_effect_step(step: Dictionary) -> void:
 				_process_next_effect()
 				return
 			_bid_is_from_effect = true
+			if step.has("bid_color"):
+				$Board.bid_color_override = int(step["bid_color"])
+				_log_effect(tr("started a bid on %s, paid in %s") % [
+					cd.adv_name if cd.card_type == CardData.CardType.SECTOR else cd.card_name,
+					CardData.color_name(step["bid_color"] as CardData.SupplyColor)])
 			$Board.market_origin_3d = CockpitRig.effect_card_origin(self, card_node, cd)
 			$Board.begin_revealed_card_bid(card_node)
 
@@ -2462,6 +2474,21 @@ func _execute_effect_step(step: Dictionary) -> void:
 
 		"black_hole_encounter":
 			_effect_step_black_hole_encounter()
+
+		"placing_color":
+			_effect_step_placing_color(step["color"] as CardData.SupplyColor)
+
+		"recycle_from_own_sector":
+			_effect_step_recycle_from_own_sector()
+
+		"recycle_sector_card":
+			_effect_step_recycle_sector_card(step.get("card_node") as Node3D, step.get("slot") as SectorSlot)
+
+		"earth_support":
+			_effect_step_earth_support(step["color"] as CardData.SupplyColor)
+
+		"wormhole_surfing":
+			_effect_step_wormhole_surfing()
 
 		_:
 			_process_next_effect()
@@ -2675,6 +2702,112 @@ func _effect_step_black_hole_encounter() -> void:
 	_show_effect_hint(tr("Click up to 3 expeditions to shuffle back — then click Done"))
 	_effect_done_btn.show()
 	$Board.set_expedition_shuffle_mode(true)
+
+# ── Promo tech effects ────────────────────────────────────────────────────────
+
+# Karma Chameleon: it sat out its own placement's optimize check (see
+# Board._mark_color_choice_pending); now re-run it counting as the chosen
+# color, and resolve any newly satisfied optimize level right away.
+func _effect_step_placing_color(color: CardData.SupplyColor) -> void:
+	if not _effect_slot or not is_instance_valid(_effect_slot):
+		_process_next_effect()
+		return
+	var levels: Array[int] = $Board.apply_placing_color(_effect_slot, color)
+	_log_effect(tr("counted as %s while being placed") % CardData.color_name(color))
+	var opt_steps: Array = []
+	for _level: int in levels:
+		opt_steps.append_array(SectorEffects.get_optimize_steps(_effect_slot))
+	for i: int in opt_steps.size():
+		_effect_queue.insert(i, opt_steps[i])
+	_broadcast_my_state()
+	_process_next_effect()
+
+# Ice 9: recycle any Tech/Expedition on one of your own sectors (not Ice 9
+# itself). Same removal path as Caldera Colony.
+func _effect_step_recycle_from_own_sector() -> void:
+	var choices: Array[CardData] = []
+	_pending_choice_options = []
+	for slot: SectorSlot in $Board.get_all_sector_slots():
+		for c: Node3D in slot.get_all_placed_cards():
+			var cd: CardData = c.get("card_data") as CardData
+			if not cd or cd.card_type == CardData.CardType.SECTOR or cd.card_name == "Ice 9":
+				continue
+			choices.append(cd)
+			_pending_choice_options.append({steps = [{type = "recycle_sector_card", card_node = c, slot = slot, _source_name = _effect_source_name}]})
+	if choices.is_empty():
+		_pending_choice_options = []
+		_log_effect(tr("no card on your sectors to recycle"))
+		_process_next_effect()
+		return
+	_effect_mode = EffectMode.EFFECT_CHOICE
+	_choice_popup.show_card_choices(tr("Ice 9 — recycle which card from your sectors?"), choices, false)
+
+func _effect_step_recycle_sector_card(card: Node3D, slot: SectorSlot) -> void:
+	if not is_instance_valid(card) or not is_instance_valid(slot) or not card.card_data:
+		_process_next_effect()
+		return
+	var cd: CardData = card.card_data
+	var color: CardData.SupplyColor = cd.color
+	var amount: int = CardData.recycle_amount(cd)
+	UIAudio.play_recycle_sfx()
+	_cs_display.animate_supply_incoming($Camera3D.unproject_position(card.global_position), color)
+	_cs_display.add_supply(color, amount)
+	_apply_recycle_bonus(color)
+	# Only techs go back into the (tech) discard pile; an expedition just
+	# leaves the game, same as Caldera Colony's sector recycling.
+	if cd.card_type == CardData.CardType.TECH:
+		$Board.add_to_discard(cd)
+	slot.remove_tech_card(card)
+	card.queue_free()
+	slot.compact_tech_cards()
+	$Board.revalidate_optimize_after_removal(slot)
+	slot.refresh_display()
+	_log_effect(tr("recycled %s from a sector, gained %d %s") % [cd.card_name, amount, CardData.color_name(color)])
+	_broadcast_my_state()
+	_process_next_effect()
+
+# Earth Support: predict a color, draw 6, keep those of that color, discard
+# the rest (plain discard — no supply, unlike a recycle).
+func _effect_step_earth_support(color: CardData.SupplyColor) -> void:
+	var drawn: Array[CardData] = $Board.draw_card_data(6)
+	var kept: Array[CardData] = []
+	for cd: CardData in drawn:
+		if cd.color == color:
+			kept.append(cd)
+		else:
+			$Board.add_to_discard(cd)
+	if not kept.is_empty():
+		$Board.add_specific_cards_to_hand(kept)
+	_log_effect(tr("predicted %s, drew %d, kept %d") % [CardData.color_name(color), drawn.size(), kept.size()])
+	_show_auction_toast(tr("Earth Support: kept %d of %d (%s)") % [kept.size(), drawn.size(), CardData.color_name(color)])
+	_process_next_effect()
+
+# Wormhole Surfing: start a free auction on any biddable market card
+# (top expedition or advanced sector) and pick the color it's bid in.
+func _effect_step_wormhole_surfing() -> void:
+	var pool: Array[CardData] = $Board.get_available_expeditions()
+	var adv_flags: Array[bool] = []
+	for _cd: CardData in pool:
+		adv_flags.append(false)
+	for cd: CardData in $Board.get_available_advanced_sectors():
+		pool.append(cd)
+		adv_flags.append(true)
+	if pool.is_empty():
+		_process_next_effect()
+		return
+	_pending_choice_options = []
+	for cd: CardData in pool:
+		var shown_name: String = cd.adv_name if cd.card_type == CardData.CardType.SECTOR else cd.card_name
+		var options: Array = []
+		for sc: int in 6:
+			var c: CardData.SupplyColor = sc as CardData.SupplyColor
+			options.append({label = CardData.color_name(c), tint = CardData.color_tint(c),
+				steps = [{type = "initiate_market_bid", card_data = cd, bid_color = c, _source_name = _effect_source_name}]})
+		_pending_choice_options.append({steps = [{type = "choice",
+			prompt = tr("Wormhole Surfing — bid on %s in which color?") % shown_name,
+			options = options, _source_name = _effect_source_name}]})
+	_effect_mode = EffectMode.EFFECT_CHOICE
+	_choice_popup.show_card_choices(tr("Wormhole Surfing — start a bid on which card?"), pool, true, adv_flags)
 
 # ── Bid / payment flow ────────────────────────────────────────────────────────
 
@@ -3609,9 +3742,9 @@ func _setup_music() -> void:
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-func _on_card_recycled(color: CardData.SupplyColor) -> void:
+func _on_card_recycled(color: CardData.SupplyColor, amount: int) -> void:
 	UIAudio.play_recycle_sfx()
-	_cs_display.add_supply(color, 1)
+	_cs_display.add_supply(color, amount)
 	_apply_recycle_bonus(color)
 
 # A bought/won tech or expedition card had nowhere to go (every sector's tech

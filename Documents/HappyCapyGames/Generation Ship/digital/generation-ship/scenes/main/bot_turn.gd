@@ -207,7 +207,7 @@ static func _attach_stack_card(main: Main, bot_id: int, slot_idx: int, card_data
 	var raw_colors: Array[int] = BotScoring.slot_raw_placed_colors(slot)
 	var place_steps: Array[Dictionary] = PlaceEffects.get_steps_for_state(
 		card_data, BotScoring.is_slot_new(slot), BotScoring.is_slot_complete(slot),
-		BotScoring.is_slot_optimized(slot), raw_colors)
+		BotScoring.is_slot_optimized(slot), raw_colors, BotScoring.slot_effective_placed_colors(slot))
 	apply_bot_effect_steps(main, bot_id, place_steps, slot_idx)
 
 	var sector: CardData = slot.get("sector") as CardData
@@ -261,7 +261,7 @@ static func bot_recycle(main: Main, bot_id: int, card: CardData) -> void:
 	hand.erase(card)
 	bot_set_hand(main, bot_id, hand)
 	var color: int = int(card.color)
-	main.bot_supplies[bot_id][color] = (main.bot_supplies[bot_id].get(color, 0) as int) + 1
+	main.bot_supplies[bot_id][color] = (main.bot_supplies[bot_id].get(color, 0) as int) + CardData.recycle_amount(card)
 	main.get_node("Board").add_to_discard(card)
 	var _bname: String = GameNetwork.player_names.get(bot_id, main.tr("Bot"))
 	main._broadcast_log(main.tr("%s: recycled %s") % [_bname, card.card_name], CardData.color_tint(card.color))
@@ -380,7 +380,7 @@ static func _bot_recycle_n(main: Main, bot_id: int, count: int) -> void:
 	var n: int = mini(count, hand.size())
 	for _i: int in n:
 		var card: CardData = hand.pop_front()
-		main.bot_supplies[bot_id][int(card.color)] = (main.bot_supplies[bot_id].get(int(card.color), 0) as int) + 1
+		main.bot_supplies[bot_id][int(card.color)] = (main.bot_supplies[bot_id].get(int(card.color), 0) as int) + CardData.recycle_amount(card)
 		main.get_node("Board").add_to_discard(card)
 	bot_set_hand(main, bot_id, hand)
 
@@ -411,7 +411,7 @@ static func bot_decide_bid(main: Main, bot_id: int) -> void:
 	var new_bid: int = BotAI.decide_bid(
 		GameNetwork.bot_difficulty.get(bot_id, BotAI.Difficulty.EASY),
 		main._auction_current_bid, main.bot_supplies.get(bot_id, {}), cd, main._auction_is_adv,
-		main.bot_boards.get(bot_id, []) as Array)
+		main.bot_boards.get(bot_id, []) as Array, int(main._auction_cost_color))
 	if new_bid > 0:
 		main._server_handle_raise(bot_id, new_bid)
 	else:
@@ -442,7 +442,7 @@ static func bot_resolve_auction_win(
 			# No room anywhere — shouldn't normally happen since bots only bid
 			# when they have somewhere to put the card. Recycle it for supply
 			# rather than lose it silently.
-			main.bot_supplies[bot_id][int(cd.color)] = (main.bot_supplies[bot_id].get(int(cd.color), 0) as int) + 1
+			main.bot_supplies[bot_id][int(cd.color)] = (main.bot_supplies[bot_id].get(int(cd.color), 0) as int) + CardData.recycle_amount(cd)
 			main.get_node("Board").add_to_discard(cd)
 		else:
 			_attach_stack_card(main, bot_id, slot_idx, cd)

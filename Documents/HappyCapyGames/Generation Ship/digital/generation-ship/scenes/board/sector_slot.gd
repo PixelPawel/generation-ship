@@ -721,11 +721,18 @@ func _refresh_state_badges() -> void:
 func _on_placed_card_clicked(_card: Node3D) -> void:
 	slot_clicked.emit(self)
 
+# Set on a just-placed Karma Chameleon until its Place effect picks a color
+# (see Board._mark_color_choice_pending / apply_placing_color).
+const COLOR_CHOICE_PENDING_META: StringName = &"color_choice_pending"
+
 func get_placed_tech_colors() -> Array[int]:
 	var result: Array[int] = []
 	for ts: Node3D in _tech_slots:
 		if ts.occupied and ts.placed_card and ts.placed_card.card_data:
-			result.append(int(ts.placed_card.card_data.color))
+			if ts.placed_card.has_meta(COLOR_CHOICE_PENDING_META):
+				continue
+			var cd: CardData = ts.placed_card.card_data
+			result.append(cd.placing_color_override if cd.placing_color_override >= 0 else int(cd.color))
 	return result
 
 func remove_tech_card(card: Node3D) -> void:

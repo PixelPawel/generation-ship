@@ -278,6 +278,9 @@ func get_advanced_card_data(slot_idx: int) -> CardData:
 func get_advanced_count(slot_idx: int) -> int:
 	return _advanced_stacks[slot_idx].size()
 
+func get_advanced_slot_count() -> int:
+	return _advanced_stacks.size()
+
 func get_advanced_top_node(slot_idx: int) -> Node3D:
 	var stack: Array = _advanced_stacks[slot_idx]
 	return stack.back() as Node3D if not stack.is_empty() else null

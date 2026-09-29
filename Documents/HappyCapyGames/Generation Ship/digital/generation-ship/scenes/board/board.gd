@@ -25,7 +25,8 @@ const _CARD_PORTRAIT_SIZE := Vector2(0.63, 0.88)
 # way too large in practice.
 const _REVEAL_FILL_MARGIN := 0.92 * 0.34
 
-signal card_recycled(supply_color: CardData.SupplyColor)
+# amount is normally 1 — see CardData.recycle_amount() (Rich Asteroid).
+signal card_recycled(supply_color: CardData.SupplyColor, amount: int)
 signal unplaceable_card_recycled(card_data: CardData)
 signal recycle_confirm_required(card: Node3D, color: CardData.SupplyColor)
 signal major_action_changed(taken: bool)
@@ -61,6 +62,9 @@ var _hand: Node3D = null
 var _dragged_card: Node3D = null
 var _drag_origin: DragOrigin = DragOrigin.NONE
 var market_origin_3d: Vector3 = Vector3.ZERO
+# Wormhole Surfing: color the next auction started by _start_bid is paid in
+# instead of the card's own (-1 = none). Consumed by that one bid.
+var bid_color_override: int = -1
 var _drag_start_global_pos: Vector3 = Vector3.ZERO
 var _drag_start_scale: Vector3 = Vector3.ONE
 # A 2D screen-space "what am I holding" readout for a hand-origin drag only,
@@ -256,6 +260,16 @@ func get_available_expeditions() -> Array[CardData]:
 		var cd: CardData = _expedition_market.get_card_data(i)
 		if cd:
 			result.append(cd)
+	return result
+
+# Top (biddable) advanced sector in each market slot — the sector half of
+# what a bid-starting effect like Wormhole Surfing can target.
+func get_available_advanced_sectors() -> Array[CardData]:
+	var result: Array[CardData] = []
+	for i: int in _market.get_advanced_slot_count():
+		var node: Node3D = _market.get_advanced_top_node(i)
+		if node and node.card_data:
+			result.append(node.card_data)
 	return result
 
 # Entry point for a card offered via an effect's bid pool (e.g. Ancient
@@ -692,7 +706,7 @@ func draw_and_recycle_top() -> void:
 	var data: CardData = _draw_from_tech_deck()
 	if data:
 		add_to_discard(data)
-		card_recycled.emit(data.color)
+		card_recycled.emit(data.color, CardData.recycle_amount(data))
 
 func draw_cards(count: int) -> void:
 	var new_cards: Array[Node3D] = []
@@ -1095,7 +1109,7 @@ func _recycle_card_node(card: Node3D) -> void:
 	if card.card_data:
 		color = card.card_data.adv_color if card.is_advanced else card.card_data.color
 	add_to_discard(card.card_data)
-	card_recycled.emit(color)
+	card_recycled.emit(color, CardData.recycle_amount(card.card_data))
 	card.collider.monitoring = false
 	var t: Tween = card.create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
 	# Vector3.ZERO here would leave the Collider Area3D with a singular basis,
@@ -1299,7 +1313,10 @@ func preview_placement_steps(card: Node3D, slot: SectorSlot) -> Array[Dictionary
 	# Optimize-trigger pool: tech colors only, never the sector itself
 	# (mirrors _update_optimize_state), plus this incoming card.
 	var opt_pool: Array[int] = slot.get_placed_tech_colors()
-	opt_pool.append(int(cd.color))
+	# Karma Chameleon sits out its own placement check (its color is picked
+	# afterwards) — see _mark_color_choice_pending.
+	if cd.card_name != "Karma Chameleon":
+		opt_pool.append(int(cd.color))
 
 	var is_new: bool = slot.get_tech_count() == 0
 	var is_complete: bool = slot.get_tech_count() + 1 >= SectorSlot.TECH_OFFSETS_COMPACT.size()
@@ -1312,8 +1329,6 @@ func preview_placement_steps(card: Node3D, slot: SectorSlot) -> Array[Dictionary
 		slot.optimize_count, slot.max_optimizations, slot.triggered_levels.duplicate())
 	var is_opt: bool = opt_result["is_optimized"]
 
-	var steps: Array[Dictionary] = PlaceEffects.get_steps_for_state(cd, is_new, is_complete, is_opt, place_colors)
-
 	# SectorEffects' placed_colors: every card on the slot (sector + techs),
 	# EFFECTIVE color, plus this incoming card — mirrors
 	# SectorEffects._slot_effective_colors/get_optimize_steps exactly.
@@ -1323,6 +1338,8 @@ func preview_placement_steps(card: Node3D, slot: SectorSlot) -> Array[Dictionary
 		if c2_cd:
 			opt_effect_colors.append(int(CardData.effective_color(c2_cd, bool(c2.get("is_advanced")))))
 	opt_effect_colors.append(int(cd.color))
+
+	var steps: Array[Dictionary] = PlaceEffects.get_steps_for_state(cd, is_new, is_complete, is_opt, place_colors, opt_effect_colors)
 
 	var triggered: Array = opt_result["triggered"]
 	for _level: int in triggered:
@@ -1363,6 +1380,7 @@ func _finalize_placement(card: Node3D, slot: SectorSlot, is_tech: bool, spent: D
 	for col: CardData.SupplyColor in spent:
 		_supply_ui.spend_supply(col, spent[col])
 	if is_tech:
+		_mark_color_choice_pending(card)
 		slot.accept_tech_card(card)
 		card.place()
 		var opt_levels: Array[int] = _update_optimize_state(slot)
@@ -1440,6 +1458,9 @@ func _start_bid(card: Node3D, slot: Node3D, is_tech: bool) -> void:
 	else:
 		min_cost = card.card_data.adv_cost
 		cost_color = card.card_data.adv_color
+	if bid_color_override >= 0:
+		cost_color = bid_color_override as CardData.SupplyColor
+		bid_color_override = -1
 	bid_required.emit(card, slot, min_cost, cost_color, is_tech)
 
 # spent lands here (not earlier, at bid-payment time) so an auction win only
@@ -1467,13 +1488,14 @@ func complete_purchase(spent: Dictionary = {}) -> void:
 		return
 	var sector_slot: SectorSlot = slot as SectorSlot
 	if not sector_slot:
-		card_recycled.emit(card.card_data.color)
+		card_recycled.emit(card.card_data.color, CardData.recycle_amount(card.card_data))
 		card.queue_free()
 		return
 	if is_tech:
 		if sector_slot.has_tech_space():
 			for col: CardData.SupplyColor in spent:
 				_supply_ui.spend_supply(col, spent[col])
+			_mark_color_choice_pending(card)
 			sector_slot.accept_tech_card(card)
 			card.place()
 			var opt_levels_bid: Array[int] = _update_optimize_state(sector_slot)
@@ -1493,7 +1515,7 @@ func complete_purchase(spent: Dictionary = {}) -> void:
 				_supply_ui.spend_supply(col, spent[col])
 			if card.card_data:
 				add_to_discard(card.card_data)
-			card_recycled.emit(card.card_data.color)
+			card_recycled.emit(card.card_data.color, CardData.recycle_amount(card.card_data))
 			card.queue_free()
 	else:
 		if not sector_slot.occupied:
@@ -1507,7 +1529,7 @@ func complete_purchase(spent: Dictionary = {}) -> void:
 		else:
 			for col: CardData.SupplyColor in spent:
 				_supply_ui.spend_supply(col, spent[col])
-			card_recycled.emit(card.card_data.adv_color if card.is_advanced else card.card_data.color)
+			card_recycled.emit(card.card_data.adv_color if card.is_advanced else card.card_data.color, 1)
 			card.queue_free()
 
 func get_slot_index(slot: SectorSlot) -> int:
@@ -1881,14 +1903,47 @@ func restore_from_snapshot(snap: Dictionary) -> void:
 					slot.triggered_levels[j] = true
 		slot.refresh_optimize_display()
 
-func _update_optimize_state(slot: SectorSlot) -> Array[int]:
+# Karma Chameleon ("counts as a color of your choice while being placed")
+# sits out of its own placement's optimize check — SectorSlot.
+# get_placed_tech_colors() skips it while this meta is set — and its Place
+# effect then picks the color and re-runs the check via
+# apply_placing_color(). Only set at real placement sites, never on
+# snapshot restores.
+func _mark_color_choice_pending(card: Node3D) -> void:
+	if card.card_data and card.card_data.card_name == "Karma Chameleon":
+		card.set_meta(SectorSlot.COLOR_CHOICE_PENDING_META, true)
+
+# Resolves a pending Karma Chameleon on slot as color: re-runs the optimize
+# check with it counting as that color, then it reverts to Dust for good.
+# Returns the newly triggered levels; the caller queues their effects.
+func apply_placing_color(slot: SectorSlot, color: CardData.SupplyColor) -> Array[int]:
+	var card: Node3D = null
+	for c: Node3D in slot.get_all_placed_cards():
+		if c.has_meta(SectorSlot.COLOR_CHOICE_PENDING_META):
+			card = c
+			break
+	if not card:
+		return []
+	card.remove_meta(SectorSlot.COLOR_CHOICE_PENDING_META)
+	var cd: CardData = card.card_data
+	cd.placing_color_override = int(color)
+	var levels: Array[int] = _update_optimize_state(slot)
+	cd.placing_color_override = -1
+	return levels
+
+# allow_untrigger is only true after a removal (see
+# revalidate_optimize_after_removal). On placements it stays false: a card
+# whose color changes after landing (Karma Chameleon reverting to Dust) must
+# not un-trigger the level it satisfied, or that level could fire again.
+func _update_optimize_state(slot: SectorSlot, allow_untrigger: bool = false) -> Array[int]:
 	if not slot.occupied or not slot.placed_card or not slot.placed_card.card_data:
 		return []
 	var cd: CardData = slot.placed_card.card_data
 	var is_adv: bool = bool(slot.placed_card.get("is_advanced"))
 	var pool: Array[int] = slot.get_placed_tech_colors()
 	var result: Dictionary = OptimizeLogic.update_optimize_state(
-		cd, is_adv, pool, slot.optimize_count, slot.max_optimizations, slot.triggered_levels)
+		cd, is_adv, pool, slot.optimize_count, slot.max_optimizations, slot.triggered_levels,
+		allow_untrigger)
 	slot.optimize_count = result["optimize_count"]
 	slot.is_optimized = result["is_optimized"]
 	slot.triggered_levels = result["triggered_levels"] as Array[bool]
@@ -1903,7 +1958,7 @@ func _update_optimize_state(slot: SectorSlot) -> Array[int]:
 # indirectly lets an untriggered level satisfy now (see
 # OptimizeLogic.update_optimize_state).
 func revalidate_optimize_after_removal(slot: SectorSlot) -> void:
-	for level: int in _update_optimize_state(slot):
+	for level: int in _update_optimize_state(slot, true):
 		optimize_triggered.emit(slot, level)
 
 func _handle_failed_drop() -> void:

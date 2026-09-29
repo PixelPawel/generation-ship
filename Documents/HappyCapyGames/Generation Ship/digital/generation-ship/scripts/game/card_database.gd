@@ -89,6 +89,12 @@ func _resolve_art(deck_folder: String, file_base: String, page: int) -> String:
 func _tech_art_path(id: int) -> String:
 	return _resolve_art("Tech", "GS Techs 44x67mm", id)
 
+func _promo_art_path(promo_no: int) -> String:
+	return _resolve_art("Promo", "GS Techs Promos 44x67mm", promo_no)
+
+func _art_path_for_tech(cd: CardData) -> String:
+	return _promo_art_path(cd.promo_no) if cd.promo_no > 0 else _tech_art_path(cd.id)
+
 func _expedition_art_path(id: int) -> String:
 	# The Expeditions deck prints in exact reverse order of CSV "No."
 	# (page 1 = No. 26, page 26 = No. 1) — verified against every page,
@@ -133,7 +139,7 @@ func refresh_locale() -> void:
 		cd.local_art_path = _dust_sector_art_path(cd.card_name)
 		cd.adv_local_art_path = _adv_sector_art_path(cd.adv_name)
 	for cd: CardData in techs:
-		cd.local_art_path = _tech_art_path(cd.id)
+		cd.local_art_path = _art_path_for_tech(cd)
 	for cd: CardData in expeditions:
 		cd.local_art_path = _expedition_art_path(cd.id)
 
@@ -194,6 +200,26 @@ func _load_techs() -> void:
 		card.card_type = CardData.CardType.TECH
 		_populate_base_fields(card, row)
 		techs.append(card)
+	_load_promos()
+
+# Promo Techs are always shuffled into the Tech deck. Appended after the
+# regular techs so every client builds the same array order (CardRef syncs
+# cards by index), with ids continuing past the highest regular tech id.
+func _load_promos() -> void:
+	var next_id: int = 0
+	for cd: CardData in techs:
+		next_id = maxi(next_id, cd.id)
+	var rows := _read_csv("res://data/Generation Ship Full Card Details - Promos.csv")
+	for row in rows:
+		if not _valid_id(row.get("No.", "")):
+			continue
+		next_id += 1
+		var card := CardData.new()
+		card.id = next_id
+		card.promo_no = int(row["No."])
+		card.card_type = CardData.CardType.TECH
+		_populate_base_fields(card, row)
+		techs.append(card)
 
 func _load_expeditions() -> void:
 	var rows := _read_csv("res://data/Generation Ship Full Card Details - Expeditions.csv")
@@ -213,7 +239,7 @@ func _populate_base_fields(card: CardData, row: Dictionary) -> void:
 	card.effect_text    = row.get("Effect", "").strip_edges()
 	card.flavor_text    = row.get("Flavor", "").strip_edges()
 	card.image_url      = row.get("Link", "")
-	card.local_art_path = _tech_art_path(card.id) if card.card_type == CardData.CardType.TECH else _expedition_art_path(card.id)
+	card.local_art_path = _art_path_for_tech(card) if card.card_type == CardData.CardType.TECH else _expedition_art_path(card.id)
 	card.stars          = row.get("Printed Star", "").count("⭐")
 	card.is_star_card   = _parse_yes_no(row.get("Star Card", row.get("Star card", "No")))
 	card.trigger_type   = _parse_trigger(row.get("Type", ""))
@@ -317,6 +343,8 @@ func _read_csv(path: String) -> Array[Dictionary]:
 				content = CardDataBaked.TECHS
 			"Generation Ship Full Card Details - Expeditions.csv":
 				content = CardDataBaked.EXPEDITIONS
+			"Generation Ship Full Card Details - Promos.csv":
+				content = CardDataBaked.PROMOS
 		if content.is_empty():
 			push_error("CardDatabase: could not open " + path)
 			return []

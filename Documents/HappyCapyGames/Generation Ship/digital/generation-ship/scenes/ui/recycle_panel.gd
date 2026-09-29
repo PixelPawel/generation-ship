@@ -108,8 +108,11 @@ func show_recycle(card_data: CardData, color: CardData.SupplyColor, bonus: int) 
 		_card_name_label.text = ""
 	_gain_icon.texture = load(_SUPPLY_ICON_PATHS[int(color)]) as Texture2D
 	var color_name: String = CardData.color_name(color)
+	var base: int = CardData.recycle_amount(card_data)
 	if bonus > 0:
-		_gain_label.text = tr("%d %s (Trash Compactor +%d)") % [1 + bonus, color_name, bonus]
+		_gain_label.text = tr("%d %s (Trash Compactor +%d)") % [base + bonus, color_name, bonus]
+	elif base != 1:
+		_gain_label.text = "%d %s" % [base, color_name]
 	else:
 		_gain_label.text = tr("1 %s") % color_name
 	show()

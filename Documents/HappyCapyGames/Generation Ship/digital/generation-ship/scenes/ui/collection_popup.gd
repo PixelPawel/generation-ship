@@ -13,6 +13,7 @@ const _LANGUAGE_CODES: Array[String] = ["en", "de", "it", "pl", "es", "fr"]
 # back each), so it's handled separately via _SECTOR_GROUPS below.
 const _DECKS: Array[Dictionary] = [
 	{"folder": "Tech", "label_key": "Tech", "landscape": false, "file_base": "GS Techs 44x67mm", "count": 137},
+	{"folder": "Promo", "label_key": "Promo", "landscape": false, "file_base": "GS Techs Promos 44x67mm", "count": 6},
 	{"folder": "Sector", "label_key": "Sector", "landscape": true},
 	{"folder": "Expedition", "label_key": "Expedition", "landscape": false, "file_base": "GS Expeditions 44x67mm", "count": 26},
 	{"folder": "Dangers", "label_key": "Danger", "landscape": false, "file_base": "GS Dangers 63,5x89mm", "count": 30},
