@@ -1,7 +1,10 @@
 extends Control
 
-const PAGE_COUNT: int = 12
-const PAGE_BASE: String = "res://assets/manual/manual_page_%02d.png"
+# Per-language rule book pages, exported from the InDesign print files with
+# InDesign's own multi-page naming (page 1 has no suffix, page N appends N).
+const PAGE_DIR: String = "res://assets/cards/Rule Book/%s/"
+const PAGE_BASE: String = "GS Rule Book A5"
+const MAX_PAGES: int = 64
 
 const ZOOM_STEP: float = 0.25
 const ZOOM_MIN: float = 1.0
@@ -13,6 +16,7 @@ const BASE_H: float = 760.0
 var _page: int = 1
 var _zoom: float = 1.0
 var _pages: Array[Texture2D] = []
+var _pages_lang: String = ""   # language _pages were loaded for; "" = not loaded
 var _page_image: TextureRect = null
 var _scroll: ScrollContainer = null
 var _page_label: Label = null
@@ -21,7 +25,6 @@ var _tr_targets: Dictionary = {}   # Control (Label/Button) -> untranslated key,
 
 func _ready() -> void:
 	add_to_group("locale_refresh")
-	_load_pages()
 	_build_ui()
 	visible = false
 
@@ -34,17 +37,36 @@ func refresh_locale_text() -> void:
 	for ctrl: Control in _tr_targets:
 		if is_instance_valid(ctrl):
 			ctrl.text = tr(_tr_targets[ctrl] as String)
+	if visible:
+		_ensure_pages()
+	else:
+		_pages_lang = ""   # reload lazily in the new language on next open()
 	_go_to(_page)
 	_set_zoom(_zoom)
 
-func _load_pages() -> void:
-	_pages.resize(PAGE_COUNT)
-	for i: int in range(PAGE_COUNT):
-		var path: String = PAGE_BASE % (i + 1)
-		if ResourceLoader.exists(path):
-			_pages[i] = load(path) as Texture2D
+func _current_lang() -> String:
+	var lang: String = TranslationServer.get_locale().substr(0, 2).to_upper()
+	if not ResourceLoader.exists(PAGE_DIR % lang + PAGE_BASE + ".png"):
+		lang = "EN"
+	return lang
+
+# Loaded on open rather than in _ready: four scenes each own a ManualPopup,
+# and a full A5 rule book per instance at boot is wasted memory for a popup
+# most sessions never open.
+func _ensure_pages() -> void:
+	var lang: String = _current_lang()
+	if lang == _pages_lang:
+		return
+	_pages.clear()
+	for i: int in range(1, MAX_PAGES + 1):
+		var path: String = PAGE_DIR % lang + PAGE_BASE + ("" if i == 1 else str(i)) + ".png"
+		if not ResourceLoader.exists(path):
+			break
+		_pages.append(load(path) as Texture2D)
+	_pages_lang = lang
 
 func open() -> void:
+	_ensure_pages()
 	_go_to(1)
 	_set_zoom(1.0)
 	visible = true
@@ -151,11 +173,12 @@ func _build_ui() -> void:
 	nav.add_child(zoom_in_btn)
 
 func _go_to(page: int) -> void:
-	_page = clampi(page, 1, PAGE_COUNT)
+	var count: int = maxi(_pages.size(), 1)
+	_page = clampi(page, 1, count)
 	if _page_image:
-		_page_image.texture = _pages[_page - 1]
+		_page_image.texture = _pages[_page - 1] if _page <= _pages.size() else null
 	if _page_label:
-		_page_label.text = tr("%d / %d") % [_page, PAGE_COUNT]
+		_page_label.text = tr("%d / %d") % [_page, count]
 
 func _set_zoom(z: float) -> void:
 	_zoom = clampf(z, ZOOM_MIN, ZOOM_MAX)

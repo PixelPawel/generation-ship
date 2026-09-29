@@ -196,6 +196,9 @@ var _pass_btn_mesh: MeshInstance3D = null
 var _pass_btn_flash_tween: Tween = null
 var _pass_btn_flash_mat: StandardMaterial3D = null
 var _research_btn_mesh: MeshInstance3D = null
+const TURN_BUTTON_COOLDOWN_MS: int = 400
+var _turn_action_locked: bool = false
+var _last_turn_button_ms: int = -TURN_BUTTON_COOLDOWN_MS
 var _research_btn_flash_tween: Tween = null
 var _research_btn_flash_mat: StandardMaterial3D = null
 var _effect_hint_panel: Control = null
@@ -659,8 +662,25 @@ func _rpc_start_game(sector_order: Array, exp_order: Array, tech_order: Array) -
 
 # ── Round flow ────────────────────────────────────────────────────────────────
 
+# The cockpit's 3D Research/Pass/End Turn buttons have no disabled state of
+# their own, so repeated clicks used to re-run these handlers — e.g. a second
+# Pass in solo queued a second _end_round (skipping a whole generation).
+# _turn_action_locked is set once a click hands the turn off and only cleared
+# when control genuinely comes back (next turn / next round); the short
+# cooldown also stops one double-click from firing two different buttons.
+func _accept_turn_button() -> bool:
+	var now: int = Time.get_ticks_msec()
+	if _turn_action_locked or now - _last_turn_button_ms < TURN_BUTTON_COOLDOWN_MS:
+		return false
+	_last_turn_button_ms = now
+	return true
+
 func _on_research_pressed() -> void:
 	if not GameNetwork.is_my_turn():
+		return
+	if _has_passed or _effect_mode != EffectMode.NONE:
+		return
+	if not _accept_turn_button():
 		return
 	_effect_mode = EffectMode.RESEARCH
 	_set_action_buttons_disabled(true)
@@ -675,7 +695,19 @@ func _on_research_pressed() -> void:
 func _on_pass_pressed() -> void:
 	if not GameNetwork.is_my_turn():
 		return
+	if _has_passed:
+		return
+	if not _accept_turn_button():
+		return
+	_turn_action_locked = true
 	_do_pass()
+
+# Button/keyboard entry point for End Turn. _on_end_turn_pressed() itself is
+# also called by the auto-end-turn helper, which must not be throttled.
+func _on_end_turn_button_pressed() -> void:
+	if not _accept_turn_button():
+		return
+	_on_end_turn_pressed()
 
 func _do_pass() -> void:
 	if _tutorial:
@@ -743,6 +775,7 @@ func _show_round_transition(then: Callable) -> void:
 func _end_round() -> void:
 	_has_passed = false
 	_has_researched = false
+	_turn_action_locked = false
 	_bots_passed_this_round.clear()
 	_opp_statuses.clear()
 	_refresh_all_opp_status_labels()
@@ -852,6 +885,8 @@ func _rpc_sync_active_player(peer_id: int) -> void:
 	if _opp_statuses.get(peer_id, "") == "researching":
 		_opp_statuses[peer_id] = ""
 	var already_passed: bool = GameNetwork.is_my_turn() and _has_passed
+	if GameNetwork.is_my_turn() and not _has_passed:
+		_turn_action_locked = false
 	if not already_passed:
 		$Board.reset_turn()
 		_show_action_buttons(true)
@@ -1558,6 +1593,7 @@ func _on_card_discarded(card: Node3D) -> void:
 				_log_action(tr("You: researched"), Color(0.50, 0.78, 1.0))
 			_broadcast_my_state()
 			if GameNetwork.is_multiplayer:
+				_turn_action_locked = true
 				if GameNetwork.is_host:
 					_server_handle_end_turn()
 				else:
@@ -3280,7 +3316,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_tutorial.notify_escape_pressed()
 	elif event.is_action("end_turn") and not _pause_menu.visible:
 		if _cs_display.can_end_turn():
-			_on_end_turn_pressed()
+			_on_end_turn_button_pressed()
 
 func _on_pause_main_menu() -> void:
 	SceneTransition.change_scene("res://scenes/main_menu/main_menu.tscn")
@@ -3337,6 +3373,7 @@ func _on_end_turn_pressed() -> void:
 	_pending_reveal_may_free_gain = false
 	_reset_effect_state()
 	if GameNetwork.is_multiplayer:
+		_turn_action_locked = true
 		_do_end_turn()
 	else:
 		$Board.reset_turn()

@@ -50,7 +50,7 @@ static func setup_control_screen_display(main: Main) -> void:
 		setup_screen_input(main, screen_mesh)
 		main.get_node("Board").set_control_screen_mesh(screen_mesh)
 
-	var btn_callbacks: Array[Callable] = [main._on_research_pressed, main._on_pass_pressed, main._on_end_turn_pressed]
+	var btn_callbacks: Array[Callable] = [main._on_research_pressed, main._on_pass_pressed, main._on_end_turn_button_pressed]
 	var btn_tooltip_titles: Array[String] = [main.tr("Research"), main.tr("Pass"), main.tr("End Turn")]
 	var btn_tooltip_descs: Array[String] = [
 		main.tr("Discard a hand card and draw a replacement, once this Action is taken, you can only Research or Pass."),
@@ -119,8 +119,18 @@ static func setup_button_input(main: Main, btn_mesh: MeshInstance3D, callback: C
 
 static func animate_button_press(main: Main, btn_mesh: MeshInstance3D) -> void:
 	var press_depth: float = btn_mesh.mesh.get_aabb().size.z * 0.35
-	var rest_pos: Vector3 = btn_mesh.position
+	# Rest position is captured once: reading btn_mesh.position on every press
+	# picked up the half-pressed position during rapid clicks, so the button
+	# sank a little deeper each time and never came back up.
+	if not btn_mesh.has_meta("rest_pos"):
+		btn_mesh.set_meta("rest_pos", btn_mesh.position)
+	var rest_pos: Vector3 = btn_mesh.get_meta("rest_pos") as Vector3
+	var prev: Tween = btn_mesh.get_meta("press_tween", null) as Tween
+	if prev and prev.is_valid():
+		prev.kill()
+	btn_mesh.position = rest_pos
 	var tween: Tween = main.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	btn_mesh.set_meta("press_tween", tween)
 	tween.tween_property(btn_mesh, "position", rest_pos + Vector3(0.0, 0.0, -press_depth), 0.07)
 	tween.tween_property(btn_mesh, "position", rest_pos, 0.14)
 
