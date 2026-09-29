@@ -2,7 +2,7 @@ No.,Name,,Color,Flavor,Effect,Solve,Notes,Done,Artist
 1,Asteroid Belt,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm1.png,Dust,Never tell me the odds!,Shuttle cost +1.,Pay 2 dust per player.,,Done,Daniel
 2,High Speed Impacts,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm2.png,Dust,Engage evasive maneuvers!,ALL players turn 3 supplies on your ship 1:1 to dust.,"Destroy 1 card per player.
 (flip the top card of a sector facedown)",,Done,Daniel
-3,Hull Breaker,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm3.png,Dust,"First, take a deep breath.",Destroy the top card in your right-most sector.,Complete your right-most sector.,,Done,Daniel
+3,Hull Breach,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm3.png,Dust,"First, take a deep breath.",Destroy the top card in your right-most sector.,Complete your right-most sector.,,Done,Daniel
 4,Mining Incident,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm4.png,Dust,I swear this never happened before!,"Can not gain dust.
 (you can still store)",Fully optimize a dust sector.,,Done,Daniel
 5,Accelerated Rusting,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm5.png,Metals,How can this rust in space?,Destroy the top 2 cards in your left-most sector.,Fully optimize a metals sector.,,Done,Daniel
@@ -10,21 +10,19 @@ No.,Name,,Color,Flavor,Effect,Solve,Notes,Done,Artist
 (you can still store)",Discard 1 metals card per player.,,Done,Daniel
 7,Engine Overload,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm7.png,Metals,Prepare ship for ludicrous speed!,"Each player chooses: 
 Pay 2 metals or destroy 2 cards.",Pay 2 metals per player.,,Done,Daniel
-8,Totaliitarianism,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm8.png,Metals,We have the best words.,Can not use ALWAYS effects on your cards.,"Discard cards worth 
+8,Totalitarianism,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm8.png,Metals,We have the best words.,Can not use ALWAYS effects on your cards.,"Discard cards worth 
 2⭐ per player. ",,Done,Daniel
 9,Anti-Fusion Field,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm9.png,Liquids,"Back to burning coal, I guess.","Can not store or fuse liquids.
 (you can still gain)",Fully optimize a liquids sector.,,Done,Daniel
-10,Algae Bloom,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm10.png,Liquids,The princess is in another castle!,Each player chooses: Lose 2 stored supplies or discard 2.,Pay 2 liquids per player.,,Done,Daniel
-11,Liquidsr Leak,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm11.png,Liquids,A new comet is born.,Liquid Cards cost +2.,Discard 1 liquids card per player.,,Done,Daniel
-12,Liquids Shortage,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm12.png,Liquids,"Ice Pirates are back, baybeeeeeeee.","Do not gain liquids at the 
+10,Algal Megabloom,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm10.png,Liquids,The princess is in another castle!,Each player chooses: Lose 2 stored supplies or discard 2.,Pay 2 liquids per player.,,Done,Daniel
+11,Volatile Leak,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm11.png,Liquids,A new comet is born.,Liquid Cards cost +2.,Discard 1 liquids card per player.,,Done,Daniel
+12,Water Shortage,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm12.png,Liquids,"Ice Pirates are back, baybeeeeeeee.","Do not gain liquids at the 
 end of a generation. ",Have 3+ liquids cards in 1 sector.,,Done,Daniel
-13,Oxygen Eating Supercolony,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm13.png,Organix,You take my breath away.,"Discard 3 advanced sectors 
-on the market from the game.",Empty 1 of the dust sector decks.,,Done,Daniel
+13,Oxygen Eating Supercolony,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm13.png,Organix,You take my breath away.,Discard 3 advanced sectors from the market.,Empty 1 of the dust sector decks.,,Done,Daniel
 14,Pandemic,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm14.png,Organix,Did you have to eat that alien bat?,You can not recycle cards.,Discard 1 organix card per player. ,,Done,Daniel
-15,Mutations,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm15.png,Organix,"Evolution eh, finds a way.","Each player destroys 1 card, organix if possible.","Lose 1 tucked 
-card per player. ",,Done,Daniel
-16,Infestation,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm16.png,Organix,I used to like mushrooms...,Sectors with any organix can not be optimized.,Flip 1 facedown-tucked-card faceup per player.,,Done,Daniel
-17,Plant Virus,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm17.png,Organix,The crops lay rotten in the halls.,Do not gain organix at the end of a generation. ,Have 3+ organix cards  in 1 sector.  ,,Done,Daniel
+15,Mutations,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm15.png,Organix,"Evolution eh, finds a way.","Each player destroys 1 card, organix if possible.",Lose 1 tucked card per player. ,,Done,Daniel
+16,Infestation,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm16.png,Organix,I used to like mushrooms...,Sectors with any organix can not be optimized.,Flip 1 faceup-tucked-card facedown per player.,,Done,Daniel
+17,Plant Virus,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm17.png,Organix,The crops lay rotten in the halls.,Do not gain organix at the end of a generation. ,Have 3+ organix cards in 1sector.  ,,Done,Daniel
 18,Alien Pathogen,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm18.png,Organix,An unfamilliar taste.,Organix cards cost +2.,Flip a faceup-tucked-card with 3+⭐ facedown.,,Done,Daniel
 19,Gamma Ray Burst,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm19.png,Electrix,Sniped from 1500 lightyears away.,Each player chooses: Lose 2 stored supplies or tucked cards.,Complete a fully optimized sector.,,Done,Daniel
 20,Cybernetic Psycho,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm20.png,Electrix,I‘ll be back.,"Each player destroys
@@ -32,15 +30,14 @@ card per player. ",,Done,Daniel
 21,Neural Gear Malfunction,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm21.png,Electrix,You‘ll think what I‘m thinking!,Can not tuck cards or store supplies.,Discard cards worth 3⭐ per player. ,,Done,Daniel
 22,System Failure,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm22.png,Electrix,Have you tried turning it off and on again?,"Store 1 electrix here. 
 Reveal 1 danger per electrix.",Discard 1 electrix card per player.,,Done,Daniel
-23,Robotic Uprising,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm23.png,Electrix,Are you alive? Prove it!,Sector cards cost +2.,Pay 1 electrix per player.,,Done,Daniel
+23,Robot Uprising,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm23.png,Electrix,Are you alive? Prove it!,Sector cards cost +2.,Pay 1 electrix per player.,,Done,Daniel
 24,Nanite Plague,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm24.png,Electrix,They have a nice crunch to them.,"Do not gain electrix at the 
-end of a generation. ","Discard cards worth 
-3⭐per player. ",,Done,Daniel
+end of a generation. ",Discard cards worth 3⭐per player. ,,Done,Daniel
 25,Undetected Wormhole,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm25.png,Thrrust,Where no man has travelled before.,"Shuffle all expeditions 
 back into the deck.",Buy 1 expedition.,,Done,Daniel
 26,Sabotage,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm26.png,Thrrust,Just a few... small... technical problems.,"Each player removes the 
 sector with the fewest cards.",Destroy 1 expedition in any sector.,,Done,Daniel
 27,Rogue AI,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm27.png,Thrrust,Would you like to play a game?,All cards cost +1.,Discard 2 electrix cards and/or thrust cards per player.,,Done,Daniel
 28,Barbarism,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm28.png,Thrrust,Only gentrification can help!,Can not place or recycle thrust.,Complete a electrix or thrust sector.,,Done,Daniel
-29,Higher Dimension Pocket,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm29.png,Thrrust,And you thought 3 bodies were a problem.,Each player passes their cards to the left.,Discard 1 card of each color.,,Done,Daniel
+29,Dimension Pocket,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm29.png,Thrrust,And you thought 3 bodies were a problem.,Each player passes their cards to the left.,Discard 1 card of each color.,,Done,Daniel
 30,Unstable Wormhole,https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm30.png,Thrrust,It sucks.,Each player discards 3 cards.,Any player has no cards in hand.,,Done,Daniel

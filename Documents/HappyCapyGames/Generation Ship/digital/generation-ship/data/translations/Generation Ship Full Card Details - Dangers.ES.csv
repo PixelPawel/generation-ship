@@ -2,7 +2,7 @@
 "1","Cinturón de Asteroides","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm1.png","Dust","¡Nunca me digas las probabilidades!","Coste del transbordador +1.","Paga 2 Dust por jugador.","","Done","Daniel"
 "2","Impactos a Alta Velocidad","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm2.png","Dust","¡Inicien maniobras evasivas!","TODOS los jugadores transforman 3 suministros en su nave 1:1 en Dust.","Destruye 1 carta por jugador.
 (voltea boca abajo la carta superior de un sector)","","Done","Daniel"
-"3","Rompecascos","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm3.png","Dust","Primero, respira hondo.","Destruye la carta superior en tu sector más a la derecha.","Completa tu sector más a la derecha.","","Done","Daniel"
+"3","Brecha en el Casco","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm3.png","Dust","Primero, respira hondo.","Destruye la carta superior en tu sector más a la derecha.","Completa tu sector más a la derecha.","","Done","Daniel"
 "4","Incidente Minero","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm4.png","Dust","¡Juro que esto nunca había pasado antes!","No puedes ganar Dust.
 (aún puedes almacenar)","Optimiza completamente un sector Dust.","","Done","Daniel"
 "5","Oxidación Acelerada","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm5.png","Metals","¿Cómo puede esto oxidarse en el espacio?","Destruye las 2 cartas superiores en tu sector más a la izquierda.","Optimiza completamente un sector Metals.","","Done","Daniel"
@@ -14,16 +14,16 @@ Paga 2 Metals o destruye 2 cartas.","Paga 2 Metals por jugador.","","Done","Dani
 ","","Done","Daniel"
 "9","Campo Antifusión","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm9.png","Liquids","Supongo que volvemos a quemar carbón.","No puedes almacenar ni fusionar Liquids.
 (aún puedes ganar)","Optimiza completamente un sector Liquids.","","Done","Daniel"
-"10","Floración de Algas","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm10.png","Liquids","¡La princesa está en otro castillo!","Cada jugador elige: Pierde 2 suministros almacenados o descarta 2.","Paga 2 Liquids por jugador.","","Done","Daniel"
-"11","Fuga de Líquidos","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm11.png","Liquids","Nace un nuevo cometa.","Las cartas Liquids cuestan +2.","Descarta 1 carta Liquids por jugador.","","Done","Daniel"
-"12","Escasez de Líquidos","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm12.png","Liquids","Los Piratas del Hielo están de vuelta, nenaaaaaa.","No ganes Liquids al final de una generación.
+"10","Superfloración de Algas","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm10.png","Liquids","¡La princesa está en otro castillo!","Cada jugador elige: Pierde 2 suministros almacenados o descarta 2.","Paga 2 Liquids por jugador.","","Done","Daniel"
+"11","Fuga Volátil","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm11.png","Liquids","Nace un nuevo cometa.","Las cartas Liquids cuestan +2.","Descarta 1 carta Liquids por jugador.","","Done","Daniel"
+"12","Escasez de Agua","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm12.png","Liquids","Los Piratas del Hielo están de vuelta, nenaaaaaa.","No ganes Liquids al final de una generación.
 ","Ten 3 o más cartas Liquids en 1 sector.","","Done","Daniel"
-"13","Supercolonia Devoradora de Oxígeno","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm13.png","Organix","Me quitas el aliento.","Retira del juego 3 sectores avanzados
+"13","colonia Devoradora de Oxígeno","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm13.png","Organix","Me quitas el aliento.","Descarta 3 sectores avanzados
 del mercado.","Vacía 1 de las barajas de sector Dust.","","Done","Daniel"
 "14","Pandemia","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm14.png","Organix","¿Tenías que comerte ese murciélago alienígena?","No puedes reciclar cartas.","Descarta 1 carta Organix por jugador.","","Done","Daniel"
 "15","Mutaciones","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm15.png","Organix","La evolución, eh, siempre encuentra la manera.","Cada jugador destruye 1 carta, Organix si es posible.","Pierde 1 carta colocada por jugador.
 ","","Done","Daniel"
-"16","Infestación","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm16.png","Organix","Antes me gustaban los hongos...","Los sectores con cualquier Organix no pueden optimizarse.","Voltea 1 carta colocada boca abajo a boca arriba por jugador.","","Done","Daniel"
+"16","Infestación","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm16.png","Organix","Antes me gustaban los hongos...","Los sectores con cualquier Organix no pueden optimizarse.","Voltea boca abajo 1 carta colocada boca arriba por jugador.","","Done","Daniel"
 "17","Virus Vegetal","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm17.png","Organix","Los cultivos yacen podridos en los pasillos.","No ganes Organix al final de una generación.
 ","Ten 3 o más cartas Organix en 1 sector.","","Done","Daniel"
 "18","Patógeno Alienígena","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm18.png","Organix","Un sabor desconocido.","Las cartas Organix cuestan +2.","Voltea boca abajo una carta colocada boca arriba con 3+⭐.","","Done","Daniel"
@@ -46,7 +46,7 @@ sector con menos cartas.","Destruye 1 expedición en cualquier sector.
 ","","Done","Daniel"
 "27","IA Rebelde","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm27.png","Thrrust","¿Te gustaría jugar un juego?","Todas las cartas cuestan +1.","Descarta 2 cartas Electrix y/o Thrust por jugador.","","Done","Daniel"
 "28","Barbarie","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm28.png","Thrrust","¡Solo la gentrificación puede ayudar!","No puedes colocar ni reciclar Thrust.","Completa un sector Electrix o Thrust.","","Done","Daniel"
-"29","Bolsillo de Dimensión Superior","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm29.png","Thrrust","Y pensabas que 3 cuerpos ya eran un problema.","Cada jugador pasa sus
+"29","Bolsillo Dimensional","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm29.png","Thrrust","Y pensabas que 3 cuerpos ya eran un problema.","Cada jugador pasa sus
 cartas a la izquierda.","Descarta 1 carta de cada color.","","Done","Daniel"
 "30","Agujero de Gusano Inestable","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm30.png","Thrrust","Esto succiona de verdad.","Cada jugador descarta 3 cartas.","Cualquier jugador no tiene cartas en mano.
 ","","Done","Daniel"
