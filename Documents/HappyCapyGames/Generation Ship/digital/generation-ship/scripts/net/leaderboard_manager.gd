@@ -95,7 +95,14 @@ func _run_pending() -> void:
 		_pending_download = false
 		Steam.downloadLeaderboardEntries(1, TOP_COUNT, Steam.LEADERBOARD_DATA_REQUEST_GLOBAL, _leaderboard_handle)
 
+# GodotSteam broadcasts every leaderboard callback to every listener, and
+# TranslationVotes uses leaderboards too — so only react to results for our
+# own board (by name on find, by handle on upload/download).
 func _on_leaderboard_find_result(leaderboard_handle: int, found: int) -> void:
+	if not _finding:
+		return
+	if found != 0 and Steam.getLeaderboardName(leaderboard_handle) != LEADERBOARD_NAME:
+		return
 	_finding = false
 	if found == 0:
 		push_warning("LeaderboardManager: could not find/create leaderboard '%s'." % LEADERBOARD_NAME)
@@ -108,10 +115,14 @@ func _on_leaderboard_find_result(leaderboard_handle: int, found: int) -> void:
 	_leaderboard_handle = leaderboard_handle
 	_run_pending()
 
-func _on_leaderboard_score_uploaded(success: bool, _this_handle: int, _this_score: Dictionary) -> void:
+func _on_leaderboard_score_uploaded(success: bool, this_handle: int, _this_score: Dictionary) -> void:
+	if this_handle != _leaderboard_handle:
+		return
 	score_uploaded.emit(success)
 
-func _on_leaderboard_scores_downloaded(_message: String, _this_handle: int, leaderboard_entries: Array) -> void:
+func _on_leaderboard_scores_downloaded(_message: String, this_handle: int, leaderboard_entries: Array) -> void:
+	if this_handle != _leaderboard_handle:
+		return
 	var entries: Array[Dictionary] = []
 	for e: Dictionary in leaderboard_entries:
 		entries.append(e)

@@ -66,6 +66,15 @@ var _enlarge_left: TextureRect = null
 var _enlarge_right: TextureRect = null
 var _enlarge_left_label: Label = null
 var _enlarge_right_label: Label = null
+# Community translation vote under the translated (right-hand) close-up —
+# see TranslationVotes. Hidden for English and when Steam isn't running.
+const _VOTE_ROW_HEIGHT: float = 40.0
+const _VOTE_UP_COLOR: Color = Color(0.45, 1.0, 0.55)
+const _VOTE_DOWN_COLOR: Color = Color(1.0, 0.45, 0.45)
+var _vote_row: HBoxContainer = null
+var _vote_up_btn: Button = null
+var _vote_down_btn: Button = null
+var _vote_key: String = ""
 var _thumb_tweens: Dictionary = {}   # TextureRect -> Tween, so a re-hover kills the fade-out mid-flight
 var _tr_targets: Dictionary = {}   # Control (Label/Button) -> untranslated key, refreshed on locale change
 
@@ -84,6 +93,9 @@ func refresh_locale_text() -> void:
 	for ctrl: Control in _tr_targets:
 		if is_instance_valid(ctrl):
 			ctrl.text = tr(_tr_targets[ctrl] as String)
+	if _vote_up_btn:
+		_vote_up_btn.tooltip_text = tr("Good translation")
+		_vote_down_btn.tooltip_text = tr("Needs work")
 
 func open() -> void:
 	_hide_enlarged()
@@ -192,6 +204,77 @@ func _build_ui() -> void:
 	add_child(_enlarge_left_label)
 	_enlarge_right_label = _make_enlarge_label()
 	add_child(_enlarge_right_label)
+	_build_vote_row()
+
+func _build_vote_row() -> void:
+	_vote_row = HBoxContainer.new()
+	_vote_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_vote_row.add_theme_constant_override("separation", 8)
+	_vote_row.anchor_left = 0.5
+	_vote_row.anchor_right = 0.5
+	_vote_row.anchor_top = 0.5
+	_vote_row.anchor_bottom = 0.5
+	_vote_row.visible = false
+	add_child(_vote_row)
+
+	var caption: Label = Label.new()
+	caption.text = tr("Rate translation:")
+	_tr_targets[caption] = "Rate translation:"
+	caption.add_theme_font_size_override("font_size", 13)
+	caption.add_theme_color_override("font_color", Color(0.7, 0.75, 0.85))
+	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_vote_row.add_child(caption)
+
+	_vote_up_btn = _make_button("▲")
+	_vote_up_btn.tooltip_text = tr("Good translation")
+	_vote_up_btn.custom_minimum_size = Vector2(70, 0)
+	_vote_up_btn.pressed.connect(_on_vote_pressed.bind(1))
+	_vote_row.add_child(_vote_up_btn)
+
+	_vote_down_btn = _make_button("▼")
+	_vote_down_btn.tooltip_text = tr("Needs work")
+	_vote_down_btn.custom_minimum_size = Vector2(70, 0)
+	_vote_down_btn.pressed.connect(_on_vote_pressed.bind(-1))
+	_vote_row.add_child(_vote_down_btn)
+
+	TranslationVotes.votes_ready.connect(_on_votes_ready)
+
+func _show_vote_row(folder: String, fname: String, under: TextureRect) -> void:
+	var lang: String = _current_lang()
+	if lang == "EN" or not TranslationVotes.is_available():
+		_vote_row.visible = false
+		_vote_key = ""
+		return
+	_vote_key = TranslationVotes.board_name(lang, folder, fname)
+	_vote_row.offset_left = under.offset_left
+	_vote_row.offset_right = under.offset_right
+	_vote_row.offset_top = under.offset_bottom + 8.0
+	_vote_row.offset_bottom = _vote_row.offset_top + _VOTE_ROW_HEIGHT
+	var c: Dictionary = TranslationVotes.cached(_vote_key)
+	if c.is_empty():
+		_set_vote_display(-1, -1, 0)
+	else:
+		_set_vote_display(int(c.up), int(c.down), int(c.mine))
+	_vote_row.visible = true
+	TranslationVotes.fetch(_vote_key)
+
+# up/down -1 = not loaded yet.
+func _set_vote_display(up: int, down: int, mine: int) -> void:
+	_vote_up_btn.text = "▲ " + ("…" if up < 0 else str(up))
+	_vote_down_btn.text = "▼ " + ("…" if down < 0 else str(down))
+	_vote_up_btn.modulate = _VOTE_UP_COLOR if mine > 0 else Color.WHITE
+	_vote_down_btn.modulate = _VOTE_DOWN_COLOR if mine < 0 else Color.WHITE
+
+func _on_votes_ready(key: String, up: int, down: int, mine: int) -> void:
+	if key == _vote_key and _vote_row.visible:
+		_set_vote_display(up, down, mine)
+
+# Clicking your current vote again retracts it.
+func _on_vote_pressed(value: int) -> void:
+	if _vote_key.is_empty():
+		return
+	var mine: int = int(TranslationVotes.cached(_vote_key).get("mine", 0))
+	TranslationVotes.vote(_vote_key, 0 if mine == value else value)
 
 func _make_enlarge_rect() -> TextureRect:
 	var rect: TextureRect = TextureRect.new()
@@ -308,6 +391,9 @@ func _show_enlarged(entry: Dictionary, landscape: bool) -> void:
 		_enlarge_left.visible = true
 		_enlarge_right.visible = false
 		_enlarge_right_label.visible = false
+		# English (or art missing in this language): nothing translated to rate.
+		_vote_row.visible = false
+		_vote_key = ""
 	else:
 		var half_gap: float = _ENLARGE_GAP / 2.0
 		_position_enlarge(_enlarge_left, _enlarge_left_label, sz, Vector2(-sz.x / 2.0 - half_gap, 0.0), "EN")
@@ -316,6 +402,7 @@ func _show_enlarged(entry: Dictionary, landscape: bool) -> void:
 		_enlarge_right.texture = load(current_path) as Texture2D
 		_enlarge_left.visible = true
 		_enlarge_right.visible = true
+		_show_vote_row(folder, fname, _enlarge_right)
 
 func _position_enlarge(rect: TextureRect, lbl: Label, sz: Vector2, center: Vector2, label_text: String) -> void:
 	rect.offset_left = center.x - sz.x / 2.0
@@ -347,6 +434,9 @@ func _hide_enlarged() -> void:
 	_enlarge_right.visible = false
 	_enlarge_left_label.visible = false
 	_enlarge_right_label.visible = false
+	if _vote_row:
+		_vote_row.visible = false
+		_vote_key = ""
 
 func _current_lang() -> String:
 	var cfg: ConfigFile = ConfigFile.new()

@@ -26,6 +26,7 @@ driver/mix_rate=48000
 
 SteamManager="*res://scripts/net/steam_manager.gd"
 LeaderboardManager="*res://scripts/net/leaderboard_manager.gd"
+TranslationVotes="*res://scripts/net/translation_votes.gd"
 CardDatabase="*res://scripts/game/card_database.gd"
 ImageCache="*res://scripts/image_cache.gd"
 CursorManager="*res://scripts/cursor_manager.gd"
