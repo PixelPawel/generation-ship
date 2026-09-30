@@ -71,7 +71,9 @@ def write_if_changed(path: str, data: bytes, dry: bool) -> bool:
 
 def main() -> None:
     dry = "--dry-run" in sys.argv
-    copied = rewritten = removed = 0
+    copied = rewritten = 0
+    removed: list[str] = []
+    overwritten: list[str] = []  # existed in the copy with different content
     seen: set[str] = set()
     for d, dirs, files in os.walk(SRC):
         rel_dir = os.path.relpath(d, SRC).replace(os.sep, "/")
@@ -90,6 +92,8 @@ def main() -> None:
                     rewritten += 1
             elif not os.path.exists(dst) or not filecmp.cmp(src, dst, shallow=True):
                 copied += 1
+                if os.path.exists(dst) and not filecmp.cmp(src, dst, shallow=False):
+                    overwritten.append(rel)
                 if not dry:
                     os.makedirs(os.path.dirname(dst), exist_ok=True)
                     shutil.copy2(src, dst)
@@ -100,20 +104,28 @@ def main() -> None:
             with open(src, "rb") as f:
                 if write_if_changed(os.path.join(DST, rel), f.read(), dry):
                     copied += 1
-    # Remove files deleted from the main project (never touches skipped paths).
+    # Remove files deleted from the main project. Never touches skipped paths
+    # or android/ (Godot writes export-time files there in the copy).
     if os.path.isdir(DST):
         for d, dirs, files in os.walk(DST):
             rel_dir = os.path.relpath(d, DST).replace(os.sep, "/")
             rel_dir = "" if rel_dir == "." else rel_dir + "/"
-            dirs[:] = [x for x in dirs if not skipped(rel_dir + x + "/")]
+            dirs[:] = [x for x in dirs if not skipped(rel_dir + x + "/") and rel_dir + x != "android"]
             for name in files:
                 rel = rel_dir + name
                 if rel not in seen and not skipped(rel):
-                    removed += 1
+                    removed.append(rel)
                     if not dry:
                         os.remove(os.path.join(d, name))
     verb = "would be" if dry else "were"
-    print(f"{DST}\n  {copied} files {verb} copied, {rewritten} image imports {verb} rewritten, {removed} {verb} removed")
+    print(f"{DST}\n  {copied} files {verb} copied, {rewritten} image imports {verb} rewritten, {len(removed)} {verb} removed")
+    for label, paths in (("overwritten (changed in the copy)", overwritten), ("removed (only in the copy)", removed)):
+        if paths:
+            print(f"  {label}:")
+            for p in paths[:40]:
+                print("    " + p)
+            if len(paths) > 40:
+                print(f"    ... and {len(paths) - 40} more")
 
 
 if __name__ == "__main__":
