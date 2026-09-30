@@ -26,8 +26,12 @@ VOTER_RE = re.compile(r"^(steam:\d{5,20}|dev:[A-Za-z0-9-]{16,64})$")
 MAX_KEYS_PER_QUERY = 50
 WRITES_PER_MINUTE = 30  # per client IP
 
-app = FastAPI(title="Happy Capy Games API", version="1.0")
+app = FastAPI(title="Happy Capy Games API", version="1.1")
 _db_lock = threading.Lock()
+
+from .relay import router as relay_router  # noqa: E402  (online rooms + WebSocket relay)
+
+app.include_router(relay_router)
 
 
 @contextmanager

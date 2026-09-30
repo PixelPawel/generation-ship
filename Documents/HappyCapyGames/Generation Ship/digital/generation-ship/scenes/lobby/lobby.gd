@@ -8,12 +8,15 @@ const MAX_PLAYERS: int = 4
 const SETTINGS_PATH: String = "user://settings.cfg"
 const LOBBY_REFRESH_INTERVAL: float = 5.0
 const BOT_NAMES: Array[String] = ["Rusty", "Circuit", "Quantum"]  # Easy, Normal, Hard — proper nouns, not translated; original names, not references to copyrighted characters/products
+# Online rooms live on the Happy Capy Games server (digital/server/app/relay.py),
+# shared by Steam and Android players. Only rooms of the same game version
+# are listed/joinable.
+const ROOMS_URL: String = "https://api.happycapygames.com/v1/rooms"
 
 var _player_name: String = ""
 var _players: Dictionary = {}      # peer_id (int) -> name (String)
 var _preload_done: bool = false
 var _players_ready: Dictionary = {}   # peer_id (int) -> true, tracked on host only
-var _steam_lobby_id: int = 0
 var _lobby_refresh_timer: float = 0.0
 var _is_host: bool = false
 var _spinner_active: bool = false
@@ -25,9 +28,12 @@ var _add_bot_btn: Button = null
 var _remove_bot_btn: Button = null
 var _diff_btn: OptionButton = null
 var _bot_difficulties: Dictionary = {}   # bot_id → int (BotAI.Difficulty)
-var _cached_lobbies: Array[int] = []
-var _pending_password: String = ""
-var _pending_join_lobby_id: int = 0
+var _rooms: Array[Dictionary] = []   # from the server: {code, name, players, max_players, locked}
+var _rooms_http: HTTPRequest = null
+var _relay: RelayMultiplayerPeer = null
+var _hosting_pending: bool = false   # waiting for the server to confirm our new room
+var _room_code: String = ""
+var _pending_join_code: String = ""
 var _password_prompt: Control = null
 var _password_prompt_input: LineEdit = null
 var _password_prompt_error: Label = null
@@ -49,11 +55,15 @@ const _SPINNER_FRAMES: Array[String] = [
 @onready var _game_list: ItemList = $LobbyPanel/GameList
 @onready var _join_selected_btn: Button = $LobbyPanel/JoinSelectedBtn
 @onready var _status_label: Label = $LobbyPanel/StatusLabel
+@onready var _code_input: LineEdit = $LobbyPanel/DirectRow/IPInput
+@onready var _code_join_btn: Button = $LobbyPanel/DirectRow/DirectJoinBtn
 
 @onready var _staging_panel: Control = $StagingPanel
 @onready var _staging_player_list: Label = $StagingPanel/VBox/PlayerList
 @onready var _staging_start_btn: Button = $StagingPanel/VBox/StartBtn
 @onready var _staging_ip_row: HBoxContainer = $StagingPanel/VBox/IPRow
+@onready var _staging_code_label: Label = $StagingPanel/VBox/IPRow/IPLabel
+@onready var _staging_copy_btn: Button = $StagingPanel/VBox/IPRow/CopyIPBtn
 
 func _ready() -> void:
 	theme = GameTheme.get_theme()
@@ -62,12 +72,22 @@ func _ready() -> void:
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
 	multiplayer.connection_failed.connect(_on_connection_failed)
-	Steam.lobby_created.connect(_on_lobby_created)
-	Steam.lobby_match_list.connect(_on_lobby_match_list)
-	Steam.lobby_joined.connect(_on_lobby_entered)
-	Steam.join_requested.connect(_on_lobby_join_requested)
+	_rooms_http = HTTPRequest.new()
+	_rooms_http.timeout = 10.0
+	_rooms_http.request_completed.connect(_on_rooms_received)
+	add_child(_rooms_http)
+	# Repurpose the scene's old Steam/LAN-era widgets for online rooms.
+	($LobbyPanel/GamesRow/GamesLabel as Label).text = tr("Online Games:")
+	_friends_only_check.visible = false   # no friends list outside Steam
+	($StagingPanel/VBox/InviteBtn as Control).visible = false   # the room code replaces Steam invites
+	_code_input.text = ""
+	_code_input.placeholder_text = tr("Room code…")
+	_code_input.max_length = 6
+	_code_input.text_submitted.connect(func(_t: String) -> void: _on_join_pressed())
+	_code_join_btn.text = tr("Join Code")
+	_staging_copy_btn.text = tr("Copy Code")
+	($LobbyPanel/DirectRow as Control).visible = true
 	_staging_ip_row.visible = false
-	($LobbyPanel/DirectRow as Control).visible = false
 	_manual = load("res://scenes/ui/manual_popup.gd").new()
 	add_child(_manual)
 	_chat_panel = load("res://scenes/ui/chat_panel.gd").new()
@@ -95,6 +115,9 @@ func _show_staging() -> void:
 	_lobby_panel.visible = false
 	_staging_panel.visible = true
 	_staging_start_btn.visible = multiplayer.is_server()
+	# Room code (online games only) so friends can join directly.
+	_staging_ip_row.visible = not _room_code.is_empty()
+	_staging_code_label.text = tr("Room code: %s") % _room_code
 	_preload_done = false
 	_players_ready.clear()
 	_refresh_player_list()
@@ -152,119 +175,95 @@ func _show_lobby() -> void:
 	_set_controls_locked(false)
 	_lobby_refresh_timer = 0.0
 	_is_host = false
+	_room_code = ""
 	lobby_view_requested.emit()
 
-# ── Lobby list ────────────────────────────────────────────────────────────────
+# ── Room list ─────────────────────────────────────────────────────────────────
 
 func _request_lobby_list() -> void:
-	if not SteamManager.is_initialized:
-		return
-	Steam.addRequestLobbyListDistanceFilter(Steam.LOBBY_DISTANCE_FILTER_WORLDWIDE)
-	Steam.addRequestLobbyListStringFilter("game", "generation_ship", Steam.LOBBY_COMPARISON_EQUAL)
-	Steam.requestLobbyList()
+	if _rooms_http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+		return   # previous request still running
+	_rooms_http.request(ROOMS_URL + "?version=" + _game_version().uri_encode())
 
-func _on_lobby_match_list(lobbies: Array) -> void:
-	_cached_lobbies = []
-	for entry: Variant in lobbies:
-		_cached_lobbies.append(int(entry))
-	_set_status(tr("Found %d lobbies") % _cached_lobbies.size())
+func _on_rooms_received(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+		_rooms = []
+		_rebuild_game_list()
+		_set_status(tr("Can't reach the online server — you can still host a game with bots."))
+		return
+	var data: Variant = JSON.parse_string(body.get_string_from_utf8())
+	_rooms = []
+	if typeof(data) == TYPE_DICTIONARY and typeof(data.get("rooms")) == TYPE_ARRAY:
+		for r: Variant in data["rooms"]:
+			if typeof(r) == TYPE_DICTIONARY:
+				_rooms.append(r as Dictionary)
+	if not _spinner_active:
+		_set_status(tr("Found %d lobbies") % _rooms.size())
 	_rebuild_game_list()
 
-# Re-applies the two filter checkboxes to the lobby list already fetched by
-# _on_lobby_match_list, without a fresh Steam request — both filters only
-# need data Steam already cached locally from that same search (lobby data
-# and member lists are available for any listed lobby, not just ones we've
-# joined), so toggling a checkbox can re-filter instantly.
+# Re-applies the password filter to the room list already fetched, without a
+# fresh request, so toggling the checkbox filters instantly.
 func _rebuild_game_list() -> void:
-	var prev_selected: int = 0
+	var prev_selected: String = ""
 	var sel: PackedInt32Array = _game_list.get_selected_items()
 	if not sel.is_empty():
-		prev_selected = int(_game_list.get_item_metadata(sel[0]))
+		prev_selected = str(_game_list.get_item_metadata(sel[0]))
 	_game_list.clear()
-	for lobby_id: int in _cached_lobbies:
-		var has_password: bool = Steam.getLobbyData(lobby_id, "has_password") == "1"
-		if _password_only_check.button_pressed and not has_password:
+	for room: Dictionary in _rooms:
+		var locked: bool = bool(room.get("locked", false))
+		if _password_only_check.button_pressed and not locked:
 			continue
-		if _friends_only_check.button_pressed and not _lobby_has_friend(lobby_id):
-			continue
-		var host_name: String = Steam.getLobbyData(lobby_id, "host_name")
+		var host_name: String = str(room.get("name", ""))
 		if host_name.is_empty():
 			host_name = tr("Unknown")
-		var member_count: int = Steam.getNumLobbyMembers(lobby_id)
-		var member_limit: int = Steam.getLobbyMemberLimit(lobby_id)
-		var label: String = "%s  (%d/%d)" % [host_name, member_count, member_limit]
-		if has_password:
+		var label: String = "%s  (%d/%d)" % [host_name, int(room.get("players", 1)), int(room.get("max_players", MAX_PLAYERS))]
+		if locked:
 			label = tr("[Locked] ") + label
+		var room_code: String = str(room.get("code", ""))
 		_game_list.add_item(label)
-		_game_list.set_item_metadata(_game_list.item_count - 1, lobby_id)
-		if lobby_id == prev_selected:
+		_game_list.set_item_metadata(_game_list.item_count - 1, room_code)
+		if room_code == prev_selected:
 			_game_list.select(_game_list.item_count - 1)
 
 func _on_filter_toggled(_toggled_on: bool) -> void:
 	_rebuild_game_list()
 
-# True if any current member of this (not-necessarily-joined) lobby is one
-# of the local player's Steam friends — Steam caches member lists for
-# listed lobbies, same as it caches their lobby data, so this works from
-# the browser list without actually joining first.
-func _lobby_has_friend(lobby_id: int) -> bool:
-	var member_count: int = Steam.getNumLobbyMembers(lobby_id)
-	for i: int in member_count:
-		var member_id: int = Steam.getLobbyMemberByIndex(lobby_id, i)
-		if Steam.hasFriend(member_id, Steam.FRIEND_FLAG_IMMEDIATE):
-			return true
-	return false
-
 # ── Hosting ───────────────────────────────────────────────────────────────────
 
 func _on_host_pressed() -> void:
 	_player_name = _read_name()
-	if not SteamManager.is_initialized:
-		# No Steam session to host a real lobby through (Android, or Steam
-		# unavailable on desktop) — go straight to a local solo session
-		# instead, leaving multiplayer.multiplayer_peer at its default
-		# (Godot's own offline placeholder peer). is_server() is true in
-		# that state and @rpc-annotated calls just resolve locally, so the
-		# bot-staging/start flow below works unchanged with no real
-		# networking involved. Verified via a headless test forcing
-		# SteamManager.is_initialized false.
-		_is_host = true
-		_players[1] = _player_name
-		_show_staging()
+	_relay = RelayMultiplayerPeer.new()
+	if _relay.create_host(_player_name, _password_input.text.strip_edges(), MAX_PLAYERS, _game_version()) != OK:
+		_start_offline_host()
 		return
-	_pending_password = _password_input.text.strip_edges()
+	_relay.room_ready.connect(_on_room_ready)
+	multiplayer.multiplayer_peer = _relay
+	_hosting_pending = true
 	_set_controls_locked(true)
 	_spinner_active = true
 	_spinner_time = 0.0
-	Steam.createLobby(Steam.LOBBY_TYPE_PUBLIC, MAX_PLAYERS)
 
-func _on_lobby_created(connect_result: int, lobby_id: int) -> void:
+func _on_room_ready(code: String) -> void:
+	_hosting_pending = false
 	_spinner_active = false
-	if connect_result != 1:
-		_set_status(tr("Failed to create lobby."))
-		_set_controls_locked(false)
-		return
-	_steam_lobby_id = lobby_id
-	Steam.setLobbyData(lobby_id, "game", "generation_ship")
-	Steam.setLobbyData(lobby_id, "host_name", _player_name)
-	var has_password: bool = not _pending_password.is_empty()
-	Steam.setLobbyData(lobby_id, "has_password", "1" if has_password else "0")
-	if has_password:
-		# Not real cryptographic protection (SHA-256 is fast to brute-force
-		# and this is public lobby data anyone browsing can read) — just
-		# enough to keep the password itself off the wire and out of the
-		# lobby list, for a casual "keep randos out" gate, not a secure one.
-		Steam.setLobbyData(lobby_id, "password_hash", _pending_password.sha256_text())
-	_pending_password = ""
-	if not ClassDB.class_exists("SteamMultiplayerPeer"):
-		_set_status(tr("SteamMultiplayerPeer not found — install the GodotSteam MultiplayerPeer addon."))
-		_set_controls_locked(false)
-		return
-	var peer: MultiplayerPeer = ClassDB.instantiate("SteamMultiplayerPeer") as MultiplayerPeer
-	peer.call("create_host", 0)
-	multiplayer.multiplayer_peer = peer
+	_room_code = code
 	_is_host = true
 	_players[1] = _player_name
+	_show_staging()
+
+# Server unreachable (offline, or it's down) — fall back to a local session
+# for playing against bots, leaving multiplayer.multiplayer_peer at Godot's
+# offline placeholder: is_server() is true there and @rpc calls resolve
+# locally, so the staging/start flow below works unchanged.
+func _start_offline_host() -> void:
+	_hosting_pending = false
+	_spinner_active = false
+	_relay = null
+	multiplayer.multiplayer_peer = null
+	_room_code = ""
+	_is_host = true
+	_players[1] = _player_name
+	_set_status(tr("Can't reach the online server — playing offline."))
 	_show_staging()
 
 # ── Joining ───────────────────────────────────────────────────────────────────
@@ -274,16 +273,33 @@ func _on_join_selected_pressed() -> void:
 	if selected.is_empty():
 		_set_status(tr("Select a game from the list first."))
 		return
-	var lobby_id: int = int(_game_list.get_item_metadata(selected[0]))
-	if Steam.getLobbyData(lobby_id, "has_password") == "1":
-		_show_password_prompt(lobby_id)
-		return
-	_join_lobby(lobby_id)
+	var code: String = str(_game_list.get_item_metadata(selected[0]))
+	for room: Dictionary in _rooms:
+		if str(room.get("code", "")) == code and bool(room.get("locked", false)):
+			_show_password_prompt(code, false)
+			return
+	_join_room(code, "")
 
-func _join_lobby(lobby_id: int) -> void:
+# "Join Code" (typed room code from a friend). If the room has a password the
+# server answers wrong_password and the prompt opens from there.
+func _on_join_pressed() -> void:
+	var code: String = _code_input.text.strip_edges().to_upper()
+	if code.length() != 6:
+		_set_status(tr("Room codes have 6 characters."))
+		return
+	_join_room(code, "")
+
+func _join_room(code: String, password: String) -> void:
+	_player_name = _read_name()
+	_pending_join_code = code
+	_relay = RelayMultiplayerPeer.new()
+	if _relay.create_client(code, _player_name, password, _game_version()) != OK:
+		_relay = null
+		_set_status(tr("Can't reach the online server."))
+		return
+	multiplayer.multiplayer_peer = _relay
 	_set_controls_locked(true)
 	_set_status(tr("Joining lobby…"))
-	Steam.joinLobby(lobby_id)
 
 # ── Password prompt ───────────────────────────────────────────────────────────
 
@@ -349,61 +365,33 @@ func _build_password_prompt() -> void:
 	cancel_btn.pressed.connect(_on_password_cancel_pressed)
 	btn_row.add_child(cancel_btn)
 
-func _show_password_prompt(lobby_id: int) -> void:
-	_pending_join_lobby_id = lobby_id
+func _show_password_prompt(code: String, show_error: bool) -> void:
+	_pending_join_code = code
 	_password_prompt_input.text = ""
-	_password_prompt_error.visible = false
+	_password_prompt_error.visible = show_error
 	_password_prompt.visible = true
 	_password_prompt_input.grab_focus()
 
+# The server checks the password; a wrong one comes back as a failed join
+# (see _on_connection_failed), which reopens this prompt with the error.
 func _on_password_confirm_pressed() -> void:
-	var expected_hash: String = Steam.getLobbyData(_pending_join_lobby_id, "password_hash")
-	if _password_prompt_input.text.sha256_text() != expected_hash:
-		_password_prompt_error.visible = true
-		return
 	_password_prompt.visible = false
-	_join_lobby(_pending_join_lobby_id)
+	_join_room(_pending_join_code, _password_prompt_input.text)
 
 func _on_password_cancel_pressed() -> void:
 	_password_prompt.visible = false
-	_pending_join_lobby_id = 0
-
-func _on_lobby_entered(lobby_id: int, _permissions: int, _locked: bool, response: int) -> void:
-	if response != Steam.CHAT_ROOM_ENTER_RESPONSE_SUCCESS:
-		_set_status(tr("Failed to join lobby."))
-		_set_controls_locked(false)
-		return
-	_steam_lobby_id = lobby_id
-	if _is_host:
-		return
-	if not ClassDB.class_exists("SteamMultiplayerPeer"):
-		_set_status(tr("SteamMultiplayerPeer not found — install the GodotSteam MultiplayerPeer addon."))
-		_set_controls_locked(false)
-		return
-	var host_steam_id: int = Steam.getLobbyOwner(lobby_id)
-	var peer: MultiplayerPeer = ClassDB.instantiate("SteamMultiplayerPeer") as MultiplayerPeer
-	peer.call("create_client", host_steam_id, 0)
-	multiplayer.multiplayer_peer = peer
-	_set_status(tr("Connecting…"))
-
-func _on_lobby_join_requested(lobby_id: int, _steam_id: int) -> void:
-	_set_controls_locked(true)
-	_set_status(tr("Joining lobby…"))
-	Steam.joinLobby(lobby_id)
+	_pending_join_code = ""
 
 # ── Start / Leave / Back ──────────────────────────────────────────────────────
 
 func _on_start_pressed() -> void:
 	if multiplayer.is_server():
+		if _relay:
+			_relay.mark_started()
 		_rpc_load_game.rpc()
 
 func _on_leave_pressed() -> void:
-	if _steam_lobby_id > 0:
-		Steam.leaveLobby(_steam_lobby_id)
-		_steam_lobby_id = 0
-	if multiplayer.multiplayer_peer:
-		multiplayer.multiplayer_peer.close()
-		multiplayer.multiplayer_peer = null
+	_close_connection()
 	_players.clear()
 	_bot_count = 0
 	if is_instance_valid(_bot_row):
@@ -419,17 +407,33 @@ func _on_rule_book_pressed() -> void:
 	_manual.open()
 
 func _on_back_pressed() -> void:
-	if _steam_lobby_id > 0:
-		Steam.leaveLobby(_steam_lobby_id)
-		_steam_lobby_id = 0
-	if multiplayer.multiplayer_peer:
-		multiplayer.multiplayer_peer.close()
-		multiplayer.multiplayer_peer = null
+	_close_connection()
 	ChatManager.clear_history()
 	if back_requested.get_connections().size() > 0:
 		back_requested.emit()
 	else:
 		SceneTransition.change_scene("res://scenes/main_menu/main_menu.tscn")
+
+func _close_connection() -> void:
+	_hosting_pending = false
+	_spinner_active = false
+	if multiplayer.multiplayer_peer:
+		multiplayer.multiplayer_peer.close()
+		multiplayer.multiplayer_peer = null
+	_relay = null
+	_room_code = ""
+
+# InviteBtn (Steam overlay invites) is hidden since online rooms replaced
+# Steam lobbies — the room code is how friends join now. Kept because the
+# scene still connects the button's signal here.
+func _on_invite_pressed() -> void:
+	pass
+
+func _on_copy_ip_pressed() -> void:
+	if _room_code.is_empty():
+		return
+	DisplayServer.clipboard_set(_room_code)
+	_staging_code_label.text = tr("Room code: %s (copied)") % _room_code
 
 # ── Multiplayer signals ───────────────────────────────────────────────────────
 
@@ -437,10 +441,34 @@ func _on_peer_connected(_id: int) -> void:
 	pass
 
 func _on_connection_failed() -> void:
-	_set_status(tr("Connection to host failed."))
-	_set_controls_locked(false)
+	var reason: String = _relay.error_reason if _relay else ""
+	if _hosting_pending:
+		# Couldn't create an online room — still let them play with bots.
+		_start_offline_host()
+		return
 	multiplayer.multiplayer_peer = null
+	_relay = null
 	_is_host = false
+	_set_controls_locked(false)
+	if reason == "wrong_password":
+		_show_password_prompt(_pending_join_code, _password_prompt_input.text != "")
+		_set_status("")
+		return
+	_set_status(_join_error_text(reason))
+
+func _join_error_text(reason: String) -> String:
+	match reason:
+		"not_found":
+			return tr("No game with that room code.")
+		"full":
+			return tr("That game is full.")
+		"already_started":
+			return tr("That game has already started.")
+		"version_mismatch":
+			return tr("That game uses a different game version.")
+		"unreachable":
+			return tr("Can't reach the online server.")
+	return tr("Connection to host failed.")
 
 func _on_peer_disconnected(id: int) -> void:
 	_players.erase(id)
@@ -450,6 +478,7 @@ func _on_peer_disconnected(id: int) -> void:
 	_refresh_player_list()
 
 func _on_connected_to_server() -> void:
+	_room_code = _relay.room_code if _relay else ""
 	_player_name = _read_name()
 	_rpc_register.rpc_id(1, _player_name)
 	_show_staging()
@@ -457,10 +486,8 @@ func _on_connected_to_server() -> void:
 func _on_server_disconnected() -> void:
 	_set_status(tr("Lost connection to host."))
 	_players.clear()
-	if _steam_lobby_id > 0:
-		Steam.leaveLobby(_steam_lobby_id)
-		_steam_lobby_id = 0
 	multiplayer.multiplayer_peer = null
+	_relay = null
 	ChatManager.clear_history()
 	_show_lobby()
 
@@ -488,9 +515,6 @@ func _rpc_sync_players(players: Dictionary) -> void:
 
 @rpc("authority", "reliable", "call_local")
 func _rpc_load_game() -> void:
-	if _steam_lobby_id > 0:
-		Steam.leaveLobby(_steam_lobby_id)
-		_steam_lobby_id = 0
 	var real_ids: Array[int] = []
 	var bot_ids_local: Array[int] = []
 	for k: Variant in _players.keys():
@@ -560,6 +584,10 @@ func _refresh_player_list() -> void:
 		_add_bot_btn.disabled = _players.size() >= MAX_PLAYERS
 	if _remove_bot_btn:
 		_remove_bot_btn.disabled = not has_any_bot
+	# Keep the room list's player count (incl. bots) up to date, which is also
+	# what the server uses to refuse joins once the room is full.
+	if _relay and multiplayer.is_server():
+		_relay.report_player_count(_players.size())
 
 func _set_status(msg: String) -> void:
 	_status_label.text = msg
@@ -567,6 +595,7 @@ func _set_status(msg: String) -> void:
 func _set_controls_locked(locked: bool) -> void:
 	_host_btn.disabled = locked
 	_join_selected_btn.disabled = locked
+	_code_join_btn.disabled = locked
 	_game_list.mouse_filter = Control.MOUSE_FILTER_IGNORE if locked else Control.MOUSE_FILTER_STOP
 
 func _read_name() -> String:
@@ -582,23 +611,14 @@ func _save_name(n: String) -> void:
 	cfg.set_value("player", "name", n)
 	cfg.save(SETTINGS_PATH)
 
+# Only rooms of the exact same game version can see/join each other, so a
+# Steam and an Android build must be on the same version to play together.
+func _game_version() -> String:
+	return str(ProjectSettings.get_setting("application/config/version", "0"))
+
 func _on_refresh_pressed() -> void:
 	_request_lobby_list()
 	_lobby_refresh_timer = LOBBY_REFRESH_INTERVAL
-
-func _on_invite_pressed() -> void:
-	if _steam_lobby_id <= 0:
-		return
-	# activateGameOverlayInviteDialog silently no-ops whenever the Steam
-	# overlay itself can't render — the player disabled it in their Steam
-	# client settings, or (a GodotSteam/Vulkan limitation, not fixable here)
-	# the game is running from the Godot editor instead of a real Steam
-	# launch. Either way "nothing happens" with zero feedback is the worst
-	# outcome, so surface it instead of failing silently.
-	if not Steam.isOverlayEnabled():
-		_set_status(tr("Steam overlay is disabled — enable it in Steam's settings to invite friends."))
-		return
-	Steam.activateGameOverlayInviteDialog(_steam_lobby_id)
 
 func _load_saved_name() -> void:
 	var cfg: ConfigFile = ConfigFile.new()

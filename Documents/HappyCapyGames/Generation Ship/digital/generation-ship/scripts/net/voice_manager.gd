@@ -67,8 +67,13 @@ func _setup_capture() -> void:
 	_mic_player.bus = CAPTURE_BUS_NAME
 	add_child(_mic_player)
 
+# Voice is off in online (relay) rooms for now: raw PCM through our own
+# server would cost ~30 KB/s per speaker. Text chat still works there.
+func is_available() -> bool:
+	return multiplayer.multiplayer_peer != null and not (multiplayer.multiplayer_peer is RelayMultiplayerPeer)
+
 func _process(_delta: float) -> void:
-	if not multiplayer.multiplayer_peer or not voice_enabled:
+	if not is_available() or not voice_enabled:
 		if _recording:
 			_stop_recording()
 	else:
