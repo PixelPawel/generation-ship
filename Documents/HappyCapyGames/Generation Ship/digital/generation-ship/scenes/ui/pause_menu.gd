@@ -197,6 +197,12 @@ func _build_settings_panel() -> void:
 	_refresh_monitor_items()
 	mon_row.add_child(_monitor_option)
 
+	# Phones are always fullscreen on their one screen (the Android export
+	# sets immersive mode) — resolution/monitor choices don't apply there.
+	if OS.has_feature("mobile"):
+		res_row.visible = false
+		mon_row.visible = false
+
 	var shake_row := HBoxContainer.new()
 	shake_row.add_theme_constant_override("separation", 10)
 	vbox.add_child(shake_row)
@@ -590,6 +596,8 @@ func _on_resolution_selected(index: int) -> void:
 	_save_settings(index)
 
 func _apply_resolution(index: int) -> void:
+	if OS.has_feature("mobile"):
+		return
 	if index == FULLSCREEN_IDX:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 	else:
@@ -622,6 +630,8 @@ func _on_monitor_selected(index: int) -> void:
 	cfg.save(SETTINGS_PATH)
 
 func _apply_monitor(index: int) -> void:
+	if OS.has_feature("mobile"):
+		return
 	var screen_count: int = DisplayServer.get_screen_count()
 	if index < 0 or index >= screen_count:
 		return
