@@ -96,6 +96,9 @@ var _caldera_slots: Array[SectorSlot] = []
 var _music_player: AudioStreamPlayer = null
 var _pending_store_color: CardData.SupplyColor = CardData.SupplyColor.DUST
 var _pending_store_amount: int = 0
+# store_on_any_sector with from_supply: the stored supply is taken out of the
+# player's supply when the sector is picked (Rich Asteroid), not made up.
+var _pending_store_from_supply: bool = false
 var _pending_tuck_card_data: CardData = null
 var _pending_target_slot: SectorSlot = null
 var _effect_label: String = ""
@@ -233,6 +236,7 @@ func _ready() -> void:
 	$Board.arrow_drag_changed.connect($Hand.set_arrow_drag_active)
 	$Board.set_card_scene(card_scene)
 	$Board.card_recycled.connect(_on_card_recycled)
+	$Board.rich_asteroid_recycled.connect(_offer_rich_asteroid_store)
 	$Board.unplaceable_card_recycled.connect(_on_unplaceable_card_recycled)
 	$Board.recycle_confirm_required.connect(_on_recycle_confirm_required)
 	$Board.setup_sector_deck(CardDatabase.sectors)
@@ -1679,6 +1683,7 @@ func _process_hand_choice(index: int) -> void:
 			var r_amount: int = CardData.recycle_amount(card.card_data)
 			_cs_display.add_supply(color, r_amount)
 			_apply_recycle_bonus(color)
+			_offer_rich_asteroid_store_for(card.card_data, r_amount)
 			$Board.add_to_discard(card.card_data)
 			_recycle_card_to_supply(card, color)
 			_log_effect(tr("recycled %s, gained %d %s") % [recycled_name, r_amount, CardData.color_name(color)])
@@ -1694,6 +1699,7 @@ func _process_hand_choice(index: int) -> void:
 			var ro_amount: int = CardData.recycle_amount(card.card_data)
 			_cs_display.add_supply(color, ro_amount)
 			_apply_recycle_bonus(color)
+			_offer_rich_asteroid_store_for(card.card_data, ro_amount)
 			$Board.add_to_discard(card.card_data)
 			_recycle_card_to_supply(card, color)
 			$Board.draw_cards(1)
@@ -1748,6 +1754,7 @@ func _process_hand_choice(index: int) -> void:
 			var rt_amount: int = CardData.recycle_amount(card.card_data)
 			_cs_display.add_supply(color, rt_amount)
 			_apply_recycle_bonus(color)
+			_offer_rich_asteroid_store_for(card.card_data, rt_amount)
 			if _effect_slot and card.card_data:
 				_effect_slot.add_tucked_card(card.card_data, false)
 			_recycle_card_to_supply(card, color)
@@ -1767,6 +1774,7 @@ func _process_hand_choice(index: int) -> void:
 			var rd_amount: int = 2 * CardData.recycle_amount(card.card_data)
 			_cs_display.add_supply(color, rd_amount)
 			_apply_recycle_bonus(color)
+			_offer_rich_asteroid_store_for(card.card_data, rd_amount)
 			$Board.add_to_discard(card.card_data)
 			_recycle_card_to_supply(card, color)
 			_log_effect(tr("recycled %s, gained %d %s") % [rd_name, rd_amount, CardData.color_name(color)])
@@ -1879,6 +1887,7 @@ func _apply_recycle_optional_multiselect(indices: Array[int]) -> void:
 		var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
 		_cs_display.add_supply(color, CardData.recycle_amount(card.card_data))
 		_apply_recycle_bonus(color)
+		_offer_rich_asteroid_store_for(card.card_data, CardData.recycle_amount(card.card_data))
 		$Board.add_to_discard(card.card_data)
 		_recycle_card_to_supply(card, color)
 		count += 1
@@ -1916,6 +1925,7 @@ func _apply_recycle_tuck_multiselect(indices: Array[int]) -> void:
 		var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
 		_cs_display.add_supply(color, CardData.recycle_amount(card.card_data))
 		_apply_recycle_bonus(color)
+		_offer_rich_asteroid_store_for(card.card_data, CardData.recycle_amount(card.card_data))
 		if _effect_slot and card.card_data:
 			_effect_slot.add_tucked_card(card.card_data, false)
 		_recycle_card_to_supply(card, color)
@@ -1952,6 +1962,7 @@ func _apply_recycle_tuck_store_decision(store_on_sector: bool) -> void:
 			_cs_display.animate_supply_incoming(screen_pos, color)
 			_cs_display.add_supply(color, ts_amount)
 			_apply_recycle_bonus(color)
+			_offer_rich_asteroid_store_for(card.card_data, ts_amount)
 		if target and card.card_data:
 			target.add_tucked_card(card.card_data, false)
 		$Hand.remove_card_fly_out(card)
@@ -2028,8 +2039,13 @@ func _on_sector_info_requested(slot: SectorSlot) -> void:
 		EffectMode.EFFECT_STORE_ON_SECTOR:
 			if slot.occupied:
 				_sector_picker.hide()
-				slot.add_stored_supply(_pending_store_color, _pending_store_amount)
-				_log_effect(tr("stored %d %s on the chosen sector") % [_pending_store_amount, CardData.color_name(_pending_store_color)])
+				var store_amount: int = _pending_store_amount
+				if _pending_store_from_supply:
+					store_amount = mini(store_amount, _cs_display.get_supply(_pending_store_color))
+					_cs_display.spend_supply(_pending_store_color, store_amount)
+					_pending_store_from_supply = false
+				slot.add_stored_supply(_pending_store_color, store_amount)
+				_log_effect(tr("stored %d %s on the chosen sector") % [store_amount, CardData.color_name(_pending_store_color)])
 				_finish_interactive_step()
 		EffectMode.EFFECT_RECYCLE_TUCK_STORE_SECTOR:
 			if slot.occupied:
@@ -2304,6 +2320,7 @@ func _execute_effect_step(step: Dictionary) -> void:
 		"store_on_any_sector":
 			_pending_store_color = step["color"] as CardData.SupplyColor
 			_pending_store_amount = int(step.get("amount", 1))
+			_pending_store_from_supply = bool(step.get("from_supply", false))
 			_effect_mode = EffectMode.EFFECT_STORE_ON_SECTOR
 			$Board.set_cargo_click_mode(true)
 			_sector_picker.setup(tr("Store %d %s — pick a sector") % [_pending_store_amount, CardData.color_name(_pending_store_color)], $Board.get_all_sector_slots())
@@ -2753,6 +2770,7 @@ func _effect_step_recycle_sector_card(card: Node3D, slot: SectorSlot) -> void:
 	_cs_display.animate_supply_incoming($Camera3D.unproject_position(card.global_position), color)
 	_cs_display.add_supply(color, amount)
 	_apply_recycle_bonus(color)
+	_offer_rich_asteroid_store_for(cd, amount)
 	# Only techs go back into the (tech) discard pile; an expedition just
 	# leaves the game, same as Caldera Colony's sector recycling.
 	if cd.card_type == CardData.CardType.TECH:
@@ -3767,6 +3785,40 @@ func _apply_recycle_bonus(color: CardData.SupplyColor) -> void:
 	var count: int = $Board.count_tech_by_name("Trash Compactor")
 	if count > 0:
 		_cs_display.add_supply(CardData.SupplyColor.DUST, count)
+
+# Rich Asteroid: "If you recycle this, gain or store 2 Metals instead." Every
+# recycle path credits its Metals to supply as usual; this then offers moving
+# them onto one of your sectors instead. Queued behind whatever effect is
+# resolving right now, and started directly (deferred) when nothing is.
+func _offer_rich_asteroid_store_for(cd: CardData, amount: int) -> void:
+	if cd and cd.card_name == "Rich Asteroid":
+		_offer_rich_asteroid_store(amount)
+
+func _offer_rich_asteroid_store(amount: int) -> void:
+	if amount <= 0:
+		return
+	var has_sector: bool = false
+	for slot: SectorSlot in $Board.get_all_sector_slots():
+		if slot.occupied:
+			has_sector = true
+			break
+	if not has_sector:
+		return
+	var metals: CardData.SupplyColor = CardData.SupplyColor.METALS
+	_effect_queue.append({type = "choice", _source_name = "Rich Asteroid",
+		prompt = tr("Rich Asteroid — keep the %d Metals or store them?") % amount,
+		options = [
+			{label = tr("Keep in supply"), steps = []},
+			{label = tr("Store on a sector"), steps = [{type = "store_on_any_sector", color = metals, amount = amount, from_supply = true, _source_name = "Rich Asteroid"}]},
+		]})
+	_start_rich_asteroid_offer.call_deferred()
+
+# Kicks the queue only when no effect is in progress: a running effect (mode
+# set, or a placement's _effect_slot) reaches the offer through its own
+# _process_next_effect call.
+func _start_rich_asteroid_offer() -> void:
+	if _effect_mode == EffectMode.NONE and _effect_slot == null and not _effect_queue.is_empty():
+		_process_next_effect()
 
 func _init_supply() -> void:
 	var ui: SupplyUI = _cs_display

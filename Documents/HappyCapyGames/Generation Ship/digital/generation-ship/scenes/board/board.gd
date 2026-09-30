@@ -27,6 +27,9 @@ const _REVEAL_FILL_MARGIN := 0.92 * 0.34
 
 # amount is normally 1 — see CardData.recycle_amount() (Rich Asteroid).
 signal card_recycled(supply_color: CardData.SupplyColor, amount: int)
+# Follows card_recycled when the recycled card was Rich Asteroid, whose owner
+# may store the Metals on a sector instead (Main offers that choice).
+signal rich_asteroid_recycled(amount: int)
 signal unplaceable_card_recycled(card_data: CardData)
 signal recycle_confirm_required(card: Node3D, color: CardData.SupplyColor)
 signal major_action_changed(taken: bool)
@@ -705,11 +708,17 @@ func draw_card_data(count: int) -> Array[CardData]:
 			result.append(data)
 	return result
 
+func _emit_recycled(data: CardData, color: CardData.SupplyColor) -> void:
+	var amount: int = CardData.recycle_amount(data)
+	card_recycled.emit(color, amount)
+	if data and data.card_name == "Rich Asteroid":
+		rich_asteroid_recycled.emit(amount)
+
 func draw_and_recycle_top() -> void:
 	var data: CardData = _draw_from_tech_deck()
 	if data:
 		add_to_discard(data)
-		card_recycled.emit(data.color, CardData.recycle_amount(data))
+		_emit_recycled(data, data.color)
 
 func draw_cards(count: int) -> void:
 	var new_cards: Array[Node3D] = []
@@ -1112,7 +1121,7 @@ func _recycle_card_node(card: Node3D) -> void:
 	if card.card_data:
 		color = card.card_data.adv_color if card.is_advanced else card.card_data.color
 	add_to_discard(card.card_data)
-	card_recycled.emit(color, CardData.recycle_amount(card.card_data))
+	_emit_recycled(card.card_data, color)
 	card.collider.monitoring = false
 	var t: Tween = card.create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
 	# Vector3.ZERO here would leave the Collider Area3D with a singular basis,
@@ -1491,7 +1500,7 @@ func complete_purchase(spent: Dictionary = {}) -> void:
 		return
 	var sector_slot: SectorSlot = slot as SectorSlot
 	if not sector_slot:
-		card_recycled.emit(card.card_data.color, CardData.recycle_amount(card.card_data))
+		_emit_recycled(card.card_data, card.card_data.color)
 		card.queue_free()
 		return
 	if is_tech:
@@ -1519,7 +1528,7 @@ func complete_purchase(spent: Dictionary = {}) -> void:
 				_supply_ui.spend_supply(col, spent[col])
 			if card.card_data:
 				add_to_discard(card.card_data)
-			card_recycled.emit(card.card_data.color, CardData.recycle_amount(card.card_data))
+			_emit_recycled(card.card_data, card.card_data.color)
 			card.queue_free()
 	else:
 		if not sector_slot.occupied:
