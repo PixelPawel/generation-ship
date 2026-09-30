@@ -49,9 +49,20 @@ def skipped(rel: str) -> bool:
             or name.startswith("~") or name.endswith((".TMP", ".tmp")))
 
 
-def android_project(text: str) -> str:
+PROJECT_NAME_RE = re.compile(r'^config/name="(.*)"$', re.M)
+
+
+def android_project(text: str, current_copy: str | None = None) -> str:
     for name in ANDROID_DROP_AUTOLOADS:
         text = re.sub(r"^" + re.escape(name) + r'=".*"\r?\n', "", text, flags=re.M)
+    # Keep the copy's own project name so the two are easy to tell apart in
+    # Godot's project list (default: "<main name> (Android)"). Only the editor
+    # shows this; the app's name on phones is the export preset's package/name.
+    main = PROJECT_NAME_RE.search(text)
+    if main:
+        copy = PROJECT_NAME_RE.search(current_copy) if current_copy else None
+        name = copy.group(1) if copy and copy.group(1) != main.group(1) else main.group(1) + " (Android)"
+        text = text[:main.start()] + f'config/name="{name}"' + text[main.end():]
     return text
 
 
@@ -99,8 +110,12 @@ def main() -> None:
             seen.add(rel)
             src, dst = os.path.join(SRC, rel), os.path.join(DST, rel)
             if rel == "project.godot":
+                current = None
+                if os.path.exists(dst):
+                    with open(dst, "rb") as f:
+                        current = f.read().decode("utf-8")
                 with open(src, "rb") as f:
-                    data = android_project(f.read().decode("utf-8")).encode("utf-8")
+                    data = android_project(f.read().decode("utf-8"), current).encode("utf-8")
                 if write_if_changed(dst, data, dry):
                     rewritten += 1
             elif IMAGE_IMPORT.search(name):
@@ -136,7 +151,7 @@ def main() -> None:
                     if not dry:
                         os.remove(os.path.join(d, name))
     verb = "would be" if dry else "were"
-    print(f"{DST}\n  {copied} files {verb} copied, {rewritten} image imports {verb} rewritten, {len(removed)} {verb} removed")
+    print(f"{DST}\n  {copied} files {verb} copied, {rewritten} import/project files {verb} rewritten for Android, {len(removed)} {verb} removed")
     for label, paths in (("overwritten (changed in the copy)", overwritten), ("removed (only in the copy)", removed)):
         if paths:
             print(f"  {label}:")
