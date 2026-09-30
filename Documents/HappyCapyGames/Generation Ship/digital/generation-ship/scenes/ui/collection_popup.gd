@@ -68,6 +68,8 @@ var _enlarge_left_label: Label = null
 var _enlarge_right_label: Label = null
 # Community translation vote under the translated (right-hand) close-up —
 # see TranslationVotes. Hidden for English and when Steam isn't running.
+# Looked up at runtime (_votes()), not by autoload name: the Android copy
+# ships without the TranslationVotes autoload (see tools/sync_android.py).
 const _VOTE_ROW_HEIGHT: float = 40.0
 const _VOTE_UP_COLOR: Color = Color(0.45, 1.0, 0.55)
 const _VOTE_DOWN_COLOR: Color = Color(1.0, 0.45, 0.45)
@@ -237,26 +239,31 @@ func _build_vote_row() -> void:
 	_vote_down_btn.pressed.connect(_on_vote_pressed.bind(-1))
 	_vote_row.add_child(_vote_down_btn)
 
-	TranslationVotes.votes_ready.connect(_on_votes_ready)
+	var tv: Node = _votes()
+	if tv:
+		tv.votes_ready.connect(_on_votes_ready)
+
+func _votes() -> Node:
+	return get_node_or_null("/root/TranslationVotes")
 
 func _show_vote_row(folder: String, fname: String, under: TextureRect) -> void:
 	var lang: String = _current_lang()
-	if lang == "EN" or not TranslationVotes.is_available():
+	if lang == "EN" or not _votes() or not _votes().is_available():
 		_vote_row.visible = false
 		_vote_key = ""
 		return
-	_vote_key = TranslationVotes.board_name(lang, folder, fname)
+	_vote_key = _votes().board_name(lang, folder, fname)
 	_vote_row.offset_left = under.offset_left
 	_vote_row.offset_right = under.offset_right
 	_vote_row.offset_top = under.offset_bottom + 8.0
 	_vote_row.offset_bottom = _vote_row.offset_top + _VOTE_ROW_HEIGHT
-	var c: Dictionary = TranslationVotes.cached(_vote_key)
+	var c: Dictionary = _votes().cached(_vote_key)
 	if c.is_empty():
 		_set_vote_display(-1, -1, 0)
 	else:
 		_set_vote_display(int(c.up), int(c.down), int(c.mine))
 	_vote_row.visible = true
-	TranslationVotes.fetch(_vote_key)
+	_votes().fetch(_vote_key)
 
 # up/down -1 = not loaded yet.
 func _set_vote_display(up: int, down: int, mine: int) -> void:
@@ -273,8 +280,8 @@ func _on_votes_ready(key: String, up: int, down: int, mine: int) -> void:
 func _on_vote_pressed(value: int) -> void:
 	if _vote_key.is_empty():
 		return
-	var mine: int = int(TranslationVotes.cached(_vote_key).get("mine", 0))
-	TranslationVotes.vote(_vote_key, 0 if mine == value else value)
+	var mine: int = int(_votes().cached(_vote_key).get("mine", 0))
+	_votes().vote(_vote_key, 0 if mine == value else value)
 
 func _make_enlarge_rect() -> TextureRect:
 	var rect: TextureRect = TextureRect.new()

@@ -32,6 +32,10 @@ SKIP_PREFIXES = (".godot/", "Build/", "android/build/build/", "android/build/.gr
                  "android/build/assetPackInstallTime/src/main/assets/", ".git/",
                  # desktop-only leftovers, not game resources
                  "GS.zip", "linux32/")
+# Steam-only features left out of the Android build: their scripts aren't
+# copied and their autoload lines are stripped from project.godot.
+ANDROID_EXCLUDE = ("scripts/net/translation_votes.gd", "scripts/net/translation_votes.gd.uid")
+ANDROID_DROP_AUTOLOADS = ("TranslationVotes",)
 IMAGE_IMPORT = re.compile(r"\.(png|jpe?g|webp|svg)\.import$", re.I)
 # Files carried over from inside .godot/ (export presets' keystore credentials).
 EXTRA_FILES = (".godot/export_credentials.cfg",)
@@ -39,7 +43,14 @@ EXTRA_FILES = (".godot/export_credentials.cfg",)
 
 def skipped(rel: str) -> bool:
     name = rel.rsplit("/", 1)[-1]
-    return rel.startswith(SKIP_PREFIXES) or name.startswith("~") or name.endswith((".TMP", ".tmp"))
+    return (rel.startswith(SKIP_PREFIXES) or rel in ANDROID_EXCLUDE
+            or name.startswith("~") or name.endswith((".TMP", ".tmp")))
+
+
+def android_project(text: str) -> str:
+    for name in ANDROID_DROP_AUTOLOADS:
+        text = re.sub(r"^" + re.escape(name) + r'=".*"\r?\n', "", text, flags=re.M)
+    return text
 
 
 def set_param(text: str, key: str, value: str) -> str:
@@ -85,7 +96,12 @@ def main() -> None:
                 continue
             seen.add(rel)
             src, dst = os.path.join(SRC, rel), os.path.join(DST, rel)
-            if IMAGE_IMPORT.search(name):
+            if rel == "project.godot":
+                with open(src, "rb") as f:
+                    data = android_project(f.read().decode("utf-8")).encode("utf-8")
+                if write_if_changed(dst, data, dry):
+                    rewritten += 1
+            elif IMAGE_IMPORT.search(name):
                 with open(src, encoding="utf-8") as f:
                     data = android_import(rel, f.read()).encode("utf-8")
                 if write_if_changed(dst, data, dry):
