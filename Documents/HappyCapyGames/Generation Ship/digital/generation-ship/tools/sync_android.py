@@ -34,8 +34,10 @@ SKIP_PREFIXES = (".godot/", "Build/", "android/build/build/", "android/build/.gr
                  "GS.zip", "linux32/")
 # Steam-only features left out of the Android build: their scripts aren't
 # copied and their autoload lines are stripped from project.godot.
-ANDROID_EXCLUDE = ("scripts/net/translation_votes.gd", "scripts/net/translation_votes.gd.uid")
-ANDROID_DROP_AUTOLOADS = ("TranslationVotes",)
+# (Translation voting used to be listed here while it was Steam-only; it now
+# uses the API server and ships on Android too.)
+ANDROID_EXCLUDE: tuple[str, ...] = ()
+ANDROID_DROP_AUTOLOADS: tuple[str, ...] = ()
 IMAGE_IMPORT = re.compile(r"\.(png|jpe?g|webp|svg)\.import$", re.I)
 # Files carried over from inside .godot/ (export presets' keystore credentials).
 EXTRA_FILES = (".godot/export_credentials.cfg",)

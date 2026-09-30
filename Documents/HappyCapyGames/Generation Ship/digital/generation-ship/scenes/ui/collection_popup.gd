@@ -67,9 +67,9 @@ var _enlarge_right: TextureRect = null
 var _enlarge_left_label: Label = null
 var _enlarge_right_label: Label = null
 # Community translation vote under the translated (right-hand) close-up —
-# see TranslationVotes. Hidden for English and when Steam isn't running.
-# Looked up at runtime (_votes()), not by autoload name: the Android copy
-# ships without the TranslationVotes autoload (see tools/sync_android.py).
+# see TranslationVotes (votes live on the Happy Capy Games API server, shared
+# by Steam and Android). Hidden for English. Looked up at runtime (_votes()),
+# so the Collection still works if the autoload is ever left out of a build.
 const _VOTE_ROW_HEIGHT: float = 40.0
 const _VOTE_UP_COLOR: Color = Color(0.45, 1.0, 0.55)
 const _VOTE_DOWN_COLOR: Color = Color(1.0, 0.45, 0.45)
@@ -242,6 +242,7 @@ func _build_vote_row() -> void:
 	var tv: Node = _votes()
 	if tv:
 		tv.votes_ready.connect(_on_votes_ready)
+		tv.votes_failed.connect(_on_votes_failed)
 
 func _votes() -> Node:
 	return get_node_or_null("/root/TranslationVotes")
@@ -265,16 +266,30 @@ func _show_vote_row(folder: String, fname: String, under: TextureRect) -> void:
 	_vote_row.visible = true
 	_votes().fetch(_vote_key)
 
-# up/down -1 = not loaded yet.
+# up/down: -1 = still loading ("…"), -2 = couldn't reach the server ("–").
 func _set_vote_display(up: int, down: int, mine: int) -> void:
-	_vote_up_btn.text = "▲ " + ("…" if up < 0 else str(up))
-	_vote_down_btn.text = "▼ " + ("…" if down < 0 else str(down))
+	_vote_up_btn.text = "▲ " + _vote_count_text(up)
+	_vote_down_btn.text = "▼ " + _vote_count_text(down)
 	_vote_up_btn.modulate = _VOTE_UP_COLOR if mine > 0 else Color.WHITE
 	_vote_down_btn.modulate = _VOTE_DOWN_COLOR if mine < 0 else Color.WHITE
+
+func _vote_count_text(n: int) -> String:
+	if n == -1:
+		return "…"
+	if n == -2:
+		return "–"
+	return str(n)
 
 func _on_votes_ready(key: String, up: int, down: int, mine: int) -> void:
 	if key == _vote_key and _vote_row.visible:
 		_set_vote_display(up, down, mine)
+
+# Keep whatever counts are already showing; only replace a "loading" state.
+func _on_votes_failed(key: String) -> void:
+	if key != _vote_key or not _vote_row.visible:
+		return
+	if _votes().cached(key).is_empty():
+		_set_vote_display(-2, -2, 0)
 
 # Clicking your current vote again retracts it.
 func _on_vote_pressed(value: int) -> void:
