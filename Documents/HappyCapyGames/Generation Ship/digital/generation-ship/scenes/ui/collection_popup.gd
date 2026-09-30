@@ -70,10 +70,15 @@ var _enlarge_right_label: Label = null
 # see TranslationVotes (votes live on the Happy Capy Games API server, shared
 # by Steam and Android). Hidden for English. Looked up at runtime (_votes()),
 # so the Collection still works if the autoload is ever left out of a build.
-const _VOTE_ROW_HEIGHT: float = 40.0
+# Caption on its own line, then two big buttons side by side (a portrait
+# close-up is only 340 px wide).
+const _VOTE_BTN_SIZE: Vector2 = Vector2(150, 64)
+const _VOTE_BTN_FONT: int = 30
+const _VOTE_CAPTION_FONT: int = 20
+const _VOTE_ROW_HEIGHT: float = 110.0
 const _VOTE_UP_COLOR: Color = Color(0.45, 1.0, 0.55)
 const _VOTE_DOWN_COLOR: Color = Color(1.0, 0.45, 0.45)
-var _vote_row: HBoxContainer = null
+var _vote_row: VBoxContainer = null
 var _vote_up_btn: Button = null
 var _vote_down_btn: Button = null
 var _vote_key: String = ""
@@ -209,8 +214,7 @@ func _build_ui() -> void:
 	_build_vote_row()
 
 func _build_vote_row() -> void:
-	_vote_row = HBoxContainer.new()
-	_vote_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_vote_row = VBoxContainer.new()
 	_vote_row.add_theme_constant_override("separation", 8)
 	_vote_row.anchor_left = 0.5
 	_vote_row.anchor_right = 0.5
@@ -222,27 +226,33 @@ func _build_vote_row() -> void:
 	var caption: Label = Label.new()
 	caption.text = tr("Rate translation:")
 	_tr_targets[caption] = "Rate translation:"
-	caption.add_theme_font_size_override("font_size", 13)
+	caption.add_theme_font_size_override("font_size", _VOTE_CAPTION_FONT)
 	caption.add_theme_color_override("font_color", Color(0.7, 0.75, 0.85))
-	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_vote_row.add_child(caption)
 
-	_vote_up_btn = _make_button("▲")
-	_vote_up_btn.tooltip_text = tr("Good translation")
-	_vote_up_btn.custom_minimum_size = Vector2(70, 0)
-	_vote_up_btn.pressed.connect(_on_vote_pressed.bind(1))
-	_vote_row.add_child(_vote_up_btn)
+	var buttons: HBoxContainer = HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 16)
+	_vote_row.add_child(buttons)
 
-	_vote_down_btn = _make_button("▼")
-	_vote_down_btn.tooltip_text = tr("Needs work")
-	_vote_down_btn.custom_minimum_size = Vector2(70, 0)
-	_vote_down_btn.pressed.connect(_on_vote_pressed.bind(-1))
-	_vote_row.add_child(_vote_down_btn)
+	_vote_up_btn = _make_vote_button(tr("Good translation"), 1)
+	buttons.add_child(_vote_up_btn)
+	_vote_down_btn = _make_vote_button(tr("Needs work"), -1)
+	buttons.add_child(_vote_down_btn)
 
 	var tv: Node = _votes()
 	if tv:
 		tv.votes_ready.connect(_on_votes_ready)
 		tv.votes_failed.connect(_on_votes_failed)
+
+func _make_vote_button(tooltip: String, value: int) -> Button:
+	var btn: Button = _make_button("")
+	btn.add_theme_font_size_override("font_size", _VOTE_BTN_FONT)
+	btn.custom_minimum_size = _VOTE_BTN_SIZE
+	btn.tooltip_text = tooltip
+	btn.pressed.connect(_on_vote_pressed.bind(value))
+	return btn
 
 func _votes() -> Node:
 	return get_node_or_null("/root/TranslationVotes")
