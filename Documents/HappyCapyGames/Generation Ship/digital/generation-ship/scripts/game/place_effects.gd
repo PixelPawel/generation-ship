@@ -51,7 +51,7 @@ static func _all_colors_choice(prompt: String, step_type: String) -> Dictionary:
 	var options: Array = []
 	for sc: int in 6:
 		var c: CardData.SupplyColor = sc as CardData.SupplyColor
-		options.append({label = CardData.color_name(c), tint = CardData.color_tint(c), steps = [{type = step_type, color = c}]})
+		options.append({label = CardData.color_name(c), tint = CardData.color_tint(c), color = c, steps = [{type = step_type, color = c}]})
 	return {type = "choice", prompt = prompt, options = options}
 
 static func _build(name: String, _cd: CardData, placed_colors: Array[int],
@@ -113,8 +113,8 @@ static func _build(name: String, _cd: CardData, placed_colors: Array[int],
 					type = "choice",
 					prompt = "Magnetized Hull — gain which supply?",
 					options = [
-						{label = "Organix",  tint = CardData.color_tint(CardData.SupplyColor.ORGANIX),  steps = [{type = "gain_supply", color = CardData.SupplyColor.ORGANIX,  amount = 1}]},
-						{label = "Electrix", tint = CardData.color_tint(CardData.SupplyColor.ELECTRIX), steps = [{type = "gain_supply", color = CardData.SupplyColor.ELECTRIX, amount = 1}]},
+						{label = "Organix",  tint = CardData.color_tint(CardData.SupplyColor.ORGANIX), color = CardData.SupplyColor.ORGANIX,  steps = [{type = "gain_supply", color = CardData.SupplyColor.ORGANIX,  amount = 1}]},
+						{label = "Electrix", tint = CardData.color_tint(CardData.SupplyColor.ELECTRIX), color = CardData.SupplyColor.ELECTRIX, steps = [{type = "gain_supply", color = CardData.SupplyColor.ELECTRIX, amount = 1}]},
 					],
 				})
 
@@ -245,9 +245,9 @@ static func _build(name: String, _cd: CardData, placed_colors: Array[int],
 				type = "choice",
 				prompt = "Containers — store which supply?",
 				options = [
-					{label = "Dust",    tint = CardData.color_tint(CardData.SupplyColor.DUST),    steps = [{type = "store_on_any_sector", color = CardData.SupplyColor.DUST,    amount = 1}]},
-					{label = "Metals",  tint = CardData.color_tint(CardData.SupplyColor.METALS),  steps = [{type = "store_on_any_sector", color = CardData.SupplyColor.METALS,  amount = 1}]},
-					{label = "Liquids", tint = CardData.color_tint(CardData.SupplyColor.LIQUIDS), steps = [{type = "store_on_any_sector", color = CardData.SupplyColor.LIQUIDS, amount = 1}]},
+					{label = "Dust",    tint = CardData.color_tint(CardData.SupplyColor.DUST), color = CardData.SupplyColor.DUST,    steps = [{type = "store_on_any_sector", color = CardData.SupplyColor.DUST,    amount = 1}]},
+					{label = "Metals",  tint = CardData.color_tint(CardData.SupplyColor.METALS), color = CardData.SupplyColor.METALS,  steps = [{type = "store_on_any_sector", color = CardData.SupplyColor.METALS,  amount = 1}]},
+					{label = "Liquids", tint = CardData.color_tint(CardData.SupplyColor.LIQUIDS), color = CardData.SupplyColor.LIQUIDS, steps = [{type = "store_on_any_sector", color = CardData.SupplyColor.LIQUIDS, amount = 1}]},
 				],
 			})
 

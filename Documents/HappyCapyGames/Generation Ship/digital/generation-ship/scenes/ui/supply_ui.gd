@@ -67,15 +67,21 @@ func _ready() -> void:
 	for def: Dictionary in CARD_ICON_DEFS:
 		_card_icon_textures[def["color"]] = load(def["path"])
 	_build_ui()
+# Icon centres of the supply diamond (within FLOW_SIZE). Shared with
+# ChoicePopup's color choices so both read the same way.
+const FLOW_SIZE: Vector2 = Vector2(230, 280)
+const FLOW_ICON_SIZE: float = 52.0
+const FLOW_POSITIONS: Dictionary = {
+	CardData.SupplyColor.DUST:     Vector2(115, 34),
+	CardData.SupplyColor.LIQUIDS:  Vector2(39, 100),
+	CardData.SupplyColor.METALS:   Vector2(191, 100),
+	CardData.SupplyColor.ORGANIX:  Vector2(39, 202),
+	CardData.SupplyColor.ELECTRIX: Vector2(191, 202),
+	CardData.SupplyColor.THRUST:   Vector2(115, 259),
+}
+
 func _flow_positions() -> Dictionary:
-	return {
-		CardData.SupplyColor.DUST:     Vector2(115, 34),
-		CardData.SupplyColor.LIQUIDS:  Vector2(39, 100),
-		CardData.SupplyColor.METALS:   Vector2(191, 100),
-		CardData.SupplyColor.ORGANIX:  Vector2(39, 202),
-		CardData.SupplyColor.ELECTRIX: Vector2(191, 202),
-		CardData.SupplyColor.THRUST:   Vector2(115, 259),
-	}
+	return FLOW_POSITIONS
 
 func _build_ui() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -210,7 +216,7 @@ func _build_ui() -> void:
 	vbox.add_child(flow_center)
 
 	_flow = load("res://scenes/ui/supply_flow.gd").new()
-	_flow.custom_minimum_size = Vector2(230, 280)
+	_flow.custom_minimum_size = FLOW_SIZE
 	_flow.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_flow.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_flow.setup(_flow_positions(), FUSE_MAP, _icon_textures)

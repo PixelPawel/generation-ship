@@ -2556,6 +2556,18 @@ func _effect_step_choice(step: Dictionary) -> void:
 	if _effect_slot and is_instance_valid(_effect_slot) and _effect_slot.placed_card:
 		choice_cd = _effect_slot.placed_card.card_data
 		choice_is_adv = bool(_effect_slot.placed_card.get("is_advanced"))
+	# Pure supply-color choices (every option tagged with a `color`) use the
+	# supply diamond; anything mixed stays a row of text buttons.
+	var colors: Array[int] = []
+	for opt: Dictionary in _pending_choice_options:
+		if not opt.has("color"):
+			colors.clear()
+			break
+		colors.append(int(opt["color"]))
+	if not colors.is_empty():
+		_choice_popup.show_color_choices(str(step.get("prompt", tr("Choose:"))), colors,
+			bool(step.get("skippable", false)), choice_cd, choice_is_adv)
+		return
 	_choice_popup.show_choices(
 		str(step.get("prompt", tr("Choose:"))),
 		labels,
@@ -2819,7 +2831,7 @@ func _effect_step_wormhole_surfing() -> void:
 		var options: Array = []
 		for sc: int in 6:
 			var c: CardData.SupplyColor = sc as CardData.SupplyColor
-			options.append({label = CardData.color_name(c), tint = CardData.color_tint(c),
+			options.append({label = CardData.color_name(c), tint = CardData.color_tint(c), color = c,
 				steps = [{type = "initiate_market_bid", card_data = cd, bid_color = c, _source_name = _effect_source_name}]})
 		_pending_choice_options.append({steps = [{type = "choice",
 			prompt = tr("Wormhole Surfing — bid on %s in which color?") % shown_name,

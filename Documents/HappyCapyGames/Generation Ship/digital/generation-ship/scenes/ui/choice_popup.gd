@@ -164,6 +164,84 @@ func show_choices(prompt: String, option_labels: Array, skippable: bool = false,
 	_fit_scroll_width()
 	show()
 
+# Supply-color choices: the same diamond as the control screen's supply
+# panel (SupplyUI.FLOW_POSITIONS), scaled up but with icons capped at
+# _COLOR_ICON_MAX. colors[i] is option i's SupplyColor; colors that aren't
+# offered stay in place, dimmed and unclickable, so the diamond keeps its
+# familiar shape.
+const _COLOR_DIAMOND_SCALE_MAX: float = 1.6
+const _COLOR_ICON_MAX: float = 84.0
+const _COLOR_LABEL_H: float = 26.0
+
+func show_color_choices(prompt: String, colors: Array[int], skippable: bool = false, card_data: CardData = null, is_advanced: bool = false) -> void:
+	_scroll_container.custom_minimum_size.x = 0
+	if _vbox:
+		_vbox.custom_minimum_size.x = 0
+	_prompt_label.text = prompt
+	_clear_options()
+	if _card_image_rect:
+		if card_data:
+			var url: String = card_data.adv_image_url if (is_advanced and not card_data.adv_image_url.is_empty()) else card_data.image_url
+			_card_image_rect.texture = ImageCache.get_texture(url) if not url.is_empty() else null
+			_card_image_rect.visible = _card_image_rect.texture != null
+		else:
+			_card_image_rect.visible = false
+
+	var avail_h: float = get_viewport_rect().size.y * _CARD_ROW_HEIGHT_FRACTION
+	var scale_f: float = clampf((avail_h - _COLOR_LABEL_H) / SupplyUI.FLOW_SIZE.y, 0.8, _COLOR_DIAMOND_SCALE_MAX)
+	var icon_sz: float = minf(SupplyUI.FLOW_ICON_SIZE * scale_f, _COLOR_ICON_MAX)
+	var diamond := Control.new()
+	diamond.custom_minimum_size = SupplyUI.FLOW_SIZE * scale_f + Vector2(0.0, _COLOR_LABEL_H)
+	diamond.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_buttons_row.add_child(diamond)
+
+	for def: Dictionary in SupplyUI.SUPPLY_DEFS:
+		var color: int = int(def["color"])
+		var idx: int = colors.find(color)
+		var center: Vector2 = (SupplyUI.FLOW_POSITIONS[color] as Vector2) * scale_f
+		var btn := TextureButton.new()
+		btn.texture_normal = load(def["path"]) as Texture2D
+		btn.ignore_texture_size = true
+		btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+		diamond.add_child(btn)
+		# Size/position after add_child (see SupplyUI/TextureRect sizing notes).
+		btn.size = Vector2(icon_sz, icon_sz)
+		btn.position = center - btn.size * 0.5
+		btn.pivot_offset = btn.size * 0.5
+
+		var lbl := Label.new()
+		lbl.text = CardData.color_name(color as CardData.SupplyColor)
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.add_theme_font_size_override("font_size", 18)
+		lbl.add_theme_color_override("font_color", CardData.color_tint(color as CardData.SupplyColor))
+		lbl.add_theme_constant_override("outline_size", 4)
+		lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		diamond.add_child(lbl)
+		lbl.size = Vector2(icon_sz * 2.0, _COLOR_LABEL_H)
+		lbl.position = Vector2(center.x - icon_sz, center.y + icon_sz * 0.5)
+
+		if idx < 0:
+			btn.disabled = true
+			btn.modulate = Color(1, 1, 1, 0.18)
+			lbl.modulate = Color(1, 1, 1, 0.18)
+			btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			continue
+		btn.pressed.connect(func() -> void: _on_pressed(idx))
+		btn.mouse_entered.connect(func() -> void:
+			CursorManager.set_hover()
+			btn.create_tween().tween_property(btn, "scale", Vector2.ONE * 1.12, 0.1)
+			btn.modulate = Color(1.25, 1.25, 1.25))
+		btn.mouse_exited.connect(func() -> void:
+			CursorManager.set_default()
+			btn.create_tween().tween_property(btn, "scale", Vector2.ONE, 0.12)
+			btn.modulate = Color.WHITE)
+
+	_skip_btn.visible = skippable
+	_multiselect_done_btn.visible = false
+	_fit_scroll_width()
+	show()
+
 func show_card_choices(prompt: String, cards: Array[CardData], skippable: bool = true, advanced_flags: Array[bool] = []) -> void:
 	_scroll_container.custom_minimum_size.x = 0
 	if _vbox:

@@ -55,6 +55,7 @@ static func color_store_choice(prompt: String, any_sector: bool = false) -> Dict
 		options.append({
 			label = color_name(sc),
 			tint = color_tint(sc),
+			color = sc,
 			steps = [{type = step_type, color = sc, amount = 1}],
 		})
 	return {type = "choice", prompt = prompt, options = options}
