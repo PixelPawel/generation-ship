@@ -19,3 +19,6 @@ Documents/HappyCapyGames/Uprising/*
 Documents/HappyCapyGames/Uprising Digital/*
 !Documents/HappyCapyGames/Uprising Digital/uprising/
 !Documents/HappyCapyGames/Uprising Digital/uprising/**
+
+# Too big for GitHub (680 MB) - kept locally only
+Documents/HappyCapyGames/Uprising Digital/uprising/Reforged_Rulebook_EN_2026_V1.pdf
