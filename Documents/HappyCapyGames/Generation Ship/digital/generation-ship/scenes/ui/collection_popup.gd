@@ -78,7 +78,10 @@ const _VOTE_CAPTION_FONT: int = 20
 const _VOTE_ROW_HEIGHT: float = 110.0
 const _VOTE_UP_COLOR: Color = Color(0.45, 1.0, 0.55)
 const _VOTE_DOWN_COLOR: Color = Color(1.0, 0.45, 0.45)
+const _VOTE_HELP_KEY: String = "Help us improve the translations! Compare the English original with your language and vote: ▲ if the translation is good, ▼ if it needs work."
+const _VOTE_HELP_FONT: int = 16
 var _vote_row: VBoxContainer = null
+var _vote_help: Label = null
 var _vote_up_btn: Button = null
 var _vote_down_btn: Button = null
 var _vote_key: String = ""
@@ -241,6 +244,22 @@ func _build_vote_row() -> void:
 	_vote_down_btn = _make_vote_button(tr("Needs work"), -1)
 	buttons.add_child(_vote_down_btn)
 
+	_vote_help = Label.new()
+	_vote_help.text = tr(_VOTE_HELP_KEY)
+	_tr_targets[_vote_help] = _VOTE_HELP_KEY
+	_vote_help.add_theme_font_size_override("font_size", _VOTE_HELP_FONT)
+	_vote_help.add_theme_color_override("font_color", Color(0.8, 0.84, 0.92))
+	_vote_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_vote_help.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_vote_help.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_vote_help.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_vote_help.anchor_left = 0.5
+	_vote_help.anchor_right = 0.5
+	_vote_help.anchor_top = 0.5
+	_vote_help.anchor_bottom = 0.5
+	_vote_help.visible = false
+	add_child(_vote_help)
+
 	var tv: Node = _votes()
 	if tv:
 		tv.votes_ready.connect(_on_votes_ready)
@@ -260,7 +279,7 @@ func _votes() -> Node:
 func _show_vote_row(folder: String, fname: String, under: TextureRect) -> void:
 	var lang: String = _current_lang()
 	if lang == "EN" or not _votes() or not _votes().is_available():
-		_vote_row.visible = false
+		_set_vote_visible(false)
 		_vote_key = ""
 		return
 	_vote_key = _votes().board_name(lang, folder, fname)
@@ -268,13 +287,24 @@ func _show_vote_row(folder: String, fname: String, under: TextureRect) -> void:
 	_vote_row.offset_right = under.offset_right
 	_vote_row.offset_top = under.offset_bottom + 8.0
 	_vote_row.offset_bottom = _vote_row.offset_top + _VOTE_ROW_HEIGHT
+	# Explanation beside the buttons, under the English card on the left.
+	_vote_help.offset_left = _enlarge_left.offset_left
+	_vote_help.offset_right = _enlarge_left.offset_right
+	_vote_help.offset_top = _vote_row.offset_top
+	_vote_help.offset_bottom = _vote_row.offset_bottom
 	var c: Dictionary = _votes().cached(_vote_key)
 	if c.is_empty():
 		_set_vote_display(-1, -1, 0)
 	else:
 		_set_vote_display(int(c.up), int(c.down), int(c.mine))
-	_vote_row.visible = true
+	_set_vote_visible(true)
 	_votes().fetch(_vote_key)
+
+func _set_vote_visible(v: bool) -> void:
+	if _vote_row:
+		_vote_row.visible = v
+	if _vote_help:
+		_vote_help.visible = v
 
 # up/down: -1 = still loading ("…"), -2 = couldn't reach the server ("–").
 func _set_vote_display(up: int, down: int, mine: int) -> void:
@@ -424,7 +454,7 @@ func _show_enlarged(entry: Dictionary, landscape: bool) -> void:
 		_enlarge_right.visible = false
 		_enlarge_right_label.visible = false
 		# English (or art missing in this language): nothing translated to rate.
-		_vote_row.visible = false
+		_set_vote_visible(false)
 		_vote_key = ""
 	else:
 		var half_gap: float = _ENLARGE_GAP / 2.0
@@ -467,7 +497,7 @@ func _hide_enlarged() -> void:
 	_enlarge_left_label.visible = false
 	_enlarge_right_label.visible = false
 	if _vote_row:
-		_vote_row.visible = false
+		_set_vote_visible(false)
 		_vote_key = ""
 
 func _current_lang() -> String:
@@ -503,6 +533,15 @@ func _list_deck_files(deck: Dictionary) -> Array[Dictionary]:
 		var count: int = deck.get("count", 0) as int
 		for page: int in range(1, count + 1):
 			file_bases.append(_paged_filename(base, page))
+
+	# One entry per distinct card: the print decks repeat many cards.
+	var unique: Array[String] = CardDatabase.unique_card_files(folder)
+	if not unique.is_empty():
+		var kept: Array[String] = []
+		for f: String in file_bases:
+			if unique.has(f):
+				kept.append(f)
+		file_bases = kept
 
 	# fname/folder are carried alongside the resolved path so the click-to-
 	# enlarge close-up can independently resolve the EN version of the same

@@ -97,6 +97,31 @@ func _resolve_art(deck_folder: String, file_base: String, page: int) -> String:
 			return fallback
 	return ""
 
+# File names (as in assets/cards/<folder>/<LANG>/) showing each distinct card
+# once, for the Collection: the physical decks print many cards more than once
+# (137 Tech cards are 76 distinct names; every advanced sector is printed
+# twice). Returns [] for folders without known duplicates (show everything).
+func unique_card_files(folder: String) -> Array[String]:
+	var out: Array[String] = []
+	match folder:
+		"Tech":
+			var seen: Dictionary = {}
+			for cd: CardData in techs:
+				if cd.promo_no > 0 or seen.has(cd.card_name):
+					continue
+				seen[cd.card_name] = true
+				out.append(_page_file("GS Techs 44x67mm", cd.id))
+		"Sector":
+			for table: Dictionary in [_ADV_SECTOR_ART, _DUST_SECTOR_ART]:
+				for entry: Array in table.values():
+					var f: String = _page_file(entry[0] as String, int(entry[1]))
+					if not out.has(f):
+						out.append(f)
+	return out
+
+static func _page_file(file_base: String, page: int) -> String:
+	return file_base + ("" if page == 1 else str(page)) + ".png"
+
 func _tech_art_path(id: int) -> String:
 	return _resolve_art("Tech", "GS Techs 44x67mm", id)
 
