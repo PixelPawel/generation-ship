@@ -1,6 +1,6 @@
 Qty,Avg,No.,Name,Link,Color,Cost,Flavor,Printed Star,Star Card,Type,Effect,Done,Artist,Check
-,,1,Karma Chameleon,,Dust,4,Color me surprised.,,No,Place,"Counts as a color of your choice while being placed.
-(Can optimize a sector twice)",Done,,
+,,1,Karma Chameleon,,Dust,4,Color me surprised.,,No,Place,"Counts as any color when placed.
+Then discard it.",Done,,
 ,,2,Rich Asteroid,,Metals,1,Rock and stone!,,No,Always,"If you recycle this, gain or store 2 Metals instead.",Done,,
 ,,3,Ice 9,,Liquids,2,Science is magic that works.,,No,Place,Recycle a card on any of your sectors.,Done,,
 ,,4,Biodiversity,,Organix,2,Variety is the spice of life!,,No,Place,Gain 1 supply of each different color on this sector.,Done,,
