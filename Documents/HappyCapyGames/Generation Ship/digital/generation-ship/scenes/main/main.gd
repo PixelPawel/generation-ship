@@ -263,6 +263,8 @@ func _ready() -> void:
 	_scoreboard = $UILayer/Scoreboard
 	_pause_menu = $UILayer/PauseMenu
 	_pause_menu.main_menu_pressed.connect(_on_pause_main_menu)
+	if GameTheme.is_touch():
+		_build_touch_menu_button()
 	if GameNetwork.is_multiplayer:
 		_chat_panel = load("res://scenes/ui/chat_panel.gd").new()
 		$UILayer.add_child(_chat_panel)
@@ -293,6 +295,11 @@ func _ready() -> void:
 	_effect_done_btn.offset_bottom = 90.0
 	_effect_done_btn.offset_left = -60.0
 	_effect_done_btn.offset_right = 60.0
+	if GameTheme.is_touch():
+		GameTheme.touchify(_effect_done_btn)
+		_effect_done_btn.offset_bottom = _effect_done_btn.offset_top + GameTheme.TOUCH_MIN_SIZE
+		_effect_done_btn.offset_left = -100.0
+		_effect_done_btn.offset_right = 100.0
 	_effect_done_btn.pressed.connect(_on_effect_done_pressed)
 	$UILayer.add_child(_effect_done_btn)
 
@@ -3489,12 +3496,43 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _info_viewport:
 		_info_viewport.push_input(event)
 	if event.is_action("pause_menu"):
-		_pause_menu.toggle()
-		if _tutorial:
-			_tutorial.notify_escape_pressed()
+		_toggle_pause_menu()
 	elif event.is_action("end_turn") and not _pause_menu.visible:
 		if _cs_display.can_end_turn():
 			_on_end_turn_button_pressed()
+
+# Phones have no Escape key: a small menu button in the top-right corner, and
+# the Android back gesture, open the pause menu instead.
+func _build_touch_menu_button() -> void:
+	get_tree().set_quit_on_go_back(false)
+	var btn: Button = Button.new()
+	btn.text = "☰"
+	btn.add_theme_font_size_override("font_size", 30)
+	GameTheme.apply_to_button(btn)
+	btn.modulate.a = 0.85
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	btn.offset_left = -24.0 - GameTheme.TOUCH_MIN_SIZE
+	btn.offset_right = -24.0
+	btn.offset_top = 24.0
+	btn.offset_bottom = 24.0 + GameTheme.TOUCH_MIN_SIZE
+	btn.pressed.connect(_toggle_pause_menu)
+	$UILayer.add_child(btn)
+	# Below the pause menu, so the open menu covers it.
+	$UILayer.move_child(btn, _pause_menu.get_index())
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST and GameTheme.is_touch() and _pause_menu:
+		_toggle_pause_menu()
+
+func _exit_tree() -> void:
+	if GameTheme.is_touch():
+		get_tree().set_quit_on_go_back(true)
+
+func _toggle_pause_menu() -> void:
+	_pause_menu.toggle()
+	if _tutorial:
+		_tutorial.notify_escape_pressed()
 
 func _on_pause_main_menu() -> void:
 	SceneTransition.change_scene("res://scenes/main_menu/main_menu.tscn")

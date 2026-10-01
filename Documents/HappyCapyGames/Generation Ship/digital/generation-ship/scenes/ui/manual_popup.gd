@@ -171,6 +171,7 @@ func _build_ui() -> void:
 	zoom_in_btn.custom_minimum_size = Vector2(36, 0)
 	zoom_in_btn.pressed.connect(_on_zoom_in)
 	nav.add_child(zoom_in_btn)
+	GameTheme.touchify(self)
 
 func _go_to(page: int) -> void:
 	var count: int = maxi(_pages.size(), 1)

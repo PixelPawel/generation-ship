@@ -148,6 +148,20 @@ func _build_ui() -> void:
 	send_btn.pressed.connect(func() -> void: _on_text_submitted(_input_field.text))
 	input_row.add_child(send_btn)
 
+	if GameTheme.is_touch():
+		GameTheme.touchify(self)
+		_input_field.add_theme_font_size_override("font_size", 20)
+		_input_field.custom_minimum_size.y = GameTheme.TOUCH_MIN_SIZE
+		_log.add_theme_font_size_override("normal_font_size", 20)
+		# Bigger pill, still tucked into the bottom-right corner; the expanded
+		# log sits above it and gets wider for the larger text.
+		_toggle_btn.custom_minimum_size.x = 160.0
+		_toggle_btn.position = Vector2(-172, -12 - GameTheme.TOUCH_MIN_SIZE)
+		_badge.position = Vector2(-38, -24 - GameTheme.TOUCH_MIN_SIZE)
+		_expanded_panel.custom_minimum_size = Vector2(520, 460)
+		vbox.custom_minimum_size = Vector2(500, 440)
+		_expanded_panel.position = Vector2(-532, -24 - GameTheme.TOUCH_MIN_SIZE - 460)
+
 func _set_expanded(value: bool) -> void:
 	_expanded = value
 	_expanded_panel.visible = value

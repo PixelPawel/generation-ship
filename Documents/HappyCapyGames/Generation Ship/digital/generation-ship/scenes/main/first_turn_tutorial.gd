@@ -149,7 +149,7 @@ func _apply_step(step: String) -> void:
 			_main._show_effect_hint(tr("TUT_PASS"))
 			_main._start_pass_btn_3d_flash()
 		"closing":
-			_main._show_effect_hint(tr("TUT_CLOSING"))
+			_main._show_effect_hint(_main.hint("TUT_CLOSING", "TUT_CLOSING_MOBILE"))
 	_current_step = step
 
 # "Buy a Sector" is really 3 sub-phases of one flow: click a market slot,

@@ -216,6 +216,7 @@ func _build_ui() -> void:
 	_enlarge_right_label = _make_enlarge_label()
 	add_child(_enlarge_right_label)
 	_build_vote_row()
+	GameTheme.touchify(self)
 
 func _build_vote_row() -> void:
 	_vote_row = VBoxContainer.new()

@@ -52,6 +52,41 @@ static func _build() -> Theme:
 
 	return theme
 
+# ── Touch-friendly buttons (phones) ───────────────────────────────────────────
+# Buttons were sized for a mouse (36-64 px on the 1080p layout ≈ 4-7 mm on a
+# phone). touchify() gives every button under `root` a ~9 mm (≈48 dp) minimum
+# touch target and larger text — phones only, a no-op on desktop. Call it at
+# the end of a panel's build, and again on any buttons created later.
+
+const TOUCH_MIN_SIZE: float = 88.0   # canvas px on the 1920x1080 layout
+const TOUCH_FONT_SCALE: float = 1.4
+const TOUCH_DEFAULT_FONT: int = 16
+const TOUCH_LARGE_FONT: int = 24
+const TOUCH_SETTINGS_ROW: float = 64.0   # settings rows: many of them, so a bit less
+
+static func is_touch() -> bool:
+	return OS.has_feature("mobile")
+
+static func touchify(root: Node) -> void:
+	if not is_touch() or root == null:
+		return
+	if root is BaseButton:
+		_touchify_button(root as BaseButton)
+	for child: Node in root.find_children("*", "BaseButton", true, false):
+		_touchify_button(child as BaseButton)
+
+static func _touchify_button(btn: BaseButton) -> void:
+	if btn.has_meta(&"_touchified"):
+		return
+	btn.set_meta(&"_touchified", true)
+	# CheckBox/CheckButton: only the row height matters, the toggle itself is drawn by the theme.
+	btn.custom_minimum_size = Vector2(maxf(btn.custom_minimum_size.x, TOUCH_MIN_SIZE),
+			maxf(btn.custom_minimum_size.y, TOUCH_MIN_SIZE))
+	if btn is Button:
+		var size: int = btn.get_theme_font_size("font_size") if btn.has_theme_font_size_override("font_size") else TOUCH_DEFAULT_FONT
+		if size < TOUCH_LARGE_FONT:   # already-big text (e.g. the vote buttons) stays as is
+			btn.add_theme_font_size_override("font_size", roundi(size * TOUCH_FONT_SCALE))
+
 # ── Tooltip size (Settings → Tooltip Size) ────────────────────────────────────
 # Final tooltip scale = device factor (phones only, from the screen's physical
 # height) × the player's chosen size. Default choice: 200% on phones (they were

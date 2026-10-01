@@ -117,6 +117,7 @@ func _build_ui() -> void:
 	quit_btn.pressed.connect(func(): get_tree().quit())
 	vbox.add_child(quit_btn)
 
+	GameTheme.touchify(panel)
 	_build_settings_panel()
 	_manual = load("res://scenes/ui/manual_popup.gd").new()
 	add_child(_manual)
@@ -359,6 +360,22 @@ func _build_settings_panel() -> void:
 		if _main_panel and not _main_panel.visible:
 			visible = false)
 	vbox.add_child(close_btn)
+
+	if GameTheme.is_touch():
+		# No voice chat or audio-device choice on phones — and fewer rows
+		# leaves room for the bigger touch targets.
+		out_row.visible = false
+		in_row.visible = false
+		_voice_slider.get_parent().visible = false
+		GameTheme.touchify(close_btn)
+		for node: Node in vbox.find_children("*", "Control", true, false):
+			var ctrl: Control = node as Control
+			if ctrl is OptionButton or ctrl is CheckButton or ctrl is HSlider:
+				ctrl.custom_minimum_size = Vector2(ctrl.custom_minimum_size.x, GameTheme.TOUCH_SETTINGS_ROW)
+			if ctrl is OptionButton:
+				ctrl.add_theme_font_size_override("font_size", 22)
+			elif ctrl is Label and ctrl.get_theme_font_size("font_size") < 18:
+				ctrl.add_theme_font_size_override("font_size", 20)
 
 	_load_resolution_setting()
 	_load_monitor_setting()
