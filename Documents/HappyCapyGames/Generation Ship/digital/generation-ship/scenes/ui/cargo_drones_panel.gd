@@ -387,11 +387,11 @@ func _layout_grid(btns: Array[Button]) -> void:
 		card_h = avail.y
 		card_w = card_h * SECTOR_W_H_RATIO
 	var total_w: float = card_w * float(n) + GRID_GAP * float(n - 1)
-	var start: Vector2 = Vector2((avail.x - total_w) / 2.0, (avail.y - card_h) / 2.0)
+	var origin: Vector2 = Vector2((avail.x - total_w) / 2.0, (avail.y - card_h) / 2.0)
 	for i: int in n:
 		if not is_instance_valid(btns[i]):
 			continue
-		btns[i].position = start + Vector2(float(i) * (card_w + GRID_GAP), 0.0)
+		btns[i].position = origin + Vector2(float(i) * (card_w + GRID_GAP), 0.0)
 		btns[i].size = Vector2(card_w, card_h)
 		btns[i].visible = true
 
