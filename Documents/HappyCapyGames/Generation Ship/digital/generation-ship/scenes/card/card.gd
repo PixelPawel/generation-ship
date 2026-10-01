@@ -54,6 +54,8 @@ var _placed_elevated: bool = false
 var _destroy_on_collapse: bool = false
 var _drag_armed: bool = false
 var _drag_arm_pos: Vector2 = Vector2.ZERO
+# Phones: tap-and-hold on a placed card = right-click (enlarge/shrink).
+var _long_press: LongPressGesture = LongPressGesture.new()
 var _card_glb: Node3D = null
 var _face_surface: MeshInstance3D = null
 var _discount_badge: Label3D = null
@@ -144,9 +146,17 @@ func _apply_texture(tex: Texture2D) -> void:
 		mat.set_shader_parameter("card_texture", tex)
 
 func _on_input_event(_camera: Node, event: InputEvent, _pos: Vector3, _normal: Vector3, _idx: int) -> void:
+	if event is InputEventMouseMotion:
+		_long_press.update_position((event as InputEventMouseMotion).position)
+		return
 	if not (event is InputEventMouseButton):
 		return
 	if event.button_index == MOUSE_BUTTON_LEFT:
+		if GameTheme.is_touch() and (is_placed or _placed_elevated):
+			if event.pressed:
+				_long_press.begin(get_tree(), event.position, _try_toggle_placed_elevation)
+			else:
+				_long_press.end()
 		if event.pressed:
 			if not is_placed and can_drag and not is_dragging:
 				if drag_needs_movement:
