@@ -525,8 +525,20 @@ func _show_tooltip(title: String, desc: String) -> void:
 	_tooltip_title.visible = not title.is_empty()
 	_tooltip_desc.text = desc
 	_tooltip_panel.visible = true
+	# The wrapped description reports its height for its *current* width —
+	# 0 before its first layout, i.e. one word per line, which made the first
+	# tooltips far too tall. Give it its final width before measuring, then
+	# measure once more after the container has laid it out.
+	var text_w: float = maxf(_tooltip_desc.custom_minimum_size.x, _tooltip_title.get_combined_minimum_size().x)
+	_tooltip_desc.size = Vector2(text_w, _tooltip_desc.size.y)
 	_tooltip_panel.reset_size()
 	_update_tooltip_position()
+	_refit_tooltip.call_deferred()
+
+func _refit_tooltip() -> void:
+	if _tooltip_panel and _tooltip_panel.visible:
+		_tooltip_panel.reset_size()
+		_update_tooltip_position()
 
 func _hide_tooltip() -> void:
 	if _tooltip_panel:
