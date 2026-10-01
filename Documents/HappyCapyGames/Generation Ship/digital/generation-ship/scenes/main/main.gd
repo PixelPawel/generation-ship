@@ -3501,7 +3501,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _cs_display.can_end_turn():
 			_on_end_turn_button_pressed()
 
-# Phones have no Escape key: a small menu button in the top-right corner, and
+# Phones have no Escape key: a small menu button in the bottom-left corner (the
+# top-right one covered the market payment screen), and
 # the Android back gesture, open the pause menu instead.
 func _build_touch_menu_button() -> void:
 	get_tree().set_quit_on_go_back(false)
@@ -3511,11 +3512,11 @@ func _build_touch_menu_button() -> void:
 	GameTheme.apply_to_button(btn)
 	btn.modulate.a = 0.85
 	btn.focus_mode = Control.FOCUS_NONE
-	btn.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	btn.offset_left = -GameTheme.TOUCH_CORNER_MARGIN - GameTheme.TOUCH_MIN_SIZE
-	btn.offset_right = -GameTheme.TOUCH_CORNER_MARGIN
-	btn.offset_top = 24.0
-	btn.offset_bottom = 24.0 + GameTheme.TOUCH_MIN_SIZE
+	btn.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	btn.offset_left = GameTheme.TOUCH_CORNER_MARGIN
+	btn.offset_right = GameTheme.TOUCH_CORNER_MARGIN + GameTheme.TOUCH_MIN_SIZE
+	btn.offset_top = -24.0 - GameTheme.TOUCH_MIN_SIZE
+	btn.offset_bottom = -24.0
 	btn.pressed.connect(_toggle_pause_menu)
 	$UILayer.add_child(btn)
 	# Below the pause menu, so the open menu covers it.

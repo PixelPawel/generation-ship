@@ -90,8 +90,10 @@ func _add_link_button(tex_path: String, url: String, height: float, right: bool)
 	btn.anchor_bottom = 1.0
 	# Right-side button sits a bit higher to clear the version label.
 	var bottom: float = -_LINK_MARGIN - (16.0 if right else 0.0)
-	btn.offset_left = -_LINK_MARGIN - w if right else _LINK_MARGIN
-	btn.offset_right = -_LINK_MARGIN if right else _LINK_MARGIN + w
+	# Phones: further in from the side, clear of the rounded screen corners.
+	var side: float = GameTheme.TOUCH_CORNER_MARGIN if GameTheme.is_touch() else _LINK_MARGIN
+	btn.offset_left = -side - w if right else side
+	btn.offset_right = -side if right else side + w
 	btn.offset_top = bottom - height
 	btn.offset_bottom = bottom
 	_link_buttons.append(btn)
