@@ -3512,8 +3512,8 @@ func _build_touch_menu_button() -> void:
 	btn.modulate.a = 0.85
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	btn.offset_left = -24.0 - GameTheme.TOUCH_MIN_SIZE
-	btn.offset_right = -24.0
+	btn.offset_left = -GameTheme.TOUCH_CORNER_MARGIN - GameTheme.TOUCH_MIN_SIZE
+	btn.offset_right = -GameTheme.TOUCH_CORNER_MARGIN
 	btn.offset_top = 24.0
 	btn.offset_bottom = 24.0 + GameTheme.TOUCH_MIN_SIZE
 	btn.pressed.connect(_toggle_pause_menu)

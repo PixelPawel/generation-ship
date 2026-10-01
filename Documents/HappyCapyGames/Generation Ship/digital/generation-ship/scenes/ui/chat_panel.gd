@@ -156,11 +156,13 @@ func _build_ui() -> void:
 		# Bigger pill, still tucked into the bottom-right corner; the expanded
 		# log sits above it and gets wider for the larger text.
 		_toggle_btn.custom_minimum_size.x = 160.0
-		_toggle_btn.position = Vector2(-172, -12 - GameTheme.TOUCH_MIN_SIZE)
-		_badge.position = Vector2(-38, -24 - GameTheme.TOUCH_MIN_SIZE)
+		# Kept clear of the phone's rounded screen corner.
+		var right: float = GameTheme.TOUCH_CORNER_MARGIN
+		_toggle_btn.position = Vector2(-right - 160, -12 - GameTheme.TOUCH_MIN_SIZE)
+		_badge.position = Vector2(-right - 26, -24 - GameTheme.TOUCH_MIN_SIZE)
 		_expanded_panel.custom_minimum_size = Vector2(520, 460)
 		vbox.custom_minimum_size = Vector2(500, 440)
-		_expanded_panel.position = Vector2(-532, -24 - GameTheme.TOUCH_MIN_SIZE - 460)
+		_expanded_panel.position = Vector2(-right - 520, -24 - GameTheme.TOUCH_MIN_SIZE - 460)
 
 func _set_expanded(value: bool) -> void:
 	_expanded = value

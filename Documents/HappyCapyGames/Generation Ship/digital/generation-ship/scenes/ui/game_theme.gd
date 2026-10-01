@@ -62,6 +62,7 @@ const TOUCH_MIN_SIZE: float = 88.0   # canvas px on the 1920x1080 layout
 const TOUCH_FONT_SCALE: float = 1.4
 const TOUCH_DEFAULT_FONT: int = 16
 const TOUCH_LARGE_FONT: int = 24
+const TOUCH_CORNER_MARGIN: float = 64.0  # keeps corner buttons off rounded screen corners
 const TOUCH_SETTINGS_ROW: float = 64.0   # settings rows: many of them, so a bit less
 
 static func is_touch() -> bool:
