@@ -2619,11 +2619,11 @@ func _effect_step_choice(step: Dictionary) -> void:
 			break
 		colors.append(int(opt["color"]))
 	if not colors.is_empty():
-		_choice_popup.show_color_choices(str(step.get("prompt", tr("Choose:"))), colors,
+		_choice_popup.show_color_choices(tr(str(step.get("prompt", "Choose:"))), colors,
 			bool(step.get("skippable", false)), choice_cd, choice_is_adv)
 		return
 	_choice_popup.show_choices(
-		str(step.get("prompt", tr("Choose:"))),
+		tr(str(step.get("prompt", "Choose:"))),
 		labels,
 		bool(step.get("skippable", false)),
 		tints,
