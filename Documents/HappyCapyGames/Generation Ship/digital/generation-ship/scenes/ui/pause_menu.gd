@@ -238,9 +238,9 @@ func _build_settings_panel() -> void:
 	tip_option.add_theme_font_size_override("font_size", 16)
 	var current_size: float = GameTheme.tooltip_size()
 	for i: int in GameTheme.TOOLTIP_SIZES.size():
-		var size: float = GameTheme.TOOLTIP_SIZES[i]
-		tip_option.add_item("%d%%" % roundi(size * 100.0))
-		if is_equal_approx(size, current_size):
+		var tip_size: float = GameTheme.TOOLTIP_SIZES[i]
+		tip_option.add_item("%d%%" % roundi(tip_size * 100.0))
+		if is_equal_approx(tip_size, current_size):
 			tip_option.selected = i
 	tip_option.item_selected.connect(func(index: int) -> void:
 		GameTheme.set_tooltip_size(GameTheme.TOOLTIP_SIZES[index]))
