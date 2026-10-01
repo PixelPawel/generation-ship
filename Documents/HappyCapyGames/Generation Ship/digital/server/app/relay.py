@@ -119,7 +119,10 @@ async def _send_bytes(ws: WebSocket, data: bytes) -> None:
 
 async def _fail(ws: WebSocket, reason: str) -> None:
     await _send_json(ws, {"op": "error", "reason": reason})
-    await ws.close(code=4000)
+    try:
+        await ws.close(code=4000)
+    except RuntimeError:
+        pass  # client already closed the socket
 
 
 @router.websocket("/v1/relay")

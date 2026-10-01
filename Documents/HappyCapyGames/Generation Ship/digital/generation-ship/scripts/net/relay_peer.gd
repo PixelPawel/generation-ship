@@ -31,7 +31,12 @@ var _unique_id: int = 0
 var _status: MultiplayerPeer.ConnectionStatus = MultiplayerPeer.CONNECTION_DISCONNECTED
 var _hello: Dictionary = {}
 var _hello_sent: bool = false
-var _connect_started_ms: int = 0
+# Connect timeout counts only time the game was actually running: a long
+# frame (editor debug run loading right after launch) used to eat the whole
+# budget before the first poll, failing a connection that never got a chance.
+var _connect_elapsed_ms: int = 0
+var _last_poll_ms: int = 0
+const _MAX_COUNTED_FRAME_MS: int = 100
 var _incoming: Array[Dictionary] = []   # {from, mode, channel, data}
 var _target_peer: int = 0
 var _transfer_mode: MultiplayerPeer.TransferMode = MultiplayerPeer.TRANSFER_MODE_RELIABLE
@@ -68,7 +73,8 @@ func _open(hello: Dictionary) -> Error:
 		return err
 	_hello = hello
 	_hello_sent = false
-	_connect_started_ms = Time.get_ticks_msec()
+	_connect_elapsed_ms = 0
+	_last_poll_ms = Time.get_ticks_msec()
 	_status = MultiplayerPeer.CONNECTION_CONNECTING
 	return OK
 
@@ -97,8 +103,10 @@ func _poll() -> void:
 				})
 	elif state == WebSocketPeer.STATE_CLOSED:
 		_on_closed()
-	if _status == MultiplayerPeer.CONNECTION_CONNECTING \
-			and Time.get_ticks_msec() - _connect_started_ms > _CONNECT_TIMEOUT_MS:
+	var now: int = Time.get_ticks_msec()
+	_connect_elapsed_ms += mini(now - _last_poll_ms, _MAX_COUNTED_FRAME_MS)
+	_last_poll_ms = now
+	if _status == MultiplayerPeer.CONNECTION_CONNECTING and _connect_elapsed_ms > _CONNECT_TIMEOUT_MS:
 		error_reason = "unreachable"
 		_ws.close()
 		_on_closed()
