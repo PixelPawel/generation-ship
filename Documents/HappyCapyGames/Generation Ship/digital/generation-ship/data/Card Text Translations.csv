@@ -134,12 +134,12 @@ Vous pouvez stocker les matériels recyclés."
 "expedition:8:name","Galaktisches Museum","Museo Galattico","Muzeum Galaktyczne","Museo Galáctico","Musée Galactique"
 "expedition:9:effect","Ziehe 6. Lege bis zu 6 Karten verdeckt ab.","Pesca 6. Metti fino a 6 carte a faccia in giù.","Dobierz 6. Odłóż do 6 kart zakrytych.","Roba 6. Coloca hasta 6 cartas boca abajo.","Piochez 6. Empilez jusqu’à 6 cartes face cachée."
 "expedition:9:name","Persönlichkeitsbibliothek","Personalità","Biblioteka Osobowości","Personalidades","Personnalités"
-"promo:1:effect","Zählt beim Platzieren als Farbe deiner Wahl.
-(Kann einen Sektor zweimal optimieren)","Conta come un colore a tua scelta mentre viene posizionata.
-(Può ottimizzare un settore due volte)","Podczas umieszczania liczy się jako wybrany przez ciebie kolor.
-(Może dwukrotnie zoptymalizować sektor)","Cuenta como un color de tu elección mientras se coloca.
-(Puede optimizar un sector dos veces)","Compte comme une couleur de votre choix lorsqu’elle est placée.
-(Peut optimiser un secteur deux fois)"
+"promo:1:effect","Zählt beim Platzieren als beliebige Farbe.
+Wirf sie danach ab.","Conta come qualsiasi colore quando viene posizionata.
+Poi scartala.","Podczas umieszczania liczy się jako dowolny kolor.
+Następnie ją odrzuć.","Cuenta como cualquier color al colocarse.
+Luego descártala.","Compte comme n’importe quelle couleur lorsqu’elle est placée.
+Puis défaussez-la."
 "promo:1:name","Karma Chameleon","Karma Chameleon","Karma Chameleon","Karma Chameleon","Karma Chameleon"
 "promo:2:effect","Wenn du diese Karte recycelst, erhalte oder lagere stattdessen 2 Metals.","Se ricicli questa carta, guadagna o immagazzina invece 2 Metals.","Jeśli zutylizujesz tę kartę, zdobądź lub zmagazynuj zamiast tego 2 Metals.","Si reciclas esta carta, gana o almacena 2 Metals en su lugar.","Si vous recyclez cette carte, gagnez ou stockez 2 Metals à la place."
 "promo:2:name","Reicher Asteroid","Asteroide Ricco","Bogata Asteroida","Asteroide Rico","Astéroïde Riche"
