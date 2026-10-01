@@ -110,8 +110,8 @@ static func board_vp_lines(board: Array) -> Array[Dictionary]:
 					faceup_tuck += cd.stars
 			else:
 				facedown_tuck += 1
-	_add(lines, "Faceup tucked", faceup_tuck)
-	_add(lines, "Facedown tucked", facedown_tuck)
+	_add(lines, "Faceup archived", faceup_tuck)
+	_add(lines, "Facedown archived", facedown_tuck)
 
 	var stored_total: int = 0
 	for entry: Variant in board:

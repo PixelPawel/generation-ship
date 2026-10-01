@@ -103,7 +103,7 @@ static func get_global_expedition_steps(placed_card: CardData, placed_expedition
 				if placed_card.card_type == CardData.CardType.EXPEDITION:
 					steps.append(CardData.tag_step_source({
 						type = "choice",
-						prompt = "Tuck 1 card — choose face direction:",
+						prompt = "Archive 1 card — choose face direction:",
 						options = [
 							{label = "Faceup",   steps = [{type = "tuck", count = 1, face_up = true}]},
 							{label = "Facedown", steps = [{type = "tuck", count = 1, face_up = false}]},

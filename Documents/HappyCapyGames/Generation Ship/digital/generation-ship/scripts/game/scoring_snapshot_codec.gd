@@ -26,8 +26,8 @@ class_name ScoringSnapshotCodec
 const TOTAL_SIZE: int = 64
 
 const FIXED_LABELS: Array[String] = [
-	"Faceup tucked (⭐)",
-	"Facedown tucked (1 VP each)",
+	"Faceup archived (⭐)",
+	"Facedown archived (1 VP each)",
 	"Stored supply (1 VP each)",
 	"Stars (⭐)",
 	"Greenhouses (Liquids bonus)",

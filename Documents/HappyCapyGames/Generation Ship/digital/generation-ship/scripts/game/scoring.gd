@@ -76,7 +76,7 @@ static func _score_faceup_tucked(lines: Array[Dictionary], slots: Array) -> void
 				var cd: CardData = tuck.get("data") as CardData
 				if cd:
 					total += cd.stars
-	_add_line(lines, "Faceup tucked (⭐)", total)
+	_add_line(lines, "Faceup archived (⭐)", total)
 
 static func _score_facedown_tucked(lines: Array[Dictionary], slots: Array) -> void:
 	var total: int = 0
@@ -84,7 +84,7 @@ static func _score_facedown_tucked(lines: Array[Dictionary], slots: Array) -> vo
 		for tuck: Dictionary in slot.tucked_cards:
 			if not tuck.get("face_up", false):
 				total += 1
-	_add_line(lines, "Facedown tucked (1 VP each)", total)
+	_add_line(lines, "Facedown archived (1 VP each)", total)
 
 # ── base stored-supply VP (1 VP per stored supply on any sector) ─────────────
 

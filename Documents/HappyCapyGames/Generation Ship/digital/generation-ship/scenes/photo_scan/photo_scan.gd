@@ -64,7 +64,7 @@ const STEPPER_BUTTON_SIZE: float = 72.0
 const STEPPER_BUTTON_FONT_SIZE: int = 30
 # Fixed label width for the 3 tucked-card rows (stacked vertically beside
 # the cards) so their steppers all line up in a column regardless of each
-# label's text length ("Tucked ▲" vs "▲ Stars ★" vs "Tucked ▼").
+# label's text length ("Archived ▲" vs "▲ Stars ★" vs "Archived ▼").
 const TUCKED_LABEL_WIDTH: float = 150.0
 
 # View-only card art in each confirmed sector's summary column on the list
@@ -402,7 +402,7 @@ func _build_review_view() -> Control:
 	box.add_theme_constant_override("separation", 14)
 	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
-	var hint: Label = _make_hint_label("Every sector always shows 6 slots: the first is the sector, the other 5 are its tech/expedition stack (leave any unused ones blank). Tap Edit to pick a card's real identity from the collection (auto-detected as a starting guess where possible). Stored supply and tucked-card counts below are also auto-detected and much less reliable than card identity — check them carefully.")
+	var hint: Label = _make_hint_label("Every sector always shows 6 slots: the first is the sector, the other 5 are its tech/expedition stack (leave any unused ones blank). Tap Edit to pick a card's real identity from the collection (auto-detected as a starting guess where possible). Stored supply and archived-card counts below are also auto-detected and much less reliable than card identity — check them carefully.")
 	box.add_child(hint)
 
 	# The 6 cards never fill the whole screen width, so the tucked-card
@@ -422,9 +422,9 @@ func _build_review_view() -> Control:
 	tucked_col.add_theme_constant_override("separation", 12)
 	tucked_col.alignment = BoxContainer.ALIGNMENT_CENTER
 	cards_row.add_child(tucked_col)
-	_tucked_up_spinbox = _make_tucked_counter(tucked_col, "Tucked ▲")
+	_tucked_up_spinbox = _make_tucked_counter(tucked_col, "Archived ▲")
 	_tucked_up_stars_spinbox = _make_tucked_counter(tucked_col, "▲ Stars ★")
-	_tucked_down_spinbox = _make_tucked_counter(tucked_col, "Tucked ▼")
+	_tucked_down_spinbox = _make_tucked_counter(tucked_col, "Archived ▼")
 
 	box.add_child(HSeparator.new())
 
