@@ -641,15 +641,21 @@ static func setup_info_screen_display(main: Main) -> void:
 const EFFECT_HINT_FONT: float = 22.0
 const EFFECT_HINT_WIDTH: float = 640.0
 
+# Also refits the banner to its current text: a Control never shrinks on its
+# own, and the wrapped label measured before layout (at zero width, one word
+# per line) had left the banner huge. The label gets a fixed wrap width so
+# its height is right the first time.
 static func apply_effect_hint_scale(main: Main, s: float) -> void:
-	var font: int = roundi(EFFECT_HINT_FONT * s)
-	if main._effect_hint_label.get_theme_font_size("font_size") == font:
-		return
-	main._effect_hint_label.add_theme_font_size_override("font_size", font)
-	main._effect_hint_label.add_theme_constant_override("outline_size", maxi(2, roundi(2.0 * s)))
+	var label: Label = main._effect_hint_label
+	var panel: Control = main._effect_hint_panel
+	label.add_theme_font_size_override("font_size", roundi(EFFECT_HINT_FONT * s))
+	label.add_theme_constant_override("outline_size", maxi(2, roundi(2.0 * s)))
 	var max_w: float = main.get_viewport().get_visible_rect().size.x * 0.8
-	main._effect_hint_panel.custom_minimum_size = Vector2(minf(EFFECT_HINT_WIDTH * s, max_w), 90.0 * s)
-	main._effect_hint_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
+	var w: float = minf(EFFECT_HINT_WIDTH * s, max_w)
+	label.custom_minimum_size = Vector2(w - 40.0, 0.0)
+	panel.custom_minimum_size = Vector2(w, 90.0 * s)
+	panel.size = Vector2.ZERO
+	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
 
 static func setup_info_screen_input(main: Main, screen_mesh: MeshInstance3D) -> void:
 	setup_viewport_input(main, screen_mesh, main._info_viewport)

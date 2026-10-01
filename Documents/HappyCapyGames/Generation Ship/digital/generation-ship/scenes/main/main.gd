@@ -3911,8 +3911,13 @@ func _show_effect_hint(text: String) -> void:
 	if _effect_hint_label:
 		_effect_hint_label.text = text
 		CockpitRig.apply_effect_hint_scale(self, GameTheme.tooltip_scale())
+		_refit_effect_hint.call_deferred()
 	if _effect_hint_panel:
 		_effect_hint_panel.show()
+
+func _refit_effect_hint() -> void:
+	if _effect_hint_panel and _effect_hint_panel.visible:
+		CockpitRig.apply_effect_hint_scale(self, GameTheme.tooltip_scale())
 
 func _hide_effect_hint() -> void:
 	if _effect_hint_panel:
