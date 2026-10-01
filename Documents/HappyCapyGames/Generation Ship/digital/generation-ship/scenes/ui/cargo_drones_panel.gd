@@ -153,6 +153,9 @@ func _go_to_choose() -> void:
 	back_btn.pressed.connect(_go_to_source)
 	_footer.add_child(back_btn)
 	_add_finish_button()
+	# Primary action rightmost, like the other panels: Back | Finish | Next.
+	if _next_btn:
+		_footer.move_child(_next_btn, -1)
 
 func _build_choose_step() -> void:
 	_supply_entries.clear()
@@ -260,7 +263,6 @@ func _build_choose_step() -> void:
 	_next_btn.disabled = true
 	_next_btn.pressed.connect(_on_choose_next_pressed)
 	_footer.add_child(_next_btn)
-	_footer.move_child(_next_btn, 0)
 
 func _refresh_next_enabled() -> void:
 	if not _next_btn:

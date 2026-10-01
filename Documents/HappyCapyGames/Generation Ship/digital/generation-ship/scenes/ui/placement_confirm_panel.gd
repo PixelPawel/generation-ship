@@ -49,17 +49,6 @@ func _ready() -> void:
 	btn_row.add_theme_constant_override("separation", 24)
 	vbox.add_child(btn_row)
 
-	var confirm_btn := Button.new()
-	confirm_btn.text = tr("Confirm")
-	confirm_btn.custom_minimum_size = Vector2(220, 64)
-	confirm_btn.add_theme_font_size_override("font_size", 26)
-	confirm_btn.pressed.connect(func() -> void:
-		hide()
-		confirmed.emit()
-	)
-	GameTheme.style_positive(confirm_btn)
-	btn_row.add_child(confirm_btn)
-
 	var cancel_btn := Button.new()
 	cancel_btn.text = tr("Cancel")
 	cancel_btn.custom_minimum_size = Vector2(220, 64)
@@ -70,6 +59,17 @@ func _ready() -> void:
 	)
 	GameTheme.style_negative(cancel_btn)
 	btn_row.add_child(cancel_btn)
+
+	var confirm_btn := Button.new()
+	confirm_btn.text = tr("Confirm")
+	confirm_btn.custom_minimum_size = Vector2(220, 64)
+	confirm_btn.add_theme_font_size_override("font_size", 26)
+	confirm_btn.pressed.connect(func() -> void:
+		hide()
+		confirmed.emit()
+	)
+	GameTheme.style_positive(confirm_btn)
+	btn_row.add_child(confirm_btn)
 
 func show_confirm(card_name: String, card_color: CardData.SupplyColor, target_name: String, target_color: CardData.SupplyColor, preview_steps: Array[Dictionary] = []) -> void:
 	var card_part: String = "[color=#%s]%s[/color] [img=%dx%d]%s[/img]" % [
