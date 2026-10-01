@@ -61,7 +61,7 @@ func _rebuild(slot: SectorSlot) -> void:
 	if slot.placed_card and slot.placed_card.card_data:
 		var cd: CardData = slot.placed_card.card_data
 		var is_adv: bool = bool(slot.placed_card.get("is_advanced"))
-		title_str = cd.adv_name if is_adv else cd.card_name
+		title_str = CardDatabase.display_name(cd, is_adv)
 	var title := Label.new()
 	title.text = title_str
 	title.add_theme_font_size_override("font_size", 30)
@@ -217,7 +217,7 @@ static func make_card_row(cards: Array, face_up: bool, viewport_size: Vector2) -
 
 		if face_up and cd:
 			var name_lbl := Label.new()
-			name_lbl.text = cd.card_name
+			name_lbl.text = CardDatabase.display_name(cd)
 			name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			name_lbl.add_theme_font_size_override("font_size", 16)
 			name_lbl.add_theme_color_override("font_color", Color.WHITE)

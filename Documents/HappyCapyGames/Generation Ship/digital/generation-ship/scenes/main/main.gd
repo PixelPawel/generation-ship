@@ -383,10 +383,10 @@ func _on_any_card_hovered(card_node: Node3D) -> void:
 				else hint("Right-click to enlarge card.", "Tap and hold to enlarge card.")
 		if card.card_data:
 			var cd: CardData = card.card_data
-			var card_name: String = cd.adv_name if card.is_advanced and not cd.adv_name.is_empty() else cd.card_name
+			var card_name: String = CardDatabase.display_name(cd, card.is_advanced)
 			var cost: int = CardData.effective_cost(cd, card.is_advanced)
 			var cost_color: CardData.SupplyColor = cd.adv_color if card.is_advanced else cd.color
-			var effect: String = cd.adv_effect_text if card.is_advanced and not cd.adv_effect_text.is_empty() else cd.effect_text
+			var effect: String = CardDatabase.display_effect(cd, card.is_advanced)
 			title = tr("%s — %d %s") % [card_name, cost, CardData.color_name(cost_color)]
 			desc = ("%s\n%s" % [effect, hint_text]) if not effect.is_empty() else hint_text
 		else:
@@ -3328,10 +3328,10 @@ func _on_market_card_hover_started(slot_type: String, slot_idx: int) -> void:
 			cd = $Board.get_expedition_market().get_card_data(slot_idx)
 	if not cd:
 		return
-	var card_name: String = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
+	var card_name: String = CardDatabase.display_name(cd, is_adv)
 	var cost: int = CardData.effective_cost(cd, is_adv)
 	var cost_color: CardData.SupplyColor = cd.adv_color if is_adv else cd.color
-	var effect: String = cd.adv_effect_text if is_adv and not cd.adv_effect_text.is_empty() else cd.effect_text
+	var effect: String = CardDatabase.display_effect(cd, is_adv)
 	var desc_parts: Array[String] = []
 	if not effect.is_empty():
 		desc_parts.append(effect)

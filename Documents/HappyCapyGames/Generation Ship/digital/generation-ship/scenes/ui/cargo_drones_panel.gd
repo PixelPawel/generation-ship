@@ -226,7 +226,7 @@ func _build_choose_step() -> void:
 				img.modulate = Color(0.12, 0.18, 0.32) if not face_up else Color(0.92, 0.87, 0.76)
 			row.add_child(img)
 			var name_lbl := Label.new()
-			name_lbl.text = (cd.card_name if cd else tr("?")) if face_up else tr("Facedown")
+			name_lbl.text = (CardDatabase.display_name(cd) if cd else tr("?")) if face_up else tr("Facedown")
 			name_lbl.add_theme_font_size_override("font_size", 17)
 			name_lbl.add_theme_color_override("font_color", Color.WHITE)
 			name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -409,7 +409,7 @@ func _build_card_btn(slot: SectorSlot, pos: Vector2, sz: Vector2, on_pick: Calla
 		var cd: CardData = slot.placed_card.card_data as CardData
 		var is_adv: bool = bool(slot.placed_card.get("is_advanced"))
 		var url: String = cd.adv_image_url if is_adv else cd.image_url
-		lbl.text = cd.adv_name if (is_adv and not cd.adv_name.is_empty()) else cd.card_name
+		lbl.text = CardDatabase.display_name(cd, is_adv)
 		if not url.is_empty():
 			rect.texture = ImageCache.get_texture(url)
 

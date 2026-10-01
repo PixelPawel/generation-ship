@@ -367,6 +367,53 @@ func _parse_color(color_str: String) -> CardData.SupplyColor:
 		"thrust", "thrrust": return CardData.SupplyColor.THRUST
 	return CardData.SupplyColor.DUST
 
+# ── Translated card text (display only) ──────────────────────────────────────
+# card_name / effect_text stay English — game logic matches on them. These
+# return the current language's printed name/effect for showing to the
+# player, from data/Card Text Translations.csv (built from data/translations
+# by tools/build_card_text_l10n.py), falling back to English.
+const _CARD_TEXT_PATH: String = "res://data/Card Text Translations.csv"
+var _card_text: Dictionary = {}   # key -> {lang: text}
+var _card_text_loaded: bool = false
+
+func display_name(cd: CardData, is_adv: bool = false) -> String:
+	var english: String = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
+	return _card_text_for(cd, is_adv, "name", english)
+
+func display_effect(cd: CardData, is_adv: bool = false) -> String:
+	var english: String = cd.adv_effect_text if is_adv and not cd.adv_effect_text.is_empty() else cd.effect_text
+	return _card_text_for(cd, is_adv, "effect", english)
+
+func _card_text_for(cd: CardData, is_adv: bool, field: String, english: String) -> String:
+	var lang: String = TranslationServer.get_locale().substr(0, 2)
+	if lang == "en" or english.is_empty():
+		return english
+	if not _card_text_loaded:
+		_load_card_text()
+	var id: String
+	match cd.card_type:
+		CardData.CardType.SECTOR:
+			id = ("adv:%d" % cd.id) if is_adv else ("dust:" + cd.card_name)
+		CardData.CardType.EXPEDITION:
+			id = "expedition:%d" % cd.id
+		_:
+			id = ("promo:%d" % cd.promo_no) if cd.promo_no > 0 else ("tech:%d" % cd.id)
+	var entry: Dictionary = _card_text.get(id + ":" + field, {})
+	var text: String = entry.get(lang, "")
+	return text if not text.is_empty() else english
+
+func _load_card_text() -> void:
+	_card_text_loaded = true
+	for row: Dictionary in _read_csv(_CARD_TEXT_PATH):
+		var key: String = row.get("key", "")
+		if key.is_empty():
+			continue
+		var entry: Dictionary = {}
+		for lang: String in _LANGUAGE_CODES:
+			if lang != "en" and row.has(lang):
+				entry[lang] = row[lang]
+		_card_text[key] = entry
+
 func _read_csv(path: String) -> Array[Dictionary]:
 	var content: String = ""
 	var file := FileAccess.open(path, FileAccess.READ)
