@@ -252,14 +252,15 @@ func _on_room_ready(code: String) -> void:
 	_show_staging()
 
 # Server unreachable (offline, or it's down) — fall back to a local session
-# for playing against bots, leaving multiplayer.multiplayer_peer at Godot's
-# offline placeholder: is_server() is true there and @rpc calls resolve
-# locally, so the staging/start flow below works unchanged.
+# for playing against bots, on Godot's offline placeholder peer: is_server()
+# is true there and @rpc calls resolve locally, so the staging/start flow
+# below works unchanged. (Assigning null leaves *no* peer, not the offline
+# one — is_server()/get_unique_id() then error out.)
 func _start_offline_host() -> void:
 	_hosting_pending = false
 	_spinner_active = false
 	_relay = null
-	multiplayer.multiplayer_peer = null
+	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	_room_code = ""
 	_is_host = true
 	_players[1] = _player_name
