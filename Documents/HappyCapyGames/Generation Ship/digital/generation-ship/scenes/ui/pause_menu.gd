@@ -361,12 +361,15 @@ func _build_settings_panel() -> void:
 			visible = false)
 	vbox.add_child(close_btn)
 
+	# Voice chat is off everywhere while online games run over our relay
+	# server (see VoiceManager.is_available) — hide its volume and mic choice.
+	# The output device stays on desktop: it routes all game audio.
+	in_row.visible = false
+	_voice_slider.get_parent().visible = false
 	if GameTheme.is_touch():
-		# No voice chat or audio-device choice on phones — and fewer rows
-		# leaves room for the bigger touch targets.
+		# No audio-device choice on phones — and fewer rows leaves room for
+		# the bigger touch targets.
 		out_row.visible = false
-		in_row.visible = false
-		_voice_slider.get_parent().visible = false
 		GameTheme.touchify(close_btn)
 		for node: Node in vbox.find_children("*", "Control", true, false):
 			var ctrl: Control = node as Control
