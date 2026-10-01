@@ -1932,8 +1932,9 @@ func _mark_color_choice_pending(card: Node3D) -> void:
 		card.set_meta(SectorSlot.COLOR_CHOICE_PENDING_META, true)
 
 # Resolves a pending Karma Chameleon on slot as color: re-runs the optimize
-# check with it counting as that color, then it reverts to Dust for good.
-# Returns the newly triggered levels; the caller queues their effects.
+# check with it counting as that color. The caller queues the triggered
+# levels' effects, then discards it (discard_karma_chameleon).
+# Returns the newly triggered levels.
 func apply_placing_color(slot: SectorSlot, color: CardData.SupplyColor) -> Array[int]:
 	var card: Node3D = null
 	for c: Node3D in slot.get_all_placed_cards():
@@ -1948,6 +1949,21 @@ func apply_placing_color(slot: SectorSlot, color: CardData.SupplyColor) -> Array
 	var levels: Array[int] = _update_optimize_state(slot)
 	cd.placing_color_override = -1
 	return levels
+
+# Karma Chameleon: "Counts as any color when placed. Then discard it." A plain
+# discard (no supply). Re-checking the sector without it un-triggers the level
+# it completed, so another card can optimize that sector again.
+func discard_karma_chameleon(slot: SectorSlot) -> void:
+	for c: Node3D in slot.get_all_placed_cards():
+		var cd: CardData = c.get("card_data") as CardData
+		if cd and cd.card_name == "Karma Chameleon":
+			add_to_discard(cd)
+			slot.remove_tech_card(c)
+			c.queue_free()
+			slot.compact_tech_cards()
+			revalidate_optimize_after_removal(slot)
+			slot.refresh_display()
+			return
 
 func _update_optimize_state(slot: SectorSlot) -> Array[int]:
 	if not slot.occupied or not slot.placed_card or not slot.placed_card.card_data:

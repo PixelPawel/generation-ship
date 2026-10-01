@@ -130,8 +130,8 @@ static func effective_cost(cd: CardData, is_advanced: bool) -> int:
 @export var promo_no: int = 0
 
 # Karma Chameleon: the color it counts as for the optimize check of its own
-# placement only (-1 = none). Cleared right after that check — per the card
-# it reverts to Dust for everything else.
+# placement only (-1 = none). Cleared right after that check, and the card is
+# then discarded (Board.discard_karma_chameleon).
 var placing_color_override: int = -1
 
 # Rich Asteroid gives 2 Metals when recycled instead of 1 of its color.

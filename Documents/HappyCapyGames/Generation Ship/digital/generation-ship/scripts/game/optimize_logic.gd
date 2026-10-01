@@ -83,8 +83,8 @@ static func max_optimizations(cd: CardData, is_advanced: bool) -> int:
 # but a removal (e.g. Caldera Colony recycling a tucked tech) can shrink the
 # pool enough that a color the level depended on is gone, in which case it's
 # earnable again rather than staying permanently triggered off a
-# combination the sector no longer actually has. Karma Chameleon reverting
-# to Dust after its placement shrinks the pool the same way — and per the
+# combination the sector no longer actually has. Karma Chameleon being
+# discarded after its placement shrinks the pool the same way — and per the
 # rules its level may then be earned (and fire) again.
 static func update_optimize_state(
 	cd: CardData, is_advanced: bool, placed_tech_colors: Array[int],

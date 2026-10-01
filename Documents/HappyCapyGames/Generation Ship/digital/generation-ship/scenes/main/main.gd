@@ -2770,18 +2770,20 @@ func _effect_step_black_hole_encounter() -> void:
 
 # Karma Chameleon: it sat out its own placement's optimize check (see
 # Board._mark_color_choice_pending); now re-run it counting as the chosen
-# color, and resolve any newly satisfied optimize level right away.
+# color, queue any newly satisfied optimize level, then discard it — the
+# sector can then be optimized again with another card.
 func _effect_step_placing_color(color: CardData.SupplyColor) -> void:
 	if not _effect_slot or not is_instance_valid(_effect_slot):
 		_process_next_effect()
 		return
 	var levels: Array[int] = $Board.apply_placing_color(_effect_slot, color)
-	_log_effect(tr("counted as %s while being placed") % CardData.color_name(color))
+	_log_effect(tr("counted as %s while being placed, then discarded") % CardData.color_name(color))
 	var opt_steps: Array = []
 	for _level: int in levels:
 		opt_steps.append_array(SectorEffects.get_optimize_steps(_effect_slot))
 	for i: int in opt_steps.size():
 		_effect_queue.insert(i, opt_steps[i])
+	$Board.discard_karma_chameleon(_effect_slot)
 	_broadcast_my_state()
 	_process_next_effect()
 
