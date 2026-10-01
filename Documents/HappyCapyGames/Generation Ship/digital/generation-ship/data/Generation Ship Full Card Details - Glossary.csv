@@ -21,7 +21,7 @@ Action,Research,forschen,ricerca,badania,investigación,recherche,
 Action,Pass,passen,passare,pasować,pasar,passer,
 Action,Bid,bieten,offerta,oferta / licytacja,puja,enchère,
 Action,Auction,Auktion,asta,aukcja,subasta,enchère,FR uses the same word for Bid and Auction — translate by context
-Action,Archive,verstauen,infilare,wsunąć,meter,glisser,
+Action,Archive,archivieren,archiviare,zarchiwizować,archivar,archiver,
 UI/meta,Market,Markt,Mercato,Rynek,Mercado,Marché,
 UI/meta,Star,Stern,stella,Gwiazda,estrella,étoile,
 UI/meta,Rulebook,Regelbuch,Regolamento,Instrukcja,Reglamento,Livret de règles,

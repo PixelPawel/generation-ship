@@ -2572,14 +2572,14 @@ func _effect_step_tuck_optional(step: Dictionary) -> void:
 	_effect_face_up = bool(step.get("face_up", false))
 	_restrict_picks_to_drawn = bool(step.get("restrict_to_drawn", false))
 	_tuck_optional_no_bonus_draw = bool(step.get("no_bonus_draw", false))
-	var face_str_to: String = "faceup" if _effect_face_up else "facedown"
+	var face_str_to: String = tr("faceup") if _effect_face_up else tr("facedown")
 	var prompt_to: String
 	if _restrict_picks_to_drawn:
-		prompt_to = "Archive up to %d of the drawn cards %s" % [_effect_remaining, face_str_to]
+		prompt_to = tr("Archive up to %d of the drawn cards %s") % [_effect_remaining, face_str_to]
 	elif _tuck_optional_no_bonus_draw:
-		prompt_to = "Tuck up to %d card(s) %s" % [_effect_remaining, face_str_to]
+		prompt_to = tr("Tuck up to %d card(s) %s") % [_effect_remaining, face_str_to]
 	else:
-		prompt_to = "Archive up to %d card(s) %s — draw 1 per archived card" % [_effect_remaining, face_str_to]
+		prompt_to = tr("Archive up to %d card(s) %s — draw 1 per archived card") % [_effect_remaining, face_str_to]
 	_show_hand_multiselect(prompt_to)
 
 func _effect_step_reveal_expedition_slot(step: Dictionary) -> void:

@@ -21,17 +21,17 @@ Zapłać 2 Metals lub zniszcz 2 karty.","Zapłać 2 Metals na gracza.","","Done"
 "13","Superkolonia Pożerająca Tlen","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm13.png","Organix","Zapierasz mi dech w piersiach.","Usuń z gry 3 zaawansowane sektory
 z rynku.","Opróżnij 1 z talii sektorów Dust.","","Done","Daniel"
 "14","Pandemia","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm14.png","Organix","Musiałeś zjeść tego kosmicznego nietoperza?","Nie możesz utylizować kart.","Odrzuć 1 kartę Organix na gracza.","","Done","Daniel"
-"15","Mutacje","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm15.png","Organix","Ewolucja, hę, zawsze znajdzie sposób.","Każdy gracz niszczy 1 kartę, jeśli to możliwe kartę Organix.","Strać 1 odłożoną kartę na gracza.
+"15","Mutacje","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm15.png","Organix","Ewolucja, hę, zawsze znajdzie sposób.","Każdy gracz niszczy 1 kartę, jeśli to możliwe kartę Organix.","Strać 1 zarchiwizowaną kartę na gracza.
 ","","Done","Daniel"
-"16","Inwazja","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm16.png","Organix","Kiedyś lubiłem grzyby…","Sektory z jakimkolwiek Organix nie mogą być optymalizowane.","Odwróć 1 odkrytą odłożoną kartę na zakrytą, na gracza.","","Done","Daniel"
+"16","Inwazja","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm16.png","Organix","Kiedyś lubiłem grzyby…","Sektory z jakimkolwiek Organix nie mogą być optymalizowane.","Odwróć 1 odkrytą zarchiwizowaną kartę na zakrytą, na gracza.","","Done","Daniel"
 "17","Wirus Roślinny","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm17.png","Organix","Plony gniją w korytarzach.","Nie zdobywaj Organix na koniec generacji.
 ","Miej 3+ karty Organix w 1 sektorze.","","Done","Daniel"
-"18","Obcy Patogen","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm18.png","Organix","Nieznany smak.","Karty Organix kosztują +2.","Odwróć jedną odkrytą odłożoną kartę z 3+⭐ na zakrytą.","","Done","Daniel"
+"18","Obcy Patogen","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm18.png","Organix","Nieznany smak.","Karty Organix kosztują +2.","Odwróć jedną odkrytą zarchiwizowaną kartę z 3+⭐ na zakrytą.","","Done","Daniel"
 "19","Rozbłysk Gamma","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm19.png","Electrix","Zestrzelony z odległości 1500 lat świetlnych.","Każdy gracz wybiera: Strać 2
-zmagazynowane zasoby lub odłożone karty.","Skompletuj w pełni zoptymalizowany sektor.","","Done","Daniel"
+zmagazynowane zasoby lub zarchiwizowane karty.","Skompletuj w pełni zoptymalizowany sektor.","","Done","Daniel"
 "20","Cybernetyczny Psychopata","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm20.png","Electrix","Wrócę.","Każdy gracz niszczy
 1 kartę, jeśli to możliwe kartę Electrix.","Opróżnij 1 z talii sektorów Dust.","","Done","Daniel"
-"21","Awaria Neuralnego","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm21.png","Electrix","Będziesz myśleć to, co ja!","Nie możesz odkładać kart
+"21","Awaria Neuralnego","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm21.png","Electrix","Będziesz myśleć to, co ja!","Nie możesz archiwizować kart
 ani magazynować zasobów.","Odrzuć karty o wartości 3⭐ na gracza.","","Done","Daniel"
 "22","Awaria Systemu","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm22.png","Electrix","Próbowałeś wyłączyć i włączyć ponownie?","Zmagazynuj 1 Electrix tutaj.
 Odkryj 1 zagrożenie za Electrix.","Odrzuć 1 kartę Electrix na gracza.","","Done","Daniel"

@@ -48,10 +48,17 @@ all were unified to "matériel" on 2026-09-29.
 |---|---|---|---|---|---|
 | Fuse | verschmelzen | fondere | połączyć | fusionar | fusionner |
 | Recycle | recyceln | riciclare | poddać recyklingowi | reciclar | recycler |
+| Archive | archivieren | archiviare | zarchiwizować | archivar | archiver |
 | Research | Forschung / forschen | ricerca | badania | investigación | recherche |
 | Pass | passen | passare | pasować | pasar | passer |
 | Bid | Gebot / bieten | offerta | oferta / licytacja | puja | enchère |
 | Auction | Auktion | asta | aukcja | subasta | enchère |
+
+Note: "Archive" replaced "Tuck" (2026-10-01): a card placed faceup or facedown under a sector.
+Before, each language used several verbs for it (DE ablegen/verstauen/legen ... unter, ES colocar/guardar,
+FR empiler/ranger, IT mettere (da parte)/ripiegare, PL odłożyć/podłożyć); all now use the one verb above.
+German takes the dative with it: "unter diesem Sektor" (not "diesen"); Polish uses the perfective
+imperative "Zarchiwizuj" on cards.
 
 Note: French uses "enchère" for both Bid and Auction — there's no separate
 term, so translate by context rather than a 1:1 word swap.
