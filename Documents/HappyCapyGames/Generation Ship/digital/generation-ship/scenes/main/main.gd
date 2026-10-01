@@ -358,6 +358,11 @@ func _on_node_added_to_tree(node: Node) -> void:
 		node.hovered.connect(_on_any_card_hovered)
 		node.unhovered.connect(_on_any_card_unhovered)
 
+# Input hints in the player's words: phones have no mouse — "right-click" is
+# a long-press there and recycling is a drag onto the control screen.
+func hint(desktop: String, mobile: String) -> String:
+	return tr(mobile) if OS.has_feature("mobile") else tr(desktop)
+
 func _on_any_card_hovered(card_node: Node3D) -> void:
 	var card: Card = card_node as Card
 	if not card:
@@ -365,9 +370,10 @@ func _on_any_card_hovered(card_node: Node3D) -> void:
 	var title: String = ""
 	var desc: String = ""
 	if card.is_market_inspecting():
-		desc = tr("Left-click to buy.\nRight-click to shrink.")
+		desc = hint("Left-click to buy.\nRight-click to shrink.", "Tap to buy.\nTap and hold to shrink.")
 	elif card.is_placed:
-		var hint: String = tr("Right-click to shrink card.") if card.is_elevated() else tr("Right-click to enlarge card.")
+		var hint_text: String = hint("Right-click to shrink card.", "Tap and hold to shrink card.") if card.is_elevated() \
+				else hint("Right-click to enlarge card.", "Tap and hold to enlarge card.")
 		if card.card_data:
 			var cd: CardData = card.card_data
 			var card_name: String = cd.adv_name if card.is_advanced and not cd.adv_name.is_empty() else cd.card_name
@@ -375,18 +381,23 @@ func _on_any_card_hovered(card_node: Node3D) -> void:
 			var cost_color: CardData.SupplyColor = cd.adv_color if card.is_advanced else cd.color
 			var effect: String = cd.adv_effect_text if card.is_advanced and not cd.adv_effect_text.is_empty() else cd.effect_text
 			title = tr("%s — %d %s") % [card_name, cost, CardData.color_name(cost_color)]
-			desc = ("%s\n%s" % [effect, hint]) if not effect.is_empty() else hint
+			desc = ("%s\n%s" % [effect, hint_text]) if not effect.is_empty() else hint_text
 		else:
-			desc = hint
+			desc = hint_text
 		_set_containing_sector_hover(card, true)
 	elif card.managed_by_hand:
-		desc = tr("Left-click and drag onto sector to buy or Right-click to Recycle.")
+		desc = hint("Left-click and drag onto sector to buy or Right-click to Recycle.",
+				"Drag onto a sector to buy, or onto the control screen to recycle.")
 	elif card.card_data:
 		match card.card_data.card_type:
 			CardData.CardType.EXPEDITION:
-				desc = tr("Left-click and drag onto sector card to start a bid.")
+				desc = hint("Left-click and drag onto sector card to start a bid.",
+						"Drag onto a sector card to start a bid.")
 			CardData.CardType.SECTOR:
-				desc = tr("Left-click and drag onto a blue sector slot to start a bid.") if card.is_advanced else tr("Left-click and drag onto a blue sector slot to buy sector. Base card to place other cards onto.")
+				desc = hint("Left-click and drag onto a blue sector slot to start a bid.",
+						"Drag onto a blue sector slot to start a bid.") if card.is_advanced \
+						else hint("Left-click and drag onto a blue sector slot to buy sector. Base card to place other cards onto.",
+						"Drag onto a blue sector slot to buy the sector. Base card to place other cards onto.")
 	if not desc.is_empty():
 		_show_tooltip(title, desc)
 
@@ -499,6 +510,10 @@ func _do_game_setup(sector_order: Array, exp_order: Array, tech_order: Array) ->
 func _show_tooltip(title: String, desc: String) -> void:
 	if not _tooltip_panel:
 		return
+	# Tooltip Size may have been changed in the pause menu since the last show.
+	var s: float = CockpitRig.tooltip_scale()
+	if not is_equal_approx(s, _tooltip_scale):
+		CockpitRig.apply_tooltip_scale(self, s)
 	_tooltip_title.text = title
 	_tooltip_title.visible = not title.is_empty()
 	_tooltip_desc.text = desc
@@ -3301,8 +3316,8 @@ func _on_market_card_hover_started(slot_type: String, slot_idx: int) -> void:
 	var desc_parts: Array[String] = []
 	if not effect.is_empty():
 		desc_parts.append(effect)
-	desc_parts.append(tr("Left-click to buy."))
-	desc_parts.append(tr("Right-click to enlarge."))
+	desc_parts.append(hint("Left-click to buy.", "Tap to buy."))
+	desc_parts.append(hint("Right-click to enlarge.", "Tap and hold to enlarge."))
 	_show_tooltip(tr("%s — %d %s") % [card_name, cost, CardData.color_name(cost_color)], "\n".join(desc_parts))
 
 func _on_supply_icon_hovered(color: int) -> void:

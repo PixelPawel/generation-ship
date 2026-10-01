@@ -221,6 +221,30 @@ func _build_settings_panel() -> void:
 	)
 	shake_row.add_child(_shake_check)
 
+	# Tooltip size (see GameTheme.tooltip_size) — defaults to 200% on phones.
+	var tip_row := HBoxContainer.new()
+	tip_row.add_theme_constant_override("separation", 10)
+	vbox.add_child(tip_row)
+
+	var tip_lbl := Label.new()
+	_tr_set(tip_lbl, "Tooltip Size")
+	tip_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tip_lbl.add_theme_font_size_override("font_size", 16)
+	tip_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tip_row.add_child(tip_lbl)
+
+	var tip_option := OptionButton.new()
+	tip_option.add_theme_font_size_override("font_size", 16)
+	var current_size: float = GameTheme.tooltip_size()
+	for i: int in GameTheme.TOOLTIP_SIZES.size():
+		var size: float = GameTheme.TOOLTIP_SIZES[i]
+		tip_option.add_item("%d%%" % roundi(size * 100.0))
+		if is_equal_approx(size, current_size):
+			tip_option.selected = i
+	tip_option.item_selected.connect(func(index: int) -> void:
+		GameTheme.set_tooltip_size(GameTheme.TOOLTIP_SIZES[index]))
+	tip_row.add_child(tip_option)
+
 	var tutorial_row := HBoxContainer.new()
 	tutorial_row.add_theme_constant_override("separation", 10)
 	vbox.add_child(tutorial_row)

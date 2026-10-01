@@ -46,7 +46,61 @@ static func _build() -> Theme:
 	theme.set_color("font_disabled_color", "Button", Color(0.38, 0.45, 0.58))
 	theme.set_color("font_focus_color",    "Button", Color(0.78, 0.88, 1.00))
 
+	# Godot's built-in tooltips (tooltip_text on buttons etc.) — same size as
+	# the cockpit's floating tooltip (see tooltip_scale()).
+	theme.set_font_size("font_size", "TooltipLabel", roundi(TOOLTIP_BASE_FONT * tooltip_scale()))
+
 	return theme
+
+# ── Tooltip size (Settings → Tooltip Size) ────────────────────────────────────
+# Final tooltip scale = device factor (phones only, from the screen's physical
+# height) × the player's chosen size. Default choice: 200% on phones (they were
+# hard to read at 100%), 100% on desktop.
+
+const SETTINGS_PATH: String = "user://settings.cfg"
+const TOOLTIP_SIZES: Array[float] = [0.75, 1.0, 1.5, 2.0, 2.5, 3.0]
+const TOOLTIP_BASE_FONT: float = 16.0
+# Desktop needs no device factor: canvas_items stretch (1920x1080 base)
+# already grows the UI with the window. A phone gets the same canvas scale as
+# a 1080p monitor on a screen a few cm tall, so it's scaled by physical height.
+const TOOLTIP_MOBILE_REF_HEIGHT_IN: float = 4.5  # screens this tall (inches) or taller need no boost
+const TOOLTIP_MOBILE_MAX_SCALE: float = 1.8
+const TOOLTIP_MOBILE_FALLBACK_SCALE: float = 1.6  # device reports no usable DPI
+
+static var _tooltip_size: float = -1.0   # player's choice, loaded lazily
+
+static func tooltip_scale() -> float:
+	return _device_tooltip_scale() * tooltip_size()
+
+static func tooltip_size() -> float:
+	if _tooltip_size < 0.0:
+		var cfg: ConfigFile = ConfigFile.new()
+		var default_size: float = 2.0 if OS.has_feature("mobile") else 1.0
+		_tooltip_size = default_size
+		if cfg.load(SETTINGS_PATH) == OK:
+			_tooltip_size = float(cfg.get_value("display", "tooltip_size", default_size))
+	return _tooltip_size
+
+# Saves the choice and resizes the built-in tooltips right away; the cockpit's
+# floating tooltip picks it up the next time it's shown.
+static func set_tooltip_size(size: float) -> void:
+	_tooltip_size = size
+	var cfg: ConfigFile = ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
+	cfg.set_value("display", "tooltip_size", size)
+	cfg.save(SETTINGS_PATH)
+	get_theme().set_font_size("font_size", "TooltipLabel", roundi(TOOLTIP_BASE_FONT * tooltip_scale()))
+
+static func _device_tooltip_scale() -> float:
+	if not OS.has_feature("mobile"):
+		return 1.0
+	var dpi: int = DisplayServer.screen_get_dpi()
+	if dpi <= 0:
+		return TOOLTIP_MOBILE_FALLBACK_SCALE
+	var screen_size: Vector2i = DisplayServer.screen_get_size()
+	var screen_h_px: float = float(mini(screen_size.x, screen_size.y))  # short side = height in landscape
+	var screen_h_in: float = screen_h_px / float(dpi)
+	return clampf(TOOLTIP_MOBILE_REF_HEIGHT_IN / screen_h_in, 1.0, TOOLTIP_MOBILE_MAX_SCALE)
 
 static func _btn(bg: Color, border: Color, bw: int) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()

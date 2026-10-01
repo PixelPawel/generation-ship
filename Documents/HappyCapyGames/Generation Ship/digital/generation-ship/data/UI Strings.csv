@@ -313,3 +313,114 @@ LANG_FR,French,Französisch,Francese,Francuski,Francés,Français
 "That game is full.","That game is full.","Dieses Spiel ist voll.","Questa partita è piena.","Ta gra jest pełna.","Esa partida está llena.","Cette partie est complète."
 "That game has already started.","That game has already started.","Dieses Spiel hat bereits begonnen.","Questa partita è già iniziata.","Ta gra już się rozpoczęła.","Esa partida ya ha comenzado.","Cette partie a déjà commencé."
 "That game uses a different game version.","That game uses a different game version.","Dieses Spiel nutzt eine andere Spielversion.","Questa partita usa una versione diversa del gioco.","Ta gra używa innej wersji gry.","Esa partida usa otra versión del juego.","Cette partie utilise une autre version du jeu."
+"[Locked] ","[Locked] ","[Gesperrt] ","[Bloccata] ","[Zablokowana] ","[Bloqueada] ","[Verrouillée] "
+"This lobby is password protected","This lobby is password protected","Diese Lobby ist passwortgeschützt","Questa lobby è protetta da password","To lobby jest chronione hasłem","Esta sala está protegida con contraseña","Ce salon est protégé par un mot de passe"
+"Password","Password","Passwort","Password","Hasło","Contraseña","Mot de passe"
+"Incorrect password.","Incorrect password.","Falsches Passwort.","Password errata.","Nieprawidłowe hasło.","Contraseña incorrecta.","Mot de passe incorrect."
+"Join","Join","Beitreten","Entra","Dołącz","Unirse","Rejoindre"
+"%s: started an auction for %s","%s: started an auction for %s","%s: hat eine Auktion um %s gestartet","%s: ha avviato un’asta per %s","%s: rozpoczyna aukcję o %s","%s: inició una subasta por %s","%s : a lancé une enchère pour %s"
+"Right-click to enlarge/shrink this screen.","Right-click to enlarge/shrink this screen.","Rechtsklick, um diesen Bildschirm zu vergrößern/verkleinern.","Clic destro per ingrandire/ridurre questo schermo.","Kliknij prawym przyciskiem myszy, aby powiększyć/zmniejszyć ten ekran.","Clic derecho para agrandar/reducir esta pantalla.","Clic droit pour agrandir/réduire cet écran."
+"Tap and hold to enlarge/shrink this screen.","Tap and hold to enlarge/shrink this screen.","Gedrückt halten, um diesen Bildschirm zu vergrößern/verkleinern.","Tieni premuto per ingrandire/ridurre questo schermo.","Przytrzymaj, aby powiększyć/zmniejszyć ten ekran.","Mantén pulsado para agrandar/reducir esta pantalla.","Appui long pour agrandir/réduire cet écran."
+"Bid: %d","Bid: %d","Gebot: %d","Offerta: %d","Oferta: %d","Puja: %d","Enchère : %d"
+"Deciding…","Deciding…","Entscheidet…","Sta decidendo…","Podejmuje decyzję…","Decidiendo…","Réfléchit…"
+"Optimize","Optimize","Optimieren","Ottimizza","Optymalizacja","Optimizar","Optimiser"
+"Multiple effects triggered — resolve which first?","Multiple effects triggered — resolve which first?","Mehrere Effekte ausgelöst — welcher zuerst?","Più effetti attivati — quale risolvere per primo?","Aktywowano kilka efektów — który rozpatrzyć najpierw?","Se activaron varios efectos — ¿cuál resolver primero?","Plusieurs effets déclenchés — lequel résoudre en premier ?"
+"shuffled %d expedition(s) back into the deck","shuffled %d expedition(s) back into the deck","%d Expedition(en) zurück ins Deck gemischt","rimescolate %d spedizioni nel mazzo","wtasowano %d ekspedycj(e) z powrotem do talii","barajó %d expedición(es) de vuelta en el mazo","%d expédition(s) remélangée(s) dans la pioche"
+"You can still fuse 1:1. Spend them all or press the End Turn button (Play) to end your turn manually.","You can still fuse 1:1. Spend them all or press the End Turn button (Play) to end your turn manually.","Du kannst noch 1:1 verschmelzen. Nutze alle oder drücke den „Zug beenden“-Knopf (Play), um deinen Zug manuell zu beenden.","Puoi ancora fondere 1:1. Usale tutte o premi il pulsante Fine turno (Play) per terminare il turno manualmente.","Nadal możesz połączyć 1:1. Wykorzystaj wszystkie lub naciśnij przycisk Zakończ turę (Play), aby zakończyć turę ręcznie.","Aún puedes fusionar 1:1. Úsalas todas o pulsa el botón Terminar turno (Play) para acabar tu turno manualmente.","Vous pouvez encore fusionner 1:1. Utilisez-les toutes ou appuyez sur le bouton Fin de tour (Play) pour terminer votre tour manuellement."
+"Left-click to buy.
+Right-click to shrink.","Left-click to buy.
+Right-click to shrink.","Linksklick zum Kaufen.
+Rechtsklick zum Verkleinern.","Clic sinistro per acquistare.
+Clic destro per ridurre.","Kliknij lewym przyciskiem, aby kupić.
+Kliknij prawym, aby zmniejszyć.","Clic izquierdo para comprar.
+Clic derecho para reducir.","Clic gauche pour acheter.
+Clic droit pour réduire."
+"Tap to buy.
+Tap and hold to shrink.","Tap to buy.
+Tap and hold to shrink.","Tippen zum Kaufen.
+Gedrückt halten zum Verkleinern.","Tocca per acquistare.
+Tieni premuto per ridurre.","Dotknij, aby kupić.
+Przytrzymaj, aby zmniejszyć.","Toca para comprar.
+Mantén pulsado para reducir.","Touchez pour acheter.
+Appui long pour réduire."
+"Tap and hold to shrink card.","Tap and hold to shrink card.","Gedrückt halten, um die Karte zu verkleinern.","Tieni premuto per ridurre la carta.","Przytrzymaj, aby zmniejszyć kartę.","Mantén pulsado para reducir la carta.","Appui long pour réduire la carte."
+"Tap and hold to enlarge card.","Tap and hold to enlarge card.","Gedrückt halten, um die Karte zu vergrößern.","Tieni premuto per ingrandire la carta.","Przytrzymaj, aby powiększyć kartę.","Mantén pulsado para agrandar la carta.","Appui long pour agrandir la carte."
+"Tap to buy.","Tap to buy.","Tippen zum Kaufen.","Tocca per acquistare.","Dotknij, aby kupić.","Toca para comprar.","Touchez pour acheter."
+"Tap and hold to enlarge.","Tap and hold to enlarge.","Gedrückt halten zum Vergrößern.","Tieni premuto per ingrandire.","Przytrzymaj, aby powiększyć.","Mantén pulsado para agrandar.","Appui long pour agrandir."
+"Drag onto a sector to buy, or onto the control screen to recycle.","Drag onto a sector to buy, or onto the control screen to recycle.","Auf einen Sektor ziehen zum Kaufen oder auf den Kontrollbildschirm zum Recyceln.","Trascina su un settore per acquistare o sullo schermo di controllo per riciclare.","Przeciągnij na sektor, aby kupić, lub na ekran sterowania, aby poddać recyklingowi.","Arrastra a un sector para comprar o a la pantalla de control para reciclar.","Glissez sur un secteur pour acheter, ou sur l’écran de contrôle pour recycler."
+"Drag onto a sector card to start a bid.","Drag onto a sector card to start a bid.","Auf eine Sektorkarte ziehen, um ein Gebot zu starten.","Trascina su una carta settore per avviare un’offerta.","Przeciągnij na kartę sektora, aby rozpocząć licytację.","Arrastra a una carta de sector para iniciar una puja.","Glissez sur une carte secteur pour lancer une enchère."
+"Drag onto a blue sector slot to start a bid.","Drag onto a blue sector slot to start a bid.","Auf einen blauen Sektorplatz ziehen, um ein Gebot zu starten.","Trascina su uno slot settore blu per avviare un’offerta.","Przeciągnij na niebieski slot sektora, aby rozpocząć licytację.","Arrastra a una ranura de sector azul para iniciar una puja.","Glissez sur un emplacement de secteur bleu pour lancer une enchère."
+"Drag onto a blue sector slot to buy the sector. Base card to place other cards onto.","Drag onto a blue sector slot to buy the sector. Base card to place other cards onto.","Auf einen blauen Sektorplatz ziehen, um den Sektor zu kaufen. Basiskarte, auf die andere Karten gelegt werden.","Trascina su uno slot settore blu per acquistare il settore. Carta base su cui piazzare le altre carte.","Przeciągnij na niebieski slot sektora, aby kupić sektor. Karta bazowa, na której umieszcza się inne karty.","Arrastra a una ranura de sector azul para comprar el sector. Carta base sobre la que se colocan las demás.","Glissez sur un emplacement de secteur bleu pour acheter le secteur. Carte de base sur laquelle poser les autres cartes."
+"Moved %s
+%s → %s","Moved %s
+%s → %s","%s verschoben
+%s → %s","Spostato %s
+%s → %s","Przeniesiono %s
+%s → %s","Movido %s
+%s → %s","Déplacé : %s
+%s → %s"
+"CHAT","CHAT","CHAT","CHAT","CZAT","CHAT","CHAT"
+"Message…","Message…","Nachricht…","Messaggio…","Wiadomość…","Mensaje…","Message…"
+"Send","Send","Senden","Invia","Wyślij","Enviar","Envoyer"
+"🎤 Hold %s","🎤 Hold %s","🎤 %s halten","🎤 Tieni premuto %s","🎤 Przytrzymaj %s","🎤 Mantén %s","🎤 Maintenez %s"
+"💬 Chat","💬 Chat","💬 Chat","💬 Chat","💬 Czat","💬 Chat","💬 Chat"
+"Couldn't reach Steam's leaderboard. Try again later.","Couldn't reach Steam's leaderboard. Try again later.","Steam-Bestenliste nicht erreichbar. Versuche es später erneut.","Impossibile raggiungere la classifica di Steam. Riprova più tardi.","Nie udało się połączyć z rankingiem Steam. Spróbuj ponownie później.","No se pudo acceder a la clasificación de Steam. Inténtalo más tarde.","Impossible d’accéder au classement Steam. Réessayez plus tard."
+"No scores yet — be the first!","No scores yet — be the first!","Noch keine Ergebnisse — leg los!","Ancora nessun punteggio — inizia tu!","Brak wyników — zagraj teraz!","Aún no hay puntuaciones — ¡empieza tú!","Aucun score pour l’instant — à vous de jouer !"
+"Player #%d","Player #%d","Spieler #%d","Giocatore #%d","Gracz #%d","Jugador #%d","Joueur #%d"
+"%s (You)","%s (You)","%s (Du)","%s (Tu)","%s (Ty)","%s (Tú)","%s (Vous)"
+"Loading…","Loading…","Wird geladen…","Caricamento…","Ładowanie…","Cargando…","Chargement…"
+"No score breakdown available for this game.","No score breakdown available for this game.","Für dieses Spiel ist keine Punkteaufschlüsselung verfügbar.","Nessun dettaglio del punteggio disponibile per questa partita.","Brak szczegółów wyniku dla tej gry.","No hay desglose de puntuación para esta partida.","Aucun détail du score disponible pour cette partie."
+"LEADERBOARD","LEADERBOARD","BESTENLISTE","CLASSIFICA","RANKING","CLASIFICACIÓN","CLASSEMENT"
+"Player","Player","Spieler","Giocatore","Gracz","Jugador","Joueur"
+"Score","Score","Punkte","Punteggio","Wynik","Puntuación","Score"
+"Resolution","Resolution","Auflösung","Risoluzione","Rozdzielczość","Resolución","Résolution"
+"Tooltip Size","Tooltip Size","Tooltip-Größe","Dimensione suggerimenti","Rozmiar podpowiedzi","Tamaño de las ayudas","Taille des infobulles"
+"Output Device","Output Device","Ausgabegerät","Dispositivo di uscita","Urządzenie wyjściowe","Dispositivo de salida","Périphérique de sortie"
+"Input Device","Input Device","Eingabegerät","Dispositivo di ingresso","Urządzenie wejściowe","Dispositivo de entrada","Périphérique d’entrée"
+"Draw %d","Draw %d","Ziehe %d","Pesca %d","Dobierz %d","Roba %d","Piochez %d"
+"Draw & recycle the top card","Draw & recycle the top card","Ziehe die oberste Karte & recycle sie","Pesca e ricicla la carta in cima","Dobierz i poddaj recyklingowi wierzchnią kartę","Roba y recicla la carta superior","Piochez et recyclez la carte du dessus"
+"Every player draws %d","Every player draws %d","Jeder Spieler zieht %d","Ogni giocatore pesca %d","Każdy gracz dobiera %d","Cada jugador roba %d","Chaque joueur pioche %d"
+"Draw 1 card per player","Draw 1 card per player","Ziehe 1 Karte pro Spieler","Pesca 1 carta per giocatore","Dobierz 1 kartę na gracza","Roba 1 carta por jugador","Piochez 1 carte par joueur"
+"Gain %d %s","Gain %d %s","Erhalte %d %s","Ottieni %d %s","Zdobądź %d %s","Gana %d %s","Gagnez %d %s"
+"Gain 1 %s per sector on the ship","Gain 1 %s per sector on the ship","Erhalte 1 %s pro Sektor auf dem Schiff","Ottieni 1 %s per ogni settore della nave","Zdobądź 1 %s za każdy sektor na statku","Gana 1 %s por cada sector de la nave","Gagnez 1 %s par secteur du vaisseau"
+"Gain %s equal to ×%d the stored amount","Gain %s equal to ×%d the stored amount","Erhalte %s in Höhe von ×%d der gespeicherten Menge","Ottieni %s pari a ×%d la quantità conservata","Zdobądź %s równe ×%d zmagazynowanej ilości","Gana %s igual a ×%d la cantidad almacenada","Gagnez %s égal à ×%d la quantité stockée"
+"Store %d %s on this sector","Store %d %s on this sector","Speichere %d %s auf diesem Sektor","Conserva %d %s su questo settore","Zmagazynuj %d %s na tym sektorze","Almacena %d %s en este sector","Stockez %d %s sur ce secteur"
+"Store %d %s on a sector of your choice","Store %d %s on a sector of your choice","Speichere %d %s auf einem Sektor deiner Wahl","Conserva %d %s su un settore a tua scelta","Zmagazynuj %d %s na wybranym sektorze","Almacena %d %s en un sector a tu elección","Stockez %d %s sur un secteur de votre choix"
+"Store 1 supply per card here (matching each card's color)","Store 1 supply per card here (matching each card's color)","Speichere hier 1 Vorrat pro Karte (in der Farbe der jeweiligen Karte)","Conserva qui 1 risorsa per ogni carta (del colore di ciascuna carta)","Zmagazynuj tu 1 zasób za każdą kartę (w kolorze danej karty)","Almacena aquí 1 suministro por carta (del color de cada carta)","Stockez ici 1 matériel par carte (de la couleur de chaque carte)"
+"Fuse 1:1 ×%d","Fuse 1:1 ×%d","Verschmelzen 1:1 ×%d","Fondi 1:1 ×%d","Połącz 1:1 ×%d","Fusiona 1:1 ×%d","Fusionnez 1:1 ×%d"
+"Fuse Dust 1:1","Fuse Dust 1:1","Staub 1:1 verschmelzen","Fondi Polvere 1:1","Połącz Pył 1:1","Fusiona Polvo 1:1","Fusionnez la Poussière 1:1"
+"Recycle %d card(s)","Recycle %d card(s)","Recycle %d Karte(n)","Ricicla %d carte","Poddaj recyklingowi %d kart(y)","Recicla %d carta(s)","Recyclez %d carte(s)"
+"Recycle up to %d card(s), draw 1 per recycled","Recycle up to %d card(s), draw 1 per recycled","Recycle bis zu %d Karte(n), ziehe 1 pro recycelter Karte","Ricicla fino a %d carte, pesca 1 per ogni riciclata","Poddaj recyklingowi do %d kart, dobierz 1 za każdą","Recicla hasta %d carta(s), roba 1 por cada reciclada","Recyclez jusqu’à %d carte(s), piochez 1 par carte recyclée"
+"Recycle %d card(s) for double supply","Recycle %d card(s) for double supply","Recycle %d Karte(n) für doppelten Vorrat","Ricicla %d carte per il doppio delle risorse","Poddaj recyklingowi %d kart(y) za podwójne zasoby","Recicla %d carta(s) por el doble de suministro","Recyclez %d carte(s) pour le double de matériel"
+"Tuck %d card(s) %s","Tuck %d card(s) %s","Lege %d Karte(n) %s unter","Metti %d carte %s sotto","Umieść %d kart(y) %s","Coloca %d carta(s) %s","Glissez %d carte(s) %s"
+"Tuck up to %d card(s) %s","Tuck up to %d card(s) %s","Lege bis zu %d Karte(n) %s unter","Metti fino a %d carte %s sotto","Umieść do %d kart %s","Coloca hasta %d carta(s) %s","Glissez jusqu’à %d carte(s) %s"
+"Tuck up to %d card(s) %s on any sector","Tuck up to %d card(s) %s on any sector","Lege bis zu %d Karte(n) %s unter einen beliebigen Sektor","Metti fino a %d carte %s sotto un settore qualsiasi","Umieść do %d kart %s pod dowolnym sektorem","Coloca hasta %d carta(s) %s en cualquier sector","Glissez jusqu’à %d carte(s) %s sous n’importe quel secteur"
+"Recycle & tuck up to %d card(s) facedown, draw equal","Recycle & tuck up to %d card(s) facedown, draw equal","Recycle & lege bis zu %d Karte(n) verdeckt unter, ziehe ebenso viele","Ricicla e metti coperte fino a %d carte, pesca altrettante","Poddaj recyklingowi i umieść rewersem do góry do %d kart, dobierz tyle samo","Recicla y coloca hasta %d carta(s) boca abajo, roba la misma cantidad","Recyclez et glissez jusqu’à %d carte(s) face cachée, piochez autant"
+"Recycle & tuck/store up to %d card(s)","Recycle & tuck/store up to %d card(s)","Recycle & lege unter/speichere bis zu %d Karte(n)","Ricicla e metti sotto/conserva fino a %d carte","Poddaj recyklingowi i umieść/zmagazynuj do %d kart","Recicla y coloca/almacena hasta %d carta(s)","Recyclez et glissez/stockez jusqu’à %d carte(s)"
+"Reveal a sector card","Reveal a sector card","Decke eine Sektorkarte auf","Rivela una carta settore","Odkryj kartę sektora","Revela una carta de sector","Révélez une carte secteur"
+"Reveal an expedition card","Reveal an expedition card","Decke eine Expeditionskarte auf","Rivela una carta spedizione","Odkryj kartę ekspedycji","Revela una carta de expedición","Révélez une carte expédition"
+"Choose an effect","Choose an effect","Wähle einen Effekt","Scegli un effetto","Wybierz efekt","Elige un efecto","Choisissez un effet"
+"Move a cargo drone","Move a cargo drone","Bewege eine Frachtdrohne","Sposta un drone cargo","Przesuń drona transportowego","Mueve un dron de carga","Déplacez un drone cargo"
+"Seedbanks effect","Seedbanks effect","Seedbanks-Effekt","Effetto Seedbanks","Efekt Seedbanks","Efecto de Seedbanks","Effet Seedbanks"
+"Black Hole Encounter effect","Black Hole Encounter effect","Black-Hole-Encounter-Effekt","Effetto Black Hole Encounter","Efekt Black Hole Encounter","Efecto de Black Hole Encounter","Effet Black Hole Encounter"
+"Reflectors effect","Reflectors effect","Reflectors-Effekt","Effetto Reflectors","Efekt Reflectors","Efecto de Reflectors","Effet Reflectors"
+"Caldera Colony effect","Caldera Colony effect","Caldera-Colony-Effekt","Effetto Caldera Colony","Efekt Caldera Colony","Efecto de Caldera Colony","Effet Caldera Colony"
+"Confirm","Confirm","Bestätigen","Conferma","Potwierdź","Confirmar","Confirmer"
+"Place %s here?","Place %s here?","%s hier platzieren?","Piazzare %s qui?","Umieścić %s tutaj?","¿Colocar %s aquí?","Placer %s ici ?"
+"Place %s on %s?","Place %s on %s?","%s auf %s platzieren?","Piazzare %s su %s?","Umieścić %s na %s?","¿Colocar %s en %s?","Placer %s sur %s ?"
+"⚡ DUST FUSE 1:1
+Unlimited","⚡ DUST FUSE 1:1
+Unlimited","⚡ STAUB 1:1 VERSCHMELZEN
+Unbegrenzt","⚡ FUSIONE POLVERE 1:1
+Illimitata","⚡ POŁĄCZENIE PYŁU 1:1
+Bez limitu","⚡ FUSIÓN DE POLVO 1:1
+Ilimitada","⚡ FUSION POUSSIÈRE 1:1
+Illimitée"
+"⚡ FUSE 1:1
+%d left","⚡ FUSE 1:1
+%d left","⚡ 1:1 VERSCHMELZEN
+noch %d","⚡ FUSIONE 1:1
+%d rimaste","⚡ POŁĄCZENIE 1:1
+pozostało %d","⚡ FUSIÓN 1:1
+quedan %d","⚡ FUSION 1:1
+%d restante(s)"

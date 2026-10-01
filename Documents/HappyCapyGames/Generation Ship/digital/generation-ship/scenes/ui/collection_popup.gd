@@ -81,7 +81,8 @@ const _VOTE_DOWN_COLOR: Color = Color(1.0, 0.45, 0.45)
 const _VOTE_HELP_KEY: String = "Help us improve the translations! Compare the English original with your language and vote: ▲ if the translation is good, ▼ if it needs work."
 const _VOTE_HELP_FONT: int = 16
 var _vote_row: VBoxContainer = null
-var _vote_help: Label = null
+var _vote_help: PanelContainer = null   # backdrop so the text reads over the card art
+var _vote_help_label: Label = null
 var _vote_up_btn: Button = null
 var _vote_down_btn: Button = null
 var _vote_key: String = ""
@@ -244,15 +245,25 @@ func _build_vote_row() -> void:
 	_vote_down_btn = _make_vote_button(tr("Needs work"), -1)
 	buttons.add_child(_vote_down_btn)
 
-	_vote_help = Label.new()
-	_vote_help.text = tr(_VOTE_HELP_KEY)
-	_tr_targets[_vote_help] = _VOTE_HELP_KEY
-	_vote_help.add_theme_font_size_override("font_size", _VOTE_HELP_FONT)
-	_vote_help.add_theme_color_override("font_color", Color(0.8, 0.84, 0.92))
-	_vote_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_vote_help.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_vote_help.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_vote_help = PanelContainer.new()
+	var help_style: StyleBoxFlat = StyleBoxFlat.new()
+	help_style.bg_color = Color(0.05, 0.07, 0.15, 0.94)
+	help_style.border_color = Color(0.3, 0.55, 0.85, 0.55)
+	help_style.set_border_width_all(1)
+	help_style.set_corner_radius_all(6)
+	help_style.set_content_margin_all(10)
+	_vote_help.add_theme_stylebox_override("panel", help_style)
 	_vote_help.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_vote_help_label = Label.new()
+	_vote_help_label.text = tr(_VOTE_HELP_KEY)
+	_tr_targets[_vote_help_label] = _VOTE_HELP_KEY
+	_vote_help_label.add_theme_font_size_override("font_size", _VOTE_HELP_FONT)
+	_vote_help_label.add_theme_color_override("font_color", Color(0.86, 0.9, 0.97))
+	_vote_help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_vote_help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_vote_help_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_vote_help_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_vote_help.add_child(_vote_help_label)
 	_vote_help.anchor_left = 0.5
 	_vote_help.anchor_right = 0.5
 	_vote_help.anchor_top = 0.5
