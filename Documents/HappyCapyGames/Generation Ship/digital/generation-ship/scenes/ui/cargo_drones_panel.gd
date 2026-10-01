@@ -94,6 +94,7 @@ func _clear_step() -> void:
 func _add_finish_button() -> void:
 	var btn := Button.new()
 	btn.text = tr("Finish Cargo Drones")
+	GameTheme.style_positive(btn)
 	btn.add_theme_font_size_override("font_size", 20)
 	btn.add_theme_color_override("font_color", FINISH_COLOR)
 	btn.pressed.connect(func() -> void: hide(); finished.emit())
@@ -254,6 +255,7 @@ func _build_choose_step() -> void:
 
 	_next_btn = Button.new()
 	_next_btn.text = tr("Next: Pick Destination →")
+	GameTheme.style_positive(_next_btn)
 	_next_btn.add_theme_font_size_override("font_size", 20)
 	_next_btn.disabled = true
 	_next_btn.pressed.connect(_on_choose_next_pressed)

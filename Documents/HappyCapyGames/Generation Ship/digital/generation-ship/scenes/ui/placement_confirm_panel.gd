@@ -57,6 +57,7 @@ func _ready() -> void:
 		hide()
 		confirmed.emit()
 	)
+	GameTheme.style_positive(confirm_btn)
 	btn_row.add_child(confirm_btn)
 
 	var cancel_btn := Button.new()
@@ -67,6 +68,7 @@ func _ready() -> void:
 		hide()
 		cancelled.emit()
 	)
+	GameTheme.style_negative(cancel_btn)
 	btn_row.add_child(cancel_btn)
 
 func show_confirm(card_name: String, card_color: CardData.SupplyColor, target_name: String, target_color: CardData.SupplyColor, preview_steps: Array[Dictionary] = []) -> void:

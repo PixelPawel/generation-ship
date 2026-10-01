@@ -93,6 +93,7 @@ func _ready() -> void:
 	forfeit_btn.custom_minimum_size = Vector2(0, 56)
 	forfeit_btn.add_theme_font_size_override("font_size", 24)
 	forfeit_btn.pressed.connect(func() -> void: hide(); forfeited.emit())
+	GameTheme.style_negative(forfeit_btn)
 	btn_row.add_child(forfeit_btn)
 
 	_confirm_btn = Button.new()
@@ -101,6 +102,7 @@ func _ready() -> void:
 	_confirm_btn.custom_minimum_size = Vector2(0, 56)
 	_confirm_btn.add_theme_font_size_override("font_size", 24)
 	_confirm_btn.pressed.connect(_on_confirm)
+	GameTheme.style_positive(_confirm_btn)
 	btn_row.add_child(_confirm_btn)
 
 func show_bid_payment(card_name: String, amount: int, valid_colors: Array[CardData.SupplyColor], supply_ui: Control, card_data: CardData = null, is_advanced: bool = false) -> void:

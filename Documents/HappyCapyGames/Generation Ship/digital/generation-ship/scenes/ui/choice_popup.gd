@@ -87,6 +87,7 @@ func _ready() -> void:
 	_skip_btn.custom_minimum_size = Vector2(200, 80)
 	_skip_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_skip_btn.pressed.connect(func(): hide(); skipped.emit())
+	GameTheme.style_negative(_skip_btn)
 	_skip_btn.visible = false
 	footer_row.add_child(_skip_btn)
 
@@ -96,6 +97,7 @@ func _ready() -> void:
 	_multiselect_done_btn.custom_minimum_size = Vector2(200, 80)
 	_multiselect_done_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_multiselect_done_btn.pressed.connect(_on_multiselect_done)
+	GameTheme.style_positive(_multiselect_done_btn)
 	_multiselect_done_btn.visible = false
 	footer_row.add_child(_multiselect_done_btn)
 

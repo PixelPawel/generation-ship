@@ -17,6 +17,34 @@ static func apply_to_button(btn: Button) -> void:
 	btn.add_theme_color_override("font_disabled_color", t.get_color("font_disabled_color", "Button"))
 	btn.add_theme_color_override("font_focus_color",    t.get_color("font_focus_color",    "Button"))
 
+# Slightly tinted buttons so the choice reads at a glance: green for
+# confirm/raise/pay, red for cancel/skip/pass. Disabled keeps the theme look.
+const POSITIVE_ACCENT: Color = Color(0.30, 0.85, 0.45)
+const NEGATIVE_ACCENT: Color = Color(0.95, 0.38, 0.38)
+
+static func style_positive(btn: Button) -> void:
+	_tint_button(btn, POSITIVE_ACCENT)
+
+static func style_negative(btn: Button) -> void:
+	_tint_button(btn, NEGATIVE_ACCENT)
+
+static func _tint_button(btn: Button, accent: Color) -> void:
+	var bg: Color = accent.darkened(0.78)
+	var normal: StyleBoxFlat = _btn(Color(bg, 0.92), Color(accent, 0.65), 1)
+	var hover: StyleBoxFlat = _btn(Color(accent.darkened(0.65), 0.95), Color(accent, 0.95), 2)
+	hover.shadow_color = Color(accent, 0.40)
+	hover.shadow_size = 6
+	var pressed: StyleBoxFlat = _btn(Color(accent.darkened(0.85), 1.0), Color(accent, 0.75), 1)
+	btn.add_theme_stylebox_override("normal", normal)
+	btn.add_theme_stylebox_override("hover", hover)
+	btn.add_theme_stylebox_override("pressed", pressed)
+	btn.add_theme_stylebox_override("hover_pressed", pressed)
+	var text: Color = accent.lerp(Color.WHITE, 0.6)
+	btn.add_theme_color_override("font_color", text)
+	btn.add_theme_color_override("font_hover_color", Color.WHITE)
+	btn.add_theme_color_override("font_pressed_color", text.darkened(0.15))
+	btn.add_theme_color_override("font_focus_color", text)
+
 static func _build() -> Theme:
 	var theme := Theme.new()
 

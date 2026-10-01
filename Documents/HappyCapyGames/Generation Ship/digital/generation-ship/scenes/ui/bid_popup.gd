@@ -158,6 +158,7 @@ func _ready() -> void:
 	_cancel_btn.custom_minimum_size = Vector2(0, 52)
 	_cancel_btn.add_theme_font_size_override("font_size", 22)
 	_cancel_btn.pressed.connect(_on_cancel)
+	GameTheme.style_negative(_cancel_btn)
 	btn_row.add_child(_cancel_btn)
 
 	_pass_btn = Button.new()
@@ -166,6 +167,7 @@ func _ready() -> void:
 	_pass_btn.custom_minimum_size = Vector2(0, 52)
 	_pass_btn.add_theme_font_size_override("font_size", 22)
 	_pass_btn.pressed.connect(_on_pass)
+	GameTheme.style_negative(_pass_btn)
 	_pass_btn.visible = false
 	btn_row.add_child(_pass_btn)
 
@@ -175,6 +177,7 @@ func _ready() -> void:
 	_confirm_btn.custom_minimum_size = Vector2(0, 52)
 	_confirm_btn.add_theme_font_size_override("font_size", 22)
 	_confirm_btn.pressed.connect(_on_confirm)
+	GameTheme.style_positive(_confirm_btn)
 	btn_row.add_child(_confirm_btn)
 
 	# Right-click-to-enlarge close-up, added last so it paints above the

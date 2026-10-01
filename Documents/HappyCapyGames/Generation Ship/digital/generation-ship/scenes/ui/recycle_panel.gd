@@ -89,6 +89,7 @@ func _ready() -> void:
 	cancel_btn.custom_minimum_size = Vector2(140.0, 52.0)
 	cancel_btn.add_theme_font_size_override("font_size", 22)
 	cancel_btn.pressed.connect(func() -> void: _on_cancelled())
+	GameTheme.style_negative(cancel_btn)
 	btn_row.add_child(cancel_btn)
 
 	var confirm_btn: Button = Button.new()
@@ -96,6 +97,7 @@ func _ready() -> void:
 	confirm_btn.custom_minimum_size = Vector2(140.0, 52.0)
 	confirm_btn.add_theme_font_size_override("font_size", 22)
 	confirm_btn.pressed.connect(func() -> void: _on_confirmed())
+	GameTheme.style_positive(confirm_btn)
 	btn_row.add_child(confirm_btn)
 
 func show_recycle(card_data: CardData, color: CardData.SupplyColor, bonus: int) -> void:
