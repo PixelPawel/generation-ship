@@ -846,10 +846,18 @@ static func apply_tooltip_scale(main: Main, s: float) -> void:
 	main._tooltip_desc.custom_minimum_size = Vector2(280.0 * s, 0)
 
 static func start_rumble_timer(main: Main) -> void:
-	main.get_tree().create_timer(randf_range(30.0, 60.0)).timeout.connect(func() -> void:
-		if is_instance_valid(main):
-			play_rumble(main)
+	# A Timer node under main (not a SceneTree timer), so it dies with the game
+	# scene — a SceneTree timer outlived it after going back to the main menu
+	# and fired with its captured `main` already freed.
+	var timer: Timer = Timer.new()
+	timer.one_shot = true
+	timer.wait_time = randf_range(30.0, 60.0)
+	timer.timeout.connect(func() -> void:
+		timer.queue_free()
+		play_rumble(main)
 	)
+	main.add_child(timer)
+	timer.start()
 
 static func play_rumble(main: Main) -> void:
 	const JOLT_SEC: float = 0.10
