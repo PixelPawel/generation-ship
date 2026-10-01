@@ -99,6 +99,9 @@ var _pending_store_amount: int = 0
 # store_on_any_sector with from_supply: the stored supply is taken out of the
 # player's supply when the sector is picked (Rich Asteroid), not made up.
 var _pending_store_from_supply: bool = false
+# store_on_any_sector with spread (Hibernators: "Store 3 Dust on any sectors"):
+# one supply per sector pick, the picker reopening until all are stored.
+var _pending_store_spread: bool = false
 var _pending_tuck_card_data: CardData = null
 var _pending_target_slot: SectorSlot = null
 var _effect_label: String = ""
@@ -2065,7 +2068,16 @@ func _on_sector_selected_from_picker(slot: SectorSlot) -> void:
 
 func _on_sector_picker_skipped() -> void:
 	$Board.set_cargo_click_mode(false)
+	_pending_store_spread = false
 	_finish_interactive_step()
+
+# Sector picker for store_on_any_sector. A spread store (Hibernators) stores
+# one supply per pick, so its prompt counts down what's left to place.
+func _open_store_picker() -> void:
+	var color_name: String = CardData.color_name(_pending_store_color)
+	var prompt: String = tr("Store %s, %d left — pick a sector for the next one") % [color_name, _pending_store_amount] \
+			if _pending_store_spread else tr("Store %d %s — pick a sector") % [_pending_store_amount, color_name]
+	_sector_picker.setup(prompt, $Board.get_all_sector_slots())
 
 
 func _on_sector_info_requested(slot: SectorSlot) -> void:
@@ -2073,13 +2085,20 @@ func _on_sector_info_requested(slot: SectorSlot) -> void:
 		EffectMode.EFFECT_STORE_ON_SECTOR:
 			if slot.occupied:
 				_sector_picker.hide()
-				var store_amount: int = _pending_store_amount
+				var store_amount: int = 1 if _pending_store_spread else _pending_store_amount
 				if _pending_store_from_supply:
 					store_amount = mini(store_amount, _cs_display.get_supply(_pending_store_color))
 					_cs_display.spend_supply(_pending_store_color, store_amount)
 					_pending_store_from_supply = false
 				slot.add_stored_supply(_pending_store_color, store_amount)
 				_log_effect(tr("stored %d %s on the chosen sector") % [store_amount, CardData.color_name(_pending_store_color)])
+				if _pending_store_spread:
+					_pending_store_amount -= 1
+					if _pending_store_amount > 0:
+						_broadcast_my_state()
+						_open_store_picker()
+						return
+					_pending_store_spread = false
 				_finish_interactive_step()
 		EffectMode.EFFECT_RECYCLE_TUCK_STORE_SECTOR:
 			if slot.occupied:
@@ -2355,9 +2374,10 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_pending_store_color = step["color"] as CardData.SupplyColor
 			_pending_store_amount = int(step.get("amount", 1))
 			_pending_store_from_supply = bool(step.get("from_supply", false))
+			_pending_store_spread = bool(step.get("spread", false)) and _pending_store_amount > 1
 			_effect_mode = EffectMode.EFFECT_STORE_ON_SECTOR
 			$Board.set_cargo_click_mode(true)
-			_sector_picker.setup(tr("Store %d %s — pick a sector") % [_pending_store_amount, CardData.color_name(_pending_store_color)], $Board.get_all_sector_slots())
+			_open_store_picker()
 
 		"store_per_card_here":
 			if _effect_slot:

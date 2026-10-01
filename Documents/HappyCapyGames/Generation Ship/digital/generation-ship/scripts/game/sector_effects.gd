@@ -44,7 +44,8 @@ static func _build(name: String, placed_colors: Array[int], last_placed_tech_cos
 		# ── Dust sector optimize effects ──────────────────────────────────────
 
 		"Hibernators":
-			steps.append({type = "store_on_any_sector", color = CardData.SupplyColor.DUST, amount = 3})
+			# "Store 3 Dust on any sectors": each Dust may go to a different sector.
+			steps.append({type = "store_on_any_sector", color = CardData.SupplyColor.DUST, amount = 3, spread = true})
 
 		"Simulators":
 			steps.append({type = "draw", count = 2})

@@ -119,6 +119,8 @@ func _describe_step(step: Dictionary) -> String:
 		"store_on_slot":
 			return tr("Store %d %s on this sector") % [int(step.get("amount", 0)), CardData.color_name(step["color"] as CardData.SupplyColor)]
 		"store_on_any_sector":
+			if bool(step.get("spread", false)):
+				return tr("Store %d %s on any sectors") % [int(step.get("amount", 1)), CardData.color_name(step["color"] as CardData.SupplyColor)]
 			return tr("Store %d %s on a sector of your choice") % [int(step.get("amount", 1)), CardData.color_name(step["color"] as CardData.SupplyColor)]
 		"store_per_card_here":
 			return tr("Store 1 supply per card here (matching each card's color)")
