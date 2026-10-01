@@ -710,7 +710,7 @@ func _on_research_pressed() -> void:
 		return
 	_effect_mode = EffectMode.RESEARCH
 	_set_action_buttons_disabled(true)
-	_show_effect_hint(tr("Click a card in your hand to discard it"))
+	_show_effect_hint(hint("Click a card in your hand to discard it", "Tap a card in your hand to discard it"))
 	$Hand.set_discard_mode(true)
 	if GameNetwork.is_multiplayer:
 		if GameNetwork.is_host:
@@ -2437,14 +2437,14 @@ func _execute_effect_step(step: Dictionary) -> void:
 			_pending_reveal_may_bid = bool(step.get("may_bid", false))
 			_pending_reveal_may_free_gain = bool(step.get("may_free_gain", false))
 			_effect_mode = EffectMode.EFFECT_REVEAL_SECTOR
-			_show_effect_hint(tr("Click a free sector slot in the Market panel to reveal it"))
+			_show_effect_hint(hint("Click a free sector slot in the Market panel to reveal it", "Tap a free sector slot in the Market panel to reveal it"))
 			$Board.set_sector_reveal_mode(true)
 
 		"reveal_expedition":
 			_pending_expedition_reveal_gain_supply = bool(step.get("gain_supply", false))
 			_pending_expedition_reveal_may_bid = bool(step.get("may_bid", false))
 			_effect_mode = EffectMode.EFFECT_REVEAL_EXPEDITION
-			_show_effect_hint(tr("Click an expedition slot in the Market panel to reveal it"))
+			_show_effect_hint(hint("Click an expedition slot in the Market panel to reveal it", "Tap an expedition slot in the Market panel to reveal it"))
 			$Board.set_expedition_reveal_mode(true)
 
 		"reveal_expedition_slot":
@@ -2750,7 +2750,7 @@ func _effect_step_black_hole_encounter() -> void:
 	_effect_mode = EffectMode.EFFECT_EXPEDITION_SHUFFLE
 	_effect_remaining = 3
 	_shuffle_count = 0
-	_show_effect_hint(tr("Click up to 3 expeditions to shuffle back — then click Done"))
+	_show_effect_hint(hint("Click up to 3 expeditions to shuffle back — then click Done", "Tap up to 3 expeditions to shuffle back — then tap Done"))
 	_effect_done_btn.show()
 	$Board.set_expedition_shuffle_mode(true)
 
@@ -3456,7 +3456,7 @@ func _on_expedition_shuffled_back(card_data: CardData, deck_insert_idx: int) -> 
 	if _effect_remaining <= 0:
 		_finish_expedition_shuffle()
 	else:
-		_show_effect_hint(tr("Click up to %d more expedition(s) to shuffle back — or Done") % _effect_remaining)
+		_show_effect_hint(hint("Click up to %d more expedition(s) to shuffle back — or Done", "Tap up to %d more expedition(s) to shuffle back — or Done") % _effect_remaining)
 
 func _finish_expedition_shuffle() -> void:
 	$Board.set_expedition_shuffle_mode(false)
@@ -3898,6 +3898,7 @@ func _init_supply() -> void:
 func _show_effect_hint(text: String) -> void:
 	if _effect_hint_label:
 		_effect_hint_label.text = text
+		CockpitRig.apply_effect_hint_scale(self, GameTheme.tooltip_scale())
 	if _effect_hint_panel:
 		_effect_hint_panel.show()
 

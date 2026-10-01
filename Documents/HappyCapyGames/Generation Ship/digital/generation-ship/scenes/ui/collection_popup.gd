@@ -148,8 +148,9 @@ func _build_ui() -> void:
 	title_row.add_child(close_btn)
 
 	var hint: Label = Label.new()
-	hint.text = tr("Click a card to zoom")
-	_tr_targets[hint] = "Click a card to zoom"
+	var zoom_key: String = "Tap a card to zoom" if GameTheme.is_touch() else "Click a card to zoom"
+	hint.text = tr(zoom_key)
+	_tr_targets[hint] = zoom_key
 	hint.add_theme_font_size_override("font_size", 13)
 	hint.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

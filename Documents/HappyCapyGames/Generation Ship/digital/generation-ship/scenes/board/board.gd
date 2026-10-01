@@ -1063,8 +1063,11 @@ func _try_drop_recycle() -> void:
 	_dragged_card = null
 	_drag_origin = DragOrigin.NONE
 	_is_free_gain = false
-	card.visible = true
 	card.end_drag()
+	# Hidden while the Recycle panel (which shows the card) is up — left where
+	# it was dropped it sat tilted beside the control screen. cancel_recycle()
+	# brings it back.
+	card.visible = false
 	request_recycle(card)
 
 func _mouse_over_control_screen() -> bool:
@@ -1152,6 +1155,7 @@ func cancel_recycle() -> void:
 		return
 	var card: Node3D = _pending_recycle_card
 	_pending_recycle_card = null
+	card.visible = true
 	if _hand:
 		_hand.add_card(card, true)
 

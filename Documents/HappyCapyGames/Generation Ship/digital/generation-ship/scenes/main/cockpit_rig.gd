@@ -575,7 +575,7 @@ static func setup_info_screen_display(main: Main) -> void:
 	main._market_panel.card_inspect_requested.connect(main._on_market_card_inspect_requested)
 	main._market_panel.card_hover_started.connect(main._on_market_card_hover_started)
 	main._market_panel.card_hover_ended.connect(main._hide_tooltip)
-	main._market_panel.opponent_hover_started.connect(func(player_name: String) -> void: main._show_tooltip("", main.tr("Click to view %s's board.") % player_name))
+	main._market_panel.opponent_hover_started.connect(func(player_name: String) -> void: main._show_tooltip("", main.hint("Click to view %s's board.", "Tap to view %s's board.") % player_name))
 	main._market_panel.opponent_hover_ended.connect(main._hide_tooltip)
 
 	var screen_mesh: MeshInstance3D = main.get_node("UiInfo").find_child("gs_ui_info_screen", true, false) as MeshInstance3D
@@ -635,6 +635,21 @@ static func setup_info_screen_display(main: Main) -> void:
 	main._effect_hint_label = hint_label
 	main._effect_hint_panel.hide()
 	main.get_node("UILayer").add_child(hint_panel)
+
+# The tutorial / effect hint banner follows the Tooltip Size setting like the
+# tooltips do; it's wider than a tooltip, so it's capped to the screen width.
+const EFFECT_HINT_FONT: float = 22.0
+const EFFECT_HINT_WIDTH: float = 640.0
+
+static func apply_effect_hint_scale(main: Main, s: float) -> void:
+	var font: int = roundi(EFFECT_HINT_FONT * s)
+	if main._effect_hint_label.get_theme_font_size("font_size") == font:
+		return
+	main._effect_hint_label.add_theme_font_size_override("font_size", font)
+	main._effect_hint_label.add_theme_constant_override("outline_size", maxi(2, roundi(2.0 * s)))
+	var max_w: float = main.get_viewport().get_visible_rect().size.x * 0.8
+	main._effect_hint_panel.custom_minimum_size = Vector2(minf(EFFECT_HINT_WIDTH * s, max_w), 90.0 * s)
+	main._effect_hint_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
 
 static func setup_info_screen_input(main: Main, screen_mesh: MeshInstance3D) -> void:
 	setup_viewport_input(main, screen_mesh, main._info_viewport)

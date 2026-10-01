@@ -99,6 +99,7 @@ func _refresh() -> void:
 		_finish()
 		return
 	if _main._effect_mode != Main.EffectMode.NONE:
+		_show_recycle_arrow(false)
 		return
 	var step: String
 	if not _bought_sector:
@@ -130,12 +131,14 @@ func _apply_step(step: String) -> void:
 		_main._stop_research_btn_3d_flash()
 	if step != "pass":
 		_main._stop_pass_btn_3d_flash()
+	if step != "bid":
+		_show_recycle_arrow(false)
 
 	match step:
 		"buy":
 			_apply_buy_step()
 		"place":
-			_main._show_effect_hint(tr("TUT_PLACE_TECH"))
+			_main._show_effect_hint(_main.hint("TUT_PLACE_TECH", "TUT_PLACE_TECH_MOBILE"))
 			_highlight_tech_slots()
 		"fuse":
 			_main._show_effect_hint(tr("TUT_FUSE"))
@@ -161,15 +164,16 @@ func _apply_buy_step() -> void:
 		_main._show_effect_hint(tr("TUT_BUY_PLACE"))
 	elif (_main._bid_popup and _main._bid_popup.visible) or (_main._bid_payment_panel and _main._bid_payment_panel.visible):
 		_main._market_panel.set_tutorial_dust_highlight(false)
-		_main._show_effect_hint(tr("TUT_BUY"))
+		_main._show_effect_hint(_main.hint("TUT_BUY", "TUT_BUY_MOBILE"))
 	else:
 		_main._market_panel.set_tutorial_dust_highlight(true)
-		_main._show_effect_hint(tr("TUT_BUY"))
+		_main._show_effect_hint(_main.hint("TUT_BUY", "TUT_BUY_MOBILE"))
 
 # "Bid on an Expedition" is also multiple sub-phases: click an Expedition,
 # confirm a bid in the popup, then pay for the win — recycling and fusing
 # supply if what's on hand isn't enough — on the payment panel.
 func _apply_bid_step() -> void:
+	_show_recycle_arrow(false)
 	if _is_dragging_expedition_card():
 		_recycled_during_bid_payment = false
 		_main._market_panel.set_tutorial_expedition_highlight(false)
@@ -183,11 +187,13 @@ func _apply_bid_step() -> void:
 		if _recycled_during_bid_payment:
 			_main._show_effect_hint(tr("TUT_BID_PAY"))
 		else:
-			_main._show_effect_hint(tr("TUT_BID_RECYCLE"))
+			_main._show_effect_hint(_main.hint("TUT_BID_RECYCLE", "TUT_BID_RECYCLE_MOBILE"))
+			_show_recycle_arrow(true)
+			return
 	else:
 		_recycled_during_bid_payment = false
 		_main._market_panel.set_tutorial_expedition_highlight(true)
-		_main._show_effect_hint(tr("TUT_BID_DEFAULT"))
+		_main._show_effect_hint(_main.hint("TUT_BID_DEFAULT", "TUT_BID_DEFAULT_MOBILE"))
 
 func _is_dragging_sector_card() -> bool:
 	var dragged: Node3D = _board.get("_dragged_card") as Node3D
@@ -223,7 +229,33 @@ func _clear_tech_slot_highlights() -> void:
 			slot.highlight(false)
 	_highlighted_tech_slots = []
 
+# Phones: an animated arrow from the hand to the control screen, since
+# recycling there is a drag (no right-click) that's hard to guess.
+var _recycle_arrow: DragArrow = null
+
+func _show_recycle_arrow(on: bool) -> void:
+	if not GameTheme.is_touch():
+		return
+	if not on:
+		if _recycle_arrow:
+			_recycle_arrow.hide_arrow()
+		return
+	var cam: Camera3D = _main.get_viewport().get_camera_3d()
+	var screen_mesh: MeshInstance3D = _board.get("_control_screen_mesh") as MeshInstance3D
+	if cam == null or screen_mesh == null:
+		return
+	if _recycle_arrow == null:
+		var canvas: CanvasLayer = CanvasLayer.new()
+		canvas.layer = 10
+		add_child(canvas)
+		_recycle_arrow = DragArrow.new()
+		canvas.add_child(_recycle_arrow)
+	var from_2d: Vector2 = cam.unproject_position((_main.get_node("Hand") as Node3D).global_position)
+	var to_2d: Vector2 = cam.unproject_position(screen_mesh.to_global(screen_mesh.mesh.get_aabb().get_center()))
+	_recycle_arrow.show_arrow(from_2d, to_2d)
+
 func _finish() -> void:
+	_show_recycle_arrow(false)
 	_main._hide_effect_hint()
 	_main._market_panel.set_tutorial_dust_highlight(false)
 	_clear_tech_slot_highlights()
