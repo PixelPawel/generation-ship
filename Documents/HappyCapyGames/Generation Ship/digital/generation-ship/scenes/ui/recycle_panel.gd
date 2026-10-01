@@ -86,16 +86,14 @@ func _ready() -> void:
 
 	var cancel_btn: Button = Button.new()
 	cancel_btn.text = tr("Skip")
-	cancel_btn.custom_minimum_size = Vector2(140.0, 52.0)
-	cancel_btn.add_theme_font_size_override("font_size", 22)
+	GameTheme.size_info_button(cancel_btn)
 	cancel_btn.pressed.connect(func() -> void: _on_cancelled())
 	GameTheme.style_negative(cancel_btn)
 	btn_row.add_child(cancel_btn)
 
 	var confirm_btn: Button = Button.new()
 	confirm_btn.text = tr("Recycle")
-	confirm_btn.custom_minimum_size = Vector2(140.0, 52.0)
-	confirm_btn.add_theme_font_size_override("font_size", 22)
+	GameTheme.size_info_button(confirm_btn)
 	confirm_btn.pressed.connect(func() -> void: _on_confirmed())
 	GameTheme.style_positive(confirm_btn)
 	btn_row.add_child(confirm_btn)

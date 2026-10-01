@@ -28,6 +28,29 @@ static func style_positive(btn: Button) -> void:
 static func style_negative(btn: Button) -> void:
 	_tint_button(btn, NEGATIVE_ACCENT)
 
+# One size for every action button on the info screen (the 1200x572 market
+# viewport): footer actions like Skip / Done / Confirm / Finish, and choice
+# options. Panels used to pick their own (20-40 pt, 52-80 px tall), so the same
+# kind of button looked different from one popup to the next, and the biggest
+# ones pushed the footer off the panel.
+const INFO_BTN_FONT: int = 24
+const INFO_BTN_MIN: Vector2 = Vector2(180.0, 56.0)
+
+static func size_info_button(btn: Button) -> void:
+	btn.add_theme_font_size_override("font_size", INFO_BTN_FONT)
+	btn.custom_minimum_size = Vector2(maxf(btn.custom_minimum_size.x, INFO_BTN_MIN.x), INFO_BTN_MIN.y)
+
+# Shrinks label's font (from base_size, never below min_size) until its text
+# fits max_w on one line. For panel titles: a long translated title (e.g. the
+# German Cargo Drones ones) otherwise runs past the panel edge, since a Label
+# doesn't shrink or clip on its own.
+static func fit_label_width(label: Label, max_w: float, base_size: int, min_size: int = 16) -> void:
+	var font: Font = label.get_theme_font("font")
+	var size: int = base_size
+	while size > min_size and font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x > max_w:
+		size -= 1
+	label.add_theme_font_size_override("font_size", size)
+
 static func _tint_button(btn: Button, accent: Color) -> void:
 	var bg: Color = accent.darkened(0.78)
 	var normal: StyleBoxFlat = _btn(Color(bg, 0.92), Color(accent, 0.65), 1)

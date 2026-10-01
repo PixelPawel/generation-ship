@@ -50,14 +50,13 @@ func _ready() -> void:
 	var skip_btn: Button = Button.new()
 	skip_btn.text = tr("Skip")
 	GameTheme.style_negative(skip_btn)
-	skip_btn.add_theme_font_size_override("font_size", 26)
-	skip_btn.custom_minimum_size = Vector2(200, 56)
+	GameTheme.size_info_button(skip_btn)
 	skip_btn.anchor_left = 0.5
 	skip_btn.anchor_right = 0.5
 	skip_btn.anchor_top = 1.0
 	skip_btn.anchor_bottom = 1.0
-	skip_btn.offset_left = -100.0
-	skip_btn.offset_right = 100.0
+	skip_btn.offset_left = -GameTheme.INFO_BTN_MIN.x * 0.5
+	skip_btn.offset_right = GameTheme.INFO_BTN_MIN.x * 0.5
 	skip_btn.offset_top = -SKIP_BTN_H + 12.0
 	skip_btn.offset_bottom = -12.0
 	skip_btn.pressed.connect(func() -> void: hide(); skipped.emit())
@@ -65,6 +64,7 @@ func _ready() -> void:
 
 func setup(title: String, all_slots: Array[SectorSlot], exclude: SectorSlot = null) -> void:
 	_title_label.text = title
+	GameTheme.fit_label_width(_title_label, 1200.0 - PADDING * 2.0, 28, 16)
 	for child: Node in _card_container.get_children():
 		child.queue_free()
 

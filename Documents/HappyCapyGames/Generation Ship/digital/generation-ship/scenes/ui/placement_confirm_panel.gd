@@ -51,8 +51,7 @@ func _ready() -> void:
 
 	var cancel_btn := Button.new()
 	cancel_btn.text = tr("Cancel")
-	cancel_btn.custom_minimum_size = Vector2(220, 64)
-	cancel_btn.add_theme_font_size_override("font_size", 26)
+	GameTheme.size_info_button(cancel_btn)
 	cancel_btn.pressed.connect(func() -> void:
 		hide()
 		cancelled.emit()
@@ -62,8 +61,7 @@ func _ready() -> void:
 
 	var confirm_btn := Button.new()
 	confirm_btn.text = tr("Confirm")
-	confirm_btn.custom_minimum_size = Vector2(220, 64)
-	confirm_btn.add_theme_font_size_override("font_size", 26)
+	GameTheme.size_info_button(confirm_btn)
 	confirm_btn.pressed.connect(func() -> void:
 		hide()
 		confirmed.emit()

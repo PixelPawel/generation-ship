@@ -18,7 +18,6 @@ enum _Step { SOURCE, CHOOSE, DEST, CONFIRM }
 const SECTOR_W_H_RATIO := 88.0 / 63.0
 const GRID_PADDING := 16.0
 const GRID_GAP := 12.0
-const GRID_CARD_MAX_H := 220.0
 const CONFIRM_DURATION := 1.3
 const FINISH_COLOR := Color(1.0, 0.75, 0.4)
 
@@ -91,11 +90,16 @@ func _clear_step() -> void:
 	for child: Node in _footer.get_children():
 		child.queue_free()
 
+# Long translated titles (German especially) would otherwise run past the panel.
+func _set_title(text: String) -> void:
+	_title_label.text = text
+	GameTheme.fit_label_width(_title_label, get_viewport_rect().size.x - 40.0, 26, 16)
+
 func _add_finish_button() -> void:
 	var btn := Button.new()
 	btn.text = tr("Finish Cargo Drones")
 	GameTheme.style_positive(btn)
-	btn.add_theme_font_size_override("font_size", 20)
+	GameTheme.size_info_button(btn)
 	btn.add_theme_color_override("font_color", FINISH_COLOR)
 	btn.pressed.connect(func() -> void: hide(); finished.emit())
 	_footer.add_child(btn)
@@ -127,7 +131,7 @@ func _describe_pending() -> String:
 func _go_to_source() -> void:
 	_step = _Step.SOURCE
 	_summary_label.visible = false
-	_title_label.text = tr("Cargo Drones — pick a sector to move FROM")
+	_set_title(tr("Cargo Drones — pick a sector to move FROM"))
 	_clear_step()
 	_build_sector_grid(_occupied_slots(null), pick_source_slot)
 	_add_finish_button()
@@ -144,12 +148,12 @@ func _go_to_choose() -> void:
 	_step = _Step.CHOOSE
 	_summary_label.visible = true
 	_summary_label.text = tr("Moving from: %s") % _sector_display_name(_source_slot)
-	_title_label.text = tr("Cargo Drones — choose what to move")
+	_set_title(tr("Cargo Drones — choose what to move"))
 	_clear_step()
 	_build_choose_step()
 	var back_btn := Button.new()
 	back_btn.text = tr("← Pick Different Source")
-	back_btn.add_theme_font_size_override("font_size", 20)
+	GameTheme.size_info_button(back_btn)
 	back_btn.pressed.connect(_go_to_source)
 	_footer.add_child(back_btn)
 	_add_finish_button()
@@ -259,7 +263,7 @@ func _build_choose_step() -> void:
 	_next_btn = Button.new()
 	_next_btn.text = tr("Next: Pick Destination →")
 	GameTheme.style_positive(_next_btn)
-	_next_btn.add_theme_font_size_override("font_size", 20)
+	GameTheme.size_info_button(_next_btn)
 	_next_btn.disabled = true
 	_next_btn.pressed.connect(_on_choose_next_pressed)
 	_footer.add_child(_next_btn)
@@ -310,12 +314,12 @@ func _go_to_dest() -> void:
 	_step = _Step.DEST
 	_summary_label.visible = true
 	_summary_label.text = tr("Moving %s from %s") % [_describe_pending(), _sector_display_name(_source_slot)]
-	_title_label.text = tr("Cargo Drones — pick a sector to move TO")
+	_set_title(tr("Cargo Drones — pick a sector to move TO"))
 	_clear_step()
 	_build_sector_grid(_occupied_slots(_source_slot), pick_dest_slot)
 	var back_btn := Button.new()
 	back_btn.text = tr("← Back")
-	back_btn.add_theme_font_size_override("font_size", 20)
+	GameTheme.size_info_button(back_btn)
 	back_btn.pressed.connect(_go_to_choose)
 	_footer.add_child(back_btn)
 	_add_finish_button()
@@ -332,7 +336,7 @@ func pick_dest_slot(slot: SectorSlot) -> void:
 func _go_to_confirm() -> void:
 	_step = _Step.CONFIRM
 	_summary_label.visible = false
-	_title_label.text = tr("Cargo Drones")
+	_set_title(tr("Cargo Drones"))
 	_clear_step()
 	var lbl := Label.new()
 	lbl.text = tr("Moved %s\n%s → %s") % [_describe_pending(), _sector_display_name(_source_slot), _sector_display_name(_dest_slot)]
@@ -359,26 +363,41 @@ func _build_sector_grid(slots: Array[SectorSlot], on_pick: Callable) -> void:
 		_content.add_child(empty)
 		return
 
-	var n: int = slots.size()
-	var vp_w: float = get_viewport_rect().size.x
-	var avail_w: float = vp_w - GRID_PADDING * 2.0 - GRID_GAP * float(n - 1)
-	var card_w: float = avail_w / float(n)
+	var btns: Array[Button] = []
+	for slot: SectorSlot in slots:
+		btns.append(_build_card_btn(slot, on_pick))
+	_layout_grid(btns)
+
+# Sector cards as big as the content area allows (one row, centred), measured
+# once the title/summary/footer have taken their space — a fixed height cap
+# used to leave them small in the middle of an empty panel.
+var _grid_gen: int = 0
+
+func _layout_grid(btns: Array[Button]) -> void:
+	_grid_gen += 1
+	var gen: int = _grid_gen
+	await get_tree().process_frame
+	if gen != _grid_gen or not is_instance_valid(_content):
+		return
+	var n: int = btns.size()
+	var avail: Vector2 = _content.size
+	var card_w: float = (avail.x - GRID_PADDING * 2.0 - GRID_GAP * float(n - 1)) / float(n)
 	var card_h: float = card_w / SECTOR_W_H_RATIO
-	if card_h > GRID_CARD_MAX_H:
-		card_h = GRID_CARD_MAX_H
+	if card_h > avail.y:
+		card_h = avail.y
 		card_w = card_h * SECTOR_W_H_RATIO
-
 	var total_w: float = card_w * float(n) + GRID_GAP * float(n - 1)
-	var start_x: float = (vp_w - total_w) / 2.0
-
+	var start: Vector2 = Vector2((avail.x - total_w) / 2.0, (avail.y - card_h) / 2.0)
 	for i: int in n:
-		var pos := Vector2(start_x + float(i) * (card_w + GRID_GAP), 0.0)
-		_build_card_btn(slots[i], pos, Vector2(card_w, card_h), on_pick)
+		if not is_instance_valid(btns[i]):
+			continue
+		btns[i].position = start + Vector2(float(i) * (card_w + GRID_GAP), 0.0)
+		btns[i].size = Vector2(card_w, card_h)
+		btns[i].visible = true
 
-func _build_card_btn(slot: SectorSlot, pos: Vector2, sz: Vector2, on_pick: Callable) -> void:
+func _build_card_btn(slot: SectorSlot, on_pick: Callable) -> Button:
 	var btn := Button.new()
-	btn.position = pos
-	btn.size = sz
+	btn.visible = false   # placed and shown by _layout_grid
 	btn.flat = true
 	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	btn.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
@@ -419,3 +438,4 @@ func _build_card_btn(slot: SectorSlot, pos: Vector2, sz: Vector2, on_pick: Calla
 
 	var captured: SectorSlot = slot
 	btn.pressed.connect(func() -> void: on_pick.call(captured))
+	return btn
