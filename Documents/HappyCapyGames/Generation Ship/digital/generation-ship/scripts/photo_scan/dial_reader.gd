@@ -2,8 +2,8 @@ class_name DialReader
 extends RefCounted
 
 # Reads the printed scan-code dials in a tableau photo. Every card has 12
-# small lights around its colour orb (drawn into the print files by
-# InDesign_Shop/_automation/scan_code): light 0 is a cyan orientation marker,
+# small lights in light sockets around its colour orb (sockets painted into the frame art, lights
+# drawn by InDesign_Shop/_automation/scan_code): light 0 is a cyan orientation marker,
 # lights 1-10 (clockwise) are the card's code, MSB first, light 11 is even
 # parity. Codes are the "Code" column of the card sheets (CardData.scan_code /
 # adv_scan_code). Only a card's name row stays visible in a real tableau and
@@ -22,7 +22,10 @@ extends RefCounted
 #    than the rim between them) and the size fits its card type.
 # Falls back to full resolution when nothing reads at half (far-away photo).
 
-const DECK_R_MM: Dictionary = {"tech": 3.405, "expedition": 2.85, "sector": 3.51}
+# Dial radius per card type (mm): the light sockets painted into the 2026-10 frames
+# (InDesign_Shop/_automation/scan_code/sockets.json). Tech sockets follow a slightly
+# oval ring (3.62-3.72 mm), which the scale tolerance below absorbs.
+const DECK_R_MM: Dictionary = {"tech": 3.669, "expedition": 3.806, "sector": 4.229}
 const MIN_GAP: float = 0.45          # bright/dark split of the 11 lights
 const MAX_DARK: float = 0.40
 const MIN_LIT: float = 0.50
