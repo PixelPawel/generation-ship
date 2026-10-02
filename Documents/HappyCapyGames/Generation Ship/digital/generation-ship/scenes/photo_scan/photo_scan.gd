@@ -69,7 +69,8 @@ const TUCKED_LABEL_WIDTH: float = 150.0
 # The ship overview's cards are sized to fit the space there is (all sectors side
 # by side, the tallest stack without scrolling), within these limits; SHIP_CARD_*
 # is a card's long edge in px. Sector 67x44 mm landscape, tech 44x67 mm portrait.
-const SHIP_CARD_MAX: float = 270.0
+const SHIP_CARD_MAX: float = 220.0
+const SHIP_FIT_SHARE: float = 0.85        # of what would just fit: room to spare, so no scrollbar
 const SHIP_CARD_MIN: float = 96.0
 # Like a real tableau: each tech covers the top of the one below it, which keeps its
 # name strip and orb in view (TECH_SHOWN of its height), and the tech nearest the
@@ -939,7 +940,7 @@ func _fit_ship_card() -> void:
 	for e: Dictionary in _sectors:
 		most_techs = maxi(most_techs, (e["techs"] as Array).size())
 	var by_height: float = (area.y - _ship_info_height - 8.0) / _ship_stack_factor(most_techs)
-	_ship_card = clampf(minf(by_width, by_height), SHIP_CARD_MIN, SHIP_CARD_MAX)
+	_ship_card = clampf(minf(by_width, by_height) * SHIP_FIT_SHARE, SHIP_CARD_MIN, SHIP_CARD_MAX)
 	_ship_area_width = area.x
 
 # Height of a sector with `techs` cards stacked on it, per px of card long edge.
