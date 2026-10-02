@@ -26,6 +26,9 @@ const ART_PPM: float = 3.0                       # card art / token zone resolut
 # where that sector must lie: the column's lowest tech covers the sector's top 18 mm and sits
 # ~5 mm in from its left edge, so the sector's top-left is at (-5, 49) in that tech's mm
 const PLACEHOLDER_AT_ON_TECH: Vector2 = Vector2(-5.0, 49.0)
+const PLACEHOLDER_MIN_GAP_MM: float = 50.0   # sector dials closer than this across the row share one slot
+const PLACEHOLDER_ROW_MM: float = 25.0       # how far off the read sectors' row a placeholder may sit
+const MAX_SECTORS: int = 6
 # archived face-up: dial centre within this box below the sector (sector mm)
 const ARCHIVE_BOX: Rect2 = Rect2(-12.0, 40.0, 91.0, 144.0)
 # archived face-down: TECH labels (cream word, ~26 x 6 mm) in the strip below the sector
@@ -204,22 +207,44 @@ func analyze(photo: Image, dials: Array[Dictionary], markers: Array[Vector3] = [
 		for i: int in dials.size():
 			if not archived_of.has(i):   # sectors too, so columns that have one keep it
 				loose.append(dials[i])
+		var n_read: int = sector_idx.size()
+		var candidates: Array[Dictionary] = []
 		for g: Array in DialReader.group_into_sectors(loose):
 			if not (g[0] as Dictionary).is_empty() or g.size() < 2:
 				continue
 			var tech: Dictionary = g[1]          # the column's card nearest its sector
-			var ph_dial: Vector2 = card_frame(tech) * (PLACEHOLDER_AT_ON_TECH + DIAL_MM["sector"])
-			dials.append({
+			var ph: Dictionary = {
 				card = placeholder_card, is_advanced = false, placeholder = true,
-				center = ph_dial,
+				center = card_frame(tech) * (PLACEHOLDER_AT_ON_TECH + DIAL_MM["sector"]),
 				radius = float(tech["radius"]) * float(DialReader.DECK_R_MM["sector"]) / float(DialReader.DECK_R_MM[deck_of(tech)]),
 				up = tech["up"], th = tech["th"], shape = tech["shape"], gap = 0.0,
-			})
-			_art.append(null)
-			_art_f.append(PackedFloat32Array())
-			_art_size.append(Vector2i.ZERO)
-			sector_idx.append(dials.size() - 1)
-		archived_of = _archived_face_up(dials, sector_idx)
+			}
+			if _placeholder_fits(ph, dials, sector_idx, candidates):
+				candidates.append(ph)
+		# keep the ones that end up with techs of their own, most cards first, up to 6 sectors
+		if not candidates.is_empty():
+			var trial: Array[Dictionary] = []
+			for i: int in dials.size():
+				if not archived_of.has(i):
+					trial.append(dials[i])
+			trial.append_array(candidates)
+			var techs_of: Dictionary = {}
+			for g: Array in DialReader.group_into_sectors(trial):
+				if not (g[0] as Dictionary).is_empty() and (g[0] as Dictionary).has("placeholder"):
+					techs_of[candidates.find(g[0])] = g.size() - 1
+			var keep: Array[int] = []
+			for c: int in candidates.size():
+				if int(techs_of.get(c, 0)) > 0:
+					keep.append(c)
+			keep.sort_custom(func(a: int, b: int) -> bool: return int(techs_of[a]) > int(techs_of[b]))
+			keep.resize(clampi(MAX_SECTORS - n_read, 0, keep.size()))
+			for c: int in keep:
+				dials.append(candidates[c])
+				_art.append(null)
+				_art_f.append(PackedFloat32Array())
+				_art_size.append(Vector2i.ZERO)
+				sector_idx.append(dials.size() - 1)
+			archived_of = _archived_face_up(dials, sector_idx)
 	var results: Array = []
 	results.resize(sector_idx.size())
 	_done = 0
@@ -267,6 +292,30 @@ func analyze(photo: Image, dials: Array[Dictionary], markers: Array[Vector3] = [
 	_sort_left_to_right(groups, dials)
 	progress = 1.0
 	return groups
+
+# A placeholder sector must lie in the row of the sectors that were read and not on top
+# of one of them (or of another placeholder): else its column belongs to a read sector.
+static func _placeholder_fits(ph: Dictionary, dials: Array[Dictionary], sector_idx: Array[int],
+		others: Array[Dictionary]) -> bool:
+	var px_mm: float = float(ph["radius"]) / float(DialReader.DECK_R_MM["sector"])
+	var up: Vector2 = ph["up"]
+	var across: Vector2 = Vector2(-up.y, up.x)
+	var row: Array[float] = []
+	var taken: Array[Vector2] = []
+	for si: int in sector_idx:
+		row.append(((dials[si]["center"] as Vector2) - (ph["center"] as Vector2)).dot(up) / px_mm)
+		taken.append(dials[si]["center"])
+	for o: Dictionary in others:
+		taken.append(o["center"])
+	for c: Vector2 in taken:
+		if absf((c - (ph["center"] as Vector2)).dot(across)) / px_mm < PLACEHOLDER_MIN_GAP_MM:
+			return false
+	if not row.is_empty():
+		row.sort()
+		@warning_ignore("integer_division")
+		if absf(row[row.size() / 2]) > PLACEHOLDER_ROW_MM:
+			return false
+	return true
 
 # Face-up archive: each non-sector dial below a sector (nearest sector below wins) ->
 # {dial index: sector dial index}.
