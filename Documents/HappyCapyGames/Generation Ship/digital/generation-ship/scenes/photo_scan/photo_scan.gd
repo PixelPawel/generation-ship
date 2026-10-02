@@ -133,6 +133,7 @@ var _photo_view: TextureRect = null           # the scanned photo, shown in the 
 var _photo_btn: Button = null                 # "Show Photo" / "Show Ship"
 var _ship_card: float = SHIP_CARD_MAX         # long edge of the overview's cards, see _fit_ship_card()
 var _ship_area_width: float = -1.0
+var _ship_info_boxes: Array[Control] = []     # each sector's supply/archive line, evened out in height
 var _review_cards_box: HBoxContainer = null
 var _confirm_btn: Button = null
 var _supply_spinboxes: Dictionary = {}        # SupplyColor(int) -> SpinBox
@@ -909,6 +910,7 @@ func _refresh_sector_list() -> void:
 	_fit_ship_card()
 	for child: Node in _sector_list_box.get_children():
 		child.queue_free()
+	_ship_info_boxes.clear()
 	for i: int in _sectors.size():
 		_sector_list_box.add_child(_build_sector_summary_row(_sectors[i], i))
 	# a sector the scan missed (dial covered, say) can still be added by hand
@@ -920,6 +922,7 @@ func _refresh_sector_list() -> void:
 	add_col.add_child(add_btn)
 	_sector_list_box.add_child(add_col)
 	_update_score()
+	_even_out_info_lines()
 	_scroll_ship_to_bottom()
 
 # Card size for the overview: as big as fits — every sector side by side across the
@@ -954,6 +957,21 @@ func _on_ship_area_resized() -> void:
 	_fit_ship_card()
 	if absf(_ship_card - old) > 4.0:
 		_refresh_sector_list()
+
+# Every sector's supply/archive line gets the height of the tallest one, so the
+# sector cards above them all sit on one line (more badges would otherwise lift
+# a sector). Needs a layout pass first: a wrapping line's height depends on width.
+func _even_out_info_lines() -> void:
+	for box: Control in _ship_info_boxes:
+		box.custom_minimum_size.y = 0.0
+	await get_tree().process_frame
+	var tallest: float = 0.0
+	for box: Control in _ship_info_boxes:
+		if is_instance_valid(box):
+			tallest = maxf(tallest, box.size.y)
+	for box: Control in _ship_info_boxes:
+		if is_instance_valid(box):
+			box.custom_minimum_size.y = tallest
 
 # Swaps the ship overview for the scanned photo (and back), to compare the two.
 func _show_photo(on: bool) -> void:
@@ -1023,6 +1041,7 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 	info.alignment = FlowContainer.ALIGNMENT_CENTER
 	info.add_theme_constant_override("h_separation", 10)
 	outer.add_child(info)
+	_ship_info_boxes.append(info)
 	var stored: Dictionary = entry["stored_supply"]
 	for color_int: int in stored:
 		if int(stored[color_int]) > 0:
