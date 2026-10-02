@@ -1,50 +1,50 @@
 ﻿"No.","Name","Link","Color","Flavor","Effect","Solve","Notes","Done","Artist"
-"1","Fascia di Asteroidi","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm1.png","Dust","Non t’ho chiesto pronostici!","Costo della navetta +1.","Paga 2 Dust per giocatore.","","Done","Daniel"
-"2","Impatti ad Alta Velocità","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm2.png","Dust","Iniziate manovre evasive!","TUTTI i giocatori trasformano 3 risorse sulla propria nave 1:1 in Dust.","Distruggi 1 carta per giocatore.
+"1","Fascia di Asteroidi","GS Dangers 63,5x89mm.png","Dust","Non t’ho chiesto pronostici!","Costo della navetta +1.","Paga 2 Dust per giocatore.","","Done","Daniel"
+"2","Impatti ad Alta Velocità","GS Dangers 63,5x89mm2.png","Dust","Iniziate manovre evasive!","TUTTI i giocatori trasformano 3 risorse sulla propria nave 1:1 in Dust.","Distruggi 1 carta per giocatore.
 (gira a faccia in giù la carta in cima a un settore)","","Done","Daniel"
-"3","Falla nello Scafo","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm3.png","Dust","Prima di tutto, fai un respiro profondo.","Distruggi la carta in cima nel tuo settore più a destra.","Completa il tuo settore più a destra.","","Done","Daniel"
-"4","Incidente Minerario","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm4.png","Dust","Giuro che non era mai successo prima!","Non puoi guadagnare Dust.
+"3","Falla nello Scafo","GS Dangers 63,5x89mm3.png","Dust","Prima di tutto, fai un respiro profondo.","Distruggi la carta in cima nel tuo settore più a destra.","Completa il tuo settore più a destra.","","Done","Daniel"
+"4","Incidente Minerario","GS Dangers 63,5x89mm4.png","Dust","Giuro che non era mai successo prima!","Non puoi guadagnare Dust.
 (puoi comunque immagazzinare)","Ottimizza completamente un settore Dust.","","Done","Daniel"
-"5","Ruggine Accelerata","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm5.png","Metals","Come può arrugginirsi nello spazio?","Distruggi le 2 carte in cima nel tuo settore più a sinistra.","Ottimizza completamente un settore Metals.","","Done","Daniel"
-"6","Incidente in Fonderia","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm6.png","Metals","Fonderia? La conoscevo appena.","Non puoi fondere né guadagnare Metals.
+"5","Ruggine Accelerata","GS Dangers 63,5x89mm5.png","Metals","Come può arrugginirsi nello spazio?","Distruggi le 2 carte in cima nel tuo settore più a sinistra.","Ottimizza completamente un settore Metals.","","Done","Daniel"
+"6","Incidente in Fonderia","GS Dangers 63,5x89mm6.png","Metals","Fonderia? La conoscevo appena.","Non puoi fondere né guadagnare Metals.
 (puoi comunque immagazzinare)","Scarta 1 carta Metals per giocatore.","","Done","Daniel"
-"7","Sovraccarico dei Motori","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm7.png","Metals","Preparate la nave per la velocità smodata!","Ogni giocatore sceglie:
+"7","Sovraccarico dei Motori","GS Dangers 63,5x89mm7.png","Metals","Preparate la nave per la velocità smodata!","Ogni giocatore sceglie:
 Paga 2 Metals o distruggi 2 carte.","Paga 2 Metals per giocatore.","","Done","Daniel"
-"8","Totalitarismo","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm8.png","Metals","Abbiamo le parole migliori.","Non puoi usare gli effetti SEMPRE sulle tue carte.","Scarta carte del valore di 2⭐ per giocatore.
+"8","Totalitarismo","GS Dangers 63,5x89mm8.png","Metals","Abbiamo le parole migliori.","Non puoi usare gli effetti SEMPRE sulle tue carte.","Scarta carte del valore di 2⭐ per giocatore.
 ","","Done","Daniel"
-"9","Campo Anti-Fusione","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm9.png","Liquids","Immagino si torni a bruciare carbone.","Non puoi immagazzinare né fondere Liquids.
+"9","Campo Anti-Fusione","GS Dangers 63,5x89mm9.png","Liquids","Immagino si torni a bruciare carbone.","Non puoi immagazzinare né fondere Liquids.
 (puoi comunque guadagnare)","Ottimizza completamente un settore Liquids.","","Done","Daniel"
-"10","Megafioritura di Alghe","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm10.png","Liquids","La principessa è in un altro castello!","Ogni giocatore sceglie: Perdi 2 risorse immagazzinate o scarta 2.","Paga 2 Liquids per giocatore.","","Done","Daniel"
-"11","Perdita di Volatili","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm11.png","Liquids","Nasce una nuova cometa.","Le carte Liquids costano +2.","Scarta 1 carta Liquids per giocatore.","","Done","Daniel"
-"12","Carenza d’Acqua","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm12.png","Liquids","I Pirati del Ghiaccio sono tornati, bebéééé.","Non guadagnare Liquids alla fine di una generazione.
+"10","Megafioritura di Alghe","GS Dangers 63,5x89mm10.png","Liquids","La principessa è in un altro castello!","Ogni giocatore sceglie: Perdi 2 risorse immagazzinate o scarta 2.","Paga 2 Liquids per giocatore.","","Done","Daniel"
+"11","Perdita di Volatili","GS Dangers 63,5x89mm11.png","Liquids","Nasce una nuova cometa.","Le carte Liquids costano +2.","Scarta 1 carta Liquids per giocatore.","","Done","Daniel"
+"12","Carenza d’Acqua","GS Dangers 63,5x89mm12.png","Liquids","I Pirati del Ghiaccio sono tornati, bebéééé.","Non guadagnare Liquids alla fine di una generazione.
 ","Abbi 3 o più carte Liquids in 1 settore.","","Done","Daniel"
-"13","Supercolonia Mangia-Ossigeno","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm13.png","Organix","Mi togli il fiato.","Scarta 3 settori avanzati
+"13","Supercolonia Mangia-Ossigeno","GS Dangers 63,5x89mm13.png","Organix","Mi togli il fiato.","Scarta 3 settori avanzati
 sul mercato.","Svuota 1 dei mazzi di settore Dust.","","Done","Daniel"
-"14","Pandemia","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm14.png","Organix","Dovevi proprio mangiare quel pipistrello alieno?","Non puoi riciclare carte.","Scarta 1 carta Organix per giocatore.","","Done","Daniel"
-"15","Mutazioni","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm15.png","Organix","L’evoluzione vince sempre.","Ogni giocatore distrugge 1 carta, Organix se possibile.","Perdi 1 carta archiviata per giocatore.","","Done","Daniel"
-"16","Infestazione","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm16.png","Organix","Una volta mi piacevano i funghi...","I settori con qualsiasi Organix non possono essere ottimizzati.","Gira a faccia in giù 1 carta archiviata a faccia in su, per giocatore.","","Done","Daniel"
-"17","Virus della Pianta","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm17.png","Organix","I raccolti marciscono nei corridoi.","Non guadagnare Organix alla fine di una generazione.
+"14","Pandemia","GS Dangers 63,5x89mm14.png","Organix","Dovevi proprio mangiare quel pipistrello alieno?","Non puoi riciclare carte.","Scarta 1 carta Organix per giocatore.","","Done","Daniel"
+"15","Mutazioni","GS Dangers 63,5x89mm15.png","Organix","L’evoluzione vince sempre.","Ogni giocatore distrugge 1 carta, Organix se possibile.","Perdi 1 carta archiviata per giocatore.","","Done","Daniel"
+"16","Infestazione","GS Dangers 63,5x89mm16.png","Organix","Una volta mi piacevano i funghi...","I settori con qualsiasi Organix non possono essere ottimizzati.","Gira a faccia in giù 1 carta archiviata a faccia in su, per giocatore.","","Done","Daniel"
+"17","Virus della Pianta","GS Dangers 63,5x89mm17.png","Organix","I raccolti marciscono nei corridoi.","Non guadagnare Organix alla fine di una generazione.
 ","Abbi 3 o più carte Organix in 1 settore.","","Done","Daniel"
-"18","Patogeno Alieno","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm18.png","Organix","Un sapore inconsueto.","Le carte Organix costano +2.","Gira a faccia in giù una carta archiviata a faccia in su con 3+⭐.","","Done","Daniel"
-"19","Lampo di Raggi Gamma","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm19.png","Electrix","Colpito da 1500 anni luce di distanza.","Ogni giocatore sceglie: Perdi 2
+"18","Patogeno Alieno","GS Dangers 63,5x89mm18.png","Organix","Un sapore inconsueto.","Le carte Organix costano +2.","Gira a faccia in giù una carta archiviata a faccia in su con 3+⭐.","","Done","Daniel"
+"19","Lampo di Raggi Gamma","GS Dangers 63,5x89mm19.png","Electrix","Colpito da 1500 anni luce di distanza.","Ogni giocatore sceglie: Perdi 2
 risorse immagazzinate o carte archiviate.","Completa un settore completamente ottimizzato.","","Done","Daniel"
-"20","Psicopatico Cibernetico","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm20.png","Electrix","Tornerò.","Ogni giocatore distrugge
+"20","Psicopatico Cibernetico","GS Dangers 63,5x89mm20.png","Electrix","Tornerò.","Ogni giocatore distrugge
 1 carta, Electrix se possibile.","Svuota 1 dei mazzi di settore Dust.","","Done","Daniel"
-"21","Malfunzionamento Neurale","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm21.png","Electrix","Penserai quello che penso io!","Non puoi archiviare carte
+"21","Malfunzionamento Neurale","GS Dangers 63,5x89mm21.png","Electrix","Penserai quello che penso io!","Non puoi archiviare carte
 né immagazzinare risorse.","Scarta carte del valore di 3⭐ per giocatore.","","Done","Daniel"
-"22","Guasto di Sistema","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm22.png","Electrix","Ha provato a spegnerlo e riaccenderlo?","Immagazzina 1 Electrix qui.
+"22","Guasto di Sistema","GS Dangers 63,5x89mm22.png","Electrix","Ha provato a spegnerlo e riaccenderlo?","Immagazzina 1 Electrix qui.
 Rivela 1 pericolo per Electrix.","Scarta 1 carta Electrix per giocatore.","","Done","Daniel"
-"23","Rivolta dei Robot","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm23.png","Electrix","Sei vivo? Dimostralo!","Le carte settore costano +2.","Paga 1 Electrix per giocatore.","","Done","Daniel"
-"24","Peste di Naniti","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm24.png","Electrix","Hanno una bella croccantezza.","Non guadagnare Electrix alla fine di una generazione.
+"23","Rivolta dei Robot","GS Dangers 63,5x89mm23.png","Electrix","Sei vivo? Dimostralo!","Le carte settore costano +2.","Paga 1 Electrix per giocatore.","","Done","Daniel"
+"24","Peste di Naniti","GS Dangers 63,5x89mm24.png","Electrix","Hanno una bella croccantezza.","Non guadagnare Electrix alla fine di una generazione.
 ","Scarta carte del valore di 3⭐ per giocatore.","","Done","Daniel"
-"25","Wormhole Non Rilevato","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm25.png","Thrrust","Dove nessun uomo è mai giunto prima.","Rimescola tutte le spedizioni
+"25","Wormhole Non Rilevato","GS Dangers 63,5x89mm25.png","Thrrust","Dove nessun uomo è mai giunto prima.","Rimescola tutte le spedizioni
 nel mazzo.","Acquista 1 spedizione.","","Done","Daniel"
-"26","Sabotaggio","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm26.png","Thrrust","Solo alcuni... piccoli... problemi tecnici.","Ogni giocatore rimuove il
+"26","Sabotaggio","GS Dangers 63,5x89mm26.png","Thrrust","Solo alcuni... piccoli... problemi tecnici.","Ogni giocatore rimuove il
 settore con meno carte.","Distruggi 1 spedizione in qualsiasi settore.
 ","","Done","Daniel"
-"27","IA Ribelle","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm27.png","Thrrust","Vogliamo fare una partita?","Tutte le carte costano +1.","Scarta 2 carte Electrix e/o Thrust per giocatore.","","Done","Daniel"
-"28","Barbarie","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm28.png","Thrrust","Solo la gentrificazione può aiutare!","Non puoi posizionare né riciclare Thrust.","Completa un settore Electrix o Thrust.","","Done","Daniel"
-"29","Tasca Dimensionale","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm29.png","Thrrust","E pensavi che 3 corpi fossero già un problema.","Ogni giocatore passa le proprie
+"27","IA Ribelle","GS Dangers 63,5x89mm27.png","Thrrust","Vogliamo fare una partita?","Tutte le carte costano +1.","Scarta 2 carte Electrix e/o Thrust per giocatore.","","Done","Daniel"
+"28","Barbarie","GS Dangers 63,5x89mm28.png","Thrrust","Solo la gentrificazione può aiutare!","Non puoi posizionare né riciclare Thrust.","Completa un settore Electrix o Thrust.","","Done","Daniel"
+"29","Tasca Dimensionale","GS Dangers 63,5x89mm29.png","Thrrust","E pensavi che 3 corpi fossero già un problema.","Ogni giocatore passa le proprie
 carte a sinistra.","Scarta 1 carta di ogni colore.","","Done","Daniel"
-"30","Wormhole Instabile","https://generationship.s3.eu-central-1.amazonaws.com/TTS/Dangers/GS+Dangers+63%2C5x89mm30.png","Thrrust","Risucchia sul serio.","Ogni giocatore scarta 3 carte.","Un giocatore qualsiasi non ha carte in mano.
+"30","Wormhole Instabile","GS Dangers 63,5x89mm30.png","Thrrust","Risucchia sul serio.","Ogni giocatore scarta 3 carte.","Un giocatore qualsiasi non ha carte in mano.
 ","","Done","Daniel"

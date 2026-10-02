@@ -5,47 +5,18 @@ var techs: Array[CardData] = []
 var expeditions: Array[CardData] = []
 
 # Print-export card art lives under res://assets/cards/<Deck>/<LANG>/, one
-# PNG per physical card, exported page-by-page from the InDesign print files
-# (page 1 has no number suffix, page N>=1 appends N — InDesign's own
-# multi-page export naming, left as-is rather than renamed). Locale is read
-# directly from the same settings.cfg pause_menu.gd writes to, rather than
-# trusting TranslationServer.get_locale(): CardDatabase is an autoload and
-# runs before any scene (including the pause menu, the only thing that ever
-# calls TranslationServer.set_locale()) has had a chance to apply it.
+# PNG per physical card, exported page-by-page from the InDesign print files.
+# Which file belongs to which card comes straight from the sheet: every card
+# CSV's "Link" column holds that card's art file name (same name in every
+# language folder). image_url keeps that file name — it's the ImageCache key
+# the panels look art up by — and local_art_path is the resolved PNG in the
+# current language. Locale is read directly from the same settings.cfg
+# pause_menu.gd writes to, rather than trusting TranslationServer.get_locale():
+# CardDatabase is an autoload and runs before any scene (including the pause
+# menu, the only thing that ever calls TranslationServer.set_locale()) has had
+# a chance to apply it.
 const _SETTINGS_PATH: String = "user://settings.cfg"
 const _LANGUAGE_CODES: Array[String] = ["en", "de", "it", "pl", "es", "fr"]
-
-# Advanced Sectors: each of the 3 unique cards per color is printed twice
-# (2 physical copies -> 2 CSV rows, same name, same art); only one physical
-# location per unique name is needed here since art is looked up by name.
-# normalized name -> [png file base, page number]
-const _ADV_SECTOR_ART: Dictionary = {
-	"centraltransport": ["GS Sector 1 67x44mm", 1],
-	"spacebazaar":       ["GS Sector 1 67x44mm", 2],
-	"exosampling":       ["GS Sector 1 67x44mm", 3],
-	"holoprinters":      ["GS Sector 1 67x44mm", 4],
-	"astrogation":       ["GS Sector 1 67x44mm", 5],
-	"fabrication":       ["GS Sector 3 67x44mm", 1],
-	"greenhouse":        ["GS Sector 3 67x44mm", 2],
-	"parliament":        ["GS Sector 3 67x44mm", 3],
-	"probelauncher":     ["GS Sector 3 67x44mm", 4],
-	"astracultura":      ["GS Sector 3 67x44mm", 5],
-	"preservation":      ["GS Sector 5 67x44mm", 1],
-	"academies":         ["GS Sector 5 67x44mm", 2],
-	"cultivation":       ["GS Sector 5 67x44mm", 3],
-	"engines":           ["GS Sector 5 67x44mm", 4],
-	"centralai":         ["GS Sector 5 67x44mm", 5],
-}
-# Dust Sectors: 6 unique cards, one per "Sector N Back" file (single page).
-const _DUST_SECTOR_ART: Dictionary = {
-	"hibernators":     ["GS Sector 1 Back 67x44mm", 1],
-	"simulators":      ["GS Sector 2 Back 67x44mm", 1],
-	"bioreactor":      ["GS Sector 3 Back  67x44mm", 1],
-	"bioreactors":     ["GS Sector 3 Back  67x44mm", 1],
-	"habitationring":  ["GS Sector 4 Back  67x44mm", 1],
-	"operations":      ["GS Sector 5 Back  67x44mm", 1],
-	"cargobays":       ["GS Sector 6  Back  67x44mm", 1],
-}
 
 func _ready() -> void:
 	_load_sector_cards()
@@ -82,20 +53,36 @@ func _current_lang() -> String:
 		locale = "en"
 	return locale.to_upper()
 
-# Resolves to the current-locale PNG, falling back to EN if that language's
-# art is somehow missing (all 6 languages were exported in full, so this is
-# a safety net, not an expected path).
-func _resolve_art(deck_folder: String, file_base: String, page: int) -> String:
-	var fname: String = file_base + ("" if page == 1 else str(page)) + ".png"
+# Resolves an art file to the current-locale PNG, falling back to EN if that
+# language's art is somehow missing (all 6 languages were exported in full,
+# so this is a safety net, not an expected path). "" if the file is unknown.
+func _art_path(deck_folder: String, file_name: String) -> String:
+	if file_name.is_empty():
+		return ""
 	var lang: String = _current_lang()
-	var path: String = "res://assets/cards/%s/%s/%s" % [deck_folder, lang, fname]
+	var path: String = "res://assets/cards/%s/%s/%s" % [deck_folder, lang, file_name]
 	if ResourceLoader.exists(path):
 		return path
 	if lang != "EN":
-		var fallback: String = "res://assets/cards/%s/EN/%s" % [deck_folder, fname]
+		var fallback: String = "res://assets/cards/%s/EN/%s" % [deck_folder, file_name]
 		if ResourceLoader.exists(fallback):
 			return fallback
+	push_warning("CardDatabase: no art file '%s' in %s" % [file_name, deck_folder])
 	return ""
+
+# assets/cards/ folder holding a card's art.
+static func _art_folder(cd: CardData) -> String:
+	match cd.card_type:
+		CardData.CardType.SECTOR:
+			return "Sector"
+		CardData.CardType.EXPEDITION:
+			return "Expedition"
+	return "Promo" if cd.promo_no > 0 else "Tech"
+
+func _resolve_card_art(cd: CardData) -> void:
+	cd.local_art_path = _art_path(_art_folder(cd), cd.image_url)
+	if cd.card_type == CardData.CardType.SECTOR:
+		cd.adv_local_art_path = _art_path("Sector", cd.adv_image_url)
 
 # File names (as in assets/cards/<folder>/<LANG>/) showing each distinct card
 # once, for the Collection: the physical decks print many cards more than once
@@ -107,55 +94,16 @@ func unique_card_files(folder: String) -> Array[String]:
 		"Tech":
 			var seen: Dictionary = {}
 			for cd: CardData in techs:
-				if cd.promo_no > 0 or seen.has(cd.card_name):
+				if cd.promo_no > 0 or seen.has(cd.card_name) or cd.image_url.is_empty():
 					continue
 				seen[cd.card_name] = true
-				out.append(_page_file("GS Techs 44x67mm", cd.id))
+				out.append(cd.image_url)
 		"Sector":
-			for table: Dictionary in [_ADV_SECTOR_ART, _DUST_SECTOR_ART]:
-				for entry: Array in table.values():
-					var f: String = _page_file(entry[0] as String, int(entry[1]))
-					if not out.has(f):
+			for cd: CardData in sectors:
+				for f: String in [cd.adv_image_url, cd.image_url]:
+					if not f.is_empty() and not out.has(f):
 						out.append(f)
 	return out
-
-static func _page_file(file_base: String, page: int) -> String:
-	return file_base + ("" if page == 1 else str(page)) + ".png"
-
-func _tech_art_path(id: int) -> String:
-	return _resolve_art("Tech", "GS Techs 44x67mm", id)
-
-func _promo_art_path(promo_no: int) -> String:
-	return _resolve_art("Promo", "GS Techs Promos 44x67mm", promo_no)
-
-func _art_path_for_tech(cd: CardData) -> String:
-	return _promo_art_path(cd.promo_no) if cd.promo_no > 0 else _tech_art_path(cd.id)
-
-func _expedition_art_path(id: int) -> String:
-	# The Expeditions deck prints in exact reverse order of CSV "No."
-	# (page 1 = No. 26, page 26 = No. 1) — verified against every page,
-	# not assumed from Techs' direct id==page pattern, which does NOT hold
-	# here. See the equivalent Advanced/Dust Sector tables above for the
-	# same reason: print page order isn't guaranteed to match CSV order.
-	# Exceptions, same in every language's print file: Cloud Colony (No. 14) /
-	# Asteroid Colonies (No. 17) and Polar Planet (No. 21) / Waterworld
-	# (No. 22) sit on each other's pages.
-	var page: int = _EXPEDITION_PAGE_OVERRIDES.get(id, 27 - id)
-	return _resolve_art("Expedition", "GS Expeditions 44x67mm", page)
-
-const _EXPEDITION_PAGE_OVERRIDES: Dictionary = {14: 10, 17: 13, 21: 5, 22: 6}
-
-func _adv_sector_art_path(card_name: String) -> String:
-	var entry: Variant = _ADV_SECTOR_ART.get(_normalize(card_name))
-	if entry == null:
-		return ""
-	return _resolve_art("Sector", entry[0], entry[1])
-
-func _dust_sector_art_path(card_name: String) -> String:
-	var entry: Variant = _DUST_SECTOR_ART.get(_normalize(card_name))
-	if entry == null:
-		return ""
-	return _resolve_art("Sector", entry[0], entry[1])
 
 # Generic deck-back art (the face-down "TECH"/"EXPEDITIONS" card design, not
 # any single card) — same folder convention as per-card art, single page
@@ -164,10 +112,10 @@ func _dust_sector_art_path(card_name: String) -> String:
 # runtime instead — see tech_deck_back_path()/expedition_deck_back_path()
 # callers in board.gd, sector_slot.gd, sector_info_popup.gd.
 func tech_back_path() -> String:
-	return _resolve_art("Tech", "GS Techs Back 44x67mm", 1)
+	return _art_path("Tech", "GS Techs Back 44x67mm.png")
 
 func expedition_back_path() -> String:
-	return _resolve_art("Expedition", "GS Expeditions Back 44x67mm", 1)
+	return _art_path("Expedition", "GS Expeditions Back 44x67mm.png")
 
 # pause_menu.gd is the only place a user can change locale mid-session, and
 # it happens long after _ready() already baked every card's local_art_path
@@ -178,12 +126,11 @@ func expedition_back_path() -> String:
 # already-instantiated Card nodes pick up the change too.
 func refresh_locale() -> void:
 	for cd: CardData in sectors:
-		cd.local_art_path = _dust_sector_art_path(cd.card_name)
-		cd.adv_local_art_path = _adv_sector_art_path(cd.adv_name)
+		_resolve_card_art(cd)
 	for cd: CardData in techs:
-		cd.local_art_path = _art_path_for_tech(cd)
+		_resolve_card_art(cd)
 	for cd: CardData in expeditions:
-		cd.local_art_path = _expedition_art_path(cd.id)
+		_resolve_card_art(cd)
 
 func _load_sector_cards() -> void:
 	# Build dust side lookup by name
@@ -221,7 +168,6 @@ func _load_sector_cards() -> void:
 		card.effect_text = dust.get("Effect", "").strip_edges()
 		card.flavor_text = dust.get("Flavor", "").strip_edges()
 		card.image_url = dust.get("Link", "").strip_edges()
-		card.local_art_path = _dust_sector_art_path(card.card_name)
 		card.opt1_req = _parse_color_list(dust.get("Optimize 1", ""))
 
 		# Advanced side
@@ -231,7 +177,7 @@ func _load_sector_cards() -> void:
 		card.adv_effect_text = row.get("Effect", "").strip_edges()
 		card.adv_flavor_text = row.get("Flavor", "").strip_edges()
 		card.adv_image_url = row.get("Link", "").strip_edges()
-		card.adv_local_art_path = _adv_sector_art_path(card.adv_name)
+		_resolve_card_art(card)
 		card.adv_opt1_req = _parse_color_list(row.get("Optimize 1", ""))
 		card.adv_opt2_req = _parse_color_list(row.get("Optimize 2", ""))
 		card.adv_opt3_req = _parse_color_list(row.get("Optimize 3", ""))
@@ -267,13 +213,6 @@ func _load_promos() -> void:
 		card.promo_no = int(row["No."])
 		card.card_type = CardData.CardType.TECH
 		_populate_base_fields(card, row)
-		# The promo sheet has no Link column values, and image_url is the
-		# key ImageCache stores card art under (drag preview, choice/payment
-		# panels, sector lists…). With all six promos sharing "" none of
-		# them found their art there — a dragged promo looked like it
-		# vanished. A per-card key gets its local art cached like any other.
-		if card.image_url.strip_edges().is_empty():
-			card.image_url = "promo:%d" % card.promo_no
 		techs.append(card)
 
 func _load_expeditions() -> void:
@@ -293,8 +232,8 @@ func _populate_base_fields(card: CardData, row: Dictionary) -> void:
 	card.cost           = int(row.get("Cost", "0")) if row.get("Cost", "").is_valid_int() else 0
 	card.effect_text    = row.get("Effect", "").strip_edges()
 	card.flavor_text    = row.get("Flavor", "").strip_edges()
-	card.image_url      = row.get("Link", "")
-	card.local_art_path = _art_path_for_tech(card) if card.card_type == CardData.CardType.TECH else _expedition_art_path(card.id)
+	card.image_url      = row.get("Link", "").strip_edges()
+	_resolve_card_art(card)
 	card.stars          = row.get("Printed Star", "").count("⭐")
 	card.is_star_card   = _parse_yes_no(row.get("Star Card", row.get("Star card", "No")))
 	card.trigger_type   = _parse_trigger(row.get("Type", ""))
@@ -355,7 +294,8 @@ func find_any_by_name(card_name: String) -> CardData:
 			return cd
 	return null
 
-# Only real web addresses — local-only keys (promo:<n>) are never downloaded.
+# Only real web addresses get downloaded — card art is local now (the sheet's
+# Link column holds file names), so this is normally empty.
 func get_all_image_urls() -> Array[String]:
 	var urls: Array[String] = []
 	for url: String in _all_image_urls():
