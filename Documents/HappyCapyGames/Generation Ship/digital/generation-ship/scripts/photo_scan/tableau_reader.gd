@@ -34,8 +34,9 @@ const LABEL_TO_CARD: Vector2 = Vector2(9.0, 52.5)    # the label's top-left in b
 const BACK_SETTLE_MM: float = 3.0                    # search around that for the best fit
 # the back's two cyan lamps, either side of the TECH logo (back-card mm: 6.4 and 37.9, 55.85)
 const LAMP_GAP_MM: float = 31.5
-const LAMP_GAP_TOL_MM: float = 2.5
-const LAMP_DY_MAX_MM: float = 3.0                    # level with each other (in sector mm)
+const LAMP_GAP_TOL_MM: float = 4.5                 # wide: lower cascade cards look bigger on angled shots
+const LAMP_DY_MAX_MM: float = 3.5                    # level with each other (in sector mm)
+const LAMP_LOGO_MIN: float = 0.2                     # share of cream TECH lettering between a real pair
 const LAMP_D_MM: Vector2 = Vector2(0.5, 2.2)          # plausible blob diameter
 const LAMP_MERGE_MM: float = 3.5                     # a lamp's light and bits of its glow
 const LAMP_ZONE: Rect2 = Rect2(-15.0, 40.0, 100.0, 210.0)
@@ -81,6 +82,7 @@ var _token_imgs: Array[Image] = []   # the six token arts (RGBA8), TOKEN_FILES o
 var _templates: Array = []
 var _photo: PackedByteArray = PackedByteArray()
 var _pw: int = 0
+var _photo_gain: float = 1.0      # exposure: the photo's brightest 2% -> 245 (for colour tests)
 var _ph: int = 0
 var _done_mutex: Mutex = Mutex.new()
 var _done: int = 0
@@ -154,6 +156,20 @@ static func card_frame(d: Dictionary) -> Transform2D:
 func analyze(photo: Image, dials: Array[Dictionary], markers: Array[Vector3] = []) -> Array:
 	progress = 0.0
 	_photo = photo.get_data()
+	var hist: PackedInt32Array = PackedInt32Array()
+	hist.resize(256)
+	var n_px: int = 0
+	for o: int in range(0, _photo.size() - 2, 3 * 37):
+		hist[maxi(_photo[o], maxi(_photo[o + 1], _photo[o + 2]))] += 1
+		n_px += 1
+	var acc: int = 0
+	var p98: int = 255
+	for v: int in range(255, -1, -1):
+		acc += hist[v]
+		if float(acc) >= float(n_px) * 0.02:
+			p98 = v
+			break
+	_photo_gain = 245.0 / maxf(float(p98), 60.0)
 	_pw = photo.get_width()
 	_ph = photo.get_height()
 	# card art as blurred float arrays, all cards at once on every core
@@ -201,14 +217,15 @@ func analyze(photo: Image, dials: Array[Dictionary], markers: Array[Vector3] = [
 		if backs_at.is_empty():
 			for lab: Vector2 in _find_back_labels(dials[si]):
 				backs_at.append(lab - LABEL_TO_CARD)
-		var supply: Dictionary = _count_tokens(dials, si, backs_at)
-		results[k] = {backs = n_backs, supply = supply}
+		results[k] = {backs = n_backs, tokens = _find_tokens(dials, si, backs_at), supply = {}}
 		_done_mutex.lock()
 		_done += 1
 		progress = float(_done) / float(sector_idx.size())
 		_done_mutex.unlock()
 	if not sector_idx.is_empty():
 		WorkerThreadPool.wait_for_group_task_completion(WorkerThreadPool.add_group_task(per_sector, sector_idx.size()))
+
+	_assign_tokens(results, dials, sector_idx)
 
 	var rest: Array[Dictionary] = []
 	for i: int in dials.size():
@@ -231,6 +248,27 @@ func analyze(photo: Image, dials: Array[Dictionary], markers: Array[Vector3] = [
 	_sort_left_to_right(groups, dials)
 	progress = 1.0
 	return groups
+
+# A token near two columns is found by both sectors: it goes to the one whose column it
+# lies closest to (its sector-mm x nearest that sector card's middle). Fills each
+# result's "supply" (SupplyColor -> count).
+static func _assign_tokens(results: Array, dials: Array[Dictionary], sector_idx: Array[int]) -> void:
+	for k: int in results.size():
+		var sd: Dictionary = dials[sector_idx[k]]
+		var same_px: float = float(sd["radius"]) / float(DialReader.DECK_R_MM["sector"]) * TOKEN_MM * MATCH_SAME_TOKEN
+		var supply: Dictionary = {}
+		for tok: Array in (results[k]["tokens"] as Array):
+			var mine: float = absf(float(tok[2]) - SIZE_MM["sector"].x / 2.0)
+			var keep: bool = true
+			for k2: int in results.size():
+				if k2 == k:
+					continue
+				for other: Array in (results[k2]["tokens"] as Array):
+					if int(other[0]) == int(tok[0]) and (other[1] as Vector2).distance_to(tok[1] as Vector2) < same_px 							and absf(float(other[2]) - SIZE_MM["sector"].x / 2.0) < mine:
+						keep = false
+			if keep:
+				supply[int(tok[0])] = int(supply.get(int(tok[0]), 0)) + 1
+		results[k]["supply"] = supply
 
 # Sectors in the order they lie in the photo, left to right as the cards face (so a
 # rotated or tilted shot still comes out in table order). A group without a sector
@@ -399,6 +437,9 @@ func _find_lamp_pairs(sd: Dictionary, markers: Array[Vector3], dials: Array[Dict
 			var dx: float = lamps[j].x - lamps[i].x
 			var dy: float = absf(lamps[j].y - lamps[i].y)
 			if dx > 0.0 and absf(dx - LAMP_GAP_MM) <= LAMP_GAP_TOL_MM and dy <= LAMP_DY_MAX_MM:
+				# a real pair has the TECH lettering between its lamps
+				if _cream_between(card_frame(sd), lamps[i], lamps[j]) < LAMP_LOGO_MIN:
+					continue
 				cands.append([absf(dx - LAMP_GAP_MM) + dy, i, j])
 	cands.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
 	var used: Dictionary = {}
@@ -420,9 +461,29 @@ func _find_lamp_pairs(sd: Dictionary, markers: Array[Vector3], dials: Array[Dict
 		mids.append(mid)
 	return mids
 
+# Share of cream TECH-lettering colour along the line between two lamps (sector mm),
+# sampled on three rows through the logo.
+func _cream_between(frame: Transform2D, a: Vector2, b: Vector2) -> float:
+	var n: int = 0
+	var cream: int = 0
+	for step: int in 25:
+		var t: float = 0.2 + 0.6 * float(step) / 24.0
+		for dv: float in [-1.0, 0.0, 1.0]:
+			var p: Vector2 = frame * (a.lerp(b, t) + Vector2(0.0, dv))
+			var c: Vector3 = _sample(p.x, p.y)
+			if c.x < 0.0:
+				continue
+			c *= _photo_gain
+			n += 1
+			if c.x > 215.0 and c.y > 195.0 and c.z > 130.0 and c.z < 225.0 and c.x - c.z > 15.0:
+				cream += 1
+	return float(cream) / float(maxi(n, 1))
+
 # ── Stored supply: token-coloured, token-shaped, token-sized blobs ───────────
 
-func _count_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -> Dictionary:
+# Tokens found in the sector's area: [[supply colour, photo position, sector-mm x], …]
+# (a token between two columns can be found by both; analyze() gives it to one).
+func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -> Array:
 	var sframe: Transform2D = card_frame(dials[si])
 	var w: int = int(TOKEN_ZONE.size.x * ART_PPM)
 	var h: int = int(TOKEN_ZONE.size.y * ART_PPM)
@@ -537,9 +598,9 @@ func _count_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) 
 	# base colour into slivers), each matched against the real art of every token type
 	# with enough colour in it: score = art inside the token + how well the blob fits its
 	# outline.
-	var counts: Dictionary = {}
+	var found: Array = []
 	if _templates.is_empty():
-		return counts
+		return found
 	var mm2: float = 1.0 / (ART_PPM * ART_PPM)
 	# matching grid (MATCH_PPM): gain-normalised colours and the token-coloured mask
 	var k_m: float = MATCH_PPM / ART_PPM
@@ -621,9 +682,9 @@ func _count_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) 
 			if seen:
 				continue
 			centres.append(c)
-			var col: int = TOKEN_ORDER[int(hit["token"])]
-			counts[col] = int(counts.get(col, 0)) + 1
-	return counts
+			var at_mm: Vector2 = TOKEN_ZONE.position + c / MATCH_PPM
+			found.append([TOKEN_ORDER[int(hit["token"])], sframe * at_mm, at_mm.x])
+	return found
 
 # Best position (sector mm, card's top-left) for a face-down back near `guess`, within
 # +-BACK_SETTLE_MM: the shift whose back art differs least from the photo (sampled sparsely,
