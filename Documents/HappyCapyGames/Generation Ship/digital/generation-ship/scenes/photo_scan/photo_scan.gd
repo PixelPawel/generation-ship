@@ -14,16 +14,6 @@ extends Control
 const DialReaderScript := preload("res://scripts/photo_scan/dial_reader.gd")
 const CardPickerScript := preload("res://scenes/photo_scan/card_picker.gd")
 
-# Every cluster-derived sector's auto-detected guess gets snapshotted the
-# moment it's built (before the user can touch anything) and paired with
-# whatever it ends up as when confirmed/skipped, appended as one JSON line
-# each — this is the ground-truth data calibrating CardDetector/CardMatcher
-# against real photos needs, per the plan's calibration notes. user:// maps
-# to the same app-private storage the camera plugin's captured_photos/
-# already lives in on Android, so it's reachable via the same
-# `adb exec-out run-as <pkg> cat files/...` pattern.
-const CALIBRATION_LOG_PATH: String = "user://scan_calibration_log.jsonl"
-
 # A sector always shows exactly 6 slots: 1 sector card + 5 tech/expedition
 # (its physical maximum), never fewer or more — unused slots just stay
 # blank rather than being added/removed. Review columns are sized to fit
@@ -133,7 +123,6 @@ var _leaderboard_btn: Button = null
 var _photo_view: TextureRect = null           # the scanned photo, shown in the ship's place to compare
 var _photo_btn: Button = null                 # "Show Photo" / "Show Ship"
 var _ship_card: float = SHIP_CARD_MAX         # long edge of the overview's cards, see _fit_ship_card()
-var _ship_area_width: float = -1.0
 var _ship_info_boxes: Array[Control] = []     # each sector's supply/archive line, evened out in height
 var _ship_info_height: float = SHIP_INFO_HEIGHT   # what sits under a sector card, as last measured
 var _review_cards_box: HBoxContainer = null
@@ -161,16 +150,6 @@ var _score_total_label: Label = null
 var _editing_sector_index: int = -1
 var _editing_original_sector: Dictionary = {}
 
-# Calibration logging — see CALIBRATION_LOG_PATH. Only meaningful when a
-# sector came from an actual detected cluster; manually-added sectors
-# ("+ Add Sector") have no auto-detected guess to compare against, so they
-# never set _pending_from_cluster and never get logged.
-var _current_photo_path: String = ""
-var _cluster_counter: int = 0
-var _pending_from_cluster: bool = false
-var _pending_source_photo: String = ""
-var _pending_cluster_index: int = -1
-var _pending_initial_snapshot: Dictionary = {}
 
 # The reading thread must always be joined, also when the screen is freed mid-scan.
 func _exit_tree() -> void:
@@ -531,56 +510,6 @@ func _match_as_sector(card_name: String) -> Dictionary:
 
 # ── Calibration logging ──────────────────────────────────────────────────────
 
-## Captures the review screen's current state (whatever's in _pending plus
-## the live supply/tucked spinbox values) in the same JSON-able shape for
-## both the "initial" (auto-detected, untouched) and "corrected" (whatever
-## the user left it as) sides of a calibration record.
-func _snapshot_pending_state() -> Dictionary:
-	var slots: Array = []
-	for entry: Dictionary in _pending:
-		slots.append({"name": entry["name"], "is_advanced": entry["is_advanced"]})
-	# Keyed by the enum's own name (DUST/METALS/...), not CardData.color_name()
-	# — that's routed through TranslationServer for on-screen display, which
-	# would make this log's keys shift with the player's language setting.
-	var stored_supply: Dictionary = {}
-	for color_int: int in _supply_spinboxes:
-		stored_supply[CardData.SupplyColor.keys()[color_int]] = int((_supply_spinboxes[color_int] as SpinBox).value)
-	return {
-		"slots": slots,
-		"stored_supply": stored_supply,
-		"tucked_up_count": int(_tucked_up_spinbox.value),
-		"tucked_up_stars": int(_tucked_up_stars_spinbox.value),
-		"tucked_down_count": int(_tucked_down_spinbox.value),
-	}
-
-## Appends one JSON line per cluster-derived sector, pairing its untouched
-## auto-detected guess with what it was confirmed/skipped as — the labeled
-## data needed to actually measure (and then improve) CardDetector/
-## CardMatcher accuracy against real photos instead of guessing at it.
-## corrected is null for a skipped cluster (discarded, nothing to compare).
-func _log_calibration_record(outcome: String, initial: Dictionary, corrected: Variant) -> void:
-	var record: Dictionary = {
-		"timestamp": Time.get_datetime_string_from_system(true),
-		"source_photo": _pending_source_photo,
-		"cluster_index": _pending_cluster_index,
-		"outcome": outcome,
-		"initial": initial,
-	}
-	if corrected != null:
-		record["corrected"] = corrected
-	var file: FileAccess
-	if FileAccess.file_exists(CALIBRATION_LOG_PATH):
-		file = FileAccess.open(CALIBRATION_LOG_PATH, FileAccess.READ_WRITE)
-		if file:
-			file.seek_end()
-	else:
-		file = FileAccess.open(CALIBRATION_LOG_PATH, FileAccess.WRITE)
-	if not file:
-		push_warning("Scan Tableau: could not open calibration log (%s)" % error_string(FileAccess.get_open_error()))
-		return
-	file.store_line(JSON.stringify(record))
-	file.close()
-
 # ── View switching ───────────────────────────────────────────────────────────
 
 func _show_list_view() -> void:
@@ -617,8 +546,6 @@ func _on_photo_selected(path: String) -> void:
 		push_warning("Scan Tableau: could not load %s" % path)
 		return
 	_source_image = img
-	_current_photo_path = path
-	_cluster_counter = 0
 	_photo_view.texture = ImageTexture.create_from_image(img)
 	_photo_btn.disabled = false
 	_show_photo(false)
@@ -732,12 +659,9 @@ func _on_skip_sector_pressed() -> void:
 		return
 	_show_list_view()
 
-## Lets the user build a sector entirely by hand, starting fresh from the
-## list view — always the full 6 blank slots (1 sector + 5 tech/expedition),
-## same shape as a detected cluster. No auto-detected guess exists here, so
-## it's never logged for calibration (see _pending_from_cluster).
+## Lets the user build a sector entirely by hand ("+ Sector") — always the full
+## 6 blank slots (1 sector + 5 tech/expedition).
 func _on_add_sector_pressed() -> void:
-	_pending_from_cluster = false
 	_pending = []
 	for i: int in range(SECTOR_SLOT_COUNT):
 		_pending.append(_blank_entry())
@@ -942,7 +866,6 @@ func _fit_ship_card() -> void:
 		most_techs = maxi(most_techs, (e["techs"] as Array).size())
 	var by_height: float = (area.y - _ship_info_height - 8.0) / _ship_stack_factor(most_techs)
 	_ship_card = clampf(minf(by_width, by_height) * SHIP_FIT_SHARE, SHIP_CARD_MIN, SHIP_CARD_MAX)
-	_ship_area_width = area.x
 
 # Height of a sector with `techs` cards stacked on it, per px of card long edge.
 static func _ship_stack_factor(techs: int) -> float:
@@ -1146,7 +1069,6 @@ func _on_edit_sector_pressed(index: int) -> void:
 	_editing_sector_index = index
 	_editing_original_sector = _sectors[index]
 	_sectors.remove_at(index)
-	_pending_from_cluster = false
 	_pending = _rebuild_pending_from_sector(_editing_original_sector)
 
 	var stored: Dictionary = _editing_original_sector.get("stored_supply", {})
