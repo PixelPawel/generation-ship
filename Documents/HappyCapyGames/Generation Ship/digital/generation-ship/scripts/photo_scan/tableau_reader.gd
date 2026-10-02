@@ -166,8 +166,29 @@ func analyze(photo: Image, dials: Array[Dictionary]) -> Array:
 		sd["archived_up"] = ups
 		sd["archived_down"] = int(results[k]["backs"]) if k >= 0 else 0
 		sd["supply"] = results[k]["supply"] if k >= 0 else {}
+	_sort_left_to_right(groups, dials)
 	progress = 1.0
 	return groups
+
+# Sectors in the order they lie in the photo, left to right as the cards face (so a
+# rotated or tilted shot still comes out in table order). A group without a sector
+# goes by its first card.
+static func _sort_left_to_right(groups: Array, dials: Array[Dictionary]) -> void:
+	if dials.is_empty():
+		return
+	var up_sum: Vector2 = Vector2.ZERO
+	for d: Dictionary in dials:
+		up_sum += d["up"] as Vector2
+	var up: Vector2 = up_sum.normalized()
+	var right: Vector2 = Vector2(-up.y, up.x)
+	groups.sort_custom(func(a: Array, b: Array) -> bool:
+		return _group_anchor(a).dot(right) < _group_anchor(b).dot(right))
+
+static func _group_anchor(g: Array) -> Vector2:
+	for d: Dictionary in g:
+		if not d.is_empty():
+			return d["center"]
+	return Vector2.ZERO
 
 # ── Photo sampling ───────────────────────────────────────────────────────────
 
