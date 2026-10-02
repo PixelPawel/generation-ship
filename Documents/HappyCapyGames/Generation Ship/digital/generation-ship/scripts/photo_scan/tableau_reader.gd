@@ -30,9 +30,9 @@ const LABEL_ZONE: Rect2 = Rect2(-10.0, 40.0, 87.0, 204.0)
 const LABEL_W_MM: Vector2 = Vector2(24.0, 34.0)
 const LABEL_H_MM: Vector2 = Vector2(3.0, 10.0)
 const LABEL_MERGE_MM: float = 1.5
-const LABEL_TO_CARD: Vector2 = Vector2(9.0, 47.5)    # the label's top-left in back-card mm
+const LABEL_TO_CARD: Vector2 = Vector2(9.0, 52.5)    # the label's top-left in back-card mm
 const BACK_SETTLE_MM: float = 3.0                    # search around that for the best fit
-# the back's two cyan lamps, either side of the TECH logo (back-card mm: 6.4 and 37.9, 50.85)
+# the back's two cyan lamps, either side of the TECH logo (back-card mm: 6.4 and 37.9, 55.85)
 const LAMP_GAP_MM: float = 31.5
 const LAMP_GAP_TOL_MM: float = 2.5
 const LAMP_DY_MAX_MM: float = 3.0                    # level with each other (in sector mm)
@@ -41,7 +41,7 @@ const LAMP_MERGE_MM: float = 3.5                     # a lamp's light and bits o
 const LAMP_ZONE: Rect2 = Rect2(-15.0, 40.0, 100.0, 210.0)
 const LAMP_NOT_A_DIAL_MM: float = 2.5                # blobs this close to a read dial's marker are that marker
 const LAMP_PAIR_SPACING_MM: float = 8.0              # cascaded cards are always further apart
-const LAMP_MID_ON_CARD: Vector2 = Vector2(22.15, 50.85)
+const LAMP_MID_ON_CARD: Vector2 = Vector2(22.15, 55.85)
 const BACK_SETTLE_STEP_MM: float = 1.0
 # stored supply
 const TOKEN_ZONE: Rect2 = Rect2(-12.0, 8.0, 91.0, 102.0)
