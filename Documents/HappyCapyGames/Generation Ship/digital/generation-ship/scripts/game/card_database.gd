@@ -267,6 +267,13 @@ func _load_promos() -> void:
 		card.promo_no = int(row["No."])
 		card.card_type = CardData.CardType.TECH
 		_populate_base_fields(card, row)
+		# The promo sheet has no Link column values, and image_url is the
+		# key ImageCache stores card art under (drag preview, choice/payment
+		# panels, sector lists…). With all six promos sharing "" none of
+		# them found their art there — a dragged promo looked like it
+		# vanished. A per-card key gets its local art cached like any other.
+		if card.image_url.strip_edges().is_empty():
+			card.image_url = "promo:%d" % card.promo_no
 		techs.append(card)
 
 func _load_expeditions() -> void:
@@ -348,7 +355,15 @@ func find_any_by_name(card_name: String) -> CardData:
 			return cd
 	return null
 
+# Only real web addresses — local-only keys (promo:<n>) are never downloaded.
 func get_all_image_urls() -> Array[String]:
+	var urls: Array[String] = []
+	for url: String in _all_image_urls():
+		if url.begins_with("http"):
+			urls.append(url)
+	return urls
+
+func _all_image_urls() -> Array[String]:
 	var urls: Array[String] = []
 	for cd: CardData in sectors:
 		if not cd.image_url.is_empty():
