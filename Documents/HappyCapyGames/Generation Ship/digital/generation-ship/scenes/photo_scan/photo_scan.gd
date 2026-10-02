@@ -129,6 +129,8 @@ var _results_box: HFlowContainer = null       # compact VP breakdown under the t
 var _tip_label: Label = null                  # placement tip, until the first scan
 var _status_label: Label = null               # scan progress / outcome
 var _leaderboard_btn: Button = null
+var _photo_view: TextureRect = null           # the scanned photo, shown in the ship's place to compare
+var _photo_btn: Button = null                 # "Show Photo" / "Show Ship"
 var _ship_card: float = SHIP_CARD_MAX         # long edge of the overview's cards, see _fit_ship_card()
 var _ship_area_width: float = -1.0
 var _review_cards_box: HBoxContainer = null
@@ -183,6 +185,9 @@ func _ready() -> void:
 func open() -> void:
 	_sectors.clear()
 	_source_image = null
+	_photo_view.texture = null
+	_photo_btn.disabled = true
+	_show_photo(false)
 	_tip_label.visible = true
 	_status_label.visible = false
 	_editing_sector_index = -1
@@ -284,6 +289,14 @@ func _build_list_view() -> Control:
 	_sector_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_sector_scroll.resized.connect(_on_ship_area_resized)
 	box.add_child(_sector_scroll)
+	# The scanned photo takes the ship's place while comparing (Show Photo), whole
+	# and scaled to fit — screen space is too tight to show both.
+	_photo_view = TextureRect.new()
+	_photo_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_photo_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_photo_view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_photo_view.visible = false
+	box.add_child(_photo_view)
 	var holder: VBoxContainer = VBoxContainer.new()
 	holder.alignment = BoxContainer.ALIGNMENT_END
 	holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -326,6 +339,11 @@ func _build_list_view() -> Control:
 	scan_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scan_btn.pressed.connect(_on_scan_ship_pressed)
 	btn_row.add_child(scan_btn)
+	_photo_btn = _make_button("Show Photo")
+	_photo_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_photo_btn.disabled = true
+	_photo_btn.pressed.connect(func() -> void: _show_photo(not _photo_view.visible))
+	btn_row.add_child(_photo_btn)
 	_leaderboard_btn = _make_button("Add to Leaderboard")
 	_leaderboard_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_leaderboard_btn.pressed.connect(_on_leaderboard_pressed)
@@ -598,6 +616,9 @@ func _on_photo_selected(path: String) -> void:
 	_source_image = img
 	_current_photo_path = path
 	_cluster_counter = 0
+	_photo_view.texture = ImageTexture.create_from_image(img)
+	_photo_btn.disabled = false
+	_show_photo(false)
 	# Cards are identified by the scan-code dial printed around each card's
 	# colour orb (DialReader) — the only part of a card that stays visible in
 	# a real tableau. Read on a thread: a full photo takes a few seconds.
@@ -934,6 +955,12 @@ func _on_ship_area_resized() -> void:
 	if absf(_ship_card - old) > 4.0:
 		_refresh_sector_list()
 
+# Swaps the ship overview for the scanned photo (and back), to compare the two.
+func _show_photo(on: bool) -> void:
+	_photo_view.visible = on
+	_sector_scroll.visible = not on
+	_photo_btn.text = "Show Ship" if on else "Show Photo"
+
 # Rests the ship view at the bottom (the sectors' baseline), like the in-game
 # ship — once the new columns have been laid out.
 func _scroll_ship_to_bottom() -> void:
@@ -1087,6 +1114,7 @@ func _make_summary_text_badge(text: String) -> Label:
 ## restores _editing_original_sector unchanged; Confirm re-inserts whatever
 ## it's edited to at the same index.
 func _on_edit_sector_pressed(index: int) -> void:
+	_show_photo(false)
 	_editing_sector_index = index
 	_editing_original_sector = _sectors[index]
 	_sectors.remove_at(index)
