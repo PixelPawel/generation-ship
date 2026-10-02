@@ -28,6 +28,8 @@ const LABEL_W_MM: Vector2 = Vector2(24.0, 34.0)
 const LABEL_H_MM: Vector2 = Vector2(3.0, 10.0)
 const LABEL_MERGE_MM: float = 1.5
 const LABEL_TO_CARD: Vector2 = Vector2(9.0, 47.5)    # the label's top-left in back-card mm
+const BACK_SETTLE_MM: float = 3.0                    # search around that for the best fit
+const BACK_SETTLE_STEP_MM: float = 1.0
 # stored supply
 const TOKEN_ZONE: Rect2 = Rect2(-12.0, 8.0, 91.0, 102.0)
 const ART_MATCH: float = 60.0                    # colour distance a pixel still counts as the art
@@ -340,7 +342,8 @@ func _count_tokens(dials: Array[Dictionary], si: int, labels: Array[Vector2]) ->
 		layers.append([card_frame(dials[i]).affine_inverse() * sframe, _art_f[i], _art_size[i], SIZE_MM[deck_of(dials[i])], i == si])
 	if not _back_f.is_empty():
 		for lab: Vector2 in labels:
-			var card_at: Vector2 = lab - LABEL_TO_CARD
+			# the label only roughly places its card: settle it where the back art fits best
+			var card_at: Vector2 = _settle_back(zone, w, h, lab - LABEL_TO_CARD)
 			layers.append([Transform2D(Vector2(1, 0), Vector2(0, 1), -card_at), _back_f, _back_size, SIZE_MM["tech"], false])
 	var slack: float = ART_SLACK_MM * ART_PPM
 	for layer: Array in layers:
@@ -457,6 +460,35 @@ func _count_tokens(dials: Array[Dictionary], si: int, labels: Array[Vector2]) ->
 			var col: int = TOKEN_ORDER[t]
 			counts[col] = int(counts.get(col, 0)) + n_tok
 	return counts
+
+# Best position (sector mm, card's top-left) for a face-down back near `guess`, within
+# +-BACK_SETTLE_MM: the shift whose back art differs least from the photo (sampled sparsely,
+# per-channel gain taken out by comparing brightness-normalised colours).
+func _settle_back(zone: PackedFloat32Array, w: int, h: int, guess: Vector2) -> Vector2:
+	var best_at: Vector2 = guess
+	var best_err: float = INF
+	var steps: int = int(BACK_SETTLE_MM / BACK_SETTLE_STEP_MM)
+	for sy: int in range(-steps, steps + 1):
+		for sx: int in range(-steps, steps + 1):
+			var at: Vector2 = guess + Vector2(sx, sy) * BACK_SETTLE_STEP_MM
+			var err: float = 0.0
+			var n: int = 0
+			for v: float in range(2, 66, 3):
+				for u: float in range(2, 43, 3):
+					var zp: Vector2 = (at + Vector2(u, v) - TOKEN_ZONE.position) * ART_PPM
+					var zi: int = int(zp.x)
+					var zj: int = int(zp.y)
+					if zi < 0 or zj < 0 or zi >= w or zj >= h:
+						continue
+					var o: int = (zj * w + zi) * 3
+					var px: Vector3 = Vector3(zone[o], zone[o + 1], zone[o + 2])
+					var e: Vector3 = _arr_at(_back_f, _back_size.x, _back_size.y, u * ART_PPM, v * ART_PPM)
+					err += (px / maxf(px.length(), 1.0)).distance_to(e / maxf(e.length(), 1.0))
+					n += 1
+			if n > 40 and err / n < best_err:
+				best_err = err / n
+				best_at = at
+	return best_at
 
 # Zone pixels (TOKEN_ZONE at ART_PPM, w x h) a card can cover, given zone mm -> card mm.
 static func _card_span(to_card: Transform2D, card_mm: Vector2, w: int, h: int) -> Rect2i:
