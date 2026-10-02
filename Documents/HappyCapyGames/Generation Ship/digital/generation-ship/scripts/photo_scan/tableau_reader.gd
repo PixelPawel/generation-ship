@@ -202,7 +202,7 @@ func analyze(photo: Image, dials: Array[Dictionary], markers: Array[Vector3] = [
 	if placeholder_card:
 		var loose: Array[Dictionary] = []
 		for i: int in dials.size():
-			if not archived_of.has(i) and deck_of(dials[i]) != "sector":
+			if not archived_of.has(i):   # sectors too, so columns that have one keep it
 				loose.append(dials[i])
 		for g: Array in DialReader.group_into_sectors(loose):
 			if not (g[0] as Dictionary).is_empty() or g.size() < 2:
