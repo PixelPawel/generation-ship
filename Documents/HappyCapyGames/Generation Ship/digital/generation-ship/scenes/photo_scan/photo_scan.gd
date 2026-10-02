@@ -1,11 +1,12 @@
 extends Control
 
-# Photo-scan VP calculator (see the plan for the full design). One photo
-# covers the whole ship; DialReader reads the scan-code dial printed around
-# every card's colour orb (the one part of a card that stays visible in a
-# real tableau — art matching couldn't work there) and groups the cards into
-# per-sector clusters, and each cluster is reviewed/corrected one at a time
-# through the same screen a per-sector capture would have used. Capture uses the real CameraIntentPlugin
+# Photo-scan VP calculator. One photo covers the whole ship: DialReader reads the
+# scan-code dial printed around every card's colour orb (the one part of a card
+# that stays visible in a real tableau), TableauReader works out each sector's
+# archive and stored supply, and the result goes straight into the ship overview
+# with its VP total — sectors in table order, each anchored at the bottom with its
+# tech stack above it like the in-game ship, an Edit button under each to correct
+# it in the review screen. Capture uses the real CameraIntentPlugin
 # on Android (falls back to a plain file picker elsewhere, since the plugin
 # only exists in Android builds). Follows the same code-built-UI convention
 # as collection_popup.gd / manual_popup.gd (no companion .tscn).
@@ -93,10 +94,6 @@ const SUMMARY_FONT_SIZE: int = 24
 const SUMMARY_HOVER_SCALE: Vector2 = Vector2(1.08, 1.08)
 const SUMMARY_HOVER_IN_SEC: float = 0.12
 const SUMMARY_HOVER_OUT_SEC: float = 0.18
-# 3x the original 220x220, then dialed back 30% — full 3x left too little
-# room for the sector overview below it (see _build_list_view's outer
-# scroll, added for the same reason).
-const PHOTO_PREVIEW_SIZE: Vector2 = Vector2(462, 462)
 const SCORE_FONT_SIZE: int = 96
 # The star's own size (SCORE_FONT_SIZE*1.25) plus centering both labels
 # still wasn't enough to make them read as level with each other — the
@@ -139,15 +136,16 @@ var _scan_progress: ProgressBar = null      # shown while the photo is being rea
 var _sectors: Array[Dictionary] = []          # board entries confirmed so far, BotScoring-shaped
 var _pending: Array[Dictionary] = []          # current in-review cluster's candidates
 var _source_image: Image = null               # the one whole-ship photo, kept for supply detection per cluster
-var _cluster_queue: Array = []                 # remaining clusters (Array[Dictionary]) still to review
 
 var _file_dialog: FileDialog = null
 var _list_view: Control = null
 var _review_view: Control = null
 var _sector_list_box: HBoxContainer = null    # sector columns side by side (see _build_list_view)
-var _results_box: VBoxContainer = null
-var _calculate_btn: Button = null
-var _review_clusters_btn: Button = null       # "Review Detected Sectors (N)" — only visible while _cluster_queue is non-empty
+var _sector_scroll: ScrollContainer = null
+var _results_box: HFlowContainer = null       # compact VP breakdown under the total
+var _tip_label: Label = null                  # placement tip, until the first scan
+var _status_label: Label = null               # scan progress / outcome
+var _leaderboard_btn: Button = null
 var _review_cards_box: HBoxContainer = null
 var _confirm_btn: Button = null
 var _supply_spinboxes: Dictionary = {}        # SupplyColor(int) -> SpinBox
@@ -158,8 +156,6 @@ var _card_picker: Control = null
 var _picker_callback: Callable = Callable()   # armed while a row's Edit flow is waiting on a pick
 var _skip_btn: Button = null                  # relabeled "Cancel" while editing an already-confirmed sector
 
-var _photo_preview: TextureRect = null        # small tap-to-enlarge thumbnail of the last scanned photo, on the list view
-var _photo_enlarge: TextureRect = null        # full-screen enlarged copy, shown/hidden by tapping the preview
 
 # Replaces the photo preview once Calculate Score is pressed — a big ★
 # and the total VP, in the same spot the photo occupied. Reverts back to
@@ -201,15 +197,12 @@ func _ready() -> void:
 
 func open() -> void:
 	_sectors.clear()
-	_cluster_queue.clear()
 	_source_image = null
-	_photo_preview.texture = null
-	_photo_preview.visible = false
-	_score_display.visible = false
+	_tip_label.visible = true
+	_status_label.visible = false
 	_editing_sector_index = -1
 	_editing_original_sector = {}
 	_refresh_sector_list()
-	_refresh_cluster_review_button()
 	_show_list_view()
 	visible = true
 
@@ -268,82 +261,44 @@ func _build_ui() -> void:
 	_card_picker = CardPickerScript.new()
 	add_child(_card_picker)
 
-	# Full-screen enlarged copy of the photo preview — tap the small one on
-	# the list view to show this, tap it again (or anywhere on it) to hide.
-	_photo_enlarge = TextureRect.new()
-	_photo_enlarge.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_photo_enlarge.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_photo_enlarge.mouse_filter = Control.MOUSE_FILTER_STOP
-	_photo_enlarge.visible = false
-	_photo_enlarge.gui_input.connect(func(event: InputEvent) -> void:
-		if _is_tap(event):
-			_photo_enlarge.visible = false)
-	add_child(_photo_enlarge)
-
 func _build_list_view() -> Control:
 	var box: VBoxContainer = VBoxContainer.new()
 	box.add_theme_constant_override("separation", 14)
 	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
-	# Hint + photo preview + detected-sectors row all scroll together
-	# vertically — the photo preview alone can be taller than the space
-	# left for everything below it, which used to squeeze the sector
-	# overview down to nothing/off-screen. The action buttons and results
-	# stay outside this scroll, pinned at the bottom, always reachable.
-	var outer_scroll: ScrollContainer = ScrollContainer.new()
-	outer_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	outer_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	box.add_child(outer_scroll)
+	_tip_label = _make_hint_label("Photograph your whole ship from above. Keep the ring of lights around each card's orb uncovered and give supply tokens a little room.")
+	box.add_child(_tip_label)
+	_status_label = Label.new()
+	_status_label.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
+	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status_label.visible = false
+	box.add_child(_status_label)
+	_scan_progress = ProgressBar.new()
+	_scan_progress.custom_minimum_size = Vector2(0, BUTTON_MIN_HEIGHT * 0.5)
+	_scan_progress.min_value = 0.0
+	_scan_progress.max_value = 100.0
+	_scan_progress.show_percentage = false
+	_scan_progress.visible = false
+	box.add_child(_scan_progress)
 
-	var scroll_content: VBoxContainer = VBoxContainer.new()
-	scroll_content.add_theme_constant_override("separation", 14)
-	scroll_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	outer_scroll.add_child(scroll_content)
-
-	var hint: Label = _make_hint_label("Photograph your whole ship in one shot to auto-detect a starting point, or add sectors by hand — either way you'll review and can add/remove cards before confirming each sector.")
-	scroll_content.add_child(hint)
-
-	_photo_preview = TextureRect.new()
-	_photo_preview.custom_minimum_size = PHOTO_PREVIEW_SIZE
-	_photo_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_photo_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	# PASS, not STOP: still gets its own gui_input (for tap-to-enlarge) but
-	# also lets the event bubble up to the outer ScrollContainer — with STOP,
-	# a mouse wheel scroll over the image was swallowed here and never
-	# scrolled the page at all.
-	_photo_preview.mouse_filter = Control.MOUSE_FILTER_PASS
-	_photo_preview.tooltip_text = "Tap to enlarge"
-	_photo_preview.visible = false
-	_photo_preview.gui_input.connect(func(event: InputEvent) -> void:
-		if _is_tap(event):
-			_photo_enlarge.texture = _photo_preview.texture
-			_photo_enlarge.visible = true)
-	scroll_content.add_child(_photo_preview)
-
-	# Takes the photo preview's spot once Calculate Score is pressed (see
-	# _on_calculate_pressed/_refresh_sector_list) — a big, celebratory total
-	# instead of the photo, which isn't useful to keep looking at once
-	# you've got a number.
+	# The ship's VP total, recalculated whenever the ship changes, with a compact
+	# breakdown under it.
 	_score_display = HBoxContainer.new()
 	_score_display.alignment = BoxContainer.ALIGNMENT_CENTER
 	_score_display.add_theme_constant_override("separation", 20)
 	_score_display.visible = false
-	# A "★" glyph optically sits smaller and higher within its own em-box
-	# than a digit does at the same nominal font size — matching font_size
-	# alone (the original approach) left it looking small and floating
-	# above the number instead of level with it. Sizing it up and forcing
-	# both labels to center within the row's full height, rather than each
-	# defaulting to top-aligned, gets them reading as one unit.
+	# A "★" glyph optically sits smaller and higher within its own em-box than a
+	# digit at the same font size — sized up, and both labels centred within the
+	# row's full height so they read as one unit.
 	var star_lbl: Label = Label.new()
 	star_lbl.text = "★"
 	star_lbl.add_theme_font_size_override("font_size", roundi(SCORE_FONT_SIZE * 1.25))
 	star_lbl.add_theme_color_override("font_color", SCORE_STAR_COLOR)
 	star_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	star_lbl.size_flags_vertical = Control.SIZE_FILL
-	# The ★ glyph's own optical center still sits a bit low even box-centered
-	# against the number's much taller line height — a small bottom-only
-	# margin shrinks the star's available box from below, nudging its
-	# centered content up without touching the number.
+	# The ★ glyph's optical centre still sits a bit low — a bottom-only margin
+	# nudges it up without touching the number.
 	var star_wrap: MarginContainer = MarginContainer.new()
 	star_wrap.add_theme_constant_override("margin_bottom", SCORE_STAR_NUDGE_UP)
 	star_wrap.size_flags_vertical = Control.SIZE_FILL
@@ -355,64 +310,42 @@ func _build_list_view() -> Control:
 	_score_total_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_score_total_label.size_flags_vertical = Control.SIZE_FILL
 	_score_display.add_child(_score_total_label)
-	scroll_content.add_child(_score_display)
+	box.add_child(_score_display)
+	_results_box = HFlowContainer.new()
+	_results_box.alignment = FlowContainer.ALIGNMENT_CENTER
+	_results_box.add_theme_constant_override("h_separation", 24)
+	box.add_child(_results_box)
 
-	_review_clusters_btn = _make_button("Review Detected Sectors")
-	_review_clusters_btn.pressed.connect(_start_reviewing_next_cluster)
-	_review_clusters_btn.visible = false
-	scroll_content.add_child(_review_clusters_btn)
-
-	_scan_progress = ProgressBar.new()
-	_scan_progress.custom_minimum_size = Vector2(0, BUTTON_MIN_HEIGHT * 0.5)
-	_scan_progress.min_value = 0.0
-	_scan_progress.max_value = 100.0
-	_scan_progress.show_percentage = false
-	_scan_progress.visible = false
-	scroll_content.add_child(_scan_progress)
-	# Right under the hint, above the photo: the photo preview is tall
-	# enough to push anything below it off-screen, and the scan's status
-	# has to be visible without scrolling.
-	scroll_content.move_child(_review_clusters_btn, 1)
-	scroll_content.move_child(_scan_progress, 2)
-
-	# Sectors sit side by side (up to 6, a ship's physical max) rather than
-	# stacked in a long vertical list, each one's own card stack running
-	# vertically underneath it — the same layout the real board uses
-	# (sectors across, tech stack per-sector deepening in one direction).
-	# A sibling of outer_scroll now (not nested inside it) so it's free to
-	# scroll both ways on its own — vertically too, since even overlapped
-	# 50% a full 6-card column is still tall. Both scrolls share the
-	# remaining vertical space (stretch ratio 2:1) so the board — the main
-	# visual focus, like in the real game — gets the bigger share rather
-	# than being squeezed by the hint/photo section above it.
-	var sector_scroll: ScrollContainer = ScrollContainer.new()
-	sector_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	sector_scroll.size_flags_stretch_ratio = 2.0
-	box.add_child(sector_scroll)
+	# The ship: sectors side by side in table order, anchored at the bottom like
+	# the in-game ship — every sector card on one baseline with its tech stack
+	# growing upward, and the view resting at the bottom when the stacks are
+	# taller than the screen. The holder fills the scroll area and pushes the row
+	# to its bottom while everything fits.
+	_sector_scroll = ScrollContainer.new()
+	_sector_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(_sector_scroll)
+	var holder: VBoxContainer = VBoxContainer.new()
+	holder.alignment = BoxContainer.ALIGNMENT_END
+	holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_sector_scroll.add_child(holder)
 	_sector_list_box = HBoxContainer.new()
 	_sector_list_box.add_theme_constant_override("separation", 14)
-	sector_scroll.add_child(_sector_list_box)
+	_sector_list_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	holder.add_child(_sector_list_box)
 
 	var btn_row: HBoxContainer = HBoxContainer.new()
 	btn_row.add_theme_constant_override("separation", 16)
 	box.add_child(btn_row)
-	var add_btn: Button = _make_button("Scan Ship")
-	add_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	add_btn.pressed.connect(_on_scan_ship_pressed)
-	btn_row.add_child(add_btn)
-	var add_sector_btn: Button = _make_button("+ Add Sector")
-	add_sector_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	add_sector_btn.pressed.connect(_on_add_sector_pressed)
-	btn_row.add_child(add_sector_btn)
-	_calculate_btn = _make_button("Calculate Score")
-	_calculate_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_calculate_btn.pressed.connect(_on_calculate_pressed)
-	btn_row.add_child(_calculate_btn)
-
-	box.add_child(HSeparator.new())
-	_results_box = VBoxContainer.new()
-	_results_box.add_theme_constant_override("separation", 6)
-	box.add_child(_results_box)
+	# The camera plugin only exists in Android builds; elsewhere it's a file picker.
+	var scan_btn: Button = _make_button("Take Image" if Engine.has_singleton("CameraIntentPlugin") else "Load Image")
+	scan_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scan_btn.pressed.connect(_on_scan_ship_pressed)
+	btn_row.add_child(scan_btn)
+	_leaderboard_btn = _make_button("Add to Leaderboard")
+	_leaderboard_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_leaderboard_btn.pressed.connect(_on_leaderboard_pressed)
+	btn_row.add_child(_leaderboard_btn)
 
 	return box
 
@@ -480,11 +413,11 @@ func _build_review_view() -> Control:
 	var btn_row: HBoxContainer = HBoxContainer.new()
 	btn_row.add_theme_constant_override("separation", 16)
 	box.add_child(btn_row)
-	_skip_btn = _make_button("Skip Sector")
+	_skip_btn = _make_button("Cancel")
 	_skip_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_skip_btn.pressed.connect(_on_skip_sector_pressed)
 	btn_row.add_child(_skip_btn)
-	_confirm_btn = _make_button("Confirm Sector")
+	_confirm_btn = _make_button("Add Sector")
 	_confirm_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_confirm_btn.pressed.connect(_on_confirm_sector_pressed)
 	btn_row.add_child(_confirm_btn)
@@ -681,16 +614,12 @@ func _on_photo_selected(path: String) -> void:
 	_source_image = img
 	_current_photo_path = path
 	_cluster_counter = 0
-	_photo_preview.texture = ImageTexture.create_from_image(img)
-	_photo_preview.visible = true
-	_score_display.visible = false
 	# Cards are identified by the scan-code dial printed around each card's
 	# colour orb (DialReader) — the only part of a card that stays visible in
 	# a real tableau. Read on a thread: a full photo takes a few seconds.
-	_cluster_queue = []
-	_review_clusters_btn.visible = true
-	_review_clusters_btn.disabled = true
-	_review_clusters_btn.text = "Reading cards…"
+	_tip_label.visible = false
+	_status_label.visible = true
+	_status_label.text = "Reading cards…"
 	var reader: DialReader = DialReaderScript.create()
 	_finish_scan_thread()            # a previous photo still being read
 	var thread: Thread = Thread.new()
@@ -704,7 +633,7 @@ func _on_photo_selected(path: String) -> void:
 			return                       # _exit_tree() joined the thread
 		_scan_progress.value = reader.progress * 100.0
 		var pct: int = roundi(reader.progress * 100.0)
-		_review_clusters_btn.text = ("Reading cards… %d%%" % pct) if reader.attempt == 1 else ("Looking closer… %d%%" % pct)
+		_status_label.text = ("Reading cards… %d%%" % pct) if reader.attempt == 1 else ("Looking closer… %d%%" % pct)
 	_scan_progress.visible = false
 	if _scan_thread != thread:
 		return
@@ -726,7 +655,7 @@ func _on_photo_selected(path: String) -> void:
 		if not is_inside_tree():
 			return                       # _exit_tree() joined the thread
 		_scan_progress.value = tableau.progress * 100.0
-		_review_clusters_btn.text = "Counting archive & supply… %d%%" % roundi(tableau.progress * 100.0)
+		_status_label.text = "Counting archive & supply… %d%%" % roundi(tableau.progress * 100.0)
 	_scan_progress.visible = false
 	if _scan_thread != thread2:
 		return
@@ -734,86 +663,66 @@ func _on_photo_selected(path: String) -> void:
 	var groups: Array = thread2.wait_to_finish()
 	if _source_image != img:
 		return
-	_review_clusters_btn.disabled = false
-	_cluster_queue = groups
-	if _cluster_queue.is_empty():
-		push_warning("Scan Tableau: no card codes found in that photo")
-		_review_clusters_btn.visible = true
-		_review_clusters_btn.disabled = true
-		_review_clusters_btn.text = "No cards found — move closer so the ship fills the photo"
-		return
-	# Stay on the list view rather than jumping straight into reviewing the
-	# first detected sector — the photo's now loaded/previewed, and the
-	# player decides when to actually go review what was found via
-	# _review_clusters_btn (see _refresh_cluster_review_button).
-	_refresh_cluster_review_button()
+	# Everything recognised goes straight into the ship (a new photo is a new ship);
+	# Edit under a sector corrects it.
+	_sectors.clear()
+	var loose: int = 0
+	for g: Array in groups:
+		var entry: Dictionary = _sector_entry_from_group(g)
+		if entry.is_empty():
+			loose += g.size() - 1
+		else:
+			_sectors.append(entry)
+	if _sectors.is_empty():
+		push_warning("Scan Tableau: no sector cards found in that photo")
+		_status_label.text = "No sectors found — move closer so the ship fills the photo"
+	else:
+		_status_label.text = "%d sector%s found" % [_sectors.size(), "" if _sectors.size() == 1 else "s"]
+		if loose > 0:
+			_status_label.text += " · %d card%s not next to a sector left out" % [loose, "" if loose == 1 else "s"]
+	_refresh_sector_list()
 
-## Pops the next queued cluster and populates the review screen for it —
-## one whole-ship photo yields several clusters (one per sector). The first
-## one only starts once the player taps _review_clusters_btn; once started,
-## confirming/skipping one keeps chaining through the rest of the same
-## batch the same way, only returning to the list view once it's empty.
-func _start_reviewing_next_cluster() -> void:
-	if _cluster_queue.is_empty():
-		_refresh_cluster_review_button()
-		_show_list_view()
-		return
-	var cluster: Array = _cluster_queue.pop_front()
-	_refresh_cluster_review_button()
-
-	# DialReader.group_into_sectors: [sector or {} if none was read, techs…],
-	# each entry {card, is_advanced, center, radius, …}. The review screen
-	# shows each card's real art, so no photo crop is needed.
-	_pending = []
-	for c: Dictionary in cluster:
-		var cd: CardData = c.get("card") as CardData
-		var is_adv: bool = bool(c.get("is_advanced", false))
-		var card_name: String = ""
-		if cd:
-			card_name = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
-		_pending.append({"thumbnail": null, "name": card_name, "is_advanced": is_adv})
-	if _pending.size() > SECTOR_SLOT_COUNT:
-		push_warning("Scan Tableau: detected %d cards in one sector, a sector can only hold %d — dropping the extras" % [_pending.size(), SECTOR_SLOT_COUNT])
-		_pending = _pending.slice(0, SECTOR_SLOT_COUNT)
-	while _pending.size() < SECTOR_SLOT_COUNT:
-		_pending.append(_blank_entry())
-
-	# Archive and stored supply as TableauReader counted them for this sector (a
-	# group without a sector has none). Supply counts are a first guess: check them.
-	var sector: Dictionary = cluster[0] if not cluster.is_empty() else {}
-	var supply: Dictionary = sector.get("supply", {})
-	for color_int: int in _supply_spinboxes:
-		(_supply_spinboxes[color_int] as SpinBox).value = int(supply.get(color_int, 0))
-	var archived_up: Array = sector.get("archived_up", [])
-	var up_stars: int = 0
-	for d: Dictionary in archived_up:
-		up_stars += (d["card"] as CardData).stars
-	_tucked_up_spinbox.value = archived_up.size()
-	_tucked_up_stars_spinbox.value = up_stars
-	_tucked_down_spinbox.value = int(sector.get("archived_down", 0))
-
-	_pending_from_cluster = true
-	_pending_source_photo = _current_photo_path.get_file()
-	_pending_cluster_index = _cluster_counter
-	_cluster_counter += 1
-	_pending_initial_snapshot = _snapshot_pending_state()
-
-	_populate_review_cards()
-	_show_review_view()
+## A recognised group ([sector, techs…] from TableauReader, sector {} if none was
+## read) as a ship entry, BotScoring-shaped. {} for a group without a sector.
+func _sector_entry_from_group(g: Array) -> Dictionary:
+	var sd: Dictionary = g[0]
+	if sd.is_empty():
+		return {}
+	var techs: Array[CardData] = []
+	for i: int in range(1, g.size()):
+		if techs.size() >= SECTOR_SLOT_COUNT - 1:
+			push_warning("Scan Tableau: more cards than a sector can hold — dropping the extras")
+			break
+		techs.append((g[i] as Dictionary)["card"])
+	var tucked: Array[Dictionary] = []
+	for d: Dictionary in (sd.get("archived_up", []) as Array):
+		tucked.append({"data": d["card"], "face_up": true})
+	for i: int in int(sd.get("archived_down", 0)):
+		tucked.append({"data": null, "face_up": false})
+	var stored: Dictionary = {}
+	var supply: Dictionary = sd.get("supply", {})
+	for color_int: int in supply:
+		if int(supply[color_int]) > 0:
+			stored[color_int] = int(supply[color_int])
+	return {
+		"sector": sd["card"],
+		"is_advanced": bool(sd.get("is_advanced", false)),
+		"techs": techs,
+		"tucked_cards": tucked,
+		"stored_supply": stored,
+	}
 
 func _on_skip_sector_pressed() -> void:
 	if _editing_sector_index >= 0:
 		_sectors.insert(_editing_sector_index, _editing_original_sector)
 		_editing_sector_index = -1
 		_editing_original_sector = {}
-		_confirm_btn.text = "Confirm Sector"
-		_skip_btn.text = "Skip Sector"
+		_confirm_btn.text = "Add Sector"
+		_skip_btn.text = "Cancel"
 		_refresh_sector_list()
 		_show_list_view()
 		return
-	if _pending_from_cluster:
-		_log_calibration_record("skipped", _pending_initial_snapshot, null)
-	_start_reviewing_next_cluster()
+	_show_list_view()
 
 ## Lets the user build a sector entirely by hand, starting fresh from the
 ## list view — always the full 6 blank slots (1 sector + 5 tech/expedition),
@@ -978,8 +887,8 @@ func _on_confirm_sector_pressed() -> void:
 		_sectors.insert(_editing_sector_index, new_sector)
 		_editing_sector_index = -1
 		_editing_original_sector = {}
-		_confirm_btn.text = "Confirm Sector"
-		_skip_btn.text = "Skip Sector"
+		_confirm_btn.text = "Add Sector"
+		_skip_btn.text = "Cancel"
 		_refresh_sector_list()
 		# Never auto-chain into a pending cluster queue after finishing an
 		# edit — editing an already-confirmed sector is a separate action
@@ -987,30 +896,32 @@ func _on_confirm_sector_pressed() -> void:
 		# regardless of what's still queued there.
 		_show_list_view()
 		return
-	if _pending_from_cluster:
-		_log_calibration_record("confirmed", _pending_initial_snapshot, _snapshot_pending_state())
 	_sectors.append(new_sector)
 	_refresh_sector_list()
-	_start_reviewing_next_cluster()
+	_show_list_view()
 
 func _refresh_sector_list() -> void:
 	for child: Node in _sector_list_box.get_children():
 		child.queue_free()
 	for i: int in _sectors.size():
 		_sector_list_box.add_child(_build_sector_summary_row(_sectors[i], i))
-	_calculate_btn.disabled = _sectors.is_empty()
-	# The board just changed (a sector was confirmed/edited), so any score
-	# already on screen is now stale — go back to showing the photo (if
-	# there is one) until Calculate Score is pressed again.
-	if _score_display.visible:
-		_score_display.visible = false
-		_photo_preview.visible = _photo_preview.texture != null
+	# a sector the scan missed (dial covered, say) can still be added by hand
+	var add_col: VBoxContainer = VBoxContainer.new()
+	add_col.size_flags_vertical = Control.SIZE_SHRINK_END
+	var add_btn: Button = _make_button("+ Sector")
+	add_btn.pressed.connect(_on_add_sector_pressed)
+	add_col.add_child(add_btn)
+	_sector_list_box.add_child(add_col)
+	_update_score()
+	_scroll_ship_to_bottom()
 
-func _refresh_cluster_review_button() -> void:
-	var count: int = _cluster_queue.size()
-	_review_clusters_btn.visible = count > 0
-	if count > 0:
-		_review_clusters_btn.text = "Review Detected Sector%s (%d)" % ["s" if count != 1 else "", count]
+# Rests the ship view at the bottom (the sectors' baseline), like the in-game
+# ship — once the new columns have been laid out.
+func _scroll_ship_to_bottom() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if is_instance_valid(_sector_scroll):
+		_sector_scroll.scroll_vertical = int(_sector_scroll.get_v_scroll_bar().max_value)
 
 ## A confirmed sector's column on the list view — sectors run left to right
 ## (up to 6, a ship's physical max), each one's own card stack running
@@ -1023,6 +934,7 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 	var outer: VBoxContainer = VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 6)
 	outer.custom_minimum_size = Vector2(SUMMARY_COLUMN_WIDTH, 0)
+	outer.size_flags_vertical = Control.SIZE_SHRINK_END   # sector cards on one baseline
 
 	var sector_cd: CardData = entry["sector"]
 	var is_advanced: bool = entry["is_advanced"]
@@ -1192,20 +1104,38 @@ func _rebuild_pending_from_sector(sector_entry: Dictionary) -> Array[Dictionary]
 		pending.append(_blank_entry())
 	return pending
 
-func _on_calculate_pressed() -> void:
+# The ship's VP total and breakdown, shown whenever there's a ship; any change
+# to the ship makes it submittable again.
+func _update_score() -> void:
 	for child: Node in _results_box.get_children():
 		child.queue_free()
-	var lines: Array[Dictionary] = BotScoring.board_vp_lines(_sectors)
-	for line: Dictionary in lines:
+	_score_display.visible = not _sectors.is_empty()
+	_leaderboard_btn.disabled = _sectors.is_empty()
+	_leaderboard_btn.text = "Add to Leaderboard"
+	if _sectors.is_empty():
+		return
+	for line: Dictionary in BotScoring.board_vp_lines(_sectors):
 		var lbl: Label = Label.new()
 		lbl.text = "%s: %d" % [line["label"], line["vp"]]
 		lbl.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
 		_results_box.add_child(lbl)
-
-	# board_vp_lines() is just the itemized breakdown (no total of its own)
-	# — the total, previously its own small line appended at the bottom of
-	# that list, now gets a much more prominent home up where the photo
-	# preview was instead.
 	_score_total_label.text = str(BotScoring.board_vp(_sectors))
-	_score_display.visible = true
-	_photo_preview.visible = false
+
+# Same submission as the end of a real game (main.gd _game_over): total plus the
+# packed breakdown. The server keeps each player's best.
+func _on_leaderboard_pressed() -> void:
+	if _sectors.is_empty():
+		return
+	var lines: Array[Dictionary] = BotScoring.board_vp_lines(_sectors)
+	_leaderboard_btn.disabled = true
+	_leaderboard_btn.text = "Adding…"
+	if not LeaderboardManager.score_uploaded.is_connected(_on_score_uploaded):
+		LeaderboardManager.score_uploaded.connect(_on_score_uploaded, CONNECT_ONE_SHOT)
+	LeaderboardManager.submit_score(BotScoring.board_vp(_sectors), ScoringSnapshotCodec.encode_lines(lines))
+
+func _on_score_uploaded(success: bool) -> void:
+	if success:
+		_leaderboard_btn.text = "Added to Leaderboard ✓"
+	else:
+		_leaderboard_btn.text = "Upload failed — try again"
+		_leaderboard_btn.disabled = false
