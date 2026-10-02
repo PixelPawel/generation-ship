@@ -1189,7 +1189,10 @@ func _update_score() -> void:
 	for child: Node in _results_box.get_children():
 		child.queue_free()
 	_score_display.visible = not _sectors.is_empty()
-	_results_box.visible = false
+	# (the breakdown stays as the player left it: showing it shrinks the ship's area,
+	# which refits the ship and lands back here)
+	if _sectors.is_empty():
+		_results_box.visible = false
 	_leaderboard_btn.disabled = _sectors.is_empty()
 	_leaderboard_btn.text = "Add to Leaderboard"
 	if _sectors.is_empty():
