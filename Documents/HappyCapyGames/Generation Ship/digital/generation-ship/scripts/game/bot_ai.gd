@@ -124,11 +124,16 @@ static func decide_bid(
 # ── Fuse & recycle (free actions, called before the main action) ────────────
 
 # Returns an ordered list of {source, target} 2:1 fuses (SupplyUI.FUSE_MAP)
-# worth performing before deciding the main action — reactive (Normal) only
-# fuses toward the single best candidate play; proactive (Hard) will also
-# fuse toward lower-ranked candidates if the top one can't be unlocked, up
-# to a higher cap. Only ever chases a direct (one-hop) fuse per candidate —
-# it won't chain e.g. Dust→Metals→Electrix to reach a two-tier-away color.
+# worth performing before deciding the main action. Only ever fuses when the
+# fuses actually make a play affordable, and only for a play better than the
+# best one already affordable — fusing loses half the supply, so a fuse that
+# doesn't unlock anything (or unlocks something the bot didn't need) is pure
+# waste. Hard used to do exactly that: it fused toward lower-ranked plays even
+# with its top play already affordable, and kept fusing toward plays it still
+# couldn't reach, burning up to 10 supply a turn for nothing — one reason
+# Normal tended to beat it. Reactive (Normal) only considers the single best
+# play with up to 2 fuses; proactive (Hard) walks down the ranked plays with
+# up to 5. Only direct (one-hop) fuses — no Dust→Metals→Electrix chains.
 static func suggest_fuses(
 	difficulty: int, hand: Array[CardData], supplies: Dictionary,
 	bot_board: Array, market_sectors: Array[CardData]
@@ -146,25 +151,30 @@ static func suggest_fuses(
 
 	var max_ops: int = 5 if mode == "proactive" else 2
 	var scan_limit: int = candidates.size() if mode == "proactive" else 1
+	for i: int in mini(scan_limit, candidates.size()):
+		var cand: Dictionary = candidates[i]
+		if _is_affordable(cand, supplies):
+			return []   # the best play within reach needs no fusing
+		var plan: Array[Dictionary] = _plan_fuses_to_afford(cand, supplies, max_ops)
+		if not plan.is_empty():
+			return plan
+	return []
+
+# The fuses that make `play` affordable, or [] if it can't be reached within
+# max_ops direct fuses.
+static func _plan_fuses_to_afford(play: Dictionary, supplies: Dictionary, max_ops: int) -> Array[Dictionary]:
 	var working: Dictionary = supplies.duplicate()
 	var fuses: Array[Dictionary] = []
 	for _op: int in max_ops:
-		var progressed: bool = false
-		for i: int in mini(scan_limit, candidates.size()):
-			var cand: Dictionary = candidates[i]
-			if _is_affordable(cand, working):
-				continue
-			var f: Dictionary = _find_fuse_toward(_play_color(cand), working)
-			if f.is_empty():
-				continue
-			working[int(f["source"])] = (working.get(int(f["source"]), 0) as int) - 2
-			working[int(f["target"])] = (working.get(int(f["target"]), 0) as int) + 1
-			fuses.append(f)
-			progressed = true
-			break
-		if not progressed:
-			break
-	return fuses
+		var f: Dictionary = _find_fuse_toward(_play_color(play), working)
+		if f.is_empty():
+			return []
+		working[int(f["source"])] = (working.get(int(f["source"]), 0) as int) - 2
+		working[int(f["target"])] = (working.get(int(f["target"]), 0) as int) + 1
+		fuses.append(f)
+		if _is_affordable(play, working):
+			return fuses
+	return []
 
 static func _find_fuse_toward(target_color: int, supplies: Dictionary) -> Dictionary:
 	var best_source: int = -1
@@ -197,12 +207,18 @@ static func suggest_recycle(
 		return null
 	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return _score_play(a, bot_board, skills) > _score_play(b, bot_board, skills))
+	# Only when the recycled supply actually makes a play affordable — a card
+	# recycled just to get "closer" was a card thrown away for nothing.
 	for play: Dictionary in candidates:
 		if _is_affordable(play, supplies):
 			continue
 		var needed: int = _play_color(play)
 		for card: CardData in hand:
-			if int(card.color) == needed and card != play.get("card"):
+			if int(card.color) != needed or card == play.get("card"):
+				continue
+			var after: Dictionary = supplies.duplicate()
+			after[needed] = (after.get(needed, 0) as int) + CardData.recycle_amount(card)
+			if _is_affordable(play, after):
 				return card
 	return null
 
