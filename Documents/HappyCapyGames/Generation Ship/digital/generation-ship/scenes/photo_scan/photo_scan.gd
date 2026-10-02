@@ -371,6 +371,11 @@ func _build_list_view() -> Control:
 	_scan_progress.show_percentage = false
 	_scan_progress.visible = false
 	scroll_content.add_child(_scan_progress)
+	# Right under the hint, above the photo: the photo preview is tall
+	# enough to push anything below it off-screen, and the scan's status
+	# has to be visible without scrolling.
+	scroll_content.move_child(_review_clusters_btn, 1)
+	scroll_content.move_child(_scan_progress, 2)
 
 	# Sectors sit side by side (up to 6, a ship's physical max) rather than
 	# stacked in a long vertical list, each one's own card stack running
