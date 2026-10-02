@@ -627,11 +627,12 @@ func _on_photo_selected(path: String) -> void:
 		push_warning("Scan Tableau: no sector cards found in that photo")
 		_status_label.text = "No sectors found — move closer so the ship fills the photo"
 	else:
-		_status_label.text = "%d sector%s found" % [_sectors.size(), "" if _sectors.size() == 1 else "s"]
+		var read: int = _sectors.size() - placeholders
+		_status_label.text = "%d sector%s found" % [read, "" if read == 1 else "s"]
 		if loose > 0:
 			_status_label.text += " · %d card%s not next to a sector left out" % [loose, "" if loose == 1 else "s"]
 		if placeholders > 0:
-			_status_label.text += " · %d sector%s unreadable (light ring covered): added as Hibernators — fix with Edit" % [placeholders, "" if placeholders == 1 else "s"]
+			_status_label.text += " · %d more with the light ring covered, added as Hibernators — fix with Edit" % placeholders
 	_refresh_sector_list()
 
 ## A recognised group ([sector, techs…] from TableauReader, sector {} if none was
