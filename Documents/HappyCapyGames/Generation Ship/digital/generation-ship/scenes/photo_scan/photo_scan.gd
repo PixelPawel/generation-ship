@@ -69,6 +69,7 @@ const SHIP_TECH_SHOWN: float = 0.36
 const SHIP_SECTOR_COVERED: float = 0.4
 const SHIP_INFO_HEIGHT: float = 136.0     # supply/archive line + Edit button under a sector
 const SHIP_ADD_COLUMN: float = 150.0      # the "+ Sector" column
+const MAX_SECTORS: int = 6                # a ship never has more
 const SHIP_EDIT_HEIGHT: float = 64.0
 const SCORE_COMPACT_FONT_SIZE: int = 56
 const SUMMARY_SUPPLY_ICON_SIZE: Vector2 = Vector2(44, 44)
@@ -846,7 +847,15 @@ func _refresh_sector_list() -> void:
 	_ship_info_boxes.clear()
 	for i: int in _sectors.size():
 		_sector_list_box.add_child(_build_sector_summary_row(_sectors[i], i))
-	# a sector the scan missed (dial covered, say) can still be added by hand
+	# a sector the scan missed (dial covered, say) can still be added by hand — until
+	# the ship is full
+	if _sectors.size() < MAX_SECTORS:
+		_add_sector_column()
+	_update_score()
+	_even_out_info_lines()
+	_scroll_ship_to_bottom()
+
+func _add_sector_column() -> void:
 	var add_col: VBoxContainer = VBoxContainer.new()
 	add_col.size_flags_vertical = Control.SIZE_SHRINK_END
 	add_col.custom_minimum_size = Vector2(SHIP_ADD_COLUMN - 14.0, 0)
@@ -855,9 +864,6 @@ func _refresh_sector_list() -> void:
 	add_btn.pressed.connect(_on_add_sector_pressed)
 	add_col.add_child(add_btn)
 	_sector_list_box.add_child(add_col)
-	_update_score()
-	_even_out_info_lines()
-	_scroll_ship_to_bottom()
 
 # Card size for the overview: as big as fits — every sector side by side across the
 # width, the tallest stack (plus its info + Edit) within the height.
@@ -867,7 +873,8 @@ func _fit_ship_card() -> void:
 		_ship_card = SHIP_CARD_MAX
 		return
 	var n: int = maxi(1, _sectors.size())
-	var by_width: float = (area.x - SHIP_ADD_COLUMN - 14.0 * n - 8.0) / n
+	var add_w: float = SHIP_ADD_COLUMN if _sectors.size() < MAX_SECTORS else 0.0
+	var by_width: float = (area.x - add_w - 14.0 * n - 8.0) / n
 	var most_techs: int = 0
 	for e: Dictionary in _sectors:
 		most_techs = maxi(most_techs, (e["techs"] as Array).size())
