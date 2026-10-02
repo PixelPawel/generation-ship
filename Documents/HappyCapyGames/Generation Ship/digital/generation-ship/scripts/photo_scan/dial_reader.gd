@@ -60,6 +60,12 @@ var _cos30: PackedFloat32Array = PackedFloat32Array()   # cos/sin of 30*k deg, k
 var _sin30: PackedFloat32Array = PackedFloat32Array()
 var _done_mutex: Mutex = Mutex.new()
 var _done: int = 0
+var _lum_gain: float = 1.0           # exposure normalisation: the photo's brightest 1% -> ~0.95
+var _scale: float = 1.0              # median px per mm of the confident dials
+var _plane: Vector3 = Vector3.ZERO   # px per mm ~ a + b*x + c*y (perspective), when fitted
+var _has_plane: bool = false
+## The photo as read (full resolution, RGB8), for TableauReader after run().
+var photo: Image = null
 
 ## Call on the main thread: collects the card codes from CardDatabase (scene
 ## tree nodes can't be touched from a worker thread). Then run() — safe on
@@ -106,6 +112,7 @@ func run(source: Image) -> Array[Dictionary]:
 	if img.is_compressed():
 		img.decompress()
 	img.convert(Image.FORMAT_RGB8)
+	photo = img.duplicate() as Image
 	var small: Image = img.duplicate() as Image
 	@warning_ignore("integer_division")
 	small.resize(maxi(1, img.get_width() / 2), maxi(1, img.get_height() / 2), Image.INTERPOLATE_BILINEAR)
@@ -116,14 +123,32 @@ func run(source: Image) -> Array[Dictionary]:
 	_w = img.get_width()
 	_h = img.get_height()
 	_lum_data = img.get_data()
+	# exposure: scale brightness so the brightest 1% of the photo reads ~0.95 (dim photos keep
+	# their lit lights above MIN_LIT; sampled every 7th pixel, plenty for a percentile)
+	var hist: PackedInt32Array = PackedInt32Array()
+	hist.resize(256)
+	var n_s: int = 0
+	for i: int in range(0, _lum_data.size(), 7):
+		hist[_lum_data[i]] += 1
+		n_s += 1
+	var acc: int = 0
+	var p99: int = 255
+	for v: int in range(255, -1, -1):
+		acc += hist[v]
+		if float(acc) >= float(n_s) * 0.01:
+			p99 = v
+			break
+	_lum_gain = 0.95 / maxf(float(p99) / 255.0, 0.3)
 	progress = 0.1
 
 	# Pass 1: scale + facing from the clearest markers, a few at a time on all cores.
 	var strong_scales: Array[float] = []
 	var strong_at: Array[Vector3] = []   # x, y, facing angle th
+	var strong_pos: Array[Vector2] = []
+	var strong_raw: Array[float] = []
 	var pass1: Array[Vector3] = []
 	for b: Vector3 in blobs:
-		if b.z >= 4.0 and b.z <= 16.0:
+		if b.z >= 2.5 and b.z <= 16.0:
 			pass1.append(b)
 	var batch: int = maxi(2, OS.get_processor_count())
 	var next_i: int = 0
@@ -145,26 +170,25 @@ func run(source: Image) -> Array[Dictionary]:
 			if not e.is_empty() and float(e["gap"]) >= STRONG_GAP and strong_scales.size() < STRONG_WANTED:
 				strong_scales.append(float(e["r"]) / float(DECK_R_MM[_codes[int(e["code"])]]))
 				strong_at.append(Vector3(chunk[i].x, chunk[i].y, float(e["th"])))
+				strong_pos.append(Vector2(chunk[i].x, chunk[i].y))
 		next_i += chunk.size()
 		progress = 0.1 + 0.3 * float(next_i) / float(pass1.size())
 	if strong_scales.is_empty():
 		progress = 1.0
 		return []
+	strong_raw = strong_scales.duplicate()
 	strong_scales.sort()
 	@warning_ignore("integer_division")
-	var scale: float = strong_scales[strong_scales.size() / 2]
+	_scale = strong_scales[strong_scales.size() / 2]
+	_fit_scale_plane(strong_pos, strong_raw)
 	progress = 0.4
 
-	# Pass 2: every plausibly sized marker, plausible radii, facing like its nearest confident dial.
-	var radii2: Array[float] = []
-	for deck: String in DECK_R_MM:
-		for f: float in [0.96, 1.0, 1.04]:
-			var rr: float = roundf(float(DECK_R_MM[deck]) * scale * f * 2.0) / 2.0
-			if not radii2.has(rr):
-				radii2.append(rr)
+	# Pass 2: every plausibly sized marker, at the radii a dial has at its spot in the photo
+	# (perspective makes near cards bigger), facing like its nearest confident dial.
 	var pass2: Array[Vector3] = []
 	for b: Vector3 in blobs:
-		if b.z >= MARKER_D_MM.x * scale and b.z <= MARKER_D_MM.y * scale:
+		var ls: float = _local_scale(b.x, b.y)
+		if b.z >= MARKER_D_MM.x * ls and b.z <= MARKER_D_MM.y * ls:
 			pass2.append(b)
 	var results: Array = []
 	results.resize(pass2.size())
@@ -178,6 +202,13 @@ func run(source: Image) -> Array[Dictionary]:
 		var angles: Array[float] = []
 		for d: int in range(-FACING_WINDOW_DEG, FACING_WINDOW_DEG + 1, 3):
 			angles.append(near.z + deg_to_rad(float(d)))
+		var ls: float = _local_scale(b.x, b.y)
+		var radii2: Array[float] = []
+		for deck: String in DECK_R_MM:
+			for f: float in [0.96, 1.0, 1.04]:
+				var rr: float = roundf(float(DECK_R_MM[deck]) * ls * f * 2.0) / 2.0
+				if not radii2.has(rr):
+					radii2.append(rr)
 		var e: Dictionary = _search(b.x, b.y, radii2, angles)
 		if not e.is_empty():
 			e["mx"] = b.x
@@ -200,7 +231,7 @@ func run(source: Image) -> Array[Dictionary]:
 		var r: float = float(e["r"])
 		if float(e["gap"]) < MIN_GAP or float(e["dot"]) < MIN_DOT:
 			continue
-		if absf(r / (float(DECK_R_MM[_codes[code]]) * scale) - 1.0) > SCALE_TOLERANCE:
+		if absf(r / (float(DECK_R_MM[_codes[code]]) * _local_scale(float(e["mx"]), float(e["my"]))) - 1.0) > SCALE_TOLERANCE:
 			continue
 		var c: Vector2 = Vector2(float(e["cx"]), float(e["cy"]))
 		var clash: bool = false
@@ -219,9 +250,34 @@ func run(source: Image) -> Array[Dictionary]:
 			radius = r,
 			up = (Vector2(float(e["mx"]), float(e["my"])) - c).normalized(),
 			gap = float(e["gap"]),
+			th = float(e["th"]),
+			shape = e["shape"],
 		})
 	progress = 1.0
 	return out
+
+# Least-squares plane through the confident dials' px-per-mm (perspective: nearer = bigger).
+func _fit_scale_plane(pos: Array[Vector2], scales: Array[float]) -> void:
+	_has_plane = false
+	if pos.size() < 3:
+		return
+	var m: Basis = Basis(Vector3.ZERO, Vector3.ZERO, Vector3.ZERO)   # normal equations X^T X
+	var rhs: Vector3 = Vector3.ZERO
+	for i: int in pos.size():
+		var row: Vector3 = Vector3(1.0, pos[i].x, pos[i].y)
+		m.x += row * row.x
+		m.y += row * row.y
+		m.z += row * row.z
+		rhs += row * scales[i]
+	if absf(m.determinant()) < 1e-6:
+		return
+	_plane = m.inverse() * rhs
+	_has_plane = true
+
+func _local_scale(x: float, y: float) -> float:
+	if not _has_plane:
+		return _scale
+	return clampf(_plane.x + _plane.y * x + _plane.z * y, _scale * 0.8, _scale * 1.25)
 
 static func _all_angles() -> Array[float]:
 	var a: Array[float] = []
@@ -316,7 +372,7 @@ func _lum(x: float, y: float) -> float:
 	if xi < 1 or yi < 1 or xi >= _w - 1 or yi >= _h - 1:
 		return -1.0
 	var o: int = yi * _w + xi
-	return float(_lum_data[o] + _lum_data[o + 1] + _lum_data[o + _w] + _lum_data[o + _w + 1]) / 1020.0
+	return minf(float(_lum_data[o] + _lum_data[o + 1] + _lum_data[o + _w] + _lum_data[o + _w + 1]) / 1020.0 * _lum_gain, 1.0)
 
 # Best reading for the marker at (mx, my) over every dial shape, radius and facing given.
 func _search(mx: float, my: float, radii: Array[float], angles: Array[float]) -> Dictionary:
@@ -325,6 +381,7 @@ func _search(mx: float, my: float, radii: Array[float], angles: Array[float]) ->
 		var e: Dictionary = _search_shape(mx, my, radii, angles, shape)
 		if not e.is_empty() and (best.is_empty() or float(e["gap"]) > float(best["gap"])):
 			best = e
+			best["shape"] = shape
 	return best
 
 func _search_shape(mx: float, my: float, radii: Array[float], angles: Array[float], shape: PackedFloat32Array) -> Dictionary:

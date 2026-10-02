@@ -12,7 +12,6 @@ extends Control
 
 const DialReaderScript := preload("res://scripts/photo_scan/dial_reader.gd")
 const CardPickerScript := preload("res://scenes/photo_scan/card_picker.gd")
-const CLUSTER_PADDING_PX: int = 24
 
 # Every cluster-derived sector's auto-detected guess gets snapshotted the
 # moment it's built (before the user can touch anything) and paired with
@@ -713,8 +712,30 @@ func _on_photo_selected(path: String) -> void:
 	var dials: Array[Dictionary] = thread.wait_to_finish()
 	if _source_image != img:
 		return   # another photo was picked meanwhile
+	# Second step: what belongs to each sector — archived cards (face-up ones by their
+	# dial, face-down ones by their backs) and stored-supply tokens. Card art is
+	# loaded here on the main thread, the counting runs on a thread.
+	var tableau: TableauReader = TableauReader.create(dials)
+	var thread2: Thread = Thread.new()
+	_scan_thread = thread2
+	thread2.start(tableau.analyze.bind(reader.photo, dials))
+	_scan_progress.value = 0.0
+	_scan_progress.visible = true
+	while thread2.is_alive():
+		await get_tree().process_frame
+		if not is_inside_tree():
+			return                       # _exit_tree() joined the thread
+		_scan_progress.value = tableau.progress * 100.0
+		_review_clusters_btn.text = "Counting archive & supply… %d%%" % roundi(tableau.progress * 100.0)
+	_scan_progress.visible = false
+	if _scan_thread != thread2:
+		return
+	_scan_thread = null
+	var groups: Array = thread2.wait_to_finish()
+	if _source_image != img:
+		return
 	_review_clusters_btn.disabled = false
-	_cluster_queue = DialReaderScript.group_into_sectors(dials)
+	_cluster_queue = groups
 	if _cluster_queue.is_empty():
 		push_warning("Scan Tableau: no card codes found in that photo")
 		_review_clusters_btn.visible = true
@@ -757,14 +778,19 @@ func _start_reviewing_next_cluster() -> void:
 	while _pending.size() < SECTOR_SLOT_COUNT:
 		_pending.append(_blank_entry())
 
-	# Stored supply starts at 0: SupplyDetector counted every colourful patch of
-	# card art as a token (all false positives on token-free test photos), so
-	# it's off until it can be rebuilt and tuned on real photos with tokens.
+	# Archive and stored supply as TableauReader counted them for this sector (a
+	# group without a sector has none). Supply counts are a first guess: check them.
+	var sector: Dictionary = cluster[0] if not cluster.is_empty() else {}
+	var supply: Dictionary = sector.get("supply", {})
 	for color_int: int in _supply_spinboxes:
-		(_supply_spinboxes[color_int] as SpinBox).value = 0
-	_tucked_up_spinbox.value = 0
-	_tucked_up_stars_spinbox.value = 0
-	_tucked_down_spinbox.value = 0
+		(_supply_spinboxes[color_int] as SpinBox).value = int(supply.get(color_int, 0))
+	var archived_up: Array = sector.get("archived_up", [])
+	var up_stars: int = 0
+	for d: Dictionary in archived_up:
+		up_stars += (d["card"] as CardData).stars
+	_tucked_up_spinbox.value = archived_up.size()
+	_tucked_up_stars_spinbox.value = up_stars
+	_tucked_down_spinbox.value = int(sector.get("archived_down", 0))
 
 	_pending_from_cluster = true
 	_pending_source_photo = _current_photo_path.get_file()
@@ -774,21 +800,6 @@ func _start_reviewing_next_cluster() -> void:
 
 	_populate_review_cards()
 	_show_review_view()
-
-## The cluster's own card candidates only cover the cards themselves —
-## stored-supply tokens usually sit on or beside them, so search a padded
-## region around the whole cluster rather than just the cards' own boxes.
-func _cluster_region(cluster: Array) -> Rect2i:
-	# Each read card contributes a box around its dial (about a card's size —
-	# the dial radius is ~3.4 mm, a card 44 x 67 mm).
-	var union: Rect2i = Rect2i()
-	for c: Dictionary in cluster:
-		if not c.has("center"):
-			continue
-		var r: float = float(c["radius"])
-		var box: Rect2i = Rect2i(Vector2i((c["center"] as Vector2) - Vector2(r * 10.0, r * 10.0)), Vector2i(int(r * 20.0), int(r * 20.0)))
-		union = box if union.size == Vector2i.ZERO else union.merge(box)
-	return union.grow(CLUSTER_PADDING_PX)
 
 func _on_skip_sector_pressed() -> void:
 	if _editing_sector_index >= 0:
