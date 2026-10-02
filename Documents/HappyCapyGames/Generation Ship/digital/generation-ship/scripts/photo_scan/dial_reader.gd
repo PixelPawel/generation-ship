@@ -34,6 +34,10 @@ const SCALE_TOLERANCE: float = 0.10
 const STRONG_GAP: float = 0.6
 
 var _w: int = 0
+# Read from the main thread while run() works (plain floats/ints, so safe to poll):
+# progress 0..1 of the current attempt; attempt 2 = the full-resolution retry.
+var progress: float = 0.0
+var attempt: int = 1
 var _h: int = 0
 var _data: PackedByteArray = PackedByteArray()
 var _codes: Dictionary = {}          # code -> "tech" / "expedition" / "sector"
@@ -66,9 +70,12 @@ func _add(code: int, cd: CardData, is_adv: bool, deck: String) -> void:
 ## center: Vector2, radius: float (both in source-image pixels), up: Vector2
 ## (unit, towards the card's top), gap}.
 func run(source: Image) -> Array[Dictionary]:
+	attempt = 1
 	var result: Array[Dictionary] = _read_at(source, 2)
 	if result.is_empty():
+		attempt = 2
 		result = _read_at(source, 1)
+	progress = 1.0
 	return result
 
 func _read_at(source: Image, factor: int) -> Array[Dictionary]:
@@ -83,12 +90,16 @@ func _read_at(source: Image, factor: int) -> Array[Dictionary]:
 	_h = img.get_height()
 	_data = img.get_data()
 
+	progress = 0.0
 	var blobs: Array[Vector3] = _find_markers()   # x, y, diameter
+	progress = 0.15
 
 	# Pass 1: scale + facing from the clearest markers.
 	var strong_scales: Array[float] = []
 	var ups: Array[float] = []
-	for b: Vector3 in blobs:
+	for bi: int in blobs.size():
+		var b: Vector3 = blobs[bi]
+		progress = 0.15 + 0.15 * float(bi) / float(blobs.size())
 		if strong_scales.size() >= 6:
 			break
 		if b.z < 2.0 or b.z > 8.0:
@@ -127,7 +138,9 @@ func _read_at(source: Image, factor: int) -> Array[Dictionary]:
 			if not dup:
 				angles.append(a)
 	var cands: Array[Dictionary] = []
-	for b: Vector3 in blobs:
+	for bi: int in blobs.size():
+		var b: Vector3 = blobs[bi]
+		progress = 0.3 + 0.7 * float(bi) / float(blobs.size())
 		var e: Dictionary = _search(b.x, b.y, radii2, angles)
 		if not e.is_empty():
 			e["mx"] = b.x

@@ -137,6 +137,7 @@ const _SUPPLY_COLORS: Array[CardData.SupplyColor] = [
 # average.
 
 var _scan_thread: Thread = null           # DialReader running on the current photo
+var _scan_progress: ProgressBar = null      # shown while the photo is being read
 var _sectors: Array[Dictionary] = []          # board entries confirmed so far, BotScoring-shaped
 var _pending: Array[Dictionary] = []          # current in-review cluster's candidates
 var _source_image: Image = null               # the one whole-ship photo, kept for supply detection per cluster
@@ -362,6 +363,14 @@ func _build_list_view() -> Control:
 	_review_clusters_btn.pressed.connect(_start_reviewing_next_cluster)
 	_review_clusters_btn.visible = false
 	scroll_content.add_child(_review_clusters_btn)
+
+	_scan_progress = ProgressBar.new()
+	_scan_progress.custom_minimum_size = Vector2(0, BUTTON_MIN_HEIGHT * 0.5)
+	_scan_progress.min_value = 0.0
+	_scan_progress.max_value = 100.0
+	_scan_progress.show_percentage = false
+	_scan_progress.visible = false
+	scroll_content.add_child(_scan_progress)
 
 	# Sectors sit side by side (up to 6, a ship's physical max) rather than
 	# stacked in a long vertical list, each one's own card stack running
@@ -684,10 +693,16 @@ func _on_photo_selected(path: String) -> void:
 	var thread: Thread = Thread.new()
 	_scan_thread = thread
 	thread.start(reader.run.bind(img))
+	_scan_progress.value = 0.0
+	_scan_progress.visible = true
 	while thread.is_alive():
 		await get_tree().process_frame
 		if not is_inside_tree():
 			return                       # _exit_tree() joined the thread
+		_scan_progress.value = reader.progress * 100.0
+		var pct: int = roundi(reader.progress * 100.0)
+		_review_clusters_btn.text = ("Reading cards… %d%%" % pct) if reader.attempt == 1 else ("Looking closer… %d%%" % pct)
+	_scan_progress.visible = false
 	if _scan_thread != thread:
 		return
 	_scan_thread = null
