@@ -584,17 +584,17 @@ func _count_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) 
 			var region: Rect2i = Rect2i(int(box.position.x * k_m) - pad, int(box.position.y * k_m) - pad,
 				int(box.size.x * k_m) + pad * 2, int(box.size.y * k_m) + pad * 2)
 			var work: PackedFloat32Array = zs.duplicate()
-			for n_found: int in MATCH_MAX_PER_BLOB:
-				var best: Dictionary = {}
+			for _try: int in MATCH_MAX_PER_BLOB:
+				var hit: Dictionary = {}
 				for alt: int in (MATCH_ALSO.get(t, [t]) as Array):
 					var r: Dictionary = _match_token(work, ws, hs, ms, ms_sum, alt, region)
-					if not r.is_empty() and (best.is_empty() or float(r["score"]) > float(best["score"])):
-						best = r
-						best["token"] = alt
-				if best.is_empty() or float(best["score"]) < MATCH_MIN:
+					if not r.is_empty() and (hit.is_empty() or float(r["score"]) > float(hit["score"])):
+						hit = r
+						hit["token"] = alt
+				if hit.is_empty() or float(hit["score"]) < MATCH_MIN:
 					break
-				var tp: Dictionary = (_templates[int(best["token"])] as Array)[int(best["rot"])]
-				var at: Vector2i = best["at"]
+				var tp: Dictionary = (_templates[int(hit["token"])] as Array)[int(hit["rot"])]
+				var at: Vector2i = hit["at"]
 				# blank the matched token so the next search finds the next one
 				var tmask: PackedByteArray = tp["mask"]
 				var tw: int = tp["w"]
@@ -614,7 +614,7 @@ func _count_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) 
 				if seen:
 					continue
 				centres.append(c)
-				var col: int = TOKEN_ORDER[int(best["token"])]
+				var col: int = TOKEN_ORDER[int(hit["token"])]
 				counts[col] = int(counts.get(col, 0)) + 1
 				if per < 1.4:
 					break        # one token's worth of blob
