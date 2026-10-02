@@ -134,6 +134,7 @@ var _photo_btn: Button = null                 # "Show Photo" / "Show Ship"
 var _ship_card: float = SHIP_CARD_MAX         # long edge of the overview's cards, see _fit_ship_card()
 var _ship_area_width: float = -1.0
 var _ship_info_boxes: Array[Control] = []     # each sector's supply/archive line, evened out in height
+var _ship_info_height: float = SHIP_INFO_HEIGHT   # what sits under a sector card, as last measured
 var _review_cards_box: HBoxContainer = null
 var _confirm_btn: Button = null
 var _supply_spinboxes: Dictionary = {}        # SupplyColor(int) -> SpinBox
@@ -937,7 +938,7 @@ func _fit_ship_card() -> void:
 	var most_techs: int = 0
 	for e: Dictionary in _sectors:
 		most_techs = maxi(most_techs, (e["techs"] as Array).size())
-	var by_height: float = (area.y - SHIP_INFO_HEIGHT - 8.0) / _ship_stack_factor(most_techs)
+	var by_height: float = (area.y - _ship_info_height - 8.0) / _ship_stack_factor(most_techs)
 	_ship_card = clampf(minf(by_width, by_height), SHIP_CARD_MIN, SHIP_CARD_MAX)
 	_ship_area_width = area.x
 
@@ -972,6 +973,12 @@ func _even_out_info_lines() -> void:
 	for box: Control in _ship_info_boxes:
 		if is_instance_valid(box):
 			box.custom_minimum_size.y = tallest
+	# Fit with what's really under a sector (supply/archive line, Edit, gaps) rather
+	# than the estimate, so the ship never needs a scrollbar: refit once if it's off.
+	var measured: float = tallest + SHIP_EDIT_HEIGHT + 8.0
+	if not _sectors.is_empty() and absf(measured - _ship_info_height) > 4.0:
+		_ship_info_height = measured
+		_refresh_sector_list()
 
 # Swaps the ship overview for the scanned photo (and back), to compare the two.
 func _show_photo(on: bool) -> void:

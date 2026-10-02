@@ -7,48 +7,52 @@ extends RefCounted
 # sector's own millimetre coordinates, whatever angle the photo was taken from:
 #  * archived face-up: any card whose dial sits below a sector (players either slide the
 #    archive under the sector or leave it fully visible below — both count);
-#  * archived face-down: tech backs below a sector, counted by matching the lower part of
-#    the back art (the "TECH" label) down the strip below it;
-#  * stored supply: whatever in the sector's area no identified card art, card back or the
-#    table explains, split into clumps, each clump fitted with the token mix whose colours
-#    best explain it (tokens overlap, and each token's icon has other colours than its base).
-# Tuned on synthetic photos (InDesign_Shop/_automation/scan_code/mockups2.py); archive counts
-# are reliable there, token counts only a first guess until tuned on real photos.
+#  * archived face-down: the TECH lettering of the backs below a sector, counted as word
+#    blobs (robust to the small rotations of an archive cascade);
+#  * stored supply: per supply colour, what no identified card art (±1 mm), card back or
+#    the table explains, icon holes filled, kept only if it has a token's compact shape
+#    and size (printed supply icons are far smaller, coloured name plates the wrong shape);
+#    the count comes from the size, so two touching tokens of one colour count as 2.
+# Tuned on synthetic photos (InDesign_Shop/_automation/scan_code/mockups2.py); token
+# counts still need tuning on real photos of real tokens.
 
 const DIAL_MM: Dictionary = {"sector": Vector2(60.80, 36.72), "tech": Vector2(36.57, 59.33), "expedition": Vector2(37.17, 60.80)}
 const SIZE_MM: Dictionary = {"sector": Vector2(67.0, 44.0), "tech": Vector2(44.0, 67.0), "expedition": Vector2(44.0, 67.0)}
 const ART_PPM: float = 3.0                       # card art / token zone resolution (px per mm)
 # archived face-up: dial centre within this box below the sector (sector mm)
 const ARCHIVE_BOX: Rect2 = Rect2(-12.0, 40.0, 91.0, 144.0)
-# face-down backs: strip below the sector, template = back rows 49-66 mm (the "TECH" label)
-const BACK_PPM: float = 1.0
-const BACK_ZONE: Rect2 = Rect2(-8.0, 30.0, 83.0, 214.0)
-const BACK_ROWS: Vector2 = Vector2(49.0, 66.0)
-const BACK_X_RANGE: Vector2 = Vector2(-6.0, 20.0)   # back's left edge relative to the sector's
-const BACK_MIN_NCC: float = 0.6
-const BACK_SPACING_MM: float = 12.0
+# archived face-down: TECH labels (cream word, ~26 x 6 mm) in the strip below the sector
+const LABEL_PPM: float = 2.0
+const LABEL_ZONE: Rect2 = Rect2(-10.0, 40.0, 87.0, 204.0)
+const LABEL_W_MM: Vector2 = Vector2(24.0, 34.0)
+const LABEL_H_MM: Vector2 = Vector2(3.0, 10.0)
+const LABEL_MERGE_MM: float = 1.5
+const LABEL_TO_CARD: Vector2 = Vector2(9.0, 47.5)    # the label's top-left in back-card mm
 # stored supply
 const TOKEN_ZONE: Rect2 = Rect2(-12.0, 8.0, 91.0, 102.0)
 const ART_MATCH: float = 60.0                    # colour distance a pixel still counts as the art
+const ART_SLACK_MM: float = 1.0                  # ...also when the art matches this far off
 const TABLE_MATCH: float = 40.0
 const TOKEN_COLOUR_MAX: float = 80.0
-const CLUMP_MIN_MM2: float = 60.0
-const VISIBLE_RANGE: Vector2 = Vector2(0.5, 1.15)
-const PER_TOKEN_PENALTY: float = 25.0
-# token base colours (punchboard art) and each token's colour signature: mm^2 of one ~14 mm
-# token falling into each colour class (Dust, Metals, Liquids, Organix, Electrix, Thrust)
+const TOKEN_AREA_MIN: float = 0.45               # of a token's area (its base colour + filled icon)
+const TOKEN_SOLIDITY: float = 0.8
+const TOKEN_ELONGATION: float = 2.2
+const TOKEN_MAX_PER_CLUMP: int = 4
+# Dust, Metals, Liquids, Organix, Electrix, Thrust: base colours (punchboard art) and each
+# token's area in mm^2 at ~14 mm across (circle, square, oval, hexagon, pentagon, octagon)
 const TOKEN_ORDER: Array[int] = [CardData.SupplyColor.DUST, CardData.SupplyColor.METALS, CardData.SupplyColor.LIQUIDS,
 	CardData.SupplyColor.ORGANIX, CardData.SupplyColor.ELECTRIX, CardData.SupplyColor.THRUST]
 const TOKEN_RGB: Array[Vector3] = [Vector3(208, 204, 218), Vector3(186, 24, 40), Vector3(70, 124, 191),
 	Vector3(63, 168, 53), Vector3(233, 120, 36), Vector3(240, 181, 4)]
-const TOKEN_SIG: Array = [
-	[125.0, 3.0, 0.0, 0.0, 1.0, 0.0], [0.0, 171.0, 0.0, 0.0, 0.0, 0.0],
-	[0.0, 2.0, 85.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 97.0, 0.0, 0.0],
-	[0.0, 24.0, 0.0, 0.0, 92.0, 4.0], [8.0, 3.0, 0.0, 0.0, 53.0, 75.0]]
+const TOKEN_SIL_MM2: Array[float] = [153.8, 186.2, 96.1, 127.4, 128.8, 149.7]
 
 var progress: float = 0.0
 var _art: Array[Image] = []       # per dial: its card art at ART_PPM (RGB8), or null
 var _backs: Array[Image] = []     # tech back art at ART_PPM (EN + the game language)
+var _art_f: Array[PackedFloat32Array] = []   # _art as blurred floats (empty where no art)
+var _art_size: Array[Vector2i] = []
+var _back_f: PackedFloat32Array = PackedFloat32Array()
+var _back_size: Vector2i = Vector2i.ZERO
 var _photo: PackedByteArray = PackedByteArray()
 var _pw: int = 0
 var _ph: int = 0
@@ -58,12 +62,12 @@ var _done: int = 0
 ## Main thread: loads the art of every read card (textures can't be decoded safely on a
 ## worker thread). Then analyze() on a thread.
 static func create(dials: Array[Dictionary]) -> TableauReader:
-	var tr: TableauReader = TableauReader.new()
+	var reader: TableauReader = TableauReader.new()
 	for d: Dictionary in dials:
 		var cd: CardData = d["card"]
 		var path: String = cd.adv_local_art_path if bool(d.get("is_advanced", false)) else cd.local_art_path
 		var size_mm: Vector2 = SIZE_MM[deck_of(d)]
-		tr._art.append(_load_art(path, size_mm))
+		reader._art.append(_load_art(path, size_mm))
 	var langs: Array[String] = ["EN"]
 	var lang: String = TranslationServer.get_locale().substr(0, 2).to_upper()
 	if lang != "EN":
@@ -71,8 +75,8 @@ static func create(dials: Array[Dictionary]) -> TableauReader:
 	for l: String in langs:
 		var back: Image = _load_art("res://assets/cards/Tech/%s/GS Techs Back 44x67mm.png" % l, SIZE_MM["tech"])
 		if back:
-			tr._backs.append(back)
-	return tr
+			reader._backs.append(back)
+	return reader
 
 static func _load_art(path: String, size_mm: Vector2) -> Image:
 	if path.is_empty() or not ResourceLoader.exists(path):
@@ -118,6 +122,19 @@ func analyze(photo: Image, dials: Array[Dictionary]) -> Array:
 	_photo = photo.get_data()
 	_pw = photo.get_width()
 	_ph = photo.get_height()
+	# card art as blurred float arrays, all cards at once on every core
+	_art_f.clear()
+	_art_f.resize(_art.size())
+	_art_size.clear()
+	for img: Image in _art:
+		_art_size.append(Vector2i(img.get_width(), img.get_height()) if img else Vector2i.ZERO)
+	var to_floats: Callable = func(i: int) -> void:
+		_art_f[i] = _art_floats(_art[i]) if _art[i] else PackedFloat32Array()
+	if not _art.is_empty():
+		WorkerThreadPool.wait_for_group_task_completion(WorkerThreadPool.add_group_task(to_floats, _art.size()))
+	if not _backs.is_empty():
+		_back_f = _art_floats(_backs[0])
+		_back_size = Vector2i(_backs[0].get_width(), _backs[0].get_height())
 	var sector_idx: Array[int] = []
 	for i: int in dials.size():
 		if deck_of(dials[i]) == "sector":
@@ -138,9 +155,9 @@ func analyze(photo: Image, dials: Array[Dictionary]) -> Array:
 	_done = 0
 	var per_sector: Callable = func(k: int) -> void:
 		var si: int = sector_idx[k]
-		var backs: Array[Vector3] = _find_backs(dials[si])
-		var supply: Dictionary = _count_tokens(dials, si, backs)
-		results[k] = {backs = backs.size(), supply = supply}
+		var labels: Array[Vector2] = _find_back_labels(dials[si])
+		var supply: Dictionary = _count_tokens(dials, si, labels)
+		results[k] = {backs = labels.size(), supply = supply}
 		_done_mutex.lock()
 		_done += 1
 		progress = float(_done) / float(sector_idx.size())
@@ -224,116 +241,84 @@ func _rectify(frame: Transform2D, box: Rect2, ppm: float) -> PackedFloat32Array:
 			out[o + 2] = v.z
 	return out
 
-static func _art_at(img: Image, u: float, v: float) -> Vector3:
-	# bilinear at card mm (u, v) of art stored at ART_PPM
-	var x: float = u * ART_PPM
-	var y: float = v * ART_PPM
+# ── Card art as blurred float arrays (same blur as the photo zone) ──────────
+
+# RGB8 image -> PackedFloat32Array w*h*3, box-blurred like the photo so fine print
+# compares fairly.
+static func _art_floats(img: Image) -> PackedFloat32Array:
 	var w: int = img.get_width()
 	var h: int = img.get_height()
+	var data: PackedByteArray = img.get_data()
+	var f: PackedFloat32Array = PackedFloat32Array()
+	f.resize(w * h * 3)
+	for k: int in w * h * 3:
+		f[k] = float(data[k])
+	return _box_blur(f, w, h, 2)
+
+# Bilinear sample of a w*h*3 float array at pixel (x, y), clamped to the edge.
+static func _arr_at(a: PackedFloat32Array, w: int, h: int, x: float, y: float) -> Vector3:
 	x = clampf(x, 0.0, w - 1.001)
 	y = clampf(y, 0.0, h - 1.001)
 	var xi: int = int(x)
 	var yi: int = int(y)
-	var c00: Color = img.get_pixel(xi, yi)
-	var c10: Color = img.get_pixel(xi + 1, yi)
-	var c01: Color = img.get_pixel(xi, yi + 1)
-	var c11: Color = img.get_pixel(xi + 1, yi + 1)
-	var c: Color = c00.lerp(c10, x - xi).lerp(c01.lerp(c11, x - xi), y - yi)
-	return Vector3(c.r, c.g, c.b) * 255.0
+	var fx: float = x - xi
+	var fy: float = y - yi
+	var o: int = (yi * w + xi) * 3
+	var o2: int = o + w * 3
+	var out: Vector3 = Vector3.ZERO
+	for c: int in 3:
+		var top: float = lerpf(a[o + c], a[o + 3 + c], fx)
+		var bot: float = lerpf(a[o2 + c], a[o2 + 3 + c], fx)
+		out[c] = lerpf(top, bot, fy)
+	return out
 
-# ── Archived face-down: tech backs below the sector ──────────────────────────
+# ── Archived face-down: the TECH lettering of the backs below the sector ─────
 
-# Each back found: Vector3(left x mm, top y mm, 1 if upside down else 0), sector mm.
-func _find_backs(sd: Dictionary) -> Array[Vector3]:
-	var found: Array[Vector3] = []
-	if _backs.is_empty():
-		return found
-	var zw: int = int(BACK_ZONE.size.x * BACK_PPM)
-	var zh: int = int(BACK_ZONE.size.y * BACK_PPM)
-	var zone: PackedFloat32Array = _rectify(card_frame(sd), BACK_ZONE, BACK_PPM)
-	var tw: int = int(44.0 * BACK_PPM)
-	var th_: int = int((BACK_ROWS.y - BACK_ROWS.x) * BACK_PPM)
-	var rowbest: PackedFloat32Array = PackedFloat32Array()
-	rowbest.resize(zh - th_ + 1)
-	rowbest.fill(-1.0)
-	var rowx: PackedInt32Array = PackedInt32Array()
-	rowx.resize(zh - th_ + 1)
-	var rowflip: PackedByteArray = PackedByteArray()
-	rowflip.resize(zh - th_ + 1)
-	var x_lo: int = maxi(0, int((BACK_X_RANGE.x - BACK_ZONE.position.x) * BACK_PPM))
-	var x_hi: int = mini(zw - tw, int((BACK_X_RANGE.y - BACK_ZONE.position.x) * BACK_PPM))
-	for back: Image in _backs:
-		for flip: int in 2:
-			var tpl: PackedFloat32Array = _back_template(back, flip == 1, tw, th_)
-			var tn: float = 0.0
-			for t: float in tpl:
-				tn += t * t
-			tn = sqrt(tn)
-			var n: float = float(tw * th_)
-			for y: int in range(0, zh - th_ + 1):
-				for x: int in range(x_lo, x_hi + 1):
-					var dot: float = 0.0
-					var s: Vector3 = Vector3.ZERO
-					var s2: float = 0.0
-					for ty: int in th_:
-						var zo: int = ((y + ty) * zw + x) * 3
-						var to: int = ty * tw * 3
-						for tx: int in tw * 3:
-							var z: float = zone[zo + tx]
-							dot += z * tpl[to + tx]
-							s2 += z * z
-							s[tx % 3] += z
-					var var_sum: float = s2 - (s.x * s.x + s.y * s.y + s.z * s.z) / n
-					var ncc: float = dot / (sqrt(maxf(var_sum, 1e-6)) * tn + 1e-6)
-					if ncc > rowbest[y]:
-						rowbest[y] = ncc
-						rowx[y] = x
-						rowflip[y] = flip
-	var order: Array = range(rowbest.size())
-	order.sort_custom(func(a: int, b: int) -> bool: return rowbest[a] > rowbest[b])
-	var peaks: Array[int] = []
-	for y: int in order:
-		if rowbest[y] < BACK_MIN_NCC:
+# Top-left (sector mm) of every TECH label in the strip below the sector: cream letters
+# with a black outline, merged into one word blob of about 26 x 6 mm. Robust to the
+# small rotations of an archive cascade, and nothing on a card's front looks like it.
+func _find_back_labels(sd: Dictionary) -> Array[Vector2]:
+	var found: Array[Vector2] = []
+	var w: int = int(LABEL_ZONE.size.x * LABEL_PPM)
+	var h: int = int(LABEL_ZONE.size.y * LABEL_PPM)
+	var z: PackedFloat32Array = _rectify(card_frame(sd), LABEL_ZONE, LABEL_PPM)
+	# exposure: the strip's brightest 2% (per-pixel max channel) -> 245
+	var hist: PackedInt32Array = PackedInt32Array()
+	hist.resize(256)
+	for k: int in w * h:
+		var m: float = maxf(z[k * 3], maxf(z[k * 3 + 1], z[k * 3 + 2]))
+		hist[clampi(roundi(m), 0, 255)] += 1
+	var acc: int = 0
+	var p98: int = 255
+	for v: int in range(255, -1, -1):
+		acc += hist[v]
+		if float(acc) >= float(w * h) * 0.02:
+			p98 = v
 			break
-		var clear: bool = true
-		for p: int in peaks:
-			if absf(float(y - p)) <= BACK_SPACING_MM * BACK_PPM:
-				clear = false
-				break
-		if clear:
-			peaks.append(y)
-	for p: int in peaks:
-		# the matched rows are the card's physical rows BACK_ROWS either way up
-		var top: float = BACK_ZONE.position.y + p / BACK_PPM - BACK_ROWS.x
-		found.append(Vector3(BACK_ZONE.position.x + rowx[p] / BACK_PPM, top, 1.0 if rowflip[p] == 1 else 0.0))
+	var gain: float = 245.0 / maxf(float(p98), 60.0)
+	var cream: PackedByteArray = PackedByteArray()
+	cream.resize(w * h)
+	for k: int in w * h:
+		var r: float = z[k * 3] * gain
+		var g: float = z[k * 3 + 1] * gain
+		var b: float = z[k * 3 + 2] * gain
+		if r > 225.0 and g > 205.0 and b > 140.0 and b < 220.0 and r - b > 15.0:
+			cream[k] = 1
+	# letters -> one word: close gaps along the rows
+	var reach: int = maxi(1, int(LABEL_MERGE_MM * LABEL_PPM))
+	var word: PackedByteArray = _erode_rows(_dilate_rows(cream, w, h, reach), w, h, reach)
+	for comp: Dictionary in _components(word, w, h):
+		var box: Rect2i = comp["box"]
+		var bw: float = box.size.x / LABEL_PPM
+		var bh: float = box.size.y / LABEL_PPM
+		var fill: float = float(comp["count"]) / float(box.size.x * box.size.y)
+		if bw >= LABEL_W_MM.x and bw <= LABEL_W_MM.y and bh >= LABEL_H_MM.x and bh <= LABEL_H_MM.y and fill > 0.25:
+			found.append(Vector2(LABEL_ZONE.position.x + box.position.x / LABEL_PPM, LABEL_ZONE.position.y + box.position.y / LABEL_PPM))
 	return found
 
-# Rows BACK_ROWS of the back art sampled at BACK_PPM, per-channel mean removed. Upside down,
-# the same physical rows show art rows 67-66 .. 67-49 turned around.
-static func _back_template(back: Image, flipped: bool, tw: int, th_: int) -> PackedFloat32Array:
-	var t: PackedFloat32Array = PackedFloat32Array()
-	t.resize(tw * th_ * 3)
-	var mean: Vector3 = Vector3.ZERO
-	for j: int in th_:
-		for i: int in tw:
-			var u: float = (i + 0.5) / BACK_PPM
-			var v: float = BACK_ROWS.x + (j + 0.5) / BACK_PPM
-			var c: Vector3 = _art_at(back, 44.0 - u, 67.0 - v) if flipped else _art_at(back, u, v)
-			var o: int = (j * tw + i) * 3
-			t[o] = c.x
-			t[o + 1] = c.y
-			t[o + 2] = c.z
-			mean += c
-	mean /= float(tw * th_)
-	for k: int in tw * th_:
-		t[k * 3] -= mean.x
-		t[k * 3 + 1] -= mean.y
-		t[k * 3 + 2] -= mean.z
-	return t
+# ── Stored supply: token-coloured, token-shaped, token-sized blobs ───────────
 
-# ── Stored supply ────────────────────────────────────────────────────────────
-
-func _count_tokens(dials: Array[Dictionary], si: int, backs: Array[Vector3]) -> Dictionary:
+func _count_tokens(dials: Array[Dictionary], si: int, labels: Array[Vector2]) -> Dictionary:
 	var sframe: Transform2D = card_frame(dials[si])
 	var w: int = int(TOKEN_ZONE.size.x * ART_PPM)
 	var h: int = int(TOKEN_ZONE.size.y * ART_PPM)
@@ -345,23 +330,24 @@ func _count_tokens(dials: Array[Dictionary], si: int, backs: Array[Vector3]) -> 
 	covered.resize(w * h)
 	var sector_gain: Vector3 = Vector3.ONE
 	var centre: Vector2 = dials[si]["center"]
-	var reach: float = float(dials[si]["radius"]) / float(DialReader.DECK_R_MM["sector"]) * 140.0
-	# every identified card near the sector, then the face-down backs found below it
+	var reach_px: float = float(dials[si]["radius"]) / float(DialReader.DECK_R_MM["sector"]) * 140.0
+	# what's known to lie there: every identified card near the sector, and the
+	# face-down backs whose labels were found (zone/sector mm -> that card's mm)
 	var layers: Array = []
 	for i: int in dials.size():
-		if _art[i] == null or (dials[i]["center"] as Vector2).distance_to(centre) > reach:
+		if _art_f[i].is_empty() or (dials[i]["center"] as Vector2).distance_to(centre) > reach_px:
 			continue
-		# zone (sector mm) -> this card's mm
-		layers.append([card_frame(dials[i]).affine_inverse() * sframe, _art[i], SIZE_MM[deck_of(dials[i])], i == si])
-	for b: Vector3 in backs:
-		var to_back: Transform2D = Transform2D(Vector2(1, 0), Vector2(0, 1), Vector2(-b.x, -b.y))
-		if b.z > 0.5:   # upside down: (u, v) -> (44 - u, 67 - v)
-			to_back = Transform2D(Vector2(-1, 0), Vector2(0, -1), Vector2(44.0 + b.x, 67.0 + b.y))
-		layers.append([to_back, _backs[0], SIZE_MM["tech"], false])
+		layers.append([card_frame(dials[i]).affine_inverse() * sframe, _art_f[i], _art_size[i], SIZE_MM[deck_of(dials[i])], i == si])
+	if not _back_f.is_empty():
+		for lab: Vector2 in labels:
+			var card_at: Vector2 = lab - LABEL_TO_CARD
+			layers.append([Transform2D(Vector2(1, 0), Vector2(0, 1), -card_at), _back_f, _back_size, SIZE_MM["tech"], false])
+	var slack: float = ART_SLACK_MM * ART_PPM
 	for layer: Array in layers:
 		var to_card: Transform2D = layer[0]
-		var art: Image = layer[1]
-		var card_mm: Vector2 = layer[2]
+		var art: PackedFloat32Array = layer[1]
+		var asz: Vector2i = layer[2]
+		var card_mm: Vector2 = layer[3]
 		# lighting: per-channel median photo/art ratio over the card (every 3rd pixel)
 		var ratios: Array[PackedFloat32Array] = [PackedFloat32Array(), PackedFloat32Array(), PackedFloat32Array()]
 		for j: int in range(0, h, 3):
@@ -369,7 +355,7 @@ func _count_tokens(dials: Array[Dictionary], si: int, backs: Array[Vector3]) -> 
 				var uv: Vector2 = to_card * Vector2(TOKEN_ZONE.position.x + i / ART_PPM, TOKEN_ZONE.position.y + j / ART_PPM)
 				if uv.x < 0.5 or uv.y < 0.5 or uv.x > card_mm.x - 0.5 or uv.y > card_mm.y - 0.5:
 					continue
-				var e: Vector3 = _art_at(art, uv.x, uv.y)
+				var e: Vector3 = _arr_at(art, asz.x, asz.y, uv.x * ART_PPM, uv.y * ART_PPM)
 				if e.x + e.y + e.z <= 60.0:
 					continue
 				var o: int = (j * w + i) * 3
@@ -380,32 +366,41 @@ func _count_tokens(dials: Array[Dictionary], si: int, backs: Array[Vector3]) -> 
 			for c: int in 3:
 				ratios[c].sort()
 				gain[c] = ratios[c][ratios[c].size() >> 1]
-		if bool(layer[3]):
+		if bool(layer[4]):
 			sector_gain = gain
 		for j: int in h:
 			for i: int in w:
 				var uv: Vector2 = to_card * Vector2(TOKEN_ZONE.position.x + i / ART_PPM, TOKEN_ZONE.position.y + j / ART_PPM)
 				if uv.x < 0.5 or uv.y < 0.5 or uv.x > card_mm.x - 0.5 or uv.y > card_mm.y - 0.5:
 					continue
-				var e: Vector3 = _art_at(art, uv.x, uv.y) * gain
-				var o: int = (j * w + i) * 3
-				var d: float = Vector3(zone[o] - e.x, zone[o + 1] - e.y, zone[o + 2] - e.z).length()
 				var k: int = j * w + i
+				var o: int = k * 3
+				var px: Vector3 = Vector3(zone[o], zone[o + 1], zone[o + 2])
+				var ax: float = uv.x * ART_PPM
+				var ay: float = uv.y * ART_PPM
+				var d: float = px.distance_to(_arr_at(art, asz.x, asz.y, ax, ay) * gain)
+				# a printed detail a millimetre off still counts as the art
+				if d >= ART_MATCH:
+					for dy: float in [-slack, 0.0, slack]:
+						for dx: float in [-slack, 0.0, slack]:
+							if dx == 0.0 and dy == 0.0:
+								continue
+							d = minf(d, px.distance_to(_arr_at(art, asz.x, asz.y, ax + dx, ay + dy) * gain))
 				covered[k] = 1
 				if d < best[k]:
 					best[k] = d
 	# table colour: median of what no card covers
-	var tr: Array[PackedFloat32Array] = [PackedFloat32Array(), PackedFloat32Array(), PackedFloat32Array()]
+	var uncovered: Array[PackedFloat32Array] = [PackedFloat32Array(), PackedFloat32Array(), PackedFloat32Array()]
 	for k: int in range(0, w * h, 2):
 		if covered[k] == 0:
 			for c: int in 3:
-				tr[c].append(zone[k * 3 + c])
+				uncovered[c].append(zone[k * 3 + c])
 	var table: Vector3 = Vector3(90, 62, 42)
-	if tr[0].size() > 100:
+	if uncovered[0].size() > 100:
 		for c: int in 3:
-			tr[c].sort()
-			table[c] = tr[c][tr[c].size() >> 1]
-	# unexplained pixels, cleaned up (open twice), classified by token colour
+			uncovered[c].sort()
+			table[c] = uncovered[c][uncovered[c].size() >> 1]
+	# unexplained pixels, cleaned up (opened twice), then classified by token colour
 	var cand: PackedByteArray = PackedByteArray()
 	cand.resize(w * h)
 	for k: int in w * h:
@@ -429,79 +424,150 @@ func _count_tokens(dials: Array[Dictionary], si: int, backs: Array[Vector3]) -> 
 				bd = dd
 				bi = t
 		cls[k] = bi if bd < TOKEN_COLOUR_MAX else 254
-	# clumps -> best-fitting token mix
+	# per colour: blobs with the icon holes filled, kept if compact and token-sized;
+	# the count comes from the size (two touching tokens of one colour = 2)
 	var counts: Dictionary = {}
+	var mm2: float = 1.0 / (ART_PPM * ART_PPM)
+	for t: int in TOKEN_RGB.size():
+		var m: PackedByteArray = PackedByteArray()
+		m.resize(w * h)
+		var any: bool = false
+		for k: int in w * h:
+			if cls[k] == t:
+				m[k] = 1
+				any = true
+		if not any:
+			continue
+		m = _erode(_erode(_dilate(_dilate(m, w, h), w, h), w, h), w, h)
+		for comp: Dictionary in _components(m, w, h):
+			var filled: Dictionary = _filled_blob(comp, w)
+			var area: float = float(filled["count"]) * mm2
+			var per: float = area / TOKEN_SIL_MM2[t]
+			if per < TOKEN_AREA_MIN:
+				continue
+			var n_tok: int = maxi(1, roundi(per))
+			if n_tok > TOKEN_MAX_PER_CLUMP:
+				continue
+			if n_tok == 1 and (float(filled["solidity"]) < TOKEN_SOLIDITY or float(filled["elongation"]) > TOKEN_ELONGATION):
+				continue
+			var col: int = TOKEN_ORDER[t]
+			counts[col] = int(counts.get(col, 0)) + n_tok
+	return counts
+
+# ── Blob helpers ─────────────────────────────────────────────────────────────
+
+# 4-connected components of a mask: [{box: Rect2i, count, pixels: PackedInt32Array}]
+static func _components(m: PackedByteArray, w: int, h: int) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
 	var seen: PackedByteArray = PackedByteArray()
 	seen.resize(w * h)
-	var mm2: float = 1.0 / (ART_PPM * ART_PPM)
 	for k0: int in w * h:
-		if cand[k0] == 0 or seen[k0] != 0:
+		if m[k0] == 0 or seen[k0] != 0:
 			continue
-		var obs: PackedFloat32Array = PackedFloat32Array([0, 0, 0, 0, 0, 0])
-		var area: float = 0.0
+		var pixels: PackedInt32Array = PackedInt32Array()
 		var stack: PackedInt32Array = PackedInt32Array([k0])
 		seen[k0] = 1
+		var x0: int = w
+		var y0: int = h
+		var x1: int = -1
+		var y1: int = -1
 		while not stack.is_empty():
 			var k: int = stack[stack.size() - 1]
 			stack.remove_at(stack.size() - 1)
-			area += mm2
-			if cls[k] < 6:
-				obs[cls[k]] += mm2
+			pixels.append(k)
 			var x: int = k % w
+			@warning_ignore("integer_division")
+			var y: int = k / w
+			x0 = mini(x0, x)
+			y0 = mini(y0, y)
+			x1 = maxi(x1, x)
+			y1 = maxi(y1, y)
 			for n: int in [k - 1, k + 1, k - w, k + w]:
-				if n < 0 or n >= w * h or cand[n] == 0 or seen[n] != 0:
+				if n < 0 or n >= w * h or m[n] == 0 or seen[n] != 0:
 					continue
 				if (n == k - 1 and x == 0) or (n == k + 1 and x == w - 1):
 					continue
 				seen[n] = 1
 				stack.append(n)
-		if area < CLUMP_MIN_MM2:
-			continue
-		var mix: PackedInt32Array = _best_mix(obs)
-		for t: int in 6:
-			if mix[t] > 0:
-				var col: int = TOKEN_ORDER[t]
-				counts[col] = int(counts.get(col, 0)) + mix[t]
-	return counts
+		out.append({box = Rect2i(x0, y0, x1 - x0 + 1, y1 - y0 + 1), count = pixels.size(), pixels = pixels})
+	return out
 
-# Token counts (0-3 each, 1-6 total) whose colour signatures best explain a clump's colour areas.
-static func _best_mix(obs: PackedFloat32Array) -> PackedInt32Array:
-	var best: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0, 0])
-	var obs_sum: float = 0.0
-	for v: float in obs:
-		obs_sum += v
-	if obs_sum < CLUMP_MIN_MM2 * 0.5:
-		return best
-	var best_err: float = INF
-	var combo: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0, 0])
-	for code: int in 4096:
-		var c: int = code
-		var total: int = 0
-		for t: int in 6:
-			combo[t] = c & 3
-			c = c >> 2
-			total += combo[t]
-		if total == 0 or total > 6:
+# A blob closed (3 px) with its holes (a token's icon) filled, measured: pixel count,
+# solidity (area / convex hull area) and elongation (sqrt of the covariance eigenvalue ratio).
+static func _filled_blob(comp: Dictionary, w: int) -> Dictionary:
+	var box: Rect2i = comp["box"]
+	var pad: int = 4
+	var lw: int = box.size.x + pad * 2
+	var lh: int = box.size.y + pad * 2
+	var m: PackedByteArray = PackedByteArray()
+	m.resize(lw * lh)
+	for k: int in (comp["pixels"] as PackedInt32Array):
+		@warning_ignore("integer_division")
+		var y: int = k / w
+		var x: int = k % w
+		m[(y - box.position.y + pad) * lw + (x - box.position.x + pad)] = 1
+	for i: int in 3:
+		m = _dilate(m, lw, lh)
+	for i: int in 3:
+		m = _erode(m, lw, lh)
+	# fill holes: whatever background the border can't reach
+	var outside: PackedByteArray = PackedByteArray()
+	outside.resize(lw * lh)
+	var stack: PackedInt32Array = PackedInt32Array()
+	for x: int in lw:
+		stack.append(x)
+		stack.append((lh - 1) * lw + x)
+	for y: int in lh:
+		stack.append(y * lw)
+		stack.append(y * lw + lw - 1)
+	while not stack.is_empty():
+		var k: int = stack[stack.size() - 1]
+		stack.remove_at(stack.size() - 1)
+		if k < 0 or k >= lw * lh or outside[k] != 0 or m[k] != 0:
 			continue
-		var pred: PackedFloat32Array = PackedFloat32Array([0, 0, 0, 0, 0, 0])
-		for t: int in 6:
-			if combo[t] == 0:
-				continue
-			for q: int in 6:
-				pred[q] += combo[t] * float(TOKEN_SIG[t][q])
-		var op: float = 0.0
-		var pp: float = 0.0
-		for q: int in 6:
-			op += obs[q] * pred[q]
-			pp += pred[q] * pred[q]
-		var s: float = clampf(op / maxf(pp, 1e-6), VISIBLE_RANGE.x, VISIBLE_RANGE.y)
-		var err: float = PER_TOKEN_PENALTY * total
-		for q: int in 6:
-			err += absf(obs[q] - s * pred[q])
-		if err < best_err:
-			best_err = err
-			best = combo.duplicate()
-	return best
+		outside[k] = 1
+		var x: int = k % lw
+		if x > 0:
+			stack.append(k - 1)
+		if x < lw - 1:
+			stack.append(k + 1)
+		stack.append(k - lw)
+		stack.append(k + lw)
+	var pts: Array[Vector2] = []
+	var sx: float = 0.0
+	var sy: float = 0.0
+	for k: int in lw * lh:
+		if outside[k] == 0:
+			@warning_ignore("integer_division")
+			var p: Vector2 = Vector2(k % lw, k / lw)
+			pts.append(p)
+			sx += p.x
+			sy += p.y
+	var n: int = pts.size()
+	if n < 5:
+		return {count = n, solidity = 0.0, elongation = 99.0}
+	var mean: Vector2 = Vector2(sx, sy) / n
+	var cxx: float = 0.0
+	var cyy: float = 0.0
+	var cxy: float = 0.0
+	for p: Vector2 in pts:
+		var d: Vector2 = p - mean
+		cxx += d.x * d.x
+		cyy += d.y * d.y
+		cxy += d.x * d.y
+	cxx /= n
+	cyy /= n
+	cxy /= n
+	var trace: float = cxx + cyy
+	var disc: float = sqrt(maxf((cxx - cyy) * (cxx - cyy) / 4.0 + cxy * cxy, 0.0))
+	var l1: float = trace / 2.0 + disc
+	var l2: float = maxf(trace / 2.0 - disc, 1e-6)
+	var hull: PackedVector2Array = Geometry2D.convex_hull(PackedVector2Array(pts))
+	var hull_area: float = 0.0
+	for i: int in hull.size() - 1:
+		hull_area += hull[i].x * hull[i + 1].y - hull[i + 1].x * hull[i].y
+	hull_area = absf(hull_area) / 2.0
+	return {count = n, solidity = float(n) / maxf(hull_area, 1.0), elongation = sqrt(l1 / l2)}
 
 static func _box_blur(src: PackedFloat32Array, w: int, h: int, r: int) -> PackedFloat32Array:
 	var tmp: PackedFloat32Array = src.duplicate()
@@ -551,4 +617,30 @@ static func _dilate(m: PackedByteArray, w: int, h: int) -> PackedByteArray:
 			var k: int = j * w + i
 			if m[k] == 0 and (m[k - 1] != 0 or m[k + 1] != 0 or m[k - w] != 0 or m[k + w] != 0):
 				out[k] = 1
+	return out
+
+# Row-wise dilate / erode by `r` px (merging letters into words).
+static func _dilate_rows(m: PackedByteArray, w: int, h: int, r: int) -> PackedByteArray:
+	var out: PackedByteArray = PackedByteArray()
+	out.resize(w * h)
+	for j: int in h:
+		for i: int in w:
+			if m[j * w + i] == 0:
+				continue
+			for d: int in range(maxi(0, i - r), mini(w, i + r + 1)):
+				out[j * w + d] = 1
+	return out
+
+static func _erode_rows(m: PackedByteArray, w: int, h: int, r: int) -> PackedByteArray:
+	var out: PackedByteArray = PackedByteArray()
+	out.resize(w * h)
+	for j: int in h:
+		for i: int in w:
+			var keep: bool = true
+			for d: int in range(i - r, i + r + 1):
+				if d >= 0 and d < w and m[j * w + d] == 0:
+					keep = false
+					break
+			if keep:
+				out[j * w + i] = 1
 	return out
