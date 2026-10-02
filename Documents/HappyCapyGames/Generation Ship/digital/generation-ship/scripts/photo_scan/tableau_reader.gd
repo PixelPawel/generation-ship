@@ -49,7 +49,6 @@ const ART_MATCH: float = 60.0                    # colour distance a pixel still
 const ART_SLACK_MM: float = 1.0                  # ...also when the art matches this far off
 const TABLE_MATCH: float = 40.0
 const TOKEN_COLOUR_MAX: float = 80.0
-const TOKEN_AREA_MIN: float = 0.45               # of a token's area (its base colour + filled icon)
 # Dust, Metals, Liquids, Organix, Electrix, Thrust: base colours (punchboard art) and each
 # token's area in mm^2 at ~14 mm across (circle, square, oval, hexagon, pentagon, octagon)
 const TOKEN_ORDER: Array[int] = [CardData.SupplyColor.DUST, CardData.SupplyColor.METALS, CardData.SupplyColor.LIQUIDS,
@@ -66,8 +65,9 @@ const MATCH_SHAPE_WEIGHT: float = 0.4            # share of the score from the o
 const MATCH_SEARCH_MM: float = 3.0               # search this far around a candidate
 const MATCH_MAX_PER_BLOB: int = 4
 const MATCH_SAME_TOKEN: float = 0.7              # matches closer than this x TOKEN_MM are one token
-# token colours easy to confuse on far shots: try both arts (the outline decides)
-const MATCH_ALSO: Dictionary = {4: [4, 5], 5: [5, 4]}
+const MATCH_TYPE_SHARE: float = 0.15            # a token type is tried if this much of a blob is its colour
+const MATCH_BLOB_MIN_MM2: float = 29.0           # smaller blobs aren't a token's worth
+const MATCH_MM2_PER_TOKEN: float = 120.0          # roughly, to bound the matches per blob
 
 var progress: float = 0.0
 var _art: Array[Image] = []       # per dial: its card art at ART_PPM (RGB8), or null
@@ -191,14 +191,18 @@ func analyze(photo: Image, dials: Array[Dictionary], markers: Array[Vector3] = [
 	var per_sector: Callable = func(k: int) -> void:
 		var si: int = sector_idx[k]
 		# face-down backs: lamp pairs, else the TECH lettering; either places the back
+		# face-down backs are counted by their lamp pairs (the TECH lettering found
+		# phantom backs now and then); the lettering still places backs whose lamps
+		# don't show, for the token check
 		var backs_at: Array[Vector2] = []    # each back's top-left, sector mm
 		for mid: Vector2 in _find_lamp_pairs(dials[si], markers, dials):
 			backs_at.append(mid - LAMP_MID_ON_CARD)
+		var n_backs: int = backs_at.size()
 		if backs_at.is_empty():
 			for lab: Vector2 in _find_back_labels(dials[si]):
 				backs_at.append(lab - LABEL_TO_CARD)
 		var supply: Dictionary = _count_tokens(dials, si, backs_at)
-		results[k] = {backs = backs_at.size(), supply = supply}
+		results[k] = {backs = n_backs, supply = supply}
 		_done_mutex.lock()
 		_done += 1
 		progress = float(_done) / float(sector_idx.size())
@@ -529,8 +533,10 @@ func _count_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) 
 				bd = dd
 				bi = t
 		cls[k] = bi if bd < TOKEN_COLOUR_MAX else 254
-	# Candidates per token colour (icon holes filled), each matched against the real
-	# token art: score = art inside the token + how well the blob fits its outline.
+	# Candidates: blobs of any token colour, icon holes filled (an icon can split a token's
+	# base colour into slivers), each matched against the real art of every token type
+	# with enough colour in it: score = art inside the token + how well the blob fits its
+	# outline.
 	var counts: Dictionary = {}
 	if _templates.is_empty():
 		return counts
@@ -564,60 +570,59 @@ func _count_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) 
 	var centres: Array[Vector2] = []
 	var same_px: float = MATCH_SAME_TOKEN * TOKEN_MM * MATCH_PPM
 	var pad: int = int(MATCH_SEARCH_MM * MATCH_PPM)
-	for t: int in TOKEN_RGB.size():
-		var m: PackedByteArray = PackedByteArray()
-		m.resize(w * h)
-		var any: bool = false
-		for k: int in w * h:
-			if cls[k] == t:
-				m[k] = 1
-				any = true
-		if not any:
+	var comps: Array[Dictionary] = _components(tokmask, w, h)
+	for comp: Dictionary in comps:
+		var area: float = float(comp["count"]) * mm2
+		if area < MATCH_BLOB_MIN_MM2:
 			continue
-		m = _erode(_erode(_dilate(_dilate(m, w, h), w, h), w, h), w, h)
-		for comp: Dictionary in _components(m, w, h):
-			var filled: Dictionary = _filled_blob(comp, w)
-			var per: float = float(filled["count"]) * mm2 / TOKEN_SIL_MM2[t]
-			if per < TOKEN_AREA_MIN:
-				continue
-			var box: Rect2i = comp["box"]
-			var region: Rect2i = Rect2i(int(box.position.x * k_m) - pad, int(box.position.y * k_m) - pad,
-				int(box.size.x * k_m) + pad * 2, int(box.size.y * k_m) + pad * 2)
-			var work: PackedFloat32Array = zs.duplicate()
-			for _try: int in MATCH_MAX_PER_BLOB:
-				var hit: Dictionary = {}
-				for alt: int in (MATCH_ALSO.get(t, [t]) as Array):
-					var r: Dictionary = _match_token(work, ws, hs, ms, ms_sum, alt, region)
-					if not r.is_empty() and (hit.is_empty() or float(r["score"]) > float(hit["score"])):
-						hit = r
-						hit["token"] = alt
-				if hit.is_empty() or float(hit["score"]) < MATCH_MIN:
+		# token types with enough of their colour in this blob
+		var share: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0, 0])
+		for k: int in (comp["pixels"] as PackedInt32Array):
+			if cls[k] < 6:
+				share[cls[k]] += 1
+		var types: Array[int] = []
+		for t: int in 6:
+			if float(share[t]) >= MATCH_TYPE_SHARE * float(comp["count"]):
+				types.append(t)
+		if types.is_empty():
+			continue
+		var box: Rect2i = comp["box"]
+		var region: Rect2i = Rect2i(int(box.position.x * k_m) - pad, int(box.position.y * k_m) - pad,
+			int(box.size.x * k_m) + pad * 2, int(box.size.y * k_m) + pad * 2)
+		var n_max: int = mini(MATCH_MAX_PER_BLOB, maxi(1, roundi(area / MATCH_MM2_PER_TOKEN)) + 1)
+		var work: PackedFloat32Array = zs.duplicate()
+		for _try: int in n_max:
+			var hit: Dictionary = {}
+			for alt: int in types:
+				var r: Dictionary = _match_token(work, ws, hs, ms, ms_sum, alt, region)
+				if not r.is_empty() and (hit.is_empty() or float(r["score"]) > float(hit["score"])):
+					hit = r
+					hit["token"] = alt
+			if hit.is_empty() or float(hit["score"]) < MATCH_MIN:
+				break
+			var tp: Dictionary = (_templates[int(hit["token"])] as Array)[int(hit["rot"])]
+			var at: Vector2i = hit["at"]
+			# blank the matched token so the next search finds the next one
+			var tmask: PackedByteArray = tp["mask"]
+			var tw: int = tp["w"]
+			for ty: int in int(tp["h"]):
+				for tx: int in tw:
+					if tmask[ty * tw + tx] != 0:
+						var o: int = ((at.y + ty) * ws + at.x + tx) * 3
+						work[o] = 0.0
+						work[o + 1] = 0.0
+						work[o + 2] = 0.0
+			var c: Vector2 = Vector2(at) + Vector2(tw, int(tp["h"])) / 2.0
+			var seen: bool = false
+			for prev: Vector2 in centres:
+				if prev.distance_to(c) < same_px:
+					seen = true
 					break
-				var tp: Dictionary = (_templates[int(hit["token"])] as Array)[int(hit["rot"])]
-				var at: Vector2i = hit["at"]
-				# blank the matched token so the next search finds the next one
-				var tmask: PackedByteArray = tp["mask"]
-				var tw: int = tp["w"]
-				for ty: int in int(tp["h"]):
-					for tx: int in tw:
-						if tmask[ty * tw + tx] != 0:
-							var o: int = ((at.y + ty) * ws + at.x + tx) * 3
-							work[o] = 0.0
-							work[o + 1] = 0.0
-							work[o + 2] = 0.0
-				var c: Vector2 = Vector2(at) + Vector2(tw, int(tp["h"])) / 2.0
-				var seen: bool = false
-				for prev: Vector2 in centres:
-					if prev.distance_to(c) < same_px:
-						seen = true
-						break
-				if seen:
-					continue
-				centres.append(c)
-				var col: int = TOKEN_ORDER[int(hit["token"])]
-				counts[col] = int(counts.get(col, 0)) + 1
-				if per < 1.4:
-					break        # one token's worth of blob
+			if seen:
+				continue
+			centres.append(c)
+			var col: int = TOKEN_ORDER[int(hit["token"])]
+			counts[col] = int(counts.get(col, 0)) + 1
 	return counts
 
 # Best position (sector mm, card's top-left) for a face-down back near `guess`, within
@@ -866,83 +871,6 @@ static func _components(m: PackedByteArray, w: int, h: int) -> Array[Dictionary]
 				stack.append(n)
 		out.append({box = Rect2i(x0, y0, x1 - x0 + 1, y1 - y0 + 1), count = pixels.size(), pixels = pixels})
 	return out
-
-# A blob closed (3 px) with its holes (a token's icon) filled, measured: pixel count,
-# solidity (area / convex hull area) and elongation (sqrt of the covariance eigenvalue ratio).
-static func _filled_blob(comp: Dictionary, w: int) -> Dictionary:
-	var box: Rect2i = comp["box"]
-	var pad: int = 4
-	var lw: int = box.size.x + pad * 2
-	var lh: int = box.size.y + pad * 2
-	var m: PackedByteArray = PackedByteArray()
-	m.resize(lw * lh)
-	for k: int in (comp["pixels"] as PackedInt32Array):
-		@warning_ignore("integer_division")
-		var y: int = k / w
-		var x: int = k % w
-		m[(y - box.position.y + pad) * lw + (x - box.position.x + pad)] = 1
-	for i: int in 3:
-		m = _dilate(m, lw, lh)
-	for i: int in 3:
-		m = _erode(m, lw, lh)
-	# fill holes: whatever background the border can't reach
-	var outside: PackedByteArray = PackedByteArray()
-	outside.resize(lw * lh)
-	var stack: PackedInt32Array = PackedInt32Array()
-	for x: int in lw:
-		stack.append(x)
-		stack.append((lh - 1) * lw + x)
-	for y: int in lh:
-		stack.append(y * lw)
-		stack.append(y * lw + lw - 1)
-	while not stack.is_empty():
-		var k: int = stack[stack.size() - 1]
-		stack.remove_at(stack.size() - 1)
-		if k < 0 or k >= lw * lh or outside[k] != 0 or m[k] != 0:
-			continue
-		outside[k] = 1
-		var x: int = k % lw
-		if x > 0:
-			stack.append(k - 1)
-		if x < lw - 1:
-			stack.append(k + 1)
-		stack.append(k - lw)
-		stack.append(k + lw)
-	var pts: Array[Vector2] = []
-	var sx: float = 0.0
-	var sy: float = 0.0
-	for k: int in lw * lh:
-		if outside[k] == 0:
-			@warning_ignore("integer_division")
-			var p: Vector2 = Vector2(k % lw, k / lw)
-			pts.append(p)
-			sx += p.x
-			sy += p.y
-	var n: int = pts.size()
-	if n < 5:
-		return {count = n, solidity = 0.0, elongation = 99.0}
-	var mean: Vector2 = Vector2(sx, sy) / n
-	var cxx: float = 0.0
-	var cyy: float = 0.0
-	var cxy: float = 0.0
-	for p: Vector2 in pts:
-		var d: Vector2 = p - mean
-		cxx += d.x * d.x
-		cyy += d.y * d.y
-		cxy += d.x * d.y
-	cxx /= n
-	cyy /= n
-	cxy /= n
-	var trace: float = cxx + cyy
-	var disc: float = sqrt(maxf((cxx - cyy) * (cxx - cyy) / 4.0 + cxy * cxy, 0.0))
-	var l1: float = trace / 2.0 + disc
-	var l2: float = maxf(trace / 2.0 - disc, 1e-6)
-	var hull: PackedVector2Array = Geometry2D.convex_hull(PackedVector2Array(pts))
-	var hull_area: float = 0.0
-	for i: int in hull.size() - 1:
-		hull_area += hull[i].x * hull[i + 1].y - hull[i + 1].x * hull[i].y
-	hull_area = absf(hull_area) / 2.0
-	return {count = n, solidity = float(n) / maxf(hull_area, 1.0), elongation = sqrt(l1 / l2)}
 
 static func _box_blur(src: PackedFloat32Array, w: int, h: int, r: int) -> PackedFloat32Array:
 	var tmp: PackedFloat32Array = src.duplicate()
