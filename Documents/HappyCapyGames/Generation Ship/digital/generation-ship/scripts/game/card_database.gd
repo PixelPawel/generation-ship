@@ -137,7 +137,13 @@ func _expedition_art_path(id: int) -> String:
 	# not assumed from Techs' direct id==page pattern, which does NOT hold
 	# here. See the equivalent Advanced/Dust Sector tables above for the
 	# same reason: print page order isn't guaranteed to match CSV order.
-	return _resolve_art("Expedition", "GS Expeditions 44x67mm", 27 - id)
+	# Exceptions, same in every language's print file: Cloud Colony (No. 14) /
+	# Asteroid Colonies (No. 17) and Polar Planet (No. 21) / Waterworld
+	# (No. 22) sit on each other's pages.
+	var page: int = _EXPEDITION_PAGE_OVERRIDES.get(id, 27 - id)
+	return _resolve_art("Expedition", "GS Expeditions 44x67mm", page)
+
+const _EXPEDITION_PAGE_OVERRIDES: Dictionary = {14: 10, 17: 13, 21: 5, 22: 6}
 
 func _adv_sector_art_path(card_name: String) -> String:
 	var entry: Variant = _ADV_SECTOR_ART.get(_normalize(card_name))
