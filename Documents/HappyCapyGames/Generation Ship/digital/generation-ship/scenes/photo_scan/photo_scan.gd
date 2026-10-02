@@ -920,6 +920,7 @@ func _refresh_sector_list() -> void:
 	add_col.size_flags_vertical = Control.SIZE_SHRINK_END
 	add_col.custom_minimum_size = Vector2(SHIP_ADD_COLUMN - 14.0, 0)
 	var add_btn: Button = _make_button("+ Sector")
+	add_btn.custom_minimum_size = Vector2(0, SHIP_EDIT_HEIGHT)   # in line with the Edit buttons
 	add_btn.pressed.connect(_on_add_sector_pressed)
 	add_col.add_child(add_btn)
 	_sector_list_box.add_child(add_col)
