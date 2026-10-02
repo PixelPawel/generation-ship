@@ -348,10 +348,14 @@ func _count_tokens(dials: Array[Dictionary], si: int, labels: Array[Vector2]) ->
 		var art: PackedFloat32Array = layer[1]
 		var asz: Vector2i = layer[2]
 		var card_mm: Vector2 = layer[3]
+		# only the zone pixels this card can cover (its corners' bounding box)
+		var span: Rect2i = _card_span(to_card, card_mm, w, h)
+		if span.size.x <= 0 or span.size.y <= 0:
+			continue
 		# lighting: per-channel median photo/art ratio over the card (every 3rd pixel)
 		var ratios: Array[PackedFloat32Array] = [PackedFloat32Array(), PackedFloat32Array(), PackedFloat32Array()]
-		for j: int in range(0, h, 3):
-			for i: int in range(0, w, 3):
+		for j: int in range(span.position.y, span.end.y, 3):
+			for i: int in range(span.position.x, span.end.x, 3):
 				var uv: Vector2 = to_card * Vector2(TOKEN_ZONE.position.x + i / ART_PPM, TOKEN_ZONE.position.y + j / ART_PPM)
 				if uv.x < 0.5 or uv.y < 0.5 or uv.x > card_mm.x - 0.5 or uv.y > card_mm.y - 0.5:
 					continue
@@ -368,8 +372,8 @@ func _count_tokens(dials: Array[Dictionary], si: int, labels: Array[Vector2]) ->
 				gain[c] = ratios[c][ratios[c].size() >> 1]
 		if bool(layer[4]):
 			sector_gain = gain
-		for j: int in h:
-			for i: int in w:
+		for j: int in range(span.position.y, span.end.y):
+			for i: int in range(span.position.x, span.end.x):
 				var uv: Vector2 = to_card * Vector2(TOKEN_ZONE.position.x + i / ART_PPM, TOKEN_ZONE.position.y + j / ART_PPM)
 				if uv.x < 0.5 or uv.y < 0.5 or uv.x > card_mm.x - 0.5 or uv.y > card_mm.y - 0.5:
 					continue
@@ -453,6 +457,21 @@ func _count_tokens(dials: Array[Dictionary], si: int, labels: Array[Vector2]) ->
 			var col: int = TOKEN_ORDER[t]
 			counts[col] = int(counts.get(col, 0)) + n_tok
 	return counts
+
+# Zone pixels (TOKEN_ZONE at ART_PPM, w x h) a card can cover, given zone mm -> card mm.
+static func _card_span(to_card: Transform2D, card_mm: Vector2, w: int, h: int) -> Rect2i:
+	var to_zone: Transform2D = to_card.affine_inverse()
+	var lo: Vector2 = Vector2(INF, INF)
+	var hi: Vector2 = Vector2(-INF, -INF)
+	for c: Vector2 in [Vector2.ZERO, Vector2(card_mm.x, 0.0), Vector2(0.0, card_mm.y), card_mm]:
+		var p: Vector2 = ((to_zone * c) - TOKEN_ZONE.position) * ART_PPM
+		lo = lo.min(p)
+		hi = hi.max(p)
+	var x0: int = clampi(floori(lo.x) - 1, 0, w)
+	var y0: int = clampi(floori(lo.y) - 1, 0, h)
+	var x1: int = clampi(ceili(hi.x) + 1, 0, w)
+	var y1: int = clampi(ceili(hi.y) + 1, 0, h)
+	return Rect2i(x0, y0, x1 - x0, y1 - y0)
 
 # ── Blob helpers ─────────────────────────────────────────────────────────────
 
