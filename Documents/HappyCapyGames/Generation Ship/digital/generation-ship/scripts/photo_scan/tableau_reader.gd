@@ -41,10 +41,10 @@ const TOKEN_ORDER: Array[int] = [CardData.SupplyColor.DUST, CardData.SupplyColor
 	CardData.SupplyColor.ORGANIX, CardData.SupplyColor.ELECTRIX, CardData.SupplyColor.THRUST]
 const TOKEN_RGB: Array[Vector3] = [Vector3(208, 204, 218), Vector3(186, 24, 40), Vector3(70, 124, 191),
 	Vector3(63, 168, 53), Vector3(233, 120, 36), Vector3(240, 181, 4)]
-const TOKEN_SIG: Array[PackedFloat32Array] = [
-	PackedFloat32Array([125, 3, 0, 0, 1, 0]), PackedFloat32Array([0, 171, 0, 0, 0, 0]),
-	PackedFloat32Array([0, 2, 85, 0, 0, 0]), PackedFloat32Array([0, 2, 0, 97, 0, 0]),
-	PackedFloat32Array([0, 24, 0, 0, 92, 4]), PackedFloat32Array([8, 3, 0, 0, 53, 75])]
+const TOKEN_SIG: Array = [
+	[125.0, 3.0, 0.0, 0.0, 1.0, 0.0], [0.0, 171.0, 0.0, 0.0, 0.0, 0.0],
+	[0.0, 2.0, 85.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 97.0, 0.0, 0.0],
+	[0.0, 24.0, 0.0, 0.0, 92.0, 4.0], [8.0, 3.0, 0.0, 0.0, 53.0, 75.0]]
 
 var progress: float = 0.0
 var _art: Array[Image] = []       # per dial: its card art at ART_PPM (RGB8), or null
@@ -467,7 +467,7 @@ static func _best_mix(obs: PackedFloat32Array) -> PackedInt32Array:
 			if combo[t] == 0:
 				continue
 			for q: int in 6:
-				pred[q] += combo[t] * TOKEN_SIG[t][q]
+				pred[q] += combo[t] * float(TOKEN_SIG[t][q])
 		var op: float = 0.0
 		var pp: float = 0.0
 		for q: int in 6:
