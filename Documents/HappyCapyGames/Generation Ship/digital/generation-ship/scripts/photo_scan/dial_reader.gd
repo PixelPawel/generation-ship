@@ -66,6 +66,9 @@ var _plane: Vector3 = Vector3.ZERO   # px per mm ~ a + b*x + c*y (perspective), 
 var _has_plane: bool = false
 ## The photo as read (full resolution, RGB8), for TableauReader after run().
 var photo: Image = null
+## Every cyan blob found (full-resolution x, y, diameter) — dial markers and the
+## lamp pairs on face-down card backs — for TableauReader after run().
+var markers: Array[Vector3] = []
 
 ## Call on the main thread: collects the card codes from CardDatabase (scene
 ## tree nodes can't be touched from a worker thread). Then run() — safe on
@@ -119,6 +122,7 @@ func run(source: Image) -> Array[Dictionary]:
 	var blobs: Array[Vector3] = []   # full-resolution x, y, diameter
 	for b: Vector3 in _find_markers(small.get_data(), small.get_width(), small.get_height()):
 		blobs.append(Vector3(b.x * 2.0 + 0.5, b.y * 2.0 + 0.5, b.z * 2.0))
+	markers = blobs.duplicate()
 	img.convert(Image.FORMAT_L8)
 	_w = img.get_width()
 	_h = img.get_height()
@@ -188,7 +192,7 @@ func run(source: Image) -> Array[Dictionary]:
 	var pass2: Array[Vector3] = []
 	for b: Vector3 in blobs:
 		var ls: float = _local_scale(b.x, b.y)
-		if b.z >= MARKER_D_MM.x * ls and b.z <= MARKER_D_MM.y * ls:
+		if (b.z >= MARKER_D_MM.x * ls and b.z <= MARKER_D_MM.y * ls) or (b.z >= MARKER_D_MM.x * _scale and b.z <= MARKER_D_MM.y * _scale):
 			pass2.append(b)
 	var results: Array = []
 	results.resize(pass2.size())
@@ -202,13 +206,16 @@ func run(source: Image) -> Array[Dictionary]:
 		var angles: Array[float] = []
 		for d: int in range(-FACING_WINDOW_DEG, FACING_WINDOW_DEG + 1, 3):
 			angles.append(near.z + deg_to_rad(float(d)))
-		var ls: float = _local_scale(b.x, b.y)
+		# dial sizes for this spot: the perspective slope's estimate and the photo-wide
+		# median — the slope can misjudge parts of the photo far from the dials it was
+		# fitted on, so both are tried
 		var radii2: Array[float] = []
-		for deck: String in DECK_R_MM:
-			for f: float in [0.96, 1.0, 1.04]:
-				var rr: float = roundf(float(DECK_R_MM[deck]) * ls * f * 2.0) / 2.0
-				if not radii2.has(rr):
-					radii2.append(rr)
+		for sc: float in [_local_scale(b.x, b.y), _scale]:
+			for deck: String in DECK_R_MM:
+				for f: float in [0.96, 1.0, 1.04]:
+					var rr: float = roundf(float(DECK_R_MM[deck]) * sc * f * 2.0) / 2.0
+					if not radii2.has(rr):
+						radii2.append(rr)
 		var e: Dictionary = _search(b.x, b.y, radii2, angles)
 		if not e.is_empty():
 			e["mx"] = b.x
@@ -231,7 +238,8 @@ func run(source: Image) -> Array[Dictionary]:
 		var r: float = float(e["r"])
 		if float(e["gap"]) < MIN_GAP or float(e["dot"]) < MIN_DOT:
 			continue
-		if absf(r / (float(DECK_R_MM[_codes[code]]) * _local_scale(float(e["mx"]), float(e["my"]))) - 1.0) > SCALE_TOLERANCE:
+		var deck_r: float = float(DECK_R_MM[_codes[code]])
+		if absf(r / (deck_r * _local_scale(float(e["mx"]), float(e["my"]))) - 1.0) > SCALE_TOLERANCE and absf(r / (deck_r * _scale) - 1.0) > SCALE_TOLERANCE:
 			continue
 		var c: Vector2 = Vector2(float(e["cx"]), float(e["cy"]))
 		var clash: bool = false
@@ -252,6 +260,7 @@ func run(source: Image) -> Array[Dictionary]:
 			gap = float(e["gap"]),
 			th = float(e["th"]),
 			shape = e["shape"],
+			marker = Vector2(float(e["mx"]), float(e["my"])),
 		})
 	progress = 1.0
 	return out

@@ -7,8 +7,9 @@ extends RefCounted
 # sector's own millimetre coordinates, whatever angle the photo was taken from:
 #  * archived face-up: any card whose dial sits below a sector (players either slide the
 #    archive under the sector or leave it fully visible below — both count);
-#  * archived face-down: the TECH lettering of the backs below a sector, counted as word
-#    blobs (robust to the small rotations of an archive cascade);
+#  * archived face-down: the two cyan lamps flanking the TECH logo on every tech back,
+#    counted as pairs below a sector (they also place each back exactly); the TECH
+#    lettering itself is the fallback when no lamp pair shows;
 #  * stored supply: per supply colour, what no identified card art (±1 mm), card back or
 #    the table explains, icon holes filled, kept only if it has a token's compact shape
 #    and size (printed supply icons are far smaller, coloured name plates the wrong shape);
@@ -29,6 +30,16 @@ const LABEL_H_MM: Vector2 = Vector2(3.0, 10.0)
 const LABEL_MERGE_MM: float = 1.5
 const LABEL_TO_CARD: Vector2 = Vector2(9.0, 47.5)    # the label's top-left in back-card mm
 const BACK_SETTLE_MM: float = 3.0                    # search around that for the best fit
+# the back's two cyan lamps, either side of the TECH logo (back-card mm: 6.4 and 37.9, 50.85)
+const LAMP_GAP_MM: float = 31.5
+const LAMP_GAP_TOL_MM: float = 2.5
+const LAMP_DY_MAX_MM: float = 3.0                    # level with each other (in sector mm)
+const LAMP_D_MM: Vector2 = Vector2(0.5, 2.2)          # plausible blob diameter
+const LAMP_MERGE_MM: float = 3.5                     # a lamp's light and bits of its glow
+const LAMP_ZONE: Rect2 = Rect2(-15.0, 40.0, 100.0, 210.0)
+const LAMP_NOT_A_DIAL_MM: float = 2.5                # blobs this close to a read dial's marker are that marker
+const LAMP_PAIR_SPACING_MM: float = 8.0              # cascaded cards are always further apart
+const LAMP_MID_ON_CARD: Vector2 = Vector2(22.15, 50.85)
 const BACK_SETTLE_STEP_MM: float = 1.0
 # stored supply
 const TOKEN_ZONE: Rect2 = Rect2(-12.0, 8.0, 91.0, 102.0)
@@ -119,7 +130,7 @@ static func card_frame(d: Dictionary) -> Transform2D:
 ## Returns groups like DialReader.group_into_sectors ([sector or {}, techs…]); each sector
 ## dict additionally gets "archived_up" (dials), "archived_down" (int) and "supply"
 ## (SupplyColor int -> count).
-func analyze(photo: Image, dials: Array[Dictionary]) -> Array:
+func analyze(photo: Image, dials: Array[Dictionary], markers: Array[Vector3] = []) -> Array:
 	progress = 0.0
 	_photo = photo.get_data()
 	_pw = photo.get_width()
@@ -157,9 +168,15 @@ func analyze(photo: Image, dials: Array[Dictionary]) -> Array:
 	_done = 0
 	var per_sector: Callable = func(k: int) -> void:
 		var si: int = sector_idx[k]
-		var labels: Array[Vector2] = _find_back_labels(dials[si])
-		var supply: Dictionary = _count_tokens(dials, si, labels)
-		results[k] = {backs = labels.size(), supply = supply}
+		# face-down backs: lamp pairs, else the TECH lettering; either places the back
+		var backs_at: Array[Vector2] = []    # each back's top-left, sector mm
+		for mid: Vector2 in _find_lamp_pairs(dials[si], markers, dials):
+			backs_at.append(mid - LAMP_MID_ON_CARD)
+		if backs_at.is_empty():
+			for lab: Vector2 in _find_back_labels(dials[si]):
+				backs_at.append(lab - LABEL_TO_CARD)
+		var supply: Dictionary = _count_tokens(dials, si, backs_at)
+		results[k] = {backs = backs_at.size(), supply = supply}
 		_done_mutex.lock()
 		_done += 1
 		progress = float(_done) / float(sector_idx.size())
@@ -318,9 +335,68 @@ func _find_back_labels(sd: Dictionary) -> Array[Vector2]:
 			found.append(Vector2(LABEL_ZONE.position.x + box.position.x / LABEL_PPM, LABEL_ZONE.position.y + box.position.y / LABEL_PPM))
 	return found
 
+# Midpoints (sector mm) of the cyan lamp pairs below the sector: two lamps level with
+# each other, LAMP_GAP_MM apart — one per face-down tech back.
+func _find_lamp_pairs(sd: Dictionary, markers: Array[Vector3], dials: Array[Dictionary]) -> Array[Vector2]:
+	var mids: Array[Vector2] = []
+	var to_mm: Transform2D = card_frame(sd).affine_inverse()
+	var px_mm: float = float(sd["radius"]) / float(DialReader.DECK_R_MM["sector"])
+	var pts: Array[Vector3] = []    # merged lamps: x, y (sector mm), blob count
+	for b: Vector3 in markers:
+		if b.z < LAMP_D_MM.x * px_mm or b.z > LAMP_D_MM.y * px_mm:
+			continue
+		var is_marker: bool = false
+		for d: Dictionary in dials:
+			if d.has("marker") and (d["marker"] as Vector2).distance_to(Vector2(b.x, b.y)) < LAMP_NOT_A_DIAL_MM * px_mm:
+				is_marker = true
+				break
+		if is_marker:
+			continue
+		var p: Vector2 = to_mm * Vector2(b.x, b.y)
+		if not LAMP_ZONE.has_point(p):
+			continue
+		var merged: bool = false
+		for i: int in pts.size():
+			var centre_mm: Vector2 = Vector2(pts[i].x, pts[i].y) / pts[i].z
+			if centre_mm.distance_to(p) < LAMP_MERGE_MM:
+				pts[i] += Vector3(p.x, p.y, 1.0)
+				merged = true
+				break
+		if not merged:
+			pts.append(Vector3(p.x, p.y, 1.0))
+	var lamps: Array[Vector2] = []
+	for q: Vector3 in pts:
+		lamps.append(Vector2(q.x, q.y) / q.z)
+	var cands: Array = []   # [error, left index, right index]
+	for i: int in lamps.size():
+		for j: int in lamps.size():
+			var dx: float = lamps[j].x - lamps[i].x
+			var dy: float = absf(lamps[j].y - lamps[i].y)
+			if dx > 0.0 and absf(dx - LAMP_GAP_MM) <= LAMP_GAP_TOL_MM and dy <= LAMP_DY_MAX_MM:
+				cands.append([absf(dx - LAMP_GAP_MM) + dy, i, j])
+	cands.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+	var used: Dictionary = {}
+	for c: Array in cands:
+		var i: int = c[1]
+		var j: int = c[2]
+		if used.has(i) or used.has(j):
+			continue
+		var mid: Vector2 = (lamps[i] + lamps[j]) / 2.0
+		var near: bool = false
+		for m: Vector2 in mids:
+			if absf(m.y - mid.y) < LAMP_PAIR_SPACING_MM:
+				near = true
+				break
+		if near:
+			continue
+		used[i] = true
+		used[j] = true
+		mids.append(mid)
+	return mids
+
 # ── Stored supply: token-coloured, token-shaped, token-sized blobs ───────────
 
-func _count_tokens(dials: Array[Dictionary], si: int, labels: Array[Vector2]) -> Dictionary:
+func _count_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -> Dictionary:
 	var sframe: Transform2D = card_frame(dials[si])
 	var w: int = int(TOKEN_ZONE.size.x * ART_PPM)
 	var h: int = int(TOKEN_ZONE.size.y * ART_PPM)
@@ -334,16 +410,16 @@ func _count_tokens(dials: Array[Dictionary], si: int, labels: Array[Vector2]) ->
 	var centre: Vector2 = dials[si]["center"]
 	var reach_px: float = float(dials[si]["radius"]) / float(DialReader.DECK_R_MM["sector"]) * 140.0
 	# what's known to lie there: every identified card near the sector, and the
-	# face-down backs whose labels were found (zone/sector mm -> that card's mm)
+	# face-down backs found below the sector (zone/sector mm -> that card's mm)
 	var layers: Array = []
 	for i: int in dials.size():
 		if _art_f[i].is_empty() or (dials[i]["center"] as Vector2).distance_to(centre) > reach_px:
 			continue
 		layers.append([card_frame(dials[i]).affine_inverse() * sframe, _art_f[i], _art_size[i], SIZE_MM[deck_of(dials[i])], i == si])
 	if not _back_f.is_empty():
-		for lab: Vector2 in labels:
-			# the label only roughly places its card: settle it where the back art fits best
-			var card_at: Vector2 = _settle_back(zone, w, h, lab - LABEL_TO_CARD)
+		for at: Vector2 in backs_at:
+			# settle each back where its art fits best (a label places it only roughly)
+			var card_at: Vector2 = _settle_back(zone, w, h, at)
 			layers.append([Transform2D(Vector2(1, 0), Vector2(0, 1), -card_at), _back_f, _back_size, SIZE_MM["tech"], false])
 	var slack: float = ART_SLACK_MM * ART_PPM
 	for layer: Array in layers:

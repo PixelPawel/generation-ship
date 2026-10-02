@@ -590,7 +590,7 @@ func _on_photo_selected(path: String) -> void:
 	var tableau: TableauReader = TableauReader.create(dials)
 	var thread2: Thread = Thread.new()
 	_scan_thread = thread2
-	thread2.start(tableau.analyze.bind(reader.photo, dials))
+	thread2.start(tableau.analyze.bind(reader.photo, dials, reader.markers))
 	_scan_progress.value = 0.0
 	_scan_progress.visible = true
 	while thread2.is_alive():
