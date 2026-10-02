@@ -66,44 +66,27 @@ const STEPPER_BUTTON_FONT_SIZE: int = 30
 # label's text length ("Archived ▲" vs "▲ Stars ★" vs "Archived ▼").
 const TUCKED_LABEL_WIDTH: float = 150.0
 
-# View-only card art in each confirmed sector's summary column on the list
-# view — same aspect ratio as the review screen's thumbnails. Sized to
-# fill the row: with up to 6 columns, 14px separation between them, and
-# the panel's own 28px content margin on each side, a 1936px-wide screen
-# (the Windows debug window's actual size, checked via screenshot) has
-# ~1880px to divide 6 ways. Filling that completely allows ~302px-wide
-# cards, but 90% of it — leaving headroom for narrower real devices and
-# per-column padding — lands at ~270px, which happens to fall almost
-# exactly at 3x the original 90x126 thumbnail size.
-# Sector cards are physically 67x44mm (landscape); tech/expedition cards
-# are the exact same card stock rotated, 44x67mm (portrait) — same real
-# measurements, just transposed. SUMMARY_CARD_LONG/_SHORT are those two
-# measurements at a shared scale (long edge sized to fill the 6-column
-# row — see the sizing note above); tech/expedition use them as
-# (short, long) — portrait — and sector uses the same two numbers
-# swapped, (long, short) — landscape. Not independently-fitted boxes (an
-# earlier, wrong attempt at this gave them different absolute sizes to
-# each "fill their own shape") — literally the same rectangle, rotated.
-const SUMMARY_CARD_LONG: float = 270.0
-const SUMMARY_CARD_SHORT: float = 177.0  # roundi(270 * 44.0/67.0)
-const SUMMARY_COLUMN_WIDTH: float = SUMMARY_CARD_LONG
-const SUMMARY_TECH_THUMB_SIZE: Vector2 = Vector2(SUMMARY_CARD_SHORT, SUMMARY_CARD_LONG)
-const SUMMARY_SECTOR_THUMB_SIZE: Vector2 = Vector2(SUMMARY_CARD_LONG, SUMMARY_CARD_SHORT)
+# The ship overview's cards are sized to fit the space there is (all sectors side
+# by side, the tallest stack without scrolling), within these limits; SHIP_CARD_*
+# is a card's long edge in px. Sector 67x44 mm landscape, tech 44x67 mm portrait.
+const SHIP_CARD_MAX: float = 270.0
+const SHIP_CARD_MIN: float = 96.0
+# Like a real tableau: each tech covers the top of the one below it, which keeps its
+# name strip and orb in view (TECH_SHOWN of its height), and the tech nearest the
+# sector covers the sector's top (SECTOR_COVERED of the sector's height).
+const SHIP_TECH_SHOWN: float = 0.36
+const SHIP_SECTOR_COVERED: float = 0.4
+const SHIP_INFO_HEIGHT: float = 136.0     # supply/archive line + Edit button under a sector
+const SHIP_ADD_COLUMN: float = 150.0      # the "+ Sector" column
+const SHIP_EDIT_HEIGHT: float = 64.0
+const SCORE_COMPACT_FONT_SIZE: int = 56
 const SUMMARY_SUPPLY_ICON_SIZE: Vector2 = Vector2(44, 44)
 const SUMMARY_FONT_SIZE: int = 24
 const SUMMARY_HOVER_SCALE: Vector2 = Vector2(1.08, 1.08)
 const SUMMARY_HOVER_IN_SEC: float = 0.12
 const SUMMARY_HOVER_OUT_SEC: float = 0.18
-const SCORE_FONT_SIZE: int = 96
-# The star's own size (SCORE_FONT_SIZE*1.25) plus centering both labels
-# still wasn't enough to make them read as level with each other — the
-# digits themselves were just too small next to the star's glyph. Doubling
-# the number specifically (not the star, which was already sized up) is
-# the actual fix.
-const SCORE_NUMBER_FONT_SIZE: int = SCORE_FONT_SIZE * 2
 const SCORE_STAR_COLOR: Color = Color(1.0, 0.85, 0.2)
 const SCORE_COLOR: Color = Color(0.9, 0.85, 0.7)
-const SCORE_STAR_NUDGE_UP: int = 14
 # Same res://assets/ui/supply/<Name>.png set supply_ui.gd uses elsewhere —
 # the real resource-token graphics, not the card-frame icon set.
 const _SUPPLY_ICON_PATHS: Dictionary = {
@@ -146,6 +129,8 @@ var _results_box: HFlowContainer = null       # compact VP breakdown under the t
 var _tip_label: Label = null                  # placement tip, until the first scan
 var _status_label: Label = null               # scan progress / outcome
 var _leaderboard_btn: Button = null
+var _ship_card: float = SHIP_CARD_MAX         # long edge of the overview's cards, see _fit_ship_card()
+var _ship_area_width: float = -1.0
 var _review_cards_box: HBoxContainer = null
 var _confirm_btn: Button = null
 var _supply_spinboxes: Dictionary = {}        # SupplyColor(int) -> SpinBox
@@ -282,38 +267,12 @@ func _build_list_view() -> Control:
 	_scan_progress.visible = false
 	box.add_child(_scan_progress)
 
-	# The ship's VP total, recalculated whenever the ship changes, with a compact
-	# breakdown under it.
-	_score_display = HBoxContainer.new()
-	_score_display.alignment = BoxContainer.ALIGNMENT_CENTER
-	_score_display.add_theme_constant_override("separation", 20)
-	_score_display.visible = false
-	# A "★" glyph optically sits smaller and higher within its own em-box than a
-	# digit at the same font size — sized up, and both labels centred within the
-	# row's full height so they read as one unit.
-	var star_lbl: Label = Label.new()
-	star_lbl.text = "★"
-	star_lbl.add_theme_font_size_override("font_size", roundi(SCORE_FONT_SIZE * 1.25))
-	star_lbl.add_theme_color_override("font_color", SCORE_STAR_COLOR)
-	star_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	star_lbl.size_flags_vertical = Control.SIZE_FILL
-	# The ★ glyph's optical centre still sits a bit low — a bottom-only margin
-	# nudges it up without touching the number.
-	var star_wrap: MarginContainer = MarginContainer.new()
-	star_wrap.add_theme_constant_override("margin_bottom", SCORE_STAR_NUDGE_UP)
-	star_wrap.size_flags_vertical = Control.SIZE_FILL
-	star_wrap.add_child(star_lbl)
-	_score_display.add_child(star_wrap)
-	_score_total_label = Label.new()
-	_score_total_label.add_theme_font_size_override("font_size", SCORE_NUMBER_FONT_SIZE)
-	_score_total_label.add_theme_color_override("font_color", SCORE_COLOR)
-	_score_total_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_score_total_label.size_flags_vertical = Control.SIZE_FILL
-	_score_display.add_child(_score_total_label)
-	box.add_child(_score_display)
+	# VP breakdown: hidden until the score in the button row is tapped (screen space
+	# goes to the ship).
 	_results_box = HFlowContainer.new()
 	_results_box.alignment = FlowContainer.ALIGNMENT_CENTER
 	_results_box.add_theme_constant_override("h_separation", 24)
+	_results_box.visible = false
 	box.add_child(_results_box)
 
 	# The ship: sectors side by side in table order, anchored at the bottom like
@@ -323,6 +282,7 @@ func _build_list_view() -> Control:
 	# to its bottom while everything fits.
 	_sector_scroll = ScrollContainer.new()
 	_sector_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_sector_scroll.resized.connect(_on_ship_area_resized)
 	box.add_child(_sector_scroll)
 	var holder: VBoxContainer = VBoxContainer.new()
 	holder.alignment = BoxContainer.ALIGNMENT_END
@@ -337,6 +297,30 @@ func _build_list_view() -> Control:
 	var btn_row: HBoxContainer = HBoxContainer.new()
 	btn_row.add_theme_constant_override("separation", 16)
 	box.add_child(btn_row)
+	# The ship's VP total ("★ 87"), recalculated whenever the ship changes; tap it
+	# for the breakdown.
+	_score_display = HBoxContainer.new()
+	_score_display.add_theme_constant_override("separation", 8)
+	_score_display.mouse_filter = Control.MOUSE_FILTER_STOP
+	_score_display.tooltip_text = "Tap for the breakdown"
+	_score_display.visible = false
+	_score_display.gui_input.connect(func(event: InputEvent) -> void:
+		if _is_tap(event):
+			_results_box.visible = not _results_box.visible)
+	var star_lbl: Label = Label.new()
+	star_lbl.text = "★"
+	star_lbl.add_theme_font_size_override("font_size", SCORE_COMPACT_FONT_SIZE)
+	star_lbl.add_theme_color_override("font_color", SCORE_STAR_COLOR)
+	star_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	star_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_score_display.add_child(star_lbl)
+	_score_total_label = Label.new()
+	_score_total_label.add_theme_font_size_override("font_size", SCORE_COMPACT_FONT_SIZE)
+	_score_total_label.add_theme_color_override("font_color", SCORE_COLOR)
+	_score_total_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_score_total_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_score_display.add_child(_score_total_label)
+	btn_row.add_child(_score_display)
 	# The camera plugin only exists in Android builds; elsewhere it's a file picker.
 	var scan_btn: Button = _make_button("Take Image" if Engine.has_singleton("CameraIntentPlugin") else "Load Image")
 	scan_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -901,6 +885,7 @@ func _on_confirm_sector_pressed() -> void:
 	_show_list_view()
 
 func _refresh_sector_list() -> void:
+	_fit_ship_card()
 	for child: Node in _sector_list_box.get_children():
 		child.queue_free()
 	for i: int in _sectors.size():
@@ -908,12 +893,46 @@ func _refresh_sector_list() -> void:
 	# a sector the scan missed (dial covered, say) can still be added by hand
 	var add_col: VBoxContainer = VBoxContainer.new()
 	add_col.size_flags_vertical = Control.SIZE_SHRINK_END
+	add_col.custom_minimum_size = Vector2(SHIP_ADD_COLUMN - 14.0, 0)
 	var add_btn: Button = _make_button("+ Sector")
 	add_btn.pressed.connect(_on_add_sector_pressed)
 	add_col.add_child(add_btn)
 	_sector_list_box.add_child(add_col)
 	_update_score()
 	_scroll_ship_to_bottom()
+
+# Card size for the overview: as big as fits — every sector side by side across the
+# width, the tallest stack (plus its info + Edit) within the height.
+func _fit_ship_card() -> void:
+	var area: Vector2 = _sector_scroll.size if is_instance_valid(_sector_scroll) else Vector2.ZERO
+	if area.x <= 0.0 or area.y <= 0.0:
+		_ship_card = SHIP_CARD_MAX
+		return
+	var n: int = maxi(1, _sectors.size())
+	var by_width: float = (area.x - SHIP_ADD_COLUMN - 14.0 * n - 8.0) / n
+	var most_techs: int = 0
+	for e: Dictionary in _sectors:
+		most_techs = maxi(most_techs, (e["techs"] as Array).size())
+	var by_height: float = (area.y - SHIP_INFO_HEIGHT - 8.0) / _ship_stack_factor(most_techs)
+	_ship_card = clampf(minf(by_width, by_height), SHIP_CARD_MIN, SHIP_CARD_MAX)
+	_ship_area_width = area.x
+
+# Height of a sector with `techs` cards stacked on it, per px of card long edge.
+static func _ship_stack_factor(techs: int) -> float:
+	var sector_h: float = 44.0 / 67.0
+	if techs == 0:
+		return sector_h
+	return sector_h + (1.0 - SHIP_SECTOR_COVERED * sector_h) + (techs - 1) * SHIP_TECH_SHOWN
+
+# Re-fit when the space changes (window resized, rotation) — only on a real width
+# or height change, since rebuilding the columns resizes nothing outside them.
+func _on_ship_area_resized() -> void:
+	if _sectors.is_empty() or not visible:
+		return
+	var old: float = _ship_card
+	_fit_ship_card()
+	if absf(_ship_card - old) > 4.0:
+		_refresh_sector_list()
 
 # Rests the ship view at the bottom (the sectors' baseline), like the in-game
 # ship — once the new columns have been laid out.
@@ -931,46 +950,56 @@ func _scroll_ship_to_bottom() -> void:
 ## use), plus supply icons and tuck counts, with an Edit button to reopen
 ## it in the review screen.
 func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
+	var long_px: float = _ship_card
+	var short_px: float = roundf(long_px * 44.0 / 67.0)
 	var outer: VBoxContainer = VBoxContainer.new()
-	outer.add_theme_constant_override("separation", 6)
-	outer.custom_minimum_size = Vector2(SUMMARY_COLUMN_WIDTH, 0)
+	outer.add_theme_constant_override("separation", 4)
+	outer.custom_minimum_size = Vector2(long_px, 0)
 	outer.size_flags_vertical = Control.SIZE_SHRINK_END   # sector cards on one baseline
 
 	var sector_cd: CardData = entry["sector"]
 	var is_advanced: bool = entry["is_advanced"]
-	# No header label — a variable-length sector name wrapping to 1 or 2
-	# lines made every column's cards start at a different height, breaking
-	# the row alignment. The name's still there as a tooltip on the sector
-	# card instead of a fixed line of layout.
+	# No header label (wrapping names broke the row alignment); the name is the
+	# sector card's tooltip.
 	var sector_name: String = sector_cd.adv_name if (is_advanced and not sector_cd.adv_name.is_empty()) else sector_cd.card_name
 
-	# Cards overlap 50% of a tech card's own height (a negative separation —
-	# the sector's box is a different shape, see SUMMARY_SECTOR_THUMB_SIZE
-	# above, but most of the stack is tech cards, so that's what the overlap
-	# amount is based on) so a full 6-card stack takes roughly half the
-	# vertical space a plain stacked list would, needing much less scrolling
-	# — in its own VBoxContainer so this doesn't also pull the info/Edit
-	# section below into the last card. Later siblings paint over earlier
-	# ones by default, so each card correctly covers the bottom of the one
-	# above it rather than being hidden behind it — the sector card is added
-	# LAST (bottom of the stack) so it ends up fully visible and anchoring
-	# the pile, with its tech/expedition cards fanned above it.
-	var card_stack: VBoxContainer = VBoxContainer.new()
-	card_stack.add_theme_constant_override("separation", -roundi(SUMMARY_TECH_THUMB_SIZE.y * 0.5))
-	outer.add_child(card_stack)
-	for cd: CardData in (entry["techs"] as Array):
-		card_stack.add_child(_make_summary_thumb(cd.local_art_path, cd.card_name, SUMMARY_TECH_THUMB_SIZE))
+	# Laid out like the real tableau: the sector at the bottom, the tech nearest it
+	# covering its top, each further tech covering the top of the one below it, so
+	# every tech keeps its name strip and orb in view and the outermost one is
+	# whole. Placed by hand (a box container can't overlap by different amounts);
+	# z_index puts further techs on top.
+	var techs: Array = entry["techs"]
+	var sector_h: float = short_px
+	var tech_size: Vector2 = Vector2(short_px, long_px)
+	var stack_h: float = roundf(long_px * _ship_stack_factor(techs.size()))
+	var stack: Control = Control.new()
+	stack.custom_minimum_size = Vector2(long_px, stack_h)
+	stack.mouse_filter = Control.MOUSE_FILTER_PASS
+	outer.add_child(stack)
 	var sector_art: String = sector_cd.adv_local_art_path if is_advanced else sector_cd.local_art_path
-	card_stack.add_child(_make_summary_thumb(sector_art, "%d. %s" % [index + 1, sector_name], SUMMARY_SECTOR_THUMB_SIZE))
+	var sector_thumb: TextureRect = _make_summary_thumb(sector_art, "%d. %s" % [index + 1, sector_name], Vector2(long_px, sector_h))
+	stack.add_child(sector_thumb)
+	sector_thumb.position = Vector2(0.0, stack_h - sector_h)   # after add_child, so layout can't override it
+	sector_thumb.size = Vector2(long_px, sector_h)
+	var tech_x: float = roundf((long_px - short_px) * 0.3)
+	var y: float = stack_h - sector_h - long_px + SHIP_SECTOR_COVERED * sector_h
+	for k: int in techs.size():
+		var cd: CardData = techs[k]
+		var thumb: TextureRect = _make_summary_thumb(cd.local_art_path, cd.card_name, tech_size, k + 1)
+		stack.add_child(thumb)
+		thumb.position = Vector2(tech_x, roundf(y))
+		thumb.size = tech_size
+		y -= SHIP_TECH_SHOWN * long_px
 
-	var info_box: VBoxContainer = VBoxContainer.new()
-	info_box.add_theme_constant_override("separation", 2)
-	info_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	outer.add_child(info_box)
+	# supply and archive on one wrapping line, then Edit
+	var info: HFlowContainer = HFlowContainer.new()
+	info.alignment = FlowContainer.ALIGNMENT_CENTER
+	info.add_theme_constant_override("h_separation", 10)
+	outer.add_child(info)
 	var stored: Dictionary = entry["stored_supply"]
 	for color_int: int in stored:
 		if int(stored[color_int]) > 0:
-			info_box.add_child(_make_summary_supply_badge(color_int, int(stored[color_int])))
+			info.add_child(_make_summary_supply_badge(color_int, int(stored[color_int])))
 	var up_count: int = 0
 	var up_stars: int = 0
 	var down_count: int = 0
@@ -983,34 +1012,29 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 		else:
 			down_count += 1
 	if up_count > 0:
-		info_box.add_child(_make_summary_text_badge("▲%d (★%d)" % [up_count, up_stars]))
+		info.add_child(_make_summary_text_badge("▲%d ★%d" % [up_count, up_stars]))
 	if down_count > 0:
-		info_box.add_child(_make_summary_text_badge("▼%d" % down_count))
+		info.add_child(_make_summary_text_badge("▼%d" % down_count))
 
 	var edit_btn: Button = _make_button("Edit")
+	edit_btn.custom_minimum_size = Vector2(0, SHIP_EDIT_HEIGHT)
 	edit_btn.pressed.connect(_on_edit_sector_pressed.bind(index))
 	outer.add_child(edit_btn)
-
 	return outer
 
-func _make_summary_thumb(art_path: String, tooltip: String = "", thumb_size: Vector2 = SUMMARY_TECH_THUMB_SIZE) -> TextureRect:
+func _make_summary_thumb(art_path: String, tooltip: String, thumb_size: Vector2, base_z: int = 0) -> TextureRect:
 	var thumb: TextureRect = TextureRect.new()
 	if not art_path.is_empty():
 		thumb.texture = load(art_path) as Texture2D
 	thumb.custom_minimum_size = thumb_size
-	# Tech's box is narrower than the column (sized for the wider sector
-	# box — see SUMMARY_COLUMN_WIDTH) — without SHRINK_CENTER, the
-	# VBoxContainer's default fill behavior would stretch it back out to
-	# the full column width, undoing the whole point of giving it its own
-	# true (short, long) size.
-	thumb.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	thumb.z_index = base_z
 	thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	thumb.mouse_filter = Control.MOUSE_FILTER_PASS
 	thumb.tooltip_text = tooltip
 	thumb.pivot_offset = thumb_size / 2.0
 
-	# Cards overlap in their stack (see card_stack above), so whichever one
+	# Cards overlap in their stack (see _build_sector_summary_row), so whichever one
 	# was added last always draws on top regardless of which one you're
 	# actually looking at — z_index (not just sibling order) is what
 	# actually controls draw order, so hovering bumps it above every
@@ -1020,7 +1044,7 @@ func _make_summary_thumb(art_path: String, tooltip: String = "", thumb_size: Vec
 	# back behind a neighbor mid-animation.
 	var hover_tween_cell: Array = [null]
 	thumb.mouse_entered.connect(func() -> void:
-		thumb.z_index = 10
+		thumb.z_index = 50
 		if hover_tween_cell[0] and (hover_tween_cell[0] as Tween).is_valid():
 			(hover_tween_cell[0] as Tween).kill()
 		var tw: Tween = thumb.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
@@ -1031,7 +1055,7 @@ func _make_summary_thumb(art_path: String, tooltip: String = "", thumb_size: Vec
 			(hover_tween_cell[0] as Tween).kill()
 		var tw: Tween = thumb.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		tw.tween_property(thumb, "scale", Vector2.ONE, SUMMARY_HOVER_OUT_SEC)
-		tw.tween_callback(func(): thumb.z_index = 0)
+		tw.tween_callback(func(): thumb.z_index = base_z)
 		hover_tween_cell[0] = tw)
 	return thumb
 
@@ -1110,6 +1134,7 @@ func _update_score() -> void:
 	for child: Node in _results_box.get_children():
 		child.queue_free()
 	_score_display.visible = not _sectors.is_empty()
+	_results_box.visible = false
 	_leaderboard_btn.disabled = _sectors.is_empty()
 	_leaderboard_btn.text = "Add to Leaderboard"
 	if _sectors.is_empty():
