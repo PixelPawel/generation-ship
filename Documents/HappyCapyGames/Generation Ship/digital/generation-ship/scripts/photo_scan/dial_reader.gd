@@ -25,7 +25,7 @@ extends RefCounted
 # Dial radius per card type (mm): the light sockets painted into the 2026-10 frames
 # (InDesign_Shop/_automation/scan_code/sockets.json). Tech sockets follow a slightly
 # oval ring (3.62-3.72 mm), which the scale tolerance below absorbs.
-const DECK_R_MM: Dictionary = {"tech": 3.669, "expedition": 3.806, "sector": 4.229}
+const DECK_R_MM: Dictionary = {"tech": 3.669, "expedition": 3.975, "sector": 4.229}
 const MIN_GAP: float = 0.45          # bright/dark split of the 11 lights
 const MAX_DARK: float = 0.40
 const MIN_LIT: float = 0.50
