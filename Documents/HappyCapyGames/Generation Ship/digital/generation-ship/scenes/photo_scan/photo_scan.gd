@@ -153,6 +153,7 @@ var _score_total_label: Label = null
 # _editing_original_sector is kept aside so Cancel can restore it unchanged.
 var _editing_sector_index: int = -1
 var _editing_original_sector: Dictionary = {}
+var _delete_btn: Button
 
 
 # The reading thread must always be joined, also when the screen is freed mid-scan.
@@ -411,6 +412,12 @@ func _build_review_view() -> Control:
 	_skip_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_skip_btn.pressed.connect(_on_skip_sector_pressed)
 	btn_row.add_child(_skip_btn)
+	# only while editing a sector that's already in the ship (e.g. a misread extra one)
+	_delete_btn = _make_button("Delete Sector")
+	_delete_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_delete_btn.visible = false
+	_delete_btn.pressed.connect(_on_delete_sector_pressed)
+	btn_row.add_child(_delete_btn)
 	_confirm_btn = _make_button("Add Sector")
 	_confirm_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_confirm_btn.pressed.connect(_on_confirm_sector_pressed)
@@ -665,12 +672,23 @@ func _sector_entry_from_group(g: Array) -> Dictionary:
 		"stored_supply": stored,
 	}
 
+## The edited sector was already taken out of _sectors by Edit, so deleting just
+## drops it instead of putting it back.
+func _on_delete_sector_pressed() -> void:
+	_editing_sector_index = -1
+	_editing_original_sector = {}
+	_confirm_btn.text = "Add Sector"
+	_delete_btn.visible = false
+	_refresh_sector_list()
+	_show_list_view()
+
 func _on_skip_sector_pressed() -> void:
 	if _editing_sector_index >= 0:
 		_sectors.insert(_editing_sector_index, _editing_original_sector)
 		_editing_sector_index = -1
 		_editing_original_sector = {}
 		_confirm_btn.text = "Add Sector"
+		_delete_btn.visible = false
 		_skip_btn.text = "Cancel"
 		_refresh_sector_list()
 		_show_list_view()
@@ -688,6 +706,7 @@ func _on_add_sector_pressed() -> void:
 	_tucked_up_spinbox.value = 0
 	_tucked_up_stars_spinbox.value = 0
 	_tucked_down_spinbox.value = 0
+	_delete_btn.visible = false
 	_populate_review_cards()
 	_show_review_view()
 
@@ -838,6 +857,7 @@ func _on_confirm_sector_pressed() -> void:
 		_editing_sector_index = -1
 		_editing_original_sector = {}
 		_confirm_btn.text = "Add Sector"
+		_delete_btn.visible = false
 		_skip_btn.text = "Cancel"
 		_refresh_sector_list()
 		# Never auto-chain into a pending cluster queue after finishing an
@@ -1128,6 +1148,7 @@ func _on_edit_sector_pressed(index: int) -> void:
 
 	_confirm_btn.text = "Save Changes"
 	_skip_btn.text = "Cancel"
+	_delete_btn.visible = true
 	_populate_review_cards()
 	_show_review_view()
 
