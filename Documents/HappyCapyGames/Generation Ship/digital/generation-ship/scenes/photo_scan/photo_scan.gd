@@ -1,16 +1,18 @@
 extends Control
 
 # Photo-scan VP calculator (see the plan for the full design). One photo
-# covers the whole ship; CardDetector.cluster_candidates() groups the
-# detected cards into per-sector clusters by spatial proximity, and each
-# cluster is reviewed/corrected one at a time through the same screen a
-# per-sector capture would have used. Capture uses the real CameraIntentPlugin
+# covers the whole ship; DialReader reads the scan-code dial printed around
+# every card's colour orb (the one part of a card that stays visible in a
+# real tableau — art matching couldn't work there) and groups the cards into
+# per-sector clusters, and each cluster is reviewed/corrected one at a time
+# through the same screen a per-sector capture would have used. Capture uses the real CameraIntentPlugin
 # on Android (falls back to a plain file picker elsewhere, since the plugin
 # only exists in Android builds). Follows the same code-built-UI convention
 # as collection_popup.gd / manual_popup.gd (no companion .tscn).
 
 const CardDetectorScript := preload("res://scripts/photo_scan/card_detector.gd")
 const CardMatcherScript := preload("res://scripts/photo_scan/card_matcher.gd")
+const DialReaderScript := preload("res://scripts/photo_scan/dial_reader.gd")
 const SupplyDetectorScript := preload("res://scripts/photo_scan/supply_detector.gd")
 const CardPickerScript := preload("res://scenes/photo_scan/card_picker.gd")
 const CLUSTER_PADDING_PX: int = 24
@@ -200,8 +202,6 @@ func open() -> void:
 	_score_display.visible = false
 	_editing_sector_index = -1
 	_editing_original_sector = {}
-	if _matcher == null:
-		_matcher = CardMatcherScript.new()
 	_refresh_sector_list()
 	_refresh_cluster_review_button()
 	_show_list_view()
@@ -665,10 +665,29 @@ func _on_photo_selected(path: String) -> void:
 	_photo_preview.texture = ImageTexture.create_from_image(img)
 	_photo_preview.visible = true
 	_score_display.visible = false
-	var candidates: Array[Dictionary] = CardDetectorScript.detect(img)
-	_cluster_queue = CardDetectorScript.cluster_candidates(candidates)
+	# Cards are identified by the scan-code dial printed around each card's
+	# colour orb (DialReader) — the only part of a card that stays visible in
+	# a real tableau. Read on a thread: a full photo takes a few seconds.
+	_cluster_queue = []
+	_review_clusters_btn.visible = true
+	_review_clusters_btn.disabled = true
+	_review_clusters_btn.text = "Reading cards…"
+	var reader: DialReader = DialReaderScript.create()
+	var thread: Thread = Thread.new()
+	thread.start(reader.run.bind(img))
+	while thread.is_alive():
+		await get_tree().process_frame
+	var dials: Array[Dictionary] = thread.wait_to_finish()
+	if _source_image != img:
+		return   # another photo was picked meanwhile
+	_review_clusters_btn.disabled = false
+	_cluster_queue = DialReaderScript.group_into_sectors(dials)
 	if _cluster_queue.is_empty():
-		push_warning("Scan Tableau: no cards detected in that photo")
+		push_warning("Scan Tableau: no card codes found in that photo")
+		_review_clusters_btn.visible = true
+		_review_clusters_btn.disabled = true
+		_review_clusters_btn.text = "No cards found — move closer so the ship fills the photo"
+		return
 	# Stay on the list view rather than jumping straight into reviewing the
 	# first detected sector — the photo's now loaded/previewed, and the
 	# player decides when to actually go review what was found via
@@ -688,31 +707,17 @@ func _start_reviewing_next_cluster() -> void:
 	var cluster: Array = _cluster_queue.pop_front()
 	_refresh_cluster_review_button()
 
+	# DialReader.group_into_sectors: [sector or {} if none was read, techs…],
+	# each entry {card, is_advanced, center, radius, …}. The review screen
+	# shows each card's real art, so no photo crop is needed.
 	_pending = []
 	for c: Dictionary in cluster:
-		var crop: Image = CardDetectorScript.extract_card(_source_image, c)
-		var result: Dictionary = _matcher.match_card(crop)
-		var is_sector_slot: bool = _pending.is_empty()
-		var guessed_name: String = String(result.get("name", ""))
-		var guessed_is_advanced: bool = false
-		var sector_match: Dictionary = _match_as_sector(guessed_name)
-		if is_sector_slot:
-			if sector_match["found"]:
-				guessed_is_advanced = sector_match["is_advanced"]
-			else:
-				# Slot 0 has to be a sector — a guess that resolves to a
-				# tech/expedition instead is never trustworthy here, so
-				# leave it blank rather than pre-fill something wrong.
-				guessed_name = ""
-		elif sector_match["found"]:
-			# Slots 1-5 have to be tech/expedition — a guess that resolves
-			# to a sector card is never trustworthy here either.
-			guessed_name = ""
-		_pending.append({
-			"thumbnail": crop,
-			"name": guessed_name,
-			"is_advanced": guessed_is_advanced,
-		})
+		var cd: CardData = c.get("card") as CardData
+		var is_adv: bool = bool(c.get("is_advanced", false))
+		var card_name: String = ""
+		if cd:
+			card_name = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
+		_pending.append({"thumbnail": null, "name": card_name, "is_advanced": is_adv})
 	if _pending.size() > SECTOR_SLOT_COUNT:
 		push_warning("Scan Tableau: detected %d cards in one sector, a sector can only hold %d — dropping the extras" % [_pending.size(), SECTOR_SLOT_COUNT])
 		_pending = _pending.slice(0, SECTOR_SLOT_COUNT)
@@ -739,9 +744,15 @@ func _start_reviewing_next_cluster() -> void:
 ## stored-supply tokens usually sit on or beside them, so search a padded
 ## region around the whole cluster rather than just the cards' own boxes.
 func _cluster_region(cluster: Array) -> Rect2i:
-	var union: Rect2i = (cluster[0]["rect"] as Rect2i)
+	# Each read card contributes a box around its dial (about a card's size —
+	# the dial radius is ~3.4 mm, a card 44 x 67 mm).
+	var union: Rect2i = Rect2i()
 	for c: Dictionary in cluster:
-		union = union.merge(c["rect"] as Rect2i)
+		if not c.has("center"):
+			continue
+		var r: float = float(c["radius"])
+		var box: Rect2i = Rect2i(Vector2i((c["center"] as Vector2) - Vector2(r * 10.0, r * 10.0)), Vector2i(int(r * 20.0), int(r * 20.0)))
+		union = box if union.size == Vector2i.ZERO else union.merge(box)
 	return union.grow(CLUSTER_PADDING_PX)
 
 func _on_skip_sector_pressed() -> void:
