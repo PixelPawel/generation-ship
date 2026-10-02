@@ -473,8 +473,8 @@ func _settle_back(zone: PackedFloat32Array, w: int, h: int, guess: Vector2) -> V
 			var at: Vector2 = guess + Vector2(sx, sy) * BACK_SETTLE_STEP_MM
 			var err: float = 0.0
 			var n: int = 0
-			for v: float in range(2, 66, 3):
-				for u: float in range(2, 43, 3):
+			for v: int in range(2, 66, 3):
+				for u: int in range(2, 43, 3):
 					var zp: Vector2 = (at + Vector2(u, v) - TOKEN_ZONE.position) * ART_PPM
 					var zi: int = int(zp.x)
 					var zj: int = int(zp.y)
@@ -482,7 +482,7 @@ func _settle_back(zone: PackedFloat32Array, w: int, h: int, guess: Vector2) -> V
 						continue
 					var o: int = (zj * w + zi) * 3
 					var px: Vector3 = Vector3(zone[o], zone[o + 1], zone[o + 2])
-					var e: Vector3 = _arr_at(_back_f, _back_size.x, _back_size.y, u * ART_PPM, v * ART_PPM)
+					var e: Vector3 = _arr_at(_back_f, _back_size.x, _back_size.y, float(u) * ART_PPM, float(v) * ART_PPM)
 					err += (px / maxf(px.length(), 1.0)).distance_to(e / maxf(e.length(), 1.0))
 					n += 1
 			if n > 40 and err / n < best_err:
