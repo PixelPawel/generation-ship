@@ -9,18 +9,25 @@ extends RefCounted
 # adv_scan_code). Only a card's name row stays visible in a real tableau and
 # the orb is part of it, so this works where matching card art can't.
 #
-# Steps (tuned on synthetic tableau photos at ~9 px/mm, see the plan notes):
+# Steps (tuned on synthetic tableau photos, InDesign_Shop/_automation/scan_code/mockups*.py,
+# which track every light's true position so failures can be measured per dial):
 # 1. find small cyan blobs (marker candidates) on a half-resolution copy —
 #    a strict colour test, plus a loose one for tiny blurred markers only;
-# 2. pass 1: the clearest markers get a wide radius x angle search — the
-#    confident readings give the photo's scale (px per mm) and which way the
-#    cards face (all cards of one tableau face roughly the same way);
-# 3. pass 2: every marker is searched only at the radii a dial can have at
-#    that scale and within +-30 deg of those directions;
-# 4. a reading counts if its 11 lights split cleanly into bright/dark, the
-#    parity holds, the code is a real card, the lights are dots (brighter
-#    than the rim between them) and the size fits its card type.
-# Falls back to full resolution when nothing reads at half (far-away photo).
+#    the lights themselves are read on the FULL-resolution photo (tech lights
+#    are ~6 px across in a phone photo; halving blurs the dark sockets into
+#    the pale ring around them);
+# 2. pass 1: markers get a wide radius x angle search until a few confident
+#    readings give the photo's scale (px per mm) and which way cards face;
+# 3. pass 2: every marker of a plausible size is searched only at the radii a
+#    dial can have at that scale, facing within +-21 deg of its nearest
+#    confident dial; markers are independent, so this runs on all cores;
+# 4. both passes try each dial as a circle and as a few ovals (_SHAPES): a
+#    phone held at an angle squashes the dials, and the squash leans
+#    differently in different parts of the photo, so it's chosen per dial;
+# 5. a reading counts if its 11 lights split cleanly into bright/dark, the
+#    parity holds, the code is a real card, lit lights are dots (brighter than
+#    the rim between them), unlit ones are holes (darker than the rim — this
+#    rejects busy card art that happens to decode) and the size fits its card type.
 
 # Dial radius per card type (mm): the light sockets painted into the 2026-10 frames
 # (InDesign_Shop/_automation/scan_code/sockets.json). Tech sockets follow a slightly
@@ -30,18 +37,29 @@ const MIN_GAP: float = 0.45          # bright/dark split of the 11 lights
 const MAX_DARK: float = 0.40
 const MIN_LIT: float = 0.50
 const MIN_DOT: float = 0.05          # lit light vs the rim halfway to its neighbours
+const MIN_HOLE: float = 0.15         # unlit socket vs the rim halfway to its neighbours
 const SCALE_TOLERANCE: float = 0.10
 const STRONG_GAP: float = 0.6
+const STRONG_WANTED: int = 6
+const MARKER_D_MM: Vector2 = Vector2(0.45, 1.3)   # plausible marker blob diameter (mm) in pass 2
+const FACING_WINDOW_DEG: int = 21
+const OVAL_ASPECTS: Array[float] = [0.9, 0.8]
+const OVAL_STEP_DEG: int = 30
 
-var _w: int = 0
 # Read from the main thread while run() works (plain floats/ints, so safe to poll):
-# progress 0..1 of the current attempt; attempt 2 = the full-resolution retry.
+# progress 0..1. attempt stays 1 (kept for the UI's label).
 var progress: float = 0.0
 var attempt: int = 1
+var _w: int = 0
 var _h: int = 0
-var _data: PackedByteArray = PackedByteArray()
+var _lum_data: PackedByteArray = PackedByteArray()   # full-resolution greyscale (Image.FORMAT_L8)
 var _codes: Dictionary = {}          # code -> "tech" / "expedition" / "sector"
 var _cards: Dictionary = {}          # code -> {card: CardData, is_advanced: bool}
+var _shapes: Array[PackedFloat32Array] = []   # circle -> image matrices [a11, a12, a21, a22]
+var _cos30: PackedFloat32Array = PackedFloat32Array()   # cos/sin of 30*k deg, k = 0..11
+var _sin30: PackedFloat32Array = PackedFloat32Array()
+var _done_mutex: Mutex = Mutex.new()
+var _done: int = 0
 
 ## Call on the main thread: collects the card codes from CardDatabase (scene
 ## tree nodes can't be touched from a worker thread). Then run() — safe on
@@ -66,88 +84,116 @@ func _add(code: int, cd: CardData, is_adv: bool, deck: String) -> void:
 		_codes[code] = deck
 		_cards[code] = {card = cd, is_advanced = is_adv}
 
+func _init() -> void:
+	_shapes.append(PackedFloat32Array([1.0, 0.0, 0.0, 1.0]))
+	for asp: float in OVAL_ASPECTS:
+		for deg: int in range(0, 180, OVAL_STEP_DEG):
+			var ph: float = deg_to_rad(float(deg))
+			var c: float = cos(ph)
+			var s: float = sin(ph)
+			# R(ph) * diag(1, asp) * R(-ph): squashed by asp across direction ph
+			_shapes.append(PackedFloat32Array([c * c + asp * s * s, c * s - asp * c * s, c * s - asp * c * s, s * s + asp * c * c]))
+	for k: int in 12:
+		_cos30.append(cos(deg_to_rad(30.0 * k)))
+		_sin30.append(sin(deg_to_rad(30.0 * k)))
+
 ## Returns one entry per card read: {code, card: CardData, is_advanced,
 ## center: Vector2, radius: float (both in source-image pixels), up: Vector2
 ## (unit, towards the card's top), gap}.
 func run(source: Image) -> Array[Dictionary]:
-	attempt = 1
-	var result: Array[Dictionary] = _read_at(source, 2)
-	if result.is_empty():
-		attempt = 2
-		result = _read_at(source, 1)
-	progress = 1.0
-	return result
-
-func _read_at(source: Image, factor: int) -> Array[Dictionary]:
+	progress = 0.0
 	var img: Image = source.duplicate() as Image
 	if img.is_compressed():
 		img.decompress()
 	img.convert(Image.FORMAT_RGB8)
-	if factor > 1:
-		@warning_ignore("integer_division")
-		img.resize(img.get_width() / factor, img.get_height() / factor, Image.INTERPOLATE_BILINEAR)
+	var small: Image = img.duplicate() as Image
+	@warning_ignore("integer_division")
+	small.resize(maxi(1, img.get_width() / 2), maxi(1, img.get_height() / 2), Image.INTERPOLATE_BILINEAR)
+	var blobs: Array[Vector3] = []   # full-resolution x, y, diameter
+	for b: Vector3 in _find_markers(small.get_data(), small.get_width(), small.get_height()):
+		blobs.append(Vector3(b.x * 2.0 + 0.5, b.y * 2.0 + 0.5, b.z * 2.0))
+	img.convert(Image.FORMAT_L8)
 	_w = img.get_width()
 	_h = img.get_height()
-	_data = img.get_data()
+	_lum_data = img.get_data()
+	progress = 0.1
 
-	progress = 0.0
-	var blobs: Array[Vector3] = _find_markers()   # x, y, diameter
-	progress = 0.15
-
-	# Pass 1: scale + facing from the clearest markers.
+	# Pass 1: scale + facing from the clearest markers, a few at a time on all cores.
 	var strong_scales: Array[float] = []
-	var ups: Array[float] = []
-	for bi: int in blobs.size():
-		var b: Vector3 = blobs[bi]
-		progress = 0.15 + 0.15 * float(bi) / float(blobs.size())
-		if strong_scales.size() >= 6:
-			break
-		if b.z < 2.0 or b.z > 8.0:
-			continue
-		var radii: Array[float] = []
-		var r: float = maxf(4.0, b.z * 3.4)
-		while r <= minf(80.0, b.z * 5.8):
-			radii.append(r)
-			r += 0.75
-		var e: Dictionary = _search(b.x, b.y, radii, _all_angles())
-		if not e.is_empty() and float(e["gap"]) >= STRONG_GAP:
-			strong_scales.append(float(e["r"]) / float(DECK_R_MM[_codes[int(e["code"])]]))
-			ups.append(float(e["th"]))
+	var strong_at: Array[Vector3] = []   # x, y, facing angle th
+	var pass1: Array[Vector3] = []
+	for b: Vector3 in blobs:
+		if b.z >= 4.0 and b.z <= 16.0:
+			pass1.append(b)
+	var batch: int = maxi(2, OS.get_processor_count())
+	var next_i: int = 0
+	while next_i < pass1.size() and strong_scales.size() < STRONG_WANTED:
+		var chunk: Array[Vector3] = pass1.slice(next_i, mini(next_i + batch, pass1.size()))
+		var found: Array = []
+		found.resize(chunk.size())
+		var wide_search: Callable = func(i: int) -> void:
+			var b: Vector3 = chunk[i]
+			var radii: Array[float] = []
+			var r: float = maxf(4.0, b.z * 3.4)
+			while r <= minf(160.0, b.z * 5.8):
+				radii.append(r)
+				r += 1.5
+			found[i] = _search(b.x, b.y, radii, _all_angles())
+		WorkerThreadPool.wait_for_group_task_completion(WorkerThreadPool.add_group_task(wide_search, chunk.size()))
+		for i: int in chunk.size():
+			var e: Dictionary = found[i]
+			if not e.is_empty() and float(e["gap"]) >= STRONG_GAP and strong_scales.size() < STRONG_WANTED:
+				strong_scales.append(float(e["r"]) / float(DECK_R_MM[_codes[int(e["code"])]]))
+				strong_at.append(Vector3(chunk[i].x, chunk[i].y, float(e["th"])))
+		next_i += chunk.size()
+		progress = 0.1 + 0.3 * float(next_i) / float(pass1.size())
 	if strong_scales.is_empty():
+		progress = 1.0
 		return []
 	strong_scales.sort()
 	@warning_ignore("integer_division")
 	var scale: float = strong_scales[strong_scales.size() / 2]
+	progress = 0.4
 
-	# Pass 2: every marker, plausible radii and directions only.
+	# Pass 2: every plausibly sized marker, plausible radii, facing like its nearest confident dial.
 	var radii2: Array[float] = []
 	for deck: String in DECK_R_MM:
 		for f: float in [0.96, 1.0, 1.04]:
 			var rr: float = roundf(float(DECK_R_MM[deck]) * scale * f * 2.0) / 2.0
 			if not radii2.has(rr):
 				radii2.append(rr)
-	var angles: Array[float] = []
-	for u: float in ups:
-		for d: int in range(-30, 31, 3):
-			var a: float = u + deg_to_rad(float(d))
-			var dup: bool = false
-			for other: float in angles:
-				if absf(angle_difference(a, other)) < deg_to_rad(1.5):
-					dup = true
-					break
-			if not dup:
-				angles.append(a)
-	var cands: Array[Dictionary] = []
-	for bi: int in blobs.size():
-		var b: Vector3 = blobs[bi]
-		progress = 0.3 + 0.7 * float(bi) / float(blobs.size())
+	var pass2: Array[Vector3] = []
+	for b: Vector3 in blobs:
+		if b.z >= MARKER_D_MM.x * scale and b.z <= MARKER_D_MM.y * scale:
+			pass2.append(b)
+	var results: Array = []
+	results.resize(pass2.size())
+	_done = 0
+	var narrow_search: Callable = func(i: int) -> void:
+		var b: Vector3 = pass2[i]
+		var near: Vector3 = strong_at[0]
+		for s: Vector3 in strong_at:
+			if Vector2(s.x - b.x, s.y - b.y).length_squared() < Vector2(near.x - b.x, near.y - b.y).length_squared():
+				near = s
+		var angles: Array[float] = []
+		for d: int in range(-FACING_WINDOW_DEG, FACING_WINDOW_DEG + 1, 3):
+			angles.append(near.z + deg_to_rad(float(d)))
 		var e: Dictionary = _search(b.x, b.y, radii2, angles)
 		if not e.is_empty():
 			e["mx"] = b.x
 			e["my"] = b.y
+		results[i] = e
+		_done_mutex.lock()
+		_done += 1
+		progress = 0.4 + 0.6 * float(_done) / float(pass2.size())
+		_done_mutex.unlock()
+	WorkerThreadPool.wait_for_group_task_completion(WorkerThreadPool.add_group_task(narrow_search, pass2.size()))
+
+	var cands: Array[Dictionary] = []
+	for e: Dictionary in results:
+		if not e.is_empty():
 			cands.append(e)
 	cands.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return float(p["gap"]) > float(q["gap"]))
-
 	var out: Array[Dictionary] = []
 	for e: Dictionary in cands:
 		var code: int = int(e["code"])
@@ -159,21 +205,22 @@ func _read_at(source: Image, factor: int) -> Array[Dictionary]:
 		var c: Vector2 = Vector2(float(e["cx"]), float(e["cy"]))
 		var clash: bool = false
 		for d: Dictionary in out:
-			if ((d["center"] as Vector2) / float(factor)).distance_to(c) < r * 1.5:
+			if (d["center"] as Vector2).distance_to(c) < r * 1.5:
 				clash = true
 				break
 		if clash:
 			continue
-		var found: Dictionary = _cards[code]
+		var found_card: Dictionary = _cards[code]
 		out.append({
 			code = code,
-			card = found["card"],
-			is_advanced = bool(found["is_advanced"]),
-			center = c * float(factor),
-			radius = r * float(factor),
+			card = found_card["card"],
+			is_advanced = bool(found_card["is_advanced"]),
+			center = c,
+			radius = r,
 			up = (Vector2(float(e["mx"]), float(e["my"])) - c).normalized(),
 			gap = float(e["gap"]),
 		})
+	progress = 1.0
 	return out
 
 static func _all_angles() -> Array[float]:
@@ -190,17 +237,18 @@ static func _is_cyan(r: int, g: int, b: int) -> bool:
 static func _is_cyan_loose(r: int, g: int, b: int) -> bool:
 	return b > 110 and g > 95 and b - r > 45 and g - r > 30
 
-func _find_markers() -> Array[Vector3]:
+# Cyan blobs in an RGB8 pixel buffer: x, y, diameter (all in that buffer's pixels).
+static func _find_markers(data: PackedByteArray, w: int, h: int) -> Array[Vector3]:
 	var blobs: Array[Vector3] = []
 	for pass_i: int in 2:
 		var loose: bool = pass_i == 1
 		var max_area: int = 10 if loose else 400
 		var seen: PackedByteArray = PackedByteArray()
-		seen.resize(_w * _h)
-		for y: int in range(0, _h, 2):
-			for x: int in _w:
-				var i: int = y * _w + x
-				if seen[i] != 0 or not _cyan_at(i, loose):
+		seen.resize(w * h)
+		for y: int in range(0, h, 2):
+			for x: int in w:
+				var i: int = y * w + x
+				if seen[i] != 0 or not _cyan_at(data, i, loose):
 					continue
 				var stack: PackedInt32Array = PackedInt32Array([i])
 				seen[i] = 1
@@ -215,9 +263,9 @@ func _find_markers() -> Array[Vector3]:
 				while not stack.is_empty():
 					var p: int = stack[stack.size() - 1]
 					stack.remove_at(stack.size() - 1)
-					var px: int = p % _w
+					var px: int = p % w
 					@warning_ignore("integer_division")
-					var py: int = p / _w
+					var py: int = p / w
 					count += 1
 					if count > max_area:
 						overflow = true
@@ -228,12 +276,12 @@ func _find_markers() -> Array[Vector3]:
 					max_x = maxi(max_x, px)
 					min_y = mini(min_y, py)
 					max_y = maxi(max_y, py)
-					for n: int in [p - 1, p + 1, p - _w, p + _w]:
-						if n < 0 or n >= _w * _h or seen[n] != 0:
+					for n: int in [p - 1, p + 1, p - w, p + w]:
+						if n < 0 or n >= w * h or seen[n] != 0:
 							continue
-						if (n == p - 1 and px == 0) or (n == p + 1 and px == _w - 1):
+						if (n == p - 1 and px == 0) or (n == p + 1 and px == w - 1):
 							continue
-						if _cyan_at(n, loose):
+						if _cyan_at(data, n, loose):
 							seen[n] = 1
 							stack.append(n)
 				if overflow or count < 2:
@@ -253,30 +301,37 @@ func _find_markers() -> Array[Vector3]:
 					blobs.append(Vector3(bx, by, sqrt(count * 4.0 / PI)))
 	return blobs
 
-func _cyan_at(i: int, loose: bool) -> bool:
-	var r: int = _data[i * 3]
-	var g: int = _data[i * 3 + 1]
-	var b: int = _data[i * 3 + 2]
+static func _cyan_at(data: PackedByteArray, i: int, loose: bool) -> bool:
+	var r: int = data[i * 3]
+	var g: int = data[i * 3 + 1]
+	var b: int = data[i * 3 + 2]
 	return _is_cyan_loose(r, g, b) if loose else _is_cyan(r, g, b)
 
 # ── Dial search ──────────────────────────────────────────────────────────────
 
-# Luminance 0..1 averaged over the 2x2 pixels at (x, y); -1 off the image.
+# Brightness 0..1 averaged over the 2x2 full-resolution pixels at (x, y); -1 off the image.
 func _lum(x: float, y: float) -> float:
 	var xi: int = int(x)
 	var yi: int = int(y)
 	if xi < 1 or yi < 1 or xi >= _w - 1 or yi >= _h - 1:
 		return -1.0
-	var s: int = 0
-	for o: int in [yi * _w + xi, yi * _w + xi + 1, (yi + 1) * _w + xi, (yi + 1) * _w + xi + 1]:
-		s += _data[o * 3] * 299 + _data[o * 3 + 1] * 587 + _data[o * 3 + 2] * 114
-	return s / 1020000.0
+	var o: int = yi * _w + xi
+	return float(_lum_data[o] + _lum_data[o + 1] + _lum_data[o + _w] + _lum_data[o + _w + 1]) / 1020.0
 
+# Best reading for the marker at (mx, my) over every dial shape, radius and facing given.
 func _search(mx: float, my: float, radii: Array[float], angles: Array[float]) -> Dictionary:
+	var best: Dictionary = {}
+	for shape: PackedFloat32Array in _shapes:
+		var e: Dictionary = _search_shape(mx, my, radii, angles, shape)
+		if not e.is_empty() and (best.is_empty() or float(e["gap"]) > float(best["gap"])):
+			best = e
+	return best
+
+func _search_shape(mx: float, my: float, radii: Array[float], angles: Array[float], shape: PackedFloat32Array) -> Dictionary:
 	var best: Dictionary = {}
 	for r: float in radii:
 		for th: float in angles:
-			var e: Dictionary = _evaluate(mx, my, r, th)
+			var e: Dictionary = _evaluate(mx, my, r, th, shape)
 			if not e.is_empty() and (best.is_empty() or float(e["gap"]) > float(best["gap"])):
 				best = e
 	if best.is_empty():
@@ -285,24 +340,35 @@ func _search(mx: float, my: float, radii: Array[float], angles: Array[float]) ->
 	var th0: float = float(best["th"])
 	for dr: float in [-1.0, -0.5, 0.0, 0.5, 1.0]:
 		for dth: int in range(-3, 4):
-			var e: Dictionary = _evaluate(mx, my, r0 + dr, th0 + deg_to_rad(float(dth)))
+			var e: Dictionary = _evaluate(mx, my, r0 + dr, th0 + deg_to_rad(float(dth)), shape)
 			if not e.is_empty() and float(e["gap"]) > float(best["gap"]):
 				best = e
 	return best
 
-# Dial hypothesis: centre at distance r from the marker in direction th.
+# Dial hypothesis: on the undistorted (circle) dial the centre lies at distance r
+# from the marker in direction th; `shape` maps that circle onto the photo.
 # Returns {} unless it decodes to a real card's code.
-func _evaluate(mx: float, my: float, r: float, th: float) -> Dictionary:
-	var cx: float = mx + r * cos(th)
-	var cy: float = my + r * sin(th)
-	var base: float = atan2(my - cy, mx - cx)
+func _evaluate(mx: float, my: float, r: float, th: float, shape: PackedFloat32Array) -> Dictionary:
+	var a11: float = shape[0]
+	var a12: float = shape[1]
+	var a21: float = shape[2]
+	var a22: float = shape[3]
+	var ct: float = cos(th)
+	var st: float = sin(th)
+	var cx: float = mx + r * (a11 * ct + a12 * st)
+	var cy: float = my + r * (a21 * ct + a22 * st)
+	# light k sits at angle th + 180 + 30k (clockwise on screen, y points down)
+	var cb: float = -ct
+	var sb: float = -st
 	var vals: PackedFloat32Array = PackedFloat32Array()
+	vals.resize(11)
 	for k: int in range(1, 12):
-		var a: float = base + deg_to_rad(30.0 * k)    # clockwise on screen (y points down)
-		var v: float = _lum(cx + r * cos(a), cy + r * sin(a))
-		if v < 0.0:
+		var u: float = r * (cb * _cos30[k] - sb * _sin30[k])
+		var v: float = r * (sb * _cos30[k] + cb * _sin30[k])
+		var val: float = _lum(cx + a11 * u + a12 * v, cy + a21 * u + a22 * v)
+		if val < 0.0:
 			return {}
-		vals.append(v)
+		vals[k - 1] = val
 	var sv: PackedFloat32Array = vals.duplicate()
 	sv.sort()
 	var gap: float = 0.0
@@ -323,16 +389,31 @@ func _evaluate(mx: float, my: float, r: float, th: float) -> Dictionary:
 	var parity: int = 1 if vals[10] > thr else 0
 	if ones % 2 != parity or not _codes.has(code):
 		return {}
+	# rim halfway between neighbouring lights (15 deg either side): lit lights must
+	# stand out above it, unlit sockets must be holes below it
+	var c15: float = cos(deg_to_rad(15.0))
+	var s15: float = sin(deg_to_rad(15.0))
 	var dot_sum: float = 0.0
 	var dot_n: int = 0
+	var hole_sum: float = 0.0
+	var hole_n: int = 0
 	for k: int in range(1, 12):
-		if vals[k - 1] <= thr:
-			continue
-		var a: float = base + deg_to_rad(30.0 * k)
-		var m1: float = _lum(cx + r * cos(a - deg_to_rad(15.0)), cy + r * sin(a - deg_to_rad(15.0)))
-		var m2: float = _lum(cx + r * cos(a + deg_to_rad(15.0)), cy + r * sin(a + deg_to_rad(15.0)))
-		dot_sum += vals[k - 1] - maxf(m1, m2)
-		dot_n += 1
+		var ck: float = cb * _cos30[k] - sb * _sin30[k]
+		var sk: float = sb * _cos30[k] + cb * _sin30[k]
+		var u1: float = r * (ck * c15 + sk * s15)
+		var v1: float = r * (sk * c15 - ck * s15)
+		var u2: float = r * (ck * c15 - sk * s15)
+		var v2: float = r * (sk * c15 + ck * s15)
+		var m1: float = _lum(cx + a11 * u1 + a12 * v1, cy + a21 * u1 + a22 * v1)
+		var m2: float = _lum(cx + a11 * u2 + a12 * v2, cy + a21 * u2 + a22 * v2)
+		if vals[k - 1] > thr:
+			dot_sum += vals[k - 1] - maxf(m1, m2)
+			dot_n += 1
+		else:
+			hole_sum += minf(m1, m2) - vals[k - 1]
+			hole_n += 1
+	if hole_sum / maxf(1.0, hole_n) < MIN_HOLE:
+		return {}
 	return {gap = gap, code = code, cx = cx, cy = cy, r = r, th = th, dot = dot_sum / maxf(1.0, dot_n)}
 
 # ── Grouping into sectors ────────────────────────────────────────────────────
