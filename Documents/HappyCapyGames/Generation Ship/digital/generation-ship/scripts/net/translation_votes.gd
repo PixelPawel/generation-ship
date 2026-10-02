@@ -90,6 +90,10 @@ func _on_completed(req: HTTPRequest, key: String, result: int, code: int, bytes:
 	_cache[key] = {up = up, down = down, mine = mine}
 	votes_ready.emit(key, up, down, mine)
 
+# Also the player's id on the leaderboard (LeaderboardManager).
+func player_id() -> String:
+	return _voter_id()
+
 func _voter_id() -> String:
 	if not _voter.is_empty():
 		return _voter

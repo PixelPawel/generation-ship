@@ -1,24 +1,19 @@
 extends Control
-# Top-100 global leaderboard popup. Data comes from LeaderboardManager
-# (Steamworks leaderboard "TotalScore") — see that autoload for the upload/
-# download plumbing and the async persona-name-resolution caveat.
+# Top-100 global leaderboard popup. Data comes from LeaderboardManager (our
+# own API server, shared by Steam and Android) — see that autoload.
 
 var _rows_container: VBoxContainer = null
 var _status_label: Label = null
 var _scroll: ScrollContainer = null
-var _row_by_steam_id: Dictionary = {}   # steam_id (int) -> Label (name cell), for late name patch-in
-var _my_steam_id: int = 0
 
 func _ready() -> void:
 	_build_ui()
 	visible = false
 	LeaderboardManager.top_scores_ready.connect(_on_top_scores_ready)
 	LeaderboardManager.top_scores_failed.connect(_on_top_scores_failed)
-	LeaderboardManager.entry_name_resolved.connect(_on_entry_name_resolved)
 
 func open() -> void:
 	visible = true
-	_my_steam_id = Steam.getSteamID() if SteamManager.is_initialized else 0
 	_show_status(tr("Loading…"))
 	LeaderboardManager.request_top_scores()
 
@@ -98,30 +93,34 @@ func _show_status(text: String) -> void:
 	for child: Node in _rows_container.get_children():
 		if child != _status_label:
 			child.queue_free()
-	_row_by_steam_id.clear()
 	_status_label.text = text
 	_status_label.visible = true
 
 func _on_top_scores_failed() -> void:
-	_show_status(tr("Couldn't reach Steam's leaderboard. Try again later."))
+	_show_status(tr("Couldn't reach the leaderboard. Try again later."))
 
 func _on_top_scores_ready(entries: Array[Dictionary]) -> void:
 	for child: Node in _rows_container.get_children():
 		if child != _status_label:
 			child.queue_free()
-	_row_by_steam_id.clear()
 	if entries.is_empty():
 		_show_status(tr("No scores yet — be the first!"))
 		return
 	_status_label.visible = false
+	var me_listed: bool = false
 	for entry: Dictionary in entries:
 		_add_row(entry)
+		me_listed = me_listed or bool(entry.get("me", false))
+	# Outside the top 100: still show where the player's own best stands.
+	var mine: Dictionary = LeaderboardManager.my_best
+	if not me_listed and not mine.is_empty():
+		_add_row({rank = int(mine.get("rank", 0)), score = int(mine.get("score", 0)),
+				name = LeaderboardManager.player_name(), me = true})
 
 func _add_row(entry: Dictionary) -> void:
-	var rank: int = int(entry.get("global_rank", 0))
+	var rank: int = int(entry.get("rank", 0))
 	var score: int = int(entry.get("score", 0))
-	var steam_id: int = int(entry.get("steam_id", 0))
-	var is_me: bool = steam_id != 0 and steam_id == _my_steam_id
+	var is_me: bool = bool(entry.get("me", false))
 
 	var row_panel: PanelContainer = PanelContainer.new()
 	if is_me:
@@ -155,9 +154,9 @@ func _add_row(entry: Dictionary) -> void:
 	rank_lbl.custom_minimum_size = Vector2(44, 0)
 	row.add_child(rank_lbl)
 
-	var player_name: String = LeaderboardManager.resolve_name(steam_id) if steam_id != 0 else ""
-	if player_name == "":
-		player_name = tr("Player #%d") % (steam_id % 10000)
+	var player_name: String = str(entry.get("name", ""))
+	if player_name.is_empty():
+		player_name = tr("Player")
 	if is_me:
 		player_name = tr("%s (You)") % player_name
 
@@ -168,8 +167,6 @@ func _add_row(entry: Dictionary) -> void:
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_lbl.clip_text = true
 	row.add_child(name_lbl)
-	if steam_id != 0:
-		_row_by_steam_id[steam_id] = name_lbl
 
 	var score_lbl: Label = Label.new()
 	score_lbl.text = str(score)
@@ -252,23 +249,3 @@ func _make_score_line_row(line: Dictionary) -> Control:
 	vp_lbl.custom_minimum_size = Vector2(50, 0)
 	row.add_child(vp_lbl)
 	return row
-
-func _on_entry_name_resolved(steam_id: int, player_name: String) -> void:
-	var lbl: Label = _row_by_steam_id.get(steam_id) as Label
-	if not lbl:
-		return
-	lbl.text = tr("%s (You)") % player_name if steam_id == _my_steam_id else player_name
-
-func _input(event: InputEvent) -> void:
-	if not visible:
-		return
-	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		visible = false
-		get_viewport().set_input_as_handled()
-
-func _make_button(label: String) -> Button:
-	var btn: Button = Button.new()
-	btn.text = label
-	btn.add_theme_font_size_override("font_size", 14)
-	GameTheme.apply_to_button(btn)
-	return btn

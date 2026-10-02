@@ -1,137 +1,96 @@
 extends Node
-# LeaderboardManager — global Top-100 leaderboard via Steamworks
-# (ISteamUserStats, wrapped by GodotSteam). One leaderboard, "TotalScore",
-# holds every completed game's final VP total regardless of solo/multiplayer.
+# LeaderboardManager — global Top-100 leaderboard on the Happy Capy Games API
+# server (digital/server/app/scores.py), shared by Steam and Android. Was a
+# Steamworks leaderboard, which only ever worked with Steam running.
 #
-# Steam always attributes an upload to whichever account is locally logged
-# in — there is no way (or need) to submit on behalf of another player, so
-# each client just submits its own score once it computes it in
-# main.gd's _game_over(). This matches the game's existing trust model:
-# opponents' displayed scores are already client-reported snapshots, not
-# host-validated (see main.gd _game_over()/_opp_snapshots).
+# One entry per player (the same id TranslationVotes uses: "steam:<id>" or an
+# anonymous "dev:<device id>"), keeping their best total. Each client submits
+# only its own final score from main.gd's _game_over() — the same trust model
+# as before: opponents' scores are client-reported snapshots anyway.
 #
-# Entry display names: Steam only has a cached persona name for friends and
-# recently-seen players out of the box. For everyone else getFriendPersonaName()
-# returns "[unknown]" until requestUserInformation() is called and the
-# persona_state_change signal fires — so rows start with a Steam-ID
-# placeholder and get patched in-place once (if) the real name arrives.
-
-const LEADERBOARD_NAME: String = "TotalScore"
-const TOP_COUNT: int = 100
+# Entries: {rank, name, score, details, platform, me}. `details` is the
+# ScoringSnapshotCodec-packed score breakdown shown when a row is expanded.
+#
+# No direct reference to the Steam class: GodotSteam doesn't exist in the
+# Android build.
 
 signal top_scores_ready(entries: Array[Dictionary])
 signal top_scores_failed
 signal score_uploaded(success: bool)
-signal entry_name_resolved(steam_id: int, name: String)
 
-var _leaderboard_handle: int = 0
-var _finding: bool = false
-var _pending_score: int = -1
-var _pending_details: PackedInt32Array = PackedInt32Array()
-var _pending_download: bool = false
-var _name_cache: Dictionary = {}          # steam_id (int) -> persona name (String)
-var _requested_names: Dictionary = {}     # steam_id (int) -> true, once requestUserInformation() called
+const SERVER_URL: String = "https://api.happycapygames.com"
+const TIMEOUT_SEC: float = 10.0
+const TOP_COUNT: int = 100
+const _SETTINGS_PATH: String = "user://settings.cfg"
 
-func _ready() -> void:
-	Steam.leaderboard_find_result.connect(_on_leaderboard_find_result)
-	Steam.leaderboard_score_uploaded.connect(_on_leaderboard_score_uploaded)
-	Steam.leaderboard_scores_downloaded.connect(_on_leaderboard_scores_downloaded)
-	Steam.persona_state_change.connect(_on_persona_state_change)
+# The player's own best, from the last download (null if not on the board).
+var my_best: Dictionary = {}
 
 func submit_score(score: int, details: PackedInt32Array = PackedInt32Array()) -> void:
-	if not SteamManager.is_initialized:
-		return
-	_pending_score = score
-	_pending_details = details
-	_ensure_leaderboard()
+	var body: String = JSON.stringify({
+		player = _player_id(), name = player_name(), score = clampi(score, 0, 999),
+		details = Array(details), platform = "android" if OS.get_name() == "Android" else "steam",
+	})
+	_request(HTTPClient.METHOD_POST, "/v1/scores", body, func(ok: bool, _data: Dictionary) -> void:
+		score_uploaded.emit(ok))
 
 func request_top_scores() -> void:
-	if not SteamManager.is_initialized:
-		top_scores_failed.emit()
-		return
-	_pending_download = true
-	_ensure_leaderboard()
+	var path: String = "/v1/scores/top?limit=%d&player=%s" % [TOP_COUNT, _player_id().uri_encode()]
+	_request(HTTPClient.METHOD_GET, path, "", func(ok: bool, data: Dictionary) -> void:
+		if not ok or typeof(data.get("entries")) != TYPE_ARRAY:
+			top_scores_failed.emit()
+			return
+		my_best = {}
+		if typeof(data.get("mine")) == TYPE_DICTIONARY:
+			my_best = data["mine"]
+		var entries: Array[Dictionary] = []
+		for e: Variant in data["entries"]:
+			if typeof(e) == TYPE_DICTIONARY:
+				entries.append(e)
+		top_scores_ready.emit(entries))
 
-# Best-effort synchronous name lookup — returns a cached/known persona name
-# immediately if Steam already has one, otherwise kicks off an async
-# request and returns "" (caller should show a placeholder and listen for
-# entry_name_resolved to patch it in).
-func resolve_name(steam_id: int) -> String:
-	if _name_cache.has(steam_id):
-		return _name_cache[steam_id]
-	var persona: String = Steam.getFriendPersonaName(steam_id)
-	if persona != "" and persona != "[unknown]":
-		_name_cache[steam_id] = persona
-		return persona
-	if not _requested_names.has(steam_id):
-		_requested_names[steam_id] = true
-		Steam.requestUserInformation(steam_id, true)
-	return ""
-
-# Decodes a downloaded entry's "details" field into {label, vp} scoring
-# lines. See ScoringSnapshotCodec for the packing scheme this reverses.
+# Decodes an entry's "details" into {label, vp} scoring lines. See
+# ScoringSnapshotCodec for the packing scheme this reverses.
 func decode_snapshot(entry: Dictionary) -> Array[Dictionary]:
-	var raw: Variant = entry.get("details", PackedInt32Array())
-	var details: PackedInt32Array = raw if raw is PackedInt32Array else PackedInt32Array(raw)
+	var raw: Variant = entry.get("details", [])
+	var details: PackedInt32Array = PackedInt32Array()
+	if typeof(raw) == TYPE_ARRAY:
+		for v: Variant in raw:
+			details.append(int(v))
 	return ScoringSnapshotCodec.decode_lines(details)
 
-func _ensure_leaderboard() -> void:
-	if _leaderboard_handle != 0:
-		_run_pending()
-		return
-	if _finding:
-		return
-	_finding = true
-	Steam.findOrCreateLeaderboard(LEADERBOARD_NAME, Steam.LEADERBOARD_SORT_METHOD_DESCENDING, Steam.LEADERBOARD_DISPLAY_TYPE_NUMERIC)
+# The name shown on the board: the lobby name if one was ever entered, else
+# the Steam display name, else "Player".
+func player_name() -> String:
+	var cfg: ConfigFile = ConfigFile.new()
+	if cfg.load(_SETTINGS_PATH) == OK:
+		var saved: String = str(cfg.get_value("player", "name", "")).strip_edges()
+		if not saved.is_empty():
+			return saved
+	var steam_mgr: Node = get_node_or_null("/root/SteamManager")
+	if steam_mgr and bool(steam_mgr.get("is_initialized")) and Engine.has_singleton("Steam"):
+		var steam_name: String = str(Engine.get_singleton("Steam").call("getPersonaName"))
+		if not steam_name.is_empty():
+			return steam_name
+	return "Player"
 
-func _run_pending() -> void:
-	if _pending_score >= 0:
-		var score: int = _pending_score
-		var details: PackedInt32Array = _pending_details
-		_pending_score = -1
-		_pending_details = PackedInt32Array()
-		Steam.uploadLeaderboardScore(score, true, details, _leaderboard_handle)
-	if _pending_download:
-		_pending_download = false
-		Steam.downloadLeaderboardEntries(1, TOP_COUNT, Steam.LEADERBOARD_DATA_REQUEST_GLOBAL, _leaderboard_handle)
+func _player_id() -> String:
+	var votes: Node = get_node_or_null("/root/TranslationVotes")
+	return str(votes.call("player_id")) if votes else ""
 
-# GodotSteam broadcasts every leaderboard callback to every listener, and
-# TranslationVotes uses leaderboards too — so only react to results for our
-# own board (by name on find, by handle on upload/download).
-func _on_leaderboard_find_result(leaderboard_handle: int, found: int) -> void:
-	if not _finding:
-		return
-	if found != 0 and Steam.getLeaderboardName(leaderboard_handle) != LEADERBOARD_NAME:
-		return
-	_finding = false
-	if found == 0:
-		push_warning("LeaderboardManager: could not find/create leaderboard '%s'." % LEADERBOARD_NAME)
-		if _pending_download:
-			_pending_download = false
-			top_scores_failed.emit()
-		_pending_score = -1
-		_pending_details = PackedInt32Array()
-		return
-	_leaderboard_handle = leaderboard_handle
-	_run_pending()
-
-func _on_leaderboard_score_uploaded(success: bool, this_handle: int, _this_score: Dictionary) -> void:
-	if this_handle != _leaderboard_handle:
-		return
-	score_uploaded.emit(success)
-
-func _on_leaderboard_scores_downloaded(_message: String, this_handle: int, leaderboard_entries: Array) -> void:
-	if this_handle != _leaderboard_handle:
-		return
-	var entries: Array[Dictionary] = []
-	for e: Dictionary in leaderboard_entries:
-		entries.append(e)
-	top_scores_ready.emit(entries)
-
-func _on_persona_state_change(steam_id: int, _flags: int) -> void:
-	if not _requested_names.has(steam_id):
-		return
-	var persona: String = Steam.getFriendPersonaName(steam_id)
-	if persona != "" and persona != "[unknown]":
-		_name_cache[steam_id] = persona
-		entry_name_resolved.emit(steam_id, persona)
+func _request(method: HTTPClient.Method, path: String, body: String, done: Callable) -> void:
+	var req: HTTPRequest = HTTPRequest.new()
+	req.timeout = TIMEOUT_SEC
+	add_child(req)
+	req.request_completed.connect(func(result: int, code: int, _headers: PackedStringArray, bytes: PackedByteArray) -> void:
+		req.queue_free()
+		var parsed: Variant = JSON.parse_string(bytes.get_string_from_utf8()) if result == HTTPRequest.RESULT_SUCCESS else null
+		var ok: bool = result == HTTPRequest.RESULT_SUCCESS and code == 200 and typeof(parsed) == TYPE_DICTIONARY
+		var data: Dictionary = {}
+		if ok:
+			data = parsed
+		done.call(ok, data))
+	var err: Error = req.request(SERVER_URL + path, PackedStringArray(["Content-Type: application/json"]), method, body)
+	if err != OK:
+		req.queue_free()
+		done.call(false, {})

@@ -161,3 +161,8 @@ def report(lang: str | None = None, min_votes: int = 1, limit: int = Query(200, 
             [*args, min_votes, limit],
         ).fetchall()
     return {"cards": [{"key": k, "up": u, "down": d} for k, u, d in rows]}
+
+
+from .scores import router as scores_router  # noqa: E402  (global leaderboard; needs db/_rate_limit above)
+
+app.include_router(scores_router)
