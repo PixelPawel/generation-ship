@@ -42,6 +42,7 @@ enum EffectMode {
 	EFFECT_RECYCLE_TUCK_STORE,
 	EFFECT_RECYCLE_TUCK_STORE_DECIDE,
 	EFFECT_RECYCLE_TUCK_STORE_SECTOR,
+	EFFECT_ICE9_SECTOR,
 	EFFECT_TUCK_ANY_SECTOR,
 	EFFECT_TUCK_ANY_SECTOR_SLOT,
 	EFFECT_INTERFLEET_PICK,
@@ -2082,6 +2083,11 @@ func _open_store_picker() -> void:
 
 func _on_sector_info_requested(slot: SectorSlot) -> void:
 	match _effect_mode:
+		EffectMode.EFFECT_ICE9_SECTOR:
+			if not _ice9_cards_on(slot).is_empty():
+				_sector_picker.hide()
+				$Board.set_cargo_click_mode(false)
+				_ice9_choose_card(slot)
 		EffectMode.EFFECT_STORE_ON_SECTOR:
 			if slot.occupied:
 				_sector_picker.hide()
@@ -2808,24 +2814,43 @@ func _effect_step_placing_color(color: CardData.SupplyColor) -> void:
 	_process_next_effect()
 
 # Ice 9: recycle any Tech/Expedition on one of your own sectors (not Ice 9
-# itself). Same removal path as Caldera Colony.
+# itself). Same removal path as Caldera Colony. Two steps: pick the sector
+# (sector picker, or click it on the board), then the card on it — skipped
+# straight to the cards when only one sector has anything to recycle.
 func _effect_step_recycle_from_own_sector() -> void:
-	var choices: Array[CardData] = []
-	_pending_choice_options = []
+	var slots: Array[SectorSlot] = []
 	for slot: SectorSlot in $Board.get_all_sector_slots():
-		for c: Node3D in slot.get_all_placed_cards():
-			var cd: CardData = c.get("card_data") as CardData
-			if not cd or cd.card_type == CardData.CardType.SECTOR or cd.card_name == "Ice 9":
-				continue
-			choices.append(cd)
-			_pending_choice_options.append({steps = [{type = "recycle_sector_card", card_node = c, slot = slot, _source_name = _effect_source_name}]})
-	if choices.is_empty():
-		_pending_choice_options = []
+		if not _ice9_cards_on(slot).is_empty():
+			slots.append(slot)
+	if slots.is_empty():
 		_log_effect(tr("no card on your sectors to recycle"))
 		_process_next_effect()
 		return
+	if slots.size() == 1:
+		_ice9_choose_card(slots[0])
+		return
+	_effect_mode = EffectMode.EFFECT_ICE9_SECTOR
+	$Board.set_cargo_click_mode(true)
+	_sector_picker.setup(tr("Ice 9 — pick a sector to recycle a card from"), slots)
+
+func _ice9_cards_on(slot: SectorSlot) -> Array[Node3D]:
+	var out: Array[Node3D] = []
+	if not slot.occupied:
+		return out
+	for c: Node3D in slot.get_all_placed_cards():
+		var cd: CardData = c.get("card_data") as CardData
+		if cd and cd.card_type != CardData.CardType.SECTOR and cd.card_name != "Ice 9":
+			out.append(c)
+	return out
+
+func _ice9_choose_card(slot: SectorSlot) -> void:
+	var choices: Array[CardData] = []
+	_pending_choice_options = []
+	for c: Node3D in _ice9_cards_on(slot):
+		choices.append(c.get("card_data") as CardData)
+		_pending_choice_options.append({steps = [{type = "recycle_sector_card", card_node = c, slot = slot, _source_name = _effect_source_name}]})
 	_effect_mode = EffectMode.EFFECT_CHOICE
-	_choice_popup.show_card_choices(tr("Ice 9 — recycle which card from your sectors?"), choices, false)
+	_choice_popup.show_card_choices(tr("Ice 9 — recycle which card?"), choices, false)
 
 func _effect_step_recycle_sector_card(card: Node3D, slot: SectorSlot) -> void:
 	if not is_instance_valid(card) or not is_instance_valid(slot) or not card.card_data:
