@@ -122,6 +122,7 @@ var _status_label: Label = null               # scan progress / outcome
 var _leaderboard_btn: Button = null
 var _photo_view: TextureRect = null           # the scanned photo, shown in the ship's place to compare
 var _photo_btn: Button = null                 # "Show Photo" / "Show Ship"
+var _rotate_btn: Button = null                # turns the shown photo, only while it's shown
 var _ship_card: float = SHIP_CARD_MAX         # long edge of the overview's cards, see _fit_ship_card()
 var _ship_info_boxes: Array[Control] = []     # each sector's supply/archive line, evened out in height
 var _ship_info_height: float = SHIP_INFO_HEIGHT   # what sits under a sector card, as last measured
@@ -326,6 +327,12 @@ func _build_list_view() -> Control:
 	_photo_btn.disabled = true
 	_photo_btn.pressed.connect(func() -> void: _show_photo(not _photo_view.visible))
 	btn_row.add_child(_photo_btn)
+	# Godot ignores the orientation phones store in a JPEG, so a photo can show up
+	# sideways; reading it doesn't care, this only turns what's shown.
+	_rotate_btn = _make_button("⟳ Rotate")
+	_rotate_btn.visible = false
+	_rotate_btn.pressed.connect(_rotate_photo)
+	btn_row.add_child(_rotate_btn)
 	_leaderboard_btn = _make_button("Add to Leaderboard")
 	_leaderboard_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_leaderboard_btn.pressed.connect(_on_leaderboard_pressed)
@@ -909,7 +916,17 @@ func _even_out_info_lines() -> void:
 func _show_photo(on: bool) -> void:
 	_photo_view.visible = on
 	_sector_scroll.visible = not on
+	_rotate_btn.visible = on
 	_photo_btn.text = "Show Ship" if on else "Show Photo"
+
+# Turns the shown photo 90 degrees clockwise (display only).
+func _rotate_photo() -> void:
+	var tex: Texture2D = _photo_view.texture
+	if tex == null:
+		return
+	var img: Image = tex.get_image()
+	img.rotate_90(CLOCKWISE)
+	_photo_view.texture = ImageTexture.create_from_image(img)
 
 # Rests the ship view at the bottom (the sectors' baseline), like the in-game
 # ship — once the new columns have been laid out.
