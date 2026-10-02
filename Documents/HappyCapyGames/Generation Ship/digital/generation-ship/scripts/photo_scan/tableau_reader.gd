@@ -10,10 +10,12 @@ extends RefCounted
 #  * archived face-down: the two cyan lamps flanking the TECH logo on every tech back,
 #    counted as pairs below a sector (they also place each back exactly); the TECH
 #    lettering itself is the fallback when no lamp pair shows;
-#  * stored supply: per supply colour, what no identified card art (±1 mm), card back or
-#    the table explains, icon holes filled, kept only if it has a token's compact shape
-#    and size (printed supply icons are far smaller, coloured name plates the wrong shape);
-#    the count comes from the size, so two touching tokens of one colour count as 2.
+#  * stored supply: what no identified card art (±1 mm), card back or the table explains,
+#    in a token colour, is matched against the real token art (assets/scan/tokens) at 12
+#    rotations, scored on the art inside the token and on how well the blob fits the token's
+#    outline (circle, ellipse, square, hexagon, pentagon, nonagon) — so printed supply icons,
+#    coloured plates and orange-vs-yellow mix-ups drop out. Matched tokens are counted one
+#    by one (touching tokens included).
 # Tuned on synthetic photos (InDesign_Shop/_automation/scan_code/mockups2.py); token
 # counts still need tuning on real photos of real tokens.
 
@@ -48,9 +50,6 @@ const ART_SLACK_MM: float = 1.0                  # ...also when the art matches 
 const TABLE_MATCH: float = 40.0
 const TOKEN_COLOUR_MAX: float = 80.0
 const TOKEN_AREA_MIN: float = 0.45               # of a token's area (its base colour + filled icon)
-const TOKEN_SOLIDITY: float = 0.8
-const TOKEN_ELONGATION: float = 2.2
-const TOKEN_MAX_PER_CLUMP: int = 4
 # Dust, Metals, Liquids, Organix, Electrix, Thrust: base colours (punchboard art) and each
 # token's area in mm^2 at ~14 mm across (circle, square, oval, hexagon, pentagon, octagon)
 const TOKEN_ORDER: Array[int] = [CardData.SupplyColor.DUST, CardData.SupplyColor.METALS, CardData.SupplyColor.LIQUIDS,
@@ -58,6 +57,17 @@ const TOKEN_ORDER: Array[int] = [CardData.SupplyColor.DUST, CardData.SupplyColor
 const TOKEN_RGB: Array[Vector3] = [Vector3(208, 204, 218), Vector3(186, 24, 40), Vector3(70, 124, 191),
 	Vector3(63, 168, 53), Vector3(233, 120, 36), Vector3(240, 181, 4)]
 const TOKEN_SIL_MM2: Array[float] = [153.8, 186.2, 96.1, 127.4, 128.8, 149.7]
+const TOKEN_FILES: Array[String] = ["Dust", "Metals", "Liquids", "Organix", "Electrix", "Thrust"]
+const TOKEN_MM: float = 14.0                     # a token's long side
+const MATCH_PPM: float = 1.5                     # art matching resolution
+const MATCH_ROT_STEP: int = 30
+const MATCH_MIN: float = 0.5                     # match score a token needs
+const MATCH_SHAPE_WEIGHT: float = 0.4            # share of the score from the outline fit
+const MATCH_SEARCH_MM: float = 3.0               # search this far around a candidate
+const MATCH_MAX_PER_BLOB: int = 4
+const MATCH_SAME_TOKEN: float = 0.7              # matches closer than this x TOKEN_MM are one token
+# token colours easy to confuse on far shots: try both arts (the outline decides)
+const MATCH_ALSO: Dictionary = {4: [4, 5], 5: [5, 4]}
 
 var progress: float = 0.0
 var _art: Array[Image] = []       # per dial: its card art at ART_PPM (RGB8), or null
@@ -66,6 +76,9 @@ var _art_f: Array[PackedFloat32Array] = []   # _art as blurred floats (empty whe
 var _art_size: Array[Vector2i] = []
 var _back_f: PackedFloat32Array = PackedFloat32Array()
 var _back_size: Vector2i = Vector2i.ZERO
+var _token_imgs: Array[Image] = []   # the six token arts (RGBA8), TOKEN_FILES order
+# per token: one template per rotation {w, h, rgb (centred, masked), mask, n, norm}
+var _templates: Array = []
 var _photo: PackedByteArray = PackedByteArray()
 var _pw: int = 0
 var _ph: int = 0
@@ -89,6 +102,14 @@ static func create(dials: Array[Dictionary]) -> TableauReader:
 		var back: Image = _load_art("res://assets/cards/Tech/%s/GS Techs Back 44x67mm.png" % l, SIZE_MM["tech"])
 		if back:
 			reader._backs.append(back)
+	for n: String in TOKEN_FILES:
+		var tex: Texture2D = load("res://assets/scan/tokens/%s.png" % n) as Texture2D
+		var img: Image = tex.get_image() if tex else null
+		if img:
+			if img.is_compressed():
+				img.decompress()
+			img.convert(Image.FORMAT_RGBA8)
+		reader._token_imgs.append(img)
 	return reader
 
 static func _load_art(path: String, size_mm: Vector2) -> Image:
@@ -145,6 +166,7 @@ func analyze(photo: Image, dials: Array[Dictionary], markers: Array[Vector3] = [
 		_art_f[i] = _art_floats(_art[i]) if _art[i] else PackedFloat32Array()
 	if not _art.is_empty():
 		WorkerThreadPool.wait_for_group_task_completion(WorkerThreadPool.add_group_task(to_floats, _art.size()))
+	_build_token_templates()
 	if not _backs.is_empty():
 		_back_f = _art_floats(_backs[0])
 		_back_size = Vector2i(_backs[0].get_width(), _backs[0].get_height())
@@ -507,10 +529,41 @@ func _count_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) 
 				bd = dd
 				bi = t
 		cls[k] = bi if bd < TOKEN_COLOUR_MAX else 254
-	# per colour: blobs with the icon holes filled, kept if compact and token-sized;
-	# the count comes from the size (two touching tokens of one colour = 2)
+	# Candidates per token colour (icon holes filled), each matched against the real
+	# token art: score = art inside the token + how well the blob fits its outline.
 	var counts: Dictionary = {}
+	if _templates.is_empty():
+		return counts
 	var mm2: float = 1.0 / (ART_PPM * ART_PPM)
+	# matching grid (MATCH_PPM): gain-normalised colours and the token-coloured mask
+	var k_m: float = MATCH_PPM / ART_PPM
+	var ws: int = int(w * k_m)
+	var hs: int = int(h * k_m)
+	var zs: PackedFloat32Array = PackedFloat32Array()
+	zs.resize(ws * hs * 3)
+	var tokmask: PackedByteArray = PackedByteArray()
+	tokmask.resize(w * h)
+	for k: int in w * h:
+		if cls[k] < 6:
+			tokmask[k] = 1
+	tokmask = _fill_holes(_erode(_erode(_erode(_dilate(_dilate(_dilate(tokmask, w, h), w, h), w, h), w, h), w, h), w, h), w, h)
+	var ms: PackedByteArray = PackedByteArray()
+	ms.resize(ws * hs)
+	for j: int in hs:
+		for i: int in ws:
+			var sx: int = mini(int(i / k_m), w - 1)
+			var sy: int = mini(int(j / k_m), h - 1)
+			var o: int = (sy * w + sx) * 3
+			var oo: int = (j * ws + i) * 3
+			zs[oo] = zone[o] / maxf(sector_gain.x, 0.2)
+			zs[oo + 1] = zone[o + 1] / maxf(sector_gain.y, 0.2)
+			zs[oo + 2] = zone[o + 2] / maxf(sector_gain.z, 0.2)
+			ms[j * ws + i] = tokmask[sy * w + sx]
+	zs = _box_blur(zs, ws, hs, 1)
+	var ms_sum: PackedInt32Array = _integral(ms, ws, hs)
+	var centres: Array[Vector2] = []
+	var same_px: float = MATCH_SAME_TOKEN * TOKEN_MM * MATCH_PPM
+	var pad: int = int(MATCH_SEARCH_MM * MATCH_PPM)
 	for t: int in TOKEN_RGB.size():
 		var m: PackedByteArray = PackedByteArray()
 		m.resize(w * h)
@@ -524,17 +577,47 @@ func _count_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) 
 		m = _erode(_erode(_dilate(_dilate(m, w, h), w, h), w, h), w, h)
 		for comp: Dictionary in _components(m, w, h):
 			var filled: Dictionary = _filled_blob(comp, w)
-			var area: float = float(filled["count"]) * mm2
-			var per: float = area / TOKEN_SIL_MM2[t]
+			var per: float = float(filled["count"]) * mm2 / TOKEN_SIL_MM2[t]
 			if per < TOKEN_AREA_MIN:
 				continue
-			var n_tok: int = maxi(1, roundi(per))
-			if n_tok > TOKEN_MAX_PER_CLUMP:
-				continue
-			if n_tok == 1 and (float(filled["solidity"]) < TOKEN_SOLIDITY or float(filled["elongation"]) > TOKEN_ELONGATION):
-				continue
-			var col: int = TOKEN_ORDER[t]
-			counts[col] = int(counts.get(col, 0)) + n_tok
+			var box: Rect2i = comp["box"]
+			var region: Rect2i = Rect2i(int(box.position.x * k_m) - pad, int(box.position.y * k_m) - pad,
+				int(box.size.x * k_m) + pad * 2, int(box.size.y * k_m) + pad * 2)
+			var work: PackedFloat32Array = zs.duplicate()
+			for n_found: int in MATCH_MAX_PER_BLOB:
+				var best: Dictionary = {}
+				for alt: int in (MATCH_ALSO.get(t, [t]) as Array):
+					var r: Dictionary = _match_token(work, ws, hs, ms, ms_sum, alt, region)
+					if not r.is_empty() and (best.is_empty() or float(r["score"]) > float(best["score"])):
+						best = r
+						best["token"] = alt
+				if best.is_empty() or float(best["score"]) < MATCH_MIN:
+					break
+				var tp: Dictionary = (_templates[int(best["token"])] as Array)[int(best["rot"])]
+				var at: Vector2i = best["at"]
+				# blank the matched token so the next search finds the next one
+				var tmask: PackedByteArray = tp["mask"]
+				var tw: int = tp["w"]
+				for ty: int in int(tp["h"]):
+					for tx: int in tw:
+						if tmask[ty * tw + tx] != 0:
+							var o: int = ((at.y + ty) * ws + at.x + tx) * 3
+							work[o] = 0.0
+							work[o + 1] = 0.0
+							work[o + 2] = 0.0
+				var c: Vector2 = Vector2(at) + Vector2(tw, int(tp["h"])) / 2.0
+				var seen: bool = false
+				for prev: Vector2 in centres:
+					if prev.distance_to(c) < same_px:
+						seen = true
+						break
+				if seen:
+					continue
+				centres.append(c)
+				var col: int = TOKEN_ORDER[int(best["token"])]
+				counts[col] = int(counts.get(col, 0)) + 1
+				if per < 1.4:
+					break        # one token's worth of blob
 	return counts
 
 # Best position (sector mm, card's top-left) for a face-down back near `guess`, within
@@ -580,6 +663,171 @@ static func _card_span(to_card: Transform2D, card_mm: Vector2, w: int, h: int) -
 	var x1: int = clampi(ceili(hi.x) + 1, 0, w)
 	var y1: int = clampi(ceili(hi.y) + 1, 0, h)
 	return Rect2i(x0, y0, x1 - x0, y1 - y0)
+
+# ── Token art matching ───────────────────────────────────────────────────────
+
+# Templates of the six token arts at MATCH_PPM, every MATCH_ROT_STEP degrees: colours
+# box-blurred like the photo, centred per channel over the token, plus its outline mask.
+func _build_token_templates() -> void:
+	_templates.clear()
+	for img: Image in _token_imgs:
+		var rots: Array = []
+		if img == null:
+			_templates.append(rots)
+			continue
+		# shrink smoothly to the matching scale first (picking single pixels from the
+		# full-size art would alias the fine icon lines), then rotate that
+		var scale: float = TOKEN_MM * MATCH_PPM / float(maxi(img.get_width(), img.get_height()))
+		var small: Image = img.duplicate() as Image
+		small.resize(maxi(3, roundi(img.get_width() * scale)), maxi(3, roundi(img.get_height() * scale)), Image.INTERPOLATE_LANCZOS)
+		var sw: int = small.get_width()
+		var sh: int = small.get_height()
+		var data: PackedByteArray = small.get_data()
+		var side: int = int(ceil(sqrt(float(sw * sw + sh * sh)))) + 2
+		for deg: int in range(0, 360, MATCH_ROT_STEP):
+			var a: float = deg_to_rad(float(deg))
+			var ca: float = cos(a)
+			var sa: float = sin(a)
+			var rgb: PackedFloat32Array = PackedFloat32Array()
+			rgb.resize(side * side * 3)
+			var mask: PackedByteArray = PackedByteArray()
+			mask.resize(side * side)
+			for y: int in side:
+				for x: int in side:
+					# template pixel -> source pixel (rotate about the centres)
+					var dx: float = x + 0.5 - side / 2.0
+					var dy: float = y + 0.5 - side / 2.0
+					var sxf: float = ca * dx + sa * dy + sw / 2.0
+					var syf: float = -sa * dx + ca * dy + sh / 2.0
+					var sxi: int = int(sxf)
+					var syi: int = int(syf)
+					if sxi < 0 or syi < 0 or sxi >= sw or syi >= sh:
+						continue
+					var o: int = (syi * sw + sxi) * 4
+					if data[o + 3] < 160:
+						continue
+					mask[y * side + x] = 1
+					rgb[(y * side + x) * 3] = float(data[o])
+					rgb[(y * side + x) * 3 + 1] = float(data[o + 1])
+					rgb[(y * side + x) * 3 + 2] = float(data[o + 2])
+			rgb = _box_blur(rgb, side, side, 1)
+			var mean: Vector3 = Vector3.ZERO
+			var n: int = 0
+			for k: int in side * side:
+				if mask[k] != 0:
+					mean += Vector3(rgb[k * 3], rgb[k * 3 + 1], rgb[k * 3 + 2])
+					n += 1
+			mean /= float(maxi(n, 1))
+			var norm: float = 0.0
+			for k: int in side * side:
+				for c: int in 3:
+					if mask[k] != 0:
+						rgb[k * 3 + c] -= mean[c]
+						norm += rgb[k * 3 + c] * rgb[k * 3 + c]
+					else:
+						rgb[k * 3 + c] = 0.0
+			rots.append({w = side, h = side, rgb = rgb, mask = mask, n = n, norm = sqrt(norm)})
+		_templates.append(rots)
+
+# Best placement of token `t` with its centre inside `region` (matching grid px):
+# {score, at (template top-left), rot}. Score = (1 - w) * colour NCC over the token
+# + w * IoU of the token's outline with the token-coloured mask.
+func _match_token(zs: PackedFloat32Array, ws: int, hs: int, ms: PackedByteArray, ms_sum: PackedInt32Array,
+		t: int, region: Rect2i) -> Dictionary:
+	var best: Dictionary = {}
+	var rots: Array = _templates[t]
+	for ri: int in rots.size():
+		var tp: Dictionary = rots[ri]
+		var tw: int = tp["w"]
+		var th: int = tp["h"]
+		var rgb: PackedFloat32Array = tp["rgb"]
+		var mask: PackedByteArray = tp["mask"]
+		var n: float = float(tp["n"])
+		var tnorm: float = tp["norm"]
+		@warning_ignore("integer_division")
+		var y_lo: int = maxi(0, region.position.y - th / 2)
+		@warning_ignore("integer_division")
+		var y_hi: int = mini(hs - th, region.end.y - th / 2)
+		@warning_ignore("integer_division")
+		var x_lo: int = maxi(0, region.position.x - tw / 2)
+		@warning_ignore("integer_division")
+		var x_hi: int = mini(ws - tw, region.end.x - tw / 2)
+		for y: int in range(y_lo, y_hi + 1):
+			for x: int in range(x_lo, x_hi + 1):
+				var dot: float = 0.0
+				var s: Vector3 = Vector3.ZERO
+				var s2: float = 0.0
+				var inter: int = 0
+				for ty: int in th:
+					var zrow: int = ((y + ty) * ws + x) * 3
+					var mrow: int = (y + ty) * ws + x
+					var trow: int = ty * tw
+					for tx: int in tw:
+						if mask[trow + tx] == 0:
+							continue
+						var zo: int = zrow + tx * 3
+						var to: int = (trow + tx) * 3
+						var r: float = zs[zo]
+						var g: float = zs[zo + 1]
+						var b: float = zs[zo + 2]
+						dot += r * rgb[to] + g * rgb[to + 1] + b * rgb[to + 2]
+						s += Vector3(r, g, b)
+						s2 += r * r + g * g + b * b
+						if ms[mrow + tx] != 0:
+							inter += 1
+				var var_sum: float = s2 - (s.x * s.x + s.y * s.y + s.z * s.z) / n
+				var ncc: float = dot / (sqrt(maxf(var_sum, 1e-6)) * tnorm + 1e-6)
+				var window: int = _rect_sum(ms_sum, ws, x, y, tw, th)
+				var iou: float = float(inter) / float(maxi(int(n) + window - inter, 1))
+				var score: float = (1.0 - MATCH_SHAPE_WEIGHT) * ncc + MATCH_SHAPE_WEIGHT * iou
+				if best.is_empty() or score > float(best["score"]):
+					best = {score = score, at = Vector2i(x, y), rot = ri}
+	return best
+
+# Summed-area table of a 0/1 mask, (w + 1) x (h + 1).
+static func _integral(m: PackedByteArray, w: int, h: int) -> PackedInt32Array:
+	var out: PackedInt32Array = PackedInt32Array()
+	out.resize((w + 1) * (h + 1))
+	for y: int in h:
+		var row: int = 0
+		for x: int in w:
+			row += m[y * w + x]
+			out[(y + 1) * (w + 1) + x + 1] = out[y * (w + 1) + x + 1] + row
+	return out
+
+static func _rect_sum(sat: PackedInt32Array, w: int, x: int, y: int, rw: int, rh: int) -> int:
+	var stride: int = w + 1
+	return sat[(y + rh) * stride + x + rw] - sat[y * stride + x + rw] - sat[(y + rh) * stride + x] + sat[y * stride + x]
+
+# Fills the holes of a mask (whatever background the border can't reach).
+static func _fill_holes(m: PackedByteArray, w: int, h: int) -> PackedByteArray:
+	var outside: PackedByteArray = PackedByteArray()
+	outside.resize(w * h)
+	var stack: PackedInt32Array = PackedInt32Array()
+	for x: int in w:
+		stack.append(x)
+		stack.append((h - 1) * w + x)
+	for y: int in h:
+		stack.append(y * w)
+		stack.append(y * w + w - 1)
+	while not stack.is_empty():
+		var k: int = stack[stack.size() - 1]
+		stack.remove_at(stack.size() - 1)
+		if k < 0 or k >= w * h or outside[k] != 0 or m[k] != 0:
+			continue
+		outside[k] = 1
+		var x: int = k % w
+		if x > 0:
+			stack.append(k - 1)
+		if x < w - 1:
+			stack.append(k + 1)
+		stack.append(k - w)
+		stack.append(k + w)
+	var out: PackedByteArray = PackedByteArray()
+	out.resize(w * h)
+	for k: int in w * h:
+		out[k] = 1 if outside[k] == 0 else 0
+	return out
 
 # ── Blob helpers ─────────────────────────────────────────────────────────────
 
