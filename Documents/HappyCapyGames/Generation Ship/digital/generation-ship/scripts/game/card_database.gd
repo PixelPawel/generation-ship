@@ -168,6 +168,7 @@ func _load_sector_cards() -> void:
 		card.effect_text = dust.get("Effect", "").strip_edges()
 		card.flavor_text = dust.get("Flavor", "").strip_edges()
 		card.image_url = dust.get("Link", "").strip_edges()
+		card.scan_code = _parse_code(dust)
 		card.opt1_req = _parse_color_list(dust.get("Optimize 1", ""))
 
 		# Advanced side
@@ -177,6 +178,7 @@ func _load_sector_cards() -> void:
 		card.adv_effect_text = row.get("Effect", "").strip_edges()
 		card.adv_flavor_text = row.get("Flavor", "").strip_edges()
 		card.adv_image_url = row.get("Link", "").strip_edges()
+		card.adv_scan_code = _parse_code(row)
 		_resolve_card_art(card)
 		card.adv_opt1_req = _parse_color_list(row.get("Optimize 1", ""))
 		card.adv_opt2_req = _parse_color_list(row.get("Optimize 2", ""))
@@ -233,6 +235,7 @@ func _populate_base_fields(card: CardData, row: Dictionary) -> void:
 	card.effect_text    = row.get("Effect", "").strip_edges()
 	card.flavor_text    = row.get("Flavor", "").strip_edges()
 	card.image_url      = row.get("Link", "").strip_edges()
+	card.scan_code      = _parse_code(row)
 	_resolve_card_art(card)
 	card.stars          = row.get("Printed Star", "").count("⭐")
 	card.is_star_card   = _parse_yes_no(row.get("Star Card", row.get("Star card", "No")))
@@ -269,6 +272,28 @@ func _is_valid_color(s: String) -> bool:
 # A disconnected human's sector/tech names are the only trace of their board
 # left once their client is gone (see Main._convert_peer_to_bot) — these
 # resolve those name strings back into real CardData for the takeover bot.
+static func _parse_code(row: Dictionary) -> int:
+	var v: String = str(row.get("Code", "")).strip_edges()
+	return int(v) if v.is_valid_int() else 0
+
+# Card for a printed scan code: {card: CardData, is_advanced: bool}, or {} if
+# no card has it. Sectors carry two codes (dust side / advanced side).
+func find_by_scan_code(code: int) -> Dictionary:
+	if code <= 0:
+		return {}
+	for cd: CardData in sectors:
+		if cd.adv_scan_code == code:
+			return {card = cd, is_advanced = true}
+		if cd.scan_code == code:
+			return {card = cd, is_advanced = false}
+	for cd: CardData in techs:
+		if cd.scan_code == code:
+			return {card = cd, is_advanced = false}
+	for cd: CardData in expeditions:
+		if cd.scan_code == code:
+			return {card = cd, is_advanced = false}
+	return {}
+
 func find_sector_by_name(card_name: String, advanced: bool) -> CardData:
 	for cd: CardData in sectors:
 		if advanced and cd.adv_name == card_name:

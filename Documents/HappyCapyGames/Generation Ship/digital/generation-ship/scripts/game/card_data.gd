@@ -128,6 +128,9 @@ static func effective_cost(cd: CardData, is_advanced: bool) -> int:
 # CSV row live (assets/cards/Promo/, "... - Promos.csv"): promo_no is the
 # card's 1-based "No." within that deck, 0 for every non-promo card.
 @export var promo_no: int = 0
+# Printed scan code (the 12-light dial around the colour orb, 0-1023; 0 = none),
+# from the sheet's "Code" column — see tools/assign_scan_codes.py.
+@export var scan_code: int = 0
 
 # Karma Chameleon: the color it counts as for the optimize check of its own
 # placement only (-1 = none). Cleared right after that check, and the card is
@@ -150,6 +153,7 @@ static func recycle_amount(cd: CardData) -> int:
 @export var adv_flavor_text: String = ""
 @export var adv_image_url: String = ""
 @export var adv_local_art_path: String = ""
+@export var adv_scan_code: int = 0
 @export var adv_opt1_req: Array[int] = []
 @export var adv_opt2_req: Array[int] = []
 @export var adv_opt3_req: Array[int] = []
