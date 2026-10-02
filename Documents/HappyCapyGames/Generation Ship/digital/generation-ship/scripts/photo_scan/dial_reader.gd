@@ -77,6 +77,7 @@ func _read_at(source: Image, factor: int) -> Array[Dictionary]:
 		img.decompress()
 	img.convert(Image.FORMAT_RGB8)
 	if factor > 1:
+		@warning_ignore("integer_division")
 		img.resize(img.get_width() / factor, img.get_height() / factor, Image.INTERPOLATE_BILINEAR)
 	_w = img.get_width()
 	_h = img.get_height()
@@ -104,6 +105,7 @@ func _read_at(source: Image, factor: int) -> Array[Dictionary]:
 	if strong_scales.is_empty():
 		return []
 	strong_scales.sort()
+	@warning_ignore("integer_division")
 	var scale: float = strong_scales[strong_scales.size() / 2]
 
 	# Pass 2: every marker, plausible radii and directions only.
@@ -201,6 +203,7 @@ func _find_markers() -> Array[Vector3]:
 					var p: int = stack[stack.size() - 1]
 					stack.remove_at(stack.size() - 1)
 					var px: int = p % _w
+					@warning_ignore("integer_division")
 					var py: int = p / _w
 					count += 1
 					if count > max_area:
@@ -341,6 +344,7 @@ static func group_into_sectors(dials: Array[Dictionary]) -> Array:
 	if dials.is_empty():
 		return []
 	mm_px.sort()
+	@warning_ignore("integer_division")
 	var px_per_mm: float = mm_px[mm_px.size() / 2]
 
 	# Columns: chain techs whose lateral offset (across the card's up axis) is small.

@@ -10,8 +10,6 @@ extends Control
 # only exists in Android builds). Follows the same code-built-UI convention
 # as collection_popup.gd / manual_popup.gd (no companion .tscn).
 
-const CardDetectorScript := preload("res://scripts/photo_scan/card_detector.gd")
-const CardMatcherScript := preload("res://scripts/photo_scan/card_matcher.gd")
 const DialReaderScript := preload("res://scripts/photo_scan/dial_reader.gd")
 const SupplyDetectorScript := preload("res://scripts/photo_scan/supply_detector.gd")
 const CardPickerScript := preload("res://scenes/photo_scan/card_picker.gd")
@@ -138,7 +136,7 @@ const _SUPPLY_COLORS: Array[CardData.SupplyColor] = [
 # identifying exactly which card it is), rather than guessing at an assumed
 # average.
 
-var _matcher: RefCounted = null
+var _scan_thread: Thread = null           # DialReader running on the current photo
 var _sectors: Array[Dictionary] = []          # board entries confirmed so far, BotScoring-shaped
 var _pending: Array[Dictionary] = []          # current in-review cluster's candidates
 var _source_image: Image = null               # the one whole-ship photo, kept for supply detection per cluster
@@ -188,6 +186,15 @@ var _pending_from_cluster: bool = false
 var _pending_source_photo: String = ""
 var _pending_cluster_index: int = -1
 var _pending_initial_snapshot: Dictionary = {}
+
+# The reading thread must always be joined, also when the screen is freed mid-scan.
+func _exit_tree() -> void:
+	_finish_scan_thread()
+
+func _finish_scan_thread() -> void:
+	if _scan_thread and _scan_thread.is_started():
+		_scan_thread.wait_to_finish()
+	_scan_thread = null
 
 func _ready() -> void:
 	_build_ui()
@@ -673,10 +680,17 @@ func _on_photo_selected(path: String) -> void:
 	_review_clusters_btn.disabled = true
 	_review_clusters_btn.text = "Reading cards…"
 	var reader: DialReader = DialReaderScript.create()
+	_finish_scan_thread()            # a previous photo still being read
 	var thread: Thread = Thread.new()
+	_scan_thread = thread
 	thread.start(reader.run.bind(img))
 	while thread.is_alive():
 		await get_tree().process_frame
+		if not is_inside_tree():
+			return                       # _exit_tree() joined the thread
+	if _scan_thread != thread:
+		return
+	_scan_thread = null
 	var dials: Array[Dictionary] = thread.wait_to_finish()
 	if _source_image != img:
 		return   # another photo was picked meanwhile
