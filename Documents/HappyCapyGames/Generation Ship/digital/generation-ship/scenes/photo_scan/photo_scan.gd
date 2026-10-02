@@ -11,7 +11,6 @@ extends Control
 # as collection_popup.gd / manual_popup.gd (no companion .tscn).
 
 const DialReaderScript := preload("res://scripts/photo_scan/dial_reader.gd")
-const SupplyDetectorScript := preload("res://scripts/photo_scan/supply_detector.gd")
 const CardPickerScript := preload("res://scenes/photo_scan/card_picker.gd")
 const CLUSTER_PADDING_PX: int = 24
 
@@ -758,9 +757,11 @@ func _start_reviewing_next_cluster() -> void:
 	while _pending.size() < SECTOR_SLOT_COUNT:
 		_pending.append(_blank_entry())
 
-	var detected_supply: Dictionary = SupplyDetectorScript.detect(_source_image, _cluster_region(cluster))
+	# Stored supply starts at 0: SupplyDetector counted every colourful patch of
+	# card art as a token (all false positives on token-free test photos), so
+	# it's off until it can be rebuilt and tuned on real photos with tokens.
 	for color_int: int in _supply_spinboxes:
-		(_supply_spinboxes[color_int] as SpinBox).value = int(detected_supply.get(color_int, 0))
+		(_supply_spinboxes[color_int] as SpinBox).value = 0
 	_tucked_up_spinbox.value = 0
 	_tucked_up_stars_spinbox.value = 0
 	_tucked_down_spinbox.value = 0
