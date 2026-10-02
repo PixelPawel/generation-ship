@@ -22,6 +22,10 @@ extends RefCounted
 const DIAL_MM: Dictionary = {"sector": Vector2(60.80, 36.72), "tech": Vector2(36.57, 59.33), "expedition": Vector2(37.17, 60.80)}
 const SIZE_MM: Dictionary = {"sector": Vector2(67.0, 44.0), "tech": Vector2(44.0, 67.0), "expedition": Vector2(44.0, 67.0)}
 const ART_PPM: float = 3.0                       # card art / token zone resolution (px per mm)
+# a column of cards whose sector wasn't read (its dial covered) gets a placeholder sector
+# where that sector must lie: the column's lowest tech covers the sector's top 18 mm and sits
+# ~5 mm in from its left edge, so the sector's top-left is at (-5, 49) in that tech's mm
+const PLACEHOLDER_AT_ON_TECH: Vector2 = Vector2(-5.0, 49.0)
 # archived face-up: dial centre within this box below the sector (sector mm)
 const ARCHIVE_BOX: Rect2 = Rect2(-12.0, 40.0, 91.0, 144.0)
 # archived face-down: TECH labels (cream word, ~26 x 6 mm) in the strip below the sector
@@ -71,6 +75,8 @@ const MATCH_BLOB_MIN_MM2: float = 29.0           # smaller blobs aren't a token'
 const MATCH_MM2_PER_TOKEN: float = 120.0          # roughly, to bound the matches per blob
 
 var progress: float = 0.0
+## Card used as the placeholder sector (set by the caller; null = no placeholders).
+var placeholder_card: CardData = null
 var _art: Array[Image] = []       # per dial: its card art at ART_PPM (RGB8), or null
 var _backs: Array[Image] = []     # tech back art at ART_PPM (EN + the game language)
 var _art_f: Array[PackedFloat32Array] = []   # _art as blurred floats (empty where no art)
@@ -190,17 +196,30 @@ func analyze(photo: Image, dials: Array[Dictionary], markers: Array[Vector3] = [
 	for i: int in dials.size():
 		if deck_of(dials[i]) == "sector":
 			sector_idx.append(i)
-	# archived face-up: a non-sector dial below a sector (nearest sector below wins)
-	var archived_of: Dictionary = {}     # dial index -> sector dial index
-	for i: int in dials.size():
-		if deck_of(dials[i]) == "sector":
-			continue
-		var best_y: float = INF
-		for si: int in sector_idx:
-			var local: Vector2 = card_frame(dials[si]).affine_inverse() * (dials[i]["center"] as Vector2)
-			if ARCHIVE_BOX.has_point(local) and local.y < best_y:
-				best_y = local.y
-				archived_of[i] = si
+	var archived_of: Dictionary = _archived_face_up(dials, sector_idx)
+	# columns without their sector (dial covered): a placeholder sector where it must lie,
+	# so the ship keeps its order and that column's cards, archive and supply still count
+	if placeholder_card:
+		var loose: Array[Dictionary] = []
+		for i: int in dials.size():
+			if not archived_of.has(i) and deck_of(dials[i]) != "sector":
+				loose.append(dials[i])
+		for g: Array in DialReader.group_into_sectors(loose):
+			if not (g[0] as Dictionary).is_empty() or g.size() < 2:
+				continue
+			var tech: Dictionary = g[1]          # the column's card nearest its sector
+			var ph_dial: Vector2 = card_frame(tech) * (PLACEHOLDER_AT_ON_TECH + DIAL_MM["sector"])
+			dials.append({
+				card = placeholder_card, is_advanced = false, placeholder = true,
+				center = ph_dial,
+				radius = float(tech["radius"]) * float(DialReader.DECK_R_MM["sector"]) / float(DialReader.DECK_R_MM[deck_of(tech)]),
+				up = tech["up"], th = tech["th"], shape = tech["shape"], gap = 0.0,
+			})
+			_art.append(null)
+			_art_f.append(PackedFloat32Array())
+			_art_size.append(Vector2i.ZERO)
+			sector_idx.append(dials.size() - 1)
+		archived_of = _archived_face_up(dials, sector_idx)
 	var results: Array = []
 	results.resize(sector_idx.size())
 	_done = 0
@@ -248,6 +267,21 @@ func analyze(photo: Image, dials: Array[Dictionary], markers: Array[Vector3] = [
 	_sort_left_to_right(groups, dials)
 	progress = 1.0
 	return groups
+
+# Face-up archive: each non-sector dial below a sector (nearest sector below wins) ->
+# {dial index: sector dial index}.
+static func _archived_face_up(dials: Array[Dictionary], sector_idx: Array[int]) -> Dictionary:
+	var archived_of: Dictionary = {}
+	for i: int in dials.size():
+		if deck_of(dials[i]) == "sector":
+			continue
+		var best_y: float = INF
+		for si: int in sector_idx:
+			var local: Vector2 = card_frame(dials[si]).affine_inverse() * (dials[i]["center"] as Vector2)
+			if ARCHIVE_BOX.has_point(local) and local.y < best_y:
+				best_y = local.y
+				archived_of[i] = si
+	return archived_of
 
 # A token near two columns is found by both sectors: it goes to the one whose column it
 # lies closest to (its sector-mm x nearest that sector card's middle). Fills each
@@ -578,6 +612,13 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 		var tdist: float = Vector3(zone[o] - table.x, zone[o + 1] - table.y, zone[o + 2] - table.z).length()
 		cand[k] = 0 if best[k] < ART_MATCH or tdist < TABLE_MATCH else 1
 	cand = _dilate(_dilate(_erode(_erode(cand, w, h), w, h), w, h), w, h)
+	if bool(dials[si].get("placeholder", false)):
+		# a placeholder's real art is unknown: leave its own card area out
+		for j: int in h:
+			for i: int in w:
+				var p_mm: Vector2 = TOKEN_ZONE.position + Vector2(i, j) / ART_PPM
+				if p_mm.x >= 0.0 and p_mm.x <= SIZE_MM["sector"].x and p_mm.y >= 0.0 and p_mm.y <= SIZE_MM["sector"].y:
+					cand[j * w + i] = 0
 	var cls: PackedByteArray = PackedByteArray()
 	cls.resize(w * h)
 	cls.fill(255)

@@ -19,6 +19,8 @@ const CardPickerScript := preload("res://scenes/photo_scan/card_picker.gd")
 # blank rather than being added/removed. Review columns are sized to fit
 # all 6 across one phone-width screen without horizontal scrolling.
 const SECTOR_SLOT_COUNT: int = 6
+# Hibernators (a dust sector) stands in for a sector whose dial couldn't be read
+const PLACEHOLDER_SECTOR_CODE: int = 450
 const REVIEW_COL_WIDTH: float = 210.0
 const REVIEW_THUMB_SIZE: Vector2 = Vector2(180, 252)
 
@@ -588,6 +590,8 @@ func _on_photo_selected(path: String) -> void:
 	# dial, face-down ones by their backs) and stored-supply tokens. Card art is
 	# loaded here on the main thread, the counting runs on a thread.
 	var tableau: TableauReader = TableauReader.create(dials)
+	# a column whose sector dial is covered gets this placeholder sector (fix it with Edit)
+	tableau.placeholder_card = CardDatabase.find_by_scan_code(PLACEHOLDER_SECTOR_CODE).get("card") as CardData
 	var thread2: Thread = Thread.new()
 	_scan_thread = thread2
 	thread2.start(tableau.analyze.bind(reader.photo, dials, reader.markers))
@@ -610,7 +614,10 @@ func _on_photo_selected(path: String) -> void:
 	# Edit under a sector corrects it.
 	_sectors.clear()
 	var loose: int = 0
+	var placeholders: int = 0
 	for g: Array in groups:
+		if not (g[0] as Dictionary).is_empty() and bool((g[0] as Dictionary).get("placeholder", false)):
+			placeholders += 1
 		var entry: Dictionary = _sector_entry_from_group(g)
 		if entry.is_empty():
 			loose += g.size() - 1
@@ -623,6 +630,8 @@ func _on_photo_selected(path: String) -> void:
 		_status_label.text = "%d sector%s found" % [_sectors.size(), "" if _sectors.size() == 1 else "s"]
 		if loose > 0:
 			_status_label.text += " · %d card%s not next to a sector left out" % [loose, "" if loose == 1 else "s"]
+		if placeholders > 0:
+			_status_label.text += " · %d sector%s unreadable (light ring covered): added as Hibernators — fix with Edit" % [placeholders, "" if placeholders == 1 else "s"]
 	_refresh_sector_list()
 
 ## A recognised group ([sector, techs…] from TableauReader, sector {} if none was
