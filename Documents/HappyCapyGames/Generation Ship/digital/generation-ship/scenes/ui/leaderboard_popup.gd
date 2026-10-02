@@ -249,3 +249,17 @@ func _make_score_line_row(line: Dictionary) -> Control:
 	vp_lbl.custom_minimum_size = Vector2(50, 0)
 	row.add_child(vp_lbl)
 	return row
+
+func _input(event: InputEvent) -> void:
+	if not visible:
+		return
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		visible = false
+		get_viewport().set_input_as_handled()
+
+func _make_button(label: String) -> Button:
+	var btn: Button = Button.new()
+	btn.text = label
+	btn.add_theme_font_size_override("font_size", 14)
+	GameTheme.apply_to_button(btn)
+	return btn
