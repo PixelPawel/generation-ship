@@ -117,7 +117,7 @@ var _list_view: Control = null
 var _review_view: Control = null
 var _sector_list_box: HBoxContainer = null    # sector columns side by side (see _build_list_view)
 var _sector_scroll: ScrollContainer = null
-var _results_box: HFlowContainer = null       # compact VP breakdown under the total
+var _results_box: VBoxContainer = null        # VP breakdown, shown in the ship's place
 var _tip_label: Label = null                  # placement tip, until the first scan
 var _status_label: Label = null               # scan progress / outcome
 var _leaderboard_btn: Button = null
@@ -171,7 +171,7 @@ func open() -> void:
 	_source_image = null
 	_photo_view.texture = null
 	_photo_btn.disabled = true
-	_show_photo(false)
+	_set_view("ship")
 	_tip_label.visible = true
 	_status_label.visible = false
 	_editing_sector_index = -1
@@ -240,7 +240,7 @@ func _build_list_view() -> Control:
 	box.add_theme_constant_override("separation", 14)
 	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
-	_tip_label = _make_hint_label("Photograph your whole ship from above. Keep the ring of lights around each card's orb uncovered and give supply tokens a little room.")
+	_tip_label = _make_hint_label("Hold your phone sideways and photograph your whole ship from above, so it fills the photo. Keep the ring of lights around each card's orb uncovered and give supply tokens a little room.")
 	box.add_child(_tip_label)
 	_status_label = Label.new()
 	_status_label.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
@@ -255,14 +255,6 @@ func _build_list_view() -> Control:
 	_scan_progress.show_percentage = false
 	_scan_progress.visible = false
 	box.add_child(_scan_progress)
-
-	# VP breakdown: hidden until the score in the button row is tapped (screen space
-	# goes to the ship).
-	_results_box = HFlowContainer.new()
-	_results_box.alignment = FlowContainer.ALIGNMENT_CENTER
-	_results_box.add_theme_constant_override("h_separation", 24)
-	_results_box.visible = false
-	box.add_child(_results_box)
 
 	# The ship: sectors side by side in table order, anchored at the bottom like
 	# the in-game ship — every sector card on one baseline with its tech stack
@@ -281,6 +273,14 @@ func _build_list_view() -> Control:
 	_photo_view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_photo_view.visible = false
 	box.add_child(_photo_view)
+	# The VP breakdown, also in the ship's place (tap the score) — so opening it never
+	# squeezes the ship.
+	_results_box = VBoxContainer.new()
+	_results_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_results_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	_results_box.add_theme_constant_override("separation", 6)
+	_results_box.visible = false
+	box.add_child(_results_box)
 	var holder: VBoxContainer = VBoxContainer.new()
 	holder.alignment = BoxContainer.ALIGNMENT_END
 	holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -303,7 +303,7 @@ func _build_list_view() -> Control:
 	_score_display.visible = false
 	_score_display.gui_input.connect(func(event: InputEvent) -> void:
 		if _is_tap(event):
-			_results_box.visible = not _results_box.visible)
+			_set_view("ship" if _results_box.visible else "breakdown"))
 	var star_lbl: Label = Label.new()
 	star_lbl.text = "★"
 	star_lbl.add_theme_font_size_override("font_size", SCORE_COMPACT_FONT_SIZE)
@@ -326,7 +326,7 @@ func _build_list_view() -> Control:
 	_photo_btn = _make_button("Show Photo")
 	_photo_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_photo_btn.disabled = true
-	_photo_btn.pressed.connect(func() -> void: _show_photo(not _photo_view.visible))
+	_photo_btn.pressed.connect(func() -> void: _set_view("ship" if _photo_view.visible else "photo"))
 	btn_row.add_child(_photo_btn)
 	# Godot ignores the orientation phones store in a JPEG, so a photo can show up
 	# sideways; reading it doesn't care, this only turns what's shown.
@@ -556,7 +556,7 @@ func _on_photo_selected(path: String) -> void:
 	_source_image = img
 	_photo_view.texture = ImageTexture.create_from_image(img)
 	_photo_btn.disabled = false
-	_show_photo(false)
+	_set_view("ship")
 	# Cards are identified by the scan-code dial printed around each card's
 	# colour orb (DialReader) — the only part of a card that stays visible in
 	# a real tableau. Read on a thread: a full photo takes a few seconds.
@@ -843,6 +843,7 @@ func _on_confirm_sector_pressed() -> void:
 func _refresh_sector_list() -> void:
 	_fit_ship_card()
 	for child: Node in _sector_list_box.get_children():
+		_sector_list_box.remove_child(child)
 		child.queue_free()
 	_ship_info_boxes.clear()
 	for i: int in _sectors.size():
@@ -891,7 +892,7 @@ static func _ship_stack_factor(techs: int) -> float:
 # Re-fit when the space changes (window resized, rotation) — only on a real width
 # or height change, since rebuilding the columns resizes nothing outside them.
 func _on_ship_area_resized() -> void:
-	if _sectors.is_empty() or not visible:
+	if _sectors.is_empty() or not visible or not _sector_scroll.visible:
 		return
 	var old: float = _ship_card
 	_fit_ship_card()
@@ -915,16 +916,18 @@ func _even_out_info_lines() -> void:
 	# Fit with what's really under a sector (supply/archive line, Edit, gaps) rather
 	# than the estimate, so the ship never needs a scrollbar: refit once if it's off.
 	var measured: float = tallest + SHIP_EDIT_HEIGHT + 8.0
-	if not _sectors.is_empty() and absf(measured - _ship_info_height) > 4.0:
+	if not _sectors.is_empty() and measured > _ship_info_height + 4.0:
 		_ship_info_height = measured
 		_refresh_sector_list()
 
-# Swaps the ship overview for the scanned photo (and back), to compare the two.
-func _show_photo(on: bool) -> void:
-	_photo_view.visible = on
-	_sector_scroll.visible = not on
-	_rotate_btn.visible = on
-	_photo_btn.text = "Show Ship" if on else "Show Photo"
+# What fills the main area: "ship" (the overview), "photo" (the scanned photo, to
+# compare) or "breakdown" (the VP lines). One at a time, so none squeezes another.
+func _set_view(view: String) -> void:
+	_sector_scroll.visible = view == "ship"
+	_photo_view.visible = view == "photo"
+	_results_box.visible = view == "breakdown"
+	_rotate_btn.visible = view == "photo"
+	_photo_btn.text = "Show Ship" if view == "photo" else "Show Photo"
 
 # Turns the shown photo 90 degrees clockwise (display only).
 func _rotate_photo() -> void:
@@ -1089,7 +1092,7 @@ func _make_summary_text_badge(text: String) -> Label:
 ## restores _editing_original_sector unchanged; Confirm re-inserts whatever
 ## it's edited to at the same index.
 func _on_edit_sector_pressed(index: int) -> void:
-	_show_photo(false)
+	_set_view("ship")
 	_editing_sector_index = index
 	_editing_original_sector = _sectors[index]
 	_sectors.remove_at(index)
@@ -1134,12 +1137,11 @@ func _rebuild_pending_from_sector(sector_entry: Dictionary) -> Array[Dictionary]
 # to the ship makes it submittable again.
 func _update_score() -> void:
 	for child: Node in _results_box.get_children():
+		_results_box.remove_child(child)
 		child.queue_free()
 	_score_display.visible = not _sectors.is_empty()
-	# (the breakdown stays as the player left it: showing it shrinks the ship's area,
-	# which refits the ship and lands back here)
-	if _sectors.is_empty():
-		_results_box.visible = false
+	if _sectors.is_empty() and _results_box.visible:
+		_set_view("ship")
 	_leaderboard_btn.disabled = _sectors.is_empty()
 	_leaderboard_btn.text = "Add to Leaderboard"
 	if _sectors.is_empty():
@@ -1148,6 +1150,7 @@ func _update_score() -> void:
 		var lbl: Label = Label.new()
 		lbl.text = "%s: %d" % [line["label"], line["vp"]]
 		lbl.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_results_box.add_child(lbl)
 	_score_total_label.text = str(BotScoring.board_vp(_sectors))
 
