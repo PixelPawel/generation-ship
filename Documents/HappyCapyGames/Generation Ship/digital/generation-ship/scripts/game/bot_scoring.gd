@@ -151,6 +151,10 @@ static func _add(lines: Array[Dictionary], label: String, vp: int) -> void:
 
 static func _expedition_vp(name: String, fallback_stars: int, board: Array,
 		all_cards: Array[CardData], expeditions: Array[CardData]) -> int:
+	return Scoring.cap_expedition_vp(name, _expedition_vp_raw(name, fallback_stars, board, all_cards, expeditions))
+
+static func _expedition_vp_raw(name: String, fallback_stars: int, board: Array,
+		all_cards: Array[CardData], expeditions: Array[CardData]) -> int:
 	match name:
 		"Exodus Fleets":
 			return 2 * _count_by_color(all_cards, CardData.SupplyColor.THRUST)
@@ -196,7 +200,7 @@ static func _expedition_vp(name: String, fallback_stars: int, board: Array,
 				if is_slot_optimized(entry as Dictionary):
 					count += 1
 			return 2 * count
-		"Cloud Colony":
+		"Asteroid Colonies":
 			var count: int = 0
 			for entry: Variant in board:
 				var slot: Dictionary = entry as Dictionary
@@ -215,7 +219,7 @@ static func _expedition_vp(name: String, fallback_stars: int, board: Array,
 				if ((entry as Dictionary).get("tucked_cards", []) as Array).size() >= 2:
 					count += 1
 			return 3 * count
-		"Asteroid Colonies":
+		"Cloud Colony":
 			var count: int = 0
 			for entry: Variant in board:
 				for tuck: Variant in ((entry as Dictionary).get("tucked_cards", []) as Array):

@@ -137,7 +137,25 @@ static func _score_expeditions(lines: Array[Dictionary], slots: Array, expeditio
 		var vp: int = _expedition_vp(cd.card_name, slots, expeditions, all_cards)
 		_add_line(lines, cd.card_name, vp)
 
+# Printed "Max. N⭐" caps from the Expeditions sheet's Effect 2 column — the
+# count a card scores on can run past them (e.g. Cloud Colony's face-down
+# cards), so every expedition's VP is capped here.
+const EXPEDITION_MAX: Dictionary = {
+	"Exodus Fleets": 24, "Equatorial Superloop": 36, "Pleasure Planet": 15,
+	"Compatible World": 12, "Astrobio Propagation": 24, "Aeon Ark": 12,
+	"Cloud Colony": 18, "Hive Mind": 12, "Asteroid Colonies": 18,
+	"Millions of Colonists": 12, "Alliance": 12, "Polar Planet": 12,
+	"Waterworld": 12, "Self Replication": 12, "Lagrange Complex": 12,
+	"Interstellar Trade Port": 12,
+}
+
+static func cap_expedition_vp(name: String, vp: int) -> int:
+	return mini(vp, int(EXPEDITION_MAX[name])) if EXPEDITION_MAX.has(name) else vp
+
 static func _expedition_vp(name: String, slots: Array, expeditions: Array, all_cards: Array) -> int:
+	return cap_expedition_vp(name, _expedition_vp_raw(name, slots, expeditions, all_cards))
+
+static func _expedition_vp_raw(name: String, slots: Array, expeditions: Array, all_cards: Array) -> int:
 	match name:
 		"Earth 2.0":
 			# 2 VP per non-tucked card with printed stars
@@ -201,8 +219,8 @@ static func _expedition_vp(name: String, slots: Array, expeditions: Array, all_c
 					colors[_card_color(slot.placed_card)] = true
 			return 2 * colors.size()
 
-		"Cloud Colony":
-			# 3 VP per complete AND fully optimized sector
+		"Asteroid Colonies":
+			# 3 VP per complete AND fully optimized sector (max 18)
 			var count: int = 0
 			for slot: SectorSlot in slots:
 				if slot.is_complete() and slot.is_optimized:
@@ -213,7 +231,7 @@ static func _expedition_vp(name: String, slots: Array, expeditions: Array, all_c
 			# 1 VP per Electrix card placed (including self)
 			return _count_by_color(all_cards, CardData.SupplyColor.ELECTRIX)
 
-		"Asteroid Colonies":
+		"Cloud Colony":
 			# 1 VP per facedown tucked card
 			var count: int = 0
 			for slot: SectorSlot in slots:
