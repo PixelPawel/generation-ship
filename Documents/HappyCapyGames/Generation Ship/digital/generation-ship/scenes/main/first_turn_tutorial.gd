@@ -8,12 +8,11 @@ extends Node
 # cards and supply that chapter needs, so it never depends on lucky draws.
 #
 # Chapters: buy a sector → place a tech → fuse → optimize → "if fully
-# optimized" → recycle → bid on
-# an expedition → complete a sector → buy a second sector → archive face down →
-# store → archive face up → printed stars → buy a third sector → "if new" →
-# Always cards →
-# research → pass → scoring (the game ends on the score breakdown; tutorial
-# scores never reach the leaderboard).
+# optimized" → "if complete" → recycle → win an advanced sector in an auction →
+# archive face down → store → archive face up → printed stars → buy a third
+# sector → "if new" → bid on an expedition → Always cards → research → pass →
+# scoring (the game ends on the score breakdown; tutorial scores never reach
+# the leaderboard).
 #
 # The tech deck is scripted (Board.set_scripted_deck): no opening hand, no
 # reshuffles — the only cards that ever reach the hand are the ones a chapter
@@ -37,8 +36,8 @@ const FILLER_BY_COLOR: Dictionary = {
 	CardData.SupplyColor.THRUST: "Markets",
 }
 const STEPS: Array[String] = [
-	"buy", "place", "fuse", "optimize", "if_full", "recycle", "bid", "complete", "buy2",
-	"archive", "store", "archive_up", "stars", "buy3", "if_new", "always",
+	"buy", "place", "fuse", "optimize", "if_full", "complete", "recycle", "buy2",
+	"archive", "store", "archive_up", "stars", "buy3", "if_new", "bid", "always",
 	"research", "pass", "score",
 ]
 # Fuse and recycle steps: the control screen zooms in, and shakes if nothing has
