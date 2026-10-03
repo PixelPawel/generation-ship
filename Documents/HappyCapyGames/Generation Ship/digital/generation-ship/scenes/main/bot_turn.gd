@@ -434,6 +434,13 @@ static func bot_resolve_auction_win(
 	var color: int = int(cost_color)
 	main.bot_supplies[bot_id][color] = max(0, (main.bot_supplies[bot_id].get(color, 0) as int) - max(0, final_bid))
 	var board: Array = main.bot_boards.get(bot_id, []) as Array
+	# The card leaves the shared market whether the bot places or recycles it
+	# (a human-started auction's card went back to the market when its
+	# initiator lost). No-op if it's already gone.
+	if GameNetwork.is_multiplayer:
+		main._rpc_sync_market_removal.rpc(card_ref)
+	else:
+		main.get_node("Board").remove_market_card(cd)
 	if is_tech:
 		var difficulty: int = GameNetwork.bot_difficulty.get(bot_id, BotAI.Difficulty.EASY)
 		var slot_idx: int = BotAI.pick_stack_slot(board, cd, difficulty)

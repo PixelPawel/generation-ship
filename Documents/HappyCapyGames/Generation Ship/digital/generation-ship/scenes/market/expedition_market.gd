@@ -172,6 +172,10 @@ func detach_card(card: Node3D) -> void:
 	if card.drag_started.is_connected(_on_card_drag_started):
 		card.drag_started.disconnect(_on_card_drag_started)
 	_update_slot_visuals(slot_idx)
+	# the market screen updates now, like the sector market's detach: a won
+	# card with no room is recycled straight away and never reaches the
+	# placement that used to refresh it
+	market_changed.emit()
 
 func return_card(card: Node3D) -> void:
 	var slot_idx: int = card.get_meta("market_slot", -1)
