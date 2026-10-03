@@ -6,8 +6,10 @@ extends Control
 
 const FILL_HEIGHT: float = 0.86
 const OPEN_DURATION: float = 0.16
+const TERMS_HEIGHT: float = 0.1    # share of the height kept for the rule book buttons
 
 var _art: TextureRect = null
+var _terms: Control = null      # rule book buttons for the card's keywords
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -27,10 +29,20 @@ func show_card(cd: CardData, is_advanced: bool) -> void:
 	if tex == null:
 		return
 	_art.texture = tex
-	var h: float = size.y * FILL_HEIGHT
+	if _terms:
+		_terms.queue_free()
+		_terms = null
+	var terms: Array[Array] = RuleRefs.terms_for([cd] as Array[CardData], [is_advanced] as Array[bool])
+	var h: float = size.y * (FILL_HEIGHT if terms.is_empty() else FILL_HEIGHT - TERMS_HEIGHT)
 	var aspect: float = float(tex.get_width()) / float(maxi(tex.get_height(), 1))
 	_art.size = Vector2(h * aspect, h)
 	_art.position = (size - _art.size) / 2.0
+	if not terms.is_empty():
+		_art.position.y -= size.y * TERMS_HEIGHT / 2.0
+		_terms = RuleRefs.make_term_row(terms, 20)
+		add_child(_terms)
+		_terms.size = Vector2(size.x * 0.9, 0.0)
+		_terms.position = Vector2(size.x * 0.05, _art.position.y + _art.size.y + 12.0)
 	_art.pivot_offset = _art.size / 2.0
 	_art.scale = Vector2.ONE * 0.6
 	_art.modulate.a = 0.0

@@ -66,8 +66,12 @@ func _ensure_pages() -> void:
 	_pages_lang = lang
 
 func open() -> void:
+	open_at(1)
+
+## Opens at a page (1-based) — see RuleRefs for which page explains what.
+func open_at(page: int) -> void:
 	_ensure_pages()
-	_go_to(1)
+	_go_to(page)
 	_set_zoom(1.0)
 	visible = true
 

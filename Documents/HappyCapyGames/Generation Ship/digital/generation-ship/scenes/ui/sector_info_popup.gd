@@ -75,6 +75,17 @@ func _rebuild(slot: SectorSlot) -> void:
 	if not has_content:
 		_add_empty_state(tr("Nothing stored here"))
 
+	# How do this sector's keywords work? One button per keyword -> its rule book page.
+	var cards: Array[CardData] = []
+	var adv: Array[bool] = []
+	for c: Node3D in slot.get_all_placed_cards():
+		cards.append(c.get("card_data") as CardData)
+		adv.append(bool(c.get("is_advanced")))
+	var terms: Array[Array] = RuleRefs.terms_for(cards, adv)
+	if not terms.is_empty():
+		_content_vbox.add_child(make_section_label(tr("Rule Book")))
+		_content_vbox.add_child(RuleRefs.make_term_row(terms, 18))
+
 	_fit_scroll_height()
 
 # Appends "Stored Supplies"/"Faceup Tucked"/"Facedown Tucked" sections (each
