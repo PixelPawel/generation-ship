@@ -1887,6 +1887,14 @@ func _on_choice_made(index: int) -> void:
 	_effect_mode = EffectMode.NONE
 	_process_next_effect()
 
+# A choice that must be made but has only one answer is just made — no popup.
+# Call with _pending_choice_options set and the effect mode at EFFECT_CHOICE.
+func _auto_pick_single_option() -> bool:
+	if _pending_choice_options.size() != 1:
+		return false
+	_on_choice_made(0)
+	return true
+
 func _on_multiselect_confirmed(indices: Array[int]) -> void:
 	match _effect_mode:
 		EffectMode.EFFECT_SEEDBANKS:
@@ -2630,6 +2638,8 @@ func _effect_step_reveal_expedition_slot(step: Dictionary) -> void:
 func _effect_step_choice(step: Dictionary) -> void:
 	_effect_mode = EffectMode.EFFECT_CHOICE
 	_pending_choice_options = step.get("options", [])
+	if not bool(step.get("skippable", false)) and _auto_pick_single_option():
+		return
 	var labels: Array[String] = []
 	var tints: Array[Color] = []
 	for opt: Dictionary in _pending_choice_options:
@@ -2739,6 +2749,8 @@ func _effect_step_offer_free_sector_gain() -> void:
 	for cd: CardData in eligible:
 		_pending_choice_options.append({steps = [{type = "free_sector_gain", card_data = cd}]})
 	_effect_mode = EffectMode.EFFECT_CHOICE
+	if _auto_pick_single_option():
+		return
 	_choice_popup.show_card_choices(tr("Inflatable Hull — gain which sector for free?"), eligible, false, eligible_adv)
 
 func _effect_step_seedbanks() -> void:
@@ -2875,6 +2887,8 @@ func _ice9_choose_card(slot: SectorSlot) -> void:
 		choices.append(c.get("card_data") as CardData)
 		_pending_choice_options.append({steps = [{type = "recycle_sector_card", card_node = c, slot = slot, _source_name = _effect_source_name}]})
 	_effect_mode = EffectMode.EFFECT_CHOICE
+	if _auto_pick_single_option():
+		return
 	_choice_popup.show_card_choices(tr("Ice 9 — recycle which card?"), choices, false)
 
 func _effect_step_recycle_sector_card(card: Node3D, slot: SectorSlot) -> void:
