@@ -91,7 +91,10 @@ const GUIDE_TIPS: Array[String] = [
 	"Keep the ring of lights around each card's orb uncovered.",
 	"Give supply tokens a little room and keep them fully visible.",
 	"Archived cards go below their sector, face up or face down.",
+	"The scan can make mistakes: compare it with Show Photo and fix any sector with Edit.",
 ]
+# badge per tip: the numbers on the picture; the last tip isn't about the picture
+const GUIDE_MARKS: Array[String] = ["1", "2", "3", "4", "!"]
 # Same res://assets/ui/supply/<Name>.png set supply_ui.gd uses elsewhere —
 # the real resource-token graphics, not the card-frame icon set.
 const _SUPPLY_ICON_PATHS: Dictionary = {
@@ -478,7 +481,7 @@ func _build_photo_guide() -> Control:
 		badge.custom_minimum_size = Vector2(GUIDE_BADGE_SIZE, GUIDE_BADGE_SIZE)
 		badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		var num: Label = Label.new()
-		num.text = str(i + 1)
+		num.text = GUIDE_MARKS[i]
 		num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		num.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		num.add_theme_font_size_override("font_size", HINT_FONT_SIZE)
