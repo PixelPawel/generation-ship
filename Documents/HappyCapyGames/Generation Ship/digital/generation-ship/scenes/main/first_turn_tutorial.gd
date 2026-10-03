@@ -1,47 +1,54 @@
 class_name FirstTurnTutorial
 extends Node
 
-# Interactive first-turn tutorial: highlights the real UI element for the
-# next thing to try, shows a short instruction on the existing effect-hint
-# banner, and waits for the player to actually do it. Six concepts, each
-# tracked independently of which one is currently displayed (a real action
-# counts whenever it happens), shown one at a time in this priority order
-# to whichever isn't done yet: Buy a Sector -> Place a Tech -> Fuse Supply
-# -> Bid on an Expedition -> Research -> Pass. No hard gating — the player
-# can do things in any order; the displayed hint just advances whenever its
-# matching real action fires. After Pass, a final closing tip about how to
-# win stays up until the player opens the Pause Menu (Escape), then the
-# tutorial ends for good.
+# The Tutorial (main menu → Tutorial): one solo game that walks through every
+# mechanic in order, each chapter waiting for the player to really do it.
+# It highlights the real UI and shows the step on the effect-hint banner (top
+# edge while the tutorial runs). Before a chapter it hands over exactly the
+# cards and supply that chapter needs, so it never depends on lucky draws.
 #
-# Re-asserts its current step every REFRESH_INTERVAL_SEC rather than
-# showing it once, because two other systems can silently undo it:
-# - _reset_effect_state() unconditionally hides the shared effect-hint
-#   banner on every end-turn, including the auto-end-turn that fires the
-#   instant a single-action turn settles.
-# - SectorSlot.highlight() is also driven live by the board's own drag
-#   feedback, which force-clears every slot's highlight on any drag end.
-# Both are safe to re-assert idempotently, and this only runs while
-# main._effect_mode == NONE so it never steps on a real effect hint.
+# Chapters: buy a sector → place a tech → fuse → optimize → recycle → bid on
+# an expedition → complete a sector → buy a second sector → archive & store →
+# Always cards → printed stars → research → pass → scoring (the game ends on
+# the score breakdown; tutorial scores never reach the leaderboard).
+#
+# Re-asserts its current step every REFRESH_INTERVAL_SEC, because the end of
+# a turn hides the banner and drag feedback clears slot highlights; and it
+# stays quiet while a card effect is resolving (that effect shows its own
+# prompt).
 
 const REFRESH_INTERVAL_SEC: float = 0.2
+const SETTINGS_PATH: String = "user://settings.cfg"
+const MIN_SUPPLY: int = 6        # topped up before chapters that cost supply
+# A cheap, effect-free card of each colour, to fill a sector's optimize group.
+const FILLER_BY_COLOR: Dictionary = {
+	CardData.SupplyColor.DUST: "Mag-Net",
+	CardData.SupplyColor.METALS: "Cargo Pods",
+	CardData.SupplyColor.LIQUIDS: "Purifier",
+	CardData.SupplyColor.ORGANIX: "Fish",
+	CardData.SupplyColor.ELECTRIX: "Portable Reactor",
+	CardData.SupplyColor.THRUST: "Markets",
+}
+const STEPS: Array[String] = [
+	"buy", "place", "fuse", "optimize", "recycle", "bid", "complete",
+	"buy2", "archive_store", "always", "stars", "research", "pass", "score",
+]
 
 var _main: Main = null
 var _board: Node = null
+var _step: int = -1
+var _entered: bool = false
 
-var _bought_sector: bool = false
-var _placed_tech: bool = false
-var _fused_supply: bool = false
-var _bid_expedition: bool = false
+# what happened since the current step started
+var _placed: Array[CardData] = []
+var _fused: bool = false
+var _recycled: bool = false
+var _optimized: bool = false
 var _researched: bool = false
 var _passed: bool = false
-var _dismissed: bool = false
-
-# Whether the player has recycled a card since the bid payment panel for
-# the current Expedition bid last opened — reset on every bid attempt so
-# the hint can move from "recycle" to "pay" only within that one attempt.
 var _recycled_during_bid_payment: bool = false
-
-var _current_step: String = ""
+var _first_sector: SectorSlot = null
+var _second_sector: SectorSlot = null
 var _highlighted_tech_slots: Array[SectorSlot] = []
 
 func start(main: Main) -> void:
@@ -50,13 +57,14 @@ func start(main: Main) -> void:
 	_board.card_placed.connect(_on_card_placed)
 	_board.card_recycled.connect(_on_card_recycled)
 	_board.unplaceable_card_recycled.connect(_on_unplaceable_card_recycled)
-	main._cs_display.fused.connect(_on_fused)
-
+	_board.optimize_triggered.connect(func(_slot: SectorSlot, _level: int) -> void: _optimized = true)
+	main._cs_display.fused.connect(func(_s: int, _t: int) -> void: _fused = true)
 	var timer: Timer = Timer.new()
 	timer.wait_time = REFRESH_INTERVAL_SEC
 	timer.autostart = true
 	timer.timeout.connect(_refresh)
 	add_child(timer)
+	_next_step()
 
 func notify_passed() -> void:
 	_passed = true
@@ -64,150 +72,273 @@ func notify_passed() -> void:
 func notify_researched() -> void:
 	_researched = true
 
-# Only the closing step's own dismissal counts — an earlier Escape press
-# (opening the Pause Menu mid-game, before this final tip is even showing)
-# must not skip the tip once the player actually reaches it.
 func notify_escape_pressed() -> void:
-	if _current_step == "closing":
-		_dismissed = true
+	pass
 
-func _on_card_recycled(_color: int, _amount: int) -> void:
-	_recycled_during_bid_payment = true
+# ── Events ────────────────────────────────────────────────────────────────────
 
-func _on_card_placed(card: Node3D, _slot: SectorSlot) -> void:
+func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	var cd: CardData = card.get("card_data")
 	if not cd:
 		return
+	_placed.append(cd)
 	if cd.card_type == CardData.CardType.SECTOR:
-		_bought_sector = true
-	elif cd.card_type == CardData.CardType.TECH:
-		_placed_tech = true
-	elif cd.card_type == CardData.CardType.EXPEDITION:
-		_bid_expedition = true
+		if _first_sector == null:
+			_first_sector = slot
+		elif _second_sector == null and slot != _first_sector:
+			_second_sector = slot
 
-# An auction win with nowhere to place it (no free tech slot anywhere)
-# auto-recycles instead of ever starting a drag — still counts as done.
+func _on_card_recycled(_color: int, _amount: int) -> void:
+	_recycled = true
+	_recycled_during_bid_payment = true
+
+# A won expedition with no room is recycled instead of placed — still counts.
 func _on_unplaceable_card_recycled(card_data: CardData) -> void:
-	if card_data and card_data.card_type == CardData.CardType.EXPEDITION:
-		_bid_expedition = true
+	if card_data:
+		_placed.append(card_data)
 
-func _on_fused(_source: int, _target: int) -> void:
-	_fused_supply = true
+func _placed_type(t: CardData.CardType) -> bool:
+	for cd: CardData in _placed:
+		if cd.card_type == t:
+			return true
+	return false
+
+func _placed_name(n: String) -> bool:
+	for cd: CardData in _placed:
+		if cd.card_name == n:
+			return true
+	return false
+
+# ── Steps ─────────────────────────────────────────────────────────────────────
+
+func _next_step() -> void:
+	_step += 1
+	_entered = false
+	_placed.clear()
+	_fused = false
+	_recycled = false
+	_optimized = false
+	_researched = false
+	_passed = false
+	_recycled_during_bid_payment = false
+	_clear_highlights()
 
 func _refresh() -> void:
-	if _bought_sector and _placed_tech and _fused_supply and _bid_expedition and _researched and _passed and _dismissed:
-		_finish()
+	if _step >= STEPS.size():
 		return
 	if _main._effect_mode != Main.EffectMode.NONE:
 		_show_recycle_arrow(false)
 		return
-	var step: String
-	if not _bought_sector:
-		step = "buy"
-	elif not _placed_tech:
-		step = "place"
-	elif not _fused_supply:
-		step = "fuse"
-	elif not _bid_expedition:
-		step = "bid"
-	elif not _researched:
-		step = "research"
-	elif not _passed:
-		step = "pass"
-	else:
-		step = "closing"
-	_apply_step(step)
+	var step: String = STEPS[_step]
+	if not _entered:
+		_entered = true
+		_enter(step)
+	if _is_done(step):
+		_next_step()
+		return
+	_show(step)
 
-func _apply_step(step: String) -> void:
-	if step != "buy":
-		_main._market_panel.set_tutorial_dust_highlight(false)
-	if step != "place":
-		_clear_tech_slot_highlights()
-	if step != "fuse":
-		_main._cs_display._flow.set_tutorial_highlight(false)
-	if step != "bid":
-		_main._market_panel.set_tutorial_expedition_highlight(false)
-	if step != "research":
-		_main._stop_research_btn_3d_flash()
-	if step != "pass":
-		_main._stop_pass_btn_3d_flash()
-	if step != "bid":
-		_show_recycle_arrow(false)
+# Hand-overs before a chapter: the cards it needs, enough supply to play them.
+func _enter(step: String) -> void:
+	match step:
+		"buy", "buy2", "bid":
+			_top_up_supply()
+		"place":
+			_give(["Mag-Net"])
+		"fuse":
+			if _main._cs_display.get_supply(CardData.SupplyColor.DUST) < 2:
+				_main._cs_display.set_supply(CardData.SupplyColor.DUST, 2)
+		"optimize":
+			_top_up_supply()
+			_give(_missing_optimize_cards())
+		"complete":
+			_top_up_supply()
+			var free: int = 5 - (_first_sector.get_tech_count() if _first_sector else 5)
+			var cards: Array[String] = []
+			for i: int in maxi(0, free - 1):
+				cards.append("Mag-Net")
+			if free > 0:
+				cards.append("PC-Mind-Link")
+			_give(cards)
+		"archive_store":
+			_top_up_supply()
+			_give(["Chemical Synthesizer", "Containers"])
+		"always":
+			_top_up_supply()
+			_give(["Biodomes", "Atmospheric System"])
+		"stars":
+			_top_up_supply()
+			_give(["Fish"])
+		"score":
+			_main._hide_effect_hint()
+			_main._game_over()
+			_mark_done()
 
+func _is_done(step: String) -> bool:
 	match step:
 		"buy":
-			_apply_buy_step()
+			return _first_sector != null
 		"place":
-			_main._show_effect_hint(_main.hint("TUT_PLACE_TECH", "TUT_PLACE_TECH_MOBILE"))
+			return _placed_type(CardData.CardType.TECH)
+		"fuse":
+			return _fused
+		"optimize":
+			return _optimized
+		"recycle":
+			return _recycled
+		"bid":
+			return _placed_type(CardData.CardType.EXPEDITION)
+		"complete":
+			return _first_sector == null or _first_sector.is_complete()
+		"buy2":
+			return _second_sector != null
+		"archive_store":
+			return _any_tucked() and _any_stored()
+		"always":
+			return _placed_name("Atmospheric System") and _board.count_tech_by_name("Biodomes") > 0
+		"stars":
+			return _placed_name("Fish")
+		"research":
+			return _researched
+		"pass":
+			return _passed
+	return false   # "score" stays up: the game is over
+
+func _show(step: String) -> void:
+	match step:
+		"buy", "buy2":
+			_show_buy(step == "buy2")
+		"place":
+			_hint(_main.hint("TUT_PLACE_TECH", "TUT_PLACE_TECH_MOBILE"))
 			_highlight_tech_slots()
 		"fuse":
-			_main._show_effect_hint(tr("TUT_FUSE"))
+			_hint(tr("TUT_FUSE"))
 			_main._cs_display._flow.set_tutorial_highlight(true)
+		"optimize":
+			_hint(tr("TUT_OPTIMIZE"))
+			_highlight_tech_slots()
+		"recycle":
+			_hint(_main.hint("TUT_BID_RECYCLE", "TUT_BID_RECYCLE_MOBILE"))
+			_show_recycle_arrow(true)
 		"bid":
-			_apply_bid_step()
+			_show_bid()
+		"complete":
+			_hint(tr("TUT_COMPLETE") % _name("PC-Mind-Link"))
+			_highlight_tech_slots()
+		"archive_store":
+			_hint(tr("TUT_ARCHIVE_STORE") % [_name("Chemical Synthesizer"), _name("Containers")])
+			_highlight_tech_slots()
+		"always":
+			_hint(tr("TUT_ALWAYS") % [_name("Biodomes"), _name("Atmospheric System"),
+					CardData.color_name(CardData.SupplyColor.LIQUIDS)])
+			_highlight_tech_slots()
+		"stars":
+			_hint(tr("TUT_STARS") % _name("Fish"))
+			_highlight_tech_slots()
 		"research":
-			_main._show_effect_hint(tr("TUT_RESEARCH"))
+			_hint(tr("TUT_RESEARCH"))
 			_main._start_research_btn_3d_flash()
 		"pass":
-			_main._show_effect_hint(tr("TUT_PASS"))
+			_main._stop_research_btn_3d_flash()
+			_hint(tr("TUT_PASS"))
 			_main._start_pass_btn_3d_flash()
-		"closing":
-			_main._show_effect_hint(_main.hint("TUT_CLOSING", "TUT_CLOSING_MOBILE"))
-	_current_step = step
+		"score":
+			_main._stop_pass_btn_3d_flash()
+			_hint(tr("TUT_SCORE"))
 
-# "Buy a Sector" is really 3 sub-phases of one flow: click a market slot,
-# pay for it, then drag it onto a free Sector slot — the hint follows
-# whichever one is actually happening right now.
-func _apply_buy_step() -> void:
-	if _is_dragging_sector_card():
+func _hint(text: String) -> void:
+	_main._show_effect_hint(text)
+
+# "Buy a Sector" is 3 sub-phases: pick a market slot, pay, place the card.
+func _show_buy(second: bool) -> void:
+	if _is_dragging(CardData.CardType.SECTOR):
 		_main._market_panel.set_tutorial_dust_highlight(false)
-		_main._show_effect_hint(tr("TUT_BUY_PLACE"))
+		_hint(tr("TUT_BUY_PLACE"))
 	elif (_main._bid_popup and _main._bid_popup.visible) or (_main._bid_payment_panel and _main._bid_payment_panel.visible):
 		_main._market_panel.set_tutorial_dust_highlight(false)
-		_main._show_effect_hint(_main.hint("TUT_BUY", "TUT_BUY_MOBILE"))
+		_hint(_main.hint("TUT_BUY", "TUT_BUY_MOBILE"))
 	else:
 		_main._market_panel.set_tutorial_dust_highlight(true)
-		_main._show_effect_hint(_main.hint("TUT_BUY", "TUT_BUY_MOBILE"))
+		_hint(tr("TUT_BUY_SECOND") if second else _main.hint("TUT_BUY", "TUT_BUY_MOBILE"))
 
-# "Bid on an Expedition" is also multiple sub-phases: click an Expedition,
-# confirm a bid in the popup, then pay for the win — recycling and fusing
-# supply if what's on hand isn't enough — on the payment panel.
-func _apply_bid_step() -> void:
-	_show_recycle_arrow(false)
-	if _is_dragging_expedition_card():
-		_recycled_during_bid_payment = false
+# "Bid on an Expedition": pick one, confirm the bid, pay, place it.
+func _show_bid() -> void:
+	if _is_dragging(CardData.CardType.EXPEDITION):
 		_main._market_panel.set_tutorial_expedition_highlight(false)
-		_main._show_effect_hint(tr("TUT_BID_PLACE"))
+		_hint(tr("TUT_BID_PLACE"))
 	elif _main._bid_popup and _main._bid_popup.visible:
-		_recycled_during_bid_payment = false
 		_main._market_panel.set_tutorial_expedition_highlight(false)
-		_main._show_effect_hint(tr("TUT_BID_POPUP"))
+		_hint(tr("TUT_BID_POPUP"))
 	elif _main._bid_payment_panel and _main._bid_payment_panel.visible:
 		_main._market_panel.set_tutorial_expedition_highlight(false)
-		if _recycled_during_bid_payment:
-			_main._show_effect_hint(tr("TUT_BID_PAY"))
-		else:
-			_main._show_effect_hint(_main.hint("TUT_BID_RECYCLE", "TUT_BID_RECYCLE_MOBILE"))
-			_show_recycle_arrow(true)
-			return
+		_hint(tr("TUT_BID_PAY"))
 	else:
-		_recycled_during_bid_payment = false
 		_main._market_panel.set_tutorial_expedition_highlight(true)
-		_main._show_effect_hint(_main.hint("TUT_BID_DEFAULT", "TUT_BID_DEFAULT_MOBILE"))
+		_hint(_main.hint("TUT_BID_DEFAULT", "TUT_BID_DEFAULT_MOBILE"))
 
-func _is_dragging_sector_card() -> bool:
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+func _give(names: Array[String]) -> void:
+	var cards: Array[CardData] = []
+	for n: String in names:
+		var cd: CardData = _tech(n)
+		if cd:
+			cards.append(cd)
+	if not cards.is_empty():
+		_board.add_specific_cards_to_hand(cards)
+		_board.refresh_hand_discounts()
+
+# A card's name in the current language, for the step texts.
+static func _name(card_name: String) -> String:
+	var cd: CardData = _tech(card_name)
+	return CardDatabase.display_name(cd) if cd else card_name
+
+static func _tech(card_name: String) -> CardData:
+	for cd: CardData in CardDatabase.techs:
+		if cd.card_name == card_name:
+			return cd
+	return null
+
+func _top_up_supply() -> void:
+	for color: CardData.SupplyColor in CardData.SupplyColor.values():
+		if _main._cs_display.get_supply(color) < MIN_SUPPLY:
+			_main._cs_display.set_supply(color, MIN_SUPPLY)
+
+# The cards the first sector's first optimize group still needs ("Any" = Mag-Net).
+func _missing_optimize_cards() -> Array[String]:
+	var out: Array[String] = []
+	if _first_sector == null or _first_sector.placed_card == null:
+		return out
+	var cd: CardData = _first_sector.placed_card.card_data
+	var req: Array = cd.adv_opt1_req if bool(_first_sector.placed_card.get("is_advanced")) else cd.opt1_req
+	var have: Array[int] = _first_sector.get_placed_tech_colors()
+	for c: Variant in req:
+		var color: int = int(c)
+		var i: int = have.find(color)
+		if i >= 0:
+			have.remove_at(i)
+		else:
+			out.append(str(FILLER_BY_COLOR.get(color, "Mag-Net")))
+	return out
+
+func _any_tucked() -> bool:
+	for slot: SectorSlot in _board.get_sector_slots():
+		if not slot.tucked_cards.is_empty():
+			return true
+	return false
+
+func _any_stored() -> bool:
+	for slot: SectorSlot in _board.get_sector_slots():
+		if slot.get_total_stored_supply() > 0:
+			return true
+	return false
+
+func _is_dragging(t: CardData.CardType) -> bool:
 	var dragged: Node3D = _board.get("_dragged_card") as Node3D
 	if not dragged:
 		return false
 	var cd: CardData = dragged.get("card_data")
-	return cd != null and cd.card_type == CardData.CardType.SECTOR
-
-func _is_dragging_expedition_card() -> bool:
-	var dragged: Node3D = _board.get("_dragged_card") as Node3D
-	if not dragged:
-		return false
-	var cd: CardData = dragged.get("card_data")
-	return cd != null and cd.card_type == CardData.CardType.EXPEDITION
+	return cd != null and cd.card_type == t
 
 func _highlight_tech_slots() -> void:
 	var eligible: Array[SectorSlot] = []
@@ -223,11 +354,25 @@ func _highlight_tech_slots() -> void:
 		slot.highlight(true)
 	_highlighted_tech_slots = eligible
 
-func _clear_tech_slot_highlights() -> void:
+func _clear_highlights() -> void:
 	for slot: SectorSlot in _highlighted_tech_slots:
 		if is_instance_valid(slot):
 			slot.highlight(false)
 	_highlighted_tech_slots = []
+	if _main == null:
+		return
+	_main._market_panel.set_tutorial_dust_highlight(false)
+	_main._market_panel.set_tutorial_expedition_highlight(false)
+	_main._cs_display._flow.set_tutorial_highlight(false)
+	_main._stop_research_btn_3d_flash()
+	_main._stop_pass_btn_3d_flash()
+	_show_recycle_arrow(false)
+
+func _mark_done() -> void:
+	var cfg: ConfigFile = ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
+	cfg.set_value("tutorial", "seen", true)
+	cfg.save(SETTINGS_PATH)
 
 # Phones: an animated arrow from the hand to the control screen, since
 # recycling there is a drag (no right-click) that's hard to guess.
@@ -253,26 +398,3 @@ func _show_recycle_arrow(on: bool) -> void:
 	var from_2d: Vector2 = cam.unproject_position((_main.get_node("Hand") as Node3D).global_position)
 	var to_2d: Vector2 = cam.unproject_position(screen_mesh.to_global(screen_mesh.mesh.get_aabb().get_center()))
 	_recycle_arrow.show_arrow(from_2d, to_2d)
-
-func _finish() -> void:
-	_show_recycle_arrow(false)
-	_main._hide_effect_hint()
-	_main._market_panel.set_tutorial_dust_highlight(false)
-	_clear_tech_slot_highlights()
-	_main._cs_display._flow.set_tutorial_highlight(false)
-	_main._market_panel.set_tutorial_expedition_highlight(false)
-	_main._stop_research_btn_3d_flash()
-	_main._stop_pass_btn_3d_flash()
-	if _board.card_placed.is_connected(_on_card_placed):
-		_board.card_placed.disconnect(_on_card_placed)
-	if _board.card_recycled.is_connected(_on_card_recycled):
-		_board.card_recycled.disconnect(_on_card_recycled)
-	if _board.unplaceable_card_recycled.is_connected(_on_unplaceable_card_recycled):
-		_board.unplaceable_card_recycled.disconnect(_on_unplaceable_card_recycled)
-	if _main._cs_display.fused.is_connected(_on_fused):
-		_main._cs_display.fused.disconnect(_on_fused)
-	# main._tutorial otherwise dangles once this node is freed — a later
-	# "if _tutorial:" check (e.g. in _do_pass()) would hold a stale
-	# reference instead of reading as falsy.
-	_main._tutorial = null
-	queue_free()

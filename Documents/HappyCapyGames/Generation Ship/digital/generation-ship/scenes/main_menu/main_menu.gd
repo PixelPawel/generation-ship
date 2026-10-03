@@ -1,5 +1,6 @@
 extends Control
 const Haptics = preload("res://scripts/haptics.gd")
+const TutorialSession = preload("res://scripts/tutorial_session.gd")
 
 const SETTINGS_PATH: String = "user://settings.cfg"
 const _BTN_HOVER_IN_SEC: float = 0.15
@@ -31,6 +32,7 @@ const RESOLUTIONS: Array[Vector2i] = [
 const FULLSCREEN_IDX: int = 5
 
 func _ready() -> void:
+	TutorialSession.active = false   # however the last game ended
 	theme = GameTheme.get_theme()
 	_apply_saved_settings()
 	_setup_video()
@@ -44,6 +46,7 @@ func _ready() -> void:
 	$Panels/LobbyView/StagingPanel.position = Vector2(0.0, vp.y)
 	$Panels/LobbyView/StagingPanel.size = vp
 
+	_add_tutorial_button()
 	for btn: Node in $Panels/MainView/VBox.get_children():
 		(btn as CanvasItem).modulate.a = 0.0
 	_manual = load("res://scenes/ui/manual_popup.gd").new()
@@ -200,6 +203,24 @@ func _on_btn_hover_exit(btn: BaseButton) -> void:
 	tw.tween_property(btn, "scale", Vector2(1.0, 1.0), _BTN_HOVER_OUT_SEC)
 	tw.parallel().tween_property(btn, "modulate", Color(1.0, 1.0, 1.0, 1.0), _BTN_HOVER_OUT_SEC)
 	_btn_tweens[btn] = tw
+
+# One solo game that teaches every mechanic (FirstTurnTutorial), above Multiplayer.
+func _add_tutorial_button() -> void:
+	var vbox: Node = $Panels/MainView/VBox
+	var btn: Button = Button.new()
+	btn.text = "Tutorial"
+	btn.custom_minimum_size = Vector2(440, 64)
+	btn.add_theme_font_size_override("font_size", 32)
+	btn.pressed.connect(_on_tutorial_pressed)
+	vbox.add_child(btn)
+	vbox.move_child(btn, 0)
+
+func _on_tutorial_pressed() -> void:
+	TutorialSession.active = true
+	GameNetwork.is_multiplayer = false
+	GameNetwork.bot_ids = []
+	GameNetwork.player_names = {}
+	SceneTransition.change_scene("res://scenes/main/main.tscn")
 
 func _on_rule_book_pressed() -> void:
 	_manual.open()

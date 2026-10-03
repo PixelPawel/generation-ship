@@ -1,6 +1,7 @@
 class_name Main
 extends Node3D
 const Haptics = preload("res://scripts/haptics.gd")
+const TutorialSession = preload("res://scripts/tutorial_session.gd")
 const CardInspectOverlay = preload("res://scenes/ui/card_inspect_overlay.gd")
 
 @export var card_scene: PackedScene
@@ -675,10 +676,11 @@ func _is_true_solo_session() -> bool:
 		func(id: int) -> bool: return not GameNetwork.is_bot(id))
 	return real_players.size() <= 1
 
+# The tutorial is its own game now (main menu → Tutorial), never squeezed into
+# a real one.
 func _start_first_turn_tutorial_if_needed() -> void:
-	if not _is_true_solo_session() or _tutorial_seen():
+	if not TutorialSession.active:
 		return
-	_mark_tutorial_seen()  # mark before starting — a crash mid-tutorial shouldn't re-nag
 	_tutorial = FirstTurnTutorial.new()
 	add_child(_tutorial)
 	_tutorial.start(self)
@@ -1617,7 +1619,8 @@ func _game_over() -> void:
 	# Every client submits only its own final score — Steam always attributes
 	# an upload to whichever account is locally logged in, so there's no
 	# "submit on behalf of an opponent" path to worry about here.
-	LeaderboardManager.submit_score(total, ScoringSnapshotCodec.encode_lines(lines))
+	if not TutorialSession.active:   # a tutorial score isn't a real game
+		LeaderboardManager.submit_score(total, ScoringSnapshotCodec.encode_lines(lines))
 	if not GameNetwork.is_multiplayer:
 		_scoreboard.show_scores(lines, total)
 		return
@@ -3703,6 +3706,7 @@ func _toggle_pause_menu() -> void:
 		_tutorial.notify_escape_pressed()
 
 func _on_pause_main_menu() -> void:
+	TutorialSession.active = false
 	SceneTransition.change_scene("res://scenes/main_menu/main_menu.tscn")
 
 func _try_auto_end_turn() -> void:

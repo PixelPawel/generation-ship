@@ -300,21 +300,6 @@ func _build_settings_panel() -> void:
 		GameTheme.set_tooltip_size(GameTheme.TOOLTIP_SIZES[index]))
 	tip_row.add_child(tip_option)
 
-	var tutorial_row := HBoxContainer.new()
-	tutorial_row.add_theme_constant_override("separation", 10)
-	vbox.add_child(tutorial_row)
-
-	var tutorial_lbl := Label.new()
-	_tr_set(tutorial_lbl, "Replay Tutorial")
-	tutorial_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tutorial_lbl.add_theme_font_size_override("font_size", 16)
-	tutorial_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	tutorial_row.add_child(tutorial_lbl)
-
-	_tutorial_check = CheckButton.new()
-	_tutorial_check.toggled.connect(_save_tutorial_setting)
-	tutorial_row.add_child(_tutorial_check)
-
 	var lang_row := HBoxContainer.new()
 	lang_row.add_theme_constant_override("separation", 10)
 	vbox.add_child(lang_row)
