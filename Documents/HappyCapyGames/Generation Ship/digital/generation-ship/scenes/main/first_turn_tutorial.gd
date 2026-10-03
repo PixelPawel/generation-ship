@@ -216,7 +216,7 @@ func _enter(step: String) -> void:
 		"optimize":
 			_top_up_supply()
 			# Simulators' optimize effect is "Draw 2": it draws the next steps' cards
-			_board.set_scripted_deck(_cards(["Lab Meats", "Mag-Net"]))
+			_board.set_scripted_deck(_cards(["Lab Meats", "PC-Mind-Link"]))
 			_give(_missing_optimize_cards())
 		"complete":
 			_top_up_supply()
@@ -224,9 +224,9 @@ func _enter(step: String) -> void:
 			var cards: Array[String] = []
 			for i: int in maxi(0, free - 1):
 				cards.append("Mag-Net")
-			if free > 0:
-				cards.append("PC-Mind-Link")
 			_give(cards)
+			if free > 0:
+				_give_if_missing("PC-Mind-Link")   # Simulators' Draw 2 brought it already
 		"buy3":
 			_top_up_supply()
 		"archive":
