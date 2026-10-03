@@ -1,6 +1,5 @@
 extends Control
 const Haptics = preload("res://scripts/haptics.gd")
-const ContextHints = preload("res://scenes/ui/context_hints.gd")
 
 signal main_menu_pressed
 
@@ -592,8 +591,6 @@ func _save_tutorial_setting(want_replay: bool) -> void:
 	cfg.load(SETTINGS_PATH)
 	cfg.set_value("tutorial", "seen", not want_replay)
 	cfg.save(SETTINGS_PATH)
-	if want_replay:
-		ContextHints.reset_all()   # the first-time tips come back too
 
 func _load_language_setting() -> void:
 	var cfg: ConfigFile = ConfigFile.new()

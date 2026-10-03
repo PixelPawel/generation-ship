@@ -2,7 +2,6 @@ class_name Main
 extends Node3D
 const Haptics = preload("res://scripts/haptics.gd")
 const DebugMode = preload("res://scripts/debug_mode.gd")
-const ContextHints = preload("res://scenes/ui/context_hints.gd")
 const CardInspectOverlay = preload("res://scenes/ui/card_inspect_overlay.gd")
 
 @export var card_scene: PackedScene
@@ -69,7 +68,6 @@ var _effect_mode: EffectMode = EffectMode.NONE:
 			board.set_effect_active(value != EffectMode.NONE)
 var _effect_queue: Array[Dictionary] = []
 var _card_inspect: CardInspectOverlay = null   # phones: hold a hand card to read it big
-var _hints: ContextHints = null                # first-time tips (Archive, Store, Optimize…)
 const TOUCH_TOOLTIP_TOP: float = 40.0          # phones: below the top-corner buttons
 var _effect_hint_top: bool = false             # the tutorial's banner sits at the top edge, not mid-screen
 var _effect_slot: SectorSlot = null
@@ -275,8 +273,6 @@ func _ready() -> void:
 	_scoreboard = $UILayer/Scoreboard
 	_pause_menu = $UILayer/PauseMenu
 	_pause_menu.main_menu_pressed.connect(_on_pause_main_menu)
-	_hints = ContextHints.new()
-	$UILayer.add_child(_hints)
 	if GameTheme.is_touch():
 		_build_touch_menu_button()
 		_card_inspect = CardInspectOverlay.new()
@@ -1286,7 +1282,6 @@ func _rpc_sync_auction_started(card_ref: Dictionary, slot_idx: int, is_tech: boo
 	_auction_starting = false
 	_show_action_buttons(false)
 	UIAudio.play_auction_music()
-	_hints.hint("bid")
 	_set_auction_opponent_statuses(remaining_ids, initiator_id, active_id, min_bid)
 	if multiplayer.is_server() and GameNetwork.is_bot(active_id):
 		var _ab1: int = active_id
@@ -2283,7 +2278,6 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 		$Board.draw_cards(1)
 	if _cd.card_type != CardData.CardType.SECTOR and slot.is_complete():
 		slot.celebrate(true)
-		_hints.hint("complete")
 	$Board.refresh_hand_discounts()
 	if _effect_mode != EffectMode.NONE:
 		_reset_effect_state()
@@ -2365,7 +2359,6 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 			for b: Dictionary in decided:
 				labels.append(str(b["label"]))
 			_choice_popup.show_choices(tr("Multiple effects triggered — resolve which first?"), labels, false)
-		_hints.hint("order")
 		return
 
 	_effect_queue.append_array(auto_steps)
@@ -3671,7 +3664,6 @@ func _on_action_committed() -> void:
 # instead of unconditionally landing wherever it happened to be appended.
 func _on_optimize_triggered(slot: SectorSlot, _level: int) -> void:
 	slot.celebrate(slot.is_optimized)
-	_hints.hint("fully_optimized" if slot.is_optimized else "optimize")
 	_effect_slot = slot
 	_pending_optimize_steps.append_array(SectorEffects.get_optimize_steps(slot))
 
