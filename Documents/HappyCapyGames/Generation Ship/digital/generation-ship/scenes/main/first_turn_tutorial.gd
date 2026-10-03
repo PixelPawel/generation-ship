@@ -7,9 +7,11 @@ extends Node
 # edge while the tutorial runs). Before a chapter it hands over exactly the
 # cards and supply that chapter needs, so it never depends on lucky draws.
 #
-# Chapters: buy a sector → place a tech → fuse → optimize → recycle → bid on
+# Chapters: buy a sector → place a tech → fuse → optimize → "if fully
+# optimized" → recycle → bid on
 # an expedition → complete a sector → buy a second sector → archive face down →
-# store → archive face up → printed stars → buy a third sector → Always cards →
+# store → archive face up → printed stars → buy a third sector → "if new" →
+# Always cards →
 # research → pass → scoring (the game ends on the score breakdown; tutorial
 # scores never reach the leaderboard).
 #
@@ -35,8 +37,8 @@ const FILLER_BY_COLOR: Dictionary = {
 	CardData.SupplyColor.THRUST: "Markets",
 }
 const STEPS: Array[String] = [
-	"buy", "place", "fuse", "optimize", "recycle", "bid", "complete", "buy2",
-	"archive", "store", "archive_up", "stars", "buy3", "always",
+	"buy", "place", "fuse", "optimize", "if_full", "recycle", "bid", "complete", "buy2",
+	"archive", "store", "archive_up", "stars", "buy3", "if_new", "always",
 	"research", "pass", "score",
 ]
 const FUSE_NUDGE_SEC: float = 10.0   # no fuse yet: shake the zoomed control screen
@@ -186,6 +188,12 @@ func _enter(step: String) -> void:
 			if _main._cs_display.get_supply(CardData.SupplyColor.DUST) < 2:
 				_main._cs_display.set_supply(CardData.SupplyColor.DUST, 2)
 			CockpitRig.set_screen_enlarged(_main, _main.get_node("UiControl"), true)
+		"if_full":
+			_top_up_supply()
+			_give(["Lab Meats"])
+		"if_new":
+			_top_up_supply()
+			_give(["Hangars"])
 		"recycle":
 			_give(["Mag-Net"])
 		"optimize":
@@ -238,6 +246,11 @@ func _is_done(step: String) -> bool:
 			return _fused
 		"optimize":
 			return _optimized
+		"if_full":
+			# (a sector the optimize cards already filled can't take it: move on)
+			return _placed_name("Lab Meats") or not _any_tech_space()
+		"if_new":
+			return _placed_name("Hangars")
 		"recycle":
 			return _recycled
 		"bid":
@@ -276,6 +289,12 @@ func _show(step: String) -> void:
 			_main._cs_display._flow.set_tutorial_highlight(true)
 		"optimize":
 			_hint(tr("TUT_OPTIMIZE"))
+			_highlight_tech_slots()
+		"if_full":
+			_hint(tr("TUT_IF_FULL") % _name("Lab Meats"))
+			_highlight_tech_slots()
+		"if_new":
+			_hint(tr("TUT_IF_NEW") % _name("Hangars"))
 			_highlight_tech_slots()
 		"recycle":
 			_hint(_main.hint("TUT_RECYCLE", "TUT_RECYCLE_MOBILE"))
@@ -416,6 +435,12 @@ func _any_tucked(face_up: bool) -> bool:
 		for t: Dictionary in slot.tucked_cards:
 			if bool(t.get("face_up", false)) == face_up:
 				return true
+	return false
+
+func _any_tech_space() -> bool:
+	for slot: SectorSlot in _board.get_sector_slots():
+		if slot.has_tech_space():
+			return true
 	return false
 
 func _any_stored() -> bool:
