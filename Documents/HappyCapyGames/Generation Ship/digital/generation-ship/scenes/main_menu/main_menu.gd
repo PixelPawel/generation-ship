@@ -5,6 +5,7 @@ const MenuIconButton = preload("res://scenes/ui/menu_icon_button.gd")
 const CockpitBackdrop = preload("res://scenes/main_menu/cockpit_backdrop.gd")
 var _backdrop: Node3D = null   # the parked cockpit behind the menu
 var _launching: bool = false
+const GAME_SCENE: String = "res://scenes/main/main.tscn"
 
 # ── Layout ────────────────────────────────────────────────────────────────────
 # Tutorial, Versus, Co-op (not yet) and Quit down the middle, the four tools as a row
@@ -148,7 +149,7 @@ func launch_game(path: String) -> void:
 			fade.tween_property(child, "modulate:a", 0.0, 0.35)
 	if _backdrop:
 		await _backdrop.call("wake_up")
-	SceneTransition.change_scene(path)
+	SceneTransition.snapshot_change_scene(path)   # the lit cockpit stays up while the game loads
 
 func _setup_music() -> void:
 	var stream: AudioStreamWAV = load("res://assets/music/ambience.wav") as AudioStreamWAV
@@ -344,6 +345,7 @@ func _build_menu_layout() -> void:
 # here instead, in the background, shortly after the menu appears.
 func _warm_up_tools() -> void:
 	await get_tree().create_timer(WARM_UP_DELAY).timeout
+	SceneTransition.preload_scene(GAME_SCENE)   # so starting a game doesn't stall
 	var paths: Array[String] = []
 	paths.append_array(_collection.call("warm_up_paths") as Array[String])
 	paths.append_array(_manual.call("warm_up_paths") as Array[String])
