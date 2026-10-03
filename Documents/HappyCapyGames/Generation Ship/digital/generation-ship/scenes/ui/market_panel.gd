@@ -1,6 +1,8 @@
 extends Control
 
 const LongPressGestureScript := preload("res://scenes/ui/long_press_gesture.gd")
+const TutorialHighlightScript = preload("res://scenes/ui/tutorial_highlight.gd")
+const REVEAL_HIGHLIGHT_COLOR: Color = Color(0.3, 0.95, 0.4)
 
 signal sector_advanced_pressed(slot_idx: int)
 signal sector_dust_pressed(slot_idx: int)
@@ -31,13 +33,13 @@ var _adv_rects:       Array[TextureRect] = []
 var _adv_counts:      Array[Label]       = []
 var _dust_rects:      Array[TextureRect] = []
 var _dust_counts:     Array[Label]       = []
-var _dust_highlights: Array[ColorRect]   = []
-var _tutorial_dust_highlights: Array[ColorRect] = []
+var _dust_highlights: Array[Control]   = []
+var _tutorial_dust_highlights: Array[Control] = []
 var _exp_rects:       Array[TextureRect] = []
 var _exp_counts:      Array[Label]       = []
-var _exp_highlights:  Array[ColorRect]   = []
-var _tutorial_exp_highlights: Array[ColorRect] = []
-var _tutorial_adv_highlights: Array[ColorRect] = []
+var _exp_highlights:  Array[Control]   = []
+var _tutorial_exp_highlights: Array[Control] = []
+var _tutorial_adv_highlights: Array[Control] = []
 var _dust_slots:      Array[Control]     = []
 var _adv_slots:       Array[Control]     = []
 var _exp_slots:       Array[Control]     = []
@@ -278,16 +280,13 @@ func _build_ui() -> void:
 	for i: int in 3:
 		var rect := TextureRect.new()
 		var count_lbl := Label.new()
-		var highlight := ColorRect.new()
+		var highlight: Control = TutorialHighlightScript.new()
 		var slot := _make_slot(Vector2(CARD_W, CARD_H), rect, count_lbl, highlight)
 		_dust_rects.append(rect)
 		_dust_counts.append(count_lbl)
 		_dust_highlights.append(highlight)
-		var tutorial_highlight := ColorRect.new()
-		tutorial_highlight.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		tutorial_highlight.color = Color(0.3, 0.6, 1.0, 0.30)
+		var tutorial_highlight: Control = TutorialHighlightScript.new()
 		tutorial_highlight.visible = false
-		tutorial_highlight.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		slot.add_child(tutorial_highlight)
 		_tutorial_dust_highlights.append(tutorial_highlight)
 		var idx: int = i
@@ -331,11 +330,8 @@ func _build_ui() -> void:
 		var slot := _make_slot(Vector2(CARD_W, CARD_H), rect, count_lbl, null)
 		_adv_rects.append(rect)
 		_adv_counts.append(count_lbl)
-		var adv_tutorial_highlight := ColorRect.new()
-		adv_tutorial_highlight.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		adv_tutorial_highlight.color = Color(0.3, 0.6, 1.0, 0.30)
+		var adv_tutorial_highlight: Control = TutorialHighlightScript.new()
 		adv_tutorial_highlight.visible = false
-		adv_tutorial_highlight.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		slot.add_child(adv_tutorial_highlight)
 		_tutorial_adv_highlights.append(adv_tutorial_highlight)
 		var idx: int = i
@@ -376,16 +372,13 @@ func _build_ui() -> void:
 	for i: int in 3:
 		var rect := TextureRect.new()
 		var count_lbl := Label.new()
-		var highlight := ColorRect.new()
+		var highlight: Control = TutorialHighlightScript.new()
 		var slot := _make_slot(Vector2(CARD_W, CARD_H), rect, count_lbl, highlight)
 		_exp_rects.append(rect)
 		_exp_counts.append(count_lbl)
 		_exp_highlights.append(highlight)
-		var tutorial_highlight := ColorRect.new()
-		tutorial_highlight.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		tutorial_highlight.color = Color(0.3, 0.6, 1.0, 0.30)
+		var tutorial_highlight: Control = TutorialHighlightScript.new()
 		tutorial_highlight.visible = false
-		tutorial_highlight.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		slot.add_child(tutorial_highlight)
 		_tutorial_exp_highlights.append(tutorial_highlight)
 		var idx: int = i
@@ -441,7 +434,7 @@ func _center_column(vbox: VBoxContainer) -> CenterContainer:
 	center.add_child(vbox)
 	return center
 
-func _make_slot(slot_size: Vector2, rect: TextureRect, count_lbl: Label, highlight: ColorRect) -> Control:
+func _make_slot(slot_size: Vector2, rect: TextureRect, count_lbl: Label, highlight: Control) -> Control:
 	var root := Control.new()
 	root.custom_minimum_size = slot_size
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -465,10 +458,8 @@ func _make_slot(slot_size: Vector2, rect: TextureRect, count_lbl: Label, highlig
 	root.add_child(count_lbl)
 
 	if highlight:
-		highlight.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		highlight.color = Color(0.2, 0.85, 0.3, 0.28)
+		highlight.set("tint", REVEAL_HIGHLIGHT_COLOR)   # the game's "pick a slot to reveal" prompt
 		highlight.visible = false
-		highlight.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		root.add_child(highlight)
 
 	return root
@@ -517,7 +508,7 @@ func _refresh_exp(i: int) -> void:
 	_exp_counts[i].text = "×%d" % cnt if cnt > 0 else ""
 
 func _on_reveal_mode_changed(active: bool) -> void:
-	for highlight: ColorRect in _dust_highlights:
+	for highlight: Control in _dust_highlights:
 		highlight.visible = active
 
 # Independent of the reveal-mode highlight above (different feature, own
@@ -532,11 +523,11 @@ func set_tutorial_dust_highlight(active: bool) -> void:
 		_tutorial_dust_highlights[i].visible = active and _dust_rects[i].texture != null
 
 func _on_expedition_reveal_mode_changed(active: bool) -> void:
-	for highlight: ColorRect in _exp_highlights:
+	for highlight: Control in _exp_highlights:
 		highlight.visible = active
 
 # Independent of the reveal-mode highlight above, same reasoning as
 # set_tutorial_dust_highlight().
 func set_tutorial_expedition_highlight(active: bool) -> void:
-	for highlight: ColorRect in _tutorial_exp_highlights:
-		highlight.visible = active
+	for i: int in _tutorial_exp_highlights.size():
+		_tutorial_exp_highlights[i].visible = active and _exp_rects[i].texture != null
