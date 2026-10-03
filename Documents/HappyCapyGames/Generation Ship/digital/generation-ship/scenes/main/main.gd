@@ -2283,31 +2283,53 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	if not optimize_steps.is_empty():
 		batches.append({label = tr("Optimize"), steps = optimize_steps})
 
-	if batches.size() > 1:
+	# Batches that only gain or store a fixed supply (Pollinators, Crops, 1-G
+	# Thrust…) can't be worse first — more supply never removes an option — so
+	# they always resolve first, and the order question is only asked when two
+	# batches with real decisions remain.
+	var auto_steps: Array = []
+	var decided: Array[Dictionary] = []
+	for b: Dictionary in batches:
+		if _is_automatic_batch(b["steps"] as Array):
+			auto_steps.append_array(b["steps"] as Array)
+		else:
+			decided.append(b)
+
+	if decided.size() > 1:
 		_pending_choice_options = []
-		for i: int in batches.size():
-			var ordered: Array = []
-			ordered.append_array(batches[i]["steps"] as Array)
-			for j: int in batches.size():
+		for i: int in decided.size():
+			var ordered: Array = auto_steps.duplicate()
+			ordered.append_array(decided[i]["steps"] as Array)
+			for j: int in decided.size():
 				if j != i:
-					ordered.append_array(batches[j]["steps"] as Array)
+					ordered.append_array(decided[j]["steps"] as Array)
 			_pending_choice_options.append({steps = ordered})
 		_effect_mode = EffectMode.EFFECT_CHOICE
-		if optimize_steps.is_empty() and always_cd:
+		if optimize_steps.is_empty() and always_cd and auto_steps.is_empty():
 			var choice_cards: Array[CardData] = [always_cd, cd]
 			var choice_adv_flags: Array[bool] = [false, is_adv]
 			_choice_popup.show_card_choices(tr("Two effects triggered — resolve which first?"),
 				choice_cards, false, choice_adv_flags)
 		else:
 			var labels: Array[String] = []
-			for b: Dictionary in batches:
+			for b: Dictionary in decided:
 				labels.append(str(b["label"]))
 			_choice_popup.show_choices(tr("Multiple effects triggered — resolve which first?"), labels, false)
 		return
 
-	for b: Dictionary in batches:
+	_effect_queue.append_array(auto_steps)
+	for b: Dictionary in decided:
 		_effect_queue.append_array(b["steps"] as Array)
 	_process_next_effect()
+
+# True when every step only gains or stores a fixed supply: nothing to decide,
+# and resolving it first never takes an option away.
+static func _is_automatic_batch(steps: Array) -> bool:
+	for step: Dictionary in steps:
+		var t: String = str(step.get("type", ""))
+		if not (t == "gain_supply" or t == "store_on_slot") or not step.has("color"):
+			return false
+	return true
 
 # Always-effect source cards (Insects, Crops, 1-G Thrust, Einstein-Rosen
 # Portal, etc.) are always techs or expeditions, never sectors.
