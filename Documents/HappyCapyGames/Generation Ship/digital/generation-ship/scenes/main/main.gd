@@ -2441,11 +2441,6 @@ func _process_next_effect() -> void:
 		return
 	$Board.set_cards_can_elevate(false)
 	var step: Dictionary = _effect_queue.pop_front()
-	var step_type: String = str(step.get("type", ""))
-	if step_type.contains("tuck"):
-		_hints.hint("archive")
-	elif step_type.contains("store"):
-		_hints.hint("store")
 	_execute_effect_step(step)
 
 func _execute_effect_step(step: Dictionary) -> void:

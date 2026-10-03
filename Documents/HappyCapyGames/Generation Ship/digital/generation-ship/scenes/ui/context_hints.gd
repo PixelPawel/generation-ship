@@ -1,6 +1,6 @@
 extends Control
 # First-time tips: the first time a mechanic actually comes up in a game
-# (an Archive effect, a Store effect, an optimize, a complete sector, a bid…)
+# (an optimize, a complete sector, a bid…)
 # a small tip explains it, worded after the rule book. Each tip shows once
 # per player ever (settings.cfg [hints]); the pause menu's "show the tutorial
 # again" brings them back too (see pause_menu.gd). Never blocks: it sits near
@@ -13,8 +13,6 @@ const WIDTH: float = 560.0
 
 # key -> English text (translated with tr when shown)
 const TEXTS: Dictionary = {
-	"archive": "Archive: put the card under this sector. Face down it's worth 1★ at the end, face up it's worth its printed stars.",
-	"store": "Stored supply sits on your sector and is always worth 1★ at the end.",
 	"optimize": "Optimize: a matching group of cards on a sector activates its optimize effect — once, twice or three times per sector.",
 	"fully_optimized": "Fully optimized: the sector's last matching card is placed. Cards that say \"if fully optimized\" now resolve.",
 	"complete": "Complete: this sector has 5 cards. Its 5th card activates \"if complete\" effects.",
