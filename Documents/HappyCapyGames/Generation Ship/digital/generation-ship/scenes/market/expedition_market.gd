@@ -22,10 +22,12 @@ var _expedition_deck: Node3D = null
 var _shuffle_active: bool = false
 var _reveal_active: bool = false
 
-func setup(card_scene: PackedScene, expedition_deck: Node3D) -> void:
+## reveal: false leaves the market empty until add_round_cards() (the tutorial)
+func setup(card_scene: PackedScene, expedition_deck: Node3D, reveal: bool = true) -> void:
 	_card_scene = card_scene
 	_expedition_deck = expedition_deck
-	add_round_cards()
+	if reveal:
+		add_round_cards()
 
 func add_round_cards() -> void:
 	for i: int in 3:

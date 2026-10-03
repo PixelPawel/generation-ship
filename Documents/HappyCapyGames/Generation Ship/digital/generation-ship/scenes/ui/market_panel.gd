@@ -522,13 +522,14 @@ func _on_reveal_mode_changed(active: bool) -> void:
 
 # Independent of the reveal-mode highlight above (different feature, own
 # ColorRect array) so the two never fight over one visible flag.
+# Tutorial highlights only light up slots that hold a card.
 func set_tutorial_advanced_highlight(active: bool) -> void:
-	for highlight: ColorRect in _tutorial_adv_highlights:
-		highlight.visible = active
+	for i: int in _tutorial_adv_highlights.size():
+		_tutorial_adv_highlights[i].visible = active and _adv_rects[i].texture != null
 
 func set_tutorial_dust_highlight(active: bool) -> void:
-	for highlight: ColorRect in _tutorial_dust_highlights:
-		highlight.visible = active
+	for i: int in _tutorial_dust_highlights.size():
+		_tutorial_dust_highlights[i].visible = active and _dust_rects[i].texture != null
 
 func _on_expedition_reveal_mode_changed(active: bool) -> void:
 	for highlight: ColorRect in _exp_highlights:

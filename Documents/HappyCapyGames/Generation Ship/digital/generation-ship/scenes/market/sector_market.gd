@@ -56,6 +56,17 @@ func setup_ordered(card_scene: PackedScene, cards: Array[CardData], order: Array
 	for i: int in 3:
 		_update_dust_display(i)
 
+# Tutorial: its one pile of basic sectors sits in another slot (the bottom
+# one, clear of the tutorial banner).
+func move_dust_deck(from_slot: int, to_slot: int) -> void:
+	if from_slot == to_slot:
+		return
+	_dust_decks[to_slot] = _dust_decks[from_slot]
+	_dust_decks[from_slot] = []
+	_update_dust_display(from_slot)
+	_update_dust_display(to_slot)
+	market_changed.emit()
+
 func reveal_round_cards() -> void:
 	for i: int in 3:
 		var slot_idx: int = i

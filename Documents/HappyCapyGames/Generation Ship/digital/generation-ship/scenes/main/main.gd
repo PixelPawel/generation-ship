@@ -514,11 +514,13 @@ func _do_game_setup(sector_order: Array, exp_order: Array, tech_order: Array) ->
 		$Board.setup_market_ordered(sector_order)
 	if not TutorialSession.active:   # the tutorial reveals its advanced sector when it's needed
 		$Board.reveal_sector_round_cards()
+	else:
+		$Board.move_dust_deck(0, TUTORIAL_SECTOR_SLOT)
 	if exp_order.is_empty():
 		$Board.setup_expedition_deck(CardDatabase.expeditions)
 	else:
 		$Board.setup_expedition_deck_ordered(exp_order)
-	$Board.setup_expedition_market()
+	$Board.setup_expedition_market(not TutorialSession.active)   # tutorial: none until its bid step
 	if tech_order.is_empty():
 		$Board.setup_tech_deck(CardDatabase.techs)
 	else:
@@ -2379,6 +2381,7 @@ static func _is_automatic_batch(steps: Array) -> bool:
 # revealed for the second-sector auction (Central Transport: Metals optimize,
 # so it stays quiet under the tutorial's later cards), then the third sector.
 const TUTORIAL_REVEALED_SECTOR: String = "Central Transport"
+const TUTORIAL_SECTOR_SLOT: int = 2   # the bottom market slot, clear of the tutorial banner
 
 func _tutorial_sector_order() -> Array:
 	var central: int = -1

@@ -483,6 +483,9 @@ func dismiss_reveal_display() -> void:
 		_reveal_display_card.collapse_if_elevated()
 	_reveal_display_card = null
 
+func move_dust_deck(from_slot: int, to_slot: int) -> void:
+	_market.move_dust_deck(from_slot, to_slot)
+
 func reveal_sector_panel_slot(slot_idx: int) -> void:
 	_market.reveal_slot_panel(slot_idx)
 
@@ -499,8 +502,8 @@ func sync_expedition_shuffle_in(card_data: CardData, deck_insert_idx: int) -> vo
 func sync_expedition_reveal(slot_idx: int) -> void:
 	_expedition_market.reveal_to_slot(slot_idx)
 
-func setup_expedition_market() -> void:
-	_expedition_market.setup(_card_scene, _expedition_deck)
+func setup_expedition_market(reveal: bool = true) -> void:
+	_expedition_market.setup(_card_scene, _expedition_deck, reveal)
 	if not _expedition_market.card_drag_started.is_connected(_on_market_card_drag_started):
 		_expedition_market.card_drag_started.connect(_on_market_card_drag_started)
 	if not _expedition_market.card_shuffled_back.is_connected(_on_expedition_card_shuffled_back):

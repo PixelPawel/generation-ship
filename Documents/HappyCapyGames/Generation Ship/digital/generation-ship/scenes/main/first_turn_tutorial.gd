@@ -184,11 +184,14 @@ func _leave(step: String) -> void:
 # Hand-overs before a chapter: the cards it needs, enough supply to play them.
 func _enter(step: String) -> void:
 	match step:
-		"buy", "bid":
+		"buy":
 			_top_up_supply()
+		"bid":
+			_top_up_supply()
+			_board.add_expedition_round_cards()   # expeditions only show up now
 		"buy2":
 			_top_up_supply()
-			_board.sync_market_reveal(0)   # the first advanced sector appears (no reveal effects)
+			_board.sync_market_reveal(Main.TUTORIAL_SECTOR_SLOT)   # the advanced sector appears (no reveal effects)
 		"place":
 			_give(["Mag-Net"])
 		"fuse":
