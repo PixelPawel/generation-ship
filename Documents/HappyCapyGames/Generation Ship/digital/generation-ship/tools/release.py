@@ -96,6 +96,8 @@ def play(track: str = "internal") -> None:
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaFileUpload
+    import socket
+    socket.setdefaulttimeout(300)
     scopes = ["https://www.googleapis.com/auth/androidpublisher"]
     if os.path.exists(PLAY_KEY):
         creds = service_account.Credentials.from_service_account_file(PLAY_KEY, scopes=scopes)
@@ -108,8 +110,16 @@ def play(track: str = "internal") -> None:
     api = build("androidpublisher", "v3", credentials=creds, cache_discovery=False)
     edits = api.edits()
     edit_id = edits.insert(packageName=PACKAGE, body={}).execute()["id"]
-    media = MediaFileUpload(os.path.join(ANDROID, AAB_OUT), mimetype="application/octet-stream", resumable=True)
-    bundle = edits.bundles().upload(packageName=PACKAGE, editId=edit_id, media_body=media).execute()
+    # 8 MB pieces with retries: the default 100 MB piece outlasts the 60 s socket
+    # timeout on a home upload link
+    media = MediaFileUpload(os.path.join(ANDROID, AAB_OUT), mimetype="application/octet-stream",
+                            resumable=True, chunksize=8 * 1024 * 1024)
+    req = edits.bundles().upload(packageName=PACKAGE, editId=edit_id, media_body=media)
+    bundle = None
+    while bundle is None:
+        status, bundle = req.next_chunk(num_retries=5)
+        if status:
+            print("  uploaded %d%%" % int(status.progress() * 100), flush=True)
     code = str(bundle["versionCode"])
     edits.tracks().update(packageName=PACKAGE, editId=edit_id, track=track, body={
         "track": track, "releases": [{"versionCodes": [code], "status": "completed"}]}).execute()
