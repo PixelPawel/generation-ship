@@ -135,6 +135,38 @@ func _make_button(key: String) -> Button:
 	btn.add_theme_font_size_override("font_size", 22)
 	return btn
 
+# Phones: everything in Settings at twice its desktop size — text, rows, label
+# columns and the panel itself — and, since that no longer fits the screen's
+# height, the list scrolls (Close stays below it).
+const TOUCH_SETTINGS_SCALE: float = 2.0
+const TOUCH_SETTINGS_MAX_HEIGHT: float = 0.8   # of the screen, for the scrolling list
+
+func _double_settings_for_touch(vbox: VBoxContainer, close_btn: Button) -> void:
+	var k: float = TOUCH_SETTINGS_SCALE
+	_settings_panel.custom_minimum_size.x *= k
+	vbox.add_theme_constant_override("separation", roundi(12 * k))
+	for node: Node in vbox.find_children("*", "Control", true, false):
+		var ctrl: Control = node as Control
+		if ctrl is Label or ctrl is Button:
+			ctrl.add_theme_font_size_override("font_size", roundi(ctrl.get_theme_font_size("font_size") * k))
+		if ctrl is BoxContainer:
+			ctrl.add_theme_constant_override("separation", roundi(10 * k))
+		var row_h: float = GameTheme.TOUCH_SETTINGS_ROW * k * 0.75 if (ctrl is OptionButton or ctrl is CheckButton or ctrl is HSlider) else ctrl.custom_minimum_size.y * k
+		ctrl.custom_minimum_size = Vector2(ctrl.custom_minimum_size.x * k, row_h)
+	# the list scrolls; Close stays put underneath
+	vbox.remove_child(close_btn)
+	var outer: VBoxContainer = VBoxContainer.new()
+	outer.add_theme_constant_override("separation", roundi(12 * k))
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = Vector2(0, get_viewport_rect().size.y * TOUCH_SETTINGS_MAX_HEIGHT - GameTheme.TOUCH_MIN_SIZE * k)
+	_settings_panel.remove_child(vbox)
+	_settings_panel.add_child(outer)
+	outer.add_child(scroll)
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(vbox)
+	outer.add_child(close_btn)   # already doubled with the rest
+
 func _build_settings_panel() -> void:
 	_settings_panel = PanelContainer.new()
 	var style := StyleBoxFlat.new()
@@ -390,18 +422,9 @@ func _build_settings_panel() -> void:
 	in_row.visible = false
 	_voice_slider.get_parent().visible = false
 	if GameTheme.is_touch():
-		# No audio-device choice on phones — and fewer rows leaves room for
-		# the bigger touch targets.
+		# No audio-device choice on phones.
 		out_row.visible = false
-		GameTheme.touchify(close_btn)
-		for node: Node in vbox.find_children("*", "Control", true, false):
-			var ctrl: Control = node as Control
-			if ctrl is OptionButton or ctrl is CheckButton or ctrl is HSlider:
-				ctrl.custom_minimum_size = Vector2(ctrl.custom_minimum_size.x, GameTheme.TOUCH_SETTINGS_ROW)
-			if ctrl is OptionButton:
-				ctrl.add_theme_font_size_override("font_size", 22)
-			elif ctrl is Label and ctrl.get_theme_font_size("font_size") < 18:
-				ctrl.add_theme_font_size_override("font_size", 20)
+		_double_settings_for_touch(vbox, close_btn)
 
 	_load_resolution_setting()
 	_load_monitor_setting()
