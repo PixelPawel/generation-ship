@@ -13,6 +13,11 @@ func _ready() -> void:
 	mat.set_shader_parameter("emission_str", 3.0)
 	mat.set_shader_parameter("star_density", 0.05)
 	mat.set_shader_parameter("travel_dir", Vector3(0.0, -1.0, 0.0))
+	# in the game the sky stays calm behind the table; the menu turns these up
+	mat.set_shader_parameter("twinkle", 0.4)
+	mat.set_shader_parameter("nebula_str", 0.35)
+	mat.set_shader_parameter("galaxy_str", 0.4)
+	mat.set_shader_parameter("shooting_rate", 0.12)
 
 	var mesh := MeshInstance3D.new()
 	mesh.mesh = sphere
