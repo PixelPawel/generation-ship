@@ -21,6 +21,9 @@ const TILE_ART: Dictionary = {
 }
 var _tile_row: HBoxContainer = null
 var _corner_btns: Array[Button] = []
+# Background warm-up of the tool windows (see _warm_up_tools)
+const WARM_UP_DELAY: float = 1.0
+var _warm_cache: Array[Resource] = []   # keeps the preloaded art in the resource cache
 
 const SETTINGS_PATH: String = "user://settings.cfg"
 const _BTN_HOVER_IN_SEC: float = 0.15
@@ -78,6 +81,7 @@ func _ready() -> void:
 	_photo_scan = load("res://scenes/photo_scan/photo_scan.gd").new()
 	add_child(_photo_scan)
 	call_deferred("_start_animations")
+	_warm_up_tools()
 
 	var ver_lbl := Label.new()
 	ver_lbl.text = "v" + ProjectSettings.get_setting("application/config/version")
@@ -324,6 +328,49 @@ func _build_menu_layout() -> void:
 		b.offset_bottom = side + size_px
 		b.modulate.a = 0.0
 		_corner_btns.append(b)
+
+# The first open of Collection / Rule Book / Leaderboard / Scan Tableau used
+# to stutter: card art and rule book pages loading on the spot, the card grid
+# being built, and shaders compiling on their first draw. All of that happens
+# here instead, in the background, shortly after the menu appears.
+func _warm_up_tools() -> void:
+	await get_tree().create_timer(WARM_UP_DELAY).timeout
+	var paths: Array[String] = []
+	paths.append_array(_collection.call("warm_up_paths") as Array[String])
+	paths.append_array(_manual.call("warm_up_paths") as Array[String])
+	var pending: Array[String] = []
+	for path: String in paths:
+		if path.is_empty() or ResourceLoader.has_cached(path):
+			continue
+		if ResourceLoader.load_threaded_request(path) == OK:
+			pending.append(path)
+	while not pending.is_empty():
+		await get_tree().process_frame
+		if not is_inside_tree():
+			return
+		for path: String in pending.duplicate():
+			var status: ResourceLoader.ThreadLoadStatus = ResourceLoader.load_threaded_get_status(path)
+			if status == ResourceLoader.THREAD_LOAD_LOADED:
+				_warm_cache.append(ResourceLoader.load_threaded_get(path))
+				pending.erase(path)
+			elif status != ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+				pending.erase(path)
+	_manual.call("warm_up")
+	_collection.call("warm_up")
+	# one invisible draw each, so their shaders compile now, not on first open
+	var popups: Array[Control] = [_collection, _manual, _leaderboard, _photo_scan]
+	for p: Control in popups:
+		if not p.visible:
+			p.modulate.a = 0.01
+			p.visible = true
+			p.set_meta(&"_warming", true)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	for p: Control in popups:
+		if p.has_meta(&"_warming"):
+			p.remove_meta(&"_warming")
+			p.visible = false
+			p.modulate.a = 1.0
 
 func _menu_button(label: String, font_size: int, min_size: Vector2) -> Button:
 	var b: Button = Button.new()

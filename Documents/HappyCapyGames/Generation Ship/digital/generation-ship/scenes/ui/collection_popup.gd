@@ -111,8 +111,24 @@ func refresh_locale_text() -> void:
 
 func open() -> void:
 	_hide_enlarged()
-	_select_tab(0)
+	# the grid is built once (the main menu warms it up) and kept, unless the
+	# language changed — rebuilding 100+ cards on every open was a stutter
+	if _grid.get_child_count() == 0 or _grid_locale != TranslationServer.get_locale():
+		_select_tab(_active_tab)
 	PopupAnim.open(self)
+
+## Every card art file the Collection shows, for the menu's background preload.
+func warm_up_paths() -> Array[String]:
+	var out: Array[String] = []
+	for deck: Dictionary in _DECKS:
+		for entry: Dictionary in _list_deck_files(deck):
+			out.append(str(entry.get("path", "")))
+	return out
+
+## Builds the first tab's grid while hidden (after its art is preloaded).
+func warm_up() -> void:
+	if _grid.get_child_count() == 0:
+		_select_tab(_active_tab)
 
 func _build_ui() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -395,7 +411,10 @@ func _select_tab(idx: int) -> void:
 		_tab_buttons[i].set_pressed_no_signal(i == idx)
 	_populate_grid()
 
+var _grid_locale: String = ""
+
 func _populate_grid() -> void:
+	_grid_locale = TranslationServer.get_locale()
 	_hide_enlarged()
 	_thumb_tweens.clear()
 	for child: Node in _grid.get_children():

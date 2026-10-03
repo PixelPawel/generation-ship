@@ -66,6 +66,20 @@ func _ensure_pages() -> void:
 		_pages.append(load(path) as Texture2D)
 	_pages_lang = lang
 
+## The page images for the current language, for the menu's background preload.
+func warm_up_paths() -> Array[String]:
+	var out: Array[String] = []
+	var lang: String = _current_lang()
+	for i: int in range(1, MAX_PAGES + 1):
+		var path: String = PAGE_DIR % lang + PAGE_BASE + ("" if i == 1 else str(i)) + ".png"
+		if not ResourceLoader.exists(path):
+			break
+		out.append(path)
+	return out
+
+func warm_up() -> void:
+	_ensure_pages()
+
 func open() -> void:
 	open_at(1)
 
