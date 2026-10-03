@@ -9,8 +9,9 @@ extends Node
 #
 # Chapters: buy a sector → place a tech → fuse → optimize → "if fully
 # optimized" → "if complete" → recycle → win an advanced sector in an auction →
-# archive face down → store → archive face up → printed stars → buy a third
-# sector → "if new" → bid on an expedition → Always cards → research → pass →
+# archive face down → store → printed stars → buy a third sector → "if new" →
+# bid on an expedition (DNA Sculpting, whose effect teaches archiving face up)
+# → Always cards → research → pass →
 # scoring (the game ends on the score breakdown; tutorial scores never reach
 # the leaderboard).
 #
@@ -37,14 +38,14 @@ const FILLER_BY_COLOR: Dictionary = {
 }
 const STEPS: Array[String] = [
 	"buy", "place", "fuse", "optimize", "if_full", "complete", "recycle", "buy2",
-	"archive", "store", "archive_up", "stars", "buy3", "if_new", "bid", "always",
+	"archive", "store", "stars", "buy3", "if_new", "bid", "always",
 	"research", "pass", "score",
 ]
 # Fuse and recycle steps: the control screen zooms in, and shakes if nothing has
 # happened yet — first after NUDGE_FIRST_SEC, then every NUDGE_REPEAT_SEC.
 const NUDGE_FIRST_SEC: float = 2.0
 const NUDGE_REPEAT_SEC: float = 5.0
-# DNA Sculpting draws these, to archive face up (they keep their printed stars)
+# DNA Sculpting (the tutorial's expedition) draws these, to archive face up
 const STAR_DRAWS: Array[String] = ["Inflatable Habs", "Cargo Landers", "Solar Power"]
 
 var _main: Main = null
@@ -150,6 +151,9 @@ func _refresh() -> void:
 		return
 	if _main._effect_mode != Main.EffectMode.NONE:
 		_show_recycle_arrow(false)
+		# DNA Sculpting's archive choice is the face-up lesson: explain it there
+		if _step < STEPS.size() and STEPS[_step] == "bid" and _placed_name(Main.TUTORIAL_EXPEDITION):
+			_hint(tr("TUT_ARCHIVE_UP") % _name(Main.TUTORIAL_EXPEDITION))
 		return
 	var step: String = STEPS[_step]
 	if not _entered:
@@ -188,7 +192,9 @@ func _enter(step: String) -> void:
 			_top_up_supply()
 		"bid":
 			_top_up_supply()
-			_board.add_expedition_round_cards()   # expeditions only show up now
+			# its "Draw 3" brings these, to archive face up (they keep their printed stars)
+			_board.set_scripted_deck(_cards(STAR_DRAWS))
+			_board.reveal_expedition_to_slot(Main.TUTORIAL_SECTOR_SLOT)   # only DNA Sculpting, clear of the banner
 		"buy2":
 			_top_up_supply()
 			_board.sync_market_reveal(Main.TUTORIAL_SECTOR_SLOT)   # the advanced sector appears (no reveal effects)
@@ -229,10 +235,6 @@ func _enter(step: String) -> void:
 		"store":
 			_top_up_supply()
 			_give(["Containers"])
-		"archive_up":
-			_top_up_supply()
-			_board.set_scripted_deck(_cards(STAR_DRAWS))   # what its "Draw 3" brings
-			_give(["DNA Sculpting"])
 		"stars":
 			_top_up_supply()
 			_give(["Quantum Archives"])
@@ -267,7 +269,8 @@ func _is_done(step: String) -> bool:
 		"recycle":
 			return _recycled
 		"bid":
-			return _placed_type(CardData.CardType.EXPEDITION)
+			# placed and its effect done: the drawn cards archived face up
+			return _placed_type(CardData.CardType.EXPEDITION) and (_any_tucked(true) or not _placed_name(Main.TUTORIAL_EXPEDITION))
 		"complete":
 			return _first_sector == null or _first_sector.is_complete()
 		"buy2":
@@ -278,8 +281,6 @@ func _is_done(step: String) -> bool:
 			return _any_tucked(false)
 		"store":
 			return _any_stored()
-		"archive_up":
-			return _any_tucked(true)
 		"stars":
 			return _placed_name("Solar Power")
 		"always":
@@ -324,9 +325,6 @@ func _show(step: String) -> void:
 			_highlight_tech_slots()
 		"store":
 			_hint(tr("TUT_STORE") % _name("Containers"))
-			_highlight_tech_slots()
-		"archive_up":
-			_hint(tr("TUT_ARCHIVE_UP") % _name("DNA Sculpting"))
 			_highlight_tech_slots()
 		"stars":
 			if _gave_followup:

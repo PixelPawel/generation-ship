@@ -486,6 +486,14 @@ func _on_cache_ready() -> void:
 		_cached_sector_order = _generate_shuffled_order(CardDatabase.sectors.size())
 		if TutorialSession.active:
 			_cached_sector_order = _tutorial_sector_order()
+			# the expedition deck draws from the back: DNA Sculpting comes up first
+			var dna: int = -1
+			for i: int in CardDatabase.expeditions.size():
+				if CardDatabase.expeditions[i].card_name == TUTORIAL_EXPEDITION:
+					dna = i
+			if dna >= 0:
+				_cached_exp_order.erase(dna)
+				_cached_exp_order.append(dna)
 		_cached_exp_order = _generate_shuffled_order(CardDatabase.expeditions.size())
 		_cached_tech_order = _generate_shuffled_order(CardDatabase.techs.size())
 		call_deferred("_deferred_pre_setup")
@@ -2382,6 +2390,7 @@ static func _is_automatic_batch(steps: Array) -> bool:
 # so it stays quiet under the tutorial's later cards), then the third sector.
 const TUTORIAL_REVEALED_SECTOR: String = "Central Transport"
 const TUTORIAL_SECTOR_SLOT: int = 2   # the bottom market slot, clear of the tutorial banner
+const TUTORIAL_EXPEDITION: String = "DNA Sculpting"   # the one expedition the tutorial shows
 
 func _tutorial_sector_order() -> Array:
 	var central: int = -1
