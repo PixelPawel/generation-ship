@@ -81,6 +81,17 @@ const SUMMARY_HOVER_IN_SEC: float = 0.12
 const SUMMARY_HOVER_OUT_SEC: float = 0.18
 const SCORE_STAR_COLOR: Color = Color(1.0, 0.85, 0.2)
 const SCORE_COLOR: Color = Color(0.9, 0.85, 0.7)
+# The photo guide shown before the first scan — badge colours as drawn on the picture.
+const GUIDE_IMAGE_PATH: String = "res://assets/scan/guide.jpg"
+const GUIDE_BADGE_BG: Color = Color8(18, 26, 46)
+const GUIDE_BADGE_RIM: Color = Color8(236, 200, 104)
+const GUIDE_BADGE_SIZE: float = 52.0
+const GUIDE_TIPS: Array[String] = [
+	"Hold your phone sideways, straight above the table, and fit your whole ship in the photo.",
+	"Keep the ring of lights around each card's orb uncovered.",
+	"Give supply tokens a little room and keep them fully visible.",
+	"Archived cards go below their sector, face up or face down.",
+]
 # Same res://assets/ui/supply/<Name>.png set supply_ui.gd uses elsewhere —
 # the real resource-token graphics, not the card-frame icon set.
 const _SUPPLY_ICON_PATHS: Dictionary = {
@@ -120,7 +131,7 @@ var _review_view: Control = null
 var _sector_list_box: HBoxContainer = null    # sector columns side by side (see _build_list_view)
 var _sector_scroll: ScrollContainer = null
 var _results_box: VBoxContainer = null        # VP breakdown, shown in the ship's place
-var _tip_label: Label = null                  # placement tip, until the first scan
+var _guide_box: Control = null                # how to take the photo, until the first scan
 var _status_label: Label = null               # scan progress / outcome
 var _leaderboard_btn: Button = null
 var _photo_view: TextureRect = null           # the scanned photo, shown in the ship's place to compare
@@ -175,7 +186,8 @@ func open() -> void:
 	_photo_view.texture = null
 	_photo_btn.disabled = true
 	_set_view("ship")
-	_tip_label.visible = true
+	_guide_box.visible = true
+	_sector_scroll.visible = false   # the guide takes the ship's place until a photo is in
 	_status_label.visible = false
 	_editing_sector_index = -1
 	_editing_original_sector = {}
@@ -243,8 +255,8 @@ func _build_list_view() -> Control:
 	box.add_theme_constant_override("separation", 14)
 	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
-	_tip_label = _make_hint_label("Hold your phone sideways and photograph your whole ship from above, so it fills the photo. Keep the ring of lights around each card's orb uncovered and give supply tokens a little room.")
-	box.add_child(_tip_label)
+	_guide_box = _build_photo_guide()
+	box.add_child(_guide_box)
 	_status_label = Label.new()
 	_status_label.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
 	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -433,6 +445,52 @@ func _make_button(label: String) -> Button:
 	GameTheme.apply_to_button(btn)
 	return btn
 
+## Before the first photo: an example shot (assets/scan/guide.jpg, made by
+## InDesign_Shop/_automation/scan_code/guide.py) with numbered badges, and the
+## numbered tips beside it — the picture has no words, so it needs no translating.
+func _build_photo_guide() -> Control:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", 28)
+	var pic: TextureRect = TextureRect.new()
+	pic.texture = load(GUIDE_IMAGE_PATH) as Texture2D
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	pic.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pic.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	pic.size_flags_stretch_ratio = 2.6
+	row.add_child(pic)
+	var tips: VBoxContainer = VBoxContainer.new()
+	tips.alignment = BoxContainer.ALIGNMENT_CENTER
+	tips.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tips.add_theme_constant_override("separation", 22)
+	row.add_child(tips)
+	for i: int in GUIDE_TIPS.size():
+		var tip: HBoxContainer = HBoxContainer.new()
+		tip.add_theme_constant_override("separation", 16)
+		var badge: PanelContainer = PanelContainer.new()
+		var style: StyleBoxFlat = StyleBoxFlat.new()
+		style.bg_color = GUIDE_BADGE_BG
+		style.border_color = GUIDE_BADGE_RIM
+		style.set_border_width_all(3)
+		style.set_corner_radius_all(int(GUIDE_BADGE_SIZE / 2.0))
+		badge.add_theme_stylebox_override("panel", style)
+		badge.custom_minimum_size = Vector2(GUIDE_BADGE_SIZE, GUIDE_BADGE_SIZE)
+		badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var num: Label = Label.new()
+		num.text = str(i + 1)
+		num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		num.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		num.add_theme_font_size_override("font_size", HINT_FONT_SIZE)
+		badge.add_child(num)
+		tip.add_child(badge)
+		var text: Label = _make_hint_label(GUIDE_TIPS[i])
+		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		tip.add_child(text)
+		tips.add_child(tip)
+	return row
+
 func _make_hint_label(text: String) -> Label:
 	var lbl: Label = Label.new()
 	lbl.text = text
@@ -569,7 +627,8 @@ func _on_photo_selected(path: String) -> void:
 	# Cards are identified by the scan-code dial printed around each card's
 	# colour orb (DialReader) — the only part of a card that stays visible in
 	# a real tableau. Read on a thread: a full photo takes a few seconds.
-	_tip_label.visible = false
+	_guide_box.visible = false
+	_sector_scroll.visible = true
 	_status_label.visible = true
 	_status_label.text = "Reading cards…"
 	var reader: DialReader = DialReaderScript.create()
