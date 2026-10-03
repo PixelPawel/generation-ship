@@ -420,7 +420,7 @@ func _build_review_view() -> Control:
 		spin.max_value = 99
 		spin.custom_minimum_size = Vector2(SUPPLY_SPIN_WIDTH, SUPPLY_CONTROL_HEIGHT)
 		spin.get_line_edit().add_theme_font_size_override("font_size", SUPPLY_FONT_SIZE)
-	spin.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		spin.alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col_box.add_child(_make_stepper_row(spin))
 		supply_row.add_child(col_box)
 		_supply_spinboxes[int(color)] = spin
