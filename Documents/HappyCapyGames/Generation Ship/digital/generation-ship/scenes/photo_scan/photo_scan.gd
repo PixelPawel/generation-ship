@@ -53,10 +53,7 @@ const SUPPLY_SPIN_WIDTH: float = 56.0
 const TUCKED_SPIN_WIDTH: float = 28.0
 const STEPPER_BUTTON_SIZE: float = 72.0
 const STEPPER_BUTTON_FONT_SIZE: int = 30
-# Fixed label width for the 3 tucked-card rows (stacked vertically beside
-# the cards) so their steppers all line up in a column regardless of each
-# label's text length ([▲] Archived / [▲] Stars ★ / [▼] Archived).
-const TUCKED_LABEL_WIDTH: float = 250.0
+# The archive counters' little card outline ([▲] Archived / [▲] Stars ★ / [▼] Archived).
 const TUCKED_ARCHIVE_CARD_SIZE: Vector2 = Vector2(28, 40)
 const TUCKED_ARCHIVE_ARROW_SIZE: int = 20
 
@@ -384,9 +381,13 @@ func _build_review_view() -> Control:
 	_review_cards_box.add_theme_constant_override("separation", 14)
 	cards_row.add_child(_review_cards_box)
 	cards_row.add_child(VSeparator.new())
-	var tucked_col: VBoxContainer = VBoxContainer.new()
-	tucked_col.add_theme_constant_override("separation", 12)
-	tucked_col.alignment = BoxContainer.ALIGNMENT_CENTER
+	# label | stepper grid: the label column is as wide as its longest label, so the
+	# steppers line up and the block sits right by the separator
+	var tucked_col: GridContainer = GridContainer.new()
+	tucked_col.columns = 2
+	tucked_col.add_theme_constant_override("h_separation", 8)
+	tucked_col.add_theme_constant_override("v_separation", 12)
+	tucked_col.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	cards_row.add_child(tucked_col)
 	_tucked_up_spinbox = _make_tucked_counter(tucked_col, "▲", "Archived")
 	_tucked_up_stars_spinbox = _make_tucked_counter(tucked_col, "▲", "Stars ★")
@@ -521,28 +522,23 @@ func _is_tap(event: InputEvent) -> bool:
 ## Built as label-then-stepper, stacked vertically 3-high in the leftover
 ## space beside the 6 review cards (rather than side by side in the supply
 ## row, which would need the full extra width all over again).
-func _make_tucked_counter(parent: VBoxContainer, arrow: String, label_text: String) -> SpinBox:
-	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
+func _make_tucked_counter(parent: GridContainer, arrow: String, label_text: String) -> SpinBox:
 	var head: HBoxContainer = HBoxContainer.new()
 	head.add_theme_constant_override("separation", 8)
-	head.custom_minimum_size = Vector2(TUCKED_LABEL_WIDTH, 0)
-	head.alignment = BoxContainer.ALIGNMENT_END     # labels end at the steppers, which line up
 	head.add_child(_make_archive_card(arrow, TUCKED_ARCHIVE_CARD_SIZE, TUCKED_ARCHIVE_ARROW_SIZE))
 	var lbl: Label = Label.new()
 	lbl.text = label_text
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_size_override("font_size", SUPPLY_FONT_SIZE)
 	head.add_child(lbl)
-	row.add_child(head)
+	parent.add_child(head)
 	var spin: SpinBox = SpinBox.new()
 	spin.min_value = 0
 	spin.max_value = 99
 	spin.custom_minimum_size = Vector2(TUCKED_SPIN_WIDTH, SUPPLY_CONTROL_HEIGHT)
 	spin.get_line_edit().add_theme_font_size_override("font_size", SUPPLY_FONT_SIZE)
 	spin.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	row.add_child(_make_stepper_row(spin))
-	parent.add_child(row)
+	parent.add_child(_make_stepper_row(spin))
 	return spin
 
 ## A SpinBox's own up/down arrows are too small to hit reliably on a phone
