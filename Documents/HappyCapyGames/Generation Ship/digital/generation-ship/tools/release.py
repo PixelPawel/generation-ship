@@ -9,8 +9,8 @@ Close Godot first (exports and the Android sync need the editor closed).
     python tools/release.py all [track]       # all four, in that order
 
 One-time setup:
-  * Steam: log steamcmd in once by hand so it caches the login (Steam Guard):
-        <STEAMCMD> +login <STEAM_ACCOUNT> +quit
+  * Steam: uses the steamcmd that's already logged in (cached login); if it ever
+    asks for Steam Guard again, run once by hand: <STEAMCMD> +login <STEAM_ACCOUNT> +quit
   * Play: a Google Cloud service account with a JSON key, invited in Play Console
     (Users and permissions) with "Release apps to testing tracks" (and production if
     wanted). Put the key at PLAY_KEY (outside git). Needs:
@@ -32,7 +32,7 @@ WIN_PRESET, WIN_OUT = "GS Windows", "Build/Windows/GS.exe"
 AAB_PRESET, AAB_OUT = "Android Release (AAB)", "Build/GS.aab"
 PACKAGE = "com.happycapygames.generationship"
 SDK = r"C:\Users\ptmaz\Documents\HappyCapyGames\steamworks_sdk_164\sdk\tools\ContentBuilder"
-STEAMCMD = os.path.join(SDK, "builder", "steamcmd.exe")
+STEAMCMD = r"C:\Program Files (x86)\Steam\steamcmd\steamcmd.exe"   # has the cached login
 STEAM_VDF = os.path.join(SDK, "scripts", "app_build_4724920.vdf")
 STEAM_ACCOUNT = os.environ.get("STEAM_ACCOUNT", "tyrain@gmx.de")
 PLAY_KEY = os.environ.get("PLAY_KEY", os.path.join(os.path.expanduser("~"), ".secrets", "play_service_account.json"))
