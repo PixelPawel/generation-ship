@@ -4,12 +4,11 @@ const TutorialSession = preload("res://scripts/tutorial_session.gd")
 const MenuIconButton = preload("res://scenes/ui/menu_icon_button.gd")
 
 # ── Layout ────────────────────────────────────────────────────────────────────
-# One big Play button (→ Tutorial / Play a Game / Back), the four tools as a row
+# Tutorial and Play a Game as the two big buttons, the four tools as a row
 # of art tiles along the bottom, Settings and Quit as icons in the top-right
 # corner. The stacked list of eight buttons had run off the bottom of the screen.
 const PLAY_BTN_SIZE: Vector2 = Vector2(440, 84)
 const PLAY_FONT: int = 40
-const CHOICE_FONT: int = 32
 const TILE_SIZE: Vector2 = Vector2(210, 190)
 const TILE_GAP: int = 26
 const TILE_BOTTOM: float = 104.0          # clear of the corner links
@@ -20,8 +19,6 @@ const TILE_ART: Dictionary = {
 	"Scan Tableau": "res://assets/scan/guide.jpg",
 	"Leaderboard": "res://assets/cards/ScoreBoard/%s/ScoreBoard.png",
 }
-var _play_btn: Button = null
-var _play_choices: Array[Control] = []
 var _tile_row: HBoxContainer = null
 var _corner_btns: Array[Button] = []
 
@@ -259,16 +256,13 @@ func _build_menu_layout() -> void:
 			old.queue_free()
 	var start: Button = vbox.get_node("MultiplayerBtn")   # keeps its lobby connection
 	start.text = "Play a Game"
+	start.custom_minimum_size = PLAY_BTN_SIZE
+	start.add_theme_font_size_override("font_size", PLAY_FONT)
 
-	_play_btn = _menu_button("Play", PLAY_FONT, PLAY_BTN_SIZE)
-	_play_btn.pressed.connect(func() -> void: _show_play_choices(true))
-	vbox.add_child(_play_btn)
-	vbox.move_child(_play_btn, 0)
-
-	# Play → Tutorial (recommended until finished once) / Play a Game / Back
+	# Tutorial (recommended until finished once) above Play a Game
 	var tut_box: VBoxContainer = VBoxContainer.new()
 	tut_box.add_theme_constant_override("separation", 2)
-	var tut_btn: Button = _menu_button("Tutorial", CHOICE_FONT, Vector2(440, 64))
+	var tut_btn: Button = _menu_button("Tutorial", PLAY_FONT, PLAY_BTN_SIZE)
 	tut_btn.pressed.connect(_on_tutorial_pressed)
 	tut_box.add_child(tut_btn)
 	if not _tutorial_done():
@@ -279,13 +273,7 @@ func _build_menu_layout() -> void:
 		rec.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
 		tut_box.add_child(rec)
 	vbox.add_child(tut_box)
-	vbox.move_child(tut_box, 1)
-	var back: Button = _menu_button("Back", CHOICE_FONT, Vector2(440, 64))
-	back.pressed.connect(func() -> void: _show_play_choices(false))
-	vbox.add_child(back)
-	_play_choices = [tut_box, start, back]
-	for c: Control in _play_choices:
-		c.visible = false
+	vbox.move_child(tut_box, 0)
 
 	# the tools: a row of art tiles along the bottom
 	_tile_row = HBoxContainer.new()
@@ -374,14 +362,6 @@ func _tile_art(label: String) -> Texture2D:
 		var local: String = path % lang
 		path = local if ResourceLoader.exists(local) else path % "EN"
 	return load(path) as Texture2D if ResourceLoader.exists(path) else null
-
-func _show_play_choices(on: bool) -> void:
-	_play_btn.visible = not on
-	for c: Control in _play_choices:
-		c.visible = on
-		if on:
-			c.modulate.a = 0.0
-			create_tween().tween_property(c, "modulate:a", 1.0, 0.25)
 
 func _tutorial_done() -> bool:
 	var cfg: ConfigFile = ConfigFile.new()
