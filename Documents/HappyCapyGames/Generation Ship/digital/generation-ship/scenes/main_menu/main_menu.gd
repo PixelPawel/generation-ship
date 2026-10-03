@@ -17,7 +17,7 @@ const TILE_ART: Dictionary = {
 	"Rule Book": "res://assets/cards/Rule Book/%s/GS Rule Book A5.png",
 	"Collection": "res://assets/cards/Tech/%s/GS Techs 44x67mm125.png",
 	"Scan Tableau": "res://assets/scan/guide.jpg",
-	"Leaderboard": "res://assets/cards/ScoreBoard/%s/ScoreBoard.png",
+	"Leaderboard": "res://assets/ui/menu_leaderboard.png",   # a mockup board (tools/menu_leaderboard_tile.py)
 }
 var _tile_row: HBoxContainer = null
 var _corner_btns: Array[Button] = []
