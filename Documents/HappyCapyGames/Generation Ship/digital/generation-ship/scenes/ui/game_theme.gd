@@ -35,18 +35,22 @@ static func style_negative(btn: Button) -> void:
 # ones pushed the footer off the panel.
 const INFO_BTN_FONT: int = 24
 const INFO_BTN_MIN: Vector2 = Vector2(180.0, 56.0)
-# Phones: the info screen is small in the hand, so its buttons grow by this much
-# (height and text; see enlarge_info_button, applied to every button there).
-const INFO_TOUCH_SCALE: float = 1.3
+# Phones: the info screen is small in the hand, so its buttons get taller (the
+# touch target) and their text a little bigger — only a little: wider text made
+# three-button footers (Cargo Drones) wider than the screen, which stretched
+# the whole panel past its edge. See enlarge_info_button, applied to every
+# button there.
+const INFO_TOUCH_SCALE: float = 1.3        # height
+const INFO_TOUCH_FONT_SCALE: float = 1.1   # text
 
 static func enlarge_info_button(btn: Button) -> void:
 	if not is_touch() or btn.has_meta(&"_info_enlarged"):
 		return
 	btn.set_meta(&"_info_enlarged", true)
 	var min_y: float = btn.custom_minimum_size.y if btn.custom_minimum_size.y > 0.0 else INFO_BTN_MIN.y
-	btn.custom_minimum_size = Vector2(btn.custom_minimum_size.x * INFO_TOUCH_SCALE, min_y * INFO_TOUCH_SCALE)
+	btn.custom_minimum_size = Vector2(btn.custom_minimum_size.x, min_y * INFO_TOUCH_SCALE)
 	var font: int = btn.get_theme_font_size("font_size")
-	btn.add_theme_font_size_override("font_size", roundi(font * INFO_TOUCH_SCALE))
+	btn.add_theme_font_size_override("font_size", roundi(font * INFO_TOUCH_FONT_SCALE))
 
 static func size_info_button(btn: Button) -> void:
 	btn.add_theme_font_size_override("font_size", INFO_BTN_FONT)
