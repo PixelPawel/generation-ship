@@ -20,21 +20,29 @@ const GRID_PADDING := 16.0
 const GRID_GAP := 12.0
 const FOOTER_SIDE_MARGIN: float = 80.0   # panel content margins + a little air
 const FOOTER_MIN_FONT: int = 14
-const CONFIRM_DURATION := 1.3
+const CONFIRM_DURATION := 0.7
 const FINISH_COLOR := Color(1.0, 0.75, 0.4)
+const TILE_SIZE: Vector2 = Vector2(170.0, 210.0)   # info-screen px: easy to hit with a finger or a mouse
+const TILE_ICON: float = 96.0
+const TILE_GAP: int = 18
+const SUPPLY_ICON_PATHS: Array[String] = [
+	"res://assets/ui/supply/Dust.png",
+	"res://assets/ui/supply/Metals.png",
+	"res://assets/ui/supply/Liquids.png",
+	"res://assets/ui/supply/Organix.png",
+	"res://assets/ui/supply/Electrix.png",
+	"res://assets/ui/supply/Thrust.png",
+]
 
 var _title_label: Label = null
 var _summary_label: Label = null
 var _content: Control = null
 var _footer: HBoxContainer = null
-var _next_btn: Button = null
 
 var _step: _Step = _Step.SOURCE
 var _all_slots: Array[SectorSlot] = []
 var _source_slot: SectorSlot = null
 var _dest_slot: SectorSlot = null
-var _supply_entries: Array = []   # {color: int, spinbox: SpinBox}
-var _tucked_btns: Array[Button] = []
 var _pending_supplies: Dictionary = {}
 var _pending_tucked_indices: Array[int] = []
 
@@ -86,7 +94,6 @@ func start(all_slots: Array[SectorSlot]) -> void:
 	show()
 
 func _clear_step() -> void:
-	_next_btn = null
 	for child: Node in _content.get_children():
 		child.queue_free()
 	for child: Node in _footer.get_children():
@@ -173,7 +180,7 @@ func _go_to_choose() -> void:
 	_step = _Step.CHOOSE
 	_summary_label.visible = true
 	_summary_label.text = tr("Moving from: %s") % _sector_display_name(_source_slot)
-	_set_title(tr("Cargo Drones — choose what to move"))
+	_set_title(tr("Cargo Drones — tap what to move"))
 	_clear_step()
 	_build_choose_step()
 	var back_btn := Button.new()
@@ -182,156 +189,116 @@ func _go_to_choose() -> void:
 	back_btn.pressed.connect(_go_to_source)
 	_footer.add_child(back_btn)
 	_add_finish_button()
-	# Primary action rightmost, like the other panels: Back | Finish | Next.
-	if _next_btn:
-		_footer.move_child(_next_btn, -1)
 
+# One big tile per stored supply colour (icon + how many) and per archived card;
+# a tap picks ONE of it and goes straight to the destination — no counters or
+# Next button to fiddle with, on a phone or with a mouse.
 func _build_choose_step() -> void:
-	_supply_entries.clear()
-	_tucked_btns.clear()
+	var slot: SectorSlot = _source_slot
+	var tiles: Array[Button] = []
+	for i: int in 6:
+		var count: int = slot.stored_supply.get(i, 0)
+		if count > 0:
+			tiles.append(_make_supply_tile(i, count))
+	for i: int in slot.tucked_cards.size():
+		tiles.append(_make_tucked_tile(i, slot.tucked_cards[i] as Dictionary))
+
+	if tiles.is_empty():
+		var empty := Label.new()
+		empty.text = tr("Nothing to move here")
+		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty.add_theme_font_size_override("font_size", 22)
+		empty.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		empty.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+		_content.add_child(empty)
+		return
 
 	var scroll := ScrollContainer.new()
 	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_content.add_child(scroll)
+	var flow := HFlowContainer.new()
+	flow.alignment = FlowContainer.ALIGNMENT_CENTER
+	flow.add_theme_constant_override("h_separation", TILE_GAP)
+	flow.add_theme_constant_override("v_separation", TILE_GAP)
+	flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	flow.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.add_child(flow)
+	for t: Button in tiles:
+		flow.add_child(t)
 
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 10)
-	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(vbox)
+func _make_tile() -> Button:
+	var btn := Button.new()
+	btn.set_meta(&"_info_enlarged", true)   # already big: skip the phone enlarge
+	btn.custom_minimum_size = TILE_SIZE
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var box := VBoxContainer.new()
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 6)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(box)
+	return btn
 
-	var slot: SectorSlot = _source_slot
-	var has_content: bool = false
-
-	if _has_stored_supply(slot):
-		has_content = true
-		_add_section_label(vbox, tr("Move Supplies"))
-		for i: int in 6:
-			var count: int = slot.stored_supply.get(i, 0)
-			if count == 0:
-				continue
-			var row := HBoxContainer.new()
-			row.add_theme_constant_override("separation", 8)
-			var name_lbl := Label.new()
-			name_lbl.text = CardData.color_name(i as CardData.SupplyColor)
-			name_lbl.add_theme_font_size_override("font_size", 18)
-			name_lbl.add_theme_color_override("font_color", Color.WHITE)
-			name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			row.add_child(name_lbl)
-			var avail_lbl := Label.new()
-			avail_lbl.text = tr("(of %d)") % count
-			avail_lbl.add_theme_font_size_override("font_size", 16)
-			avail_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-			row.add_child(avail_lbl)
-			var spinbox := SpinBox.new()
-			spinbox.min_value = 0
-			spinbox.max_value = count
-			spinbox.value = 0
-			spinbox.step = 1
-			spinbox.custom_minimum_size = Vector2(90, 0)
-			spinbox.value_changed.connect(func(_v: float) -> void: _refresh_next_enabled())
-			row.add_child(spinbox)
-			vbox.add_child(row)
-			_supply_entries.append({color = i, spinbox = spinbox})
-
-	if not slot.tucked_cards.is_empty():
-		has_content = true
-		_add_section_label(vbox, tr("Move Tucked Cards"))
-		for i: int in slot.tucked_cards.size():
-			var entry: Dictionary = slot.tucked_cards[i]
-			var cd: CardData = entry.get("data") as CardData
-			var face_up: bool = entry.get("face_up", false)
-			var url: String = (cd.image_url if cd else "") if face_up else SectorInfoPopup.tech_back_path()
-			var tex: Texture2D = ImageCache.get_texture(url) if not url.is_empty() else null
-
-			var row := HBoxContainer.new()
-			row.add_theme_constant_override("separation", 8)
-			var img := TextureRect.new()
-			img.custom_minimum_size = Vector2(70, 98)
-			img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			var mat: ShaderMaterial = ShaderMaterial.new()
-			mat.shader = load("res://shaders/card_rounded.gdshader")
-			img.material = mat
-			if tex:
-				img.texture = tex
-			else:
-				img.modulate = Color(0.12, 0.18, 0.32) if not face_up else Color(0.92, 0.87, 0.76)
-			row.add_child(img)
-			var name_lbl := Label.new()
-			name_lbl.text = (CardDatabase.display_name(cd) if cd else tr("?")) if face_up else tr("Facedown")
-			name_lbl.add_theme_font_size_override("font_size", 17)
-			name_lbl.add_theme_color_override("font_color", Color.WHITE)
-			name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
-			row.add_child(name_lbl)
-			var btn := Button.new()
-			btn.text = tr("Move")
-			btn.toggle_mode = true
-			btn.toggled.connect(func(on: bool) -> void:
-				btn.modulate = Color(0.4, 1.0, 0.5) if on else Color.WHITE
-				_refresh_next_enabled()
-			)
-			row.add_child(btn)
-			vbox.add_child(row)
-			_tucked_btns.append(btn)
-
-	if not has_content:
-		var empty := Label.new()
-		empty.text = tr("Nothing to move here")
-		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		empty.add_theme_font_size_override("font_size", 18)
-		empty.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-		vbox.add_child(empty)
-		return
-
-	_next_btn = Button.new()
-	_next_btn.text = tr("Next: Pick Destination →")
-	GameTheme.style_positive(_next_btn)
-	GameTheme.size_info_button(_next_btn)
-	_next_btn.disabled = true
-	_next_btn.pressed.connect(_on_choose_next_pressed)
-	_footer.add_child(_next_btn)
-
-func _refresh_next_enabled() -> void:
-	if not _next_btn:
-		return
-	var any_selected: bool = false
-	for e: Dictionary in _supply_entries:
-		if int((e.spinbox as SpinBox).value) > 0:
-			any_selected = true
-			break
-	if not any_selected:
-		for btn: Button in _tucked_btns:
-			if btn.button_pressed:
-				any_selected = true
-				break
-	_next_btn.disabled = not any_selected
-
-func _add_section_label(parent: Node, text: String) -> void:
+func _tile_label(text: String, size: int) -> Label:
 	var lbl := Label.new()
 	lbl.text = text
-	lbl.add_theme_font_size_override("font_size", 20)
-	lbl.add_theme_color_override("font_color", Color(0.75, 0.8, 1.0))
-	parent.add_child(lbl)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", size)
+	lbl.add_theme_constant_override("outline_size", 3)
+	lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return lbl
+
+func _make_supply_tile(color: int, count: int) -> Button:
+	var btn: Button = _make_tile()
+	var box: VBoxContainer = btn.get_child(0) as VBoxContainer
+	var icon := TextureRect.new()
+	icon.texture = load(SUPPLY_ICON_PATHS[color]) as Texture2D
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.custom_minimum_size = Vector2(TILE_ICON, TILE_ICON)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(icon)
+	box.add_child(_tile_label("× %d" % count, 30))
+	box.add_child(_tile_label(CardData.color_name(color as CardData.SupplyColor), 18))
+	btn.tooltip_text = tr("Move 1 %s") % CardData.color_name(color as CardData.SupplyColor)
+	btn.pressed.connect(func() -> void:
+		_pending_supplies = {color: 1}
+		_pending_tucked_indices = []
+		_go_to_dest())
+	return btn
+
+func _make_tucked_tile(index: int, entry: Dictionary) -> Button:
+	var btn: Button = _make_tile()
+	var box: VBoxContainer = btn.get_child(0) as VBoxContainer
+	var cd: CardData = entry.get("data") as CardData
+	var face_up: bool = entry.get("face_up", false)
+	var url: String = (cd.image_url if cd else "") if face_up else SectorInfoPopup.tech_back_path()
+	var img := TextureRect.new()
+	img.texture = ImageCache.get_texture(url) if not url.is_empty() else null
+	img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	img.custom_minimum_size = Vector2(TILE_SIZE.x - 20.0, TILE_SIZE.y - 50.0)
+	img.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var mat: ShaderMaterial = ShaderMaterial.new()
+	mat.shader = load("res://shaders/card_rounded.gdshader")
+	img.material = mat
+	box.add_child(img)
+	var title: String = (CardDatabase.display_name(cd) if cd else tr("?")) if face_up else tr("Facedown")
+	box.add_child(_tile_label(title, 16))
+	btn.pressed.connect(func() -> void:
+		_pending_supplies = {}
+		_pending_tucked_indices = [index]
+		_go_to_dest())
+	return btn
 
 func _has_stored_supply(slot: SectorSlot) -> bool:
 	for count: int in slot.stored_supply.values():
 		if count > 0:
 			return true
 	return false
-
-func _on_choose_next_pressed() -> void:
-	_pending_supplies = {}
-	for e: Dictionary in _supply_entries:
-		var amount: int = int((e.spinbox as SpinBox).value)
-		if amount > 0:
-			_pending_supplies[e.color] = amount
-	_pending_tucked_indices = []
-	for i: int in _tucked_btns.size():
-		if _tucked_btns[i].button_pressed:
-			_pending_tucked_indices.append(i)
-	_go_to_dest()
 
 # ── Step 3: pick a destination sector ─────────────────────────────────────────
 
@@ -373,7 +340,10 @@ func _go_to_confirm() -> void:
 	_add_finish_button()
 	get_tree().create_timer(CONFIRM_DURATION).timeout.connect(func() -> void:
 		if _step == _Step.CONFIRM and visible:
-			_go_to_source()
+			if _source_slot and (_has_stored_supply(_source_slot) or not _source_slot.tucked_cards.is_empty()):
+				_go_to_choose()   # one at a time: straight back for the next item
+			else:
+				_go_to_source()
 	)
 
 # ── Shared sector-grid builder (used by both the source and dest steps) ──────
