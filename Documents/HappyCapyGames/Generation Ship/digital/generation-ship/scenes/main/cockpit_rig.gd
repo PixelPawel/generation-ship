@@ -422,9 +422,17 @@ static func setup_screen_enlarge(main: Main) -> void:
 			main._hide_tooltip()
 		)
 
+# The tutorial's zoom: no sliding the sector cards out of the way (the
+# control screen sits in its corner, clear of them) — that slide had left a
+# placed card stuck up out of place.
 static func set_screen_enlarged(main: Main, node: Node3D, on: bool) -> void:
-	if bool(main.screen_enlarged.get(node, false)) != on:
-		_toggle_screen_enlarge(main, node)
+	if bool(main.screen_enlarged.get(node, false)) == on:
+		return
+	main.screen_enlarged[node] = on
+	if on:
+		_enlarge_screen(main, node, false)
+	else:
+		_shrink_screen(main, node)
 
 # A quick wobble to catch the eye (the tutorial nudging the player).
 static func shake_screen(main: Main, node: Node3D) -> void:
@@ -443,7 +451,7 @@ static func _toggle_screen_enlarge(main: Main, node: Node3D) -> void:
 		main.screen_enlarged[node] = true
 		_enlarge_screen(main, node)
 
-static func _enlarge_screen(main: Main, node: Node3D) -> void:
+static func _enlarge_screen(main: Main, node: Node3D, duck: bool = true) -> void:
 	var tw: Tween = main.screen_enlarge_tweens.get(node) as Tween
 	if tw and tw.is_valid():
 		tw.kill()
@@ -453,6 +461,9 @@ static func _enlarge_screen(main: Main, node: Node3D) -> void:
 	tw = main.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tw.tween_property(node, "position", base + dir * SCREEN_ENLARGE_DIST, SCREEN_ENLARGE_IN_SEC)
 	main.screen_enlarge_tweens[node] = tw
+	if not duck:
+		main.screen_ducked_slots[node] = [] as Array[SectorSlot]
+		return
 
 	var ducked: Array[SectorSlot] = []
 	for slot: SectorSlot in main.get_node("Board").get_all_sector_slots():
