@@ -32,6 +32,11 @@ func setup_solo() -> void:
 	is_host = true
 	active_peer_id = 1
 	player_order = [1]
+	# The game asks "which player am I?" everywhere; without a peer (a solo game
+	# started outside the lobby, e.g. the Tutorial) that's an error. The offline
+	# peer answers 1, like a bots-only lobby game.
+	if multiplayer.multiplayer_peer == null or not (multiplayer.multiplayer_peer is OfflineMultiplayerPeer):
+		multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 
 # Call this from the lobby before changing to the game scene.
 # ordered_peer_ids must be in the same order on every client (sort them first).
