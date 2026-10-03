@@ -11,9 +11,12 @@ Close Godot first (exports and the Android sync need the editor closed).
 One-time setup:
   * Steam: uses the steamcmd that's already logged in (cached login); if it ever
     asks for Steam Guard again, run once by hand: <STEAMCMD> +login <STEAM_ACCOUNT> +quit
-  * Play: a Google Cloud service account with a JSON key, invited in Play Console
-    (Users and permissions) with "Release apps to testing tracks" (and production if
-    wanted). Put the key at PLAY_KEY (outside git). Needs:
+  * Play: a Google Cloud service account, invited in Play Console (Users and
+    permissions) with "Release apps to testing tracks" (and production if wanted).
+    Either its JSON key at PLAY_KEY (outside git), or — keys blocked by the org
+    policy — once: your account gets "Service Account Token Creator" on it, then
+        gcloud auth application-default login --impersonate-service-account=<its e-mail>
+    Needs:
         pip install google-api-python-client google-auth
 
 The Android version code lives in this project's export_presets.cfg ("Android Release
@@ -92,8 +95,15 @@ def play(track: str = "internal") -> None:
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaFileUpload
-    creds = service_account.Credentials.from_service_account_file(
-        PLAY_KEY, scopes=["https://www.googleapis.com/auth/androidpublisher"])
+    scopes = ["https://www.googleapis.com/auth/androidpublisher"]
+    if os.path.exists(PLAY_KEY):
+        creds = service_account.Credentials.from_service_account_file(PLAY_KEY, scopes=scopes)
+    else:
+        # no key file (the org policy blocks keys): the gcloud login, acting as the
+        # service account — `gcloud auth application-default login
+        # --impersonate-service-account=<service account e-mail>`
+        import google.auth
+        creds, _ = google.auth.default(scopes=scopes)
     api = build("androidpublisher", "v3", credentials=creds, cache_discovery=False)
     edits = api.edits()
     edit_id = edits.insert(packageName=PACKAGE, body={}).execute()["id"]
