@@ -107,18 +107,6 @@ static func valid_payment_colors(card_color: SupplyColor) -> Array[SupplyColor]:
 
 @export var trigger_type: TriggerType = TriggerType.ALWAYS
 
-func frame_trigger() -> String:
-	match trigger_type:
-		TriggerType.PLACE: return "place"
-		TriggerType.SCORE: return "score"
-	return "always"
-
-func frame_trigger_exp() -> String:
-	match trigger_type:
-		TriggerType.PLACE: return "place"
-		TriggerType.SCORE: return "vp"
-	return "always"
-
 static func effective_cost(cd: CardData, is_advanced: bool) -> int:
 	if cd.card_type == CardType.SECTOR and is_advanced:
 		return cd.adv_cost

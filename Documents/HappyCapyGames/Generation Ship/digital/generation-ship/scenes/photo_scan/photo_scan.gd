@@ -632,19 +632,6 @@ func _resolve_art_path(card_name: String, is_advanced: bool) -> String:
 		return cd.local_art_path
 	return ""
 
-## Whether a name is a sector's dust or advanced identity (as opposed to a
-## tech/expedition) — used to sanity-check CardMatcher's auto-detected
-## guesses against which slot they'd land in (slot 0 must be a sector,
-## every other slot must not be).
-func _match_as_sector(card_name: String) -> Dictionary:
-	if card_name.is_empty():
-		return {"found": false, "is_advanced": false}
-	if CardDatabase.find_sector_by_name(card_name, false):
-		return {"found": true, "is_advanced": false}
-	if CardDatabase.find_sector_by_name(card_name, true):
-		return {"found": true, "is_advanced": true}
-	return {"found": false, "is_advanced": false}
-
 # ── Calibration logging ──────────────────────────────────────────────────────
 
 # ── View switching ───────────────────────────────────────────────────────────

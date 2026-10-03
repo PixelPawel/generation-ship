@@ -240,9 +240,6 @@ func _on_market_sector_revealed(card_data: CardData, slot_idx: int) -> void:
 func reveal_expedition_to_slot(slot_idx: int) -> CardData:
 	return _expedition_market.reveal_to_slot(slot_idx)
 
-func get_expedition_slot_sizes() -> Array[int]:
-	return _expedition_market.get_slot_sizes()
-
 func find_market_card(cd: CardData) -> Node3D:
 	if cd.card_type == CardData.CardType.EXPEDITION:
 		return _expedition_market.find_card(cd)
@@ -545,9 +542,6 @@ func set_hand(hand_node: Node3D) -> void:
 func calculate_score() -> Array[Dictionary]:
 	return Scoring.calculate(_sector_row)
 
-func get_sector_row() -> Node3D:
-	return _sector_row
-
 func count_tech_by_name(tech_name: String) -> int:
 	var count: int = 0
 	for slot: SectorSlot in _sector_row.get_children():
@@ -602,10 +596,6 @@ func get_sector_count_by_color(color: CardData.SupplyColor) -> int:
 		if slot_color == color:
 			count += 1
 	return count
-
-func reset_sector_optimize() -> void:
-	for slot: SectorSlot in _sector_row.get_children():
-		slot.reset_optimize()
 
 func get_purchase_discount(target: CardData, placement_slot: SectorSlot = null) -> int:
 	var discount: int = 0
@@ -777,9 +767,6 @@ func add_specific_cards_to_hand(cards: Array[CardData]) -> void:
 		new_cards.append(card)
 	if not new_cards.is_empty():
 		_hand.animate_draw_cards(new_cards)
-
-func clear_hand() -> void:
-	_hand.clear()
 
 func discard_and_draw(card: Node3D) -> void:
 	if card.card_data:
@@ -1639,9 +1626,6 @@ func begin_auction_win_drag(cd: CardData, spent: Dictionary = {}) -> bool:
 func cancel_purchase() -> void:
 	_end_pending_purchase(true)
 
-func forfeit_purchase() -> void:
-	_end_pending_purchase(false)
-
 func _end_pending_purchase(return_to_market: bool) -> void:
 	if not _pending_card:
 		return
@@ -1755,49 +1739,6 @@ func cancel_payment_confirm() -> void:
 	else:
 		_market.return_card(card)
 
-func restore_visual_from_public_snapshot(snap: Dictionary) -> void:
-	if _dragged_card:
-		_dragged_card.queue_free()
-		_dragged_card = null
-		_drag_origin = DragOrigin.NONE
-		_clear_slot_highlights()
-	var supply: Dictionary = snap.get("supply", {})
-	for color: CardData.SupplyColor in CardData.SupplyColor.values():
-		_supply_ui.set_supply(color, supply.get(int(color), 0))
-	for old_slot: SectorSlot in _sector_row.get_children().duplicate():
-		_sector_row.remove_child(old_slot)
-		old_slot.queue_free()
-	var slots: Array = snap.get("slots", [])
-	for s: Dictionary in slots:
-		if not s.get("occupied", false):
-			continue
-		var pos: Dictionary = s.get("position", {})
-		var slot: SectorSlot = _spawn_slot_at_pos(Vector3(pos.get("x", 0.0), 0.0, pos.get("z", 0.5)))
-		var sector_name: String = s.get("sector_name", "")
-		var is_adv: bool = s.get("sector_advanced", false)
-		var sec_data: CardData = _find_sector_by_name(sector_name, is_adv)
-		if sec_data:
-			var sec_card: Node3D = _card_scene.instantiate()
-			add_child(sec_card)
-			sec_card.global_position = slot.global_position + Vector3(0.0, 0.3, 0.0)
-			if is_adv:
-				sec_card.set("is_advanced", true)
-			sec_card.set_card_data(sec_data)
-			slot.accept_card(sec_card)
-			sec_card.place()
-		slot.optimize_count = s.get("optimize_count", 0)
-		slot.max_optimizations = s.get("max_optimizations", 1)
-		slot.is_optimized = s.get("is_optimized", false)
-		for tech_name: Variant in s.get("tech_names", []):
-			var tech_data: CardData = _find_placed_card_by_name(str(tech_name))
-			if tech_data and slot.has_tech_space():
-				var tech_card: Node3D = _card_scene.instantiate()
-				add_child(tech_card)
-				tech_card.global_position = slot.global_position + Vector3(0.0, 0.3, 0.0)
-				tech_card.set_card_data(tech_data)
-				slot.accept_tech_card(tech_card)
-				tech_card.place()
-
 func _find_sector_by_name(sec_name: String, is_adv: bool) -> CardData:
 	for cd: CardData in CardDatabase.sectors:
 		if is_adv:
@@ -1816,128 +1757,6 @@ func _find_placed_card_by_name(card_name: String) -> CardData:
 		if cd.card_name == card_name:
 			return cd
 	return null
-
-func get_snapshot() -> Dictionary:
-	var supply_snap: Dictionary = {}
-	for color: CardData.SupplyColor in CardData.SupplyColor.values():
-		supply_snap[int(color)] = _supply_ui.get_supply(color)
-	var hand_snap: Array[CardData] = _hand.get_card_data_list()
-	var drag_card_data: CardData = null
-	var drag_origin_val: int = DragOrigin.NONE
-	var drag_market_slot: int = -1
-	if _dragged_card and _dragged_card.card_data:
-		drag_card_data = _dragged_card.card_data
-		drag_origin_val = int(_drag_origin)
-		drag_market_slot = int(_dragged_card.get_meta("market_slot", -1))
-	var slots_snap: Array = []
-	for slot: SectorSlot in _sector_row.get_children():
-		var tech_data: Array[CardData] = []
-		for ts: Node3D in slot._tech_slots:
-			if ts.occupied and ts.placed_card and ts.placed_card.card_data:
-				tech_data.append(ts.placed_card.card_data as CardData)
-		slots_snap.append({
-			"occupied": slot.occupied,
-			"position": {"x": slot.global_position.x, "z": slot.global_position.z},
-			"sector_data": slot.placed_card.card_data if slot.placed_card else null,
-			"sector_advanced": bool(slot.placed_card.get("is_advanced")) if slot.placed_card else false,
-			"optimize_count": slot.optimize_count,
-			"max_optimizations": slot.max_optimizations,
-			"is_optimized": slot.is_optimized,
-			"triggered_levels": slot.triggered_levels.duplicate(),
-			"last_placed_tech_cost": slot.last_placed_tech_cost,
-			"tucked_cards": slot.tucked_cards.duplicate(true),
-			"stored_supply": slot.stored_supply.duplicate(),
-			"tech_data": tech_data,
-		})
-	return {
-		"supply": supply_snap,
-		"hand": hand_snap,
-		"slots": slots_snap,
-		"drag_card_data": drag_card_data,
-		"drag_origin": drag_origin_val,
-		"drag_market_slot": drag_market_slot,
-	}
-
-func restore_from_snapshot(snap: Dictionary) -> void:
-	if _dragged_card:
-		_dragged_card.queue_free()
-		_dragged_card = null
-		_drag_origin = DragOrigin.NONE
-		_clear_slot_highlights()
-	for color: CardData.SupplyColor in CardData.SupplyColor.values():
-		_supply_ui.set_supply(color, snap["supply"][int(color)])
-	_hand.clear()
-	for cd: Variant in snap["hand"]:
-		var card_data: CardData = cd as CardData
-		if not card_data:
-			continue
-		var card: Node3D = _card_scene.instantiate()
-		_hand.add_card(card)
-		card.set_card_data(card_data)
-	var drag_data: CardData = snap["drag_card_data"] as CardData
-	if drag_data:
-		var restored: Node3D = _card_scene.instantiate()
-		add_child(restored)
-		restored.set_card_data(drag_data)
-		match snap["drag_origin"]:
-			DragOrigin.HAND:
-				_hand.add_card(restored)
-			DragOrigin.MARKET:
-				var slot_idx: int = snap["drag_market_slot"]
-				if slot_idx >= 0:
-					restored.set_meta("market_slot", slot_idx)
-					restored.end_drag()
-					if drag_data.card_type == CardData.CardType.EXPEDITION:
-						_expedition_market.return_card(restored)
-					else:
-						_market.return_card(restored)
-				else:
-					restored.queue_free()
-	for old_slot: SectorSlot in _sector_row.get_children().duplicate():
-		_sector_row.remove_child(old_slot)
-		old_slot.queue_free()
-	for slot_snap: Dictionary in snap["slots"]:
-		var pos: Dictionary = slot_snap.get("position", {})
-		var slot: SectorSlot = _spawn_slot_at_pos(Vector3(pos.get("x", 0.0), 0.0, pos.get("z", 0.5)))
-		slot.highlight(false)
-		if not slot_snap["occupied"]:
-			continue
-		slot.tucked_cards = slot_snap["tucked_cards"]
-		slot.stored_supply = slot_snap["stored_supply"]
-		slot.refresh_display()
-		var sec_data: CardData = slot_snap["sector_data"] as CardData
-		if sec_data:
-			var sec_card: Node3D = _card_scene.instantiate()
-			add_child(sec_card)
-			sec_card.global_position = slot.global_position + Vector3(0.0, 0.3, 0.0)
-			if slot_snap["sector_advanced"]:
-				sec_card.set("is_advanced", true)
-			sec_card.set_card_data(sec_data)
-			slot.accept_card(sec_card)
-			sec_card.place()
-		for td: Variant in slot_snap["tech_data"]:
-			var tech_data: CardData = td as CardData
-			if not tech_data:
-				continue
-			var tech_card: Node3D = _card_scene.instantiate()
-			add_child(tech_card)
-			tech_card.global_position = slot.global_position + Vector3(0.0, 0.3, 0.0)
-			tech_card.set_card_data(tech_data)
-			slot.accept_tech_card(tech_card)
-			tech_card.place()
-		slot.optimize_count = slot_snap["optimize_count"]
-		slot.max_optimizations = slot_snap["max_optimizations"]
-		slot.is_optimized = slot_snap["is_optimized"]
-		slot.last_placed_tech_cost = slot_snap["last_placed_tech_cost"]
-		if slot_snap.has("triggered_levels"):
-			slot.triggered_levels = (slot_snap["triggered_levels"] as Array).duplicate()
-		else:
-			slot.triggered_levels.resize(slot.max_optimizations)
-			slot.triggered_levels.fill(false)
-			for j: int in slot.optimize_count:
-				if j < slot.triggered_levels.size():
-					slot.triggered_levels[j] = true
-		slot.refresh_optimize_display()
 
 # Karma Chameleon ("counts as a color of your choice while being placed")
 # sits out of its own placement's optimize check — SectorSlot.

@@ -1,13 +1,6 @@
 class_name Scoring
 extends RefCounted
 
-# Returns the VP a single expedition card would score given the current board state.
-static func get_expedition_vp(card_name: String, sector_row: Node3D) -> int:
-	var slots: Array = _occupied_slots(sector_row)
-	var all_cards: Array = _all_placed_cards(slots)
-	var expeditions: Array = _by_type(all_cards, CardData.CardType.EXPEDITION)
-	return _expedition_vp(card_name, slots, expeditions, all_cards)
-
 # Returns Array of {label: String, vp: int}, one entry per scoring source with vp > 0.
 static func calculate(sector_row: Node3D) -> Array[Dictionary]:
 	var slots: Array = _occupied_slots(sector_row)

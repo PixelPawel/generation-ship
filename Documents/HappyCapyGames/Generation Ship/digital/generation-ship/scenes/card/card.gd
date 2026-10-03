@@ -127,22 +127,6 @@ func _instantiate_glb(card_type: CardData.CardType) -> void:
 	add_child(_card_glb)
 	_face_surface = _card_glb.find_child("*screen_image*", true, false) as MeshInstance3D
 
-func _apply_local_art_to_glb() -> void:
-	if not _face_surface or not card_data:
-		return
-	var art_path: String = card_data.adv_local_art_path if is_advanced else card_data.local_art_path
-	if art_path.is_empty():
-		return
-	var tex: Texture2D = load(art_path) as Texture2D
-	if not tex:
-		return
-	var face_mat := StandardMaterial3D.new()
-	face_mat.albedo_texture = tex
-	face_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	face_mat.no_depth_test = true
-	face_mat.render_priority = 1
-	_face_surface.set_surface_override_material(0, face_mat)
-
 func _apply_texture(tex: Texture2D) -> void:
 	var mat: ShaderMaterial = card_mesh.get_surface_override_material(0) as ShaderMaterial
 	if mat:

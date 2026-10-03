@@ -173,16 +173,6 @@ func _play_reveal_animation(card: Node3D, target_pos: Vector3) -> void:
 	t.tween_property(card, "position", target_pos, 0.32).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	t.parallel().tween_property(card, "scale", Vector3.ONE, 0.32).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 
-func get_all_visible_cards() -> Array[Node3D]:
-	var result: Array[Node3D] = []
-	for card: Node3D in _dust_display_cards:
-		if card:
-			result.append(card)
-	for stack: Array in _advanced_stacks:
-		for card: Node3D in stack:
-			result.append(card)
-	return result
-
 func find_dust_card(cd: CardData) -> Node3D:
 	for i: int in 3:
 		var card: Node3D = _dust_display_cards[i] as Node3D

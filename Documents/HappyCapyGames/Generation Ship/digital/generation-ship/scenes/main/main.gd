@@ -672,21 +672,6 @@ func _flicker_one_slot(slot: SectorSlot, delay: float) -> void:
 		await get_tree().create_timer(durations[i]).timeout
 	slot.set_slot_brightness(1.0)
 
-# Local, per-machine — not synced. Each peer independently checks/shows/
-# marks its own settings.cfg, since "has this installation seen the
-# tutorial" has nothing to do with the network session.
-func _tutorial_seen() -> bool:
-	var cfg: ConfigFile = ConfigFile.new()
-	if cfg.load(SETTINGS_PATH) == OK:
-		return bool(cfg.get_value("tutorial", "seen", false))
-	return false
-
-func _mark_tutorial_seen() -> void:
-	var cfg: ConfigFile = ConfigFile.new()
-	cfg.load(SETTINGS_PATH)
-	cfg.set_value("tutorial", "seen", true)
-	cfg.save(SETTINGS_PATH)
-
 # "Solo" in the sense that matters for the tutorial: no other real person
 # at the table. GameNetwork.is_multiplayer is true even for a bots-only
 # lobby (setup_multiplayer() is always called once a game is launched via
@@ -3640,15 +3625,6 @@ func _on_placement_cancelled() -> void:
 		return
 	_effect_mode = EffectMode.NONE
 	$Board.cancel_pending_placement_to_arrow()
-
-func _on_supply_choice_required(card: Node3D, _slot: SectorSlot, cost: int, options: Array[CardData.SupplyColor], _is_tech: bool) -> void:
-	_effect_mode = EffectMode.SUPPLY_CHOICE
-	var card_name: String = ""
-	if card.card_data:
-		var cd: CardData = card.card_data
-		var is_adv: bool = bool(card.get("is_advanced"))
-		card_name = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
-	_supply_cost_panel.show_cost(card_name, cost, options)
 
 func _on_supply_chosen(color: CardData.SupplyColor) -> void:
 	if _effect_mode == EffectMode.SUPPLY_CHOICE:

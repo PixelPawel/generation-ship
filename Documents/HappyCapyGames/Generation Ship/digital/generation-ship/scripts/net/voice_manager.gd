@@ -85,15 +85,6 @@ func _process(_delta: float) -> void:
 			_pump_local_voice()
 	_check_speaking_timeouts()
 
-func is_recording() -> bool:
-	return _recording
-
-func is_speaking(peer_id: int) -> bool:
-	return bool(_speaking.get(peer_id, false))
-
-func set_peer_muted(peer_id: int, muted: bool) -> void:
-	muted_peers[peer_id] = muted
-
 func is_peer_muted(peer_id: int) -> bool:
 	return bool(muted_peers.get(peer_id, false))
 

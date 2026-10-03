@@ -438,11 +438,6 @@ func set_slot_brightness(v: float) -> void:
 	if _slot_mat:
 		_slot_mat.set_shader_parameter("slot_power", v)
 
-func set_available(available: bool) -> void:
-	is_available = available
-	if not occupied:
-		_mesh.visible = true
-
 # The big moments get a little show: one optimize level = a gold burst on the
 # sector; fully optimized or complete (big) = bursts up the whole stack, the
 # sector card pops, the camera shakes and phones vibrate. Two big moments from

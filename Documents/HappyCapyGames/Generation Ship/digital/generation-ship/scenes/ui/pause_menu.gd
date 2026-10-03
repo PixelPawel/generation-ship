@@ -31,7 +31,6 @@ var _output_device_option: OptionButton = null
 var _input_device_option: OptionButton = null
 var _shake_check: CheckButton = null
 var _vibration_check: CheckButton = null
-var _tutorial_check: CheckButton = null
 var _language_option: OptionButton = null
 var _tr_targets: Dictionary = {}   # Control (Label/Button) -> untranslated key, refreshed on locale change
 
@@ -52,7 +51,6 @@ func open_settings() -> void:
 	if _settings_panel:
 		_settings_panel.visible = true
 	visible = true
-	_load_tutorial_setting()
 	_load_language_setting()
 
 func _build_ui() -> void:
@@ -416,7 +414,6 @@ func _build_settings_panel() -> void:
 	_load_output_device_setting()
 	_load_input_device_setting()
 	_load_shake_setting()
-	_load_tutorial_setting()
 	_load_language_setting()
 
 func _set_bus_volume(bus_name: String, linear: float) -> void:
@@ -558,25 +555,6 @@ func _save_display_flag(key: String, on: bool) -> void:
 	cfg.set_value("display", key, on)
 	cfg.save(SETTINGS_PATH)
 
-# Same "tutorial"/"seen" flag main.gd's FirstTurnTutorial gate reads/marks —
-# this checkbox is just a manual way to flip it back to "not seen" (checked)
-# so it plays again next solo game start; main.gd marks it seen again the
-# instant the tutorial actually starts, so reopening Settings afterward
-# correctly shows it unchecked again.
-func _load_tutorial_setting() -> void:
-	var cfg: ConfigFile = ConfigFile.new()
-	var seen: bool = false
-	if cfg.load(SETTINGS_PATH) == OK:
-		seen = bool(cfg.get_value("tutorial", "seen", false))
-	if _tutorial_check:
-		_tutorial_check.set_pressed_no_signal(not seen)
-
-func _save_tutorial_setting(want_replay: bool) -> void:
-	var cfg: ConfigFile = ConfigFile.new()
-	cfg.load(SETTINGS_PATH)
-	cfg.set_value("tutorial", "seen", not want_replay)
-	cfg.save(SETTINGS_PATH)
-
 func _load_language_setting() -> void:
 	var cfg: ConfigFile = ConfigFile.new()
 	var locale: String = "en"
@@ -665,7 +643,6 @@ func _on_settings_pressed() -> void:
 	_settings_panel.visible = true
 	_refresh_output_device_items()
 	_refresh_input_device_items()
-	_load_tutorial_setting()
 	_load_language_setting()
 
 func _on_main_menu_pressed() -> void:
