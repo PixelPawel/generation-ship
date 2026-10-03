@@ -530,7 +530,12 @@ func _rpc_load_game() -> void:
 	GameNetwork.player_names = _players.duplicate()
 	GameNetwork.bot_ids = bot_ids_local
 	GameNetwork.bot_difficulty = _bot_difficulties.duplicate()
-	SceneTransition.change_scene("res://scenes/main/main.tscn")
+	# from the main menu: the parked cockpit powers up first (MainMenu.launch_game)
+	var menu: Node = get_tree().current_scene
+	if menu and menu.has_method("launch_game"):
+		menu.call("launch_game", "res://scenes/main/main.tscn")
+	else:
+		SceneTransition.change_scene("res://scenes/main/main.tscn")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

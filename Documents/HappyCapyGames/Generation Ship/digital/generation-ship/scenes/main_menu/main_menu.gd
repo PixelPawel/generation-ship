@@ -2,6 +2,9 @@ extends Control
 const Haptics = preload("res://scripts/haptics.gd")
 const TutorialSession = preload("res://scripts/tutorial_session.gd")
 const MenuIconButton = preload("res://scenes/ui/menu_icon_button.gd")
+const CockpitBackdrop = preload("res://scenes/main_menu/cockpit_backdrop.gd")
+var _backdrop: Node3D = null   # the parked cockpit behind the menu
+var _launching: bool = false
 
 # ── Layout ────────────────────────────────────────────────────────────────────
 # Tutorial, Versus, Co-op (not yet) and Quit down the middle, the four tools as a row
@@ -126,20 +129,26 @@ func _add_link_button(tex_path: String, url: String, height: float, right: bool)
 	btn.offset_bottom = bottom
 	_link_buttons.append(btn)
 
+# Behind the menu: the game's cockpit, parked (CockpitBackdrop) — it used to be
+# a fly-through video. Starting a game wakes it up (see launch_game).
 func _setup_video() -> void:
-	const VIDEO_PATH: String = "res://assets/video/flythrough.mp4"
-	if not FileAccess.file_exists(VIDEO_PATH):
-		return
-	var vp := VideoPlayback.new()
-	vp.enable_audio = false
-	vp.loop = true
-	vp.enable_auto_play = true
-	vp.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(vp)
-	move_child(vp, $Background.get_index())
-	vp.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	vp.set_video_path(VIDEO_PATH)
+	_backdrop = CockpitBackdrop.new()
+	add_child(_backdrop)
 	$Background.visible = false
+
+# Starts a game from the menu: the menu fades away, the parked cockpit powers
+# up, then the game scene loads and its screens boot on from there.
+func launch_game(path: String) -> void:
+	if _launching:
+		return
+	_launching = true
+	var fade: Tween = create_tween().set_parallel(true)
+	for child: Node in get_children():
+		if child is CanvasItem and (child as CanvasItem).visible:
+			fade.tween_property(child, "modulate:a", 0.0, 0.35)
+	if _backdrop:
+		await _backdrop.call("wake_up")
+	SceneTransition.change_scene(path)
 
 func _setup_music() -> void:
 	var stream: AudioStreamWAV = load("res://assets/music/ambience.wav") as AudioStreamWAV
@@ -430,7 +439,7 @@ func _on_tutorial_pressed() -> void:
 	GameNetwork.is_multiplayer = false
 	GameNetwork.bot_ids = []
 	GameNetwork.player_names = {}
-	SceneTransition.change_scene("res://scenes/main/main.tscn")
+	launch_game("res://scenes/main/main.tscn")
 
 func _on_rule_book_pressed() -> void:
 	_manual.open()
