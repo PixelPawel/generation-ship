@@ -95,7 +95,8 @@ static func board_vp_lines(board: Array) -> Array[Dictionary]:
 
 	var stars: int = 0
 	for cd: CardData in all_cards:
-		if cd.stars > 0 and cd.card_type != CardData.CardType.SECTOR and not _is_conditional_tech(cd.card_name):
+		# techs only: sectors' printed stars don't score, expeditions have their own line
+		if cd.stars > 0 and cd.card_type == CardData.CardType.TECH and not _is_conditional_tech(cd.card_name):
 			stars += cd.stars
 	_add(lines, "Stars", stars)
 
@@ -131,7 +132,7 @@ static func board_vp_lines(board: Array) -> Array[Dictionary]:
 		if cd.card_type == CardData.CardType.EXPEDITION:
 			expeditions.append(cd)
 	for cd: CardData in expeditions:
-		_add(lines, cd.card_name, _expedition_vp(cd.card_name, cd.stars, board, all_cards, expeditions))
+		_add(lines, cd.card_name, Scoring.expedition_card_vp(cd, _expedition_vp(cd.card_name, cd.stars, board, all_cards, expeditions)))
 
 	for cd: CardData in all_cards:
 		if cd.card_type == CardData.CardType.TECH and _is_conditional_tech(cd.card_name):
@@ -238,7 +239,7 @@ static func _expedition_vp_raw(name: String, fallback_stars: int, board: Array,
 					var top: CardData = cards[cards.size() - 1]
 					var top_vp: int
 					if top.card_type == CardData.CardType.EXPEDITION and top.card_name != "Equatorial Superloop":
-						top_vp = _expedition_vp(top.card_name, top.stars, board, all_cards, expeditions)
+						top_vp = Scoring.expedition_card_vp(top, _expedition_vp(top.card_name, top.stars, board, all_cards, expeditions))
 					elif top.card_type == CardData.CardType.TECH and _is_conditional_tech(top.card_name):
 						top_vp = _tech_condition_vp(top.card_name, board)
 					elif top.card_type != CardData.CardType.EXPEDITION:
@@ -362,7 +363,7 @@ static func estimate_bid_value(cd: CardData, is_adv: bool, board: Array) -> int:
 		for c: CardData in all_cards:
 			if c.card_type == CardData.CardType.EXPEDITION:
 				expeditions.append(c)
-		return _expedition_vp(cd.card_name, cd.stars, board, all_cards, expeditions)
+		return Scoring.expedition_card_vp(cd, _expedition_vp(cd.card_name, cd.stars, board, all_cards, expeditions))
 	return int(card_value(cd)) + 3 * OptimizeLogic.max_optimizations(cd, is_adv)
 
 # Rough point value of a resolved effect-step list — lets bots prefer plays

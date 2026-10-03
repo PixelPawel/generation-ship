@@ -123,7 +123,9 @@ static func _score_stars(lines: Array[Dictionary], all_cards: Array) -> void:
 		# comes entirely from _score_tech_conditions below. Counting the
 		# printed star here too would grant them 1 VP even when their
 		# condition fails, and double-count it when the condition succeeds.
-		if cd != null and cd.stars > 0 and cd.card_type != CardData.CardType.SECTOR and not _is_conditional_tech(cd.card_name):
+		# Sectors' printed stars don't score (rule book: techs, expeditions, stored
+		# supply, archived cards); expeditions are scored on their own line below.
+		if cd != null and cd.stars > 0 and cd.card_type == CardData.CardType.TECH and not _is_conditional_tech(cd.card_name):
 			total += cd.stars
 	_add_line(lines, "Stars (⭐)", total)
 
@@ -134,8 +136,7 @@ static func _score_expeditions(lines: Array[Dictionary], slots: Array, expeditio
 		var cd: CardData = card.get("card_data")
 		if cd == null:
 			continue
-		var vp: int = _expedition_vp(cd.card_name, slots, expeditions, all_cards)
-		_add_line(lines, cd.card_name, vp)
+		_add_line(lines, cd.card_name, expedition_card_vp(cd, _expedition_vp(cd.card_name, slots, expeditions, all_cards)))
 
 # Printed "Max. N⭐" caps from the Expeditions sheet's Effect 2 column — the
 # count a card scores on can run past them (e.g. Cloud Colony's face-down
@@ -154,6 +155,12 @@ const EXPEDITION_MAX: Dictionary = {
 # it scores a player — the expeditions of the other player who has the most
 # (see Main._alliance_count_for). 0 in solo games and for scanned ships.
 static var other_players_expeditions: int = 0
+
+# An expedition scores once: a Score expedition by its effect alone (its printed
+# stars are part of that — the rule book's Waterworld example scores 2, not 4),
+# any other (Always / Place) by its printed stars.
+static func expedition_card_vp(cd: CardData, effect_vp: int) -> int:
+	return effect_vp if cd.trigger_type == CardData.TriggerType.SCORE else cd.stars
 
 static func cap_expedition_vp(name: String, vp: int) -> int:
 	return mini(vp, int(EXPEDITION_MAX[name])) if EXPEDITION_MAX.has(name) else vp
@@ -188,7 +195,7 @@ static func _expedition_vp_raw(name: String, slots: Array, expeditions: Array, a
 					if cd:
 						var top_vp: int
 						if cd.card_type == CardData.CardType.EXPEDITION and cd.card_name != "Equatorial Superloop":
-							top_vp = _expedition_vp(cd.card_name, slots, expeditions, all_cards)
+							top_vp = expedition_card_vp(cd, _expedition_vp(cd.card_name, slots, expeditions, all_cards))
 						elif cd.card_type == CardData.CardType.TECH and _is_conditional_tech(cd.card_name):
 							top_vp = _tech_condition_vp(cd.card_name, slots, all_cards)
 						elif cd.card_type != CardData.CardType.EXPEDITION:
