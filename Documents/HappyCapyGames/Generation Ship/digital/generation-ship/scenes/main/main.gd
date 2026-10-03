@@ -1318,6 +1318,8 @@ func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, ca
 	_show_auction_toast(tr("%s won %s for %d") % [_wn_toast, _cn_toast, final_bid])
 	_log_action(tr("%s won %s for %d") % [_wn_toast, _cn_toast, final_bid], Color(1.0, 0.92, 0.35))
 	UIAudio.play_gavel_sfx()
+	if winner_id == multiplayer.get_unique_id():
+		Haptics.thump()
 	if _bid_is_from_effect:
 		_bid_is_from_effect = false
 		_process_next_effect()
@@ -2231,6 +2233,7 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	var _supply: CardData.SupplyColor = _cd.adv_color if _is_adv else _cd.color
 	_broadcast_log(tr("%s: placed %s") % [_pname, _cname], CardData.color_tint(_supply))
 	UIAudio.play_supply_sfx(_supply)
+	Haptics.thump()
 	$Board.refresh_hand_discounts()
 	if _effect_mode != EffectMode.NONE:
 		_reset_effect_state()

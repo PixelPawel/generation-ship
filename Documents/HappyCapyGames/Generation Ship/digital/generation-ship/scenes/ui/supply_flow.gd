@@ -22,6 +22,9 @@ const COL_TUTORIAL_B := Color(0.95, 0.2, 0.25)
 var _pos: Dictionary = {}     # int (SupplyColor) -> Vector2 centre
 var _arrows: Array = []       # Array[Dictionary] { src, dst, hovered, disabled }
 var _labels: Dictionary = {}  # int -> Label
+var _icons: Dictionary = {}   # int -> TextureRect
+const GAIN_POP_SCALE: float = 1.35
+const GAIN_FLASH_COLOR: Color = Color(0.45, 1.0, 0.55)
 var _time: float = 0.0
 var _hovered_icon: int = -1
 var _tutorial_highlight: bool = false
@@ -56,7 +59,9 @@ func _build_icons(icon_textures: Dictionary) -> void:
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		icon.position = center - Vector2(ICON_HALF, ICON_HALF)
+		icon.pivot_offset = Vector2(ICON_HALF, ICON_HALF)
 		add_child(icon)
+		_icons[color] = icon
 
 		var lbl := Label.new()
 		lbl.text = "0"
@@ -72,6 +77,21 @@ func _build_icons(icon_textures: Dictionary) -> void:
 		lbl.position = center - Vector2(ICON_HALF, ICON_HALF - 4.0)
 		add_child(lbl)
 		_labels[color] = lbl
+
+# A gain: the colour's icon swells and settles, its number flashes green.
+func pop_icon(color: int) -> void:
+	var icon: TextureRect = _icons.get(color) as TextureRect
+	var lbl: Label = _labels.get(color) as Label
+	if icon == null:
+		return
+	var t: Tween = icon.create_tween()
+	t.tween_property(icon, "scale", Vector2.ONE * GAIN_POP_SCALE, 0.08).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	t.tween_property(icon, "scale", Vector2.ONE, 0.32).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
+	if lbl:
+		lbl.add_theme_color_override("font_color", GAIN_FLASH_COLOR)
+		var lt: Tween = lbl.create_tween()
+		lt.tween_interval(0.25)
+		lt.tween_callback(func() -> void: lbl.add_theme_color_override("font_color", Color.WHITE))
 
 func update_label(color: int, count: int) -> void:
 	var lbl: Label = _labels.get(color) as Label

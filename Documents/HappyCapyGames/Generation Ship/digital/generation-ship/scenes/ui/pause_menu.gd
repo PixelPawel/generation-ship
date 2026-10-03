@@ -29,6 +29,7 @@ var _voice_slider: HSlider = null
 var _output_device_option: OptionButton = null
 var _input_device_option: OptionButton = null
 var _shake_check: CheckButton = null
+var _vibration_check: CheckButton = null
 var _tutorial_check: CheckButton = null
 var _language_option: OptionButton = null
 var _tr_targets: Dictionary = {}   # Control (Label/Button) -> untranslated key, refreshed on locale change
@@ -221,6 +222,26 @@ func _build_settings_panel() -> void:
 		_save_shake_setting(on)
 	)
 	shake_row.add_child(_shake_check)
+
+	# Phones only: short vibrations (see Haptics).
+	if Haptics.available():
+		var vib_row := HBoxContainer.new()
+		vib_row.add_theme_constant_override("separation", 10)
+		vbox.add_child(vib_row)
+		var vib_lbl := Label.new()
+		_tr_set(vib_lbl, "Vibration")
+		vib_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		vib_lbl.add_theme_font_size_override("font_size", 16)
+		vib_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		vib_row.add_child(vib_lbl)
+		_vibration_check = CheckButton.new()
+		_vibration_check.toggled.connect(func(on: bool) -> void:
+			Haptics.enabled = on
+			_save_display_flag("vibration", on)
+			if on:
+				Haptics.thump()
+		)
+		vib_row.add_child(_vibration_check)
 
 	# Tooltip size (see GameTheme.tooltip_size) — defaults to 200% on phones.
 	var tip_row := HBoxContainer.new()
@@ -514,11 +535,18 @@ func _load_shake_setting() -> void:
 	if _shake_check:
 		_shake_check.set_pressed_no_signal(on)
 	Card.screen_shake_enabled = on
+	var vib: bool = bool(cfg.get_value("display", "vibration", true))
+	if _vibration_check:
+		_vibration_check.set_pressed_no_signal(vib)
+	Haptics.enabled = vib
 
 func _save_shake_setting(on: bool) -> void:
+	_save_display_flag("screen_shake", on)
+
+func _save_display_flag(key: String, on: bool) -> void:
 	var cfg: ConfigFile = ConfigFile.new()
 	cfg.load(SETTINGS_PATH)
-	cfg.set_value("display", "screen_shake", on)
+	cfg.set_value("display", key, on)
 	cfg.save(SETTINGS_PATH)
 
 # Same "tutorial"/"seen" flag main.gd's FirstTurnTutorial gate reads/marks —

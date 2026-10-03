@@ -61,6 +61,9 @@ var _turn_indicator_label: Label = null
 var _turn_style_on: StyleBoxFlat = null
 var _turn_style_off: StyleBoxFlat = null
 
+const GAIN_SOUND_GAP_MS: int = 150
+var _last_gain_ms: Dictionary = {}       # colour -> when its gain sound last played
+
 func _ready() -> void:
 	for def: Dictionary in SUPPLY_DEFS:
 		_icon_textures[def["color"]] = load(def["path"])
@@ -311,6 +314,20 @@ func add_supply(supply_color: CardData.SupplyColor, amount: int) -> void:
 	set_supply(supply_color, _counts.get(supply_color, 0) + amount)
 	if amount > 0:
 		_spawn_floating_label(supply_color, "+%d" % amount)
+		_gain_feedback(supply_color)
+
+# Every gain is heard and seen: the colour's own sound (the one placing a card of
+# that colour makes), its counter pops, and a tick on phones. Several gains of one
+# colour at once (a 3x effect, say) sound once.
+func _gain_feedback(supply_color: CardData.SupplyColor) -> void:
+	var now: int = Time.get_ticks_msec()
+	if now - int(_last_gain_ms.get(supply_color, -100000)) < GAIN_SOUND_GAP_MS:
+		return
+	_last_gain_ms[supply_color] = now
+	UIAudio.play_supply_sfx(supply_color)
+	Haptics.tick()
+	if _flow:
+		_flow.pop_icon(supply_color)
 
 func _spawn_floating_label(supply_color: CardData.SupplyColor, text: String) -> void:
 	if not _flow:

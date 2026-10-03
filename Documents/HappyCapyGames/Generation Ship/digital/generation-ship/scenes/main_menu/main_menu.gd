@@ -270,3 +270,4 @@ func _apply_saved_settings() -> void:
 		DisplayServer.window_set_position(screen_pos + Vector2i((screen_size - win_size) / 2.0))
 
 	Card.screen_shake_enabled = bool(cfg.get_value("display", "screen_shake", true))
+	Haptics.enabled = bool(cfg.get_value("display", "vibration", true))

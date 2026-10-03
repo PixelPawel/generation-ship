@@ -100,6 +100,7 @@ var _is_free_gain: bool = false
 var _is_prepaid_placement: bool = false
 var _pending_dynamic_slot: SectorSlot = null
 var _drag_arrow: DragArrow = null
+var _snap_target: SectorSlot = null   # the slot the dragged card would land on (for the haptic tick)
 var _is_arrow_drag: bool = false
 var _is_auction_win_placement: bool = false
 var _prepaid_spent_amounts: Dictionary = {}
@@ -2022,17 +2023,17 @@ func _handle_failed_drop() -> void:
 					)
 
 func _update_slot_highlights() -> void:
-	var is_sector: bool = _is_sector_card()
-	if is_sector:
-		var snap_slot: SectorSlot = _find_nearest_empty_sector_slot()
-		for slot: SectorSlot in _sector_row.get_children():
-			slot.highlight(slot == snap_slot)
-	else:
-		var best_tech_slot: SectorSlot = _find_nearest_tech_slot()
-		for slot: SectorSlot in _sector_row.get_children():
-			slot.highlight(slot == best_tech_slot)
+	var target: SectorSlot = _find_nearest_empty_sector_slot() if _is_sector_card() else _find_nearest_tech_slot()
+	for slot: SectorSlot in _sector_row.get_children():
+		slot.highlight(slot == target)
+	# a little tick on phones each time the card would land somewhere new
+	if target != _snap_target:
+		_snap_target = target
+		if target:
+			Haptics.tick()
 
 func _clear_slot_highlights() -> void:
+	_snap_target = null
 	for slot: SectorSlot in _sector_row.get_children():
 		slot.highlight(false)
 
