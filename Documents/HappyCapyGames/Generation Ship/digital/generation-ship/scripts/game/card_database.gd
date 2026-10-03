@@ -226,7 +226,15 @@ func _load_expeditions() -> void:
 		card.id = int(row["No."])
 		card.card_type = CardData.CardType.EXPEDITION
 		_populate_base_fields(card, row)
+		card.bonus_stars = _stars_only(row.get("Effect 2", ""))
 		expeditions.append(card)
+
+# Star count of a field that is nothing but stars; 0 if it has any text.
+static func _stars_only(field: String) -> int:
+	var text: String = field.strip_edges()
+	if text.is_empty() or not text.replace("⭐", "").strip_edges().is_empty():
+		return 0
+	return text.count("⭐")
 
 func _populate_base_fields(card: CardData, row: Dictionary) -> void:
 	card.card_name      = _clean_name(row.get("Name", ""))

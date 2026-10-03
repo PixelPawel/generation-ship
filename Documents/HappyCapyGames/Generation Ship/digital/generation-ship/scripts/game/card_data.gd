@@ -16,6 +16,10 @@ const OPTIMIZE_ANY: int = -1
 @export var flavor_text: String
 @export var image_url: String
 @export var stars: int
+# Points from a second effect area that holds only stars (e.g. Galactic
+# Capital's ★★★★★★). Stars inside effect text ("Gain 3★ per…") or next to
+# text ("Max. 18★", "(Facedown cards are 1★)") are never points themselves.
+@export var bonus_stars: int = 0
 @export var is_star_card: bool = false
 
 

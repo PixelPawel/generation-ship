@@ -156,11 +156,11 @@ const EXPEDITION_MAX: Dictionary = {
 # (see Main._alliance_count_for). 0 in solo games and for scanned ships.
 static var other_players_expeditions: int = 0
 
-# An expedition scores once: a Score expedition by its effect alone (its printed
-# stars are part of that — the rule book's Waterworld example scores 2, not 4),
-# any other (Always / Place) by its printed stars.
+# An expedition scores once: a Score expedition by its effect; any other
+# (Always / Place) by the stars of its second effect area when that holds only
+# stars (Galactic Capital ★×6) — stars in effect text never count as points.
 static func expedition_card_vp(cd: CardData, effect_vp: int) -> int:
-	return effect_vp if cd.trigger_type == CardData.TriggerType.SCORE else cd.stars
+	return effect_vp if cd.trigger_type == CardData.TriggerType.SCORE else cd.bonus_stars
 
 static func cap_expedition_vp(name: String, vp: int) -> int:
 	return mini(vp, int(EXPEDITION_MAX[name])) if EXPEDITION_MAX.has(name) else vp
