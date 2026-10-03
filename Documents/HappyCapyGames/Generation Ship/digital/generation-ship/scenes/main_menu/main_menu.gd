@@ -4,11 +4,11 @@ const TutorialSession = preload("res://scripts/tutorial_session.gd")
 const MenuIconButton = preload("res://scenes/ui/menu_icon_button.gd")
 
 # ── Layout ────────────────────────────────────────────────────────────────────
-# Tutorial and Play a Game as the two big buttons, the four tools as a row
-# of art tiles along the bottom, Settings and Quit as icons in the top-right
-# corner. The stacked list of eight buttons had run off the bottom of the screen.
+# Tutorial, Versus, Co-op (not yet) and Quit down the middle, the four tools as a row
+# of art tiles along the bottom, Settings as a gear in the top-right corner. The stacked list of eight buttons had run off the bottom of the screen.
 const PLAY_BTN_SIZE: Vector2 = Vector2(440, 84)
 const PLAY_FONT: int = 40
+const VBOX_RAISE: float = -10.0   # the scene's VBox sits at 40% + 40 px
 const TILE_SIZE: Vector2 = Vector2(210, 190)
 const TILE_GAP: int = 26
 const TILE_BOTTOM: float = 104.0          # clear of the corner links
@@ -249,15 +249,28 @@ func _on_btn_hover_exit(btn: BaseButton) -> void:
 func _build_menu_layout() -> void:
 	var vbox: VBoxContainer = $Panels/MainView/VBox
 	# the tools leave the list: they become tiles / corner icons below
-	for n: String in ["SettingsBtn", "RuleBookBtn", "CollectionBtn", "ScanTableauBtn", "LeaderboardBtn", "QuitBtn"]:
+	for n: String in ["SettingsBtn", "RuleBookBtn", "CollectionBtn", "ScanTableauBtn", "LeaderboardBtn"]:
 		var old: Node = vbox.get_node_or_null(n)
 		if old:
 			vbox.remove_child(old)
 			old.queue_free()
+	vbox.offset_top = VBOX_RAISE   # a little higher than the scene has it
+	vbox.offset_bottom = VBOX_RAISE
 	var start: Button = vbox.get_node("MultiplayerBtn")   # keeps its lobby connection
-	start.text = "Play a Game"
+	start.text = "Versus"
 	start.custom_minimum_size = PLAY_BTN_SIZE
 	start.add_theme_font_size_override("font_size", PLAY_FONT)
+	# Co-op (Generation Fleet): not playable yet
+	var coop: Button = _menu_button("Co-op", PLAY_FONT, PLAY_BTN_SIZE)
+	coop.disabled = true
+	coop.tooltip_text = tr("Coming soon")
+	vbox.add_child(coop)
+	vbox.move_child(coop, start.get_index() + 1)
+	# Quit under them, as before (phones close apps through the system instead)
+	var quit: Button = vbox.get_node_or_null("QuitBtn")
+	if quit:
+		vbox.move_child(quit, vbox.get_child_count() - 1)
+		quit.visible = not OS.has_feature("mobile")
 
 	# Tutorial (recommended until finished once) above Play a Game
 	var tut_box: VBoxContainer = VBoxContainer.new()
@@ -291,13 +304,10 @@ func _build_menu_layout() -> void:
 	_tile_row.add_child(_make_tile("Scan Tableau", _on_scan_tableau_pressed))
 	_tile_row.add_child(_make_tile("Leaderboard", _on_leaderboard_pressed))
 
-	# Settings and Quit: icons in the top-right corner (no Quit on phones —
-	# apps there close with the system's own gestures)
+	# Settings: a gear in the top-right corner
 	var side: float = GameTheme.TOUCH_CORNER_MARGIN if GameTheme.is_touch() else 28.0
 	var size_px: float = GameTheme.TOUCH_MIN_SIZE if GameTheme.is_touch() else CORNER_BTN
 	var icons: Array = [["gear", "Settings", _on_settings_btn_pressed]]
-	if not OS.has_feature("mobile"):
-		icons.append(["power", "Quit", _on_quit_pressed])
 	for k: int in icons.size():
 		var b: Button = MenuIconButton.new()
 		b.set("kind", icons[k][0])
