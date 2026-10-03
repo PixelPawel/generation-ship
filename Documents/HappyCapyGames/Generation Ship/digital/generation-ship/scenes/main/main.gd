@@ -2784,6 +2784,12 @@ func _effect_step_offer_free_sector_gain() -> void:
 			eligible.append(cd)
 			eligible_adv.append(true)
 	_reveal_free_pool.clear()
+	# "gain Dust sector or Liquids sector": any Liquids sector on display counts,
+	# not only the ones this card just revealed
+	for cd: CardData in $Board.get_available_advanced_sectors():
+		if not eligible.has(cd) and (cd.adv_color == CardData.SupplyColor.DUST or cd.adv_color == CardData.SupplyColor.LIQUIDS):
+			eligible.append(cd)
+			eligible_adv.append(true)
 	for cd: CardData in $Board.get_available_dust_sectors():
 		if not eligible.has(cd):
 			eligible.append(cd)
