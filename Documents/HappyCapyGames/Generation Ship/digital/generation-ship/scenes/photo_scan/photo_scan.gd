@@ -56,7 +56,7 @@ const STEPPER_BUTTON_FONT_SIZE: int = 30
 # Fixed label width for the 3 tucked-card rows (stacked vertically beside
 # the cards) so their steppers all line up in a column regardless of each
 # label's text length ([▲] Archived / [▲] Stars ★ / [▼] Archived).
-const TUCKED_LABEL_WIDTH: float = 190.0
+const TUCKED_LABEL_WIDTH: float = 250.0
 const TUCKED_ARCHIVE_CARD_SIZE: Vector2 = Vector2(28, 40)
 const TUCKED_ARCHIVE_ARROW_SIZE: int = 20
 
@@ -420,6 +420,7 @@ func _build_review_view() -> Control:
 		spin.max_value = 99
 		spin.custom_minimum_size = Vector2(SUPPLY_SPIN_WIDTH, SUPPLY_CONTROL_HEIGHT)
 		spin.get_line_edit().add_theme_font_size_override("font_size", SUPPLY_FONT_SIZE)
+	spin.alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col_box.add_child(_make_stepper_row(spin))
 		supply_row.add_child(col_box)
 		_supply_spinboxes[int(color)] = spin
@@ -526,6 +527,7 @@ func _make_tucked_counter(parent: VBoxContainer, arrow: String, label_text: Stri
 	var head: HBoxContainer = HBoxContainer.new()
 	head.add_theme_constant_override("separation", 8)
 	head.custom_minimum_size = Vector2(TUCKED_LABEL_WIDTH, 0)
+	head.alignment = BoxContainer.ALIGNMENT_END     # labels end at the steppers, which line up
 	head.add_child(_make_archive_card(arrow, TUCKED_ARCHIVE_CARD_SIZE, TUCKED_ARCHIVE_ARROW_SIZE))
 	var lbl: Label = Label.new()
 	lbl.text = label_text
@@ -538,6 +540,7 @@ func _make_tucked_counter(parent: VBoxContainer, arrow: String, label_text: Stri
 	spin.max_value = 99
 	spin.custom_minimum_size = Vector2(TUCKED_SPIN_WIDTH, SUPPLY_CONTROL_HEIGHT)
 	spin.get_line_edit().add_theme_font_size_override("font_size", SUPPLY_FONT_SIZE)
+	spin.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	row.add_child(_make_stepper_row(spin))
 	parent.add_child(row)
 	return spin
