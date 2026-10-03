@@ -37,6 +37,7 @@ var _exp_rects:       Array[TextureRect] = []
 var _exp_counts:      Array[Label]       = []
 var _exp_highlights:  Array[ColorRect]   = []
 var _tutorial_exp_highlights: Array[ColorRect] = []
+var _tutorial_adv_highlights: Array[ColorRect] = []
 var _dust_slots:      Array[Control]     = []
 var _adv_slots:       Array[Control]     = []
 var _exp_slots:       Array[Control]     = []
@@ -330,6 +331,13 @@ func _build_ui() -> void:
 		var slot := _make_slot(Vector2(CARD_W, CARD_H), rect, count_lbl, null)
 		_adv_rects.append(rect)
 		_adv_counts.append(count_lbl)
+		var adv_tutorial_highlight := ColorRect.new()
+		adv_tutorial_highlight.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		adv_tutorial_highlight.color = Color(0.3, 0.6, 1.0, 0.30)
+		adv_tutorial_highlight.visible = false
+		adv_tutorial_highlight.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.add_child(adv_tutorial_highlight)
+		_tutorial_adv_highlights.append(adv_tutorial_highlight)
 		var idx: int = i
 		var gesture := LongPressGestureScript.new()
 		slot.gui_input.connect(func(ev: InputEvent) -> void:
@@ -514,6 +522,10 @@ func _on_reveal_mode_changed(active: bool) -> void:
 
 # Independent of the reveal-mode highlight above (different feature, own
 # ColorRect array) so the two never fight over one visible flag.
+func set_tutorial_advanced_highlight(active: bool) -> void:
+	for highlight: ColorRect in _tutorial_adv_highlights:
+		highlight.visible = active
+
 func set_tutorial_dust_highlight(active: bool) -> void:
 	for highlight: ColorRect in _tutorial_dust_highlights:
 		highlight.visible = active

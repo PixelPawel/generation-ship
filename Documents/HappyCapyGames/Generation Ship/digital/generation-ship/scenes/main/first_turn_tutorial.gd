@@ -185,8 +185,11 @@ func _leave(step: String) -> void:
 # Hand-overs before a chapter: the cards it needs, enough supply to play them.
 func _enter(step: String) -> void:
 	match step:
-		"buy", "buy2", "bid":
+		"buy", "bid":
 			_top_up_supply()
+		"buy2":
+			_top_up_supply()
+			_board.sync_market_reveal(0)   # the first advanced sector appears (no reveal effects)
 		"place":
 			_give(["Mag-Net"])
 		"fuse":
@@ -195,15 +198,17 @@ func _enter(step: String) -> void:
 			CockpitRig.set_screen_enlarged(_main, _main.get_node("UiControl"), true)
 		"if_full":
 			_top_up_supply()
-			_give(["Lab Meats"])
+			_give_if_missing("Lab Meats")
 		"if_new":
 			_top_up_supply()
 			_give(["Hangars"])
 		"recycle":
-			_give(["Mag-Net"])
+			_give_if_missing("Mag-Net")
 			CockpitRig.set_screen_enlarged(_main, _main.get_node("UiControl"), true)
 		"optimize":
 			_top_up_supply()
+			# Simulators' optimize effect is "Draw 2": it draws the next steps' cards
+			_board.set_scripted_deck(_cards(["Lab Meats", "Mag-Net"]))
 			_give(_missing_optimize_cards())
 		"complete":
 			_top_up_supply()
@@ -285,8 +290,10 @@ func _is_done(step: String) -> bool:
 
 func _show(step: String) -> void:
 	match step:
-		"buy", "buy2", "buy3":
+		"buy", "buy3":
 			_show_buy(step)
+		"buy2":
+			_show_buy_advanced()
 		"place":
 			_hint(_main.hint("TUT_PLACE_TECH", "TUT_PLACE_TECH_MOBILE"))
 			_highlight_tech_slots()
@@ -357,13 +364,26 @@ func _show_buy(step: String) -> void:
 	else:
 		_main._market_panel.set_tutorial_dust_highlight(true)
 		match step:
-			"buy2":
-				_hint(tr("TUT_BUY_SECOND"))
 			"buy3":
 				_hint(tr("TUT_BUY_THIRD"))
 			_:
 				# the very first step: why the hand is empty
 				_hint(tr("TUT_SKIP_DRAW") + "\n" + _main.hint("TUT_BUY", "TUT_BUY_MOBILE"))
+
+# The second sector is an advanced one, won in an auction: pick it, bid, pay, place.
+func _show_buy_advanced() -> void:
+	if _is_dragging(CardData.CardType.SECTOR):
+		_main._market_panel.set_tutorial_advanced_highlight(false)
+		_hint(tr("TUT_BUY_PLACE"))
+	elif _main._bid_popup and _main._bid_popup.visible:
+		_main._market_panel.set_tutorial_advanced_highlight(false)
+		_hint(tr("TUT_BID_POPUP"))
+	elif _main._bid_payment_panel and _main._bid_payment_panel.visible:
+		_main._market_panel.set_tutorial_advanced_highlight(false)
+		_hint(tr("TUT_BID_PAY"))
+	else:
+		_main._market_panel.set_tutorial_advanced_highlight(true)
+		_hint(_main.hint("TUT_BUY_ADVANCED", "TUT_BUY_ADVANCED_MOBILE"))
 
 # "Bid on an Expedition": pick one, confirm the bid, pay, place it.
 func _show_bid() -> void:
@@ -405,6 +425,14 @@ static func _tech(card_name: String) -> CardData:
 		if cd.card_name == card_name:
 			return cd
 	return null
+
+# Hands a card over unless an effect already drew it into the hand.
+func _give_if_missing(card_name: String) -> void:
+	for c: Node3D in _main.get_node("Hand").get_cards():
+		var cd: CardData = c.get("card_data")
+		if cd and cd.card_name == card_name:
+			return
+	_give([card_name])
 
 static func _cards(names: Array[String]) -> Array[CardData]:
 	var out: Array[CardData] = []
@@ -484,6 +512,7 @@ func _clear_highlights() -> void:
 	if _main == null:
 		return
 	_main._market_panel.set_tutorial_dust_highlight(false)
+	_main._market_panel.set_tutorial_advanced_highlight(false)
 	_main._market_panel.set_tutorial_expedition_highlight(false)
 	_main._cs_display._flow.set_tutorial_highlight(false)
 	_main._stop_research_btn_3d_flash()

@@ -485,10 +485,7 @@ func _on_cache_ready() -> void:
 		GameNetwork.setup_solo()
 		_cached_sector_order = _generate_shuffled_order(CardDatabase.sectors.size())
 		if TutorialSession.active:
-			# Cargo Bays optimizes with 4 cards of any colour: the tutorial's optimize
-			# cards would fill it before its "if fully optimized" step
-			_cached_sector_order = _cached_sector_order.filter(func(i: Variant) -> bool:
-				return CardDatabase.sectors[int(i)].card_name != "Cargo Bays")
+			_cached_sector_order = _tutorial_sector_order()
 		_cached_exp_order = _generate_shuffled_order(CardDatabase.expeditions.size())
 		_cached_tech_order = _generate_shuffled_order(CardDatabase.techs.size())
 		call_deferred("_deferred_pre_setup")
@@ -515,7 +512,8 @@ func _do_game_setup(sector_order: Array, exp_order: Array, tech_order: Array) ->
 		$Board.setup_market()
 	else:
 		$Board.setup_market_ordered(sector_order)
-	$Board.reveal_sector_round_cards()
+	if not TutorialSession.active:   # the tutorial reveals its advanced sector when it's needed
+		$Board.reveal_sector_round_cards()
 	if exp_order.is_empty():
 		$Board.setup_expedition_deck(CardDatabase.expeditions)
 	else:
@@ -2375,6 +2373,32 @@ static func _is_automatic_batch(steps: Array) -> bool:
 		if not (t == "gain_supply" or t == "store_on_slot") or not step.has("color"):
 			return false
 	return true
+
+# The tutorial's market: one pile of Simulators (the only basic sector it
+# shows), drawn from the back — 1st buy a Simulators, then the advanced side
+# revealed for the second-sector auction (Central Transport: Metals optimize,
+# so it stays quiet under the tutorial's later cards), then the third sector.
+const TUTORIAL_REVEALED_SECTOR: String = "Central Transport"
+
+func _tutorial_sector_order() -> Array:
+	var central: int = -1
+	var others: Array = []
+	for i: int in CardDatabase.sectors.size():
+		var cd: CardData = CardDatabase.sectors[i]
+		if cd.card_name != "Simulators":
+			continue
+		if cd.adv_name == TUTORIAL_REVEALED_SECTOR and central < 0:
+			central = i
+		else:
+			others.append(i)
+	var order: Array = []
+	if others.size() >= 2 and central >= 0:
+		# the deck draws from the back: [... third, revealed, first]
+		order = others.slice(2)
+		order.append(others[1])
+		order.append(central)
+		order.append(others[0])
+	return order
 
 # Alliance: on the table you pick one other player to ally with and score their
 # expeditions — here that's always the best ally, the other player with the most
