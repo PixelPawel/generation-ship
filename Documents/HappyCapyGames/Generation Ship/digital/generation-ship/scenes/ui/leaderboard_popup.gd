@@ -15,6 +15,19 @@ const FILTERS: Array[Array] = [   # [LeaderboardManager.SOURCE_*, label]
 	["scan", "Scan Tableau"],
 ]
 const SCAN_TAG_COLOR: Color = Color(0.4, 0.85, 1.0)
+# The look of the main menu's Leaderboard tile (tools/menu_leaderboard_tile.py).
+const TITLE_COLOR: Color = Color(0.92, 0.97, 1.0)
+const CYAN: Color = Color(0.35, 0.78, 1.0)
+const GOLD: Color = Color(1.0, 0.84, 0.31)
+const SILVER: Color = Color(0.8, 0.84, 0.9)
+const BRONZE: Color = Color(0.8, 0.55, 0.31)
+const TEXT: Color = Color(0.84, 0.88, 0.94)
+const DIM: Color = Color(0.47, 0.55, 0.67)
+const STAR_COLOR: Color = Color(1.0, 0.82, 0.24)
+const PLATE_A: Color = Color(0.086, 0.149, 0.282)
+const PLATE_B: Color = Color(0.063, 0.11, 0.22)
+const ROW_FONT: int = 18
+const BADGE: float = 34.0
 
 func _ready() -> void:
 	_build_ui()
@@ -56,8 +69,11 @@ func _build_ui() -> void:
 
 	var title: Label = Label.new()
 	title.text = tr("LEADERBOARD")
-	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
+	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_color_override("font_color", TITLE_COLOR)
+	title.add_theme_color_override("font_shadow_color", Color(CYAN.r, CYAN.g, CYAN.b, 0.55))
+	title.add_theme_constant_override("shadow_outline_size", 8)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_row.add_child(title)
 
@@ -66,8 +82,9 @@ func _build_ui() -> void:
 	close_btn.pressed.connect(func() -> void: PopupAnim.close(self))
 	title_row.add_child(close_btn)
 
-	var sep: HSeparator = HSeparator.new()
-	sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
+	var sep: ColorRect = ColorRect.new()
+	sep.color = CYAN
+	sep.custom_minimum_size = Vector2(0, 2)
 	vbox.add_child(sep)
 
 	var filter_row: HBoxContainer = HBoxContainer.new()
@@ -96,7 +113,7 @@ func _build_ui() -> void:
 	vbox.add_child(_scroll)
 
 	_rows_container = VBoxContainer.new()
-	_rows_container.add_theme_constant_override("separation", 2)
+	_rows_container.add_theme_constant_override("separation", 6)
 	_rows_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_rows_container)
 
@@ -151,11 +168,21 @@ func _add_row(entry: Dictionary) -> void:
 	var score: int = int(entry.get("score", 0))
 	var is_me: bool = bool(entry.get("me", false))
 
+	var medal: Color = _medal_color(rank)
+
+	# a rounded plate per row (alternating), gold outline for first place, cyan for you
 	var row_panel: PanelContainer = PanelContainer.new()
-	if is_me:
-		var box: StyleBoxFlat = StyleBoxFlat.new()
-		box.bg_color = Color(1.0, 0.85, 0.2, 0.12)
-		row_panel.add_theme_stylebox_override("panel", box)
+	var plate: StyleBoxFlat = StyleBoxFlat.new()
+	plate.bg_color = PLATE_A if rank % 2 == 1 else PLATE_B
+	plate.set_corner_radius_all(10)
+	plate.content_margin_left = 10.0
+	plate.content_margin_right = 10.0
+	plate.content_margin_top = 6.0
+	plate.content_margin_bottom = 6.0
+	if rank == 1 or is_me:
+		plate.border_color = GOLD if rank == 1 else CYAN
+		plate.set_border_width_all(2)
+	row_panel.add_theme_stylebox_override("panel", plate)
 	_rows_container.add_child(row_panel)
 
 	var outer: VBoxContainer = VBoxContainer.new()
@@ -163,25 +190,12 @@ func _add_row(entry: Dictionary) -> void:
 	row_panel.add_child(outer)
 
 	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
+	row.add_theme_constant_override("separation", 12)
 	row.mouse_filter = Control.MOUSE_FILTER_STOP
 	row.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	outer.add_child(row)
 
-	var rank_color: Color = Color(0.85, 0.85, 0.9)
-	if rank == 1:
-		rank_color = Color(1.0, 0.85, 0.2)
-	elif rank == 2:
-		rank_color = Color(0.8, 0.85, 0.9)
-	elif rank == 3:
-		rank_color = Color(0.8, 0.55, 0.3)
-
-	var rank_lbl: Label = Label.new()
-	rank_lbl.text = str(rank)
-	rank_lbl.add_theme_font_size_override("font_size", 15)
-	rank_lbl.add_theme_color_override("font_color", rank_color)
-	rank_lbl.custom_minimum_size = Vector2(44, 0)
-	row.add_child(rank_lbl)
+	row.add_child(_rank_badge(rank, medal))
 
 	var player_name: String = str(entry.get("name", ""))
 	if player_name.is_empty():
@@ -191,8 +205,9 @@ func _add_row(entry: Dictionary) -> void:
 
 	var name_lbl: Label = Label.new()
 	name_lbl.text = player_name
-	name_lbl.add_theme_font_size_override("font_size", 15)
-	name_lbl.add_theme_color_override("font_color", Color(0.95, 0.95, 1.0) if is_me else Color(0.85, 0.85, 0.9))
+	name_lbl.add_theme_font_size_override("font_size", ROW_FONT)
+	name_lbl.add_theme_color_override("font_color", TEXT if rank <= 3 or is_me else DIM)
+	name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_lbl.clip_text = true
 	row.add_child(name_lbl)
@@ -201,24 +216,34 @@ func _add_row(entry: Dictionary) -> void:
 	if str(entry.get("source", "")) == LeaderboardManager.SOURCE_SCAN:
 		var tag: Label = Label.new()
 		tag.text = tr("Scan")
-		tag.add_theme_font_size_override("font_size", 12)
+		tag.add_theme_font_size_override("font_size", 13)
 		tag.add_theme_color_override("font_color", SCAN_TAG_COLOR)
+		tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		tag.tooltip_text = tr("Scan Tableau")
 		tag.mouse_filter = Control.MOUSE_FILTER_PASS
 		row.add_child(tag)
 
 	var score_lbl: Label = Label.new()
 	score_lbl.text = str(score)
-	score_lbl.add_theme_font_size_override("font_size", 15)
-	score_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3))
+	score_lbl.add_theme_font_size_override("font_size", ROW_FONT)
+	score_lbl.add_theme_color_override("font_color", medal if rank <= 3 else TEXT)
 	score_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	score_lbl.custom_minimum_size = Vector2(90, 0)
+	score_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	score_lbl.custom_minimum_size = Vector2(70, 0)
 	row.add_child(score_lbl)
+
+	var star_lbl: Label = Label.new()
+	star_lbl.text = "★"
+	star_lbl.add_theme_font_size_override("font_size", ROW_FONT + 2)
+	star_lbl.add_theme_color_override("font_color", STAR_COLOR)
+	star_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(star_lbl)
 
 	var arrow_lbl: Label = Label.new()
 	arrow_lbl.text = "▶"
 	arrow_lbl.add_theme_font_size_override("font_size", 13)
-	arrow_lbl.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75))
+	arrow_lbl.add_theme_color_override("font_color", DIM)
+	arrow_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	arrow_lbl.custom_minimum_size = Vector2(20, 0)
 	row.add_child(arrow_lbl)
 
@@ -241,6 +266,34 @@ func _add_row(entry: Dictionary) -> void:
 		detail.visible = not detail.visible
 		arrow_lbl.text = "▼" if detail.visible else "▶"
 	)
+
+static func _medal_color(rank: int) -> Color:
+	match rank:
+		1:
+			return GOLD
+		2:
+			return SILVER
+		3:
+			return BRONZE
+	return DIM
+
+# Ranks 1-3: a medal-coloured disc with a dark number; the rest: just the number.
+static func _rank_badge(rank: int, medal: Color) -> Control:
+	var badge: PanelContainer = PanelContainer.new()
+	badge.custom_minimum_size = Vector2(BADGE, BADGE)
+	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var disc: StyleBoxFlat = StyleBoxFlat.new()
+	disc.bg_color = medal if rank <= 3 else Color(0, 0, 0, 0)
+	disc.set_corner_radius_all(int(BADGE / 2.0))
+	badge.add_theme_stylebox_override("panel", disc)
+	var num: Label = Label.new()
+	num.text = str(rank)
+	num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	num.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	num.add_theme_font_size_override("font_size", ROW_FONT)
+	num.add_theme_color_override("font_color", Color(0.08, 0.1, 0.16) if rank <= 3 else DIM)
+	badge.add_child(num)
+	return badge
 
 func _build_detail(entry: Dictionary) -> Control:
 	var score_lines: Array[Dictionary] = LeaderboardManager.decode_snapshot(entry)
