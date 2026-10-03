@@ -142,7 +142,8 @@ var _photo_view: TextureRect = null           # the scanned photo, shown in the 
 var _photo_btn: Button = null                 # "Show Photo" / "Show Ship"
 var _rotate_btn: Button = null                # turns the shown photo, only while it's shown
 var _ship_card: float = SHIP_CARD_MAX         # long edge of the overview's cards, see _fit_ship_card()
-var _ship_info_boxes: Array[Control] = []     # each sector's supply/archive line, evened out in height
+var _ship_info_boxes: Array[Control] = []     # each sector's supply line, evened out in height
+var _ship_archive_boxes: Array[Control] = []  # each sector's archive line, likewise
 var _ship_info_height: float = SHIP_INFO_HEIGHT   # what sits under a sector card, as last measured
 var _review_cards_box: HBoxContainer = null
 var _confirm_btn: Button = null
@@ -946,6 +947,7 @@ func _refresh_sector_list() -> void:
 		_sector_list_box.remove_child(child)
 		child.queue_free()
 	_ship_info_boxes.clear()
+	_ship_archive_boxes.clear()
 	for i: int in _sectors.size():
 		_sector_list_box.add_child(_build_sector_summary_row(_sectors[i], i))
 	# a sector the scan missed (dial covered, say) can still be added by hand — until
@@ -1003,19 +1005,24 @@ func _on_ship_area_resized() -> void:
 # sector cards above them all sit on one line (more badges would otherwise lift
 # a sector). Needs a layout pass first: a wrapping line's height depends on width.
 func _even_out_info_lines() -> void:
-	for box: Control in _ship_info_boxes:
-		box.custom_minimum_size.y = 0.0
+	var lines: Array = [_ship_info_boxes, _ship_archive_boxes]
+	for group: Array in lines:
+		for box: Control in group:
+			box.custom_minimum_size.y = 0.0
 	await get_tree().process_frame
-	var tallest: float = 0.0
-	for box: Control in _ship_info_boxes:
-		if is_instance_valid(box):
-			tallest = maxf(tallest, box.size.y)
-	for box: Control in _ship_info_boxes:
-		if is_instance_valid(box):
-			box.custom_minimum_size.y = tallest
-	# Fit with what's really under a sector (supply/archive line, Edit, gaps) rather
+	var total: float = 0.0
+	for group: Array in lines:
+		var tallest: float = 0.0
+		for box: Control in group:
+			if is_instance_valid(box):
+				tallest = maxf(tallest, box.size.y)
+		for box: Control in group:
+			if is_instance_valid(box):
+				box.custom_minimum_size.y = tallest
+		total += tallest
+	# Fit with what's really under a sector (supply + archive lines, Edit, gaps) rather
 	# than the estimate, so the ship never needs a scrollbar: refit once if it's off.
-	var measured: float = tallest + SHIP_EDIT_HEIGHT + 8.0
+	var measured: float = total + SHIP_EDIT_HEIGHT + 12.0   # + the gaps between them
 	if not _sectors.is_empty() and measured > _ship_info_height + 4.0:
 		_ship_info_height = measured
 		_refresh_sector_list()
@@ -1095,12 +1102,17 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 		thumb.size = tech_size
 		y -= SHIP_TECH_SHOWN * long_px
 
-	# supply and archive on one wrapping line, then Edit
+	# stored supply, then archived cards on a line of their own, then Edit
 	var info: HFlowContainer = HFlowContainer.new()
 	info.alignment = FlowContainer.ALIGNMENT_CENTER
 	info.add_theme_constant_override("h_separation", 10)
 	outer.add_child(info)
 	_ship_info_boxes.append(info)
+	var archive: HFlowContainer = HFlowContainer.new()
+	archive.alignment = FlowContainer.ALIGNMENT_CENTER
+	archive.add_theme_constant_override("h_separation", 10)
+	outer.add_child(archive)
+	_ship_archive_boxes.append(archive)
 	var stored: Dictionary = entry["stored_supply"]
 	for color_int: int in stored:
 		if int(stored[color_int]) > 0:
@@ -1117,9 +1129,9 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 		else:
 			down_count += 1
 	if up_count > 0:
-		info.add_child(_make_summary_archive_badge("▲", "%d ★%d" % [up_count, up_stars]))
+		archive.add_child(_make_summary_archive_badge("▲", "%d ★%d" % [up_count, up_stars]))
 	if down_count > 0:
-		info.add_child(_make_summary_archive_badge("▼", str(down_count)))
+		archive.add_child(_make_summary_archive_badge("▼", str(down_count)))
 
 	var edit_btn: Button = _make_button("Edit")
 	edit_btn.custom_minimum_size = Vector2(0, SHIP_EDIT_HEIGHT)
