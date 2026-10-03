@@ -484,9 +484,11 @@ func _on_cache_ready() -> void:
 	if not GameNetwork.is_multiplayer:
 		GameNetwork.setup_solo()
 		_cached_sector_order = _generate_shuffled_order(CardDatabase.sectors.size())
+		_cached_exp_order = _generate_shuffled_order(CardDatabase.expeditions.size())
 		if TutorialSession.active:
 			_cached_sector_order = _tutorial_sector_order()
 			# the expedition deck draws from the back: DNA Sculpting comes up first
+			# (after the shuffle above, or the reshuffle would undo it)
 			var dna: int = -1
 			for i: int in CardDatabase.expeditions.size():
 				if CardDatabase.expeditions[i].card_name == TUTORIAL_EXPEDITION:
@@ -494,7 +496,6 @@ func _on_cache_ready() -> void:
 			if dna >= 0:
 				_cached_exp_order.erase(dna)
 				_cached_exp_order.append(dna)
-		_cached_exp_order = _generate_shuffled_order(CardDatabase.expeditions.size())
 		_cached_tech_order = _generate_shuffled_order(CardDatabase.techs.size())
 		call_deferred("_deferred_pre_setup")
 	elif GameNetwork.is_host:
