@@ -18,6 +18,8 @@ enum _Step { SOURCE, CHOOSE, DEST, CONFIRM }
 const SECTOR_W_H_RATIO := 88.0 / 63.0
 const GRID_PADDING := 16.0
 const GRID_GAP := 12.0
+const FOOTER_SIDE_MARGIN: float = 80.0   # panel content margins + a little air
+const FOOTER_MIN_FONT: int = 14
 const CONFIRM_DURATION := 1.3
 const FINISH_COLOR := Color(1.0, 0.75, 0.4)
 
@@ -88,6 +90,7 @@ func _clear_step() -> void:
 	for child: Node in _content.get_children():
 		child.queue_free()
 	for child: Node in _footer.get_children():
+		_footer.remove_child(child)   # now, so _fit_footer measures only the new buttons
 		child.queue_free()
 
 # Long translated titles (German especially) would otherwise run past the panel.
@@ -103,6 +106,28 @@ func _add_finish_button() -> void:
 	btn.add_theme_color_override("font_color", FINISH_COLOR)
 	btn.pressed.connect(func() -> void: hide(); finished.emit())
 	_footer.add_child(btn)
+	_fit_footer.call_deferred()   # every step ends here; runs once its footer is complete
+
+# The footer's buttons shrink their text until the row fits the screen: three
+# long labels (Back | Finish | Next) were wider than the info screen, which
+# stretched the whole panel past its edge and hid the counters on the right.
+func _fit_footer() -> void:
+	var avail: float = get_viewport_rect().size.x - FOOTER_SIDE_MARGIN
+	var buttons: Array[Button] = []
+	for child: Node in _footer.get_children():
+		if child is Button and not child.is_queued_for_deletion():
+			buttons.append(child as Button)
+	var guard: int = 40
+	while guard > 0 and _footer.get_combined_minimum_size().x > avail:
+		guard -= 1
+		var shrunk: bool = false
+		for b: Button in buttons:
+			var f: int = b.get_theme_font_size("font_size")
+			if f > FOOTER_MIN_FONT:
+				b.add_theme_font_size_override("font_size", f - 1)
+				shrunk = true
+		if not shrunk:
+			break
 
 func _occupied_slots(exclude: SectorSlot) -> Array[SectorSlot]:
 	var result: Array[SectorSlot] = []
