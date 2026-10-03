@@ -15,8 +15,11 @@ func _ready() -> void:
 	mat.set_shader_parameter("travel_dir", Vector3(0.0, -1.0, 0.0))
 	# in the game the sky stays calm behind the table; the menu turns these up
 	mat.set_shader_parameter("twinkle", 0.4)
-	mat.set_shader_parameter("nebula_str", 0.35)
-	mat.set_shader_parameter("galaxy_str", 0.4)
+	# nebula, galaxy band and planet come from the rendered backdrop now
+	mat.set_shader_parameter("nebula_str", 0.0)
+	mat.set_shader_parameter("galaxy_str", 0.0)
+	mat.set_shader_parameter("backdrop_tex", load("res://assets/textures/space_backdrop.jpg"))
+	mat.set_shader_parameter("backdrop_str", 0.7)
 	mat.set_shader_parameter("shooting_rate", 0.12)
 
 	var mesh := MeshInstance3D.new()

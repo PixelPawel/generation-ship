@@ -22,6 +22,18 @@ uniform float shooting_rate  : hint_range(0.0, 1.0) = 0.35;  // 0 = none, 1 = fr
 // where shooting stars appear (the part of the sky the camera sees)
 uniform vec3  view_dir                       = vec3(0.0, -1.0, 0.0);
 
+// Rendered backdrop (Render/space_panorama): nebula, galaxy band and a
+// planet, as a partial equirect panorama centred on the cockpit camera's
+// view (-Y, screen up = -Z), BACKDROP_SPAN degrees across. Replaces the
+// procedural nebula/galaxy (set their strengths to 0 when this is on).
+uniform sampler2D backdrop_tex : source_color, filter_linear_mipmap, repeat_disable;
+uniform float backdrop_str     : hint_range(0.0, 2.0) = 0.0;
+const vec2 BACKDROP_SPAN = vec2(150.0, 100.0);
+// the planet in it (make_panorama.py PLANET_DIR / PLANET_ANG_R, in this
+// sphere's space): stars behind its disk are hidden
+const vec3  BACKDROP_PLANET_DIR = vec3(0.5918, -0.7575, -0.2756);
+const float BACKDROP_PLANET_R   = 6.6;   // degrees, incl. the atmosphere rim
+
 varying vec3 v_dir;
 
 float h12(vec2 p) {
@@ -113,7 +125,11 @@ vec3 star_layer(vec3 dir, float lid, float seed, float grid_scale, float drift) 
 	float big  = h12(cell + seed * 53.0 + 4.5);           // a few bright, glowing stars
 	float sz   = 0.015 + h12(cell + seed * 29.0 + 2.5) * 0.04 + step(0.97, big) * 0.03;
 	float core = 1.0 - smoothstep(0.0, sz, dist);
-	float halo = (1.0 - smoothstep(0.0, sz * (5.0 + step(0.97, big) * 7.0), dist)) * (0.05 + step(0.97, big) * 0.12);
+	// a cell only draws its own star, so the glow must fade out before the
+	// nearest cell edge or it gets cut off into a square
+	float room = 0.5 - max(abs(off.x), abs(off.y));
+	float halo_r = min(sz * (5.0 + step(0.97, big) * 4.0), room);
+	float halo = exp(-dist * dist / (halo_r * halo_r) * 4.0) * (0.05 + step(0.97, big) * 0.08);
 	float brt  = 0.3 + h12(cell + seed * 41.0 + 3.5) * 0.7;
 	// twinkle: each star its own rate and phase
 	float th   = h12(cell + seed * 61.0 + 5.5);
@@ -179,6 +195,18 @@ vec3 shooting(vec3 dir) {
 	return col;
 }
 
+vec3 backdrop_tex_col(vec3 dir) {
+	float lon = atan(dir.x, -dir.y);
+	float lat = asin(clamp(-dir.z, -1.0, 1.0));
+	vec2 uv = vec2(0.5 + degrees(lon) / BACKDROP_SPAN.x, 0.5 - degrees(lat) / BACKDROP_SPAN.y);
+	// fade out toward the panorama's edges instead of a hard border
+	vec2 edge = min(uv, 1.0 - uv);
+	float fade = smoothstep(0.0, 0.08, min(edge.x, edge.y));
+	if (fade <= 0.0)
+		return vec3(0.0);
+	return texture(backdrop_tex, uv).rgb * fade;
+}
+
 void vertex() {
 	v_dir = VERTEX;
 }
@@ -214,12 +242,18 @@ void fragment() {
 		stars += star_layer(dir, fi, seed_next, grid, t_next) * dim * blend;
 	}
 	stars = min(stars, vec3(1.0));
+	if (backdrop_str > 0.0) {
+		float ang = degrees(acos(clamp(dot(dir, normalize(BACKDROP_PLANET_DIR)), -1.0, 1.0)));
+		stars *= smoothstep(BACKDROP_PLANET_R - 0.15, BACKDROP_PLANET_R + 0.15, ang);
+	}
 
 	vec3 backdrop = vec3(0.0);
 	if (nebula_str > 0.0)
 		backdrop += nebula(dir);
 	if (galaxy_str > 0.0)
 		backdrop += galaxy(dir);
+	if (backdrop_str > 0.0)
+		backdrop += backdrop_tex_col(dir) * backdrop_str;
 	vec3 meteors = shooting(dir);
 
 	// the backdrop glows softly; stars and meteors are the bright points

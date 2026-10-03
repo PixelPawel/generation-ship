@@ -40,6 +40,8 @@ const AMBIENT_ENERGY: float = 0.35
 const PARKED: float = 0.25            # lights at a quarter while parked
 const STAR_SPEED_GAME: float = 0.018  # starfield.gd's cruising speed
 const STAR_SPEED_PARKED: float = 0.003
+const BACKDROP_PARKED: float = 1.0     # the rendered nebula/planet, brighter while parked
+const BACKDROP_GAME: float = 0.7       # starfield.gd's value
 const WAKE_SEC: float = 1.3
 
 var _env: Environment = null
@@ -96,8 +98,7 @@ func _ready() -> void:
 		_star_mat.set_shader_parameter("speed", STAR_SPEED_PARKED)
 		# the parked ship looks out at a busier sky than the game's
 		_star_mat.set_shader_parameter("twinkle", 0.75)
-		_star_mat.set_shader_parameter("nebula_str", 0.9)
-		_star_mat.set_shader_parameter("galaxy_str", 0.85)
+		_star_mat.set_shader_parameter("backdrop_str", BACKDROP_PARKED)
 		_star_mat.set_shader_parameter("shooting_rate", 0.55)
 
 	var cam: Camera3D = Camera3D.new()
@@ -365,3 +366,4 @@ func _set_power(p: float) -> void:
 	_env.ambient_light_energy = AMBIENT_ENERGY * k
 	if _star_mat:
 		_star_mat.set_shader_parameter("speed", lerpf(STAR_SPEED_PARKED, STAR_SPEED_GAME, p))
+		_star_mat.set_shader_parameter("backdrop_str", lerpf(BACKDROP_PARKED, BACKDROP_GAME, p))
