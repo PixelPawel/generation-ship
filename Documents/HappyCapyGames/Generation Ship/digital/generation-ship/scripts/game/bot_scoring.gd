@@ -271,7 +271,11 @@ static func _expedition_vp_raw(name: String, fallback_stars: int, board: Array,
 			var best: int = 0
 			for entry: Variant in board:
 				var stored: Dictionary = (entry as Dictionary).get("stored_supply", {}) as Dictionary
-				best = maxi(best, stored.size())
+				var colors: int = 0
+				for count: Variant in stored.values():
+					if int(count) > 0:
+						colors += 1
+				best = maxi(best, colors)
 			return 2 * best
 
 		"Self Replication":

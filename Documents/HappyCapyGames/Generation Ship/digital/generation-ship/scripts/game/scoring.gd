@@ -278,7 +278,11 @@ static func _expedition_vp_raw(name: String, slots: Array, expeditions: Array, a
 			# 2 VP per different stored supply color on the best single sector
 			var best: int = 0
 			for slot: SectorSlot in slots:
-				best = maxi(best, slot.stored_supply.size())
+				var colors: int = 0
+				for count: int in slot.stored_supply.values():
+					if count > 0:
+						colors += 1
+				best = maxi(best, colors)
 			return 2 * best
 
 		"Waterworld":
