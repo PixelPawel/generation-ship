@@ -1,4 +1,5 @@
 extends Control
+const PopupAnim = preload("res://scripts/popup_anim.gd")
 
 const _SETTINGS_PATH: String = "user://settings.cfg"
 const _LANGUAGE_CODES: Array[String] = ["en", "de", "it", "pl", "es", "fr"]
@@ -111,7 +112,7 @@ func refresh_locale_text() -> void:
 func open() -> void:
 	_hide_enlarged()
 	_select_tab(0)
-	visible = true
+	PopupAnim.open(self)
 
 func _build_ui() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -144,7 +145,7 @@ func _build_ui() -> void:
 
 	var close_btn: Button = _make_button("✕")
 	close_btn.custom_minimum_size = Vector2(36, 0)
-	close_btn.pressed.connect(func(): visible = false)
+	close_btn.pressed.connect(func() -> void: PopupAnim.close(self))
 	title_row.add_child(close_btn)
 
 	var hint: Label = Label.new()

@@ -1,4 +1,5 @@
 extends Control
+const PopupAnim = preload("res://scripts/popup_anim.gd")
 
 # Per-language rule book pages, exported from the InDesign print files with
 # InDesign's own multi-page naming (page 1 has no suffix, page N appends N).
@@ -73,7 +74,7 @@ func open_at(page: int) -> void:
 	_ensure_pages()
 	_go_to(page)
 	_set_zoom(1.0)
-	visible = true
+	PopupAnim.open(self)
 
 func _build_ui() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -106,7 +107,7 @@ func _build_ui() -> void:
 
 	var close_btn: Button = _make_button("✕")
 	close_btn.custom_minimum_size = Vector2(36, 0)
-	close_btn.pressed.connect(func(): visible = false)
+	close_btn.pressed.connect(func() -> void: PopupAnim.close(self))
 	title_row.add_child(close_btn)
 
 	var sep: HSeparator = HSeparator.new()
@@ -218,7 +219,7 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_ESCAPE:
-				visible = false
+				PopupAnim.close(self)
 				get_viewport().set_input_as_handled()
 			KEY_LEFT, KEY_A:
 				_on_prev()

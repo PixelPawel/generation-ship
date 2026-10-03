@@ -1,4 +1,5 @@
 extends Control
+const PopupAnim = preload("res://scripts/popup_anim.gd")
 # Top-100 global leaderboard popup. Data comes from LeaderboardManager (our
 # own API server, shared by Steam and Android) — see that autoload.
 
@@ -22,7 +23,7 @@ func _ready() -> void:
 	LeaderboardManager.top_scores_failed.connect(_on_top_scores_failed)
 
 func open() -> void:
-	visible = true
+	PopupAnim.open(self)
 	_show_status(tr("Loading…"))
 	LeaderboardManager.request_top_scores(_source)
 
@@ -62,7 +63,7 @@ func _build_ui() -> void:
 
 	var close_btn: Button = _make_button("✕")
 	close_btn.custom_minimum_size = Vector2(36, 0)
-	close_btn.pressed.connect(func(): visible = false)
+	close_btn.pressed.connect(func() -> void: PopupAnim.close(self))
 	title_row.add_child(close_btn)
 
 	var sep: HSeparator = HSeparator.new()
@@ -292,7 +293,7 @@ func _input(event: InputEvent) -> void:
 	if not visible:
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		visible = false
+		PopupAnim.close(self)
 		get_viewport().set_input_as_handled()
 
 func _make_button(label: String) -> Button:

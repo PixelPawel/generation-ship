@@ -1,4 +1,5 @@
 extends Control
+const PopupAnim = preload("res://scripts/popup_anim.gd")
 
 # Photo-scan VP calculator. One photo covers the whole ship: DialReader reads the
 # scan-code dial printed around every card's colour orb (the one part of a card
@@ -205,13 +206,13 @@ func open() -> void:
 	_editing_original_sector = {}
 	_refresh_sector_list()
 	_show_list_view()
-	visible = true
+	PopupAnim.open(self)
 
 func _input(event: InputEvent) -> void:
 	if not visible:
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		visible = false
+		PopupAnim.close(self)
 		get_viewport().set_input_as_handled()
 
 # ── UI construction ────────────────────────────────────────────────────────
@@ -240,7 +241,7 @@ func _build_ui() -> void:
 	title_row.add_child(title)
 	var close_btn: Button = _make_button("✕")
 	close_btn.custom_minimum_size = Vector2(BUTTON_MIN_HEIGHT, BUTTON_MIN_HEIGHT)
-	close_btn.pressed.connect(func(): visible = false)
+	close_btn.pressed.connect(func() -> void: PopupAnim.close(self))
 	title_row.add_child(close_btn)
 
 	vbox.add_child(HSeparator.new())
