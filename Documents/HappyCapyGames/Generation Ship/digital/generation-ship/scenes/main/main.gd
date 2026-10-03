@@ -484,6 +484,11 @@ func _on_cache_ready() -> void:
 	if not GameNetwork.is_multiplayer:
 		GameNetwork.setup_solo()
 		_cached_sector_order = _generate_shuffled_order(CardDatabase.sectors.size())
+		if TutorialSession.active:
+			# Cargo Bays optimizes with 4 cards of any colour: the tutorial's optimize
+			# cards would fill it before its "if fully optimized" step
+			_cached_sector_order = _cached_sector_order.filter(func(i: Variant) -> bool:
+				return CardDatabase.sectors[int(i)].card_name != "Cargo Bays")
 		_cached_exp_order = _generate_shuffled_order(CardDatabase.expeditions.size())
 		_cached_tech_order = _generate_shuffled_order(CardDatabase.techs.size())
 		call_deferred("_deferred_pre_setup")
