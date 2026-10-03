@@ -506,7 +506,11 @@ func _on_cache_ready() -> void:
 
 func _deferred_pre_setup() -> void:
 	_do_game_setup(_cached_sector_order, _cached_exp_order, _cached_tech_order)
-	await get_tree().create_timer(3.0).timeout
+	# Only other real players need the wait — it gives their game time to finish
+	# loading before the start reaches them. Solo, tutorial and bots-only games
+	# start straight away.
+	if not _is_true_solo_session():
+		await get_tree().create_timer(3.0).timeout
 	if not GameNetwork.is_multiplayer:
 		_rpc_start_game([], [], [])
 	elif GameNetwork.is_host:
