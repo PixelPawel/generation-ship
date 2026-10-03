@@ -106,6 +106,9 @@ var _is_arrow_drag: bool = false
 var _is_auction_win_placement: bool = false
 var _prepaid_spent_amounts: Dictionary = {}
 var _prepaid_market_notified: bool = false
+# what a right-click-back-to-payment card had been paid with, so a Cancel in
+# that re-opened window can put the player straight back on the arrow
+var _recancel_spent: Dictionary = {}
 # Holds the dragged card while its bid-payment window is being redone (see
 # _cancel_prepaid_to_payment/resume_auction_win_drag) — unlike the direct-
 # purchase cancel path, an auction win can't just re-run _resolve_card_payment
@@ -659,8 +662,10 @@ func get_supply_generators() -> Array[Dictionary]:
 			result.append({ "card": card, "color": supply_color })
 	return result
 
+# Only techs go back into the tech discard (it reshuffles into the tech deck);
+# a recycled expedition or sector just leaves the game.
 func add_to_discard(cd: CardData) -> void:
-	if _discard_pile and cd:
+	if _discard_pile and cd and cd.card_type == CardData.CardType.TECH:
 		_discard_pile.add_discard(cd)
 		tech_card_discarded.emit(cd)
 
@@ -1020,6 +1025,7 @@ func _cancel_prepaid_to_payment() -> void:
 	var card: Node3D = _dragged_card
 	var is_auction_win: bool = _is_auction_win_placement
 	var is_tech: bool = not _is_sector_card()
+	_recancel_spent = _prepaid_spent_amounts.duplicate()
 	_end_arrow_drag()
 	_dragged_card = null
 	_is_prepaid_placement = false
@@ -1046,6 +1052,11 @@ func resume_auction_win_drag(spent: Dictionary) -> void:
 	var card: Node3D = _cancelled_auction_card
 	_cancelled_auction_card = null
 	_begin_prepaid_drag(card, spent, true)
+
+# Cancel in the re-opened bid payment window: the auction is already won, so
+# back to the placement arrow with the payment chosen before.
+func resume_cancelled_auction_drag() -> void:
+	resume_auction_win_drag(_recancel_spent)
 
 func _try_drop() -> void:
 	_end_arrow_drag()
@@ -1396,6 +1407,7 @@ func _finalize_placement(card: Node3D, slot: SectorSlot, is_tech: bool, spent: D
 	_is_prepaid_placement = false
 	_is_auction_win_placement = false
 	_prepaid_spent_amounts = {}
+	_prepaid_market_notified = false
 	action_committed.emit()
 	for col: CardData.SupplyColor in spent:
 		_supply_ui.spend_supply(col, spent[col])
@@ -1593,6 +1605,10 @@ func _begin_prepaid_drag(card: Node3D, spent: Dictionary = {}, is_auction_win: b
 		card.global_position = market_origin_3d
 		unplaceable_card_recycled.emit(card.card_data)
 		_recycle_card_node(card)
+		# a direct buy is still the turn's action (an auction win's action
+		# belongs to the auction, settled elsewhere)
+		if not is_auction_win:
+			action_committed.emit()
 		return
 	_is_prepaid_placement = true
 	_is_auction_win_placement = is_auction_win
@@ -1732,6 +1748,12 @@ func cancel_payment_confirm() -> void:
 	_pending_drag_origin = DragOrigin.NONE
 	card.end_drag()
 	card.visible = true
+	# Re-opened after the buy was already announced (right-click on the
+	# placement arrow): every other client has removed the card from its
+	# market, so it can't go back there — return to the arrow instead.
+	if origin == DragOrigin.MARKET and _prepaid_market_notified:
+		_begin_prepaid_drag(card, _recancel_spent)
+		return
 	if origin == DragOrigin.HAND:
 		_hand.add_card(card, true)
 	elif card.card_data and card.card_data.card_type == CardData.CardType.EXPEDITION:

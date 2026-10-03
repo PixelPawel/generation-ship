@@ -3434,6 +3434,14 @@ func _on_bid_payment_forfeited() -> void:
 		$Board.hide_payment_confirm_arrow()
 		$Board.cancel_payment_confirm()
 		return
+	if _pending_auction_recancel:
+		# re-opened after the win (right-click on the arrow): Cancel means
+		# back to placing it, not giving up a card that's already ours
+		_pending_auction_recancel = false
+		$Board.resume_cancelled_auction_drag()
+		_show_action_buttons(true)
+		_broadcast_my_state()
+		return
 	if _pending_auction_win:
 		_pending_auction_win = false
 		_auction_win_awaiting_placement = false
