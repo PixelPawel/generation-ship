@@ -371,16 +371,26 @@ func _build_sector_grid(slots: Array[SectorSlot], on_pick: Callable) -> void:
 # Sector cards as big as the content area allows (one row, centred), measured
 # once the title/summary/footer have taken their space — a fixed height cap
 # used to leave them small in the middle of an empty panel.
-var _grid_gen: int = 0
+var _grid_btns: Array[Button] = []
 
+# Placed again whenever the content area changes size: the first grid is built
+# before the panel is shown, while the area can still be 0x0 — the cards then
+# came out with no size at all, only their name labels showing.
 func _layout_grid(btns: Array[Button]) -> void:
-	_grid_gen += 1
-	var gen: int = _grid_gen
-	await get_tree().process_frame
-	if gen != _grid_gen or not is_instance_valid(_content):
-		return
+	_grid_btns = btns
+	if not _content.resized.is_connected(_place_grid):
+		_content.resized.connect(_place_grid)
+	_place_grid.call_deferred()
+
+func _place_grid() -> void:
+	var btns: Array[Button] = []
+	for b: Button in _grid_btns:
+		if is_instance_valid(b):
+			btns.append(b)
 	var n: int = btns.size()
 	var avail: Vector2 = _content.size
+	if n == 0 or avail.x <= GRID_PADDING * 2.0 or avail.y <= 0.0:
+		return
 	var card_w: float = (avail.x - GRID_PADDING * 2.0 - GRID_GAP * float(n - 1)) / float(n)
 	var card_h: float = card_w / SECTOR_W_H_RATIO
 	if card_h > avail.y:
@@ -389,8 +399,7 @@ func _layout_grid(btns: Array[Button]) -> void:
 	var total_w: float = card_w * float(n) + GRID_GAP * float(n - 1)
 	var origin: Vector2 = Vector2((avail.x - total_w) / 2.0, (avail.y - card_h) / 2.0)
 	for i: int in n:
-		if not is_instance_valid(btns[i]):
-			continue
+		btns[i].custom_minimum_size = Vector2.ZERO   # sized here, not by a minimum
 		btns[i].position = origin + Vector2(float(i) * (card_w + GRID_GAP), 0.0)
 		btns[i].size = Vector2(card_w, card_h)
 		btns[i].visible = true
