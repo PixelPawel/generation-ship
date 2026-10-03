@@ -1040,6 +1040,7 @@ func _get_public_snapshot() -> Dictionary:
 		slot_info["tucked_cards"] = tucked_snap
 		slot_info["position"] = {"x": slot.global_position.x, "z": slot.global_position.z}
 		slot_snaps.append(slot_info)
+	Scoring.other_players_expeditions = _alliance_count_for(multiplayer.get_unique_id())
 	var vp_lines: Array[Dictionary] = $Board.calculate_score()
 	var total_vp: int = 0
 	for vp_line: Dictionary in vp_lines:
@@ -1621,6 +1622,7 @@ func _game_over() -> void:
 	_show_action_buttons(false)
 	_show_end_turn_button(false)
 	_cs_display.show_game_info(false)
+	Scoring.other_players_expeditions = _alliance_count_for(multiplayer.get_unique_id())
 	var lines: Array[Dictionary] = $Board.calculate_score()
 	var total: int = 0
 	for line: Dictionary in lines:
@@ -2379,6 +2381,42 @@ static func _is_automatic_batch(steps: Array) -> bool:
 		if not (t == "gain_supply" or t == "store_on_slot") or not step.has("color"):
 			return false
 	return true
+
+# Alliance: on the table you pick one other player to ally with and score their
+# expeditions — here that's always the best ally, the other player with the most
+# (never the Alliance owner). Each count comes from this player's own board, a
+# bot's board (host) or the snapshot each player sends.
+func _alliance_count_for(player_id: int) -> int:
+	var best: int = 0
+	for pid: int in GameNetwork.player_order:
+		if pid != player_id:
+			best = maxi(best, _expedition_count_of(pid))
+	return best
+
+func _expedition_count_of(pid: int) -> int:
+	if pid == multiplayer.get_unique_id():
+		return $Board.get_all_placed_expeditions().size()
+	var count: int = 0
+	if bot_boards.has(pid):
+		for entry: Variant in (bot_boards[pid] as Array):
+			for t: Variant in ((entry as Dictionary).get("techs", []) as Array):
+				if t is CardData and (t as CardData).card_type == CardData.CardType.EXPEDITION:
+					count += 1
+		return count
+	var snap: Dictionary = _opp_snapshots.get(pid, {}) as Dictionary
+	for slot_v: Variant in (snap.get("slots", []) as Array):
+		for n: Variant in ((slot_v as Dictionary).get("tech_names", []) as Array):
+			if _expedition_names().has(str(n)):
+				count += 1
+	return count
+
+var _expedition_name_set: Dictionary = {}
+
+func _expedition_names() -> Dictionary:
+	if _expedition_name_set.is_empty():
+		for cd: CardData in CardDatabase.expeditions:
+			_expedition_name_set[cd.card_name] = true
+	return _expedition_name_set
 
 # Always-effect source cards (Insects, Crops, 1-G Thrust, Einstein-Rosen
 # Portal, etc.) are always techs or expeditions, never sectors.
@@ -3818,6 +3856,7 @@ func _on_supply_changed() -> void:
 	_bid_payment_panel.refresh()
 
 func _refresh_vp() -> void:
+	Scoring.other_players_expeditions = _alliance_count_for(multiplayer.get_unique_id())
 	var lines: Array[Dictionary] = $Board.calculate_score()
 	var total: int = 0
 	for line: Dictionary in lines:

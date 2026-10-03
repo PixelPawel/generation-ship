@@ -1287,6 +1287,7 @@ func _update_score() -> void:
 	_leaderboard_btn.text = "Add to Leaderboard"
 	if _sectors.is_empty():
 		return
+	Scoring.other_players_expeditions = 0   # a photographed ship has no allies (Alliance)
 	for line: Dictionary in BotScoring.board_vp_lines(_sectors):
 		var lbl: Label = Label.new()
 		lbl.text = "%s: %d" % [line["label"], line["vp"]]
@@ -1300,6 +1301,7 @@ func _update_score() -> void:
 func _on_leaderboard_pressed() -> void:
 	if _sectors.is_empty():
 		return
+	Scoring.other_players_expeditions = 0
 	var lines: Array[Dictionary] = BotScoring.board_vp_lines(_sectors)
 	_leaderboard_btn.disabled = true
 	_leaderboard_btn.text = "Adding…"

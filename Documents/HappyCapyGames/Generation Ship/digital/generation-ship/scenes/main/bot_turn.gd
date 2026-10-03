@@ -82,6 +82,7 @@ static func get_bot_snapshot(main: Main, bot_id: int) -> Dictionary:
 			"tucked_cards": tucked_snap,
 			"position": {"x": 0.0, "z": 0.0},
 		})
+	Scoring.other_players_expeditions = main._alliance_count_for(bot_id)
 	return {
 		"peer_id": bot_id,
 		"supply": main.bot_supplies.get(bot_id, {}),

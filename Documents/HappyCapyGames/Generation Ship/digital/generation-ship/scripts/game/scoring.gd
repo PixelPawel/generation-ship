@@ -149,6 +149,12 @@ const EXPEDITION_MAX: Dictionary = {
 	"Interstellar Trade Port": 12,
 }
 
+# Alliance ("2⭐ per expedition another player has") needs the other players'
+# boards, which a single board's scoring can't see: Main sets this right before
+# it scores a player — the expeditions of the other player who has the most
+# (see Main._alliance_count_for). 0 in solo games and for scanned ships.
+static var other_players_expeditions: int = 0
+
 static func cap_expedition_vp(name: String, vp: int) -> int:
 	return mini(vp, int(EXPEDITION_MAX[name])) if EXPEDITION_MAX.has(name) else vp
 
@@ -265,7 +271,8 @@ static func _expedition_vp_raw(name: String, slots: Array, expeditions: Array, a
 			return 2 * count
 
 		"Alliance":
-			return 0  # multiplayer only
+			# 2 VP per expedition of the best ally (set by the game before scoring)
+			return 2 * other_players_expeditions
 
 		"Polar Planet":
 			# 2 VP per different stored supply color on the best single sector

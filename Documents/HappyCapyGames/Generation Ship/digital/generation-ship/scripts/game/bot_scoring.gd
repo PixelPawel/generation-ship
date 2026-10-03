@@ -285,7 +285,7 @@ static func _expedition_vp_raw(name: String, fallback_stars: int, board: Array,
 			return 2 * best
 
 		"Alliance":
-			return 0  # multiplayer only
+			return 2 * Scoring.other_players_expeditions
 
 	return fallback_stars
 
