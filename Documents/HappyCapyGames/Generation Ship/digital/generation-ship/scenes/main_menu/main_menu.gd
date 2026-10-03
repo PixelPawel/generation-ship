@@ -1,6 +1,29 @@
 extends Control
 const Haptics = preload("res://scripts/haptics.gd")
 const TutorialSession = preload("res://scripts/tutorial_session.gd")
+const MenuIconButton = preload("res://scenes/ui/menu_icon_button.gd")
+
+# ── Layout ────────────────────────────────────────────────────────────────────
+# One big Play button (→ Tutorial / Play a Game / Back), the four tools as a row
+# of art tiles along the bottom, Settings and Quit as icons in the top-right
+# corner. The stacked list of eight buttons had run off the bottom of the screen.
+const PLAY_BTN_SIZE: Vector2 = Vector2(440, 84)
+const PLAY_FONT: int = 40
+const CHOICE_FONT: int = 32
+const TILE_SIZE: Vector2 = Vector2(210, 190)
+const TILE_GAP: int = 26
+const TILE_BOTTOM: float = 104.0          # clear of the corner links
+const CORNER_BTN: float = 64.0
+const TILE_ART: Dictionary = {
+	"Rule Book": "res://assets/cards/Rule Book/%s/GS Rule Book A5.png",
+	"Collection": "res://assets/cards/Tech/%s/GS Techs 44x67mm125.png",
+	"Scan Tableau": "res://assets/scan/guide.jpg",
+	"Leaderboard": "res://assets/cards/ScoreBoard/%s/ScoreBoard.png",
+}
+var _play_btn: Button = null
+var _play_choices: Array[Control] = []
+var _tile_row: HBoxContainer = null
+var _corner_btns: Array[Button] = []
 
 const SETTINGS_PATH: String = "user://settings.cfg"
 const _BTN_HOVER_IN_SEC: float = 0.15
@@ -46,7 +69,7 @@ func _ready() -> void:
 	$Panels/LobbyView/StagingPanel.position = Vector2(0.0, vp.y)
 	$Panels/LobbyView/StagingPanel.size = vp
 
-	_add_tutorial_button()
+	_build_menu_layout()
 	for btn: Node in $Panels/MainView/VBox.get_children():
 		(btn as CanvasItem).modulate.a = 0.0
 	_manual = load("res://scenes/ui/manual_popup.gd").new()
@@ -144,41 +167,63 @@ func _setup_music() -> void:
 func _start_animations() -> void:
 	_animate_logo()
 	_animate_buttons()
-	for btn: Node in $Panels/MainView/VBox.get_children():
-		_setup_button_hover(btn as Button)
+	var hover_targets: Array[Node] = $Panels/MainView/VBox.find_children("*", "Button", true, false)
+	if _tile_row:
+		hover_targets.append_array(_tile_row.get_children())
+	for btn: Node in hover_targets:
+		if btn is Button:
+			_setup_button_hover(btn as Button)
 	for btn: TextureButton in _link_buttons:
 		_setup_button_hover(btn)
 		var tw: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 		tw.tween_interval(1.2)
 		tw.tween_property(btn, "modulate:a", 1.0, 0.5)
 
+# The 3D logo is two clips: an entrance that plays once, then a seamless idle
+# loop. The loop player is loaded up front (hidden, paused) so it can take over
+# on the entrance's last frame without a blank gap while a new file opens.
 func _animate_logo() -> void:
-	const LOGO_PATH: String = "res://assets/video/logo.webm"
+	const INTRO_PATH: String = "res://assets/video/logo_intro.webm"
+	const LOOP_PATH: String = "res://assets/video/logo_loop.webm"
 	var title: TextureRect = $Panels/MainView/Title
-	if not FileAccess.file_exists(LOGO_PATH):
+	if not FileAccess.file_exists(INTRO_PATH) or not FileAccess.file_exists(LOOP_PATH):
 		title.modulate.a = 1.0
 		return
 	title.hide()
-	var logo_vp: VideoPlayback = VideoPlayback.new()
-	logo_vp.enable_audio = false
-	logo_vp.loop = true
-	logo_vp.enable_auto_play = true
-	title.get_parent().add_child(logo_vp)
-	logo_vp.anchor_left = 0.0
-	logo_vp.anchor_top = 0.0
-	logo_vp.anchor_right = 1.0
-	logo_vp.anchor_bottom = 0.0
-	logo_vp.offset_top = 48.0
-	logo_vp.offset_bottom = 408.0
-	logo_vp.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	logo_vp.set_video_path(LOGO_PATH)
+	var loop_vp: VideoPlayback = _add_logo_player(title.get_parent(), LOOP_PATH, true)
+	loop_vp.visible = false
+	var intro_vp: VideoPlayback = _add_logo_player(title.get_parent(), INTRO_PATH, false)
+	intro_vp.enable_auto_play = true
+	intro_vp.video_ended.connect(func() -> void:
+		loop_vp.visible = true
+		loop_vp.play()
+		intro_vp.queue_free())
+
+func _add_logo_player(parent: Node, video_path: String, looping: bool) -> VideoPlayback:
+	var vp: VideoPlayback = VideoPlayback.new()
+	vp.enable_audio = false
+	vp.loop = looping
+	parent.add_child(vp)
+	vp.anchor_left = 0.0
+	vp.anchor_top = 0.0
+	vp.anchor_right = 1.0
+	vp.anchor_bottom = 0.0
+	vp.offset_top = 48.0
+	vp.offset_bottom = 408.0
+	vp.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	vp.set_video_path(video_path)
+	return vp
 
 func _animate_buttons() -> void:
 	var buttons: Array[Node] = $Panels/MainView/VBox.get_children()
+	if _tile_row:
+		buttons.append_array(_tile_row.get_children())
+	for b: Button in _corner_btns:
+		buttons.append(b)
 	for i: int in buttons.size():
 		var btn: Control = buttons[i] as Control
 		var tw: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-		tw.tween_interval(0.35 + float(i) * 0.15)
+		tw.tween_interval(0.35 + float(i) * 0.12)
 		tw.tween_property(btn, "modulate:a", 1.0, 0.40)
 
 func _setup_button_hover(btn: BaseButton) -> void:
@@ -204,16 +249,143 @@ func _on_btn_hover_exit(btn: BaseButton) -> void:
 	tw.parallel().tween_property(btn, "modulate", Color(1.0, 1.0, 1.0, 1.0), _BTN_HOVER_OUT_SEC)
 	_btn_tweens[btn] = tw
 
-# One solo game that teaches every mechanic (FirstTurnTutorial), above Multiplayer.
-func _add_tutorial_button() -> void:
-	var vbox: Node = $Panels/MainView/VBox
-	var btn: Button = Button.new()
-	btn.text = "Tutorial"
-	btn.custom_minimum_size = Vector2(440, 64)
-	btn.add_theme_font_size_override("font_size", 32)
-	btn.pressed.connect(_on_tutorial_pressed)
-	vbox.add_child(btn)
-	vbox.move_child(btn, 0)
+func _build_menu_layout() -> void:
+	var vbox: VBoxContainer = $Panels/MainView/VBox
+	# the tools leave the list: they become tiles / corner icons below
+	for n: String in ["SettingsBtn", "RuleBookBtn", "CollectionBtn", "ScanTableauBtn", "LeaderboardBtn", "QuitBtn"]:
+		var old: Node = vbox.get_node_or_null(n)
+		if old:
+			vbox.remove_child(old)
+			old.queue_free()
+	var start: Button = vbox.get_node("MultiplayerBtn")   # keeps its lobby connection
+	start.text = "Play a Game"
+
+	_play_btn = _menu_button("Play", PLAY_FONT, PLAY_BTN_SIZE)
+	_play_btn.pressed.connect(func() -> void: _show_play_choices(true))
+	vbox.add_child(_play_btn)
+	vbox.move_child(_play_btn, 0)
+
+	# Play → Tutorial (recommended until finished once) / Play a Game / Back
+	var tut_box: VBoxContainer = VBoxContainer.new()
+	tut_box.add_theme_constant_override("separation", 2)
+	var tut_btn: Button = _menu_button("Tutorial", CHOICE_FONT, Vector2(440, 64))
+	tut_btn.pressed.connect(_on_tutorial_pressed)
+	tut_box.add_child(tut_btn)
+	if not _tutorial_done():
+		var rec: Label = Label.new()
+		rec.text = "Recommended for your first game"
+		rec.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		rec.add_theme_font_size_override("font_size", 18)
+		rec.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+		tut_box.add_child(rec)
+	vbox.add_child(tut_box)
+	vbox.move_child(tut_box, 1)
+	var back: Button = _menu_button("Back", CHOICE_FONT, Vector2(440, 64))
+	back.pressed.connect(func() -> void: _show_play_choices(false))
+	vbox.add_child(back)
+	_play_choices = [tut_box, start, back]
+	for c: Control in _play_choices:
+		c.visible = false
+
+	# the tools: a row of art tiles along the bottom
+	_tile_row = HBoxContainer.new()
+	_tile_row.add_theme_constant_override("separation", TILE_GAP)
+	_tile_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	$Panels/MainView.add_child(_tile_row)
+	_tile_row.anchor_left = 0.0
+	_tile_row.anchor_right = 1.0
+	_tile_row.anchor_top = 1.0
+	_tile_row.anchor_bottom = 1.0
+	_tile_row.offset_top = -TILE_BOTTOM - TILE_SIZE.y
+	_tile_row.offset_bottom = -TILE_BOTTOM
+	_tile_row.add_child(_make_tile("Rule Book", _on_rule_book_pressed))
+	_tile_row.add_child(_make_tile("Collection", _on_collection_pressed))
+	_tile_row.add_child(_make_tile("Scan Tableau", _on_scan_tableau_pressed))
+	_tile_row.add_child(_make_tile("Leaderboard", _on_leaderboard_pressed))
+
+	# Settings and Quit: icons in the top-right corner (no Quit on phones —
+	# apps there close with the system's own gestures)
+	var side: float = GameTheme.TOUCH_CORNER_MARGIN if GameTheme.is_touch() else 28.0
+	var size_px: float = GameTheme.TOUCH_MIN_SIZE if GameTheme.is_touch() else CORNER_BTN
+	var icons: Array = [["gear", "Settings", _on_settings_btn_pressed]]
+	if not OS.has_feature("mobile"):
+		icons.append(["power", "Quit", _on_quit_pressed])
+	for k: int in icons.size():
+		var b: Button = MenuIconButton.new()
+		b.set("kind", icons[k][0])
+		b.tooltip_text = tr(str(icons[k][1]))
+		GameTheme.apply_to_button(b)
+		b.pressed.connect(icons[k][2] as Callable)
+		$Panels/MainView.add_child(b)
+		b.anchor_left = 1.0
+		b.anchor_right = 1.0
+		b.offset_right = -side - float(k) * (size_px + 14.0)
+		b.offset_left = b.offset_right - size_px
+		b.offset_top = side
+		b.offset_bottom = side + size_px
+		b.modulate.a = 0.0
+		_corner_btns.append(b)
+
+func _menu_button(label: String, font_size: int, min_size: Vector2) -> Button:
+	var b: Button = Button.new()
+	b.text = label
+	b.custom_minimum_size = min_size
+	b.add_theme_font_size_override("font_size", font_size)
+	return b
+
+# A tool tile: the feature's own art with its name under it.
+func _make_tile(label: String, on_press: Callable) -> Button:
+	var tile: Button = Button.new()
+	tile.custom_minimum_size = TILE_SIZE
+	tile.focus_mode = Control.FOCUS_NONE
+	tile.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	tile.tooltip_text = tr(label)
+	tile.modulate.a = 0.0
+	tile.pressed.connect(on_press)
+	var box: VBoxContainer = VBoxContainer.new()
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.offset_left = 10.0
+	box.offset_right = -10.0
+	box.offset_top = 10.0
+	box.offset_bottom = -8.0
+	box.add_theme_constant_override("separation", 6)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tile.add_child(box)
+	var art: TextureRect = TextureRect.new()
+	art.texture = _tile_art(label)
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	art.clip_contents = true
+	art.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(art)
+	var lbl: Label = Label.new()
+	lbl.text = label
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", 20)
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(lbl)
+	return tile
+
+func _tile_art(label: String) -> Texture2D:
+	var path: String = str(TILE_ART.get(label, ""))
+	if path.contains("%s"):
+		var lang: String = TranslationServer.get_locale().substr(0, 2).to_upper()
+		var local: String = path % lang
+		path = local if ResourceLoader.exists(local) else path % "EN"
+	return load(path) as Texture2D if ResourceLoader.exists(path) else null
+
+func _show_play_choices(on: bool) -> void:
+	_play_btn.visible = not on
+	for c: Control in _play_choices:
+		c.visible = on
+		if on:
+			c.modulate.a = 0.0
+			create_tween().tween_property(c, "modulate:a", 1.0, 0.25)
+
+func _tutorial_done() -> bool:
+	var cfg: ConfigFile = ConfigFile.new()
+	return cfg.load(SETTINGS_PATH) == OK and bool(cfg.get_value("tutorial", "seen", false))
 
 func _on_tutorial_pressed() -> void:
 	TutorialSession.active = true
