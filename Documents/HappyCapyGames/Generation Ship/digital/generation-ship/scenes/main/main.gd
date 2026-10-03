@@ -292,6 +292,10 @@ func _ready() -> void:
 	_bid_popup.bid_passed.connect(_on_bid_passed)
 	ImageCache.progress_updated.connect(_on_cache_progress)
 	ImageCache.all_loaded.connect(_on_cache_ready)
+	# The 2D card pictures (Cargo Drones, drag preview, choice popups, hold-to-inspect)
+	# read this cache; the lobby fills it, but a game started without the lobby
+	# (Debug) had it empty. Already-cached cards are skipped.
+	ImageCache.preload_local_art()
 	ImageCache.preload_urls(_collect_urls())
 
 	CockpitRig.setup_info_screen_display(self)
