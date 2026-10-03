@@ -3696,6 +3696,17 @@ func _debug_setup() -> void:
 	reset_btn.position = Vector2(GameTheme.TOUCH_CORNER_MARGIN if GameTheme.is_touch() else 16.0, 16.0)
 	reset_btn.pressed.connect(_debug_reset_ship)
 	$UILayer.add_child(reset_btn)
+	var draw_btn: Button = Button.new()
+	draw_btn.text = "Draw Card"
+	draw_btn.add_theme_font_size_override("font_size", 20)
+	GameTheme.apply_to_button(draw_btn)
+	GameTheme.touchify(draw_btn)
+	draw_btn.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE, 16)
+	draw_btn.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	draw_btn.pressed.connect(func() -> void:
+		$Board.draw_cards(1)
+		_refresh_card_counts())
+	$UILayer.add_child(draw_btn)
 
 # Every placed card off the ship: back to the empty slots it started with;
 # hand and supply stay as they are.
