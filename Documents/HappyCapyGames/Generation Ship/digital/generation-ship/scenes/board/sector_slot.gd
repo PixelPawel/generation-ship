@@ -442,6 +442,43 @@ func set_available(available: bool) -> void:
 	if not occupied:
 		_mesh.visible = true
 
+# The big moments get a little show: one optimize level = a gold burst on the
+# sector; fully optimized or complete (big) = bursts up the whole stack, the
+# sector card pops, the camera shakes and phones vibrate. Two big moments from
+# one placement (complete AND fully optimized) only celebrate once.
+const CELEBRATE_GOLD: Color = Color(1.0, 0.84, 0.25)
+const CELEBRATE_POP: float = 1.08
+static var _last_big_celebration_ms: int = -100000
+
+func celebrate(big: bool) -> void:
+	if not placed_card or not is_instance_valid(placed_card):
+		return
+	if big:
+		var now: int = Time.get_ticks_msec()
+		if now - _last_big_celebration_ms < 600:
+			return
+		_last_big_celebration_ms = now
+	var cards: Array[Node3D] = get_all_placed_cards()
+	var bursts: int = mini(3, cards.size()) if big else 1
+	for i: int in bursts:
+		var at: Vector3 = cards[i].global_position + Vector3(0.0, 0.05, 0.0)
+		get_tree().create_timer(0.12 * i).timeout.connect(func() -> void:
+			if not is_inside_tree():
+				return
+			var fx: CPUParticles3D = load("res://scenes/card/card_sparkle.gd").new()
+			fx.set("particle_color", CELEBRATE_GOLD)
+			add_child(fx)
+			fx.global_position = at)
+	if big:
+		var card: Node3D = placed_card
+		var rest: Vector3 = card.scale
+		var t: Tween = card.create_tween()
+		t.tween_property(card, "scale", rest * CELEBRATE_POP, 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+		t.tween_property(card, "scale", rest, 0.45).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
+		if card.has_method("shake_camera"):
+			card.call("shake_camera")
+		Haptics.celebrate()
+
 func get_all_placed_cards() -> Array[Node3D]:
 	var result: Array[Node3D] = []
 	if placed_card:

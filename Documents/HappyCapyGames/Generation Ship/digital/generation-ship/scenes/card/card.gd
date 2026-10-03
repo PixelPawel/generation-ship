@@ -396,6 +396,9 @@ func _supply_sparkle_color(supply: CardData.SupplyColor) -> Color:
 		CardData.SupplyColor.THRUST:   return Color(1.00, 0.42, 0.10)
 	return Color(1.00, 0.85, 0.05)
 
+func shake_camera() -> void:
+	_shake_camera()
+
 func _shake_camera() -> void:
 	if not screen_shake_enabled:
 		return

@@ -2242,6 +2242,8 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	_broadcast_log(tr("%s: placed %s") % [_pname, _cname], CardData.color_tint(_supply))
 	UIAudio.play_supply_sfx(_supply)
 	Haptics.thump()
+	if _cd.card_type != CardData.CardType.SECTOR and slot.is_complete():
+		slot.celebrate(true)
 	$Board.refresh_hand_discounts()
 	if _effect_mode != EffectMode.NONE:
 		_reset_effect_state()
@@ -3585,6 +3587,7 @@ func _on_action_committed() -> void:
 # to take part in _on_card_placed's "which effect goes first" choice
 # instead of unconditionally landing wherever it happened to be appended.
 func _on_optimize_triggered(slot: SectorSlot, _level: int) -> void:
+	slot.celebrate(slot.is_optimized)
 	_effect_slot = slot
 	_pending_optimize_steps.append_array(SectorEffects.get_optimize_steps(slot))
 
