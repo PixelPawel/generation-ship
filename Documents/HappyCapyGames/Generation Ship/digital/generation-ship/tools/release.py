@@ -15,7 +15,7 @@ One-time setup:
     permissions) with "Release apps to testing tracks" (and production if wanted).
     Either its JSON key at PLAY_KEY (outside git), or — keys blocked by the org
     policy — once: your account gets "Service Account Token Creator" on it, then
-        gcloud auth application-default login --impersonate-service-account=<its e-mail>
+        gcloud auth application-default login --impersonate-service-account=play-uploader@happycapy-releases.iam.gserviceaccount.com
     Needs:
         pip install google-api-python-client google-auth
 
@@ -38,6 +38,7 @@ SDK = r"C:\Users\ptmaz\Documents\HappyCapyGames\steamworks_sdk_164\sdk\tools\Con
 STEAMCMD = r"C:\Program Files (x86)\Steam\steamcmd\steamcmd.exe"   # has the cached login
 STEAM_VDF = os.path.join(SDK, "scripts", "app_build_4724920.vdf")
 STEAM_ACCOUNT = os.environ.get("STEAM_ACCOUNT", "tyrain@gmx.de")
+PLAY_SERVICE_ACCOUNT = "play-uploader@happycapy-releases.iam.gserviceaccount.com"
 PLAY_KEY = os.environ.get("PLAY_KEY", os.path.join(os.path.expanduser("~"), ".secrets", "play_service_account.json"))
 
 
