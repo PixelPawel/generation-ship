@@ -41,7 +41,10 @@ const STEPS: Array[String] = [
 	"archive", "store", "archive_up", "stars", "buy3", "if_new", "always",
 	"research", "pass", "score",
 ]
-const FUSE_NUDGE_SEC: float = 10.0   # no fuse yet: shake the zoomed control screen
+# Fuse and recycle steps: the control screen zooms in, and shakes if nothing has
+# happened yet — first after NUDGE_FIRST_SEC, then every NUDGE_REPEAT_SEC.
+const NUDGE_FIRST_SEC: float = 2.0
+const NUDGE_REPEAT_SEC: float = 5.0
 # DNA Sculpting draws these, to archive face up (they keep their printed stars)
 const STAR_DRAWS: Array[String] = ["Inflatable Habs", "Cargo Landers", "Solar Power"]
 
@@ -62,6 +65,7 @@ var _first_sector: SectorSlot = null
 var _second_sector: SectorSlot = null
 var _third_sector: SectorSlot = null
 var _step_time: float = 0.0          # seconds in the current step
+var _next_nudge: float = 0.0         # step time of the next control-screen shake
 var _gave_followup: bool = false     # a step's second card has been handed over
 var _highlighted_tech_slots: Array[SectorSlot] = []
 
@@ -138,6 +142,7 @@ func _next_step() -> void:
 	_passed = false
 	_recycled_during_bid_payment = false
 	_step_time = 0.0
+	_next_nudge = NUDGE_FIRST_SEC
 	_gave_followup = false
 	_clear_highlights()
 
@@ -162,9 +167,9 @@ func _refresh() -> void:
 # Things that happen while a step waits (follow-up cards, nudges).
 func _tick(step: String) -> void:
 	match step:
-		"fuse":
-			if _step_time >= FUSE_NUDGE_SEC:
-				_step_time = 0.0
+		"fuse", "recycle":
+			if _step_time >= _next_nudge:
+				_next_nudge = _step_time + NUDGE_REPEAT_SEC
 				CockpitRig.shake_screen(_main, _main.get_node("UiControl"))
 		"stars":
 			# Quantum Archives is down: now the star card it reacts to
@@ -174,7 +179,7 @@ func _tick(step: String) -> void:
 
 func _leave(step: String) -> void:
 	match step:
-		"fuse":
+		"fuse", "recycle":
 			CockpitRig.set_screen_enlarged(_main, _main.get_node("UiControl"), false)
 
 # Hand-overs before a chapter: the cards it needs, enough supply to play them.
@@ -196,6 +201,7 @@ func _enter(step: String) -> void:
 			_give(["Hangars"])
 		"recycle":
 			_give(["Mag-Net"])
+			CockpitRig.set_screen_enlarged(_main, _main.get_node("UiControl"), true)
 		"optimize":
 			_top_up_supply()
 			_give(_missing_optimize_cards())
