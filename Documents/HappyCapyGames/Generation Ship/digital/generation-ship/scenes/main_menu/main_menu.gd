@@ -1,5 +1,6 @@
 extends Control
 const Haptics = preload("res://scripts/haptics.gd")
+const DebugMode = preload("res://scripts/debug_mode.gd")
 
 const SETTINGS_PATH: String = "user://settings.cfg"
 const _BTN_HOVER_IN_SEC: float = 0.15
@@ -31,6 +32,7 @@ const RESOLUTIONS: Array[Vector2i] = [
 const FULLSCREEN_IDX: int = 5
 
 func _ready() -> void:
+	DebugMode.enabled = false   # however the last game ended
 	theme = GameTheme.get_theme()
 	_apply_saved_settings()
 	_setup_video()
@@ -44,6 +46,7 @@ func _ready() -> void:
 	$Panels/LobbyView/StagingPanel.position = Vector2(0.0, vp.y)
 	$Panels/LobbyView/StagingPanel.size = vp
 
+	_add_debug_button()
 	for btn: Node in $Panels/MainView/VBox.get_children():
 		(btn as CanvasItem).modulate.a = 0.0
 	_manual = load("res://scenes/ui/manual_popup.gd").new()
@@ -200,6 +203,24 @@ func _on_btn_hover_exit(btn: BaseButton) -> void:
 	tw.tween_property(btn, "scale", Vector2(1.0, 1.0), _BTN_HOVER_OUT_SEC)
 	tw.parallel().tween_property(btn, "modulate", Color(1.0, 1.0, 1.0, 1.0), _BTN_HOVER_OUT_SEC)
 	_btn_tweens[btn] = tw
+
+# TEMPORARY (see DebugMode): straight into a solo test game.
+func _add_debug_button() -> void:
+	var vbox: Node = $Panels/MainView/VBox
+	var debug_btn: Button = Button.new()
+	debug_btn.text = "Debug"
+	debug_btn.custom_minimum_size = Vector2(440, 64)
+	debug_btn.add_theme_font_size_override("font_size", 32)
+	debug_btn.pressed.connect(_on_debug_pressed)
+	vbox.add_child(debug_btn)
+	vbox.move_child(debug_btn, vbox.get_node("QuitBtn").get_index())
+
+func _on_debug_pressed() -> void:
+	DebugMode.enabled = true
+	GameNetwork.is_multiplayer = false
+	GameNetwork.bot_ids = []
+	GameNetwork.player_names = {}
+	SceneTransition.change_scene("res://scenes/main/main.tscn")
 
 func _on_rule_book_pressed() -> void:
 	_manual.open()

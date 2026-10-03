@@ -1,6 +1,7 @@
 class_name Main
 extends Node3D
 const Haptics = preload("res://scripts/haptics.gd")
+const DebugMode = preload("res://scripts/debug_mode.gd")
 const ContextHints = preload("res://scenes/ui/context_hints.gd")
 const CardInspectOverlay = preload("res://scenes/ui/card_inspect_overlay.gd")
 
@@ -485,6 +486,11 @@ func _on_cache_ready() -> void:
 		_cached_sector_order = _generate_shuffled_order(CardDatabase.sectors.size())
 		_cached_exp_order = _generate_shuffled_order(CardDatabase.expeditions.size())
 		_cached_tech_order = _generate_shuffled_order(CardDatabase.techs.size())
+		if DebugMode.enabled:
+			# card-number order: the deck draws from the back, so the first card goes last
+			_cached_tech_order = []
+			for i: int in range(CardDatabase.techs.size() - 1, -1, -1):
+				_cached_tech_order.append(i)
 		call_deferred("_deferred_pre_setup")
 	elif GameNetwork.is_host:
 		_cached_sector_order = _generate_shuffled_order(CardDatabase.sectors.size())
@@ -676,7 +682,7 @@ func _is_true_solo_session() -> bool:
 	return real_players.size() <= 1
 
 func _start_first_turn_tutorial_if_needed() -> void:
-	if not _is_true_solo_session() or _tutorial_seen():
+	if DebugMode.enabled or not _is_true_solo_session() or _tutorial_seen():
 		return
 	_mark_tutorial_seen()  # mark before starting — a crash mid-tutorial shouldn't re-nag
 	_tutorial = FirstTurnTutorial.new()
@@ -687,6 +693,8 @@ func _start_first_turn_tutorial_if_needed() -> void:
 func _rpc_start_game(sector_order: Array, exp_order: Array, tech_order: Array) -> void:
 	if not _pre_setup_done:
 		_do_game_setup(sector_order, exp_order, tech_order)
+	if DebugMode.enabled:
+		_debug_setup()
 	if multiplayer.is_server() and not GameNetwork.bot_ids.is_empty():
 		BotTurn.init_bot_state(self)
 
@@ -2265,6 +2273,8 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	_broadcast_log(tr("%s: placed %s") % [_pname, _cname], CardData.color_tint(_supply))
 	UIAudio.play_supply_sfx(_supply)
 	Haptics.thump()
+	if DebugMode.enabled:
+		$Board.draw_cards(1)
 	if _cd.card_type != CardData.CardType.SECTOR and slot.is_complete():
 		slot.celebrate(true)
 		_hints.hint("complete")
@@ -3667,7 +3677,36 @@ func _toggle_pause_menu() -> void:
 	if _tutorial:
 		_tutorial.notify_escape_pressed()
 
+# ── TEMPORARY debug mode (see DebugMode) ─────────────────────────────────────
+var _debug_empty_slots: Array = []   # the ship's slots at the start, for Reset Ship
+
+func _debug_setup() -> void:
+	for color: CardData.SupplyColor in CardData.SupplyColor.values():
+		_cs_display.set_supply(color, 1000)
+	_debug_empty_slots = ($Board.get_snapshot()["slots"] as Array).duplicate(true)
+	var reset_btn: Button = Button.new()
+	reset_btn.text = "Reset Ship"
+	reset_btn.add_theme_font_size_override("font_size", 20)
+	GameTheme.apply_to_button(reset_btn)
+	GameTheme.touchify(reset_btn)
+	reset_btn.position = Vector2(GameTheme.TOUCH_CORNER_MARGIN if GameTheme.is_touch() else 16.0, 16.0)
+	reset_btn.pressed.connect(_debug_reset_ship)
+	$UILayer.add_child(reset_btn)
+
+# Every placed card off the ship: back to the empty slots it started with;
+# hand and supply stay as they are.
+func _debug_reset_ship() -> void:
+	if _effect_mode != EffectMode.NONE or $Board.is_card_drag_pending():
+		return
+	var snap: Dictionary = $Board.get_snapshot()
+	snap["slots"] = _debug_empty_slots.duplicate(true)
+	$Board.restore_from_snapshot(snap)
+	$Board.refresh_hand_discounts()
+	_refresh_vp()
+	_refresh_card_counts()
+
 func _on_pause_main_menu() -> void:
+	DebugMode.enabled = false
 	SceneTransition.change_scene("res://scenes/main_menu/main_menu.tscn")
 
 func _try_auto_end_turn() -> void:
