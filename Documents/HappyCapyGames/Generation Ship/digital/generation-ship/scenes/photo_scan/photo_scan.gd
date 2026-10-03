@@ -76,6 +76,8 @@ const SHIP_EDIT_HEIGHT: float = 64.0
 const SCORE_COMPACT_FONT_SIZE: int = 56
 const SUMMARY_SUPPLY_ICON_SIZE: Vector2 = Vector2(44, 44)
 const SUMMARY_FONT_SIZE: int = 24
+const SUMMARY_ARCHIVE_CARD_SIZE: Vector2 = Vector2(24, 34)   # a little portrait card round the ▲/▼
+const SUMMARY_ARCHIVE_ARROW_SIZE: int = 16
 const SUMMARY_HOVER_SCALE: Vector2 = Vector2(1.08, 1.08)
 const SUMMARY_HOVER_IN_SEC: float = 0.12
 const SUMMARY_HOVER_OUT_SEC: float = 0.18
@@ -1109,9 +1111,9 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 		else:
 			down_count += 1
 	if up_count > 0:
-		info.add_child(_make_summary_text_badge("▲%d ★%d" % [up_count, up_stars]))
+		info.add_child(_make_summary_archive_badge("▲", "%d ★%d" % [up_count, up_stars]))
 	if down_count > 0:
-		info.add_child(_make_summary_text_badge("▼%d" % down_count))
+		info.add_child(_make_summary_archive_badge("▼", str(down_count)))
 
 	var edit_btn: Button = _make_button("Edit")
 	edit_btn.custom_minimum_size = Vector2(0, SHIP_EDIT_HEIGHT)
@@ -1168,6 +1170,30 @@ func _make_summary_supply_badge(color_int: int, amount: int) -> Control:
 	box.add_child(icon)
 	var lbl: Label = _make_summary_text_badge(str(amount))
 	box.add_child(lbl)
+	return box
+
+## Archived cards: the face-up/face-down arrow inside a little card outline, then the count.
+func _make_summary_archive_badge(arrow: String, text: String) -> Control:
+	var box: HBoxContainer = HBoxContainer.new()
+	box.add_theme_constant_override("separation", 5)
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	var card: PanelContainer = PanelContainer.new()
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.draw_center = false
+	style.border_color = Color(1, 1, 1, 0.85)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(3)
+	card.add_theme_stylebox_override("panel", style)
+	card.custom_minimum_size = SUMMARY_ARCHIVE_CARD_SIZE
+	card.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var lbl: Label = Label.new()
+	lbl.text = arrow
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", SUMMARY_ARCHIVE_ARROW_SIZE)
+	card.add_child(lbl)
+	box.add_child(card)
+	box.add_child(_make_summary_text_badge(text))
 	return box
 
 func _make_summary_text_badge(text: String) -> Label:
