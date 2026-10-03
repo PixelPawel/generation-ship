@@ -64,6 +64,7 @@ var _effect_mode: EffectMode = EffectMode.NONE:
 		if board:
 			board.set_effect_active(value != EffectMode.NONE)
 var _effect_queue: Array[Dictionary] = []
+var _card_inspect: CardInspectOverlay = null   # phones: hold a hand card to read it big
 var _effect_slot: SectorSlot = null
 var _effect_source_name: String = ""
 var _effect_remaining: int = 0
@@ -269,6 +270,10 @@ func _ready() -> void:
 	_pause_menu.main_menu_pressed.connect(_on_pause_main_menu)
 	if GameTheme.is_touch():
 		_build_touch_menu_button()
+		_card_inspect = CardInspectOverlay.new()
+		$UILayer.add_child(_card_inspect)
+		$Hand.card_inspect_requested.connect(func(card: Node3D) -> void:
+			_card_inspect.show_card(card.get("card_data") as CardData, bool(card.get("is_advanced"))))
 	if GameNetwork.is_multiplayer:
 		_chat_panel = load("res://scenes/ui/chat_panel.gd").new()
 		$UILayer.add_child(_chat_panel)

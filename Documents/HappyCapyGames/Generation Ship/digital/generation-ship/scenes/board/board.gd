@@ -148,6 +148,8 @@ func _ready() -> void:
 	arrow_canvas.add_child(_drag_preview_rect)
 
 func _on_sector_slot_clicked(slot: SectorSlot) -> void:
+	if _dragged_card:
+		return
 	sector_info_requested.emit(slot)
 
 func show_payment_confirm_arrow(from_2d: Vector2, to_2d: Vector2) -> void:

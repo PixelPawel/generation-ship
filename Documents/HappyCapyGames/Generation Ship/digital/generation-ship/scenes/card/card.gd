@@ -10,6 +10,8 @@ signal clicked(card: Node3D)
 signal right_clicked(card: Node3D)
 signal elevation_started(card: Node3D)
 signal elevation_ended(card: Node3D)
+# Phones: press and hold a hand card to read it big (see CardInspectOverlay).
+signal inspect_requested(card: Node3D)
 
 const HOVER_HEIGHT := 0.15
 const HOVER_DURATION := 0.15
@@ -56,6 +58,7 @@ var _drag_armed: bool = false
 var _drag_arm_pos: Vector2 = Vector2.ZERO
 # Phones: tap-and-hold on a placed card = right-click (enlarge/shrink).
 var _long_press: LongPressGesture = LongPressGesture.new()
+var _suppress_tap: bool = false   # the hold that opened the inspect view isn't also a tap
 var _card_glb: Node3D = null
 var _face_surface: MeshInstance3D = null
 var _discount_badge: Label3D = null
@@ -152,14 +155,26 @@ func _on_input_event(_camera: Node, event: InputEvent, _pos: Vector3, _normal: V
 	if not (event is InputEventMouseButton):
 		return
 	if event.button_index == MOUSE_BUTTON_LEFT:
+		var touch_hand: bool = GameTheme.is_touch() and managed_by_hand and not is_placed
 		if GameTheme.is_touch() and (is_placed or _placed_elevated):
 			if event.pressed:
 				_long_press.begin(get_tree(), event.position, _try_toggle_placed_elevation)
 			else:
 				_long_press.end()
+		elif touch_hand:
+			# a hand card on a phone: hold = inspect, move = drag, tap = pick up (tap-to-place)
+			if event.pressed:
+				_suppress_tap = false
+				_long_press.begin(get_tree(), event.position, _on_hand_long_press)
+			else:
+				_long_press.end()
+				if _suppress_tap:
+					_suppress_tap = false
+					_drag_armed = false
+					return
 		if event.pressed:
 			if not is_placed and can_drag and not is_dragging:
-				if drag_needs_movement:
+				if drag_needs_movement or touch_hand:
 					_drag_armed = true
 					_drag_arm_pos = get_viewport().get_mouse_position()
 				else:
@@ -182,6 +197,11 @@ func _on_input_event(_camera: Node, event: InputEvent, _pos: Vector3, _normal: V
 		else:
 			right_clicked.emit(self)
 
+func _on_hand_long_press() -> void:
+	_drag_armed = false
+	_suppress_tap = true
+	inspect_requested.emit(self)
+
 func _try_toggle_placed_elevation() -> void:
 	if is_placed:
 		if can_elevate and not _any_dragging:
@@ -195,6 +215,7 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		if (event.position - _drag_arm_pos).length() >= DRAG_THRESHOLD_PX:
 			_drag_armed = false
+			_long_press.cancel()
 			is_dragging = true
 			_any_dragging = true
 			drag_started.emit(self)

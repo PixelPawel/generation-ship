@@ -3,6 +3,7 @@ extends Node3D
 signal card_drag_started(card: Node3D)
 signal card_selected_for_discard(card: Node3D)
 signal card_right_clicked(card: Node3D)
+signal card_inspect_requested(card: Node3D)
 
 const HAND_SCALE := 0.392
 const BASE_SPACING := 0.25
@@ -45,6 +46,10 @@ func add_card(card: Node3D, animate: bool = false) -> void:
 	card.hovered.connect(_on_card_hovered)
 	card.unhovered.connect(_on_card_unhovered)
 	card.drag_started.connect(_on_card_drag_started)
+	if not card.inspect_requested.is_connected(_on_card_inspect_requested):
+		card.inspect_requested.connect(_on_card_inspect_requested)
+	if GameTheme.is_touch() and not card.clicked.is_connected(_on_card_tapped):
+		card.clicked.connect(_on_card_tapped)
 	# detach_card() deliberately leaves right_clicked connected, so guard
 	# against double-connecting when a card comes back after a failed drop.
 	if not card.right_clicked.is_connected(_on_card_right_clicked):
@@ -74,6 +79,8 @@ func _disconnect_card_signals(card: Node3D) -> void:
 		card.drag_started.disconnect(_on_card_drag_started)
 	if card.right_clicked.is_connected(_on_card_right_clicked):
 		card.right_clicked.disconnect(_on_card_right_clicked)
+	if card.clicked.is_connected(_on_card_tapped):
+		card.clicked.disconnect(_on_card_tapped)
 
 func _fly_out_card(card: Node3D, on_done: Callable = Callable()) -> void:
 	card.collider.monitoring = false
@@ -162,6 +169,18 @@ func _on_card_clicked_for_discard(card: Node3D) -> void:
 
 func _on_card_right_clicked(card: Node3D) -> void:
 	card_right_clicked.emit(card)
+
+func _on_card_inspect_requested(card: Node3D) -> void:
+	card_inspect_requested.emit(card)
+
+# Phones: a tap picks the card up the same way a drag does — the targeting arrow
+# points at where it would go, and the next tap places it there (or, anywhere
+# that isn't a slot, puts it back). Discard mode keeps its own tap handling.
+func _on_card_tapped(card: Node3D) -> void:
+	if _discard_mode_active or not _cards.has(card) or not card.can_drag:
+		return
+	card.set("is_dragging", true)
+	_on_card_drag_started(card)
 
 func _on_card_drag_started(card: Node3D) -> void:
 	detach_card(card)
