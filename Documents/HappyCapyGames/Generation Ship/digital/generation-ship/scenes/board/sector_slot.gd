@@ -1,5 +1,6 @@
 class_name SectorSlot
 extends Node3D
+const Haptics = preload("res://scripts/haptics.gd")
 
 const TechSlotScript := preload("res://scenes/board/tech_slot.gd")
 

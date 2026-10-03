@@ -1,4 +1,3 @@
-class_name RuleRefs
 # Keywords in card text -> the rule book page that explains them, so the game
 # can offer "how does Archive work?" right where the word shows up (the
 # sector info popup, the phones' card inspect view). Every language's rule

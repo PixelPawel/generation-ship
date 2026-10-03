@@ -1,4 +1,5 @@
 extends Control
+const Haptics = preload("res://scripts/haptics.gd")
 
 const SETTINGS_PATH: String = "user://settings.cfg"
 const _BTN_HOVER_IN_SEC: float = 0.15

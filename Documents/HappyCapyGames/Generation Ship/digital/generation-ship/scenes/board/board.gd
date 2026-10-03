@@ -1,4 +1,5 @@
 extends Node3D
+const Haptics = preload("res://scripts/haptics.gd")
 
 const DRAG_Y := 0.55
 const HAND_CARD_SCALE := 0.392

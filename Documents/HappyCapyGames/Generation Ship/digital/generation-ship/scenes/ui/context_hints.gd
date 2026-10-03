@@ -1,4 +1,3 @@
-class_name ContextHints
 extends Control
 # First-time tips: the first time a mechanic actually comes up in a game
 # (an Archive effect, a Store effect, an optimize, a complete sector, a bid…)

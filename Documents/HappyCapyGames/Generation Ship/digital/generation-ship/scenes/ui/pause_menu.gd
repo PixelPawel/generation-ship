@@ -1,4 +1,6 @@
 extends Control
+const Haptics = preload("res://scripts/haptics.gd")
+const ContextHints = preload("res://scenes/ui/context_hints.gd")
 
 signal main_menu_pressed
 

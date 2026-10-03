@@ -1,5 +1,6 @@
 class_name SupplyUI
 extends Control
+const Haptics = preload("res://scripts/haptics.gd")
 
 signal supply_changed
 signal fuse_1to1_changed

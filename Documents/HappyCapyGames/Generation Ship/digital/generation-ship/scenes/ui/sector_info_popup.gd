@@ -1,5 +1,6 @@
 class_name SectorInfoPopup
 extends Control
+const RuleRefs = preload("res://scripts/game/rule_refs.gd")
 
 const SUPPLY_ICON_PATHS: Array[String] = [
 	"res://assets/ui/supply/Dust.png",

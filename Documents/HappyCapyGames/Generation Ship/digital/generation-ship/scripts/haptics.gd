@@ -1,4 +1,3 @@
-class_name Haptics
 # Short vibrations on phones for the moments that should be felt: a card
 # snapping onto a slot, supply coming in, a won bid or a fully optimized
 # sector. Does nothing on desktop. Toggled in Settings ("Vibration", saved as

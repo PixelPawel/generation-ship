@@ -1,5 +1,8 @@
 class_name Main
 extends Node3D
+const Haptics = preload("res://scripts/haptics.gd")
+const ContextHints = preload("res://scenes/ui/context_hints.gd")
+const CardInspectOverlay = preload("res://scenes/ui/card_inspect_overlay.gd")
 
 @export var card_scene: PackedScene
 

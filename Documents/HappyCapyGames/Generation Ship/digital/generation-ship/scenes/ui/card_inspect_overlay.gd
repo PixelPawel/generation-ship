@@ -1,5 +1,6 @@
-class_name CardInspectOverlay
 extends Control
+const Haptics = preload("res://scripts/haptics.gd")
+const RuleRefs = preload("res://scripts/game/rule_refs.gd")
 # Phones: press and hold a hand card to read it at full size. The card's art
 # fills most of the screen height; a tap anywhere closes it. No dimming behind
 # it — the game stays visible around the card.
