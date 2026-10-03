@@ -241,11 +241,11 @@ func _make_tile() -> Button:
 	btn.add_child(box)
 	return btn
 
-func _tile_label(text: String, size: int) -> Label:
+func _tile_label(text: String, font_size: int) -> Label:
 	var lbl := Label.new()
 	lbl.text = text
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", size)
+	lbl.add_theme_font_size_override("font_size", font_size)
 	lbl.add_theme_constant_override("outline_size", 3)
 	lbl.add_theme_color_override("font_outline_color", Color.BLACK)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
