@@ -526,7 +526,8 @@ func _do_game_setup(sector_order: Array, exp_order: Array, tech_order: Array) ->
 	else:
 		$Board.setup_tech_deck_ordered(tech_order)
 	if TutorialSession.active:
-		$Board.set_scripted_deck([])   # only the cards the tutorial hands over
+		var empty_deck: Array[CardData] = []
+		$Board.set_scripted_deck(empty_deck)   # only the cards the tutorial hands over
 	$Board.refresh_hand_discounts()
 	_market_panel.setup($Board.get_market(), $Board.get_expedition_market())
 	_show_action_buttons(true)
