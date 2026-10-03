@@ -422,6 +422,19 @@ static func setup_screen_enlarge(main: Main) -> void:
 			main._hide_tooltip()
 		)
 
+static func set_screen_enlarged(main: Main, node: Node3D, on: bool) -> void:
+	if bool(main.screen_enlarged.get(node, false)) != on:
+		_toggle_screen_enlarge(main, node)
+
+# A quick wobble to catch the eye (the tutorial nudging the player).
+static func shake_screen(main: Main, node: Node3D) -> void:
+	var rest: Vector3 = node.rotation
+	var tw: Tween = main.create_tween()
+	for i: int in 6:
+		var a: float = deg_to_rad(2.5) * (1.0 if i % 2 == 0 else -1.0) * (1.0 - float(i) / 6.0)
+		tw.tween_property(node, "rotation:z", rest.z + a, 0.06)
+	tw.tween_property(node, "rotation", rest, 0.06)
+
 static func _toggle_screen_enlarge(main: Main, node: Node3D) -> void:
 	if main.screen_enlarged.get(node, false):
 		main.screen_enlarged[node] = false

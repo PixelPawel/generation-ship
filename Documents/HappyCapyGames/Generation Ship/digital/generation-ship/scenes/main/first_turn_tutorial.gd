@@ -8,9 +8,14 @@ extends Node
 # cards and supply that chapter needs, so it never depends on lucky draws.
 #
 # Chapters: buy a sector → place a tech → fuse → optimize → recycle → bid on
-# an expedition → complete a sector → buy a second sector → archive & store →
-# Always cards → printed stars → research → pass → scoring (the game ends on
-# the score breakdown; tutorial scores never reach the leaderboard).
+# an expedition → complete a sector → buy a second sector → archive face down →
+# store → archive face up → printed stars → buy a third sector → Always cards →
+# research → pass → scoring (the game ends on the score breakdown; tutorial
+# scores never reach the leaderboard).
+#
+# The tech deck is scripted (Board.set_scripted_deck): no opening hand, no
+# reshuffles — the only cards that ever reach the hand are the ones a chapter
+# hands over or stacks on the deck for an effect to draw.
 #
 # Re-asserts its current step every REFRESH_INTERVAL_SEC, because the end of
 # a turn hides the banner and drag feedback clears slot highlights; and it
@@ -30,9 +35,13 @@ const FILLER_BY_COLOR: Dictionary = {
 	CardData.SupplyColor.THRUST: "Markets",
 }
 const STEPS: Array[String] = [
-	"buy", "place", "fuse", "optimize", "recycle", "bid", "complete",
-	"buy2", "archive_store", "always", "stars", "research", "pass", "score",
+	"buy", "place", "fuse", "optimize", "recycle", "bid", "complete", "buy2",
+	"archive", "store", "archive_up", "stars", "buy3", "always",
+	"research", "pass", "score",
 ]
+const FUSE_NUDGE_SEC: float = 10.0   # no fuse yet: shake the zoomed control screen
+# DNA Sculpting draws these, to archive face up (they keep their printed stars)
+const STAR_DRAWS: Array[String] = ["Inflatable Habs", "Cargo Landers", "Solar Power"]
 
 var _main: Main = null
 var _board: Node = null
@@ -49,6 +58,9 @@ var _passed: bool = false
 var _recycled_during_bid_payment: bool = false
 var _first_sector: SectorSlot = null
 var _second_sector: SectorSlot = null
+var _third_sector: SectorSlot = null
+var _step_time: float = 0.0          # seconds in the current step
+var _gave_followup: bool = false     # a step's second card has been handed over
 var _highlighted_tech_slots: Array[SectorSlot] = []
 
 func start(main: Main) -> void:
@@ -87,6 +99,8 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 			_first_sector = slot
 		elif _second_sector == null and slot != _first_sector:
 			_second_sector = slot
+		elif _third_sector == null and slot != _first_sector and slot != _second_sector:
+			_third_sector = slot
 
 func _on_card_recycled(_color: int, _amount: int) -> void:
 	_recycled = true
@@ -121,6 +135,8 @@ func _next_step() -> void:
 	_researched = false
 	_passed = false
 	_recycled_during_bid_payment = false
+	_step_time = 0.0
+	_gave_followup = false
 	_clear_highlights()
 
 func _refresh() -> void:
@@ -133,10 +149,31 @@ func _refresh() -> void:
 	if not _entered:
 		_entered = true
 		_enter(step)
+	_step_time += REFRESH_INTERVAL_SEC
 	if _is_done(step):
+		_leave(step)
 		_next_step()
 		return
+	_tick(step)
 	_show(step)
+
+# Things that happen while a step waits (follow-up cards, nudges).
+func _tick(step: String) -> void:
+	match step:
+		"fuse":
+			if _step_time >= FUSE_NUDGE_SEC:
+				_step_time = 0.0
+				CockpitRig.shake_screen(_main, _main.get_node("UiControl"))
+		"stars":
+			# Quantum Archives is down: now the star card it reacts to
+			if not _gave_followup and _placed_name("Quantum Archives"):
+				_gave_followup = true
+				_give(["Solar Power"])
+
+func _leave(step: String) -> void:
+	match step:
+		"fuse":
+			CockpitRig.set_screen_enlarged(_main, _main.get_node("UiControl"), false)
 
 # Hand-overs before a chapter: the cards it needs, enough supply to play them.
 func _enter(step: String) -> void:
@@ -148,6 +185,9 @@ func _enter(step: String) -> void:
 		"fuse":
 			if _main._cs_display.get_supply(CardData.SupplyColor.DUST) < 2:
 				_main._cs_display.set_supply(CardData.SupplyColor.DUST, 2)
+			CockpitRig.set_screen_enlarged(_main, _main.get_node("UiControl"), true)
+		"recycle":
+			_give(["Mag-Net"])
 		"optimize":
 			_top_up_supply()
 			_give(_missing_optimize_cards())
@@ -160,15 +200,29 @@ func _enter(step: String) -> void:
 			if free > 0:
 				cards.append("PC-Mind-Link")
 			_give(cards)
-		"archive_store":
+		"buy3":
 			_top_up_supply()
-			_give(["Chemical Synthesizer", "Containers"])
-		"always":
+		"archive":
 			_top_up_supply()
-			_give(["Biodomes", "Atmospheric System"])
+			_give(["Chemical Synthesizer", "Mag-Net"])   # Mag-Net: the card to archive
+		"store":
+			_top_up_supply()
+			_give(["Containers"])
+		"archive_up":
+			_top_up_supply()
+			_board.set_scripted_deck(_cards(STAR_DRAWS))   # what its "Draw 3" brings
+			_give(["DNA Sculpting"])
 		"stars":
 			_top_up_supply()
-			_give(["Fish"])
+			_give(["Quantum Archives"])
+		"always":
+			_top_up_supply()
+			# Biodomes is a Liquids card itself, so placing it draws the next one
+			_board.set_scripted_deck(_cards(["Atmospheric System"]))
+			_give(["Biodomes"])
+		"research":
+			_board.set_scripted_deck(_cards(["Fish"]))   # the replacement it draws
+			_give(["Mag-Net"])
 		"score":
 			_main._hide_effect_hint()
 			_main._game_over()
@@ -192,12 +246,18 @@ func _is_done(step: String) -> bool:
 			return _first_sector == null or _first_sector.is_complete()
 		"buy2":
 			return _second_sector != null
-		"archive_store":
-			return _any_tucked() and _any_stored()
+		"buy3":
+			return _third_sector != null
+		"archive":
+			return _any_tucked(false)
+		"store":
+			return _any_stored()
+		"archive_up":
+			return _any_tucked(true)
+		"stars":
+			return _placed_name("Solar Power")
 		"always":
 			return _placed_name("Atmospheric System") and _board.count_tech_by_name("Biodomes") > 0
-		"stars":
-			return _placed_name("Fish")
 		"research":
 			return _researched
 		"pass":
@@ -206,8 +266,8 @@ func _is_done(step: String) -> bool:
 
 func _show(step: String) -> void:
 	match step:
-		"buy", "buy2":
-			_show_buy(step == "buy2")
+		"buy", "buy2", "buy3":
+			_show_buy(step)
 		"place":
 			_hint(_main.hint("TUT_PLACE_TECH", "TUT_PLACE_TECH_MOBILE"))
 			_highlight_tech_slots()
@@ -218,25 +278,37 @@ func _show(step: String) -> void:
 			_hint(tr("TUT_OPTIMIZE"))
 			_highlight_tech_slots()
 		"recycle":
-			_hint(_main.hint("TUT_BID_RECYCLE", "TUT_BID_RECYCLE_MOBILE"))
+			_hint(_main.hint("TUT_RECYCLE", "TUT_RECYCLE_MOBILE"))
 			_show_recycle_arrow(true)
 		"bid":
 			_show_bid()
 		"complete":
 			_hint(tr("TUT_COMPLETE") % _name("PC-Mind-Link"))
 			_highlight_tech_slots()
-		"archive_store":
-			_hint(tr("TUT_ARCHIVE_STORE") % [_name("Chemical Synthesizer"), _name("Containers")])
+		"archive":
+			_hint(tr("TUT_ARCHIVE") % [_name("Chemical Synthesizer"), _name("Mag-Net")])
 			_highlight_tech_slots()
-		"always":
-			_hint(tr("TUT_ALWAYS") % [_name("Biodomes"), _name("Atmospheric System"),
-					CardData.color_name(CardData.SupplyColor.LIQUIDS)])
+		"store":
+			_hint(tr("TUT_STORE") % _name("Containers"))
+			_highlight_tech_slots()
+		"archive_up":
+			_hint(tr("TUT_ARCHIVE_UP") % _name("DNA Sculpting"))
 			_highlight_tech_slots()
 		"stars":
-			_hint(tr("TUT_STARS") % _name("Fish"))
+			if _gave_followup:
+				_hint(tr("TUT_STARS_NEXT") % _name("Solar Power"))
+			else:
+				_hint(tr("TUT_STARS") % _name("Quantum Archives"))
+			_highlight_tech_slots()
+		"always":
+			var liquids: String = CardData.color_name(CardData.SupplyColor.LIQUIDS)
+			if _board.count_tech_by_name("Biodomes") > 0:
+				_hint(tr("TUT_ALWAYS_NEXT") % [_name("Atmospheric System"), liquids])
+			else:
+				_hint(tr("TUT_ALWAYS") % [_name("Biodomes"), liquids])
 			_highlight_tech_slots()
 		"research":
-			_hint(tr("TUT_RESEARCH"))
+			_hint(tr("TUT_RESEARCH_TUT"))
 			_main._start_research_btn_3d_flash()
 		"pass":
 			_main._stop_research_btn_3d_flash()
@@ -250,7 +322,7 @@ func _hint(text: String) -> void:
 	_main._show_effect_hint(text)
 
 # "Buy a Sector" is 3 sub-phases: pick a market slot, pay, place the card.
-func _show_buy(second: bool) -> void:
+func _show_buy(step: String) -> void:
 	if _is_dragging(CardData.CardType.SECTOR):
 		_main._market_panel.set_tutorial_dust_highlight(false)
 		_hint(tr("TUT_BUY_PLACE"))
@@ -259,7 +331,14 @@ func _show_buy(second: bool) -> void:
 		_hint(_main.hint("TUT_BUY", "TUT_BUY_MOBILE"))
 	else:
 		_main._market_panel.set_tutorial_dust_highlight(true)
-		_hint(tr("TUT_BUY_SECOND") if second else _main.hint("TUT_BUY", "TUT_BUY_MOBILE"))
+		match step:
+			"buy2":
+				_hint(tr("TUT_BUY_SECOND"))
+			"buy3":
+				_hint(tr("TUT_BUY_THIRD"))
+			_:
+				# the very first step: why the hand is empty
+				_hint(tr("TUT_SKIP_DRAW") + "\n" + _main.hint("TUT_BUY", "TUT_BUY_MOBILE"))
 
 # "Bid on an Expedition": pick one, confirm the bid, pay, place it.
 func _show_bid() -> void:
@@ -297,7 +376,18 @@ static func _tech(card_name: String) -> CardData:
 	for cd: CardData in CardDatabase.techs:
 		if cd.card_name == card_name:
 			return cd
+	for cd: CardData in CardDatabase.expeditions:
+		if cd.card_name == card_name:
+			return cd
 	return null
+
+static func _cards(names: Array[String]) -> Array[CardData]:
+	var out: Array[CardData] = []
+	for n: String in names:
+		var cd: CardData = _tech(n)
+		if cd:
+			out.append(cd)
+	return out
 
 func _top_up_supply() -> void:
 	for color: CardData.SupplyColor in CardData.SupplyColor.values():
@@ -321,10 +411,11 @@ func _missing_optimize_cards() -> Array[String]:
 			out.append(str(FILLER_BY_COLOR.get(color, "Mag-Net")))
 	return out
 
-func _any_tucked() -> bool:
+func _any_tucked(face_up: bool) -> bool:
 	for slot: SectorSlot in _board.get_sector_slots():
-		if not slot.tucked_cards.is_empty():
-			return true
+		for t: Dictionary in slot.tucked_cards:
+			if bool(t.get("face_up", false)) == face_up:
+				return true
 	return false
 
 func _any_stored() -> bool:

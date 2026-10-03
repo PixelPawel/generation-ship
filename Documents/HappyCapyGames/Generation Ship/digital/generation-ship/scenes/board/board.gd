@@ -691,9 +691,20 @@ func replay_tech_reshuffle(cards: Array[CardData]) -> void:
 # setup_tech_deck_ordered) — every successful pop and every reshuffle-on-empty
 # is emitted individually, in the exact order it happens, so main.gd can relay
 # each one and every other client's mirror can replay the identical sequence.
+# Tutorial: the tech deck holds only what the tutorial stacked on it, and an
+# empty deck stays empty (no reshuffling the discard pile back in).
+var scripted_deck: bool = false
+
+## cards in the order they'll be drawn
+func set_scripted_deck(cards: Array[CardData]) -> void:
+	scripted_deck = true
+	var stack: Array[CardData] = cards.duplicate()
+	stack.reverse()   # the deck draws from the back
+	_tech_deck.set_cards(stack)
+
 func _draw_from_tech_deck() -> CardData:
 	var data: CardData = _tech_deck.draw_card()
-	if data == null and _discard_pile:
+	if data == null and _discard_pile and not scripted_deck:
 		var recycled: Array[CardData] = _discard_pile.take_all_cards()
 		if not recycled.is_empty():
 			recycled.shuffle()
