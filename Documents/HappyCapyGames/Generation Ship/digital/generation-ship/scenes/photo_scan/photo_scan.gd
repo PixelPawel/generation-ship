@@ -55,8 +55,10 @@ const STEPPER_BUTTON_SIZE: float = 72.0
 const STEPPER_BUTTON_FONT_SIZE: int = 30
 # Fixed label width for the 3 tucked-card rows (stacked vertically beside
 # the cards) so their steppers all line up in a column regardless of each
-# label's text length ("Archived ▲" vs "▲ Stars ★" vs "Archived ▼").
-const TUCKED_LABEL_WIDTH: float = 150.0
+# label's text length ([▲] Archived / [▲] Stars ★ / [▼] Archived).
+const TUCKED_LABEL_WIDTH: float = 190.0
+const TUCKED_ARCHIVE_CARD_SIZE: Vector2 = Vector2(28, 40)
+const TUCKED_ARCHIVE_ARROW_SIZE: int = 20
 
 # The ship overview's cards are sized to fit the space there is (all sectors side
 # by side, the tallest stack without scrolling), within these limits; SHIP_CARD_*
@@ -386,9 +388,9 @@ func _build_review_view() -> Control:
 	tucked_col.add_theme_constant_override("separation", 12)
 	tucked_col.alignment = BoxContainer.ALIGNMENT_CENTER
 	cards_row.add_child(tucked_col)
-	_tucked_up_spinbox = _make_tucked_counter(tucked_col, "Archived ▲")
-	_tucked_up_stars_spinbox = _make_tucked_counter(tucked_col, "▲ Stars ★")
-	_tucked_down_spinbox = _make_tucked_counter(tucked_col, "Archived ▼")
+	_tucked_up_spinbox = _make_tucked_counter(tucked_col, "▲", "Archived")
+	_tucked_up_stars_spinbox = _make_tucked_counter(tucked_col, "▲", "Stars ★")
+	_tucked_down_spinbox = _make_tucked_counter(tucked_col, "▼", "Archived")
 
 	box.add_child(HSeparator.new())
 
@@ -518,14 +520,19 @@ func _is_tap(event: InputEvent) -> bool:
 ## Built as label-then-stepper, stacked vertically 3-high in the leftover
 ## space beside the 6 review cards (rather than side by side in the supply
 ## row, which would need the full extra width all over again).
-func _make_tucked_counter(parent: VBoxContainer, label_text: String) -> SpinBox:
+func _make_tucked_counter(parent: VBoxContainer, arrow: String, label_text: String) -> SpinBox:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
+	var head: HBoxContainer = HBoxContainer.new()
+	head.add_theme_constant_override("separation", 8)
+	head.custom_minimum_size = Vector2(TUCKED_LABEL_WIDTH, 0)
+	head.add_child(_make_archive_card(arrow, TUCKED_ARCHIVE_CARD_SIZE, TUCKED_ARCHIVE_ARROW_SIZE))
 	var lbl: Label = Label.new()
 	lbl.text = label_text
-	lbl.custom_minimum_size = Vector2(TUCKED_LABEL_WIDTH, 0)
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_size_override("font_size", SUPPLY_FONT_SIZE)
-	row.add_child(lbl)
+	head.add_child(lbl)
+	row.add_child(head)
 	var spin: SpinBox = SpinBox.new()
 	spin.min_value = 0
 	spin.max_value = 99
@@ -1177,6 +1184,12 @@ func _make_summary_archive_badge(arrow: String, text: String) -> Control:
 	var box: HBoxContainer = HBoxContainer.new()
 	box.add_theme_constant_override("separation", 5)
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_child(_make_archive_card(arrow, SUMMARY_ARCHIVE_CARD_SIZE, SUMMARY_ARCHIVE_ARROW_SIZE))
+	box.add_child(_make_summary_text_badge(text))
+	return box
+
+## A little portrait card outline with ▲ (face up) or ▼ (face down) in it.
+func _make_archive_card(arrow: String, card_size: Vector2, arrow_size: int) -> Control:
 	var card: PanelContainer = PanelContainer.new()
 	var style: StyleBoxFlat = StyleBoxFlat.new()
 	style.draw_center = false
@@ -1184,17 +1197,15 @@ func _make_summary_archive_badge(arrow: String, text: String) -> Control:
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(3)
 	card.add_theme_stylebox_override("panel", style)
-	card.custom_minimum_size = SUMMARY_ARCHIVE_CARD_SIZE
+	card.custom_minimum_size = card_size
 	card.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var lbl: Label = Label.new()
 	lbl.text = arrow
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", SUMMARY_ARCHIVE_ARROW_SIZE)
+	lbl.add_theme_font_size_override("font_size", arrow_size)
 	card.add_child(lbl)
-	box.add_child(card)
-	box.add_child(_make_summary_text_badge(text))
-	return box
+	return card
 
 func _make_summary_text_badge(text: String) -> Label:
 	var lbl: Label = Label.new()
