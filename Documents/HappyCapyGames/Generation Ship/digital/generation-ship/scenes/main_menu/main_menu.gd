@@ -9,9 +9,9 @@ const MenuIconButton = preload("res://scenes/ui/menu_icon_button.gd")
 const PLAY_BTN_SIZE: Vector2 = Vector2(440, 84)
 const PLAY_FONT: int = 40
 const VBOX_RAISE: float = -10.0   # the scene's VBox sits at 40% + 40 px
-const TILE_SIZE: Vector2 = Vector2(210, 190)
+const TILE_SIZE: Vector2 = Vector2(200, 176)
 const TILE_GAP: int = 26
-const TILE_BOTTOM: float = 104.0          # clear of the corner links
+const TILE_BOTTOM: float = 96.0           # clear of the corner links
 const CORNER_BTN: float = 64.0
 const TILE_ART: Dictionary = {
 	"Rule Book": "res://assets/cards/Rule Book/%s/GS Rule Book A5.png",
@@ -256,12 +256,13 @@ func _build_menu_layout() -> void:
 			old.queue_free()
 	vbox.offset_top = VBOX_RAISE   # a little higher than the scene has it
 	vbox.offset_bottom = VBOX_RAISE
+	vbox.add_theme_constant_override("separation", 12)
 	var start: Button = vbox.get_node("MultiplayerBtn")   # keeps its lobby connection
 	start.text = "Versus"
 	start.custom_minimum_size = PLAY_BTN_SIZE
 	start.add_theme_font_size_override("font_size", PLAY_FONT)
 	# Co-op (Generation Fleet): not playable yet
-	var coop: Button = _menu_button("Co-op", PLAY_FONT, PLAY_BTN_SIZE)
+	var coop: Button = _menu_button("Co-op", 32, Vector2(440, 64))
 	coop.disabled = true
 	coop.tooltip_text = tr("Coming soon")
 	vbox.add_child(coop)
