@@ -137,6 +137,12 @@ var _sector_scroll: ScrollContainer = null
 var _results_box: VBoxContainer = null        # VP breakdown, shown in the ship's place
 var _guide_box: Control = null                # how to take the photo, until the first scan
 var _status_label: Label = null               # scan progress / outcome
+# Alliance scores the expeditions of an ally the photo can't show: when the ship
+# has it, the player enters that ally's expedition count here.
+var _alliance_row: HBoxContainer = null
+var _alliance_count_lbl: Label = null
+var _alliance_ally_exp: int = 0
+const ALLIANCE_MAX_EXPEDITIONS: int = 9
 var _leaderboard_btn: Button = null
 var _photo_view: TextureRect = null           # the scanned photo, shown in the ship's place to compare
 var _photo_btn: Button = null                 # "Show Photo" / "Show Ship"
@@ -194,6 +200,7 @@ func open() -> void:
 	_guide_box.visible = true
 	_sector_scroll.visible = false   # the guide takes the ship's place until a photo is in
 	_status_label.visible = false
+	_alliance_ally_exp = 0
 	_editing_sector_index = -1
 	_editing_original_sector = {}
 	_refresh_sector_list()
@@ -268,6 +275,7 @@ func _build_list_view() -> Control:
 	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status_label.visible = false
 	box.add_child(_status_label)
+	_build_alliance_row(box)
 	_scan_progress = ProgressBar.new()
 	_scan_progress.custom_minimum_size = Vector2(0, BUTTON_MIN_HEIGHT * 0.5)
 	_scan_progress.min_value = 0.0
@@ -557,6 +565,47 @@ func _make_stepper_row(spin: SpinBox) -> HBoxContainer:
 	plus_btn.pressed.connect(func(): spin.value = minf(spin.max_value, spin.value + 1.0))
 	row.add_child(plus_btn)
 	return row
+
+func _build_alliance_row(box: VBoxContainer) -> void:
+	_alliance_row = HBoxContainer.new()
+	_alliance_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_alliance_row.add_theme_constant_override("separation", 12)
+	_alliance_row.visible = false
+	box.add_child(_alliance_row)
+	var lbl: Label = Label.new()
+	lbl.text = tr("Alliance detected! Choose an ally — how many expeditions do they have?")
+	lbl.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
+	lbl.add_theme_color_override("font_color", SCORE_STAR_COLOR)
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_alliance_row.add_child(lbl)
+	var dec: Button = _make_stepper_button("−")
+	dec.pressed.connect(func() -> void: _set_alliance_ally(_alliance_ally_exp - 1))
+	_alliance_row.add_child(dec)
+	_alliance_count_lbl = Label.new()
+	_alliance_count_lbl.custom_minimum_size = Vector2(STEPPER_BUTTON_SIZE, 0)
+	_alliance_count_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_alliance_count_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_alliance_count_lbl.add_theme_font_size_override("font_size", STEPPER_BUTTON_FONT_SIZE)
+	_alliance_row.add_child(_alliance_count_lbl)
+	var inc: Button = _make_stepper_button("+")
+	inc.pressed.connect(func() -> void: _set_alliance_ally(_alliance_ally_exp + 1))
+	_alliance_row.add_child(inc)
+
+func _set_alliance_ally(n: int) -> void:
+	_alliance_ally_exp = clampi(n, 0, ALLIANCE_MAX_EXPEDITIONS)
+	_update_score()
+
+# Shows the Alliance row only when the ship has Alliance, and scores it with the
+# ally's count entered there (0 otherwise).
+func _apply_alliance() -> void:
+	var has_alliance: bool = false
+	for e: Dictionary in _sectors:
+		for cd: CardData in (e["techs"] as Array):
+			if cd and cd.card_name == "Alliance":
+				has_alliance = true
+	_alliance_row.visible = has_alliance
+	_alliance_count_lbl.text = str(_alliance_ally_exp)
+	Scoring.other_players_expeditions = _alliance_ally_exp if has_alliance else 0
 
 func _make_stepper_button(label: String) -> Button:
 	var btn: Button = Button.new()
@@ -1286,8 +1335,9 @@ func _update_score() -> void:
 	_leaderboard_btn.disabled = _sectors.is_empty()
 	_leaderboard_btn.text = "Add to Leaderboard"
 	if _sectors.is_empty():
+		_alliance_row.visible = false
 		return
-	Scoring.other_players_expeditions = 0   # a photographed ship has no allies (Alliance)
+	_apply_alliance()
 	for line: Dictionary in BotScoring.board_vp_lines(_sectors):
 		var lbl: Label = Label.new()
 		lbl.text = "%s: %d" % [line["label"], line["vp"]]
@@ -1301,7 +1351,7 @@ func _update_score() -> void:
 func _on_leaderboard_pressed() -> void:
 	if _sectors.is_empty():
 		return
-	Scoring.other_players_expeditions = 0
+	_apply_alliance()
 	var lines: Array[Dictionary] = BotScoring.board_vp_lines(_sectors)
 	_leaderboard_btn.disabled = true
 	_leaderboard_btn.text = "Adding…"
