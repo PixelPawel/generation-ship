@@ -557,6 +557,14 @@ static func setup_info_screen_display(main: Main) -> void:
 	main._info_viewport.transparent_bg = true
 	main._info_viewport.gui_disable_input = false
 	main.get_node("UiInfo").add_child(main._info_viewport)
+	# Phones: every button that ever appears on the info screen (panels build some
+	# of theirs later, e.g. the payment steppers) gets bigger — deferred, so the
+	# panel has set its own size and font first.
+	if GameTheme.is_touch():
+		var vp: SubViewport = main._info_viewport
+		main.get_tree().node_added.connect(func(n: Node) -> void:
+			if n is Button and is_instance_valid(vp) and vp.is_ancestor_of(n):
+				GameTheme.enlarge_info_button.call_deferred(n as Button))
 
 	var info_bg: ColorRect = ColorRect.new()
 	info_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -640,6 +648,7 @@ static func setup_info_screen_display(main: Main) -> void:
 # tooltips do; it's wider than a tooltip, so it's capped to the screen width.
 const EFFECT_HINT_FONT: float = 22.0
 const EFFECT_HINT_WIDTH: float = 640.0
+const EFFECT_HINT_TOP_MARGIN: float = 12.0
 
 # Also refits the banner to its current text: a Control never shrinks on its
 # own, and the wrapped label measured before layout (at zero width, one word
@@ -655,7 +664,11 @@ static func apply_effect_hint_scale(main: Main, s: float) -> void:
 	label.custom_minimum_size = Vector2(w - 40.0, 0.0)
 	panel.custom_minimum_size = Vector2(w, 90.0 * s)
 	panel.size = Vector2.ZERO
-	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
+	if main._effect_hint_top:
+		# the tutorial's steps point at buttons in the middle of the screen: keep clear of them
+		panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE, roundi(EFFECT_HINT_TOP_MARGIN))
+	else:
+		panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
 
 static func setup_info_screen_input(main: Main, screen_mesh: MeshInstance3D) -> void:
 	setup_viewport_input(main, screen_mesh, main._info_viewport)

@@ -69,6 +69,8 @@ var _effect_mode: EffectMode = EffectMode.NONE:
 var _effect_queue: Array[Dictionary] = []
 var _card_inspect: CardInspectOverlay = null   # phones: hold a hand card to read it big
 var _hints: ContextHints = null                # first-time tips (Archive, Store, Optimize…)
+const TOUCH_TOOLTIP_TOP: float = 40.0          # phones: below the top-corner buttons
+var _effect_hint_top: bool = false             # the tutorial's banner sits at the top edge, not mid-screen
 var _effect_slot: SectorSlot = null
 var _effect_source_name: String = ""
 var _effect_remaining: int = 0
@@ -560,11 +562,20 @@ func _hide_tooltip() -> void:
 		_tooltip_panel.visible = false
 
 func _process(_delta: float) -> void:
-	if _tooltip_panel and _tooltip_panel.visible:
+	if _tooltip_panel and _tooltip_panel.visible and not GameTheme.is_touch():
 		_update_tooltip_position()
 
 func _update_tooltip_position() -> void:
 	var vp_size: Vector2 = get_viewport().get_visible_rect().size
+	if GameTheme.is_touch():
+		# A finger covers whatever's under it and a tooltip next to it covers the
+		# rest: put it in the top corner on the other side of the screen, and keep
+		# it there (no following).
+		var finger: Vector2 = get_viewport().get_mouse_position()
+		var margin: float = GameTheme.TOUCH_CORNER_MARGIN
+		var x: float = vp_size.x - _tooltip_panel.size.x - margin if finger.x < vp_size.x / 2.0 else margin
+		_tooltip_panel.position = Vector2(maxf(8.0, x), margin + TOUCH_TOOLTIP_TOP)
+		return
 	var target: Vector2 = get_viewport().get_mouse_position() + Vector2(20.0, 24.0) * _tooltip_scale
 	target.x = clamp(target.x, 8.0, max(8.0, vp_size.x - _tooltip_panel.size.x - 8.0))
 	target.y = clamp(target.y, 8.0, max(8.0, vp_size.y - _tooltip_panel.size.y - 8.0))
@@ -4017,6 +4028,7 @@ func _init_supply() -> void:
 	ui.set_supply(CardData.SupplyColor.THRUST,   0)
 
 func _show_effect_hint(text: String) -> void:
+	_effect_hint_top = _tutorial != null and is_instance_valid(_tutorial) and _effect_mode == EffectMode.NONE
 	if _effect_hint_label:
 		_effect_hint_label.text = text
 		CockpitRig.apply_effect_hint_scale(self, GameTheme.tooltip_scale())

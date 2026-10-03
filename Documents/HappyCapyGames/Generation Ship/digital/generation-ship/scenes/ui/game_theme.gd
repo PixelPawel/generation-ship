@@ -35,6 +35,18 @@ static func style_negative(btn: Button) -> void:
 # ones pushed the footer off the panel.
 const INFO_BTN_FONT: int = 24
 const INFO_BTN_MIN: Vector2 = Vector2(180.0, 56.0)
+# Phones: the info screen is small in the hand, so its buttons grow by this much
+# (height and text; see enlarge_info_button, applied to every button there).
+const INFO_TOUCH_SCALE: float = 1.3
+
+static func enlarge_info_button(btn: Button) -> void:
+	if not is_touch() or btn.has_meta(&"_info_enlarged"):
+		return
+	btn.set_meta(&"_info_enlarged", true)
+	var min_y: float = btn.custom_minimum_size.y if btn.custom_minimum_size.y > 0.0 else INFO_BTN_MIN.y
+	btn.custom_minimum_size = Vector2(btn.custom_minimum_size.x * INFO_TOUCH_SCALE, min_y * INFO_TOUCH_SCALE)
+	var font: int = btn.get_theme_font_size("font_size")
+	btn.add_theme_font_size_override("font_size", roundi(font * INFO_TOUCH_SCALE))
 
 static func size_info_button(btn: Button) -> void:
 	btn.add_theme_font_size_override("font_size", INFO_BTN_FONT)
@@ -141,8 +153,8 @@ static func _touchify_button(btn: BaseButton) -> void:
 
 # ── Tooltip size (Settings → Tooltip Size) ────────────────────────────────────
 # Final tooltip scale = device factor (phones only, from the screen's physical
-# height) × the player's chosen size. Default choice: 200% on phones (they were
-# hard to read at 100%), 100% on desktop.
+# height) × the player's chosen size. Default choice: 100% (phones get the
+# device factor on top).
 
 const SETTINGS_PATH: String = "user://settings.cfg"
 const TOOLTIP_SIZES: Array[float] = [0.75, 1.0, 1.5, 2.0, 2.5, 3.0]
@@ -162,7 +174,7 @@ static func tooltip_scale() -> float:
 static func tooltip_size() -> float:
 	if _tooltip_size < 0.0:
 		var cfg: ConfigFile = ConfigFile.new()
-		var default_size: float = 2.0 if OS.has_feature("mobile") else 1.0
+		var default_size: float = 1.0
 		_tooltip_size = default_size
 		if cfg.load(SETTINGS_PATH) == OK:
 			_tooltip_size = float(cfg.get_value("display", "tooltip_size", default_size))

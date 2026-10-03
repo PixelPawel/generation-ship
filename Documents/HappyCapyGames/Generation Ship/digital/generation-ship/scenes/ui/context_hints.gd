@@ -83,7 +83,7 @@ func _show_next() -> void:
 	_panel.visible = true
 	_panel.modulate.a = 0.0
 	await get_tree().process_frame
-	_panel.position = Vector2((size.x - _panel.size.x) / 2.0, size.y * 0.16)
+	_panel.position = Vector2((size.x - _panel.size.x) / 2.0, size.y * 0.22)   # below the tutorial banner
 	create_tween().tween_property(_panel, "modulate:a", 1.0, 0.2)
 	var t: SceneTreeTimer = get_tree().create_timer(SHOW_SEC)
 	_timer = t
