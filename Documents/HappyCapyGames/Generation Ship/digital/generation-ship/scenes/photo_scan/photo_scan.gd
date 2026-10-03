@@ -1305,7 +1305,8 @@ func _on_leaderboard_pressed() -> void:
 	_leaderboard_btn.text = "Adding…"
 	if not LeaderboardManager.score_uploaded.is_connected(_on_score_uploaded):
 		LeaderboardManager.score_uploaded.connect(_on_score_uploaded, CONNECT_ONE_SHOT)
-	LeaderboardManager.submit_score(BotScoring.board_vp(_sectors), ScoringSnapshotCodec.encode_lines(lines))
+	LeaderboardManager.submit_score(BotScoring.board_vp(_sectors), ScoringSnapshotCodec.encode_lines(lines),
+		LeaderboardManager.SOURCE_SCAN)
 
 func _on_score_uploaded(success: bool) -> void:
 	if success:

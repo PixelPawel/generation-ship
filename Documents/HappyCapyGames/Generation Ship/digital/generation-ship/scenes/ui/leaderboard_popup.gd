@@ -5,6 +5,15 @@ extends Control
 var _rows_container: VBoxContainer = null
 var _status_label: Label = null
 var _scroll: ScrollContainer = null
+# Which scores to show: played games, scanned ships (Scan Tableau) or both.
+var _source: String = "all"
+var _filter_buttons: Dictionary = {}          # source -> Button
+const FILTERS: Array[Array] = [   # [LeaderboardManager.SOURCE_*, label]
+	["all", "All"],
+	["play", "Real Play"],
+	["scan", "Scan Tableau"],
+]
+const SCAN_TAG_COLOR: Color = Color(0.4, 0.85, 1.0)
 
 func _ready() -> void:
 	_build_ui()
@@ -15,7 +24,14 @@ func _ready() -> void:
 func open() -> void:
 	visible = true
 	_show_status(tr("Loading…"))
-	LeaderboardManager.request_top_scores()
+	LeaderboardManager.request_top_scores(_source)
+
+func _set_source(source: String) -> void:
+	_source = source
+	for s: String in _filter_buttons:
+		(_filter_buttons[s] as Button).button_pressed = s == source
+	_show_status(tr("Loading…"))
+	LeaderboardManager.request_top_scores(_source)
 
 func _build_ui() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -52,6 +68,18 @@ func _build_ui() -> void:
 	var sep: HSeparator = HSeparator.new()
 	sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
 	vbox.add_child(sep)
+
+	var filter_row: HBoxContainer = HBoxContainer.new()
+	filter_row.add_theme_constant_override("separation", 6)
+	vbox.add_child(filter_row)
+	for f: Array in FILTERS:
+		var btn: Button = _make_button(tr(f[1]))
+		btn.toggle_mode = true
+		btn.button_pressed = f[0] == _source
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.pressed.connect(_set_source.bind(f[0]))
+		filter_row.add_child(btn)
+		_filter_buttons[f[0]] = btn
 
 	var header: HBoxContainer = HBoxContainer.new()
 	header.add_theme_constant_override("separation", 10)
@@ -115,7 +143,7 @@ func _on_top_scores_ready(entries: Array[Dictionary]) -> void:
 	var mine: Dictionary = LeaderboardManager.my_best
 	if not me_listed and not mine.is_empty():
 		_add_row({rank = int(mine.get("rank", 0)), score = int(mine.get("score", 0)),
-				name = LeaderboardManager.player_name(), me = true})
+				name = LeaderboardManager.player_name(), me = true, source = str(mine.get("source", ""))})
 
 func _add_row(entry: Dictionary) -> void:
 	var rank: int = int(entry.get("rank", 0))
@@ -167,6 +195,16 @@ func _add_row(entry: Dictionary) -> void:
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_lbl.clip_text = true
 	row.add_child(name_lbl)
+
+	# a ship read from a photo, not a game played in the app
+	if str(entry.get("source", "")) == LeaderboardManager.SOURCE_SCAN:
+		var tag: Label = Label.new()
+		tag.text = tr("Scan")
+		tag.add_theme_font_size_override("font_size", 12)
+		tag.add_theme_color_override("font_color", SCAN_TAG_COLOR)
+		tag.tooltip_text = tr("Scan Tableau")
+		tag.mouse_filter = Control.MOUSE_FILTER_PASS
+		row.add_child(tag)
 
 	var score_lbl: Label = Label.new()
 	score_lbl.text = str(score)

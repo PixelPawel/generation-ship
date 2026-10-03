@@ -8,7 +8,11 @@ extends Node
 # only its own final score from main.gd's _game_over() — the same trust model
 # as before: opponents' scores are client-reported snapshots anyway.
 #
-# Entries: {rank, name, score, details, platform, me}. `details` is the
+# Every score has a source: "play" (a game played to the end in the app) or
+# "scan" (a ship read from a photo by Scan Tableau, which can be any ship at all).
+# The server keeps a best per player and source, and the board can show either.
+#
+# Entries: {rank, name, score, details, platform, source, me}. `details` is the
 # ScoringSnapshotCodec-packed score breakdown shown when a row is expanded.
 #
 # No direct reference to the Steam class: GodotSteam doesn't exist in the
@@ -26,16 +30,22 @@ const _SETTINGS_PATH: String = "user://settings.cfg"
 # The player's own best, from the last download (null if not on the board).
 var my_best: Dictionary = {}
 
-func submit_score(score: int, details: PackedInt32Array = PackedInt32Array()) -> void:
+const SOURCE_PLAY: String = "play"
+const SOURCE_SCAN: String = "scan"
+const SOURCE_ALL: String = "all"
+
+func submit_score(score: int, details: PackedInt32Array = PackedInt32Array(), source: String = SOURCE_PLAY) -> void:
 	var body: String = JSON.stringify({
 		player = _player_id(), name = player_name(), score = clampi(score, 0, 999),
 		details = Array(details), platform = "android" if OS.get_name() == "Android" else "steam",
+		source = source,
 	})
 	_request(HTTPClient.METHOD_POST, "/v1/scores", body, func(ok: bool, _data: Dictionary) -> void:
 		score_uploaded.emit(ok))
 
-func request_top_scores() -> void:
-	var path: String = "/v1/scores/top?limit=%d&player=%s" % [TOP_COUNT, _player_id().uri_encode()]
+## source: SOURCE_ALL, SOURCE_PLAY or SOURCE_SCAN.
+func request_top_scores(source: String = SOURCE_ALL) -> void:
+	var path: String = "/v1/scores/top?limit=%d&player=%s&source=%s" % [TOP_COUNT, _player_id().uri_encode(), source]
 	_request(HTTPClient.METHOD_GET, path, "", func(ok: bool, data: Dictionary) -> void:
 		if not ok or typeof(data.get("entries")) != TYPE_ARRAY:
 			top_scores_failed.emit()
