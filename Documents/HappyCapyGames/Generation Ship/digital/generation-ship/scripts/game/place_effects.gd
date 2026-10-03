@@ -192,10 +192,11 @@ static func _build(name: String, _cd: CardData, placed_colors: Array[int],
 				steps.append({type = "gain_supply", color = CardData.SupplyColor.DUST, amount = 6})
 
 		"Artists' Quarter":
+			# "Archive 3 cards facedown under this sector. If this sector is fully
+			# optimized, archive 1 faceup." — the face-up one comes on top (no "instead")
+			steps.append({type = "tuck", count = 3, face_up = false})
 			if is_opt:
 				steps.append({type = "tuck", count = 1, face_up = true})
-			else:
-				steps.append({type = "tuck", count = 3, face_up = false})
 
 		"Seedbanks":
 			steps.append({type = "seedbanks"})

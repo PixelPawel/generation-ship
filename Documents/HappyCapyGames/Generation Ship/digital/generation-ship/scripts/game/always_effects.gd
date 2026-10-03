@@ -17,30 +17,28 @@ extends RefCounted
 
 static func get_colocated_steps(placed_card: CardData, placed_card_node: Node3D, slot: SectorSlot) -> Array[Dictionary]:
 	var steps: Array[Dictionary] = []
-	for card_node: Node3D in slot.get_all_placed_cards():
+	var placed: Array[Node3D] = slot.get_all_placed_cards()
+	# "the next card placed here" (Crops, Living Hull, Quantum Archives) is only
+	# the card placed directly on top of it — the one just below the new card
+	var at: int = placed.find(placed_card_node)
+	var just_below: Node3D = placed[at - 1] if at > 0 else null
+	for card_node: Node3D in placed:
 		var cd: CardData = card_node.get("card_data")
 		if cd == null:
 			continue
-		# Crops/Living Hull/Quantum Archives trigger off "the next card placed
-		# here" — they must never fire off their own placement. get_all_placed_cards()
-		# already includes the card just placed (this runs after it's registered
-		# in the slot), and all three happen to carry a printed star themselves,
-		# so without this check placing one would immediately trigger its own
-		# effect against its own star count. Insects has no such self-exclusion
-		# need — _is_new_color() already excludes the placed card on its own.
-		var is_self: bool = card_node == placed_card_node
+		var is_next: bool = card_node == just_below
 		match cd.card_name:
 			"Pollinators":
 				if _is_new_color(placed_card, slot):
 					steps.append({type = "store_on_slot", color = placed_card.color, amount = 1, _source_name = "Pollinators"})
 			"Crops":
-				if not is_self and placed_card.stars > 0:
+				if is_next and placed_card.stars > 0:
 					steps.append({type = "gain_supply", color = CardData.SupplyColor.ORGANIX, amount = placed_card.stars, _source_name = "Crops"})
 			"Living Hull":
-				if not is_self and placed_card.stars > 0:
+				if is_next and placed_card.stars > 0:
 					steps.append({type = "draw", count = placed_card.stars, _source_name = "Living Hull"})
 			"Quantum Archives":
-				if not is_self:
+				if is_next:
 					for _i: int in placed_card.stars:
 						steps.append(CardData.tag_step_source(CardData.color_store_choice("Quantum Archives — store which supply?", true), "Quantum Archives"))
 	return steps
