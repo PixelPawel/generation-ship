@@ -37,6 +37,10 @@ func snapshot_change_scene(path: String) -> void:
 	var tex: ImageTexture = ImageTexture.create_from_image(get_viewport().get_texture().get_image())
 	var snapshot: TextureRect = TextureRect.new()
 	snapshot.texture = tex
+	# The capture is in real screen pixels (2664x1200 on a phone), the canvas in
+	# design units (2398x1080 there): without IGNORE_SIZE the still refuses to be
+	# smaller than its texture and grows ~11% past the screen, a visible jump.
+	snapshot.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	snapshot.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	snapshot.stretch_mode = TextureRect.STRETCH_SCALE
 	snapshot.mouse_filter = Control.MOUSE_FILTER_IGNORE
