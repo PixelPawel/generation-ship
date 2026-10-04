@@ -81,6 +81,10 @@ func _build_ui() -> void:
 	close_btn.custom_minimum_size = Vector2(36, 0)
 	close_btn.pressed.connect(func() -> void: PopupAnim.close(self))
 	title_row.add_child(close_btn)
+	# phones: a proper touch target, like the Collection's and Rule Book's
+	if GameTheme.is_touch():
+		close_btn.add_theme_font_size_override("font_size", 32)
+		GameTheme.touchify(close_btn)
 
 	var sep: ColorRect = ColorRect.new()
 	sep.color = CYAN
