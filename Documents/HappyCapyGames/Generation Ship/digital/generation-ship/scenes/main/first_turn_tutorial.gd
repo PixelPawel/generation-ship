@@ -7,7 +7,7 @@ extends Node
 # edge while the tutorial runs). Before a chapter it hands over exactly the
 # cards and supply that chapter needs, so it never depends on lucky draws.
 #
-# Chapters: buy a sector → place a tech → fuse → optimize → "if fully
+# Chapters: buy a sector → place a tech → enlarge a card → enlarge a screen → fuse → optimize → "if fully
 # optimized" → "if complete" → recycle → win an advanced sector in an auction →
 # archive face down → store → printed stars → buy a third sector → "if new" →
 # bid on an expedition (DNA Sculpting, whose effect teaches archiving face up)
@@ -37,7 +37,7 @@ const FILLER_BY_COLOR: Dictionary = {
 	CardData.SupplyColor.THRUST: "Markets",
 }
 const STEPS: Array[String] = [
-	"buy", "place", "fuse", "optimize", "if_full", "complete", "recycle", "buy2",
+	"buy", "place", "inspect_card", "inspect_screen", "fuse", "optimize", "if_full", "complete", "recycle", "buy2",
 	"archive", "store", "stars", "buy3", "if_new", "bid", "always",
 	"research", "pass", "score",
 ]
@@ -68,6 +68,9 @@ var _step_time: float = 0.0          # seconds in the current step
 var _next_nudge: float = 0.0         # step time of the next control-screen shake
 var _gave_followup: bool = false     # a step's second card has been handed over
 var _highlighted_tech_slots: Array[SectorSlot] = []
+# controls chapters: the card / screen went up, and the step waits for it to go back
+var _saw_card_enlarged: bool = false
+var _saw_screen_enlarged: bool = false
 
 func start(main: Main) -> void:
 	_main = main
@@ -144,6 +147,8 @@ func _next_step() -> void:
 	_step_time = 0.0
 	_next_nudge = NUDGE_FIRST_SEC
 	_gave_followup = false
+	_saw_card_enlarged = false
+	_saw_screen_enlarged = false
 	_clear_highlights()
 
 func _refresh() -> void:
@@ -174,6 +179,15 @@ func _tick(step: String) -> void:
 			if _step_time >= _next_nudge:
 				_next_nudge = _step_time + NUDGE_REPEAT_SEC
 				CockpitRig.shake_screen(_main, _main.get_node("UiControl"))
+		"inspect_card":
+			if _main._sun_elevated_count > 0:
+				_saw_card_enlarged = true
+		"inspect_screen":
+			if _any_screen_enlarged():
+				_saw_screen_enlarged = true
+			elif _step_time >= _next_nudge:
+				_next_nudge = _step_time + NUDGE_REPEAT_SEC
+				CockpitRig.shake_screen(_main, _main.get_node("UiInfo"))
 		"stars":
 			# Quantum Archives is down: now the star card it reacts to
 			if not _gave_followup and _placed_name("Quantum Archives"):
@@ -257,6 +271,10 @@ func _is_done(step: String) -> bool:
 			return _first_sector != null
 		"place":
 			return _placed_type(CardData.CardType.TECH)
+		"inspect_card":
+			return _saw_card_enlarged and _main._sun_elevated_count == 0
+		"inspect_screen":
+			return _saw_screen_enlarged and not _any_screen_enlarged()
 		"fuse":
 			return _fused
 		"optimize":
@@ -300,6 +318,20 @@ func _show(step: String) -> void:
 		"place":
 			_hint(_main.hint("TUT_PLACE_TECH", "TUT_PLACE_TECH_MOBILE"))
 			_highlight_tech_slots()
+		"inspect_card":
+			if _saw_card_enlarged:
+				_hint(_main.hint("TUT_INSPECT_CARD_BACK", "TUT_INSPECT_CARD_BACK_MOBILE"))
+			else:
+				_hint(_main.hint("TUT_INSPECT_CARD", "TUT_INSPECT_CARD_MOBILE"))
+			if _first_sector:
+				_first_sector.highlight(true)
+				if not _highlighted_tech_slots.has(_first_sector):
+					_highlighted_tech_slots.append(_first_sector)   # cleared with the step
+		"inspect_screen":
+			if _saw_screen_enlarged:
+				_hint(_main.hint("TUT_INSPECT_SCREEN_BACK", "TUT_INSPECT_SCREEN_BACK_MOBILE"))
+			else:
+				_hint(_main.hint("TUT_INSPECT_SCREEN", "TUT_INSPECT_SCREEN_MOBILE"))
 		"fuse":
 			_hint(tr("TUT_FUSE"))
 			_main._cs_display._flow.set_tutorial_highlight(true)
@@ -477,6 +509,12 @@ func _any_tech_space() -> bool:
 			return true
 	return false
 
+func _any_screen_enlarged() -> bool:
+	for v: Variant in _main.screen_enlarged.values():
+		if bool(v):
+			return true
+	return false
+
 func _any_stored() -> bool:
 	for slot: SectorSlot in _board.get_sector_slots():
 		if slot.get_total_stored_supply() > 0:
@@ -525,13 +563,11 @@ func _mark_done() -> void:
 	cfg.set_value("tutorial", "seen", true)
 	cfg.save(SETTINGS_PATH)
 
-# Phones: an animated arrow from the hand to the control screen, since
-# recycling there is a drag (no right-click) that's hard to guess.
+# An animated arrow from the hand to the control screen: recycling by
+# dragging a card there is hard to guess (on phones it's the only way).
 var _recycle_arrow: DragArrow = null
 
 func _show_recycle_arrow(on: bool) -> void:
-	if not GameTheme.is_touch():
-		return
 	if not on:
 		if _recycle_arrow:
 			_recycle_arrow.hide_arrow()
