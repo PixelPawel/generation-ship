@@ -207,21 +207,26 @@ func _animate_logo() -> void:
 	intro_vp.enable_auto_play = true
 	# Hand over on the entrance's last frame. Not via video_ended: GoZen only
 	# emits that when the player has audio, and the logo players don't.
-	var handed_over: Array[bool] = [false]
+	# weak refs: the fallback timer can fire after the intro (or the whole
+	# menu) is gone, and a lambda holding a freed node errors when called
+	var intro_ref: WeakRef = weakref(intro_vp)
+	var loop_ref: WeakRef = weakref(loop_vp)
 	var hand_over: Callable = func() -> void:
-		if handed_over[0] or not is_instance_valid(intro_vp):
+		var intro: VideoPlayback = intro_ref.get_ref() as VideoPlayback
+		var looped: VideoPlayback = loop_ref.get_ref() as VideoPlayback
+		if intro == null or looped == null or intro.is_queued_for_deletion():
 			return
-		handed_over[0] = true
-		loop_vp.visible = true
-		loop_vp.play()
-		intro_vp.queue_free()
+		looped.visible = true
+		looped.play()
+		intro.queue_free()
 	intro_vp.next_frame_called.connect(func(frame_nr: int) -> void:
 		if frame_nr >= intro_vp.get_video_frame_count() - 1:
 			hand_over.call())
 	# fallback in case the container's frame count is off: the clip's length
 	intro_vp.playback_started.connect(func() -> void:
 		var sec: float = float(intro_vp.get_video_frame_count()) / maxf(intro_vp.get_video_framerate(), 1.0)
-		get_tree().create_timer(sec + 0.25).timeout.connect(hand_over), CONNECT_ONE_SHOT)
+		# a tween owned by the menu dies with it, unlike a SceneTree timer
+		create_tween().tween_callback(hand_over).set_delay(sec + 0.25), CONNECT_ONE_SHOT)
 
 func _add_logo_player(parent: Node, video_path: String, looping: bool) -> VideoPlayback:
 	var vp: VideoPlayback = VideoPlayback.new()
