@@ -25,6 +25,12 @@ var _total_label: Label = null
 var _confirm_btn: Button = null
 var _rows_container: GridContainer = null
 var _card_image_rect: TextureRect = null
+# the steppers and counts of each colour row (resized together by _fit_to_screen)
+var _row_cells: Array[Control] = []
+
+const ROW_SEPARATION: int = 12
+const ROW_SEPARATION_TIGHT: int = 4
+const ROW_MIN_H: float = 40.0     # never smaller than this, still a fair tap target
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -145,6 +151,7 @@ func show_bid_payment(card_name: String, amount: int, valid_colors: Array[CardDa
 	_rebuild_rows()
 	_update_total()
 	show()
+	_fit_to_screen()
 
 # Fires on every supply change while this panel is open (fuse, recycle,
 # anything else routed through SupplyUI.supply_changed — see
@@ -180,12 +187,15 @@ func refresh() -> void:
 	_avail_labels.clear()
 	_rebuild_rows()
 	_update_total()
+	_fit_to_screen()
 
 func _rebuild_rows() -> void:
 	for child: Node in _rows_container.get_children():
 		child.queue_free()
 	_count_labels.clear()
 	_avail_labels.clear()
+	_row_cells.clear()
+	_rows_container.add_theme_constant_override("v_separation", ROW_SEPARATION)
 	for color: CardData.SupplyColor in _colors:
 		_add_row_cells(color)
 
@@ -223,6 +233,7 @@ func _add_row_cells(color: CardData.SupplyColor) -> void:
 	dec_btn.add_theme_font_size_override("font_size", 26)
 	dec_btn.pressed.connect(func() -> void: _change_alloc(col_key, -1))
 	_rows_container.add_child(dec_btn)
+	_row_cells.append(dec_btn)
 
 	var count_lbl := Label.new()
 	count_lbl.custom_minimum_size = Vector2(48, 48)
@@ -232,6 +243,7 @@ func _add_row_cells(color: CardData.SupplyColor) -> void:
 	count_lbl.text = str(_allocations[col_key])
 	_count_labels[col_key] = count_lbl
 	_rows_container.add_child(count_lbl)
+	_row_cells.append(count_lbl)
 
 	var inc_btn := Button.new()
 	inc_btn.text = "+"
@@ -239,6 +251,35 @@ func _add_row_cells(color: CardData.SupplyColor) -> void:
 	inc_btn.add_theme_font_size_override("font_size", 26)
 	inc_btn.pressed.connect(func() -> void: _change_alloc(col_key, 1))
 	_rows_container.add_child(inc_btn)
+	_row_cells.append(inc_btn)
+
+# With every supply colour listed (5-6 rows), the rows plus the footer can be
+# taller than the info screen — on phones especially, where every button there
+# is made 1.3x taller for touch — pushing Pay/Cancel off the bottom. Once the
+# layout has settled, measure how far the footer overshoots and take it out of
+# the row spacing first, then the row height.
+func _fit_to_screen() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame   # the phone's deferred button enlarging lands first
+	if not is_inside_tree() or not visible or _row_cells.is_empty():
+		return
+	var limit: float = get_viewport_rect().size.y - 10.0
+	var overflow: float = _confirm_btn.get_global_rect().end.y - limit
+	if overflow <= 0.0:
+		return
+	var n: int = _colors.size()
+	var gaps: int = maxi(n - 1, 0)
+	_rows_container.add_theme_constant_override("v_separation", ROW_SEPARATION_TIGHT)
+	overflow -= float((ROW_SEPARATION - ROW_SEPARATION_TIGHT) * gaps)
+	if overflow <= 0.0:
+		return
+	var row_h: float = 0.0
+	for c: Control in _row_cells:
+		row_h = maxf(row_h, c.get_combined_minimum_size().y)
+	var new_h: float = maxf(ROW_MIN_H, floorf(row_h - overflow / float(n)) - 1.0)
+	for c: Control in _row_cells:
+		c.set_meta(&"_info_enlarged", true)   # keep the phone enlarging from undoing it
+		c.custom_minimum_size = Vector2(c.custom_minimum_size.x, new_h)
 
 func _change_alloc(color_key: int, delta: int) -> void:
 	var current: int = _allocations.get(color_key, 0)
