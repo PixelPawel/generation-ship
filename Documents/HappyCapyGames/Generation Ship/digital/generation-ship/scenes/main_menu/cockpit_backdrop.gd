@@ -37,7 +37,7 @@ const SUN_ENERGY: float = 0.9
 const FILL_ENERGY: float = 0.7
 const GLOW_ENERGY: float = 0.35
 const AMBIENT_ENERGY: float = 0.35
-const PARKED: float = 0.25            # lights at a quarter while parked
+const PARKED: float = 0.4             # lights at 40% while parked (with the backlight below)
 const STAR_SPEED_GAME: float = 0.018  # starfield.gd's cruising speed
 const STAR_SPEED_PARKED: float = 0.003
 const BACKDROP_PARKED: float = 1.0     # the rendered nebula/planet, brighter while parked
@@ -47,6 +47,15 @@ const WAKE_SEC: float = 1.3
 var _env: Environment = null
 var _sun: DirectionalLight3D = null
 var _fill: OmniLight3D = null
+# Menu-only backlight: cool light coming in through the window behind the
+# cockpit, catching the struts, frame and rims so the parked ship reads in the
+# dark, plus a soft fill on the walls. Both fade out as the ship wakes, so the
+# hand-over to the game's own lighting doesn't jump.
+const BACKLIGHT_ENERGY: float = 1.1
+const BACKLIGHT_COLOR: Color = Color(0.55, 0.72, 1.0)
+const WALL_FILL_ENERGY: float = 0.35
+var _backlight: DirectionalLight3D = null
+var _wall_fill: OmniLight3D = null
 var _glows: Array[OmniLight3D] = []
 var _star_mat: ShaderMaterial = null
 
@@ -128,6 +137,19 @@ func _ready() -> void:
 	_fill.light_indirect_energy = 0.5
 	_fill.omni_range = 1.5
 	add_child(_fill)
+	_backlight = DirectionalLight3D.new()
+	# from beyond the window (screen top, world -Z), slanting down toward the camera
+	_backlight.basis = Basis.looking_at(Vector3(0.0, -0.55, 1.0).normalized(), Vector3.UP)
+	_backlight.light_color = BACKLIGHT_COLOR
+	_backlight.light_energy = BACKLIGHT_ENERGY
+	_backlight.light_specular = 1.2
+	add_child(_backlight)
+	_wall_fill = OmniLight3D.new()
+	_wall_fill.position = Vector3(0.0, 1.45, 0.35)
+	_wall_fill.light_color = Color(0.6, 0.72, 1.0)
+	_wall_fill.light_energy = WALL_FILL_ENERGY
+	_wall_fill.omni_range = 2.2
+	add_child(_wall_fill)
 	# the console's blue panel glows, nested like main.tscn's CockpitPanelGlow chain
 	for spec: Array in GLOWS:
 		var g: OmniLight3D = OmniLight3D.new()
@@ -378,6 +400,9 @@ func _set_power(p: float) -> void:
 	for g: OmniLight3D in _glows:
 		g.light_energy = GLOW_ENERGY * k
 	_env.ambient_light_energy = AMBIENT_ENERGY * k
+	if _backlight:
+		_backlight.light_energy = BACKLIGHT_ENERGY * (1.0 - p)
+		_wall_fill.light_energy = WALL_FILL_ENERGY * (1.0 - p)
 	if _star_mat:
 		_star_mat.set_shader_parameter("speed", lerpf(STAR_SPEED_PARKED, STAR_SPEED_GAME, p))
 		_star_mat.set_shader_parameter("backdrop_str", lerpf(BACKDROP_PARKED, BACKDROP_GAME, p))
