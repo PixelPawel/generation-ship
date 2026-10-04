@@ -237,8 +237,10 @@ func _add_logo_player(parent: Node, video_path: String, looping: bool) -> VideoP
 	vp.anchor_top = 0.0
 	vp.anchor_right = 1.0
 	vp.anchor_bottom = 0.0
-	vp.offset_top = 48.0
-	vp.offset_bottom = 408.0
+	# the clips are rendered 1.3x wider/taller than the logo needs (room for the
+	# trails and glow to fade out), so the player is 1.3x the old 360 px, same centre
+	vp.offset_top = -6.0
+	vp.offset_bottom = 462.0
 	vp.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	vp.set_video_path(video_path)
 	return vp
