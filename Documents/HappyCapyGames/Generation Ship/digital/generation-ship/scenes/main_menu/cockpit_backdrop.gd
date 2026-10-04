@@ -13,8 +13,6 @@ const UI_INFO: PackedScene = preload("res://assets/3d/gs_ui_info.glb")
 const UI_COCKPIT: PackedScene = preload("res://assets/3d/gs_ui_cockpit.glb")
 const UI_LOG: PackedScene = preload("res://assets/3d/gs_ui_log.glb")
 const STARFIELD: Script = preload("res://scripts/starfield.gd")
-const CockpitPanels: Script = preload("res://scripts/cockpit_panels.gd")
-const PANELS_PARKED: float = 0.45     # the panel lamps' brightness while parked
 
 # transforms exactly as main.tscn stores them (parsed with str_to_var)
 const CAMERA_XFORM: String = "Transform3D(1, 0, 0, 0, -4.371139e-08, 1, 0, -1, -4.371139e-08, 0, 1.772, 0.056)"
@@ -51,7 +49,6 @@ var _sun: DirectionalLight3D = null
 var _fill: OmniLight3D = null
 var _glows: Array[OmniLight3D] = []
 var _star_mat: ShaderMaterial = null
-var _panels: Node3D = null            # the decorative side panels (cockpit_panels.gd)
 
 # ── Life while parked ────────────────────────────────────────────────────────
 # A slow camera sway, dust in the light, a low hum, and every few seconds a
@@ -143,10 +140,6 @@ func _ready() -> void:
 		_glows.append(g)
 	_idle_flicker()
 	_add_dust()
-	_panels = Node3D.new()
-	_panels.set_script(CockpitPanels)
-	add_child(_panels)
-	_panels.call("set_power", PANELS_PARKED)
 	_setup_audio()
 	_schedule_event()
 
@@ -254,7 +247,7 @@ func _schedule_event() -> void:
 		_schedule_event())
 
 func _random_event() -> void:
-	match randi() % 12:
+	match randi() % 9:
 		0, 1, 2:
 			_event_blip()
 		3, 4:
@@ -265,22 +258,6 @@ func _random_event() -> void:
 			_event_light_stutter()
 		8:
 			_event_spark()
-		9, 10:
-			_event_switch()
-		11:
-			_event_button()
-
-# a toggle on a side panel flips over with a relay click
-func _event_switch() -> void:
-	_play("relay_click", -16.0, 0.12)
-	if _panels:
-		_panels.call("flip_random_switch")
-
-# a push button on a side panel blinks, maybe a knob turns
-func _event_button() -> void:
-	_play("console_blip_%d" % (randi() % 3 + 1), -18.0, 0.05)
-	if _panels:
-		_panels.call("press_random_button")
 
 # a console blip; one panel light answers with a double blink
 func _event_blip() -> void:
@@ -385,8 +362,6 @@ func wake_up() -> Signal:
 	if _hum:
 		create_tween().tween_property(_hum, "volume_db", HUM_DB + 8.0, WAKE_SEC)
 	create_tween().tween_property(self, "_sway", 0.0, WAKE_SEC).set_trans(Tween.TRANS_SINE)
-	if _panels:
-		_panels.call("power_on_cascade", WAKE_SEC)
 	var t: Tween = create_tween()
 	# a couple of quick flickers, like systems catching
 	for v: float in [0.9, 0.2, 0.7, 0.35]:
@@ -403,8 +378,6 @@ func _set_power(p: float) -> void:
 	for g: OmniLight3D in _glows:
 		g.light_energy = GLOW_ENERGY * k
 	_env.ambient_light_energy = AMBIENT_ENERGY * k
-	if _panels:
-		_panels.call("set_power", lerpf(PANELS_PARKED, 1.0, p))
 	if _star_mat:
 		_star_mat.set_shader_parameter("speed", lerpf(STAR_SPEED_PARKED, STAR_SPEED_GAME, p))
 		_star_mat.set_shader_parameter("backdrop_str", lerpf(BACKDROP_PARKED, BACKDROP_GAME, p))

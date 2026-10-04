@@ -3,7 +3,6 @@ extends Node3D
 const Haptics = preload("res://scripts/haptics.gd")
 const TutorialSession = preload("res://scripts/tutorial_session.gd")
 const CardInspectOverlay = preload("res://scenes/ui/card_inspect_overlay.gd")
-const CockpitPanelsScript = preload("res://scripts/cockpit_panels.gd")
 
 @export var card_scene: PackedScene
 
@@ -241,12 +240,6 @@ func _ready() -> void:
 		_rumble_base_pos[node] = node.position
 		_rumble_base_rot[node] = node.rotation
 	CockpitRig.start_rumble_timer(self)
-	# decorative side panels on the cockpit ledges, quieter than the menu's
-	var panels: Node3D = Node3D.new()
-	panels.set_script(CockpitPanelsScript)
-	panels.set("calm", true)
-	panels.set("follow", $UiCockpit)
-	add_child(panels)
 	$UILayer/StartButton.queue_free()
 	var hand: Node3D = $Hand
 	$Board.set_hand(hand)
