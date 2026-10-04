@@ -10,5 +10,6 @@ void fragment() {
 		float d = length(c - vec2(corner_radius));
 		alpha *= smoothstep(corner_radius, corner_radius - 0.01, d);
 	}
-	COLOR = vec4(tex.rgb * brightness, alpha);
+	// * COLOR keeps the node's modulate (popup fades, the invisible warm-up draw)
+	COLOR = vec4(tex.rgb * brightness, alpha) * COLOR;
 }
