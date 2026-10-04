@@ -7,7 +7,7 @@ extends Node
 # edge while the tutorial runs). Before a chapter it hands over exactly the
 # cards and supply that chapter needs, so it never depends on lucky draws.
 #
-# Chapters: buy a sector → place a tech → enlarge a card → enlarge a screen → fuse → optimize → "if fully
+# Chapters: enlarge a market card → buy a sector → place a tech → enlarge a card → enlarge a screen → fuse → optimize → "if fully
 # optimized" → "if complete" → recycle → win an advanced sector in an auction →
 # archive face down → store → printed stars → buy a third sector → "if new" →
 # bid on an expedition (DNA Sculpting, whose effect teaches archiving face up)
@@ -37,7 +37,7 @@ const FILLER_BY_COLOR: Dictionary = {
 	CardData.SupplyColor.THRUST: "Markets",
 }
 const STEPS: Array[String] = [
-	"buy", "place", "inspect_card", "inspect_screen", "fuse", "optimize", "if_full", "complete", "recycle", "buy2",
+	"inspect_market", "buy", "place", "inspect_card", "inspect_screen", "fuse", "optimize", "if_full", "complete", "recycle", "buy2",
 	"archive", "store", "stars", "buy3", "if_new", "bid", "always",
 	"research", "pass", "score",
 ]
@@ -70,6 +70,7 @@ var _gave_followup: bool = false     # a step's second card has been handed over
 var _highlighted_tech_slots: Array[SectorSlot] = []
 # controls chapters: the card / screen went up, and the step waits for it to go back
 var _saw_card_enlarged: bool = false
+var _saw_market_inspect: bool = false
 var _saw_screen_enlarged: bool = false
 
 func start(main: Main) -> void:
@@ -148,6 +149,7 @@ func _next_step() -> void:
 	_next_nudge = NUDGE_FIRST_SEC
 	_gave_followup = false
 	_saw_card_enlarged = false
+	_saw_market_inspect = false
 	_saw_screen_enlarged = false
 	_clear_highlights()
 
@@ -179,6 +181,9 @@ func _tick(step: String) -> void:
 			if _step_time >= _next_nudge:
 				_next_nudge = _step_time + NUDGE_REPEAT_SEC
 				CockpitRig.shake_screen(_main, _main.get_node("UiControl"))
+		"inspect_market":
+			if _market_inspecting():
+				_saw_market_inspect = true
 		"inspect_card":
 			if _main._sun_elevated_count > 0:
 				_saw_card_enlarged = true
@@ -271,6 +276,9 @@ func _is_done(step: String) -> bool:
 			return _first_sector != null
 		"place":
 			return _placed_type(CardData.CardType.TECH)
+		"inspect_market":
+			# (buying it straight away also moves on: the next step is the purchase)
+			return (_saw_market_inspect and not _market_inspecting()) or _first_sector != null
 		"inspect_card":
 			return _saw_card_enlarged and _main._sun_elevated_count == 0
 		"inspect_screen":
@@ -318,6 +326,13 @@ func _show(step: String) -> void:
 		"place":
 			_hint(_main.hint("TUT_PLACE_TECH", "TUT_PLACE_TECH_MOBILE"))
 			_highlight_tech_slots()
+		"inspect_market":
+			if _saw_market_inspect:
+				_main._market_panel.set_tutorial_dust_highlight(false)
+				_hint(_main.hint("TUT_INSPECT_MARKET_BACK", "TUT_INSPECT_MARKET_BACK_MOBILE"))
+			else:
+				_main._market_panel.set_tutorial_dust_highlight(true)
+				_hint(_main.hint("TUT_INSPECT_MARKET", "TUT_INSPECT_MARKET_MOBILE"))
 		"inspect_card":
 			if _saw_card_enlarged:
 				_hint(_main.hint("TUT_INSPECT_CARD_BACK", "TUT_INSPECT_CARD_BACK_MOBILE"))
@@ -508,6 +523,10 @@ func _any_tech_space() -> bool:
 		if slot.has_tech_space():
 			return true
 	return false
+
+func _market_inspecting() -> bool:
+	var c: Node3D = _board.get("_inspecting_card") as Node3D
+	return c != null and is_instance_valid(c)
 
 func _any_screen_enlarged() -> bool:
 	for v: Variant in _main.screen_enlarged.values():
