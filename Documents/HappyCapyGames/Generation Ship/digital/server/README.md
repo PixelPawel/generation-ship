@@ -19,7 +19,7 @@ Copy the changed files over, then `docker compose up -d --build`.
 
 ## Data & backups
 
-All votes are in `data/votes.db` (SQLite). Back up that one file.
+All votes, scores and translation comments are in `data/votes.db` (SQLite). Back up that one file.
 
 ## API
 
@@ -28,6 +28,14 @@ All votes are in `data/votes.db` (SQLite). Back up that one file.
 | GET | `/v1/votes?keys=k1,k2&voter=...` | up/down counts per card (+ `mine` if `voter` given), max 50 keys |
 | POST | `/v1/votes` `{"key", "voter", "value"}` | cast (+1/−1) or retract (0) a vote; returns new counts |
 | GET | `/v1/votes/report?lang=PL&min_votes=1` | cards sorted by most "needs work" votes |
+
+| POST | `/v1/comments` `{"key", "voter", "field", "text", "version"}` | a translation comment on one card's `name`, `flavor` or `effect` (max 500 chars, any number per player, 10/min per IP) |
+| GET | `/v1/comments/report?lang=PL&field=effect&status=open&format=json\|csv` | **admin:** comments grouped per card + field (most players first), with the card's votes |
+| POST | `/v1/comments/{id}/status` `{"status": "open"\|"done"\|"ignored"}` | **admin:** triage a comment |
+
+Admin endpoints need the header `X-Admin-Token: <ADMIN_TOKEN>`. The token is set in
+`/opt/hcg-api/.env` on the server (`ADMIN_TOKEN=...`, not in git); without it they always answer 403.
+`tools/translation_comments_report.py` in the game repo pulls the report into a CSV + readable summary.
 
 Keys look like `tv_PL_Tech_GSTechs44x67mm12` (language, deck, card file).
 Voters are `steam:<steam id>` or `dev:<random device id>`.

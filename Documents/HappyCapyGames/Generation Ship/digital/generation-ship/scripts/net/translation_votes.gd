@@ -13,6 +13,13 @@ extends Node
 
 signal votes_ready(key: String, up: int, down: int, mine: int)
 signal votes_failed(key: String)
+# A translation comment was stored (ok) or not; mine = how many comments this
+# player has sent on this card so far.
+signal comment_sent(key: String, ok: bool, mine: int)
+
+# Parts of a card a comment can be about (server checks the same list).
+const COMMENT_FIELDS: Array[String] = ["name", "flavor", "effect"]
+const COMMENT_MAX_CHARS: int = 500
 
 # Set to "" to switch voting off entirely (the Collection then hides it).
 const SERVER_URL: String = "https://api.happycapygames.com"
@@ -59,6 +66,27 @@ func vote(key: String, value: int) -> void:
 	votes_ready.emit(key, up, down, value)
 	_request(HTTPClient.METHOD_POST, "/v1/votes",
 		JSON.stringify({key = key, voter = _voter_id(), value = value}), key)
+
+# Free-text feedback on one part (COMMENT_FIELDS) of one translated card.
+# Players may send as many as they like; the server rate-limits floods.
+func send_comment(key: String, field: String, text: String) -> void:
+	var clean: String = text.strip_edges().left(COMMENT_MAX_CHARS)
+	if not is_available() or not field in COMMENT_FIELDS or clean.is_empty():
+		comment_sent.emit(key, false, 0)
+		return
+	var req: HTTPRequest = HTTPRequest.new()
+	req.timeout = TIMEOUT_SEC
+	add_child(req)
+	req.request_completed.connect(func(result: int, code: int, _headers: PackedStringArray, bytes: PackedByteArray) -> void:
+		req.queue_free()
+		var data: Variant = JSON.parse_string(bytes.get_string_from_utf8()) if result == HTTPRequest.RESULT_SUCCESS else null
+		var ok: bool = code == 200 and typeof(data) == TYPE_DICTIONARY and bool((data as Dictionary).get("ok", false))
+		comment_sent.emit(key, ok, int((data as Dictionary).get("mine", 0)) if ok else 0))
+	var body: String = JSON.stringify({key = key, voter = _voter_id(), field = field, text = clean,
+		version = str(ProjectSettings.get_setting("application/config/version", ""))})
+	if req.request(SERVER_URL + "/v1/comments", PackedStringArray(["Content-Type: application/json"]), HTTPClient.METHOD_POST, body) != OK:
+		req.queue_free()
+		comment_sent.emit(key, false, 0)
 
 func _request(method: HTTPClient.Method, path: String, body: String, key: String) -> void:
 	var req: HTTPRequest = HTTPRequest.new()

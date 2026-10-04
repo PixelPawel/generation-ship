@@ -166,3 +166,7 @@ def report(lang: str | None = None, min_votes: int = 1, limit: int = Query(200, 
 from .scores import router as scores_router  # noqa: E402  (global leaderboard; needs db/_rate_limit above)
 
 app.include_router(scores_router)
+
+from .comments import router as comments_router  # noqa: E402  (translation comments + admin report)
+
+app.include_router(comments_router)

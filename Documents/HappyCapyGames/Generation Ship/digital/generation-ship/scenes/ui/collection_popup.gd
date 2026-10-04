@@ -76,7 +76,7 @@ var _enlarge_right_label: Label = null
 const _VOTE_BTN_SIZE: Vector2 = Vector2(150, 64)
 const _VOTE_BTN_FONT: int = 30
 const _VOTE_CAPTION_FONT: int = 20
-const _VOTE_ROW_HEIGHT: float = 110.0
+const _VOTE_ROW_HEIGHT: float = 166.0   # caption + vote buttons + comment button
 const _VOTE_UP_COLOR: Color = Color(0.45, 1.0, 0.55)
 const _VOTE_DOWN_COLOR: Color = Color(1.0, 0.45, 0.45)
 const _VOTE_HELP_KEY: String = "Help us improve the translations! Compare the English original with your language and vote: ▲ if the translation is good, ▼ if it needs work."
@@ -87,6 +87,25 @@ var _vote_help_label: Label = null
 var _vote_up_btn: Button = null
 var _vote_down_btn: Button = null
 var _vote_key: String = ""
+# Translation comment: pick the part of the card (name / flavor / effect, one at
+# a time), write what's wrong, send — as many as the player likes. Sent to the
+# API server through TranslationVotes.send_comment (admin-only report there).
+const _COMMENT_FIELDS: Array[String] = ["name", "flavor", "effect"]
+const _COMMENT_FIELD_KEYS: Array[String] = ["Card name", "Flavor text", "Effect text"]
+const _COMMENT_PANEL_SIZE: Vector2 = Vector2(660, 540)
+const _COMMENT_MAX_CHARS: int = 500
+const _COMMENT_OK_COLOR: Color = Color(0.45, 1.0, 0.55)
+const _COMMENT_ERR_COLOR: Color = Color(1.0, 0.6, 0.35)
+var _comment_btn: Button = null
+var _comment_panel: PanelContainer = null
+var _comment_title: Label = null
+var _comment_field_btns: Array[Button] = []
+var _comment_field: String = ""
+var _comment_text: TextEdit = null
+var _comment_counter: Label = null
+var _comment_status: Label = null
+var _comment_send: Button = null
+var _comment_sending_key: String = ""
 var _thumb_tweens: Dictionary = {}   # TextureRect -> Tween, so a re-hover kills the fade-out mid-flight
 var _tr_targets: Dictionary = {}   # Control (Label/Button) -> untranslated key, refreshed on locale change
 
@@ -264,6 +283,14 @@ func _build_vote_row() -> void:
 	_vote_down_btn = _make_vote_button(tr("Needs work"), -1)
 	buttons.add_child(_vote_down_btn)
 
+	_comment_btn = _make_button(tr("Comment"))
+	_tr_targets[_comment_btn] = "Comment"
+	_comment_btn.add_theme_font_size_override("font_size", 20)
+	_comment_btn.custom_minimum_size = Vector2(_VOTE_BTN_SIZE.x * 2.0 + 16.0, 48)
+	_comment_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_comment_btn.pressed.connect(_open_comment)
+	_vote_row.add_child(_comment_btn)
+
 	_vote_help = PanelContainer.new()
 	var help_style: StyleBoxFlat = StyleBoxFlat.new()
 	help_style.bg_color = Color(0.05, 0.07, 0.15, 0.94)
@@ -290,10 +317,188 @@ func _build_vote_row() -> void:
 	_vote_help.visible = false
 	add_child(_vote_help)
 
+	_build_comment_panel()
+
 	var tv: Node = _votes()
 	if tv:
 		tv.votes_ready.connect(_on_votes_ready)
 		tv.votes_failed.connect(_on_votes_failed)
+		if tv.has_signal("comment_sent"):
+			tv.comment_sent.connect(_on_comment_sent)
+
+func _build_comment_panel() -> void:
+	_comment_panel = PanelContainer.new()
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = Color(0.04, 0.06, 0.13, 0.98)
+	style.border_color = Color(0.35, 0.65, 1.0, 0.8)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(8)
+	style.set_content_margin_all(20)
+	_comment_panel.add_theme_stylebox_override("panel", style)
+	_comment_panel.visible = false
+	_comment_panel.anchor_left = 0.5
+	_comment_panel.anchor_right = 0.5
+	_comment_panel.offset_left = -_COMMENT_PANEL_SIZE.x / 2.0
+	_comment_panel.offset_right = _COMMENT_PANEL_SIZE.x / 2.0
+	if GameTheme.is_touch():
+		# phones: at the top, so the on-screen keyboard doesn't cover Send
+		_comment_panel.anchor_top = 0.0
+		_comment_panel.anchor_bottom = 0.0
+		_comment_panel.offset_top = 16.0
+		_comment_panel.offset_bottom = 16.0 + _COMMENT_PANEL_SIZE.y
+	else:
+		_comment_panel.anchor_top = 0.5
+		_comment_panel.anchor_bottom = 0.5
+		_comment_panel.offset_top = -_COMMENT_PANEL_SIZE.y / 2.0
+		_comment_panel.offset_bottom = _COMMENT_PANEL_SIZE.y / 2.0
+	add_child(_comment_panel)
+
+	var box: VBoxContainer = VBoxContainer.new()
+	box.add_theme_constant_override("separation", 12)
+	_comment_panel.add_child(box)
+
+	_comment_title = Label.new()
+	_comment_title.add_theme_font_size_override("font_size", 24)
+	_comment_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(_comment_title)
+
+	var which: Label = Label.new()
+	which.text = tr("Which part of the card?")
+	_tr_targets[which] = "Which part of the card?"
+	which.add_theme_font_size_override("font_size", 18)
+	which.add_theme_color_override("font_color", Color(0.7, 0.75, 0.85))
+	box.add_child(which)
+
+	var fields: HBoxContainer = HBoxContainer.new()
+	fields.add_theme_constant_override("separation", 12)
+	box.add_child(fields)
+	var group: ButtonGroup = ButtonGroup.new()   # only one part at a time
+	_comment_field_btns.clear()
+	for i: int in _COMMENT_FIELDS.size():
+		var b: Button = _make_button(tr(_COMMENT_FIELD_KEYS[i]))
+		_tr_targets[b] = _COMMENT_FIELD_KEYS[i]
+		b.toggle_mode = true
+		b.button_group = group
+		b.add_theme_font_size_override("font_size", 20)
+		b.custom_minimum_size = Vector2(0, 52)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.toggled.connect(_on_comment_field_toggled.bind(i))
+		fields.add_child(b)
+		_comment_field_btns.append(b)
+
+	_comment_text = TextEdit.new()
+	_comment_text.custom_minimum_size = Vector2(0, 150)
+	_comment_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_comment_text.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	_comment_text.placeholder_text = tr("What should it say instead? A better word, a typo, something missing…")
+	_comment_text.add_theme_font_size_override("font_size", 18)
+	_comment_text.text_changed.connect(_on_comment_text_changed)
+	box.add_child(_comment_text)
+
+	_comment_counter = Label.new()
+	_comment_counter.add_theme_font_size_override("font_size", 14)
+	_comment_counter.add_theme_color_override("font_color", Color(0.55, 0.6, 0.7))
+	_comment_counter.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	box.add_child(_comment_counter)
+
+	var hint: Label = Label.new()
+	hint.text = tr("You can send as many comments as you like. One comment per issue helps us most.")
+	_tr_targets[hint] = "You can send as many comments as you like. One comment per issue helps us most."
+	hint.add_theme_font_size_override("font_size", 16)
+	hint.add_theme_color_override("font_color", Color(0.8, 0.86, 0.95))
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(hint)
+
+	_comment_status = Label.new()
+	_comment_status.add_theme_font_size_override("font_size", 16)
+	_comment_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(_comment_status)
+
+	var actions: HBoxContainer = HBoxContainer.new()
+	actions.alignment = BoxContainer.ALIGNMENT_END
+	actions.add_theme_constant_override("separation", 12)
+	box.add_child(actions)
+	var close_b: Button = _make_button(tr("Close"))
+	_tr_targets[close_b] = "Close"
+	close_b.add_theme_font_size_override("font_size", 20)
+	close_b.custom_minimum_size = Vector2(150, 52)
+	close_b.pressed.connect(_close_comment)
+	actions.add_child(close_b)
+	_comment_send = _make_button(tr("Send"))
+	_tr_targets[_comment_send] = "Send"
+	_comment_send.add_theme_font_size_override("font_size", 20)
+	_comment_send.custom_minimum_size = Vector2(150, 52)
+	GameTheme.style_positive(_comment_send)
+	_comment_send.pressed.connect(_on_comment_send)
+	actions.add_child(_comment_send)
+
+func _on_comment_field_toggled(on: bool, index: int) -> void:
+	if on:
+		_comment_field = _COMMENT_FIELDS[index]
+		_update_comment_send()
+	_tint_comment_fields()
+
+# the picked part reads clearly as picked (the theme's pressed look is subtle)
+func _tint_comment_fields() -> void:
+	for i: int in _comment_field_btns.size():
+		var picked: bool = _COMMENT_FIELDS[i] == _comment_field
+		_comment_field_btns[i].modulate = _COMMENT_OK_COLOR if picked else Color.WHITE
+
+func _open_comment() -> void:
+	if _vote_key.is_empty():
+		return
+	for b: Button in _comment_field_btns:
+		b.set_pressed_no_signal(false)
+	_comment_field = ""
+	_tint_comment_fields()
+	_comment_text.text = ""
+	_comment_status.text = ""
+	_comment_title.text = "%s  ·  %s" % [tr("Comment on this translation"), _current_lang()]
+	_on_comment_text_changed()
+	_comment_panel.visible = true
+	if not GameTheme.is_touch():
+		_comment_text.grab_focus()
+
+func _close_comment() -> void:
+	if _comment_panel:
+		_comment_panel.visible = false
+		_comment_text.release_focus()
+
+func _on_comment_text_changed() -> void:
+	if _comment_text.text.length() > _COMMENT_MAX_CHARS:
+		_comment_text.text = _comment_text.text.left(_COMMENT_MAX_CHARS)
+		var last: int = _comment_text.get_line_count() - 1
+		_comment_text.set_caret_line(last)
+		_comment_text.set_caret_column(_comment_text.get_line(last).length())
+	_comment_counter.text = "%d/%d" % [_comment_text.text.length(), _COMMENT_MAX_CHARS]
+	_update_comment_send()
+
+func _update_comment_send() -> void:
+	var empty: bool = _comment_text.text.strip_edges().is_empty()
+	_comment_send.disabled = _comment_field.is_empty() or empty or not _comment_sending_key.is_empty()
+
+func _on_comment_send() -> void:
+	var tv: Node = _votes()
+	if not tv or _vote_key.is_empty() or _comment_send.disabled:
+		return
+	_comment_sending_key = _vote_key
+	_comment_status.text = tr("Sending…")
+	_comment_status.remove_theme_color_override("font_color")
+	_update_comment_send()
+	tv.call("send_comment", _vote_key, _comment_field, _comment_text.text)
+
+func _on_comment_sent(key: String, ok: bool, _mine: int) -> void:
+	if key != _comment_sending_key:
+		return
+	_comment_sending_key = ""
+	if ok:
+		_comment_text.text = ""   # ready for the next one; the chosen part stays picked
+		_comment_status.text = tr("Thanks! Your comment was sent. Feel free to send another.")
+		_comment_status.add_theme_color_override("font_color", _COMMENT_OK_COLOR)
+	else:
+		_comment_status.text = tr("Couldn't send. Check your connection and try again.")
+		_comment_status.add_theme_color_override("font_color", _COMMENT_ERR_COLOR)
+	_on_comment_text_changed()
 
 func _make_vote_button(tooltip: String, value: int) -> Button:
 	var btn: Button = _make_button("")
@@ -333,6 +538,8 @@ func _show_vote_row(folder: String, fname: String, under: TextureRect) -> void:
 func _set_vote_visible(v: bool) -> void:
 	if _vote_row:
 		_vote_row.visible = v
+	if _comment_btn:
+		_comment_btn.visible = v and _votes() != null and _votes().has_method("send_comment")
 	if _vote_help:
 		_vote_help.visible = v
 
@@ -532,6 +739,7 @@ func _hide_enlarged() -> void:
 	if _vote_row:
 		_set_vote_visible(false)
 		_vote_key = ""
+	_close_comment()
 
 func _current_lang() -> String:
 	var cfg: ConfigFile = ConfigFile.new()
@@ -605,5 +813,8 @@ func _input(event: InputEvent) -> void:
 	if not visible:
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		visible = false
+		if _comment_panel and _comment_panel.visible:
+			_close_comment()   # Escape closes just the comment form first
+		else:
+			visible = false
 		get_viewport().set_input_as_handled()

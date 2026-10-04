@@ -2,6 +2,9 @@ services:
   api:
     build: .
     restart: unless-stopped
+    env_file:
+      - path: .env            # ADMIN_TOKEN=... (comment reports); not in git
+        required: false
     volumes:
       - ./data:/data          # votes.db lives here — back this folder up
     expose:
