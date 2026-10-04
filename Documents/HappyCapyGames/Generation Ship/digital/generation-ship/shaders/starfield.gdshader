@@ -31,8 +31,8 @@ uniform float backdrop_str     : hint_range(0.0, 2.0) = 0.0;
 const vec2 BACKDROP_SPAN = vec2(150.0, 100.0);
 // the planet in it (make_panorama.py PLANET_DIR / PLANET_ANG_R, in this
 // sphere's space): stars behind its disk are hidden
-const vec3  BACKDROP_PLANET_DIR = vec3(0.5918, -0.7575, -0.2756);
-const float BACKDROP_PLANET_R   = 6.6;   // degrees, incl. the atmosphere rim
+const vec3  BACKDROP_PLANET_DIR = vec3(-0.4330, -0.8877, -0.1564);
+const float BACKDROP_PLANET_R   = 5.1;   // degrees, incl. the atmosphere rim
 
 varying vec3 v_dir;
 

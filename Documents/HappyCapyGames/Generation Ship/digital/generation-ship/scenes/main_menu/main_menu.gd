@@ -205,10 +205,23 @@ func _animate_logo() -> void:
 	loop_vp.visible = false
 	var intro_vp: VideoPlayback = _add_logo_player(title.get_parent(), INTRO_PATH, false)
 	intro_vp.enable_auto_play = true
-	intro_vp.video_ended.connect(func() -> void:
+	# Hand over on the entrance's last frame. Not via video_ended: GoZen only
+	# emits that when the player has audio, and the logo players don't.
+	var handed_over: Array[bool] = [false]
+	var hand_over: Callable = func() -> void:
+		if handed_over[0] or not is_instance_valid(intro_vp):
+			return
+		handed_over[0] = true
 		loop_vp.visible = true
 		loop_vp.play()
-		intro_vp.queue_free())
+		intro_vp.queue_free()
+	intro_vp.next_frame_called.connect(func(frame_nr: int) -> void:
+		if frame_nr >= intro_vp.get_video_frame_count() - 1:
+			hand_over.call())
+	# fallback in case the container's frame count is off: the clip's length
+	intro_vp.playback_started.connect(func() -> void:
+		var sec: float = float(intro_vp.get_video_frame_count()) / maxf(intro_vp.get_video_framerate(), 1.0)
+		get_tree().create_timer(sec + 0.25).timeout.connect(hand_over), CONNECT_ONE_SHOT)
 
 func _add_logo_player(parent: Node, video_path: String, looping: bool) -> VideoPlayback:
 	var vp: VideoPlayback = VideoPlayback.new()
