@@ -178,8 +178,9 @@ func _add_dust() -> void:
 	dust.gravity = Vector3.ZERO
 	dust.initial_velocity_min = 0.004
 	dust.initial_velocity_max = 0.018
-	dust.scale_amount_min = 0.002
-	dust.scale_amount_max = 0.005
+	# the mote size lives in the quad itself; scale is just per-mote variation
+	dust.scale_amount_min = 1.0
+	dust.scale_amount_max = 2.5
 	var ramp: Gradient = Gradient.new()
 	ramp.set_color(0, Color(0.7, 0.85, 1.0, 0.0))
 	ramp.add_point(0.3, Color(0.7, 0.85, 1.0, 0.35))
@@ -187,13 +188,26 @@ func _add_dust() -> void:
 	ramp.set_color(ramp.get_point_count() - 1, Color(0.7, 0.85, 1.0, 0.0))
 	dust.color_ramp = ramp
 	var quad: QuadMesh = QuadMesh.new()
-	quad.size = Vector2(1.0, 1.0)
+	quad.size = Vector2(0.002, 0.002)
 	var mat: StandardMaterial3D = StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	mat.vertex_color_use_as_albedo = true
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	# soft round mote instead of a hard square quad
+	var dot: GradientTexture2D = GradientTexture2D.new()
+	dot.fill = GradientTexture2D.FILL_RADIAL
+	dot.fill_from = Vector2(0.5, 0.5)
+	dot.fill_to = Vector2(1.0, 0.5)
+	dot.width = 32
+	dot.height = 32
+	var fall: Gradient = Gradient.new()
+	fall.set_color(0, Color(1, 1, 1, 1))
+	fall.set_color(1, Color(1, 1, 1, 0))
+	dot.gradient = fall
+	mat.albedo_texture = dot
+	# PARTICLES keeps each mote's scale; ENABLED drops it (every mote a 1 m quad)
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	quad.material = mat
 	dust.mesh = quad
 	add_child(dust)
