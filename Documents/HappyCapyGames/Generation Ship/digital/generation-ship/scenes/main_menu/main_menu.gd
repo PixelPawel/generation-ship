@@ -243,6 +243,11 @@ func _add_logo_player(parent: Node, video_path: String, looping: bool) -> VideoP
 	vp.offset_bottom = 462.0
 	vp.video_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	vp.set_video_path(video_path)
+	# decoration only: the (now taller) player overlaps the gear and the top
+	# menu button, so it and everything inside it must let clicks through
+	vp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for c: Node in vp.find_children("*", "Control", true, false):
+		(c as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return vp
 
 func _animate_buttons() -> void:
