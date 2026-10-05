@@ -15,6 +15,8 @@ const PLAY_FONT: int = 40
 const VBOX_RAISE: float = -10.0   # the scene's VBox sits at 40% + 40 px
 const TILE_SIZE: Vector2 = Vector2(200, 176)
 const TILE_GAP: int = 26
+const TILE_FONT: int = 20
+const TILE_FONT_MIN: int = 12
 const TILE_BOTTOM: float = 96.0           # clear of the corner links
 const CORNER_BTN: float = 64.0
 const TILE_ART: Dictionary = {
@@ -343,6 +345,7 @@ func _build_menu_layout() -> void:
 	_tile_row.add_child(_make_tile("Collection", _on_collection_pressed))
 	_tile_row.add_child(_make_tile("Scan Tableau", _on_scan_tableau_pressed))
 	_tile_row.add_child(_make_tile("Leaderboard", _on_leaderboard_pressed))
+	_fit_tile_labels()
 
 	# Settings: a gear in the top-right corner
 	var side: float = GameTheme.TOUCH_CORNER_MARGIN if GameTheme.is_touch() else 28.0
@@ -442,12 +445,38 @@ func _make_tile(label: String, on_press: Callable) -> Button:
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(art)
 	var lbl: Label = Label.new()
+	lbl.name = "TileLabel"
 	lbl.text = label
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", 20)
+	lbl.add_theme_font_size_override("font_size", TILE_FONT)
+	lbl.clip_text = true   # a long name must never widen the tile (and stretch its art past the frame)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(lbl)
 	return tile
+
+# Shrinks each tile's name until it fits its tile (e.g. German "Auslage scannen").
+# Needs the tiles in the tree, so the theme font is the real one.
+func _fit_tile_labels() -> void:
+	if _tile_row == null:
+		return
+	var avail: float = TILE_SIZE.x - 20.0   # the box's 10 px insets
+	for tile: Node in _tile_row.get_children():
+		var lbl: Label = tile.find_child("TileLabel", true, false) as Label
+		if lbl == null:
+			continue
+		var font: Font = lbl.get_theme_font("font")
+		var text: String = tr(lbl.text)
+		if lbl.uppercase:
+			text = text.to_upper()
+		var pad: float = float(lbl.get_theme_constant("outline_size"))
+		var fs: int = TILE_FONT
+		while fs > TILE_FONT_MIN and font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + pad > avail:
+			fs -= 1
+		lbl.add_theme_font_size_override("font_size", fs)
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED:
+		_fit_tile_labels()
 
 func _tile_art(label: String) -> Texture2D:
 	var path: String = str(TILE_ART.get(label, ""))
