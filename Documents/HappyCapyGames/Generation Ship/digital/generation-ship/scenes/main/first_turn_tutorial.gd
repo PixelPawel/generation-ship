@@ -9,9 +9,11 @@ extends Node
 #
 # Chapters: enlarge a market card → buy a sector → place a tech → enlarge a card → enlarge a screen → fuse → optimize → "if fully
 # optimized" → "if complete" → recycle → win an advanced sector in an auction →
-# archive face down → store → printed stars → buy a third sector → "if new" →
-# bid on an expedition (DNA Sculpting, whose effect teaches archiving face up)
-# → Always cards → research → pass →
+# "if new" → archive face down → store → printed stars → win a third sector
+# (Probe Launcher) → optimize it with a single card (its reveal brings out the
+# expedition, which it offers to bid on) → bid on the expedition (DNA Sculpting,
+# whose effect teaches archiving face up) → Always cards (Skyhook, then a star
+# card it makes cheaper) → research → pass →
 # scoring (the game ends on the score breakdown; tutorial scores never reach
 # the leaderboard).
 #
@@ -38,9 +40,14 @@ const FILLER_BY_COLOR: Dictionary = {
 }
 const STEPS: Array[String] = [
 	"inspect_market", "buy", "place", "inspect_card", "inspect_screen", "fuse", "optimize", "if_full", "complete", "recycle", "buy2",
-	"archive", "store", "stars", "buy3", "if_new", "bid", "always",
+	"if_new", "archive", "store", "stars", "buy3", "probe", "bid", "always",
 	"research", "pass", "score",
 ]
+# Probe Launcher's optimize group is a single Electrix card: this one
+const PROBE_CARD: String = "Portable Reactor"
+# Skyhook (Always: star cards cost 1 less), then this star card, cheaper in the hand
+const ALWAYS_CARD: String = "Skyhook"
+const ALWAYS_STAR_CARD: String = "Birds"
 # Fuse and recycle steps: the control screen zooms in, and shakes if nothing has
 # happened yet — first after NUDGE_FIRST_SEC, then every NUDGE_REPEAT_SEC.
 const NUDGE_FIRST_SEC: float = 2.0
@@ -72,6 +79,8 @@ var _highlighted_tech_slots: Array[SectorSlot] = []
 var _saw_card_enlarged: bool = false
 var _saw_market_inspect: bool = false
 var _saw_screen_enlarged: bool = false
+# the expedition was already won through Probe Launcher's bid offer: the bid chapter is done
+var _expedition_won_early: bool = false
 
 func start(main: Main) -> void:
 	_main = main
@@ -159,7 +168,8 @@ func _refresh() -> void:
 	if _main._effect_mode != Main.EffectMode.NONE:
 		_show_recycle_arrow(false)
 		# DNA Sculpting's archive choice is the face-up lesson: explain it there
-		if _step < STEPS.size() and STEPS[_step] == "bid" and _placed_name(Main.TUTORIAL_EXPEDITION):
+		# (it can also be won through Probe Launcher's bid offer, in the probe step)
+		if _step < STEPS.size() and STEPS[_step] in ["probe", "bid"] and _placed_name(Main.TUTORIAL_EXPEDITION):
 			_hint(tr("TUT_ARCHIVE_UP") % _name(Main.TUTORIAL_EXPEDITION))
 		return
 	var step: String = STEPS[_step]
@@ -198,22 +208,37 @@ func _tick(step: String) -> void:
 			if not _gave_followup and _placed_name("Quantum Archives"):
 				_gave_followup = true
 				_give(["Solar Power"])
+		"always":
+			# Skyhook is down: now a star card, 1 cheaper because of it
+			if not _gave_followup and _placed_name(ALWAYS_CARD):
+				_gave_followup = true
+				_give([ALWAYS_STAR_CARD])
 
 func _leave(step: String) -> void:
 	match step:
 		"fuse", "recycle":
 			CockpitRig.set_screen_enlarged(_main, _main.get_node("UiControl"), false)
+		"probe":
+			_expedition_won_early = _placed_type(CardData.CardType.EXPEDITION)
 
 # Hand-overs before a chapter: the cards it needs, enough supply to play them.
 func _enter(step: String) -> void:
 	match step:
 		"buy":
 			_top_up_supply()
-		"bid":
+		"probe":
 			_top_up_supply()
+			# its reveal brings out DNA Sculpting and offers a bid: if it's won here,
 			# its "Draw 3" brings these, to archive face up (they keep their printed stars)
 			_board.set_scripted_deck(_cards(STAR_DRAWS))
-			_board.reveal_expedition_to_slot(Main.TUTORIAL_SECTOR_SLOT)   # only DNA Sculpting, clear of the banner
+			_give([PROBE_CARD])
+		"bid":
+			if not _expedition_won_early:
+				_top_up_supply()
+				_board.set_scripted_deck(_cards(STAR_DRAWS))
+				# Probe Launcher revealed it already (unless that was skipped somehow)
+				if _board.get_available_expeditions().is_empty():
+					_board.reveal_expedition_to_slot(Main.TUTORIAL_SECTOR_SLOT)   # only DNA Sculpting, clear of the banner
 		"buy2":
 			_top_up_supply()
 			_board.sync_market_reveal(Main.TUTORIAL_SECTOR_SLOT)   # the advanced sector appears (no reveal effects)
@@ -248,6 +273,7 @@ func _enter(step: String) -> void:
 				_give_if_missing("PC-Mind-Link")   # Simulators' Draw 2 brought it already
 		"buy3":
 			_top_up_supply()
+			_board.sync_market_reveal(Main.TUTORIAL_SECTOR_SLOT)   # Probe Launcher appears (no reveal effects)
 		"archive":
 			_top_up_supply()
 			_give(["Chemical Synthesizer", "Mag-Net"])   # Mag-Net: the card to archive
@@ -259,9 +285,7 @@ func _enter(step: String) -> void:
 			_give(["Quantum Archives"])
 		"always":
 			_top_up_supply()
-			# Biodomes is a Liquids card itself, so placing it draws the next one
-			_board.set_scripted_deck(_cards(["Atmospheric System"]))
-			_give(["Biodomes"])
+			_give([ALWAYS_CARD])   # the star card follows once it's placed (_tick)
 		"research":
 			_board.set_scripted_deck(_cards(["Fish"]))   # the replacement it draws
 			_give(["Mag-Net"])
@@ -294,7 +318,12 @@ func _is_done(step: String) -> bool:
 			return _placed_name("Hangars")
 		"recycle":
 			return _recycled
+		"probe":
+			# placed and its effect (reveal, maybe a whole bid) over: _refresh only gets here then
+			return _placed_name(PROBE_CARD)
 		"bid":
+			if _expedition_won_early:
+				return true
 			# placed and its effect done: the drawn cards archived face up
 			return _placed_type(CardData.CardType.EXPEDITION) and (_any_tucked(true) or not _placed_name(Main.TUTORIAL_EXPEDITION))
 		"complete":
@@ -310,7 +339,7 @@ func _is_done(step: String) -> bool:
 		"stars":
 			return _placed_name("Solar Power")
 		"always":
-			return _placed_name("Atmospheric System") and _board.count_tech_by_name("Biodomes") > 0
+			return _placed_name(ALWAYS_STAR_CARD) and _board.count_tech_by_name(ALWAYS_CARD) > 0
 		"research":
 			return _researched
 		"pass":
@@ -319,10 +348,13 @@ func _is_done(step: String) -> bool:
 
 func _show(step: String) -> void:
 	match step:
-		"buy", "buy3":
-			_show_buy(step)
-		"buy2":
-			_show_buy_advanced()
+		"buy":
+			_show_buy()
+		"buy2", "buy3":
+			_show_buy_advanced(step)
+		"probe":
+			_hint(tr("TUT_PROBE") % [_sector_name(Main.TUTORIAL_THIRD_SECTOR), CardData.color_name(CardData.SupplyColor.ELECTRIX), _name(PROBE_CARD)])
+			_highlight_only(_third_sector)
 		"place":
 			_hint(_main.hint("TUT_PLACE_TECH", "TUT_PLACE_TECH_MOBILE"))
 			_highlight_tech_slots()
@@ -380,11 +412,10 @@ func _show(step: String) -> void:
 				_hint(tr("TUT_STARS") % _name("Quantum Archives"))
 			_highlight_tech_slots()
 		"always":
-			var liquids: String = CardData.color_name(CardData.SupplyColor.LIQUIDS)
-			if _board.count_tech_by_name("Biodomes") > 0:
-				_hint(tr("TUT_ALWAYS_NEXT") % [_name("Atmospheric System"), liquids])
+			if _gave_followup:
+				_hint(tr("TUT_ALWAYS_NEXT") % _name(ALWAYS_STAR_CARD))
 			else:
-				_hint(tr("TUT_ALWAYS") % [_name("Biodomes"), liquids])
+				_hint(tr("TUT_ALWAYS") % [_name(ALWAYS_CARD), _sector_name(Main.TUTORIAL_THIRD_SECTOR)])
 			_highlight_tech_slots()
 		"research":
 			_hint(tr("TUT_RESEARCH_TUT"))
@@ -401,7 +432,7 @@ func _hint(text: String) -> void:
 	_main._show_effect_hint(text)
 
 # "Buy a Sector" is 3 sub-phases: pick a market slot, pay, place the card.
-func _show_buy(step: String) -> void:
+func _show_buy() -> void:
 	if _is_dragging(CardData.CardType.SECTOR):
 		_main._market_panel.set_tutorial_dust_highlight(false)
 		_hint(tr("TUT_BUY_PLACE"))
@@ -410,15 +441,11 @@ func _show_buy(step: String) -> void:
 		_hint(_main.hint("TUT_BUY", "TUT_BUY_MOBILE"))
 	else:
 		_main._market_panel.set_tutorial_dust_highlight(true)
-		match step:
-			"buy3":
-				_hint(tr("TUT_BUY_THIRD"))
-			_:
-				# the very first step: why the hand is empty
-				_hint(tr("TUT_SKIP_DRAW") + "\n" + _main.hint("TUT_BUY", "TUT_BUY_MOBILE"))
+		# the very first step: why the hand is empty
+		_hint(tr("TUT_SKIP_DRAW") + "\n" + _main.hint("TUT_BUY", "TUT_BUY_MOBILE"))
 
-# The second sector is an advanced one, won in an auction: pick it, bid, pay, place.
-func _show_buy_advanced() -> void:
+# The second and third sectors are advanced ones, won in an auction: pick it, bid, pay, place.
+func _show_buy_advanced(step: String) -> void:
 	if _is_dragging(CardData.CardType.SECTOR):
 		_main._market_panel.set_tutorial_advanced_highlight(false)
 		_hint(tr("TUT_BUY_PLACE"))
@@ -430,7 +457,10 @@ func _show_buy_advanced() -> void:
 		_hint(tr("TUT_BID_PAY"))
 	else:
 		_main._market_panel.set_tutorial_advanced_highlight(true)
-		_hint(_main.hint("TUT_BUY_ADVANCED", "TUT_BUY_ADVANCED_MOBILE"))
+		if step == "buy3":
+			_hint(_main.hint("TUT_BUY_THIRD", "TUT_BUY_THIRD_MOBILE") % _sector_name(Main.TUTORIAL_THIRD_SECTOR))
+		else:
+			_hint(_main.hint("TUT_BUY_ADVANCED", "TUT_BUY_ADVANCED_MOBILE"))
 
 # "Bid on an Expedition": pick one, confirm the bid, pay, place it.
 func _show_bid() -> void:
@@ -463,6 +493,13 @@ func _give(names: Array[String]) -> void:
 static func _name(card_name: String) -> String:
 	var cd: CardData = _tech(card_name)
 	return CardDatabase.display_name(cd) if cd else card_name
+
+# An advanced sector's name in the current language.
+static func _sector_name(adv_name: String) -> String:
+	for cd: CardData in CardDatabase.sectors:
+		if cd.adv_name == adv_name:
+			return CardDatabase.display_name(cd, true)
+	return adv_name
 
 static func _tech(card_name: String) -> CardData:
 	for cd: CardData in CardDatabase.techs:
@@ -560,6 +597,20 @@ func _highlight_tech_slots() -> void:
 	for slot: SectorSlot in eligible:
 		slot.highlight(true)
 	_highlighted_tech_slots = eligible
+
+# Just this one sector (falls back to every sector with room).
+func _highlight_only(slot: SectorSlot) -> void:
+	if slot == null or not is_instance_valid(slot):
+		_highlight_tech_slots()
+		return
+	if _highlighted_tech_slots.size() == 1 and _highlighted_tech_slots[0] == slot:
+		return
+	for s: SectorSlot in _highlighted_tech_slots:
+		if is_instance_valid(s) and s != slot:
+			s.highlight(false)
+	slot.highlight(true)
+	_highlighted_tech_slots.clear()
+	_highlighted_tech_slots.append(slot)
 
 func _clear_highlights() -> void:
 	for slot: SectorSlot in _highlighted_tech_slots:

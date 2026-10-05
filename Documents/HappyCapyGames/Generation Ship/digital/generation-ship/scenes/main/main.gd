@@ -2377,16 +2377,23 @@ static func _is_automatic_batch(steps: Array) -> bool:
 # The tutorial's market: one pile of Simulators (the only basic sector it
 # shows), drawn from the back — 1st buy a Simulators, then the advanced side
 # revealed for the second-sector auction (Central Transport: Metals optimize,
-# so it stays quiet under the tutorial's later cards), then the third sector.
+# so it stays quiet under the tutorial's later cards), then the third sector,
+# auctioned too: Probe Launcher (optimizes with 1 Electrix card; its reveal
+# brings out the tutorial's expedition).
 const TUTORIAL_REVEALED_SECTOR: String = "Central Transport"
+const TUTORIAL_THIRD_SECTOR: String = "Probe Launcher"
 const TUTORIAL_SECTOR_SLOT: int = 2   # the bottom market slot, clear of the tutorial banner
 const TUTORIAL_EXPEDITION: String = "DNA Sculpting"   # the one expedition the tutorial shows
 
 func _tutorial_sector_order() -> Array:
 	var central: int = -1
+	var probe: int = -1
 	var others: Array = []
 	for i: int in CardDatabase.sectors.size():
 		var cd: CardData = CardDatabase.sectors[i]
+		if cd.adv_name == TUTORIAL_THIRD_SECTOR and probe < 0:
+			probe = i
+			continue
 		if cd.card_name != "Simulators":
 			continue
 		if cd.adv_name == TUTORIAL_REVEALED_SECTOR and central < 0:
@@ -2394,10 +2401,11 @@ func _tutorial_sector_order() -> Array:
 		else:
 			others.append(i)
 	var order: Array = []
-	if others.size() >= 2 and central >= 0:
-		# the deck draws from the back: [... third, revealed, first]
-		order = others.slice(2)
-		order.append(others[1])
+	if others.size() >= 1 and central >= 0 and probe >= 0:
+		# the deck draws from the back: [... rest, third (revealed), second (revealed), first]
+		# (all in one pile of at most 10, see SectorMarket.setup_ordered)
+		order = others.slice(1)
+		order.append(probe)
 		order.append(central)
 		order.append(others[0])
 	return order
