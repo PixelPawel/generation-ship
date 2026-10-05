@@ -468,14 +468,22 @@ func _show_buy_advanced(step: String) -> void:
 
 # Probe Launcher fired (the only effect in these steps): it makes the player
 # reveal an expedition, then offers a bid. Neither is needed right now — say so.
-# (If they bid anyway, the auction's own steps.)
+# (If they bid anyway, the auction's own steps.) Paying for a card is an effect
+# mode too (PAYMENT_CONFIRM, same payment panel): that one isn't an auction, so
+# the auction hints need _bid_is_from_effect, and otherwise the step's hint stays.
 func _show_probe_effect(step: String) -> void:
 	var probe: String = _sector_name(Main.TUTORIAL_THIRD_SECTOR)
 	if _main._choice_popup and _main._choice_popup.visible:
 		# the first time it's DNA Sculpting, and the next chapter is bidding anyway
 		_hint(tr("TUT_PROBE_BID_FIRST" if step == "probe" else "TUT_PROBE_BID_SKIP"))
 	elif _main._effect_mode == Main.EffectMode.EFFECT_REVEAL_EXPEDITION:
-		_hint(_main.hint("TUT_PROBE_REVEAL", "TUT_PROBE_REVEAL_MOBILE") % probe)
+		# the first reveal is DNA Sculpting, the expedition the tutorial wants: no "ignore it"
+		if step == "probe":
+			_hint(_main.hint("TUT_PROBE_REVEAL_FIRST", "TUT_PROBE_REVEAL_FIRST_MOBILE") % probe)
+		else:
+			_hint(_main.hint("TUT_PROBE_REVEAL", "TUT_PROBE_REVEAL_MOBILE") % probe)
+	elif not _main._bid_is_from_effect:
+		return
 	elif _main._bid_popup and _main._bid_popup.visible:
 		_hint(tr("TUT_BID_POPUP"))
 	elif _main._bid_payment_panel and _main._bid_payment_panel.visible:

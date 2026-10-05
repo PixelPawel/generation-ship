@@ -415,6 +415,8 @@ static func setup_screen_enlarge(main: Main) -> void:
 				gesture.update_position((event as InputEventMouseMotion).position)
 		)
 		area.mouse_entered.connect(func() -> void:
+			if main._tutorial != null and is_instance_valid(main._tutorial):
+				return   # the tutorial teaches this itself, on its banner
 			main._show_tooltip("", main.hint("Right-click to enlarge/shrink this screen.",
 					"Tap and hold to enlarge/shrink this screen."))
 		)
