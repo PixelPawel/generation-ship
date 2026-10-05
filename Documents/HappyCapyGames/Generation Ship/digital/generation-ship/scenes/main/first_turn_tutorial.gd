@@ -12,8 +12,9 @@ extends Node
 # "if new" → archive face down → store → printed stars → win a third sector
 # (Probe Launcher) → optimize it with a single card (its reveal brings out the
 # expedition, which it offers to bid on) → bid on the expedition (DNA Sculpting,
-# whose effect teaches archiving face up) → Always cards (Skyhook, then a star
-# card it makes cheaper) → research → pass →
+# whose effect teaches archiving face up) → Always cards (Skyhook, then an
+# Electrix star card it makes cheaper, which fully optimizes Probe Launcher) →
+# research → pass →
 # scoring (the game ends on the score breakdown; tutorial scores never reach
 # the leaderboard).
 #
@@ -45,9 +46,10 @@ const STEPS: Array[String] = [
 ]
 # Probe Launcher's optimize group is a single Electrix card: this one
 const PROBE_CARD: String = "Portable Reactor"
-# Skyhook (Always: star cards cost 1 less), then this star card, cheaper in the hand
+# Skyhook (Always: star cards cost 1 less), then this star card, cheaper in the hand —
+# Electrix like Skyhook, so on Probe Launcher it's the 3rd one-card optimize: fully optimized
 const ALWAYS_CARD: String = "Skyhook"
-const ALWAYS_STAR_CARD: String = "Birds"
+const ALWAYS_STAR_CARD: String = "Fusion Power"
 # Fuse and recycle steps: the control screen zooms in, and shakes if nothing has
 # happened yet — first after NUDGE_FIRST_SEC, then every NUDGE_REPEAT_SEC.
 const NUDGE_FIRST_SEC: float = 2.0
@@ -413,7 +415,7 @@ func _show(step: String) -> void:
 			_highlight_tech_slots()
 		"always":
 			if _gave_followup:
-				_hint(tr("TUT_ALWAYS_NEXT") % _name(ALWAYS_STAR_CARD))
+				_hint(tr("TUT_ALWAYS_NEXT") % [_name(ALWAYS_STAR_CARD), _sector_name(Main.TUTORIAL_THIRD_SECTOR)])
 			else:
 				_hint(tr("TUT_ALWAYS") % [_name(ALWAYS_CARD), _sector_name(Main.TUTORIAL_THIRD_SECTOR)])
 			_highlight_tech_slots()
