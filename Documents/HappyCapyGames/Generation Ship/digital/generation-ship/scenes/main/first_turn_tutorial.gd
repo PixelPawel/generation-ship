@@ -173,6 +173,8 @@ func _refresh() -> void:
 		# (it can also be won through Probe Launcher's bid offer, in the probe step)
 		if _step < STEPS.size() and STEPS[_step] in ["probe", "bid"] and _placed_name(Main.TUTORIAL_EXPEDITION):
 			_hint(tr("TUT_ARCHIVE_UP") % _name(Main.TUTORIAL_EXPEDITION))
+		elif _step < STEPS.size() and STEPS[_step] in ["probe", "always"]:
+			_show_probe_effect(STEPS[_step])
 		return
 	var step: String = STEPS[_step]
 	if not _entered:
@@ -463,6 +465,23 @@ func _show_buy_advanced(step: String) -> void:
 			_hint(_main.hint("TUT_BUY_THIRD", "TUT_BUY_THIRD_MOBILE") % _sector_name(Main.TUTORIAL_THIRD_SECTOR))
 		else:
 			_hint(_main.hint("TUT_BUY_ADVANCED", "TUT_BUY_ADVANCED_MOBILE"))
+
+# Probe Launcher fired (the only effect in these steps): it makes the player
+# reveal an expedition, then offers a bid. Neither is needed right now — say so.
+# (If they bid anyway, the auction's own steps.)
+func _show_probe_effect(step: String) -> void:
+	var probe: String = _sector_name(Main.TUTORIAL_THIRD_SECTOR)
+	if _main._choice_popup and _main._choice_popup.visible:
+		# the first time it's DNA Sculpting, and the next chapter is bidding anyway
+		_hint(tr("TUT_PROBE_BID_FIRST" if step == "probe" else "TUT_PROBE_BID_SKIP"))
+	elif _main._effect_mode == Main.EffectMode.EFFECT_REVEAL_EXPEDITION:
+		_hint(_main.hint("TUT_PROBE_REVEAL", "TUT_PROBE_REVEAL_MOBILE") % probe)
+	elif _main._bid_popup and _main._bid_popup.visible:
+		_hint(tr("TUT_BID_POPUP"))
+	elif _main._bid_payment_panel and _main._bid_payment_panel.visible:
+		_hint(tr("TUT_BID_PAY"))
+	elif _is_dragging(CardData.CardType.EXPEDITION):
+		_hint(tr("TUT_BID_PLACE"))
 
 # "Bid on an Expedition": pick one, confirm the bid, pay, place it.
 func _show_bid() -> void:
