@@ -16,8 +16,8 @@ extends RefCounted
 #    outline (circle, ellipse, square, hexagon, pentagon, nonagon) — so printed supply icons,
 #    coloured plates and orange-vs-yellow mix-ups drop out. Matched tokens are counted one
 #    by one (touching tokens included).
-# Tuned on synthetic photos (InDesign_Shop/_automation/scan_code/mockups2.py); token
-# counts still need tuning on real photos of real tokens.
+# Tuned on synthetic photos (InDesign_Shop/_automation/scan_code/mockups2.py); the token
+# templates, colours and sizes since come from photos of the real tokens (2026-10-06).
 
 const DIAL_MM: Dictionary = {"sector": Vector2(60.80, 36.72), "tech": Vector2(36.57, 59.33), "expedition": Vector2(37.17, 60.80)}
 const SIZE_MM: Dictionary = {"sector": Vector2(67.0, 44.0), "tech": Vector2(44.0, 67.0), "expedition": Vector2(44.0, 67.0)}
@@ -61,11 +61,17 @@ const TOKEN_COLOUR_MAX: float = 80.0
 # token's area in mm^2 at ~14 mm across (circle, square, oval, hexagon, pentagon, octagon)
 const TOKEN_ORDER: Array[int] = [CardData.SupplyColor.DUST, CardData.SupplyColor.METALS, CardData.SupplyColor.LIQUIDS,
 	CardData.SupplyColor.ORGANIX, CardData.SupplyColor.ELECTRIX, CardData.SupplyColor.THRUST]
-const TOKEN_RGB: Array[Vector3] = [Vector3(208, 204, 218), Vector3(186, 24, 40), Vector3(70, 124, 191),
-	Vector3(63, 168, 53), Vector3(233, 120, 36), Vector3(240, 181, 4)]
+# measured on the real punched tokens (photos 2026-10-06), in the reader's lighting-corrected
+# colours — flatter and darker than the print colours (Dust 208,204,218 / Metals 186,24,40 /
+# Liquids 70,124,191 / Organix 63,168,53 / Electrix 233,120,36 / Thrust 240,181,4)
+const TOKEN_RGB: Array[Vector3] = [Vector3(159, 148, 142), Vector3(184, 64, 66), Vector3(69, 124, 148),
+	Vector3(112, 147, 53), Vector3(193, 121, 56), Vector3(192, 139, 47)]
 const TOKEN_SIL_MM2: Array[float] = [153.8, 186.2, 96.1, 127.4, 128.8, 149.7]
 const TOKEN_FILES: Array[String] = ["Dust", "Metals", "Liquids", "Organix", "Electrix", "Thrust"]
-const TOKEN_MM: float = 14.0                     # a token's long side
+const TOKEN_MM: float = 14.0                     # a token's long side, roughly (for spacing)
+# each template's long side (its whole PNG canvas), from fitting the print outline onto the
+# real tokens in photos (InDesign_Shop/_automation/scan_code/real_tokens.py)
+const TOKEN_SIZE_MM: Array[float] = [15.3, 12.3, 17.8, 15.7, 15.7, 16.5]
 const MATCH_PPM: float = 1.5                     # art matching resolution
 const MATCH_ROT_STEP: int = 30
 const MATCH_MIN: float = 0.5                     # match score a token needs
@@ -851,14 +857,15 @@ static func _card_span(to_card: Transform2D, card_mm: Vector2, w: int, h: int) -
 # box-blurred like the photo, centred per channel over the token, plus its outline mask.
 func _build_token_templates() -> void:
 	_templates.clear()
-	for img: Image in _token_imgs:
+	for ti: int in _token_imgs.size():
+		var img: Image = _token_imgs[ti]
 		var rots: Array = []
 		if img == null:
 			_templates.append(rots)
 			continue
 		# shrink smoothly to the matching scale first (picking single pixels from the
 		# full-size art would alias the fine icon lines), then rotate that
-		var scale: float = TOKEN_MM * MATCH_PPM / float(maxi(img.get_width(), img.get_height()))
+		var scale: float = TOKEN_SIZE_MM[ti] * MATCH_PPM / float(maxi(img.get_width(), img.get_height()))
 		var small: Image = img.duplicate() as Image
 		small.resize(maxi(3, roundi(img.get_width() * scale)), maxi(3, roundi(img.get_height() * scale)), Image.INTERPOLATE_LANCZOS)
 		var sw: int = small.get_width()
