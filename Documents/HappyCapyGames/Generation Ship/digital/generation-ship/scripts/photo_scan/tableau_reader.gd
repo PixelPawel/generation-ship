@@ -88,6 +88,8 @@ const MATCH_BLOB_MIN_MM2: float = 29.0           # smaller blobs aren't a token'
 const MATCH_MM2_PER_TOKEN: float = 180.0          # roughly a real token's area, to bound the matches per blob
 
 var progress: float = 0.0
+## Set from the main thread to stop analyze() early (a new photo, the screen closed).
+var cancelled: bool = false
 ## Prints every token candidate blob and its match scores (tools/scan_debug).
 var debug: bool = false
 ## Card used as the placeholder sector (set by the caller; null = no placeholders).
@@ -261,6 +263,8 @@ func analyze(photo: Image, dials: Array[Dictionary], markers: Array[Vector3] = [
 	results.resize(sector_idx.size())
 	_done = 0
 	var per_sector: Callable = func(k: int) -> void:
+		if cancelled:
+			return
 		var si: int = sector_idx[k]
 		# face-down backs: lamp pairs, else the TECH lettering; either places the back
 		# face-down backs are counted by their lamp pairs (the TECH lettering found
@@ -280,6 +284,9 @@ func analyze(photo: Image, dials: Array[Dictionary], markers: Array[Vector3] = [
 		_done_mutex.unlock()
 	if not sector_idx.is_empty():
 		WorkerThreadPool.wait_for_group_task_completion(WorkerThreadPool.add_group_task(per_sector, sector_idx.size()))
+	if cancelled:
+		progress = 1.0
+		return []
 
 	_assign_tokens(results, dials, sector_idx)
 
@@ -753,6 +760,8 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 	var pad: int = int(MATCH_SEARCH_MM * MATCH_PPM)
 	var comps: Array[Dictionary] = _components(tokmask, w, h)
 	for comp: Dictionary in comps:
+		if cancelled:
+			break
 		var area: float = float(comp["count"]) * mm2
 		if area < MATCH_BLOB_MIN_MM2:
 			continue

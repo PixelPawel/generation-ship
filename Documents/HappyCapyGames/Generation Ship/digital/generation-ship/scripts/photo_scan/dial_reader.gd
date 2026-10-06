@@ -58,6 +58,9 @@ const OVAL_STEP_DEG: int = 30
 # Read from the main thread while run() works (plain floats/ints, so safe to poll):
 # progress 0..1. attempt stays 1 (kept for the UI's label).
 var progress: float = 0.0
+## Set from the main thread to stop run() early (a new photo, the screen closed): run() then
+## returns [] within a moment, so waiting for its thread doesn't freeze the game.
+var cancelled: bool = false
 var attempt: int = 1
 ## Prints the first pass's confident readings and the pass counts (tools/scan_debug).
 var debug: bool = false
@@ -183,6 +186,8 @@ func run(source: Image) -> Array[Dictionary]:
 		var chunk: Array[Vector3] = pass1.slice(next_i, mini(next_i + batch, pass1.size()))
 		var found: Array = []
 		found.resize(chunk.size())
+		if cancelled:
+			break
 		var wide_search: Callable = func(i: int) -> void:
 			var b: Vector3 = chunk[i]
 			var radii: Array[float] = []
@@ -266,7 +271,12 @@ func run(source: Image) -> Array[Dictionary]:
 	var results: Array = []
 	results.resize(pass2.size())
 	_done = 0
+	if cancelled:
+		progress = 1.0
+		return []
 	var narrow_search: Callable = func(i: int) -> void:
+		if cancelled:
+			return
 		var b: Vector3 = pass2[i]
 		var near: Vector3 = strong_at[0]
 		for s: Vector3 in strong_at:

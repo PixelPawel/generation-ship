@@ -126,6 +126,7 @@ const _SUPPLY_COLORS: Array[CardData.SupplyColor] = [
 # average.
 
 var _scan_thread: Thread = null           # DialReader running on the current photo
+var _scan_job: Object = null              # the reader on that thread (DialReader / TableauReader), to cancel it
 var _scan_progress: ProgressBar = null      # shown while the photo is being read
 var _sectors: Array[Dictionary] = []          # board entries confirmed so far, BotScoring-shaped
 var _pending: Array[Dictionary] = []          # current in-review cluster's candidates
@@ -184,10 +185,16 @@ var _delete_btn: Button
 func _exit_tree() -> void:
 	_finish_scan_thread()
 
+# Stops the reading of an earlier photo: tells its reader to give up (it checks between steps),
+# then waits for that — waiting for a full read instead froze the game for a minute on a phone
+# when a second photo came in right after the first.
 func _finish_scan_thread() -> void:
+	if _scan_job:
+		_scan_job.set("cancelled", true)
 	if _scan_thread and _scan_thread.is_started():
 		_scan_thread.wait_to_finish()
 	_scan_thread = null
+	_scan_job = null
 
 func _ready() -> void:
 	_build_ui()
@@ -355,7 +362,9 @@ func _build_list_view() -> Control:
 	btn_row.add_child(scan_btn)
 	# Android: also put each scan photo in the gallery (off by default; for checking a scan
 	# later or sending it in — the photos themselves stay in the app's private files)
-	if Engine.has_singleton("CameraIntentPlugin") and Engine.get_singleton("CameraIntentPlugin").has_method("save_to_gallery"):
+	# (no has_method() on a plugin singleton: Godot's Java bridge object doesn't report its
+	# methods that way; the plugin ships in the same build, so it has them)
+	if Engine.has_singleton("CameraIntentPlugin"):
 		var gallery: CheckButton = CheckButton.new()
 		gallery.text = "Save photos to gallery"
 		gallery.focus_mode = Control.FOCUS_NONE
@@ -668,9 +677,8 @@ func _on_scan_ship_pressed() -> void:
 			plugin.photo_captured.connect(_on_photo_selected)
 		if not plugin.photo_canceled.is_connected(_on_photo_canceled):
 			plugin.photo_canceled.connect(_on_photo_canceled)
-		# shown on our own camera screen (builds before it have no set_hint)
-		if plugin.has_method("set_hint"):
-			plugin.set_hint(tr("SCAN_CAMERA_HINT"))
+		# shown on our own camera screen
+		plugin.set_hint(tr("SCAN_CAMERA_HINT"))
 		plugin.capture_photo()
 	else:
 		_file_dialog.popup_centered()
@@ -690,9 +698,7 @@ func _set_save_to_gallery(on: bool) -> void:
 
 func _on_photo_selected(path: String) -> void:
 	if _save_to_gallery() and Engine.has_singleton("CameraIntentPlugin"):
-		var plugin: Object = Engine.get_singleton("CameraIntentPlugin")
-		if plugin.has_method("save_to_gallery"):
-			plugin.save_to_gallery(path)
+		Engine.get_singleton("CameraIntentPlugin").save_to_gallery(path)
 	var img := Image.new()
 	if img.load(path) != OK:
 		push_warning("Scan Tableau: could not load %s" % path)
@@ -712,6 +718,7 @@ func _on_photo_selected(path: String) -> void:
 	_finish_scan_thread()            # a previous photo still being read
 	var thread: Thread = Thread.new()
 	_scan_thread = thread
+	_scan_job = reader
 	thread.start(reader.run.bind(img))
 	_scan_progress.value = 0.0
 	_scan_progress.visible = true
@@ -726,6 +733,7 @@ func _on_photo_selected(path: String) -> void:
 	if _scan_thread != thread:
 		return
 	_scan_thread = null
+	_scan_job = null
 	var dials: Array[Dictionary] = thread.wait_to_finish()
 	if _source_image != img:
 		return   # another photo was picked meanwhile
@@ -737,6 +745,7 @@ func _on_photo_selected(path: String) -> void:
 	tableau.placeholder_card = CardDatabase.find_by_scan_code(PLACEHOLDER_SECTOR_CODE).get("card") as CardData
 	var thread2: Thread = Thread.new()
 	_scan_thread = thread2
+	_scan_job = tableau
 	thread2.start(tableau.analyze.bind(reader.photo, dials, reader.markers))
 	_scan_progress.value = 0.0
 	_scan_progress.visible = true
@@ -750,6 +759,7 @@ func _on_photo_selected(path: String) -> void:
 	if _scan_thread != thread2:
 		return
 	_scan_thread = null
+	_scan_job = null
 	var groups: Array = thread2.wait_to_finish()
 	if _source_image != img:
 		return
