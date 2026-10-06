@@ -192,7 +192,8 @@ func run(source: Image) -> Array[Dictionary]:
 		var wide_search: Callable = func(i: int) -> void:
 			var b: Vector3 = chunk[i]
 			var radii: Array[float] = []
-			var r: float = maxf(4.0, b.z * 3.4)
+			# 3.4..5.8 x the marker for the cyan dot; the v2 diamond is bigger (dial ~2.6 x it)
+			var r: float = maxf(4.0, b.z * 2.4)
 			while r <= minf(160.0, b.z * 5.8):
 				radii.append(r)
 				r += 1.5
@@ -401,6 +402,17 @@ static func _is_cyan(r: int, g: int, b: int) -> bool:
 static func _is_cyan_loose(r: int, g: int, b: int) -> bool:
 	return b > 110 and g > 95 and b - r > 45 and g - r > 30
 
+# Dial v2's violet (printed C65 M90, hue ~286): blue and red both well above green — still true
+# under warm lamp light (red up, blue down) — and blue not far below red, which keeps the card
+# art's reds and pinks out (violet is almost absent from the art). Ratios, not levels: printed
+# violet is dark (photos: ~90, 55, 104 in good light, ~66, 40, 71 dim), unlike the bright cyan,
+# and warm lamp light eats exactly its blue (~72, 45, 63), hence the small margins.
+static func _is_violet(r: int, g: int, b: int) -> bool:
+	return b * 100 > g * 127 and r * 100 > g * 122 and b * 10 >= r * 75 / 10 and b - g > 14
+
+static func _is_violet_loose(r: int, g: int, b: int) -> bool:
+	return b * 100 > g * 118 and r * 100 > g * 115 and b * 10 >= r * 65 / 10 and b - g > 10
+
 # Cyan blobs in an RGB8 pixel buffer: x, y, diameter (all in that buffer's pixels).
 static func _find_markers(data: PackedByteArray, w: int, h: int) -> Array[Vector3]:
 	var blobs: Array[Vector3] = []
@@ -465,11 +477,14 @@ static func _find_markers(data: PackedByteArray, w: int, h: int) -> Array[Vector
 					blobs.append(Vector3(bx, by, sqrt(count * 4.0 / PI)))
 	return blobs
 
+# A marker's colour: the violet diamond of dial v2 (2026-10), or the cyan dot of the first prints.
 static func _cyan_at(data: PackedByteArray, i: int, loose: bool) -> bool:
 	var r: int = data[i * 3]
 	var g: int = data[i * 3 + 1]
 	var b: int = data[i * 3 + 2]
-	return _is_cyan_loose(r, g, b) if loose else _is_cyan(r, g, b)
+	if loose:
+		return _is_cyan_loose(r, g, b) or _is_violet_loose(r, g, b)
+	return _is_cyan(r, g, b) or _is_violet(r, g, b)
 
 # ── Dial search ──────────────────────────────────────────────────────────────
 
