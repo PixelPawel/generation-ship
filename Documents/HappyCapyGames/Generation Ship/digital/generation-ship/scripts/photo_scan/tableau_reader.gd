@@ -57,8 +57,9 @@ const ART_MATCH: float = 60.0                    # colour distance a pixel still
 const ART_SLACK_MM: float = 1.0                  # ...also when the art matches this far off
 const TABLE_MATCH: float = 40.0
 const TOKEN_COLOUR_MAX: float = 80.0
-# Dust, Metals, Liquids, Organix, Electrix, Thrust: base colours (punchboard art) and each
-# token's area in mm^2 at ~14 mm across (circle, square, oval, hexagon, pentagon, octagon)
+const TOKEN_NEAR: float = 30.0                    # token-coloured pixels count even over card art of that colour
+# token types in order: Dust, Metals, Liquids, Organix, Electrix, Thrust (circle, square,
+# oval, hexagon, pentagon, octagon)
 const TOKEN_ORDER: Array[int] = [CardData.SupplyColor.DUST, CardData.SupplyColor.METALS, CardData.SupplyColor.LIQUIDS,
 	CardData.SupplyColor.ORGANIX, CardData.SupplyColor.ELECTRIX, CardData.SupplyColor.THRUST]
 # measured on the real punched tokens (photos 2026-10-06), in the reader's lighting-corrected
@@ -66,12 +67,11 @@ const TOKEN_ORDER: Array[int] = [CardData.SupplyColor.DUST, CardData.SupplyColor
 # Liquids 70,124,191 / Organix 63,168,53 / Electrix 233,120,36 / Thrust 240,181,4)
 const TOKEN_RGB: Array[Vector3] = [Vector3(159, 148, 142), Vector3(184, 64, 66), Vector3(69, 124, 148),
 	Vector3(112, 147, 53), Vector3(193, 121, 56), Vector3(192, 139, 47)]
-const TOKEN_SIL_MM2: Array[float] = [153.8, 186.2, 96.1, 127.4, 128.8, 149.7]
 const TOKEN_FILES: Array[String] = ["Dust", "Metals", "Liquids", "Organix", "Electrix", "Thrust"]
-const TOKEN_MM: float = 14.0                     # a token's long side, roughly (for spacing)
-# each template's long side (its whole PNG canvas), from fitting the print outline onto the
-# real tokens in photos (InDesign_Shop/_automation/scan_code/real_tokens.py)
-const TOKEN_SIZE_MM: Array[float] = [15.3, 12.3, 17.8, 15.7, 15.7, 16.5]
+const TOKEN_MM: float = 16.5                     # a real token's long side, roughly (for spacing)
+# each template's long side (its whole PNG canvas) in mm: the real punched tokens measured
+# against a ruler (photo 2026-10-06), visible cardboard edge taken off
+const TOKEN_SIZE_MM: Array[float] = [16.2, 13.3, 17.7, 18.0, 17.1, 18.0]
 const MATCH_PPM: float = 1.5                     # art matching resolution
 const MATCH_ROT_STEP: int = 30
 const MATCH_MIN: float = 0.5                     # match score a token needs
@@ -81,7 +81,7 @@ const MATCH_MAX_PER_BLOB: int = 4
 const MATCH_SAME_TOKEN: float = 0.7              # matches closer than this x TOKEN_MM are one token
 const MATCH_TYPE_SHARE: float = 0.15            # a token type is tried if this much of a blob is its colour
 const MATCH_BLOB_MIN_MM2: float = 29.0           # smaller blobs aren't a token's worth
-const MATCH_MM2_PER_TOKEN: float = 120.0          # roughly, to bound the matches per blob
+const MATCH_MM2_PER_TOKEN: float = 180.0          # roughly a real token's area, to bound the matches per blob
 
 var progress: float = 0.0
 ## Prints every token candidate blob and its match scores (tools/scan_debug).
@@ -668,6 +668,15 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 		var o: int = k * 3
 		var tdist: float = Vector3(zone[o] - table.x, zone[o + 1] - table.y, zone[o + 2] - table.z).length()
 		cand[k] = 0 if best[k] < ART_MATCH or tdist < TABLE_MATCH else 1
+		# a token on card art of its own colour (grey Dust on sector frames, Electrix on orange
+		# art) looks "explained": keep token-coloured pixels anyway — the template match (icon +
+		# outline) sorts out plain card art
+		if cand[k] == 0 and tdist >= TABLE_MATCH:
+			var px0: Vector3 = Vector3(zone[o] / maxf(sector_gain.x, 0.2), zone[o + 1] / maxf(sector_gain.y, 0.2), zone[o + 2] / maxf(sector_gain.z, 0.2))
+			for t0: int in TOKEN_RGB.size():
+				if px0.distance_to(TOKEN_RGB[t0]) < TOKEN_NEAR:
+					cand[k] = 1
+					break
 	cand = _dilate(_dilate(_erode(_erode(cand, w, h), w, h), w, h), w, h)
 	if bool(dials[si].get("placeholder", false)):
 		# a placeholder's real art is unknown: leave its own card area out
