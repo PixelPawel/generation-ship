@@ -13,6 +13,7 @@ const PopupAnim = preload("res://scripts/popup_anim.gd")
 # as collection_popup.gd / manual_popup.gd (no companion .tscn).
 
 const DialReaderScript := preload("res://scripts/photo_scan/dial_reader.gd")
+const SETTINGS_PATH: String = "user://settings.cfg"
 const CardPickerScript := preload("res://scenes/photo_scan/card_picker.gd")
 
 # A sector always shows exactly 6 slots: 1 sector card + 5 tech/expedition
@@ -352,6 +353,16 @@ func _build_list_view() -> Control:
 	scan_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scan_btn.pressed.connect(_on_scan_ship_pressed)
 	btn_row.add_child(scan_btn)
+	# Android: also put each scan photo in the gallery (off by default; for checking a scan
+	# later or sending it in — the photos themselves stay in the app's private files)
+	if Engine.has_singleton("CameraIntentPlugin") and Engine.get_singleton("CameraIntentPlugin").has_method("save_to_gallery"):
+		var gallery: CheckButton = CheckButton.new()
+		gallery.text = "Save photos to gallery"
+		gallery.focus_mode = Control.FOCUS_NONE
+		gallery.add_theme_font_size_override("font_size", BUTTON_FONT_SIZE)
+		gallery.button_pressed = _save_to_gallery()
+		gallery.toggled.connect(_set_save_to_gallery)
+		btn_row.add_child(gallery)
 	_photo_btn = _make_button("Show Photo")
 	_photo_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_photo_btn.disabled = true
@@ -667,7 +678,21 @@ func _on_scan_ship_pressed() -> void:
 func _on_photo_canceled() -> void:
 	pass  # user backed out of the camera app — stay on the sector list
 
+func _save_to_gallery() -> bool:
+	var cfg: ConfigFile = ConfigFile.new()
+	return cfg.load(SETTINGS_PATH) == OK and bool(cfg.get_value("scan", "save_to_gallery", false))
+
+func _set_save_to_gallery(on: bool) -> void:
+	var cfg: ConfigFile = ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
+	cfg.set_value("scan", "save_to_gallery", on)
+	cfg.save(SETTINGS_PATH)
+
 func _on_photo_selected(path: String) -> void:
+	if _save_to_gallery() and Engine.has_singleton("CameraIntentPlugin"):
+		var plugin: Object = Engine.get_singleton("CameraIntentPlugin")
+		if plugin.has_method("save_to_gallery"):
+			plugin.save_to_gallery(path)
 	var img := Image.new()
 	if img.load(path) != OK:
 		push_warning("Scan Tableau: could not load %s" % path)

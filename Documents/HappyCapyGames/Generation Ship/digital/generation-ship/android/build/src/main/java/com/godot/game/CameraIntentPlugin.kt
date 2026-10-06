@@ -1,6 +1,9 @@
 package com.godot.game
 
 import android.app.Activity
+import android.content.ContentValues
+import android.os.Build
+import android.os.Environment
 import android.content.Intent
 import android.net.Uri
 import android.provider.MediaStore
@@ -63,6 +66,38 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 			intent.putExtra(ScanCameraActivity.EXTRA_OUTPUT_PATH, photoFile.absolutePath)
 			intent.putExtra(ScanCameraActivity.EXTRA_HINT, hint)
 			activity.startActivityForResult(intent, REQUEST_SCAN_CAMERA)
+		}
+	}
+
+	// Copies a scan photo into the public gallery (Pictures/Generation Ship) — the photos
+	// themselves live in the app's private files, which nothing else can read. Android 10+
+	// only (MediaStore needs no storage permission there); returns whether it worked.
+	@UsedByGodot
+	fun save_to_gallery(path: String): Boolean {
+		val activity = activity ?: return false
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+			return false
+		}
+		val src = File(path)
+		if (!src.exists()) {
+			return false
+		}
+		return try {
+			val resolver = activity.contentResolver
+			val values = ContentValues().apply {
+				put(MediaStore.Images.Media.DISPLAY_NAME, src.name)
+				put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+				put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Generation Ship")
+				put(MediaStore.Images.Media.IS_PENDING, 1)
+			}
+			val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return false
+			resolver.openOutputStream(uri)?.use { out -> src.inputStream().use { it.copyTo(out) } }
+			values.clear()
+			values.put(MediaStore.Images.Media.IS_PENDING, 0)
+			resolver.update(uri, values, null, null)
+			true
+		} catch (e: Exception) {
+			false
 		}
 	}
 
