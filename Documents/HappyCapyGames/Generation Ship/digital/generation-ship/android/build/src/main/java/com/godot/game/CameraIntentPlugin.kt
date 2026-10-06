@@ -11,10 +11,11 @@ import org.godotengine.godot.plugin.SignalInfo
 import org.godotengine.godot.plugin.UsedByGodot
 import java.io.File
 
-// Captures a single photo via the device's own camera app (ACTION_IMAGE_CAPTURE)
-// for the photo-scan feature — deliberately not a live camera preview, since
-// handing off to the camera app avoids needing our own camera-permission UI
-// and preview surface. The photo goes to a FileProvider-shared path (required
+// Captures a single photo for the photo-scan feature. Since 2026-10 with our own camera
+// screen (ScanCameraActivity: CameraX, torch on — the camera app's own exposure choices made
+// evening photos unreadable); the device's camera app (ACTION_IMAGE_CAPTURE) is the fallback
+// when that can't run (camera permission refused, no back camera, CameraX failing).
+// For the fallback, the photo goes to a FileProvider-shared path (required
 // since Android 7 — raw file:// URIs handed to another app now throw
 // FileUriExposedException) and the resulting local path is returned to
 // GDScript via a signal, matching the async nature of leaving the app.
@@ -29,18 +30,44 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 
 	companion object {
 		private const val REQUEST_IMAGE_CAPTURE = 4173
+		private const val REQUEST_SCAN_CAMERA = 4174
 		private val PHOTO_CAPTURED_SIGNAL = SignalInfo("photo_captured", String::class.java)
 		private val PHOTO_CANCELED_SIGNAL = SignalInfo("photo_canceled")
 	}
 
 	private var pendingPhotoPath: String? = null
+	private var hint: String = ""
 
 	override fun getPluginName() = "CameraIntentPlugin"
 
 	override fun getPluginSignals(): Set<SignalInfo> = setOf(PHOTO_CAPTURED_SIGNAL, PHOTO_CANCELED_SIGNAL)
 
+	// The line shown on top of the camera screen (already translated by the game).
+	@UsedByGodot
+	fun set_hint(text: String) {
+		hint = text
+	}
+
 	@UsedByGodot
 	fun capture_photo() {
+		runOnUiThread {
+			val activity = activity ?: run {
+				emitSignal(PHOTO_CANCELED_SIGNAL)
+				return@runOnUiThread
+			}
+			val photoDir = File(activity.filesDir, "captured_photos")
+			photoDir.mkdirs()
+			val photoFile = File(photoDir, "scan_${System.currentTimeMillis()}.jpg")
+			pendingPhotoPath = photoFile.absolutePath
+			val intent = Intent(activity, ScanCameraActivity::class.java)
+			intent.putExtra(ScanCameraActivity.EXTRA_OUTPUT_PATH, photoFile.absolutePath)
+			intent.putExtra(ScanCameraActivity.EXTRA_HINT, hint)
+			activity.startActivityForResult(intent, REQUEST_SCAN_CAMERA)
+		}
+	}
+
+	// The device's camera app, for when our own camera screen can't run.
+	private fun captureWithCameraApp() {
 		runOnUiThread {
 			// GodotPlugin.activity is nullable (the host Activity may not be
 			// alive at call time) — bind it to a local non-null val once so
@@ -67,7 +94,12 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 	}
 
 	override fun onMainActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-		if (requestCode != REQUEST_IMAGE_CAPTURE) {
+		if (requestCode == REQUEST_SCAN_CAMERA && resultCode == ScanCameraActivity.RESULT_FALLBACK) {
+			pendingPhotoPath = null
+			captureWithCameraApp()
+			return
+		}
+		if (requestCode != REQUEST_IMAGE_CAPTURE && requestCode != REQUEST_SCAN_CAMERA) {
 			return
 		}
 		val path = pendingPhotoPath

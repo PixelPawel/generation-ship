@@ -8,6 +8,9 @@
 !/android/build/
 /android/build/*
 !/android/build/gradle.properties
+# CameraX for Scan Tableau's own camera screen (ScanCameraActivity) — re-add after
+# reinstalling the build template
+!/android/build/build.gradle
 !/android/build/src/
 /android/build/src/*
 !/android/build/src/main/

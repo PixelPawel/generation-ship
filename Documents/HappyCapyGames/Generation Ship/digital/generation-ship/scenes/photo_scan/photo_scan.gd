@@ -7,7 +7,7 @@ const PopupAnim = preload("res://scripts/popup_anim.gd")
 # archive and stored supply, and the result goes straight into the ship overview
 # with its VP total — sectors in table order, each anchored at the bottom with its
 # tech stack above it like the in-game ship, an Edit button under each to correct
-# it in the review screen. Capture uses the real CameraIntentPlugin
+# it in the review screen. Capture uses the real CameraIntentPlugin (our own CameraX camera screen, torch on)
 # on Android (falls back to a plain file picker elsewhere, since the plugin
 # only exists in Android builds). Follows the same code-built-UI convention
 # as collection_popup.gd / manual_popup.gd (no companion .tscn).
@@ -657,6 +657,9 @@ func _on_scan_ship_pressed() -> void:
 			plugin.photo_captured.connect(_on_photo_selected)
 		if not plugin.photo_canceled.is_connected(_on_photo_canceled):
 			plugin.photo_canceled.connect(_on_photo_canceled)
+		# shown on our own camera screen (builds before it have no set_hint)
+		if plugin.has_method("set_hint"):
+			plugin.set_hint(tr("SCAN_CAMERA_HINT"))
 		plugin.capture_photo()
 	else:
 		_file_dialog.popup_centered()
