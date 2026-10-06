@@ -78,6 +78,8 @@ const MATCH_BLOB_MIN_MM2: float = 29.0           # smaller blobs aren't a token'
 const MATCH_MM2_PER_TOKEN: float = 120.0          # roughly, to bound the matches per blob
 
 var progress: float = 0.0
+## Prints every token candidate blob and its match scores (tools/scan_debug).
+var debug: bool = false
 ## Card used as the placeholder sector (set by the caller; null = no placeholders).
 var placeholder_card: CardData = null
 var _art: Array[Image] = []       # per dial: its card art at ART_PPM (RGB8), or null
@@ -684,6 +686,15 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 				bd = dd
 				bi = t
 		cls[k] = bi if bd < TOKEN_COLOUR_MAX else 254
+	if debug:
+		var counts: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0, 0, 0])
+		var n_cand: int = 0
+		for k: int in w * h:
+			if cand[k] != 0:
+				n_cand += 1
+				counts[mini(int(cls[k]), 6) if cls[k] < 6 else 6] += 1
+		print("    sector %d: gain %s, table %s, unexplained px %d, by colour D/M/L/O/E/T/none %s" % [
+			si, str(sector_gain), str(table.round()), n_cand, str(counts)])
 	# Candidates: blobs of any token colour, icon holes filled (an icon can split a token's
 	# base colour into slivers), each matched against the real art of every token type
 	# with enough colour in it: score = art inside the token + how well the blob fits its
@@ -731,6 +742,20 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 		for k: int in (comp["pixels"] as PackedInt32Array):
 			if cls[k] < 6:
 				share[cls[k]] += 1
+		if debug:
+			var bc: Vector2 = TOKEN_ZONE.position + Vector2((comp["box"] as Rect2i).get_center()) / ART_PPM
+			var sc: Array[String] = []
+			for t: int in 6:
+				if share[t] > 0:
+					sc.append("%s %d%%" % [TOKEN_FILES[t], roundi(100.0 * share[t] / float(comp["count"]))])
+				if share[t] > 0 and not _templates.is_empty():
+					var r0: Dictionary = _match_token(zs, ws, hs, ms, ms_sum, t,
+						Rect2i(int((comp["box"] as Rect2i).position.x * k_m) - pad, int((comp["box"] as Rect2i).position.y * k_m) - pad,
+						int((comp["box"] as Rect2i).size.x * k_m) + pad * 2, int((comp["box"] as Rect2i).size.y * k_m) + pad * 2))
+					if not r0.is_empty():
+						sc.append("  -> %s score %.2f" % [TOKEN_FILES[t], float(r0["score"])])
+			print("    sector %d blob at %s mm, %.0f mm2 (photo %s): %s" % [si, str(bc.round()), area,
+				str((sframe * bc).round()), ", ".join(sc)])
 		var types: Array[int] = []
 		for t: int in 6:
 			if float(share[t]) >= MATCH_TYPE_SHARE * float(comp["count"]):

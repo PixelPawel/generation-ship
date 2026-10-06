@@ -33,7 +33,7 @@ extends RefCounted
 # (InDesign_Shop/_automation/scan_code/sockets.json). Tech sockets follow a slightly
 # oval ring (3.62-3.72 mm), which the scale tolerance below absorbs.
 const DECK_R_MM: Dictionary = {"tech": 3.669, "expedition": 3.975, "sector": 4.229}
-const MIN_GAP: float = 0.45          # bright/dark split of the 11 lights
+const MIN_GAP: float = 0.58          # bright/dark split of the 11 lights (real photos 2026-10-06: misreads 0.45-0.56, true reads mostly 0.65+)
 const MAX_DARK: float = 0.40
 const MIN_LIT: float = 0.50
 const MIN_DOT: float = 0.05          # lit light vs the rim halfway to its neighbours
@@ -43,6 +43,10 @@ const STRONG_GAP: float = 0.6
 const STRONG_WANTED: int = 6
 const MARKER_D_MM: Vector2 = Vector2(0.45, 1.3)   # plausible marker blob diameter (mm) in pass 2
 const FACING_WINDOW_DEG: int = 21
+const FACING_AGREE_DEG: float = 25.0   # pass 1's confident dials must agree on facing...
+const SCALE_AGREE: float = 0.2         # ...and on px per mm (perspective stays well inside this)
+const AGREE_MIN: int = 3
+const PASS1_MAX_TRIED: int = 800       # a clear photo needs ~450 markers for 6 confident dials
 const OVAL_ASPECTS: Array[float] = [0.9, 0.8]
 const OVAL_STEP_DEG: int = 30
 
@@ -50,6 +54,10 @@ const OVAL_STEP_DEG: int = 30
 # progress 0..1. attempt stays 1 (kept for the UI's label).
 var progress: float = 0.0
 var attempt: int = 1
+## Prints the first pass's confident readings and the pass counts (tools/scan_debug).
+var debug: bool = false
+## Debug: photo spots (near a dial's marker) to search over every radius and angle, printed.
+var debug_probes: Array[Vector2] = []
 var _w: int = 0
 var _h: int = 0
 var _lum_data: PackedByteArray = PackedByteArray()   # full-resolution greyscale (Image.FORMAT_L8)
@@ -156,7 +164,14 @@ func run(source: Image) -> Array[Dictionary]:
 			pass1.append(b)
 	var batch: int = maxi(2, OS.get_processor_count())
 	var next_i: int = 0
-	while next_i < pass1.size() and strong_scales.size() < STRONG_WANTED:
+	# a confident misread (a busy bit of art, flash glints) would skew the scale and facing
+	# for every card near it: keep reading until STRONG_WANTED of them agree with each other
+	# (but once AGREE_MIN agree, give up on more after PASS1_MAX_TRIED markers: a bad photo
+	# would otherwise search every marker the slow way)
+	while next_i < pass1.size():
+		var n_agree: int = _agreeing(strong_at, strong_scales).size()
+		if n_agree >= STRONG_WANTED or (n_agree >= AGREE_MIN and next_i >= PASS1_MAX_TRIED):
+			break
 		var chunk: Array[Vector3] = pass1.slice(next_i, mini(next_i + batch, pass1.size()))
 		var found: Array = []
 		found.resize(chunk.size())
@@ -171,12 +186,51 @@ func run(source: Image) -> Array[Dictionary]:
 		WorkerThreadPool.wait_for_group_task_completion(WorkerThreadPool.add_group_task(wide_search, chunk.size()))
 		for i: int in chunk.size():
 			var e: Dictionary = found[i]
-			if not e.is_empty() and float(e["gap"]) >= STRONG_GAP and strong_scales.size() < STRONG_WANTED:
+			if not e.is_empty() and float(e["gap"]) >= STRONG_GAP:
 				strong_scales.append(float(e["r"]) / float(DECK_R_MM[_codes[int(e["code"])]]))
 				strong_at.append(Vector3(chunk[i].x, chunk[i].y, float(e["th"])))
 				strong_pos.append(Vector2(chunk[i].x, chunk[i].y))
 		next_i += chunk.size()
 		progress = 0.1 + 0.3 * float(next_i) / float(pass1.size())
+	if debug:
+		print("  markers %d, pass1 %d tried %d, strong %d" % [blobs.size(), pass1.size(), next_i, strong_scales.size()])
+		for q: int in strong_at.size():
+			print("    strong at (%d, %d) facing %d deg, scale %.2f px/mm" % [int(strong_at[q].x), int(strong_at[q].y), roundi(rad_to_deg(strong_at[q].z)), strong_scales[q]])
+	for pr: Vector2 in debug_probes:
+		var rs: Array[float] = []
+		var rr: float = 25.0
+		while rr <= 80.0:
+			rs.append(rr)
+			rr += 1.0
+		var pe: Dictionary = {}
+		var tried: int = 0
+		for b: Vector3 in blobs:
+			if Vector2(b.x, b.y).distance_to(pr) > 110.0 or b.z < 2.5:
+				continue
+			tried += 1
+			var e1: Dictionary = _search(b.x, b.y, rs, _all_angles())
+			if not e1.is_empty() and (pe.is_empty() or float(e1["gap"]) > float(pe["gap"])):
+				pe = e1
+				pe["bd"] = b.z
+		if pe.is_empty():
+			print("    probe %s: %d marker blobs, nothing decodes" % [str(pr), tried])
+		else:
+			var pcd: CardData = _cards[int(pe["code"])]["card"]
+			print("    probe %s: %d blobs, best %d %s at (%d, %d) r %.1f facing %d gap %.2f lum %.2f..%.2f dot %.2f marker d %.1f" % [str(pr), tried, int(pe["code"]), pcd.card_name, int(pe["cx"]), int(pe["cy"]), float(pe["r"]), roundi(rad_to_deg(float(pe["th"]))), float(pe["gap"]), float(pe["lo"]), float(pe["hi"]), float(pe["dot"]), float(pe["bd"])])
+	# only the agreeing ones set the scale and the facing
+	var keep: Array[int] = _agreeing(strong_at, strong_scales)
+	if debug:
+		print("    agreeing: %s" % str(keep))
+	var kept_scales: Array[float] = []
+	var kept_at: Array[Vector3] = []
+	var kept_pos: Array[Vector2] = []
+	for q: int in keep:
+		kept_scales.append(strong_scales[q])
+		kept_at.append(strong_at[q])
+		kept_pos.append(strong_pos[q])
+	strong_scales = kept_scales
+	strong_at = kept_at
+	strong_pos = kept_pos
 	if strong_scales.is_empty():
 		progress = 1.0
 		return []
@@ -258,12 +312,27 @@ func run(source: Image) -> Array[Dictionary]:
 			radius = r,
 			up = (Vector2(float(e["mx"]), float(e["my"])) - c).normalized(),
 			gap = float(e["gap"]),
+			dot = float(e["dot"]),
 			th = float(e["th"]),
 			shape = e["shape"],
 			marker = Vector2(float(e["mx"]), float(e["my"])),
 		})
 	progress = 1.0
 	return out
+
+# The largest group of confident readings that agree with one of them (its anchor) on
+# facing and scale — all cards in a tableau face the same way at about the same size.
+static func _agreeing(at: Array[Vector3], scales: Array[float]) -> Array[int]:
+	var best: Array[int] = []
+	for a: int in at.size():
+		var grp: Array[int] = []
+		for b: int in at.size():
+			if absf(angle_difference(at[a].z, at[b].z)) <= deg_to_rad(FACING_AGREE_DEG) \
+					and absf(scales[b] / scales[a] - 1.0) <= SCALE_AGREE:
+				grp.append(b)
+		if grp.size() > best.size():
+			best = grp
+	return best
 
 # Least-squares plane through the confident dials' px-per-mm (perspective: nearer = bigger).
 func _fit_scale_plane(pos: Array[Vector2], scales: Array[float]) -> void:
@@ -480,7 +549,7 @@ func _evaluate(mx: float, my: float, r: float, th: float, shape: PackedFloat32Ar
 			hole_n += 1
 	if hole_sum / maxf(1.0, hole_n) < MIN_HOLE:
 		return {}
-	return {gap = gap, code = code, cx = cx, cy = cy, r = r, th = th, dot = dot_sum / maxf(1.0, dot_n)}
+	return {gap = gap, code = code, cx = cx, cy = cy, r = r, th = th, dot = dot_sum / maxf(1.0, dot_n), lo = sv[0], hi = sv[10]}
 
 # ── Grouping into sectors ────────────────────────────────────────────────────
 
