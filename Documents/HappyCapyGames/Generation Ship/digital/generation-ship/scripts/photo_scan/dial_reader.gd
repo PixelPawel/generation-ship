@@ -42,6 +42,11 @@ const SCALE_TOLERANCE: float = 0.10
 const STRONG_GAP: float = 0.6
 const STRONG_WANTED: int = 6
 const MARKER_D_MM: Vector2 = Vector2(0.45, 1.3)   # plausible marker blob diameter (mm) in pass 2
+# Smaller blobs get a quick look only (circle, facing within +-SMALL_FACING_DEG): under lamp light
+# a marker's cyan core can shrink to ~0.25 mm (real photos 2026-10-06), and the full search on
+# every speck that size would be far too slow.
+const MARKER_SMALL_MM: float = 0.2
+const SMALL_FACING_DEG: int = 6
 const FACING_WINDOW_DEG: int = 21
 const FACING_AGREE_DEG: float = 25.0   # pass 1's confident dials must agree on facing...
 const SCALE_AGREE: float = 0.2         # ...and on px per mm (perspective stays well inside this)
@@ -64,6 +69,7 @@ var _lum_data: PackedByteArray = PackedByteArray()   # full-resolution greyscale
 var _codes: Dictionary = {}          # code -> "tech" / "expedition" / "sector"
 var _cards: Dictionary = {}          # code -> {card: CardData, is_advanced: bool}
 var _shapes: Array[PackedFloat32Array] = []   # circle -> image matrices [a11, a12, a21, a22]
+var _circle_only: Array[PackedFloat32Array] = []
 var _cos30: PackedFloat32Array = PackedFloat32Array()   # cos/sin of 30*k deg, k = 0..11
 var _sin30: PackedFloat32Array = PackedFloat32Array()
 var _done_mutex: Mutex = Mutex.new()
@@ -103,6 +109,7 @@ func _add(code: int, cd: CardData, is_adv: bool, deck: String) -> void:
 
 func _init() -> void:
 	_shapes.append(PackedFloat32Array([1.0, 0.0, 0.0, 1.0]))
+	_circle_only.append(_shapes[0])
 	for asp: float in OVAL_ASPECTS:
 		for deg: int in range(0, 180, OVAL_STEP_DEG):
 			var ph: float = deg_to_rad(float(deg))
@@ -153,6 +160,7 @@ func run(source: Image) -> Array[Dictionary]:
 	_lum_gain = 0.95 / maxf(float(p99) / 255.0, 0.3)
 	progress = 0.1
 
+	var t_pass1: int = Time.get_ticks_msec()
 	# Pass 1: scale + facing from the clearest markers, a few at a time on all cores.
 	var strong_scales: Array[float] = []
 	var strong_at: Array[Vector3] = []   # x, y, facing angle th
@@ -246,8 +254,15 @@ func run(source: Image) -> Array[Dictionary]:
 	var pass2: Array[Vector3] = []
 	for b: Vector3 in blobs:
 		var ls: float = _local_scale(b.x, b.y)
-		if (b.z >= MARKER_D_MM.x * ls and b.z <= MARKER_D_MM.y * ls) or (b.z >= MARKER_D_MM.x * _scale and b.z <= MARKER_D_MM.y * _scale):
+		if (b.z >= MARKER_SMALL_MM * ls and b.z <= MARKER_D_MM.y * ls) or (b.z >= MARKER_SMALL_MM * _scale and b.z <= MARKER_D_MM.y * _scale):
 			pass2.append(b)
+	if debug:
+		var n_small: int = 0
+		for b: Vector3 in pass2:
+			if b.z < MARKER_D_MM.x * minf(_local_scale(b.x, b.y), _scale):
+				n_small += 1
+		print("  pass2 %d markers (%d small)" % [pass2.size(), n_small])
+	var t_pass2: int = Time.get_ticks_msec()
 	var results: Array = []
 	results.resize(pass2.size())
 	_done = 0
@@ -257,8 +272,10 @@ func run(source: Image) -> Array[Dictionary]:
 		for s: Vector3 in strong_at:
 			if Vector2(s.x - b.x, s.y - b.y).length_squared() < Vector2(near.x - b.x, near.y - b.y).length_squared():
 				near = s
+		var tiny: bool = b.z < MARKER_D_MM.x * minf(_local_scale(b.x, b.y), _scale)
+		var window: int = SMALL_FACING_DEG if tiny else FACING_WINDOW_DEG
 		var angles: Array[float] = []
-		for d: int in range(-FACING_WINDOW_DEG, FACING_WINDOW_DEG + 1, 3):
+		for d: int in range(-window, window + 1, 3):
 			angles.append(near.z + deg_to_rad(float(d)))
 		# dial sizes for this spot: the perspective slope's estimate and the photo-wide
 		# median — the slope can misjudge parts of the photo far from the dials it was
@@ -270,7 +287,7 @@ func run(source: Image) -> Array[Dictionary]:
 					var rr: float = roundf(float(DECK_R_MM[deck]) * sc * f * 2.0) / 2.0
 					if not radii2.has(rr):
 						radii2.append(rr)
-		var e: Dictionary = _search(b.x, b.y, radii2, angles)
+		var e: Dictionary = _search(b.x, b.y, radii2, angles, _circle_only if tiny else _shapes)
 		if not e.is_empty():
 			e["mx"] = b.x
 			e["my"] = b.y
@@ -281,6 +298,8 @@ func run(source: Image) -> Array[Dictionary]:
 		_done_mutex.unlock()
 	WorkerThreadPool.wait_for_group_task_completion(WorkerThreadPool.add_group_task(narrow_search, pass2.size()))
 
+	if debug:
+		print("  time: pass1 %.1f s, pass2 %.1f s" % [(t_pass2 - t_pass1) / 1000.0, (Time.get_ticks_msec() - t_pass2) / 1000.0])
 	var cands: Array[Dictionary] = []
 	for e: Dictionary in results:
 		if not e.is_empty():
@@ -453,9 +472,9 @@ func _lum(x: float, y: float) -> float:
 	return minf(float(_lum_data[o] + _lum_data[o + 1] + _lum_data[o + _w] + _lum_data[o + _w + 1]) / 1020.0 * _lum_gain, 1.0)
 
 # Best reading for the marker at (mx, my) over every dial shape, radius and facing given.
-func _search(mx: float, my: float, radii: Array[float], angles: Array[float]) -> Dictionary:
+func _search(mx: float, my: float, radii: Array[float], angles: Array[float], shapes: Array[PackedFloat32Array] = []) -> Dictionary:
 	var best: Dictionary = {}
-	for shape: PackedFloat32Array in _shapes:
+	for shape: PackedFloat32Array in (shapes if not shapes.is_empty() else _shapes):
 		var e: Dictionary = _search_shape(mx, my, radii, angles, shape)
 		if not e.is_empty() and (best.is_empty() or float(e["gap"]) > float(best["gap"])):
 			best = e

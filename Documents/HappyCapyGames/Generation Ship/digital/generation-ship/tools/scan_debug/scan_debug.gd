@@ -30,10 +30,11 @@ func _scan(path: String) -> void:
 		var xy: PackedStringArray = pp.split(",")
 		reader.debug_probes.append(Vector2(float(xy[0]), float(xy[1])))
 	var dials: Array[Dictionary] = reader.run(img)
+	var t1: int = Time.get_ticks_msec()
 	var tableau: TableauReader = TableauReaderScript.create(dials)
 	tableau.debug = OS.get_environment("SCAN_DEBUG") != ""
 	var groups: Array = tableau.analyze(reader.photo, dials, reader.markers)
-	print("=== %s  (%d dials, %.1f s)" % [path.get_file(), dials.size(), (Time.get_ticks_msec() - t0) / 1000.0])
+	print("=== %s  (%d dials, %.1f s)  cards %.1f s, tokens/archive %.1f s" % [path.get_file(), dials.size(), (Time.get_ticks_msec() - t0) / 1000.0, (t1 - t0) / 1000.0, (Time.get_ticks_msec() - t1) / 1000.0])
 	for d: Dictionary in dials:
 		var c: Vector2 = d["center"]
 		print("  dial %4d %-24s at (%4d, %4d) r %.1f gap %.2f dot %.2f" % [int(d.get("code", 0)), _card_name(d), int(c.x), int(c.y), float(d["radius"]), float(d.get("gap", 0.0)), float(d.get("dot", 0.0))])

@@ -73,6 +73,8 @@ const TOKEN_MM: float = 16.5                     # a real token's long side, rou
 # against a ruler (photo 2026-10-06), visible cardboard edge taken off
 const TOKEN_SIZE_MM: Array[float] = [16.2, 13.3, 17.7, 18.0, 17.1, 18.0]
 const MATCH_PPM: float = 1.5                     # art matching resolution
+# the matching grid's width (TOKEN_ZONE at MATCH_PPM, as _find_tokens builds it)
+const MATCH_GRID_W: int = int(int(TOKEN_ZONE.size.x * ART_PPM) * (MATCH_PPM / ART_PPM))
 const MATCH_ROT_STEP: int = 30
 const MATCH_MIN: float = 0.45                    # match score a token needs (real tokens next to each other: ~0.45)
 const MATCH_MIN_NEXT: float = 0.55               # ...and every further token in the same blob
@@ -944,7 +946,15 @@ func _build_token_templates() -> void:
 						norm += rgb[k * 3 + c] * rgb[k * 3 + c]
 					else:
 						rgb[k * 3 + c] = 0.0
-			rots.append({w = side, h = side, rgb = rgb, mask = mask, n = n, norm = sqrt(norm)})
+			# masked pixels as offsets: into the matching grid (its width is fixed) and the template
+			var poff: PackedInt32Array = PackedInt32Array()
+			var toff: PackedInt32Array = PackedInt32Array()
+			for y: int in side:
+				for x: int in side:
+					if mask[y * side + x] != 0:
+						poff.append(y * MATCH_GRID_W + x)
+						toff.append((y * side + x) * 3)
+			rots.append({w = side, h = side, rgb = rgb, mask = mask, n = n, norm = sqrt(norm), poff = poff, toff = toff})
 		_templates.append(rots)
 
 # Best placement of token `t` with its centre inside `region` (matching grid px):
@@ -952,55 +962,75 @@ func _build_token_templates() -> void:
 # + w * IoU of the token's outline with the token-coloured mask.
 func _match_token(zs: PackedFloat32Array, ws: int, hs: int, ms: PackedByteArray, ms_sum: PackedInt32Array,
 		t: int, region: Rect2i) -> Dictionary:
-	var best: Dictionary = {}
 	var rots: Array = _templates[t]
+	# coarse: every 2nd position, every rotation; then fine around the best, +-1 rotation step
+	var best: Dictionary = {}
 	for ri: int in rots.size():
+		_match_scan(zs, ws, hs, ms, ms_sum, rots[ri], ri, region, 2, best)
+	if best.is_empty():
+		return best
+	var at: Vector2i = best["at"]
+	var r0: int = best["rot"]
+	for dr: int in [-1, 0, 1]:
+		var ri: int = posmod(r0 + dr, rots.size())
 		var tp: Dictionary = rots[ri]
-		var tw: int = tp["w"]
-		var th: int = tp["h"]
-		var rgb: PackedFloat32Array = tp["rgb"]
-		var mask: PackedByteArray = tp["mask"]
-		var n: float = float(tp["n"])
-		var tnorm: float = tp["norm"]
 		@warning_ignore("integer_division")
-		var y_lo: int = maxi(0, region.position.y - th / 2)
-		@warning_ignore("integer_division")
-		var y_hi: int = mini(hs - th, region.end.y - th / 2)
-		@warning_ignore("integer_division")
-		var x_lo: int = maxi(0, region.position.x - tw / 2)
-		@warning_ignore("integer_division")
-		var x_hi: int = mini(ws - tw, region.end.x - tw / 2)
-		for y: int in range(y_lo, y_hi + 1):
-			for x: int in range(x_lo, x_hi + 1):
-				var dot: float = 0.0
-				var s: Vector3 = Vector3.ZERO
-				var s2: float = 0.0
-				var inter: int = 0
-				for ty: int in th:
-					var zrow: int = ((y + ty) * ws + x) * 3
-					var mrow: int = (y + ty) * ws + x
-					var trow: int = ty * tw
-					for tx: int in tw:
-						if mask[trow + tx] == 0:
-							continue
-						var zo: int = zrow + tx * 3
-						var to: int = (trow + tx) * 3
-						var r: float = zs[zo]
-						var g: float = zs[zo + 1]
-						var b: float = zs[zo + 2]
-						dot += r * rgb[to] + g * rgb[to + 1] + b * rgb[to + 2]
-						s += Vector3(r, g, b)
-						s2 += r * r + g * g + b * b
-						if ms[mrow + tx] != 0:
-							inter += 1
-				var var_sum: float = s2 - (s.x * s.x + s.y * s.y + s.z * s.z) / n
-				var ncc: float = dot / (sqrt(maxf(var_sum, 1e-6)) * tnorm + 1e-6)
-				var window: int = _rect_sum(ms_sum, ws, x, y, tw, th)
-				var iou: float = float(inter) / float(maxi(int(n) + window - inter, 1))
-				var score: float = (1.0 - MATCH_SHAPE_WEIGHT) * ncc + MATCH_SHAPE_WEIGHT * iou
-				if best.is_empty() or score > float(best["score"]):
-					best = {score = score, at = Vector2i(x, y), rot = ri}
+		var c: Vector2i = at + Vector2i(int(rots[r0]["w"]) / 2 - int(tp["w"]) / 2, int(rots[r0]["h"]) / 2 - int(tp["h"]) / 2)
+		_match_scan(zs, ws, hs, ms, ms_sum, tp, ri, Rect2i(c.x - 2 + int(tp["w"]) / 2, c.y - 2 + int(tp["h"]) / 2, 5, 5), 1, best)
 	return best
+
+# Scores template `tp` with its centre at every `step`-th position of `region` (matching grid
+# px), updating `best` {score, at (template top-left), rot}. Score = (1 - w) * colour NCC over
+# the token + w * IoU of the token's outline with the token-coloured mask.
+func _match_scan(zs: PackedFloat32Array, ws: int, hs: int, ms: PackedByteArray, ms_sum: PackedInt32Array,
+		tp: Dictionary, ri: int, region: Rect2i, step: int, best: Dictionary) -> void:
+	var tw: int = tp["w"]
+	var th: int = tp["h"]
+	var rgb: PackedFloat32Array = tp["rgb"]
+	var poff: PackedInt32Array = tp["poff"]   # masked template pixel -> offset in the matching grid
+	var toff: PackedInt32Array = tp["toff"]   # ...and in the template
+	var n: float = float(tp["n"])
+	var tnorm: float = tp["norm"]
+	@warning_ignore("integer_division")
+	var y_lo: int = maxi(0, region.position.y - th / 2)
+	@warning_ignore("integer_division")
+	var y_hi: int = mini(hs - th, region.end.y - th / 2)
+	@warning_ignore("integer_division")
+	var x_lo: int = maxi(0, region.position.x - tw / 2)
+	@warning_ignore("integer_division")
+	var x_hi: int = mini(ws - tw, region.end.x - tw / 2)
+	var cnt: int = poff.size()
+	for y: int in range(y_lo, y_hi + 1, step):
+		for x: int in range(x_lo, x_hi + 1, step):
+			var base: int = y * ws + x
+			var dot: float = 0.0
+			var sr: float = 0.0
+			var sg: float = 0.0
+			var sb: float = 0.0
+			var s2: float = 0.0
+			var inter: int = 0
+			for i: int in cnt:
+				var m: int = base + poff[i]
+				var zo: int = m * 3
+				var to: int = toff[i]
+				var r: float = zs[zo]
+				var g: float = zs[zo + 1]
+				var b: float = zs[zo + 2]
+				dot += r * rgb[to] + g * rgb[to + 1] + b * rgb[to + 2]
+				sr += r
+				sg += g
+				sb += b
+				s2 += r * r + g * g + b * b
+				inter += ms[m]
+			var var_sum: float = s2 - (sr * sr + sg * sg + sb * sb) / n
+			var ncc: float = dot / (sqrt(maxf(var_sum, 1e-6)) * tnorm + 1e-6)
+			var window: int = _rect_sum(ms_sum, ws, x, y, tw, th)
+			var iou: float = float(inter) / float(maxi(int(n) + window - inter, 1))
+			var score: float = (1.0 - MATCH_SHAPE_WEIGHT) * ncc + MATCH_SHAPE_WEIGHT * iou
+			if best.is_empty() or score > float(best["score"]):
+				best["score"] = score
+				best["at"] = Vector2i(x, y)
+				best["rot"] = ri
 
 # Summed-area table of a 0/1 mask, (w + 1) x (h + 1).
 static func _integral(m: PackedByteArray, w: int, h: int) -> PackedInt32Array:
