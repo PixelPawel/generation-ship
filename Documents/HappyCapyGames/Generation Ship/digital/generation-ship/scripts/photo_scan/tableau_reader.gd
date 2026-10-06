@@ -74,7 +74,9 @@ const TOKEN_MM: float = 16.5                     # a real token's long side, rou
 const TOKEN_SIZE_MM: Array[float] = [16.2, 13.3, 17.7, 18.0, 17.1, 18.0]
 const MATCH_PPM: float = 1.5                     # art matching resolution
 const MATCH_ROT_STEP: int = 30
-const MATCH_MIN: float = 0.5                     # match score a token needs
+const MATCH_MIN: float = 0.45                    # match score a token needs (real tokens next to each other: ~0.45)
+const MATCH_MIN_NEXT: float = 0.55               # ...and every further token in the same blob
+const MATCH_SHARE_WEIGHT: float = 0.15           # how much a blob's colour share counts when choosing the type
 const MATCH_SHAPE_WEIGHT: float = 0.4            # share of the score from the outline fit
 const MATCH_SEARCH_MM: float = 3.0               # search this far around a candidate
 const MATCH_MAX_PER_BLOB: int = 4
@@ -784,12 +786,31 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 		var work: PackedFloat32Array = zs.duplicate()
 		for _try: int in n_max:
 			var hit: Dictionary = {}
+			# the type also needs its colour: a square Metals template fits almost any blob
+			# about as well as the right one, so a blob's colour share tips the choice — counted
+			# on what's left of the blob (two touching tokens: once one is matched, the other's
+			# colour must decide the next)
+			var share_now: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0, 0])
+			var cnt_now: int = 0
+			for k: int in (comp["pixels"] as PackedInt32Array):
+				if cls[k] >= 6:
+					continue
+				@warning_ignore("integer_division")
+				var oo: int = (mini(int((k / w) * k_m), hs - 1) * ws + mini(int((k % w) * k_m), ws - 1)) * 3
+				if work[oo] == 0.0 and work[oo + 1] == 0.0 and work[oo + 2] == 0.0:
+					continue   # blanked: an earlier match in this blob
+				share_now[cls[k]] += 1
+				cnt_now += 1
 			for alt: int in types:
 				var r: Dictionary = _match_token(work, ws, hs, ms, ms_sum, alt, region)
-				if not r.is_empty() and (hit.is_empty() or float(r["score"]) > float(hit["score"])):
+				if r.is_empty():
+					continue
+				r["rank"] = float(r["score"]) + MATCH_SHARE_WEIGHT * float(share_now[alt]) / float(maxi(cnt_now, 1))
+				if hit.is_empty() or float(r["rank"]) > float(hit["rank"]):
 					hit = r
 					hit["token"] = alt
-			if hit.is_empty() or float(hit["score"]) < MATCH_MIN:
+			# a further token in an already matched blob has to be convincing on its own
+			if hit.is_empty() or float(hit["score"]) < (MATCH_MIN if _try == 0 else MATCH_MIN_NEXT):
 				break
 			var tp: Dictionary = (_templates[int(hit["token"])] as Array)[int(hit["rot"])]
 			var at: Vector2i = hit["at"]
