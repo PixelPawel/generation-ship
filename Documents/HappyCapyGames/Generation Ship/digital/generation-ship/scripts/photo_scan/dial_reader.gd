@@ -52,6 +52,7 @@ const FACING_AGREE_DEG: float = 25.0   # pass 1's confident dials must agree on 
 const SCALE_AGREE: float = 0.2         # ...and on px per mm (perspective stays well inside this)
 const AGREE_MIN: int = 3
 const PASS1_MAX_TRIED: int = 800       # a clear photo needs ~450 markers for 6 confident dials
+const PASS1_HARD_MAX: int = 1200       # and never more: an unreadable photo searched every cyan speck for minutes
 const OVAL_ASPECTS: Array[float] = [0.9, 0.8]
 const OVAL_STEP_DEG: int = 30
 
@@ -181,7 +182,7 @@ func run(source: Image) -> Array[Dictionary]:
 	# would otherwise search every marker the slow way)
 	while next_i < pass1.size():
 		var n_agree: int = _agreeing(strong_at, strong_scales).size()
-		if n_agree >= STRONG_WANTED or (n_agree >= AGREE_MIN and next_i >= PASS1_MAX_TRIED):
+		if n_agree >= STRONG_WANTED or (n_agree >= AGREE_MIN and next_i >= PASS1_MAX_TRIED) or next_i >= PASS1_HARD_MAX:
 			break
 		var chunk: Array[Vector3] = pass1.slice(next_i, mini(next_i + batch, pass1.size()))
 		var found: Array = []
