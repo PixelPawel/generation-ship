@@ -41,6 +41,8 @@ static class Launcher
             MessageBox.Show(s.Missing, "Generation Ship", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return 1;
         }
+        if (File.Exists(SafeFlag) && ReadSmall(SafeFlag) != "quiet")
+            AskSafeOnStart(s);
         while (true)
         {
             bool safe = File.Exists(SafeFlag);
@@ -196,6 +198,51 @@ static class Launcher
         try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch (Exception) { }
     }
 
+    // ── Start-up question while safe graphics mode is on ───────────────────
+    // (after a driver update normal graphics often work again; "don't ask again" keeps safe mode
+    // quietly: the flag file then holds "quiet" instead of "1")
+
+    static void AskSafeOnStart(Strings s)
+    {
+        var form = NewForm();
+        var layout = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false, Location = new Point(16, 16) };
+        layout.Controls.Add(new Label { Text = s.SafeOnStart, AutoSize = true, MaximumSize = new Size(520, 0), Margin = new Padding(0, 0, 0, 12) });
+        var quiet = new CheckBox { Text = s.DontAsk, AutoSize = true, Margin = new Padding(0, 0, 0, 12) };
+        layout.Controls.Add(quiet);
+        var row = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, AutoSize = true, WrapContents = true, MaximumSize = new Size(560, 0), Margin = new Padding(0) };
+        bool normal = false;
+        var keep = new Button { Text = s.KeepSafe, AutoSize = true, Padding = new Padding(8, 2, 8, 2) };
+        keep.Click += (o, e) => form.Close();
+        var tryNormal = new Button { Text = s.TryNormal, AutoSize = true, Padding = new Padding(8, 2, 8, 2) };
+        tryNormal.Click += (o, e) => { normal = true; form.Close(); };
+        row.Controls.Add(keep);
+        row.Controls.Add(tryNormal);
+        layout.Controls.Add(row);
+        form.AcceptButton = keep;
+        form.Controls.Add(layout);
+        form.ShowDialog();
+        if (normal)
+            SetFlag(SafeFlag, false);
+        else if (quiet.Checked)
+            try { File.WriteAllText(SafeFlag, "quiet"); } catch (Exception) { }
+    }
+
+    static Form NewForm()
+    {
+        var form = new Form
+        {
+            Text = "Generation Ship",
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            MaximizeBox = false, MinimizeBox = false,
+            StartPosition = FormStartPosition.CenterScreen,
+            AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Padding = new Padding(0, 0, 16, 16), TopMost = true,
+            Font = SystemFonts.MessageBoxFont,
+        };
+        try { form.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch (Exception) { }
+        return form;
+    }
+
     // ── Crash window ────────────────────────────────────────────────────────
 
     enum Choice { Close, Restart, SafeMode, NormalMode }
@@ -212,17 +259,7 @@ static class Launcher
         else if (safe) msg = string.Format(s.SafeFailed, card);
         else msg = string.Format(s.StartFailed, card) + (TwoChips(gpus) ? "\n" + s.Laptop : "");
 
-        var form = new Form
-        {
-            Text = "Generation Ship",
-            FormBorderStyle = FormBorderStyle.FixedDialog,
-            MaximizeBox = false, MinimizeBox = false,
-            StartPosition = FormStartPosition.CenterScreen,
-            AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            Padding = new Padding(0, 0, 16, 16), TopMost = true,
-            Font = SystemFonts.MessageBoxFont,
-        };
-        try { form.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch (Exception) { }
+        var form = NewForm();
         var layout = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false, Location = new Point(16, 16) };
         layout.Controls.Add(new Label { Text = msg, AutoSize = true, MaximumSize = new Size(520, 0), Margin = new Padding(0, 0, 0, 8) });
         layout.Controls.Add(new Label { Text = s.Code + ": 0x" + code.ToString("X8"), AutoSize = true, ForeColor = SystemColors.GrayText, Margin = new Padding(0, 0, 0, 10) });
@@ -389,6 +426,7 @@ class Strings
 {
     public string StartFailed, SafeFailed, Closed, Laptop, DllMissing, YourCard;
     public string Safe, Normal, Restart, RestartSafe, Driver, VcRedist, Logs, Close, Code, Send, Missing;
+    public string SafeOnStart, KeepSafe, TryNormal, DontAsk;
 
     public static Strings For(string locale)
     {
@@ -407,6 +445,8 @@ class Strings
                 Logs = "Log-Ordner öffnen", Close = "Schließen", Code = "Fehlercode",
                 Send = "Fehlerbericht senden: an Happy Capy Games (Logdatei, Grafikkarte, Windows-Version, keine persönlichen Daten)",
                 Missing = "GS_game.exe wurde nicht gefunden.\n\nSo kannst du es beheben: Klicke in Steam mit der rechten Maustaste auf Generation Ship → Eigenschaften → Installierte Dateien → „Dateien auf Fehler überprüfen“. Prüfe auch, ob dein Virenscanner die Datei in die Quarantäne verschoben hat.",
+                SafeOnStart = "Generation Ship startet im sicheren Grafikmodus, weil das Spiel beim letzten Mal beim Starten beendet wurde.\n\nHast du seitdem deinen Grafiktreiber aktualisiert? Dann probiere die normale Grafik aus, sie sieht besser aus. Wird das Spiel wieder beendet, kannst du jederzeit zurück in den sicheren Grafikmodus wechseln.",
+                KeepSafe = "Sicheren Grafikmodus behalten", TryNormal = "Normale Grafik ausprobieren", DontAsk = "Nicht mehr fragen",
             };
             case "es": return new Strings
             {
@@ -421,6 +461,8 @@ class Strings
                 Logs = "Abrir carpeta de registros", Close = "Cerrar", Code = "Código de error",
                 Send = "Enviar un informe de error a Happy Capy Games (archivo de registro, tarjeta gráfica, versión de Windows; sin datos personales)",
                 Missing = "No se encontró GS_game.exe.\n\nCómo solucionarlo: en Steam, haz clic derecho en Generation Ship → Propiedades → Archivos instalados → «Verificar integridad de los archivos del juego». Comprueba también si tu antivirus ha puesto el archivo en cuarentena.",
+                SafeOnStart = "Generation Ship se iniciará en modo gráfico seguro porque la última vez se cerró al iniciarse.\n\n¿Has actualizado el controlador gráfico desde entonces? Entonces prueba los gráficos normales: se ven mejor. Si el juego vuelve a cerrarse, podrás volver al modo gráfico seguro en cualquier momento.",
+                KeepSafe = "Mantener modo gráfico seguro", TryNormal = "Probar gráficos normales", DontAsk = "No volver a preguntar",
             };
             case "fr": return new Strings
             {
@@ -435,6 +477,8 @@ class Strings
                 Logs = "Ouvrir le dossier des journaux", Close = "Fermer", Code = "Code d'erreur",
                 Send = "Envoyer un rapport d'erreur à Happy Capy Games (fichier journal, carte graphique, version de Windows ; aucune donnée personnelle)",
                 Missing = "GS_game.exe est introuvable.\n\nPour régler le problème : dans Steam, faites un clic droit sur Generation Ship → Propriétés → Fichiers installés → « Vérifier l'intégrité des fichiers du jeu ». Vérifiez aussi que votre antivirus n'a pas mis le fichier en quarantaine.",
+                SafeOnStart = "Generation Ship démarre en mode graphique sans échec, car le jeu s'est arrêté au démarrage la dernière fois.\n\nVous avez mis à jour votre pilote graphique depuis ? Essayez alors les graphismes normaux : ils sont plus beaux. Si le jeu se ferme à nouveau, vous pourrez toujours revenir au mode graphique sans échec.",
+                KeepSafe = "Garder le mode sans échec", TryNormal = "Essayer les graphismes normaux", DontAsk = "Ne plus demander",
             };
             case "it": return new Strings
             {
@@ -449,6 +493,8 @@ class Strings
                 Logs = "Apri la cartella dei log", Close = "Chiudi", Code = "Codice di errore",
                 Send = "Invia una segnalazione di errore a Happy Capy Games (file di log, scheda grafica, versione di Windows; nessun dato personale)",
                 Missing = "GS_game.exe non trovato.\n\nCome risolvere: in Steam, fai clic destro su Generation Ship → Proprietà → File installati → «Verifica l'integrità dei file di gioco». Controlla anche che l'antivirus non abbia messo il file in quarantena.",
+                SafeOnStart = "Generation Ship si avvia in modalità grafica sicura perché l'ultima volta si è chiuso durante l'avvio.\n\nHai aggiornato il driver grafico nel frattempo? Allora prova la grafica normale: è più bella. Se il gioco si chiude di nuovo, potrai sempre tornare alla modalità grafica sicura.",
+                KeepSafe = "Mantieni la modalità sicura", TryNormal = "Prova la grafica normale", DontAsk = "Non chiedere più",
             };
             case "pl": return new Strings
             {
@@ -463,6 +509,8 @@ class Strings
                 Logs = "Otwórz folder dzienników", Close = "Zamknij", Code = "Kod błędu",
                 Send = "Wyślij raport o błędzie do Happy Capy Games (plik dziennika, karta graficzna, wersja Windows; bez danych osobowych)",
                 Missing = "Nie znaleziono GS_game.exe.\n\nJak to naprawić: w Steam kliknij prawym przyciskiem Generation Ship → Właściwości → Zainstalowane pliki → „Zweryfikuj spójność plików gry”. Sprawdź też, czy program antywirusowy nie przeniósł pliku do kwarantanny.",
+                SafeOnStart = "Generation Ship uruchomi się w bezpiecznym trybie graficznym, ponieważ ostatnio gra zamknęła się podczas uruchamiania.\n\nCzy od tego czasu sterownik grafiki został zaktualizowany? Wypróbuj wtedy normalną grafikę – wygląda lepiej. Jeśli gra znów się zamknie, zawsze możesz wrócić do bezpiecznego trybu graficznego.",
+                KeepSafe = "Zostaw tryb bezpieczny", TryNormal = "Wypróbuj normalną grafikę", DontAsk = "Nie pytaj ponownie",
             };
             default: return new Strings
             {
@@ -477,6 +525,8 @@ class Strings
                 Logs = "Open log folder", Close = "Close", Code = "Error code",
                 Send = "Send an error report to Happy Capy Games (log file, graphics card, Windows version; no personal data)",
                 Missing = "GS_game.exe was not found.\n\nHow to fix it: in Steam, right-click Generation Ship → Properties → Installed Files → \"Verify integrity of game files\". Also check whether your antivirus moved the file to quarantine.",
+                SafeOnStart = "Generation Ship is starting in safe graphics mode, because it closed while starting last time.\n\nHave you updated your graphics driver since then? Then try normal graphics: they look better. If the game closes again, you can always switch back to safe graphics mode.",
+                KeepSafe = "Keep safe graphics", TryNormal = "Try normal graphics", DontAsk = "Don't ask again",
             };
         }
     }
