@@ -2,7 +2,7 @@
 
 Close Godot first (exports and the Android sync need the editor closed).
 
-    python tools/release.py windows           # export Build/Windows/GS.exe
+    python tools/release.py windows           # export Build/Windows: GS_game.exe + crash launcher GS.exe
     python tools/release.py android           # version code +1, sync, export the signed AAB
     python tools/release.py steam             # upload Build/Windows via steamcmd (app_build_4724920.vdf)
     python tools/release.py play [track]      # upload the AAB to Google Play (default track: internal)
@@ -22,6 +22,7 @@ One-time setup:
 The Android version code lives in this project's export_presets.cfg ("Android Release
 (AAB)"); `android` raises it by one and commits nothing — commit export_presets.cfg after.
 """
+import datetime
 import os
 import re
 import subprocess
@@ -31,7 +32,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.dirname(HERE)
 ANDROID = os.path.join(os.path.dirname(PROJECT), os.path.basename(PROJECT) + "-android")
 GODOT = r"C:\Program Files (x86)\Godot 4\Godot_v4.7-stable_win64.exe"
-WIN_PRESET, WIN_OUT = "GS Windows", "Build/Windows/GS.exe"
+# Steam starts GS.exe = tools/launcher (invisible unless the game crashes); the game is GS_game.exe
+WIN_PRESET, WIN_OUT, WIN_LAUNCHER = "GS Windows", "Build/Windows/GS_game.exe", "Build/Windows/GS.exe"
+CSC = r"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"   # ships with Windows
 AAB_PRESET, AAB_OUT = "Android Release (AAB)", "Build/GS.aab"
 PACKAGE = "com.happycapygames.generationship"
 SDK = r"C:\Users\ptmaz\Documents\HappyCapyGames\steamworks_sdk_164\sdk\tools\ContentBuilder"
@@ -80,6 +83,15 @@ def bump_version_code() -> int:
 
 def windows() -> None:
     export(PROJECT, WIN_PRESET, WIN_OUT)
+    src = os.path.join(HERE, "launcher")
+    run([CSC, "-nologo", "-codepage:65001", "-target:winexe", "-optimize+", "-win32icon:gs.ico",
+         "-r:System.Windows.Forms.dll", "-r:System.Drawing.dll", "-r:System.Management.dll",
+         "-out:" + os.path.join(PROJECT, WIN_LAUNCHER), "Launcher.cs"], cwd=src)
+    # build.txt: which build a crash report came from
+    commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=PROJECT, capture_output=True, text=True).stdout.strip()
+    with open(os.path.join(PROJECT, os.path.dirname(WIN_OUT), "build.txt"), "w", encoding="utf-8") as f:
+        f.write("%s %s" % (datetime.date.today().isoformat(), commit))
+    print("launcher", WIN_LAUNCHER, "+ build.txt")
 
 
 def android() -> None:

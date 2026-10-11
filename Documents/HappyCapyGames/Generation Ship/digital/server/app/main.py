@@ -170,3 +170,7 @@ app.include_router(scores_router)
 from .comments import router as comments_router  # noqa: E402  (translation comments + admin report)
 
 app.include_router(comments_router)
+
+from .crashes import router as crashes_router  # noqa: E402  (Windows launcher crash reports + admin report)
+
+app.include_router(crashes_router)

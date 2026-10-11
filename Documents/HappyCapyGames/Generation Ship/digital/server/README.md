@@ -19,7 +19,7 @@ Copy the changed files over, then `docker compose up -d --build`.
 
 ## Data & backups
 
-All votes, scores and translation comments are in `data/votes.db` (SQLite). Back up that one file.
+All votes, scores, translation comments and crash reports are in `data/votes.db` (SQLite). Back up that one file.
 
 ## API
 
@@ -33,9 +33,14 @@ All votes, scores and translation comments are in `data/votes.db` (SQLite). Back
 | GET | `/v1/comments/report?lang=PL&field=effect&status=open&format=json\|csv` | **admin:** comments grouped per card + field (most players first), with the card's votes |
 | POST | `/v1/comments/{id}/status` `{"status": "open"\|"done"\|"ignored"}` | **admin:** triage a comment |
 
+| POST | `/v1/crashes` `{"install", "build", "exit_code", "phase", "safe_mode", "os", "gpu", "log"}` | a crash report from the Windows launcher (only when the player ticks "send an error report"; 5/min per IP) |
+| GET | `/v1/crashes/report?days=30&format=json\|csv` | **admin:** crashes grouped by cause (exit code + first error + first crash frame), most players first |
+| GET | `/v1/crashes/{id}` | **admin:** one report with its full log |
+
 Admin endpoints need the header `X-Admin-Token: <ADMIN_TOKEN>`. The token is set in
 `/opt/hcg-api/.env` on the server (`ADMIN_TOKEN=...`, not in git); without it they always answer 403.
-`tools/translation_comments_report.py` in the game repo pulls the report into a CSV + readable summary.
+`tools/translation_comments_report.py` in the game repo pulls the report into a CSV + readable summary;
+`tools/crash_report.py` lists the crash reports.
 
 Keys look like `tv_PL_Tech_GSTechs44x67mm12` (language, deck, card file).
 Voters are `steam:<steam id>` or `dev:<random device id>`.
