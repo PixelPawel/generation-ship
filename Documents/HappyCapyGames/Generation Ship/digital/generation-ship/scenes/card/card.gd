@@ -7,10 +7,10 @@ signal hovered(card: Node3D)
 signal unhovered(card: Node3D)
 signal drag_started(card: Node3D)
 signal clicked(card: Node3D)
-signal right_clicked(card: Node3D)
 signal elevation_started(card: Node3D)
 signal elevation_ended(card: Node3D)
-# Phones: press and hold a hand card to read it big (see CardInspectOverlay).
+# Press and hold (phones) or right-click (desktop) a hand card to read it big
+# (see CardInspectOverlay). Recycling is a drag onto the control screen.
 signal inspect_requested(card: Node3D)
 
 const HOVER_HEIGHT := 0.15
@@ -178,8 +178,8 @@ func _on_input_event(_camera: Node, event: InputEvent, _pos: Vector3, _normal: V
 	elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 		if is_placed or _placed_elevated:
 			_try_toggle_placed_elevation()
-		else:
-			right_clicked.emit(self)
+		elif managed_by_hand and not is_dragging and not _any_dragging:
+			inspect_requested.emit(self)
 
 func _on_hand_long_press() -> void:
 	_drag_armed = false

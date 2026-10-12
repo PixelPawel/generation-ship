@@ -67,7 +67,8 @@ var _effect_mode: EffectMode = EffectMode.NONE:
 		if board:
 			board.set_effect_active(value != EffectMode.NONE)
 var _effect_queue: Array[Dictionary] = []
-var _card_inspect: CardInspectOverlay = null   # phones: hold a hand card to read it big
+var _hovered_market_slot: Array = ["", -1]   # market card under the mouse (slot type + index), "" = none
+var _card_inspect: CardInspectOverlay = null   # a hand card read big (hold on phones, right-click on desktop)
 const TOUCH_TOOLTIP_TOP: float = 40.0          # phones: below the top-corner buttons
 var _effect_hint_top: bool = false             # the tutorial's banner sits at the top edge, not mid-screen
 var _effect_slot: SectorSlot = null
@@ -254,9 +255,9 @@ func _ready() -> void:
 	$Board.tech_deck_reshuffled.connect(_on_tech_deck_reshuffled)
 	$Board.tech_card_discarded.connect(_on_tech_card_discarded)
 	$Hand.card_selected_for_discard.connect(_on_card_discarded)
-	$Hand.card_right_clicked.connect(_on_card_right_clicked_free_recycle)
 	$Board.bid_required.connect(_on_bid_required)
 	$Board.auction_payment_cancel_requested.connect(_on_auction_payment_cancel_requested)
+	$Board.market_inspect_right_dismissed.connect(_on_market_inspect_right_dismissed)
 	$Board.card_placed.connect(_on_card_placed)
 	$Board.optimize_triggered.connect(_on_optimize_triggered)
 	$Board.action_committed.connect(_on_action_committed)
@@ -275,10 +276,11 @@ func _ready() -> void:
 	_pause_menu.main_menu_pressed.connect(_on_pause_main_menu)
 	if GameTheme.is_touch():
 		_build_touch_menu_button()
-		_card_inspect = CardInspectOverlay.new()
-		$UILayer.add_child(_card_inspect)
-		$Hand.card_inspect_requested.connect(func(card: Node3D) -> void:
-			_card_inspect.show_card(card.get("card_data") as CardData, bool(card.get("is_advanced"))))
+	# a hand card read big: tap and hold on phones, right-click on desktop
+	_card_inspect = CardInspectOverlay.new()
+	$UILayer.add_child(_card_inspect)
+	$Hand.card_inspect_requested.connect(func(card: Node3D) -> void:
+		_card_inspect.show_card(card.get("card_data") as CardData, bool(card.get("is_advanced"))))
 	if GameNetwork.is_multiplayer:
 		_chat_panel = load("res://scenes/ui/chat_panel.gd").new()
 		$UILayer.add_child(_chat_panel)
@@ -384,7 +386,7 @@ func _on_node_added_to_tree(node: Node) -> void:
 		node.unhovered.connect(_on_any_card_unhovered)
 
 # Input hints in the player's words: phones have no mouse — "right-click" is
-# a long-press there and recycling is a drag onto the control screen.
+# a long-press there. Recycling is a drag onto the control screen everywhere.
 func hint(desktop: String, mobile: String) -> String:
 	return tr(mobile) if OS.has_feature("mobile") else tr(desktop)
 
@@ -411,8 +413,9 @@ func _on_any_card_hovered(card_node: Node3D) -> void:
 			desc = hint_text
 		_set_containing_sector_hover(card, true)
 	elif card.managed_by_hand:
-		desc = hint("Left-click and drag onto sector to buy or Right-click to Recycle.",
-				"Drag onto a sector to buy, or onto the control screen to recycle.")
+		desc = "%s
+%s" % [tr("Drag onto a sector to buy, or onto the control screen to recycle."),
+				hint("Right-click to enlarge card.", "Tap and hold to enlarge card.")]
 	elif card.card_data:
 		match card.card_data.card_type:
 			CardData.CardType.EXPEDITION:
@@ -1685,19 +1688,6 @@ func _recycle_card_to_supply(card: Node3D, color: CardData.SupplyColor) -> void:
 	var screen_pos: Vector2 = $Camera3D.unproject_position(card.global_position)
 	_cs_display.animate_supply_incoming(screen_pos, color)
 	$Hand.remove_card_fly_out(card)
-
-func _on_card_right_clicked_free_recycle(card: Node3D) -> void:
-	# PAYMENT_CONFIRM/PLACEMENT_CONFIRM are exempted: the card mid-purchase is
-	# already detached from the hand and invisible, so it can't be the one
-	# right-clicked here — this only ever affects a different hand card,
-	# which is safe to recycle while either dialog is up (the panel already
-	# re-syncs its available-supply display via _on_supply_changed ->
-	# refresh()). Every other effect mode represents an in-progress effect
-	# resolution that a free recycle could genuinely interfere with, so those
-	# stay blocked.
-	if _effect_mode != EffectMode.NONE and _effect_mode != EffectMode.PAYMENT_CONFIRM and _effect_mode != EffectMode.PLACEMENT_CONFIRM:
-		return
-	$Board.request_recycle(card)
 
 func _on_recycle_confirm_required(card: Node3D, color: CardData.SupplyColor) -> void:
 	var tc_count: int = $Board.count_tech_by_name("Trash Compactor") if color == CardData.SupplyColor.DUST else 0
@@ -3517,12 +3507,26 @@ func _on_market_expedition_pressed(slot_idx: int) -> void:
 		$Board.market_origin_3d = CockpitRig.viewport_to_world(self, _market_panel.get_slot_center("expedition", slot_idx))
 		$Board.begin_panel_expedition_purchase(slot_idx)
 
+func _on_market_card_hover_ended() -> void:
+	_hovered_market_slot = ["", -1]
+	_hide_tooltip()
+
+# Right-click on another market card while one is enlarged: the board has just
+# shrunk the old one, enlarge the clicked one straight away.
+func _on_market_inspect_right_dismissed(slot_type: String, slot_idx: int) -> void:
+	var t: String = String(_hovered_market_slot[0])
+	var i: int = int(_hovered_market_slot[1])
+	if t.is_empty() or (t == slot_type and i == slot_idx):
+		return
+	_on_market_card_inspect_requested(t, i)
+
 func _on_market_card_inspect_requested(slot_type: String, slot_idx: int) -> void:
 	var origin: Vector3 = CockpitRig.viewport_to_world(self, _market_panel.get_slot_center(slot_type, slot_idx))
 	var screen_center: Vector3 = CockpitRig.viewport_to_world(self, Vector2(_info_viewport.size) * 0.5)
 	$Board.inspect_market_card(slot_type, slot_idx, origin, screen_center)
 
 func _on_market_card_hover_started(slot_type: String, slot_idx: int) -> void:
+	_hovered_market_slot = [slot_type, slot_idx]
 	var cd: CardData = null
 	var is_adv: bool = false
 	match slot_type:

@@ -396,7 +396,7 @@ func _show(step: String) -> void:
 			_hint(tr("TUT_IF_NEW") % _name("Hangars"))
 			_highlight_tech_slots()
 		"recycle":
-			_hint(_main.hint("TUT_RECYCLE", "TUT_RECYCLE_MOBILE"))
+			_hint(tr("TUT_RECYCLE"))
 			_show_recycle_arrow(true)
 		"bid":
 			_show_bid()

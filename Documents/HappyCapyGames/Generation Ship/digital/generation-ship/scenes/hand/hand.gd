@@ -2,7 +2,6 @@ extends Node3D
 
 signal card_drag_started(card: Node3D)
 signal card_selected_for_discard(card: Node3D)
-signal card_right_clicked(card: Node3D)
 signal card_inspect_requested(card: Node3D)
 
 const HAND_SCALE := 0.392
@@ -50,10 +49,6 @@ func add_card(card: Node3D, animate: bool = false) -> void:
 		card.inspect_requested.connect(_on_card_inspect_requested)
 	if GameTheme.is_touch() and not card.clicked.is_connected(_on_card_tapped):
 		card.clicked.connect(_on_card_tapped)
-	# detach_card() deliberately leaves right_clicked connected, so guard
-	# against double-connecting when a card comes back after a failed drop.
-	if not card.right_clicked.is_connected(_on_card_right_clicked):
-		card.right_clicked.connect(_on_card_right_clicked)
 	_layout(animate)
 
 func animate_draw_cards(cards: Array[Node3D]) -> void:
@@ -77,8 +72,6 @@ func _disconnect_card_signals(card: Node3D) -> void:
 		card.unhovered.disconnect(_on_card_unhovered)
 	if card.drag_started.is_connected(_on_card_drag_started):
 		card.drag_started.disconnect(_on_card_drag_started)
-	if card.right_clicked.is_connected(_on_card_right_clicked):
-		card.right_clicked.disconnect(_on_card_right_clicked)
 	if card.clicked.is_connected(_on_card_tapped):
 		card.clicked.disconnect(_on_card_tapped)
 
@@ -121,13 +114,6 @@ func detach_card(card: Node3D) -> void:
 		card.unhovered.disconnect(_on_card_unhovered)
 	if card.drag_started.is_connected(_on_card_drag_started):
 		card.drag_started.disconnect(_on_card_drag_started)
-	# right_clicked is intentionally NOT disconnected here. This is called
-	# the instant a real drag starts (mousedown starts dragging immediately —
-	# see Card._on_input_event) as well as on a recycle request — a started
-	# drag can still fail (miss every slot) and leave the card sitting right
-	# back in its hand position, fully visible and clickable, for the ~0.3s
-	# return animation before add_card() re-adds it. Recycling needs to keep
-	# working through that window instead of silently going dead.
 	_cards.erase(card)
 	_layout(true)
 
@@ -166,9 +152,6 @@ func _on_card_clicked_for_discard(card: Node3D) -> void:
 	_layout(true)
 	_fly_out_card(card)
 	card_selected_for_discard.emit(card)
-
-func _on_card_right_clicked(card: Node3D) -> void:
-	card_right_clicked.emit(card)
 
 func _on_card_inspect_requested(card: Node3D) -> void:
 	card_inspect_requested.emit(card)

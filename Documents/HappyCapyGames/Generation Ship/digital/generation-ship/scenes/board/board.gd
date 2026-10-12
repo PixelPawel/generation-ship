@@ -57,6 +57,9 @@ signal arrow_drag_changed(active: bool)
 # original bid) and hands the chosen allocation back via
 # resume_auction_win_drag once confirmed.
 signal auction_payment_cancel_requested
+# A right-click shrank the enlarged market card (slot_type/slot_idx = that card's
+# market slot): main.gd enlarges the market card under the mouse, if it's another one.
+signal market_inspect_right_dismissed(slot_type: String, slot_idx: int)
 signal tech_deck_reshuffled(cards: Array[CardData])
 signal tech_card_discarded(cd: CardData)
 
@@ -89,6 +92,7 @@ var _supply_ui: Control = null
 var _control_screen_mesh: MeshInstance3D = null
 var _card_scene: PackedScene = null
 var _inspecting_card: Node3D = null
+var _inspecting_slot: Array = ["", -1]   # market slot type + index of _inspecting_card
 var _reveal_display_card: Node3D = null
 var _pending_card: Node3D = null
 var _pending_recycle_card: Node3D = null
@@ -396,6 +400,7 @@ func inspect_market_card(slot_type: String, slot_idx: int, world_pos: Vector3, s
 		vanish = world_pos + away_dir * (dist * INSPECT_VANISH_PULL)
 	clone.enlarge_from(target, vanish, Vector3.ONE * _placed_card_enlarge_scale())
 	_inspecting_card = clone
+	_inspecting_slot = [slot_type, slot_idx]
 	# collapse_if_elevated()'s tween frees the clone once it finishes, but
 	# nothing else clears this reference — every other read already guards
 	# with is_instance_valid(), so a dangling pointer here is harmless in
@@ -428,6 +433,8 @@ func inspect_market_card(slot_type: String, slot_idx: int, world_pos: Vector3, s
 func _dismiss_inspecting_card() -> void:
 	if _inspecting_card and is_instance_valid(_inspecting_card):
 		_inspecting_card.collapse_if_elevated()
+	# no longer "the" inspected card while it shrinks away: another one may be enlarged right away
+	_inspecting_card = null
 
 # Placed cards are children of a SectorSlot, which carries a ~0.15x scale
 # baked into its transform (see SectorSlot1-6 in main.tscn) — an enlarged
@@ -933,8 +940,11 @@ func _input(event: InputEvent) -> void:
 		var mb_inspect: InputEventMouseButton = event as InputEventMouseButton
 		var dismiss_button: bool = mb_inspect.button_index == MOUSE_BUTTON_RIGHT or mb_inspect.button_index == MOUSE_BUTTON_LEFT
 		if dismiss_button and mb_inspect.pressed:
+			var was_slot: Array = _inspecting_slot
 			_dismiss_inspecting_card()
 			get_viewport().set_input_as_handled()
+			if mb_inspect.button_index == MOUSE_BUTTON_RIGHT:
+				market_inspect_right_dismissed.emit(String(was_slot[0]), int(was_slot[1]))
 			return
 	# _placement_confirm_pending guard: the confirm panel lives on the info
 	# screen, a 3D mesh — clicking its Confirm/Cancel button is a raw OS
@@ -1069,10 +1079,9 @@ func _try_drop() -> void:
 	else:
 		_try_drop_tech()
 
-# Touch has no right-click, so dragging a hand card onto the control screen
-# (where the supply totals it would turn into are displayed) is the
-# platform-agnostic replacement for right-click-to-recycle — works
-# identically on desktop, since a plain mouse drag ends the same way.
+# Recycling is dragging a hand card onto the control screen (where the supply
+# totals it would turn into are displayed) — the one way on every platform;
+# right-click on a hand card enlarges it instead.
 func _try_drop_recycle() -> void:
 	_cleanup_pending_dynamic_slot()
 	var card: Node3D = _dragged_card

@@ -608,7 +608,7 @@ static func setup_info_screen_display(main: Main) -> void:
 	main._market_panel.opponent_pressed.connect(func(peer_id: int) -> void: OpponentBoardView.show_opponent_board(main, peer_id))
 	main._market_panel.card_inspect_requested.connect(main._on_market_card_inspect_requested)
 	main._market_panel.card_hover_started.connect(main._on_market_card_hover_started)
-	main._market_panel.card_hover_ended.connect(main._hide_tooltip)
+	main._market_panel.card_hover_ended.connect(main._on_market_card_hover_ended)
 	main._market_panel.opponent_hover_started.connect(func(player_name: String) -> void: main._show_tooltip("", main.hint("Click to view %s's board.", "Tap to view %s's board.") % player_name))
 	main._market_panel.opponent_hover_ended.connect(main._hide_tooltip)
 
@@ -675,6 +675,7 @@ static func setup_info_screen_display(main: Main) -> void:
 const EFFECT_HINT_FONT: float = 22.0
 const EFFECT_HINT_WIDTH: float = 640.0
 const EFFECT_HINT_TOP_MARGIN: float = 12.0
+const EFFECT_HINT_MIN_SIDE_WIDTH: float = 360.0   # narrowest strip beside the market screen worth using (x UI scale)
 
 # Also refits the banner to its current text: a Control never shrinks on its
 # own, and the wrapped label measured before layout (at zero width, one word
@@ -691,10 +692,47 @@ static func apply_effect_hint_scale(main: Main, s: float) -> void:
 	panel.custom_minimum_size = Vector2(w, 90.0 * s)
 	panel.size = Vector2.ZERO
 	if main._effect_hint_top:
-		# the tutorial's steps point at buttons in the middle of the screen: keep clear of them
-		panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE, roundi(EFFECT_HINT_TOP_MARGIN))
+		# the tutorial's steps point at buttons in the middle of the screen and at the market
+		# screen at the top: keep clear of both
+		_place_tutorial_hint(main, label, panel, w, s)
 	else:
 		panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
+
+# Tutorial banner: at the top, in the wider free strip beside the market screen when one is
+# wide enough (EFFECT_HINT_MIN_SIDE_WIDTH), else just below the market screen.
+static func _place_tutorial_hint(main: Main, label: Label, panel: Control, w: float, s: float) -> void:
+	var m: float = EFFECT_HINT_TOP_MARGIN
+	var market: Rect2 = market_screen_rect(main)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE, roundi(m))
+	if market.size == Vector2.ZERO:
+		return
+	var vp: Vector2 = main.get_viewport().get_visible_rect().size
+	var left_w: float = market.position.x - 2.0 * m
+	var right_w: float = vp.x - market.end.x - 2.0 * m
+	var side_w: float = maxf(left_w, right_w)
+	if side_w >= EFFECT_HINT_MIN_SIDE_WIDTH * s:
+		var pw: float = minf(w, side_w)
+		label.custom_minimum_size = Vector2(pw - 40.0, 0.0)
+		panel.custom_minimum_size = Vector2(pw, 90.0 * s)
+		panel.size = Vector2.ZERO
+		panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		var strip_x: float = m if left_w >= right_w else market.end.x + m
+		panel.position = Vector2(strip_x + (side_w - pw) / 2.0, m)
+	else:
+		panel.position.y = minf(market.end.y + m, vp.y - panel.get_combined_minimum_size().y - m)
+
+# The market (info) screen's bounding rectangle in window pixels, Rect2() if unknown.
+static func market_screen_rect(main: Main) -> Rect2:
+	var mesh: MeshInstance3D = main._info_screen_mesh
+	var cam: Camera3D = main.get_viewport().get_camera_3d()
+	if mesh == null or cam == null or mesh.mesh == null:
+		return Rect2()
+	var aabb: AABB = mesh.mesh.get_aabb()
+	var r: Rect2 = Rect2()
+	for i: int in 8:
+		var p: Vector2 = cam.unproject_position(mesh.global_transform * aabb.get_endpoint(i))
+		r = Rect2(p, Vector2.ZERO) if i == 0 else r.expand(p)
+	return r
 
 static func setup_info_screen_input(main: Main, screen_mesh: MeshInstance3D) -> void:
 	setup_viewport_input(main, screen_mesh, main._info_viewport)
