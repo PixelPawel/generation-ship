@@ -3,6 +3,7 @@ extends Node3D
 const Haptics = preload("res://scripts/haptics.gd")
 const TutorialSession = preload("res://scripts/tutorial_session.gd")
 const CardInspectOverlay = preload("res://scenes/ui/card_inspect_overlay.gd")
+const TurnBanner = preload("res://scenes/ui/turn_banner.gd")
 
 @export var card_scene: PackedScene
 
@@ -68,6 +69,7 @@ var _effect_mode: EffectMode = EffectMode.NONE:
 			board.set_effect_active(value != EffectMode.NONE)
 var _effect_queue: Array[Dictionary] = []
 var _hovered_market_slot: Array = ["", -1]   # market card under the mouse (slot type + index), "" = none
+var _turn_banner: TurnBanner = null   # the "Your Turn" pop-up while it plays
 var _card_inspect: CardInspectOverlay = null   # a hand card read big (hold on phones, right-click on desktop)
 const TOUCH_TOOLTIP_TOP: float = 40.0          # phones: below the top-corner buttons
 var _effect_hint_top: bool = false             # the tutorial's banner sits at the top edge, not mid-screen
@@ -898,12 +900,11 @@ func _update_turn_ui(show_banner: bool = true) -> void:
 
 func _show_your_turn_banner() -> void:
 	UIAudio.play_shift_change_sfx()
-	var lbl: Label = _make_banner_label(tr("Your Turn"), 56, Color(0.45, 1.0, 0.55))
-	var t: Tween = create_tween()
-	t.tween_property(lbl, "modulate:a", 1.0, 0.22).set_ease(Tween.EASE_OUT)
-	t.tween_interval(1.0)
-	t.tween_property(lbl, "modulate:a", 0.0, 0.38).set_ease(Tween.EASE_IN)
-	t.tween_callback(lbl.queue_free)
+	if _turn_banner and is_instance_valid(_turn_banner):
+		_turn_banner.queue_free()
+	_turn_banner = TurnBanner.new()
+	$UILayer.add_child(_turn_banner)
+	_turn_banner.play(tr("Your Turn"))
 
 # True once every player's most recent status this round is "passed" or
 # "researching" — a player can research on multiple separate turns and still
