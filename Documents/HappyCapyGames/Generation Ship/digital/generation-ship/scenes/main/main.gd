@@ -825,29 +825,11 @@ func _apply_supply_generation() -> float:
 		return 0.0
 	return float(generators.size() - 1) * 0.1 + 0.45
 
-func _make_banner_label(text: String, font_size: int, color: Color) -> Label:
-	var lbl := Label.new()
-	lbl.text = text
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	lbl.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	lbl.grow_vertical = Control.GROW_DIRECTION_BOTH
-	lbl.add_theme_font_size_override("font_size", font_size)
-	lbl.add_theme_color_override("font_color", color)
-	lbl.modulate.a = 0.0
-	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	$UILayer.add_child(lbl)
-	return lbl
-
 func _show_round_transition(then: Callable) -> void:
-	var lbl: Label = _make_banner_label(tr("End of Round %d") % _round, 72, Color(0.75, 0.90, 1.0))
-	var t: Tween = create_tween()
-	t.tween_property(lbl, "modulate:a", 1.0, 0.3)
-	t.tween_interval(0.85)
-	t.tween_property(lbl, "modulate:a", 0.0, 0.35)
-	t.tween_callback(lbl.queue_free)
-	t.tween_callback(then)
+	var banner: TurnBanner = TurnBanner.new()
+	$UILayer.add_child(banner)
+	banner.finished.connect(then)
+	banner.play(tr("End of Round %d") % _round, Color(0.75, 0.90, 1.0))
 
 func _end_round() -> void:
 	_has_passed = false
@@ -1277,9 +1259,9 @@ func _rpc_sync_auction_started(card_ref: Dictionary, slot_idx: int, is_tech: boo
 	var my_id: int = multiplayer.get_unique_id()
 	var is_active: bool = my_id == active_id
 	var can_pass: bool = is_active and my_id != initiator_id
-	if GameNetwork.is_multiplayer and initiator_id != multiplayer.get_unique_id():
-		_flash_auction_warning()
 	var _initiator_name: String = GameNetwork.player_names.get(initiator_id, "Player")
+	if GameNetwork.is_multiplayer and initiator_id != multiplayer.get_unique_id():
+		_show_auction_banner(tr("%s: auction for %s") % [_initiator_name, card_name])
 	_log_action(tr("%s: auction for %s") % [_initiator_name, card_name], Color(1.0, 0.72, 0.28))
 	_bid_popup.show_auction(cd, is_adv, min_bid, leader_name, _auction_cost_color, is_active, can_pass)
 	_auction_active = true
@@ -1350,7 +1332,9 @@ func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, ca
 	if _cd_toast:
 		_cn_toast = _cd_toast.adv_name if (_auction_is_adv and not _cd_toast.adv_name.is_empty()) else _cd_toast.card_name
 	var _wn_toast: String = GameNetwork.player_names.get(winner_id, "Player")
-	_show_auction_toast(tr("%s won %s for %d") % [_wn_toast, _cn_toast, final_bid])
+	var won_banner: TurnBanner = TurnBanner.new()
+	$UILayer.add_child(won_banner)
+	won_banner.play(tr("%s won %s for %d") % [_wn_toast, _cn_toast, final_bid], Color(1.0, 0.92, 0.35))
 	_log_action(tr("%s won %s for %d") % [_wn_toast, _cn_toast, final_bid], Color(1.0, 0.92, 0.35))
 	UIAudio.play_gavel_sfx()
 	if winner_id == multiplayer.get_unique_id():
@@ -1590,32 +1574,13 @@ func _show_auction_toast(message: String) -> void:
 	tween.tween_property(panel, "modulate:a", 0.0, 0.8)
 	tween.tween_callback(panel.queue_free)
 
-func _flash_auction_warning() -> void:
-	var overlay := ColorRect.new()
-	overlay.color = Color(1.0, 0.0, 0.0, 0.0)
-	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	overlay.z_index = 10
-	var lbl := Label.new()
-	lbl.text = tr("⚠  AUCTION")
-	lbl.add_theme_font_size_override("font_size", 72)
-	lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	lbl.modulate.a = 0.0
-	overlay.add_child(lbl)
-	$UILayer.add_child(overlay)
-	var t: Tween = create_tween()
-	for i: int in 3:
-		t.tween_property(overlay, "color:a", 0.35, 0.24)
-		if i == 0:
-			t.parallel().tween_property(lbl, "modulate:a", 1.0, 0.24)
-		t.tween_property(overlay, "color:a", 0.0, 0.30)
-		if i == 2:
-			t.parallel().tween_property(lbl, "modulate:a", 0.0, 0.30)
-	t.tween_callback(overlay.queue_free)
+const AUCTION_COLOR: Color = Color(1.0, 0.72, 0.28)
+
+# Someone else started an auction: the turn pop-up in amber, the card underneath.
+func _show_auction_banner(subtitle: String) -> void:
+	var banner: TurnBanner = TurnBanner.new()
+	$UILayer.add_child(banner)
+	banner.play(tr("⚠  AUCTION").replace("⚠", "").strip_edges(), AUCTION_COLOR, subtitle)
 
 func _game_over() -> void:
 	_show_action_buttons(false)
