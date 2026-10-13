@@ -408,10 +408,10 @@ static func _is_cyan_loose(r: int, g: int, b: int) -> bool:
 # violet is dark (photos: ~90, 55, 104 in good light, ~66, 40, 71 dim), unlike the bright cyan,
 # and warm lamp light eats exactly its blue (~72, 45, 63), hence the small margins.
 static func _is_violet(r: int, g: int, b: int) -> bool:
-	return b * 100 > g * 127 and r * 100 > g * 122 and b * 10 >= r * 75 / 10 and b - g > 14
+	return b * 100 > g * 127 and r * 100 > g * 122 and b * 100 >= r * 75 and b - g > 14
 
 static func _is_violet_loose(r: int, g: int, b: int) -> bool:
-	return b * 100 > g * 118 and r * 100 > g * 115 and b * 10 >= r * 65 / 10 and b - g > 10
+	return b * 100 > g * 118 and r * 100 > g * 115 and b * 100 >= r * 65 and b - g > 10
 
 # Cyan blobs in an RGB8 pixel buffer: x, y, diameter (all in that buffer's pixels).
 static func _find_markers(data: PackedByteArray, w: int, h: int) -> Array[Vector3]:

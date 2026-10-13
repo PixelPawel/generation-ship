@@ -985,6 +985,7 @@ func _match_token(zs: PackedFloat32Array, ws: int, hs: int, ms: PackedByteArray,
 		var tp: Dictionary = rots[ri]
 		@warning_ignore("integer_division")
 		var c: Vector2i = at + Vector2i(int(rots[r0]["w"]) / 2 - int(tp["w"]) / 2, int(rots[r0]["h"]) / 2 - int(tp["h"]) / 2)
+		@warning_ignore("integer_division")
 		_match_scan(zs, ws, hs, ms, ms_sum, tp, ri, Rect2i(c.x - 2 + int(tp["w"]) / 2, c.y - 2 + int(tp["h"]) / 2, 5, 5), 1, best)
 	return best
 

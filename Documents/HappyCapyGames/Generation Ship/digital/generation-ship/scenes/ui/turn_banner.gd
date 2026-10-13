@@ -49,7 +49,7 @@ func _add_rect(tex: Texture2D) -> TextureRect:
 	add_child(r)
 	return r
 
-func _make_label(text: String, size: float, color: Color, outline: float, glow: float) -> Label:
+func _make_label(text: String, font_px: float, color: Color, outline: float, glow: float) -> Label:
 	var l: Label = Label.new()
 	l.text = text
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -66,10 +66,10 @@ func _make_label(text: String, size: float, color: Color, outline: float, glow: 
 	# shrink to fit the window if the (translated) line is too long
 	var font: Font = l.get_theme_font("font")
 	var max_w: float = get_viewport_rect().size.x * MAX_TEXT_WIDTH
-	var w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, roundi(size)).x
+	var w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, roundi(font_px)).x
 	if w > max_w:
-		size *= max_w / w
-	l.add_theme_font_size_override("font_size", roundi(size))
+		font_px *= max_w / w
+	l.add_theme_font_size_override("font_size", roundi(font_px))
 	return l
 
 func play(text: String, color: Color = Color(0.45, 1.0, 0.55), subtitle: String = "") -> void:

@@ -158,7 +158,10 @@ func _ready() -> void:
 		g.light_energy = GLOW_ENERGY * PARKED
 		g.omni_range = 0.8
 		var parent_idx: int = int(spec[0])
-		(self if parent_idx < 0 else _glows[parent_idx]).add_child(g)
+		if parent_idx < 0:
+			add_child(g)
+		else:
+			_glows[parent_idx].add_child(g)
 		_glows.append(g)
 	_idle_flicker()
 	_add_dust()
