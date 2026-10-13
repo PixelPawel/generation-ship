@@ -1334,7 +1334,7 @@ func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, ca
 	var _wn_toast: String = GameNetwork.player_names.get(winner_id, "Player")
 	var won_banner: TurnBanner = TurnBanner.new()
 	$UILayer.add_child(won_banner)
-	won_banner.play(tr("%s won %s for %d") % [_wn_toast, _cn_toast, final_bid], Color(1.0, 0.92, 0.35))
+	won_banner.play(tr("%s won %s for %d") % [_wn_toast, _cn_toast, final_bid], Color(1.0, 0.92, 0.35), "", AUCTION_BANNER_LENGTH)
 	_log_action(tr("%s won %s for %d") % [_wn_toast, _cn_toast, final_bid], Color(1.0, 0.92, 0.35))
 	UIAudio.play_gavel_sfx()
 	if winner_id == multiplayer.get_unique_id():
@@ -1575,12 +1575,13 @@ func _show_auction_toast(message: String) -> void:
 	tween.tween_callback(panel.queue_free)
 
 const AUCTION_COLOR: Color = Color(1.0, 0.72, 0.28)
+const AUCTION_BANNER_LENGTH: float = 1.5   # auction pop-ups stay 50 % longer than "Your Turn"
 
 # Someone else started an auction: the turn pop-up in amber, the card underneath.
 func _show_auction_banner(subtitle: String) -> void:
 	var banner: TurnBanner = TurnBanner.new()
 	$UILayer.add_child(banner)
-	banner.play(tr("⚠  AUCTION").replace("⚠", "").strip_edges(), AUCTION_COLOR, subtitle)
+	banner.play(tr("⚠  AUCTION").replace("⚠", "").strip_edges(), AUCTION_COLOR, subtitle, AUCTION_BANNER_LENGTH)
 
 func _game_over() -> void:
 	_show_action_buttons(false)

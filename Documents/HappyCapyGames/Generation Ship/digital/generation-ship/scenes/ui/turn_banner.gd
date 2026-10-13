@@ -6,6 +6,8 @@ const Haptics = preload("res://scripts/haptics.gd")
 # shine sweeps over it; then it all folds away again. Never takes input.
 # Usage: var b = TurnBanner.new(); $UILayer.add_child(b); b.play(tr("Your Turn"), color[, subtitle])
 # A long title shrinks to fit the window; the optional subtitle is a smaller second line.
+# length: how long it stays overall (1.5 = 50 % longer); only the hold grows, the pop-in and
+# fold-away keep their speed.
 # `finished` fires right before it frees itself (not if something frees it earlier).
 
 signal finished
@@ -72,7 +74,8 @@ func _make_label(text: String, font_px: float, color: Color, outline: float, glo
 	l.add_theme_font_size_override("font_size", roundi(font_px))
 	return l
 
-func play(text: String, color: Color = Color(0.45, 1.0, 0.55), subtitle: String = "") -> void:
+func play(text: String, color: Color = Color(0.45, 1.0, 0.55), subtitle: String = "", length: float = 1.0) -> void:
+	var hold: float = HOLD + (OPEN * 2.0 + HOLD + CLOSE) * maxf(0.0, length - 1.0)
 	var vp: Vector2 = get_viewport_rect().size
 	var s: float = vp.y / 1080.0
 	var band_h: float = BAND_HEIGHT * s * (SUBTITLE_BAND if not subtitle.is_empty() else 1.0)
@@ -132,7 +135,7 @@ func play(text: String, color: Color = Color(0.45, 1.0, 0.55), subtitle: String 
 			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	t.tween_callback(func() -> void: _shine.modulate.a = 1.0)
 	t.tween_property(_shine, "position:x", vp.x + _shine.size.x, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	t.tween_interval(maxf(0.0, HOLD - 0.55))
+	t.tween_interval(maxf(0.0, hold - 0.55))
 	t.tween_property(_text, "modulate:a", 0.0, CLOSE)
 	t.parallel().tween_property(_text, "scale", Vector2.ONE * 0.9, CLOSE)
 	t.parallel().tween_property(_band, "scale:y", 0.0, CLOSE).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
