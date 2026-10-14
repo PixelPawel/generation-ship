@@ -137,10 +137,14 @@ func _make_button(key: String) -> Button:
 # height, the list scrolls (Close stays below it).
 const TOUCH_SETTINGS_SCALE: float = 2.0
 const TOUCH_SETTINGS_MAX_HEIGHT: float = 0.8   # of the screen, for the scrolling list
+const TOUCH_SETTINGS_WIDTH: float = 0.72        # of the screen width: phones are wide, use it
+const TOUCH_TOGGLE_ICON_SCALE: float = 2.2      # on/off switches drawn this much bigger
+const TOUCH_OPTION_WIDTH: float = 0.3           # dropdowns at least this share of the panel width
 
 func _double_settings_for_touch(vbox: VBoxContainer, close_btn: Button) -> void:
 	var k: float = TOUCH_SETTINGS_SCALE
-	_settings_panel.custom_minimum_size.x *= k
+	var panel_w: float = maxf(_settings_panel.custom_minimum_size.x * k, get_viewport_rect().size.x * TOUCH_SETTINGS_WIDTH)
+	_settings_panel.custom_minimum_size.x = panel_w
 	vbox.add_theme_constant_override("separation", roundi(12 * k))
 	for node: Node in vbox.find_children("*", "Control", true, false):
 		var ctrl: Control = node as Control
@@ -150,6 +154,10 @@ func _double_settings_for_touch(vbox: VBoxContainer, close_btn: Button) -> void:
 			ctrl.add_theme_constant_override("separation", roundi(10 * k))
 		var row_h: float = GameTheme.TOUCH_SETTINGS_ROW * k * 0.75 if (ctrl is OptionButton or ctrl is CheckButton or ctrl is HSlider) else ctrl.custom_minimum_size.y * k
 		ctrl.custom_minimum_size = Vector2(ctrl.custom_minimum_size.x * k, row_h)
+		if ctrl is CheckButton:
+			_enlarge_toggle_icons(ctrl as CheckButton, TOUCH_TOGGLE_ICON_SCALE)
+		elif ctrl is OptionButton:
+			ctrl.custom_minimum_size.x = maxf(ctrl.custom_minimum_size.x, panel_w * TOUCH_OPTION_WIDTH)
 	# the list scrolls; Close stays put underneath
 	vbox.remove_child(close_btn)
 	var outer: VBoxContainer = VBoxContainer.new()
@@ -157,12 +165,34 @@ func _double_settings_for_touch(vbox: VBoxContainer, close_btn: Button) -> void:
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.custom_minimum_size = Vector2(0, get_viewport_rect().size.y * TOUCH_SETTINGS_MAX_HEIGHT - GameTheme.TOUCH_MIN_SIZE * k)
+	# a wider scrollbar with a gap before it, so the controls on the right don't run into it
+	scroll.get_v_scroll_bar().custom_minimum_size.x = 14.0 * k
+	var gap: MarginContainer = MarginContainer.new()
+	gap.add_theme_constant_override("margin_right", roundi(22 * k))
+	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_settings_panel.remove_child(vbox)
 	_settings_panel.add_child(outer)
 	outer.add_child(scroll)
+	scroll.add_child(gap)
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(vbox)
+	gap.add_child(vbox)
 	outer.add_child(close_btn)   # already doubled with the rest
+
+# The default on/off switch icons are tiny on a phone: theme copies scaled up.
+static func _enlarge_toggle_icons(check: CheckButton, scale_by: float) -> void:
+	for icon_name: String in ["checked", "unchecked", "checked_disabled", "unchecked_disabled",
+			"checked_mirrored", "unchecked_mirrored", "checked_disabled_mirrored", "unchecked_disabled_mirrored"]:
+		if not check.has_theme_icon(icon_name):
+			continue
+		var tex: Texture2D = check.get_theme_icon(icon_name)
+		var img: Image = tex.get_image() if tex else null
+		if img == null or img.is_empty():
+			continue
+		img = img.duplicate() as Image
+		if img.is_compressed():
+			img.decompress()
+		img.resize(roundi(img.get_width() * scale_by), roundi(img.get_height() * scale_by), Image.INTERPOLATE_LANCZOS)
+		check.add_theme_icon_override(icon_name, ImageTexture.create_from_image(img))
 
 func _build_settings_panel() -> void:
 	_settings_panel = PanelContainer.new()
