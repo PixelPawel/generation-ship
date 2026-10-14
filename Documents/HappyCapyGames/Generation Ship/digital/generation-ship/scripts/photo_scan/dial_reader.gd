@@ -41,7 +41,7 @@ const MIN_HOLE: float = 0.15         # unlit socket vs the rim halfway to its ne
 const SCALE_TOLERANCE: float = 0.10
 const STRONG_GAP: float = 0.7
 const STRONG_WANTED: int = 6
-const MARKER_D_MM: Vector2 = Vector2(0.45, 1.3)   # plausible marker blob diameter (mm) in pass 2
+const MARKER_D_MM: Vector2 = Vector2(0.45, 2.1)   # plausible marker blob diameter (mm) in pass 2 (bigger diamond since 2026-10-14: ~1.5-1.7 mm)
 # Smaller blobs get a quick look only (circle, facing within +-SMALL_FACING_DEG): under lamp light
 # a marker's cyan core can shrink to ~0.25 mm (real photos 2026-10-06), and the full search on
 # every speck that size would be far too slow.
@@ -172,7 +172,7 @@ func run(source: Image) -> Array[Dictionary]:
 	var strong_raw: Array[float] = []
 	var pass1: Array[Vector3] = []
 	for b: Vector3 in blobs:
-		if b.z >= 2.5 and b.z <= 16.0:
+		if b.z >= 2.5 and b.z <= 36.0:
 			pass1.append(b)
 	var batch: int = maxi(2, OS.get_processor_count())
 	var next_i: int = 0
@@ -192,8 +192,8 @@ func run(source: Image) -> Array[Dictionary]:
 		var wide_search: Callable = func(i: int) -> void:
 			var b: Vector3 = chunk[i]
 			var radii: Array[float] = []
-			# 3.4..5.8 x the marker for the cyan dot; the v2 diamond is bigger (dial ~2.6 x it)
-			var r: float = maxf(4.0, b.z * 2.4)
+			# from ~1.9 x the marker blob (the bigger diamond since 2026-10-14: dial radius ~2.2-2.5 x its blob) to 5.8 x (a partly detected, blurred diamond)
+			var r: float = maxf(4.0, b.z * 1.9)
 			while r <= minf(160.0, b.z * 5.8):
 				radii.append(r)
 				r += 1.5
