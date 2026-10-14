@@ -6,6 +6,10 @@ Close Godot first (exports and the Android sync need the editor closed).
     python tools/release.py android           # version code +1, sync, export the signed AAB
     python tools/release.py steam             # upload Build/Windows via steamcmd (app_build_4724920.vdf)
     python tools/release.py play [track]      # upload the AAB to Google Play (default track: internal)
+    python tools/release.py promote [track] [version code]
+                                              # put an already uploaded build on another track (e.g.
+                                              # production) without uploading again; default: the
+                                              # build on the internal track
     python tools/release.py all [track]       # all four, in that order
 
 One-time setup:
@@ -104,10 +108,9 @@ def steam() -> None:
     run([STEAMCMD, "+login", STEAM_ACCOUNT, "+run_app_build", STEAM_VDF, "+quit"])
 
 
-def play(track: str = "internal") -> None:
+def play_api():
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
-    from googleapiclient.http import MediaFileUpload
     import socket
     socket.setdefaulttimeout(300)
     scopes = ["https://www.googleapis.com/auth/androidpublisher"]
@@ -119,8 +122,12 @@ def play(track: str = "internal") -> None:
         # --impersonate-service-account=<service account e-mail>`
         import google.auth
         creds, _ = google.auth.default(scopes=scopes)
-    api = build("androidpublisher", "v3", credentials=creds, cache_discovery=False)
-    edits = api.edits()
+    return build("androidpublisher", "v3", credentials=creds, cache_discovery=False)
+
+
+def play(track: str = "internal") -> None:
+    from googleapiclient.http import MediaFileUpload
+    edits = play_api().edits()
     edit_id = edits.insert(packageName=PACKAGE, body={}).execute()["id"]
     # 8 MB pieces with retries: the default 100 MB piece outlasts the 60 s socket
     # timeout on a home upload link
@@ -139,6 +146,35 @@ def play(track: str = "internal") -> None:
     print("Play: version code %s released to the %s track" % (code, track))
 
 
+def promote(track: str = "production", code: str = "") -> None:
+    edits = play_api().edits()
+    edit_id = edits.insert(packageName=PACKAGE, body={}).execute()["id"]
+    if not code:
+        internal = edits.tracks().get(packageName=PACKAGE, editId=edit_id, track="internal").execute()
+        codes = [c for r in internal.get("releases", []) for c in r.get("versionCodes", [])]
+        if not codes:
+            sys.exit("nothing on the internal track to promote")
+        code = max(codes, key=int)
+    from googleapiclient.errors import HttpError
+    edits.tracks().update(packageName=PACKAGE, editId=edit_id, track=track, body={
+        "track": track, "releases": [{"versionCodes": [code], "status": "completed"}]}).execute()
+    try:
+        edits.commit(packageName=PACKAGE, editId=edit_id).execute()
+    except HttpError as e:
+        # an app that was never published ("draft app") only takes draft releases through the
+        # API: the first one is sent for review by hand in the Play Console
+        if "draft app" not in str(e):
+            raise
+        edit_id = edits.insert(packageName=PACKAGE, body={}).execute()["id"]
+        edits.tracks().update(packageName=PACKAGE, editId=edit_id, track=track, body={
+            "track": track, "releases": [{"versionCodes": [code], "status": "draft"}]}).execute()
+        edits.commit(packageName=PACKAGE, editId=edit_id).execute()
+        print("Play: the app isn't published yet - version code %s is a DRAFT release on the %s track;"
+              " send it for review in the Play Console (Publishing overview)" % (code, track))
+        return
+    print("Play: version code %s released to the %s track" % (code, track))
+
+
 def main() -> None:
     args = sys.argv[1:]
     if not args:
@@ -154,6 +190,8 @@ def main() -> None:
         steam()
     if step in ("play", "all"):
         play(track)
+    if step == "promote":
+        promote(args[1] if len(args) > 1 else "production", args[2] if len(args) > 2 else "")
 
 
 if __name__ == "__main__":
