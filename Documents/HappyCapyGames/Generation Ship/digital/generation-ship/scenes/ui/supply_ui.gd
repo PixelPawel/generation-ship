@@ -339,7 +339,7 @@ func _spawn_floating_label(supply_color: CardData.SupplyColor, text: String) -> 
 	var local_pos: Vector2 = src_rect.position - get_global_rect().position
 	_spawn_float_label(text, local_pos, Color(0.4, 1.0, 0.5), 24, 48.0, 0.8)
 
-func animate_supply_incoming(from_screen_pos: Vector2, supply_color: CardData.SupplyColor, delay: float = 0.0) -> void:
+func animate_supply_incoming(from_screen_pos: Vector2, supply_color: CardData.SupplyColor, delay: float = 0.0, speed: float = 1.0) -> void:
 	if not _flow:
 		return
 	var target_rect: Rect2 = _flow.get_label_global_rect(supply_color)
@@ -363,10 +363,10 @@ func animate_supply_incoming(from_screen_pos: Vector2, supply_color: CardData.Su
 	var t: Tween = create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
 	if delay > 0.0:
 		t.tween_interval(delay)
-	t.tween_property(icon, "modulate:a", 1.0, 0.08)
-	t.tween_property(icon, "position", end_local - Vector2(22, 22), 0.45)
-	t.parallel().tween_property(icon, "scale", Vector2(0.2, 0.2), 0.45)
-	t.parallel().tween_property(icon, "modulate:a", 0.0, 0.45)
+	t.tween_property(icon, "modulate:a", 1.0, 0.08 / speed)
+	t.tween_property(icon, "position", end_local - Vector2(22, 22), 0.45 / speed)
+	t.parallel().tween_property(icon, "scale", Vector2(0.2, 0.2), 0.45 / speed)
+	t.parallel().tween_property(icon, "modulate:a", 0.0, 0.45 / speed)
 	t.tween_callback(icon.queue_free)
 
 func spend_supply(supply_color: CardData.SupplyColor, amount: int) -> void:

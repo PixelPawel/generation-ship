@@ -1144,6 +1144,8 @@ func confirm_recycle() -> void:
 # called with hand (tech) cards, which don't have an adv_color distinction —
 # now also reached by unplaceable advanced-sector auction wins, so it must
 # credit adv_color rather than the dust-sector color for those.
+const RECYCLE_ANIM_SPEED: float = 1.15   # recycles animate 15 % faster than other card removals
+
 func _recycle_card_node(card: Node3D) -> void:
 	var color: CardData.SupplyColor = CardData.SupplyColor.DUST
 	if card.card_data:
@@ -1154,7 +1156,7 @@ func _recycle_card_node(card: Node3D) -> void:
 	var t: Tween = card.create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
 	# Vector3.ZERO here would leave the Collider Area3D with a singular basis,
 	# which Jolt logs a warning about — see Card.NEGLIGIBLE_SCALE.
-	t.tween_property(card, "scale", Vector3.ONE * Card.NEGLIGIBLE_SCALE, 0.25)
+	t.tween_property(card, "scale", Vector3.ONE * Card.NEGLIGIBLE_SCALE, 0.25 / RECYCLE_ANIM_SPEED)
 	t.tween_callback(func() -> void:
 		if is_instance_valid(card):
 			card.queue_free()

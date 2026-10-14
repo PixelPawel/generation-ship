@@ -75,12 +75,12 @@ func _disconnect_card_signals(card: Node3D) -> void:
 	if card.clicked.is_connected(_on_card_tapped):
 		card.clicked.disconnect(_on_card_tapped)
 
-func _fly_out_card(card: Node3D, on_done: Callable = Callable()) -> void:
+func _fly_out_card(card: Node3D, on_done: Callable = Callable(), speed: float = 1.0) -> void:
 	card.collider.monitoring = false
 	var t: Tween = card.create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
 	# Vector3.ZERO here would leave the Collider Area3D with a singular basis,
 	# which Jolt logs a warning about — see Card.NEGLIGIBLE_SCALE.
-	t.tween_property(card, "scale", Vector3.ONE * Card.NEGLIGIBLE_SCALE, 0.28)
+	t.tween_property(card, "scale", Vector3.ONE * Card.NEGLIGIBLE_SCALE, 0.28 / speed)
 	t.tween_callback(func() -> void:
 		if is_instance_valid(card):
 			remove_child(card)
@@ -97,13 +97,14 @@ func remove_card(card: Node3D) -> void:
 	_cards.erase(card)
 	_layout(false)
 
-func remove_card_fly_out(card: Node3D) -> void:
+# speed > 1: a faster fly-out (recycles use Main.RECYCLE_ANIM_SPEED)
+func remove_card_fly_out(card: Node3D, speed: float = 1.0) -> void:
 	_enlarged_index = -1
 	card.managed_by_hand = false
 	_disconnect_card_signals(card)
 	_cards.erase(card)
 	_layout(true)
-	_fly_out_card(card)
+	_fly_out_card(card, Callable(), speed)
 
 func detach_card(card: Node3D) -> void:
 	_enlarged_index = -1

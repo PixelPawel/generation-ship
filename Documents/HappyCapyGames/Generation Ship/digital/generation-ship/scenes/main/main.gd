@@ -1651,10 +1651,12 @@ func _on_card_discarded(card: Node3D) -> void:
 				_set_action_buttons_disabled(false)
 
 
+const RECYCLE_ANIM_SPEED: float = 1.15   # recycles animate 15 % faster (card fly-out, supply icon)
+
 func _recycle_card_to_supply(card: Node3D, color: CardData.SupplyColor) -> void:
 	var screen_pos: Vector2 = $Camera3D.unproject_position(card.global_position)
-	_cs_display.animate_supply_incoming(screen_pos, color)
-	$Hand.remove_card_fly_out(card)
+	_cs_display.animate_supply_incoming(screen_pos, color, 0.0, RECYCLE_ANIM_SPEED)
+	$Hand.remove_card_fly_out(card, RECYCLE_ANIM_SPEED)
 
 func _on_recycle_confirm_required(card: Node3D, color: CardData.SupplyColor) -> void:
 	var tc_count: int = $Board.count_tech_by_name("Trash Compactor") if color == CardData.SupplyColor.DUST else 0
@@ -1909,7 +1911,7 @@ func _apply_seedbanks(indices: Array[int]) -> void:
 		var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
 		if _effect_slot:
 			_effect_slot.add_stored_supply(color, CardData.recycle_amount(card.card_data))
-		$Hand.remove_card_fly_out(card)
+		$Hand.remove_card_fly_out(card, RECYCLE_ANIM_SPEED)
 		count += 1
 	_pending_recycle_cards = []
 	if count > 0:
@@ -1997,13 +1999,13 @@ func _apply_recycle_tuck_store_decision(store_on_sector: bool) -> void:
 		if store_on_sector and target:
 			target.add_stored_supply(color, ts_amount)
 		else:
-			_cs_display.animate_supply_incoming(screen_pos, color)
+			_cs_display.animate_supply_incoming(screen_pos, color, 0.0, RECYCLE_ANIM_SPEED)
 			_cs_display.add_supply(color, ts_amount)
 			_apply_recycle_bonus(color)
 			_offer_rich_asteroid_store_for(card.card_data, ts_amount)
 		if target and card.card_data:
 			target.add_tucked_card(card.card_data, false)
-		$Hand.remove_card_fly_out(card)
+		$Hand.remove_card_fly_out(card, RECYCLE_ANIM_SPEED)
 	_pending_store_nodes = []
 	if count > 0:
 		var dest_str: String = tr("stored their supply on the sector") if store_on_sector else tr("gained their supply as currency")
