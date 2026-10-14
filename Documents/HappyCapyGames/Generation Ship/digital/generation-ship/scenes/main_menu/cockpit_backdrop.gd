@@ -250,10 +250,8 @@ func _setup_audio() -> void:
 		_sfx[n] = player
 	_hum = _sfx.get("ship_hum_loop") as AudioStreamPlayer
 	if _hum:
-		var wav: AudioStreamWAV = _hum.stream as AudioStreamWAV
-		if wav:
-			wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
-			wav.loop_end = int(wav.get_length() * wav.mix_rate)
+		# loops through its import settings (Forward, uncompressed): a loop end set here in code
+		# didn't match the QOA-compressed data and played past it - loud static on phones
 		_hum.volume_db = HUM_DB
 		_hum.play()
 
