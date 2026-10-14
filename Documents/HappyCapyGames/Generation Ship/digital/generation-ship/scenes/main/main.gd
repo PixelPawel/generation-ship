@@ -803,9 +803,11 @@ func _do_pass() -> void:
 		return
 	_log_action(tr("You: passed"), Color(0.55, 0.55, 0.70))
 	var supply_dur: float = _apply_supply_generation()
-	var delay: float = maxf(supply_dur + 0.15, 0.25)
+	var delay: float = maxf(supply_dur + 0.15 / PASS_SPEED, 0.25 / PASS_SPEED)
 	get_tree().create_timer(delay).timeout.connect(func() -> void:
 		_show_round_transition(_end_round))
+
+const PASS_SPEED: float = 1.25   # pass -> income -> next round runs 25 % faster than the base timings
 
 func _apply_supply_generation() -> float:
 	var generators: Array[Dictionary] = $Board.get_supply_generators()
@@ -817,13 +819,13 @@ func _apply_supply_generation() -> float:
 		var color: CardData.SupplyColor = entry["color"] as CardData.SupplyColor
 		var card: Node3D = entry["card"] as Node3D
 		var screen_pos: Vector2 = cam.unproject_position(card.global_position)
-		ui.animate_supply_incoming(screen_pos, color, float(i) * 0.1)
+		ui.animate_supply_incoming(screen_pos, color, float(i) * 0.1 / PASS_SPEED, PASS_SPEED)
 		totals[color] = totals.get(color, 0) + 1
 	for color: CardData.SupplyColor in totals:
 		ui.add_supply(color, totals[color])
 	if generators.is_empty():
 		return 0.0
-	return float(generators.size() - 1) * 0.1 + 0.45
+	return (float(generators.size() - 1) * 0.1 + 0.45) / PASS_SPEED
 
 func _show_round_transition(then: Callable) -> void:
 	var banner: TurnBanner = TurnBanner.new()
@@ -967,7 +969,7 @@ func _rpc_sync_active_player(peer_id: int) -> void:
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_end_round() -> void:
 	var supply_dur: float = _apply_supply_generation()
-	var delay: float = maxf(supply_dur + 0.15, 1.1)
+	var delay: float = maxf(supply_dur + 0.15 / PASS_SPEED, 1.1 / PASS_SPEED)
 	get_tree().create_timer(delay).timeout.connect(func() -> void:
 		_show_round_transition(func() -> void:
 			_end_round()
