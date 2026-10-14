@@ -39,7 +39,7 @@ const MIN_LIT: float = 0.50
 const MIN_DOT: float = 0.10          # lit light vs the rim halfway to its neighbours (real photos 2026-10-06: real dials 0.17-0.36, misreads ~0.0)
 const MIN_HOLE: float = 0.15         # unlit socket vs the rim halfway to its neighbours
 const SCALE_TOLERANCE: float = 0.10
-const STRONG_GAP: float = 0.6
+const STRONG_GAP: float = 0.7
 const STRONG_WANTED: int = 6
 const MARKER_D_MM: Vector2 = Vector2(0.45, 1.3)   # plausible marker blob diameter (mm) in pass 2
 # Smaller blobs get a quick look only (circle, facing within +-SMALL_FACING_DEG): under lamp light
@@ -396,22 +396,18 @@ static func _all_angles() -> Array[float]:
 
 # ── Marker candidates ────────────────────────────────────────────────────────
 
-static func _is_cyan(r: int, g: int, b: int) -> bool:
-	return b > 140 and g > 110 and r < 120 and b - r > 60 and g - r > 35
-
-static func _is_cyan_loose(r: int, g: int, b: int) -> bool:
-	return b > 110 and g > 95 and b - r > 45 and g - r > 30
-
-# Dial v2's violet (printed C65 M90, hue ~286): blue and red both well above green — still true
-# under warm lamp light (red up, blue down) — and blue not far below red, which keeps the card
-# art's reds and pinks out (violet is almost absent from the art). Ratios, not levels: printed
-# violet is dark (photos: ~90, 55, 104 in good light, ~66, 40, 71 dim), unlike the bright cyan,
-# and warm lamp light eats exactly its blue (~72, 45, 63), hence the small margins.
+# Dial v2's violet (printed C65 M90, hue ~286): blue well above green, red a bit above green, and
+# blue not far below red, which keeps the card art's reds and pinks out (violet is almost absent
+# from the art). Ratios, not levels: printed violet is dark (photos: ~90, 55, 104 in good light,
+# ~66, 40, 71 dim), warm lamp light eats exactly its blue (~72, 45, 63), and on coated paper under
+# the torch it comes out lighter and bluer (~160, 140, 215: red only ~10-15 % above green), hence
+# the small margins. Only the diamond is a marker now: the cyan dot of the first test prints went
+# (cyan and light blue fill a good part of the card art: thousands of false marker candidates).
 static func _is_violet(r: int, g: int, b: int) -> bool:
-	return b * 100 > g * 127 and r * 100 > g * 122 and b * 100 >= r * 75 and b - g > 14
+	return b * 100 > g * 127 and r * 100 > g * 108 and b * 100 >= r * 75 and b - g > 14
 
 static func _is_violet_loose(r: int, g: int, b: int) -> bool:
-	return b * 100 > g * 118 and r * 100 > g * 115 and b * 100 >= r * 65 and b - g > 10
+	return b * 100 > g * 118 and r * 100 > g * 103 and b * 100 >= r * 65 and b - g > 10
 
 # Cyan blobs in an RGB8 pixel buffer: x, y, diameter (all in that buffer's pixels).
 static func _find_markers(data: PackedByteArray, w: int, h: int) -> Array[Vector3]:
@@ -477,14 +473,14 @@ static func _find_markers(data: PackedByteArray, w: int, h: int) -> Array[Vector
 					blobs.append(Vector3(bx, by, sqrt(count * 4.0 / PI)))
 	return blobs
 
-# A marker's colour: the violet diamond of dial v2 (2026-10), or the cyan dot of the first prints.
+# A marker's colour: the violet diamond of dial v2 (2026-10).
 static func _cyan_at(data: PackedByteArray, i: int, loose: bool) -> bool:
 	var r: int = data[i * 3]
 	var g: int = data[i * 3 + 1]
 	var b: int = data[i * 3 + 2]
 	if loose:
-		return _is_cyan_loose(r, g, b) or _is_violet_loose(r, g, b)
-	return _is_cyan(r, g, b) or _is_violet(r, g, b)
+		return _is_violet_loose(r, g, b)
+	return _is_violet(r, g, b)
 
 # ── Dial search ──────────────────────────────────────────────────────────────
 
