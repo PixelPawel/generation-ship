@@ -14,6 +14,7 @@ import csv
 import hashlib
 import hmac
 import io
+import json
 import os
 import time
 from collections import defaultdict, deque
@@ -22,7 +23,7 @@ from fastapi import APIRouter, Header, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
-from .main import KEY_RE, LANGS, VOTER_RE, _client_ip, db
+from .main import DB_PATH, KEY_RE, LANGS, VOTER_RE, _client_ip, db
 
 router = APIRouter()
 FIELDS = ("name", "flavor", "effect")
@@ -181,3 +182,18 @@ def set_status(comment_id: int, body: StatusIn, x_admin_token: str | None = Head
     if not n:
         raise HTTPException(404, "No such comment")
     return {"ok": True}
+
+
+# The cards' current texts (English + translations per name/flavor/effect), keyed by card file id
+# (the part of a comment key after tv_<LANG>_<deck>_). Uploaded by the game repo's
+# tools/upload_card_texts.py; read by the comments sheet's daily update (Apps Script).
+CARD_TEXTS_PATH = os.path.join(os.path.dirname(DB_PATH) or ".", "card_texts.json")
+
+
+@router.get("/v1/comments/cards")
+def card_texts(x_admin_token: str | None = Header(None)) -> dict:
+    _require_admin(x_admin_token)
+    if not os.path.exists(CARD_TEXTS_PATH):
+        return {"cards": {}}
+    with open(CARD_TEXTS_PATH, encoding="utf-8") as f:
+        return {"cards": json.load(f)}

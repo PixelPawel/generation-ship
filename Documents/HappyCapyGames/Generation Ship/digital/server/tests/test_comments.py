@@ -65,3 +65,13 @@ def test_status_triage():
     assert client.get("/v1/comments/report", headers=ADMIN, params={"lang": "DE"}).json()["total"] == 0   # default: open only
     assert client.get("/v1/comments/report", headers=ADMIN, params={"lang": "DE", "status": "done"}).json()["total"] == 1
     assert client.post("/v1/comments/999999/status", headers=ADMIN, json={"status": "done"}).status_code == 404
+
+
+def test_card_texts_need_admin_and_serve_the_file():
+    import json as _json
+    from app.comments import CARD_TEXTS_PATH
+    assert client.get("/v1/comments/cards").status_code == 403
+    assert client.get("/v1/comments/cards", headers=ADMIN).json() == {"cards": {}}
+    with open(CARD_TEXTS_PATH, "w", encoding="utf-8") as f:
+        _json.dump({"GSTechs44x67mm102": {"EN": {"name": "Fusion Power"}}}, f)
+    assert client.get("/v1/comments/cards", headers=ADMIN).json()["cards"]["GSTechs44x67mm102"]["EN"]["name"] == "Fusion Power"
