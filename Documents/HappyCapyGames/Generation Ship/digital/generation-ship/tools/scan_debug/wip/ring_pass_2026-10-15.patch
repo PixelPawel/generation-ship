@@ -1,0 +1,364 @@
+diff --git a/Documents/HappyCapyGames/Generation Ship/digital/generation-ship/scripts/photo_scan/dial_reader.gd b/Documents/HappyCapyGames/Generation Ship/digital/generation-ship/scripts/photo_scan/dial_reader.gd
+index 9fc47e15..82441d8a 100644
+--- a/Documents/HappyCapyGames/Generation Ship/digital/generation-ship/scripts/photo_scan/dial_reader.gd	
++++ b/Documents/HappyCapyGames/Generation Ship/digital/generation-ship/scripts/photo_scan/dial_reader.gd	
+@@ -53,6 +53,17 @@ const SCALE_AGREE: float = 0.2         # ...and on px per mm (perspective stays
+ const AGREE_MIN: int = 3
+ const PASS1_MAX_TRIED: int = 800       # a clear photo needs ~450 markers for 6 confident dials
+ const PASS1_HARD_MAX: int = 1200       # and never more: an unreadable photo searched every cyan speck for minutes
++# Pass 3 (ring search, 2026-10-15): dials whose diamond wasn't found (too small/blurred/off-colour in
++# the photo) are found by their ring of lit lights instead, read facing like their nearest found dial.
++const LIGHT_D_MM: float = 1.1          # printed light diameter
++const RING_BRIGHT: float = 0.72        # lit light: at least this bright (after _lum_gain)...
++const RING_MAX_CHROMA: int = 90        # ...and not strongly coloured (cream)
++const RING_MIN_VOTES: int = 4          # lit lights that must sit on one ring (3x3 cells summed)
++const RING_MAX_PEAKS: int = 80
++const RING_COHERENCE_PEAKS: int = 3000  # strongest vote peaks checked for lights on a 30 deg grid
++const RING_MIN_COHERENCE: float = 0.75
++const RING_FACING_DEG: int = 15        # +- around the nearest found dial's facing
++const RING_MIN_GAP: float = 0.66       # stricter than MIN_GAP: no marker vouches for these
+ const OVAL_ASPECTS: Array[float] = [0.9, 0.8]
+ const OVAL_STEP_DEG: int = 30
+ 
+@@ -139,7 +150,8 @@ func run(source: Image) -> Array[Dictionary]:
+ 	@warning_ignore("integer_division")
+ 	small.resize(maxi(1, img.get_width() / 2), maxi(1, img.get_height() / 2), Image.INTERPOLATE_BILINEAR)
+ 	var blobs: Array[Vector3] = []   # full-resolution x, y, diameter
+-	for b: Vector3 in _find_markers(small.get_data(), small.get_width(), small.get_height()):
++	var small_data: PackedByteArray = small.get_data()
++	for b: Vector3 in _find_markers(small_data, small.get_width(), small.get_height()):
+ 		blobs.append(Vector3(b.x * 2.0 + 0.5, b.y * 2.0 + 0.5, b.z * 2.0))
+ 	markers = blobs.duplicate()
+ 	img.convert(Image.FORMAT_L8)
+@@ -348,9 +360,331 @@ func run(source: Image) -> Array[Dictionary]:
+ 			shape = e["shape"],
+ 			marker = Vector2(float(e["mx"]), float(e["my"])),
+ 		})
++	if not cancelled:
++		var t_ring: int = Time.get_ticks_msec()
++		var more: Array[Dictionary] = _ring_pass(small_data, small.get_width(), small.get_height(), out)
++		if debug:
++			print("  ring pass: +%d dials in %.1f s" % [more.size(), (Time.get_ticks_msec() - t_ring) / 1000.0])
++		out.append_array(more)
+ 	progress = 1.0
+ 	return out
+ 
++# ── Pass 3: ring search ──────────────────────────────────────────────────────
++
++# Dials without a found diamond: lit lights (bright, cream, light-sized blobs) vote for the
++# centres one dial radius away (Hough); where enough votes meet there is probably a dial, read
++# with the facing and oval shape of its nearest found dial. Accepted only with RING_MIN_GAP and
++# the marker spot dark (a lit light there would mean a wrong rotation).
++func _ring_pass(sdata: PackedByteArray, sw: int, sh: int, found: Array[Dictionary]) -> Array[Dictionary]:
++	var more: Array[Dictionary] = []
++	if found.is_empty():
++		return more
++	# 1. lit-light candidates on the half-resolution copy
++	var spots: Array[Vector2] = []
++	var d_half: float = LIGHT_D_MM * _scale / 2.0
++	var area_lo: float = PI * pow(d_half * 0.3, 2.0)
++	var area_hi: float = PI * pow(d_half * 0.85, 2.0)
++	var thr: int = int(RING_BRIGHT * 255.0 / _lum_gain)
++	var seen: PackedByteArray = PackedByteArray()
++	seen.resize(sw * sh)
++	for y: int in range(1, sh - 1):
++		for x: int in range(1, sw - 1):
++			var i: int = y * sw + x
++			if seen[i] != 0 or not _bright_cream(sdata, i, thr):
++				continue
++			var stack: PackedInt32Array = PackedInt32Array([i])
++			seen[i] = 1
++			var count: int = 0
++			var sx: float = 0.0
++			var sy: float = 0.0
++			var x0: int = x
++			var x1: int = x
++			var y0: int = y
++			var y1: int = y
++			var too_big: bool = false
++			while not stack.is_empty():
++				var q: int = stack[stack.size() - 1]
++				stack.remove_at(stack.size() - 1)
++				var qx: int = q % sw
++				@warning_ignore("integer_division")
++				var qy: int = q / sw
++				count += 1
++				if float(count) > area_hi * 2.0:
++					too_big = true
++				sx += qx
++				sy += qy
++				x0 = mini(x0, qx)
++				x1 = maxi(x1, qx)
++				y0 = mini(y0, qy)
++				y1 = maxi(y1, qy)
++				for n: int in [q - 1, q + 1, q - sw, q + sw]:
++					if n < 0 or n >= sw * sh or seen[n] != 0:
++						continue
++					if _bright_cream(sdata, n, thr):
++						seen[n] = 1
++						stack.append(n)
++			if too_big or float(count) < area_lo or float(count) > area_hi:
++				continue
++			var bw: int = x1 - x0 + 1
++			var bh: int = y1 - y0 + 1
++			if maxi(bw, bh) > 1.8 * mini(bw, bh):
++				continue
++			spots.append(Vector2(sx / count * 2.0 + 0.5, sy / count * 2.0 + 0.5))
++	var n_bright: int = spots.size()
++	spots.append_array(_dark_dots(sdata, sw, sh, d_half))
++	if debug:
++		print("    ring: %d light spots (%d lit, %d unlit; half-res diameter %.1f px)" % [spots.size(), n_bright, spots.size() - n_bright, d_half])
++	for pr: Vector2 in debug_probes:
++		var near_txt: Array[String] = []
++		for si: int in spots.size():
++			if spots[si].distance_to(pr) < 110.0:
++				near_txt.append("%s%d@%d" % ["L" if si < n_bright else "D", int(spots[si].distance_to(pr)), int(rad_to_deg((spots[si] - pr).angle()))])
++		print("    ring probe %s: %s" % [str(pr), ", ".join(near_txt)])
++	if spots.size() < RING_MIN_VOTES or cancelled:
++		return more
++	# 2. votes per card type (dial radius), one per spot and cell
++	var cell: float = maxf(2.0, _scale * 0.25)
++	var gw: int = int(_w / cell) + 1
++	var gh: int = int(_h / cell) + 1
++	var cands: Array = []   # [votes, centre, deck]
++	for deck: String in DECK_R_MM:
++		var acc: PackedInt32Array = PackedInt32Array()
++		acc.resize(gw * gh)
++		var last: PackedInt32Array = PackedInt32Array()
++		last.resize(gw * gh)
++		last.fill(-1)
++		for si: int in spots.size():
++			var sp: Vector2 = spots[si]
++			var rr: float = float(DECK_R_MM[deck]) * _local_scale(sp.x, sp.y)
++			var steps: int = int(TAU * rr / cell) + 1
++			for k: int in steps:
++				var a: float = TAU * k / steps
++				var gx: int = int((sp.x + rr * cos(a)) / cell)
++				var gy: int = int((sp.y + rr * sin(a)) / cell)
++				if gx < 0 or gy < 0 or gx >= gw or gy >= gh:
++					continue
++				var gi: int = gy * gw + gx
++				if last[gi] == si:
++					continue
++				last[gi] = si
++				acc[gi] += 1
++		# 3. peaks of the 3x3 vote sums
++		for gy: int in range(1, gh - 1):
++			for gx: int in range(1, gw - 1):
++				var c: int = acc[gy * gw + gx]
++				if c == 0:
++					continue
++				var sum3: int = 0
++				var is_max: bool = true
++				for dy: int in range(-1, 2):
++					for dx: int in range(-1, 2):
++						var v: int = acc[(gy + dy) * gw + gx + dx]
++						sum3 += v
++						if v > c or (v == c and (dy < 0 or (dy == 0 and dx < 0))):
++							is_max = false
++				if is_max and sum3 >= RING_MIN_VOTES:
++					cands.append([sum3, Vector2((gx + 0.5) * cell, (gy + 0.5) * cell), deck])
++	cands.sort_custom(func(a: Array, b: Array) -> bool: return int(a[0]) > int(b[0]))
++	# a dial's lights sit 30 deg apart around its centre, letters of card text (also bright,
++	# outlined, light-sized) don't: keep peaks whose spots line up on that 30 deg grid
++	var ringed: Array = []
++	for ci: int in mini(cands.size(), RING_COHERENCE_PEAKS):
++		var cand: Array = cands[ci]
++		var ctr: Vector2 = cand[1]
++		var rr: float = float(DECK_R_MM[cand[2]]) * _local_scale(ctr.x, ctr.y)
++		var n: int = 0
++		var re: float = 0.0
++		var im: float = 0.0
++		for sp: Vector2 in spots:
++			var dv: Vector2 = sp - ctr
++			var dist: float = dv.length()
++			if absf(dist - rr) > rr * 0.15:
++				continue
++			var a12: float = 12.0 * atan2(dv.y, dv.x)
++			re += cos(a12)
++			im += sin(a12)
++			n += 1
++		if n < RING_MIN_VOTES:
++			continue
++		var coh: float = sqrt(re * re + im * im) / n
++		if coh >= RING_MIN_COHERENCE:
++			ringed.append([n * coh, ctr, cand[2], n, coh])
++	ringed.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) > float(b[0]))
++	for pr: Vector2 in debug_probes:
++		for ri: int in ringed.size():
++			if (ringed[ri][1] as Vector2).distance_to(pr) < 40.0:
++				print("    ring probe %s: candidate #%d %d lights coh %.2f at %s %s" % [str(pr), ri, int(ringed[ri][3]), float(ringed[ri][4]), str(ringed[ri][1]), ringed[ri][2]])
++	if debug:
++		print("    ring: %d vote peaks, %d on a 30-deg grid" % [cands.size(), ringed.size()])
++	cands = ringed
++	# 4. read the strongest candidates that aren't already a found dial
++	var taken: Array[Dictionary] = found.duplicate()
++	var tried: int = 0
++	for cand: Array in cands:
++		if tried >= RING_MAX_PEAKS or cancelled:
++			break
++		var ctr: Vector2 = cand[1]
++		var deck: String = cand[2]
++		var rr: float = float(DECK_R_MM[deck]) * _local_scale(ctr.x, ctr.y)
++		var clash: bool = false
++		var near: Dictionary = {}
++		var near_d: float = INF
++		for d: Dictionary in taken:
++			var dist: float = (d["center"] as Vector2).distance_to(ctr)
++			if dist < float(d["radius"]) * 1.5 or dist < rr * 1.5:
++				clash = true
++				break
++			if dist < near_d and found.has(d):
++				near_d = dist
++				near = d
++		if clash or near.is_empty():
++			continue
++		tried += 1
++		var e: Dictionary = _read_ring(ctr, rr, cell, float(near["th"]), near["shape"] as PackedFloat32Array)
++		if debug:
++			print("    ring cand %d lights coh %.2f at (%d, %d) %s -> %s" % [int(cand[3]), float(cand[4]), int(ctr.x), int(ctr.y), deck,
++				"none" if e.is_empty() else "%s gap %.2f dot %.2f" % [(_cards[int(e["code"])]["card"] as CardData).card_name, float(e["gap"]), float(e["dot"])]])
++		if e.is_empty() or _codes[int(e["code"])] != deck:
++			continue
++		var code: int = int(e["code"])
++		var c2: Vector2 = Vector2(float(e["cx"]), float(e["cy"]))
++		var mk: Vector2 = Vector2(float(e["mx"]), float(e["my"]))
++		var card_info: Dictionary = _cards[code]
++		var d_new: Dictionary = {
++			code = code,
++			card = card_info["card"],
++			is_advanced = bool(card_info["is_advanced"]),
++			center = c2,
++			radius = float(e["r"]),
++			up = (mk - c2).normalized(),
++			gap = float(e["gap"]),
++			dot = float(e["dot"]),
++			th = float(e["th"]),
++			shape = e["shape"],
++			marker = mk,
++			ring = true,
++		}
++		more.append(d_new)
++		taken.append(d_new)
++	return more
++
++# Unlit lights: round dark dots, clearly darker than their surroundings (a box mean ~2 light
++# diameters across), about a light's size; text strokes are elongated or too thin, so the
++# roundness and fill tests drop most of them. Half resolution in, full resolution out.
++func _dark_dots(sdata: PackedByteArray, sw: int, sh: int, d_half: float) -> Array[Vector2]:
++	var dots: Array[Vector2] = []
++	var lum: PackedInt32Array = PackedInt32Array()
++	lum.resize(sw * sh)
++	for i: int in sw * sh:
++		lum[i] = (sdata[i * 3] * 77 + sdata[i * 3 + 1] * 150 + sdata[i * 3 + 2] * 29) >> 8
++	# integral image for box means
++	var ii: PackedInt64Array = PackedInt64Array()
++	ii.resize((sw + 1) * (sh + 1))
++	for y: int in sh:
++		var row: int = 0
++		for x: int in sw:
++			row += lum[y * sw + x]
++			ii[(y + 1) * (sw + 1) + x + 1] = ii[y * (sw + 1) + x + 1] + row
++	var half: int = maxi(3, int(d_half * 1.2))
++	var dark: PackedByteArray = PackedByteArray()
++	dark.resize(sw * sh)
++	for y: int in range(half, sh - half):
++		for x: int in range(half, sw - half):
++			var x0: int = x - half
++			var y0: int = y - half
++			var x1: int = x + half + 1
++			var y1: int = y + half + 1
++			var sum: int = ii[y1 * (sw + 1) + x1] - ii[y0 * (sw + 1) + x1] - ii[y1 * (sw + 1) + x0] + ii[y0 * (sw + 1) + x0]
++			var mean: float = float(sum) / float((x1 - x0) * (y1 - y0))
++			var v: int = lum[y * sw + x]
++			if float(v) < mean * 0.62 and v < 110:
++				dark[y * sw + x] = 1
++	var area_lo: float = PI * pow(d_half * 0.3, 2.0)
++	var area_hi: float = PI * pow(d_half * 0.75, 2.0)
++	var seen: PackedByteArray = PackedByteArray()
++	seen.resize(sw * sh)
++	for y: int in range(half, sh - half):
++		for x: int in range(half, sw - half):
++			var i: int = y * sw + x
++			if dark[i] == 0 or seen[i] != 0:
++				continue
++			var stack: PackedInt32Array = PackedInt32Array([i])
++			seen[i] = 1
++			var count: int = 0
++			var sx: float = 0.0
++			var sy: float = 0.0
++			var bx0: int = x
++			var bx1: int = x
++			var by0: int = y
++			var by1: int = y
++			while not stack.is_empty():
++				var q: int = stack[stack.size() - 1]
++				stack.remove_at(stack.size() - 1)
++				var qx: int = q % sw
++				@warning_ignore("integer_division")
++				var qy: int = q / sw
++				count += 1
++				sx += qx
++				sy += qy
++				bx0 = mini(bx0, qx)
++				bx1 = maxi(bx1, qx)
++				by0 = mini(by0, qy)
++				by1 = maxi(by1, qy)
++				for n: int in [q - 1, q + 1, q - sw, q + sw]:
++					if n >= 0 and n < sw * sh and dark[n] != 0 and seen[n] == 0:
++						seen[n] = 1
++						stack.append(n)
++			if float(count) < area_lo or float(count) > area_hi:
++				continue
++			var bw: int = bx1 - bx0 + 1
++			var bh: int = by1 - by0 + 1
++			if maxi(bw, bh) > 1.6 * mini(bw, bh) or float(count) < 0.55 * bw * bh:
++				continue
++			dots.append(Vector2(sx / count * 2.0 + 0.5, sy / count * 2.0 + 0.5))
++	return dots
++
++static func _bright_cream(data: PackedByteArray, i: int, thr: int) -> bool:
++	var r: int = data[i * 3]
++	var g: int = data[i * 3 + 1]
++	var b: int = data[i * 3 + 2]
++	if (r * 77 + g * 150 + b * 29) >> 8 < thr:
++		return false
++	return maxi(r, maxi(g, b)) - mini(r, mini(g, b)) <= RING_MAX_CHROMA
++
++# A dial at about `ctr` (radius rr): every facing within RING_FACING_DEG of th0, a few radii and
++# centre offsets; best reading if it's confident and its marker spot isn't lit.
++func _read_ring(ctr: Vector2, rr: float, cell: float, th0: float, shape: PackedFloat32Array) -> Dictionary:
++	var best: Dictionary = {}
++	var a11: float = shape[0]
++	var a12: float = shape[1]
++	var a21: float = shape[2]
++	var a22: float = shape[3]
++	for dth: int in range(-RING_FACING_DEG, RING_FACING_DEG + 1, 3):
++		var th: float = th0 + deg_to_rad(float(dth))
++		var ct: float = cos(th)
++		var st: float = sin(th)
++		for f: float in [0.95, 1.0, 1.05]:
++			var r: float = rr * f
++			for oy: int in range(-1, 2):
++				for ox: int in range(-1, 2):
++					var cx: float = ctr.x + ox * cell
++					var cy: float = ctr.y + oy * cell
++					var mx: float = cx - r * (a11 * ct + a12 * st)
++					var my: float = cy - r * (a21 * ct + a22 * st)
++					var e: Dictionary = _evaluate(mx, my, r, th, shape)
++					if not e.is_empty() and (best.is_empty() or float(e["gap"]) > float(best["gap"])):
++						best = e
++						best["mx"] = mx
++						best["my"] = my
++	if best.is_empty() or float(best["gap"]) < RING_MIN_GAP or float(best["dot"]) < MIN_DOT:
++		return {}
++	# the marker's spot must not be a lit light (that would be a dial read one step rotated)
++	var mlum: float = _lum(float(best["mx"]), float(best["my"]))
++	if mlum < 0.0 or mlum > (float(best["lo"]) + float(best["hi"])) / 2.0:
++		return {}
++	best["shape"] = shape
++	return best
++
+ # The largest group of confident readings that agree with one of them (its anchor) on
+ # facing and scale — all cards in a tableau face the same way at about the same size.
+ static func _agreeing(at: Array[Vector3], scales: Array[float]) -> Array[int]:
