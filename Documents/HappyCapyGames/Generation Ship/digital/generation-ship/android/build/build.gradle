@@ -49,6 +49,7 @@ dependencies {
     implementation "androidx.camera:camera-camera2:$cameraxVersion"
     implementation "androidx.camera:camera-lifecycle:$cameraxVersion"
     implementation "androidx.camera:camera-view:$cameraxVersion"
+    implementation "androidx.camera:camera-extensions:$cameraxVersion"   // the phone's HDR / night multi-frame modes
 
     if (rootProject.findProject(":lib")) {
         implementation project(":lib")
