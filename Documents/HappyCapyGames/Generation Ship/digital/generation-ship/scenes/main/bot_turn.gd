@@ -1,5 +1,7 @@
 class_name BotTurn
 extends RefCounted
+const FleetRules = preload("res://scripts/game/fleet_rules.gd")
+const FleetFlow = preload("res://scenes/main/fleet_flow.gd")
 
 # Server-side orchestration for AI-controlled players: owns bot hand/supply/
 # board state on the Main node and executes the plays BotAI decides on.
@@ -90,6 +92,7 @@ static func get_bot_snapshot(main: Main, bot_id: int) -> Dictionary:
 		"vp": BotScoring.board_vp(board),
 		"vp_lines": BotScoring.board_vp_lines(board),
 		"slots": slot_snaps,
+		"fleet": FleetFlow.bot_stats(main, bot_id) if GameNetwork.fleet_mode else {},
 	}
 
 static func run_bot_turn(main: Main, bot_id: int) -> void:
@@ -469,3 +472,60 @@ static func bot_decide_interfleet_pick(main: Main, bot_id: int) -> void:
 		return
 	var idx: int = randi() % main._interfleet_pool_refs.size()
 	main._server_handle_interfleet_pick(bot_id, idx)
+
+
+# ── Generation Fleet: bot crewmates pledging toward a solve (host) ────────────
+# A bot chips in supplies / hand cards it has (not more than the crew needs);
+# the pledge is only paid if the whole crew covers the cost. Destroying or
+# archived-card costs are left to the humans for now.
+static var _fleet_pledges: Dictionary = {}   # bot id -> {kind, color, units, cards}
+
+static func bot_fleet_pledge(main: Main, bot_id: int, no: int, need: int) -> Dictionary:
+	var sv: Dictionary = FleetRules.SOLVES.get(no, {})
+	var kind: String = str(sv.get("kind", ""))
+	var plan: Dictionary = {"kind": kind, "units": 0, "colors": [], "cards": []}
+	match kind:
+		"pay":
+			var col: int = int(sv["color"])
+			var have: int = int((main.bot_supplies.get(bot_id, {}) as Dictionary).get(col, 0))
+			plan["color"] = col
+			plan["units"] = mini(have, need)
+		"discard_color", "discard_stars", "discard_each_color":
+			for cd: CardData in bot_hand(main, bot_id):
+				if int(plan["units"]) >= need:
+					break
+				if kind == "discard_color" and not (sv["colors"] as Array).has(int(cd.color)):
+					continue
+				if kind == "discard_stars" and cd.stars <= 0:
+					continue
+				if kind == "discard_each_color" and (plan["colors"] as Array).has(int(cd.color)):
+					continue
+				(plan["cards"] as Array).append(cd)
+				if kind == "discard_stars":
+					plan["units"] = int(plan["units"]) + cd.stars
+				elif kind == "discard_each_color":
+					(plan["colors"] as Array).append(int(cd.color))
+				else:
+					plan["units"] = int(plan["units"]) + 1
+	_fleet_pledges[bot_id] = plan
+	return plan
+
+static func bot_fleet_pay_pledges(main: Main) -> void:
+	for bot_id: int in _fleet_pledges:
+		var plan: Dictionary = _fleet_pledges[bot_id]
+		if str(plan["kind"]) == "pay" and int(plan["units"]) > 0:
+			var sup: Dictionary = main.bot_supplies.get(bot_id, {}) as Dictionary
+			var col: int = int(plan["color"])
+			sup[col] = maxi(0, int(sup.get(col, 0)) - int(plan["units"]))
+		var cards: Array = plan.get("cards", []) as Array
+		if not cards.is_empty():
+			var hand: Array[CardData] = bot_hand(main, bot_id)
+			for cd: Variant in cards:
+				hand.erase(cd)
+				main.get_node("Board").add_to_discard(cd as CardData)
+			bot_set_hand(main, bot_id, hand)
+	_fleet_pledges.clear()
+	broadcast_bot_states(main)
+
+static func bot_fleet_clear_pledges(_main: Main) -> void:
+	_fleet_pledges.clear()

@@ -165,15 +165,22 @@ static func _apply(main: Main, no: int, eff: Dictionary) -> void:
 			var more: Array[int] = main._fleet.reveal(extra)
 			await _resolve_revealed(main, more)
 		"shuffle_expeditions":
+			# done on every peer in lockstep: the deck positions come from the
+			# shared Fleet RNG, not the market's own (unsynced) shuffle-back
 			var em: Node = board.get_expedition_market()
+			var deck: Node = em._expedition_deck
 			var count: int = 0
-			for stack: Array in em._stacks:
+			for i: int in em._stacks.size():
+				var stack: Array = em._stacks[i]
 				while not stack.is_empty():
-					var before: int = stack.size()
-					em._on_shuffle_card_clicked(stack.back() as Node3D)
-					if stack.size() >= before:   # card without its slot meta: stop
-						break
-					count += 1
+					var card: Node3D = stack.pop_back() as Node3D
+					if card and card.card_data:
+						deck.insert_at(card.card_data, main._fleet.rng.randi() % (deck.remaining() + 1))
+						count += 1
+					if card:
+						card.queue_free()
+				em._update_slot_visuals(i)
+			em.market_changed.emit()
 			main._log_action(main.tr("%s: %d expedition(s) shuffled back into the deck.") % [_name(no), count], DANGER_COLOR)
 		"remove_fewest_sector":
 			var slots: Array[SectorSlot] = _occupied_slots(main)
@@ -315,6 +322,8 @@ static func _lose_items(main: Main, no: int, n: int, stored: bool, archived: boo
 # ── Solving ───────────────────────────────────────────────────────────────────
 
 static func can_solve(main: Main, no: int) -> bool:
+	if GameNetwork.is_multiplayer and not FleetRules.is_condition_solve(no):
+		return main._fleet_session_no == 0   # the crew may cover it together
 	var sv: Dictionary = FleetRules.SOLVES.get(no, {})
 	var n: int = int(sv.get("n", 1))
 	var hand: Array[Node3D] = _hand_cards(main)
@@ -384,6 +393,9 @@ static func can_solve(main: Main, no: int) -> bool:
 static func try_solve(main: Main, no: int) -> void:
 	if main._fleet == null or main._fleet_busy or main._effect_mode != Main.EffectMode.NONE:
 		return
+	if GameNetwork.is_multiplayer:
+		_try_solve_online(main, no)
+		return
 	if not can_solve(main, no):
 		main._log_action(main.tr("Can't solve %s yet.") % _name(no), DANGER_COLOR)
 		return
@@ -445,6 +457,153 @@ static func try_solve(main: Main, no: int) -> void:
 	_after_change(main)
 
 # Dimension Pocket: the player picks 1 card of each of the 6 colours (none = cancel).
+# ── Solving online ────────────────────────────────────────────────────────────
+# Conditions: the player meeting it says so, the host tells everyone. Costs:
+# the host opens a session, every human gets one prompt to pledge part of the
+# (per-player-scaled) cost; when everyone has answered, the host checks the
+# total — enough: each peer pays its pledge and the Danger is solved for all;
+# short: nothing is paid. (Bots pledge on the host, see BotTurn.)
+
+static func _try_solve_online(main: Main, no: int) -> void:
+	if FleetRules.is_condition_solve(no):
+		if not can_solve(main, no):
+			main._log_action(main.tr("Can't solve %s yet.") % _name(no), DANGER_COLOR)
+			return
+		main.fleet_request_solved(no)
+		return
+	main.fleet_request_session(no)
+
+static func on_solved(main: Main, no: int, who: String) -> void:
+	if main._fleet == null or main._fleet.entry(no).is_empty():
+		return
+	main._fleet.solve(no)
+	main._log_action(main.tr("Danger solved by %s: %s") % [who, _name(no)], SOLVED_COLOR)
+	UIAudio.play_fuse_sfx()
+	_after_change(main)
+
+static func _item_data(it: Dictionary) -> CardData:
+	if it.has("card"):
+		return (it["card"] as Node3D).card_data
+	return (it["tuck"] as Dictionary)["data"]
+
+static func pledge_prompt(main: Main, no: int, who: String, need: int) -> void:
+	var sv: Dictionary = FleetRules.SOLVES.get(no, {})
+	var kind: String = str(sv.get("kind", ""))
+	main._fleet_pledge_apply = Callable()
+	main._log_action(main.tr("%s wants to solve %s — the crew needs %d.") % [who, _name(no), need], DANGER_COLOR)
+	if main._fleet_choice_active or main._effect_mode != Main.EffectMode.NONE or main._fleet_busy:
+		main._log_action(main.tr("(You're busy — you pledge nothing this time.)"), DANGER_COLOR)
+		main.fleet_send_pledge(no, 0, [])
+		return
+	main._fleet_busy = true
+	var units: int = 0
+	var colors: Array = []
+	var board: Node = main.get_node("Board")
+	var title: String = main.tr("Solve %s (crew needs %d): your share?") % [_name(no), need]
+	match kind:
+		"pay":
+			var col: int = int(sv["color"])
+			var labels: Array = [main.tr("Nothing")]
+			var plans: Array = [{}]
+			for k: int in range(1, need + 1):
+				var plan: Dictionary = board._compute_payment(col, k)
+				if plan.is_empty():
+					break
+				labels.append(main.tr("%d %s") % [k, CardData.color_name(col)])
+				plans.append(plan)
+			var pick: int = await _pick_option(main, title, labels)
+			units = pick
+			if pick > 0:
+				var plan: Dictionary = plans[pick]
+				main._fleet_pledge_apply = func() -> void:
+					for c: int in plan:
+						main._cs_display.spend_supply(c, int(plan[c]))
+		"discard_color", "discard_stars", "discard_each_color":
+			var cands: Array[Node3D] = []
+			for c: Node3D in _hand_cards(main):
+				if kind == "discard_color" and not (sv["colors"] as Array).has(int(c.card_data.color)):
+					continue
+				if kind == "discard_stars" and c.card_data.stars <= 0:
+					continue
+				cands.append(c)
+			if not cands.is_empty():
+				var max_pick: int = need if kind != "discard_stars" else 0
+				var idx: Array[int] = await _pick_cards(main, title + main.tr(" (none = nothing)"), cands, max_pick)
+				var picks: Array[Node3D] = []
+				for i: int in idx:
+					picks.append(cands[i])
+					if kind == "discard_stars":
+						units += cands[i].card_data.stars
+					elif kind == "discard_each_color":
+						if not colors.has(int(cands[i].card_data.color)):
+							colors.append(int(cands[i].card_data.color))
+					else:
+						units += 1
+				if not picks.is_empty():
+					main._fleet_pledge_apply = func() -> void:
+						var still: Array[Node3D] = []
+						for c: Node3D in picks:
+							if is_instance_valid(c) and _hand_cards(main).has(c):
+								still.append(c)
+						_discard_nodes(main, still)
+		"destroy":
+			var slots: Array[SectorSlot] = []
+			var cands: Array[SectorSlot] = _destroyable_slots(main, -1)
+			while units < need and not cands.is_empty():
+				var t: SectorSlot = await _pick_sector(main, title + main.tr(" — Skip when done"), cands, true)
+				if t == null:
+					break
+				slots.append(t)
+				cands.erase(t)
+				units += 1
+			if not slots.is_empty():
+				main._fleet_pledge_apply = func() -> void:
+					for t: SectorSlot in slots:
+						var card: Node3D = t.fleet_top_card()
+						if card:
+							t.fleet_destroy_card(card, _back_path(card))
+		"lose_archived", "flip_archived", "destroy_expedition":
+			var pool: Array[Dictionary] = []
+			if kind == "destroy_expedition":
+				pool = _placed_expeditions(main)
+			else:
+				pool = _archived(main, kind == "flip_archived", int(sv.get("stars", 0)))
+			var chosen: Array[Dictionary] = []
+			while units < need and not pool.is_empty():
+				var pd: Array[CardData] = []
+				for it: Dictionary in pool:
+					pd.append(_item_data(it))
+				var pi: int = await _pick_card(main, title + main.tr(" — Skip when done"), pd, true)
+				if pi < 0:
+					break
+				chosen.append(pool[pi])
+				pool.remove_at(pi)
+				units += 1
+			if not chosen.is_empty():
+				main._fleet_pledge_apply = func() -> void:
+					for it: Dictionary in chosen:
+						var slot: SectorSlot = it["slot"]
+						if kind == "destroy_expedition":
+							slot.fleet_destroy_card(it["card"], CardDatabase.expedition_back_path())
+						elif kind == "flip_archived":
+							(it["tuck"] as Dictionary)["face_up"] = false
+						else:
+							slot.tucked_cards.erase(it["tuck"])
+							board.add_to_discard((it["tuck"] as Dictionary)["data"])
+						slot.refresh_display()
+	main._fleet_busy = false
+	main.fleet_send_pledge(no, units, colors)
+
+static func on_session_result(main: Main, no: int, ok: bool, total: int, need: int) -> void:
+	if not ok:
+		main._fleet_pledge_apply = Callable()
+		main._log_action(main.tr("Not enough for %s — the crew pledged %d of %d. Nothing was paid.") % [_name(no), total, need], DANGER_COLOR)
+		return
+	if main._fleet_pledge_apply.is_valid():
+		main._fleet_pledge_apply.call()
+	main._fleet_pledge_apply = Callable()
+	on_solved(main, no, main.tr("the crew"))
+
 static func _discard_each_color(main: Main, no: int) -> bool:
 	var cands: Array[Node3D] = []
 	for c: Node3D in _hand_cards(main):
@@ -539,45 +698,117 @@ static func stats(main: Main) -> Dictionary:
 				st["archived_stars"] = int(st["archived_stars"]) + 1   # face-down cards are 1 ⭐
 	return st
 
-## [{text, done}] per mission part, for the Dangers screen and the end.
-static func mission_lines(main: Main) -> Array[Dictionary]:
-	var st: Dictionary = stats(main)
-	var players: int = maxi(1, GameNetwork.player_order.size())
-	var out: Array[Dictionary] = []
-	for part: Dictionary in FleetData.destination(GameNetwork.fleet_destination).get("mission", []):
-		var need: int = int(part["value"]) * (players if str(part["scope"]) == "per_player" else 1)
-		var col: int = int(part.get("color", 0))
-		var have: int = 0
-		var label: String = ""
-		match str(part["kind"]):
-			"stars":
-				have = int(st["stars"]); label = main.tr("Stars")
-			"stored":
-				have = int(st["stored"]); label = main.tr("Stored supplies")
-			"stored_color":
-				have = int(st["stored_by"].get(col, 0)); label = main.tr("Stored %s") % CardData.color_name(col)
-			"stored_set":
-				have = 99
-				for c: int in 6:
-					have = mini(have, int(st["stored_by"].get(c, 0)))
-				label = main.tr("Stored sets (1 of each colour)")
-			"optimized":
-				have = int(st["optimized"]); label = main.tr("Fully optimized sectors")
-			"complete":
-				have = int(st["complete"]); label = main.tr("Complete sectors")
-			"cards_color":
-				have = int(st["cards_by"].get(col, 0)); label = main.tr("%s cards") % CardData.color_name(col)
-			"archived":
-				have = int(st["archived"]); label = main.tr("Archived cards")
-			"archived_stars":
-				have = int(st["archived_stars"]); label = main.tr("⭐ on archived cards")
-			"faceup_stars":
-				have = int(st["faceup_stars"]); label = main.tr("Face-up ⭐ (archived or placed)")
-		out.append({"text": "%s: %d / %d" % [label, mini(have, 999), need], "done": have >= need})
+## A bot's ship (BotTurn's board entries), host only.
+static func bot_stats(main: Main, bot_id: int) -> Dictionary:
+	var st: Dictionary = {"stars": 0, "stored": 0, "stored_by": {}, "optimized": 0, "complete": 0,
+			"cards_by": {}, "archived": 0, "archived_stars": 0, "faceup_stars": 0}
+	var board: Array = main.bot_boards.get(bot_id, []) as Array
+	st["stars"] = BotScoring.board_vp(board)
+	for entry_v: Variant in board:
+		var e: Dictionary = entry_v as Dictionary
+		var sector: CardData = e.get("sector") as CardData
+		if sector == null:
+			continue
+		var techs: Array = e.get("techs", []) as Array
+		if bool(e.get("is_optimized", false)):
+			st["optimized"] = int(st["optimized"]) + 1
+		if techs.size() >= 5:
+			st["complete"] = int(st["complete"]) + 1
+		var cards: Array = [{"cd": sector, "adv": bool(e.get("is_advanced", false))}]
+		for t: Variant in techs:
+			cards.append({"cd": t, "adv": false})
+		for c: Dictionary in cards:
+			var cd: CardData = c["cd"] as CardData
+			if cd == null:
+				continue
+			var col: int = int(CardData.effective_color(cd, bool(c["adv"])))
+			st["cards_by"][col] = int(st["cards_by"].get(col, 0)) + 1
+			st["faceup_stars"] = int(st["faceup_stars"]) + cd.stars
+		var stored: Dictionary = e.get("stored_supply", {}) as Dictionary
+		for col: Variant in stored:
+			st["stored"] = int(st["stored"]) + int(stored[col])
+			st["stored_by"][int(col)] = int(st["stored_by"].get(int(col), 0)) + int(stored[col])
+		for t_v: Variant in e.get("tucked_cards", []) as Array:
+			var t: Dictionary = t_v as Dictionary
+			st["archived"] = int(st["archived"]) + 1
+			var tcd: CardData = t.get("data") as CardData
+			if bool(t.get("face_up", false)) and tcd:
+				st["archived_stars"] = int(st["archived_stars"]) + tcd.stars
+				st["faceup_stars"] = int(st["faceup_stars"]) + tcd.stars
+			else:
+				st["archived_stars"] = int(st["archived_stars"]) + 1
+	return st
+
+## Every ship's stats: this player's own plus the crew's (from their board
+## snapshots; online the host passes fresher ones at the end).
+static func crew_stats(main: Main) -> Array[Dictionary]:
+	var out: Array[Dictionary] = [stats(main)]
+	if GameNetwork.is_multiplayer:
+		var me: int = main.multiplayer.get_unique_id()
+		for pid: int in GameNetwork.player_order:
+			if pid != me:
+				out.append(main._opp_snapshots.get(pid, {}).get("fleet", {}))
 	return out
 
-static func mission_met(main: Main) -> bool:
-	for l: Dictionary in mission_lines(main):
+static func _stat(st: Dictionary, part: Dictionary) -> int:
+	var col: int = int(part.get("color", 0))
+	match str(part["kind"]):
+		"stars": return int(st.get("stars", 0))
+		"stored": return int(st.get("stored", 0))
+		"stored_color": return int((st.get("stored_by", {}) as Dictionary).get(col, 0))
+		"stored_set":
+			var sets: int = 99
+			for c: int in 6:
+				sets = mini(sets, int((st.get("stored_by", {}) as Dictionary).get(c, 0)))
+			return sets
+		"optimized": return int(st.get("optimized", 0))
+		"complete": return int(st.get("complete", 0))
+		"cards_color": return int((st.get("cards_by", {}) as Dictionary).get(col, 0))
+		"archived": return int(st.get("archived", 0))
+		"archived_stars": return int(st.get("archived_stars", 0))
+		"faceup_stars": return int(st.get("faceup_stars", 0))
+	return 0
+
+static func _part_label(main: Main, part: Dictionary) -> String:
+	var col: int = int(part.get("color", 0))
+	match str(part["kind"]):
+		"stars": return main.tr("Stars")
+		"stored": return main.tr("Stored supplies")
+		"stored_color": return main.tr("Stored %s") % CardData.color_name(col)
+		"stored_set": return main.tr("Stored sets (1 of each colour)")
+		"optimized": return main.tr("Fully optimized sectors")
+		"complete": return main.tr("Complete sectors")
+		"cards_color": return main.tr("%s cards") % CardData.color_name(col)
+		"archived": return main.tr("Archived cards")
+		"archived_stars": return main.tr("⭐ on archived cards")
+		"faceup_stars": return main.tr("Face-up ⭐ (archived or placed)")
+	return "?"
+
+## [{text, done}] per mission part. "per player": the crew's total must reach
+## value x players; "each": every ship on its own (shown: the lowest ship).
+static func mission_lines(main: Main, all_stats: Array = []) -> Array[Dictionary]:
+	if all_stats.is_empty():
+		all_stats = crew_stats(main)
+	var players: int = maxi(1, all_stats.size())
+	var out: Array[Dictionary] = []
+	for part: Dictionary in FleetData.destination(GameNetwork.fleet_destination).get("mission", []):
+		var value: int = int(part["value"])
+		if str(part["scope"]) == "per_player":
+			var total: int = 0
+			for st: Dictionary in all_stats:
+				total += _stat(st, part)
+			var need: int = value * players
+			out.append({"text": "%s: %d / %d" % [_part_label(main, part), mini(total, 999), need], "done": total >= need})
+		else:
+			var lowest: int = 999
+			for st: Dictionary in all_stats:
+				lowest = mini(lowest, _stat(st, part))
+			var each: String = main.tr(" (each ship)") if players > 1 else ""
+			out.append({"text": "%s%s: %d / %d" % [_part_label(main, part), each, lowest, value], "done": lowest >= value})
+	return out
+
+static func mission_met(main: Main, all_stats: Array = []) -> bool:
+	for l: Dictionary in mission_lines(main, all_stats):
 		if not bool(l["done"]):
 			return false
 	return true

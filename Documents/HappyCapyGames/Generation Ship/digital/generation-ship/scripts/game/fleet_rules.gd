@@ -24,6 +24,9 @@ var destination: int = 0
 var deck: Array[int] = []            # Danger No.s, top = back
 var active: Array[Dictionary] = []   # revealed, unsolved, oldest first: {no, electrix, expedition_bought}
 var solved: Array[int] = []
+# Online every peer resolves the same Dangers in lockstep (same seed), so any
+# randomness inside a Danger (Undetected Wormhole's shuffle-back) uses this.
+var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 const C := CardData.SupplyColor
 
@@ -80,50 +83,60 @@ const PLACE_EFFECTS: Dictionary = {
 #   hand_empty                no cards in hand
 #   expedition_bought         an expedition was bought since this Danger came up
 const SOLVES: Dictionary = {
-	1: {"kind": "pay", "color": C.DUST, "n": 2},
-	2: {"kind": "destroy", "n": 1},
+	1: {"kind": "pay", "per_player": true, "color": C.DUST, "n": 2},
+	2: {"kind": "destroy", "per_player": true, "n": 1},
 	3: {"kind": "complete_rightmost"},
 	4: {"kind": "optimized_color", "color": C.DUST},
 	5: {"kind": "optimized_color", "color": C.METALS},
-	6: {"kind": "discard_color", "colors": [C.METALS], "n": 1},
-	7: {"kind": "pay", "color": C.METALS, "n": 2},
-	8: {"kind": "discard_stars", "n": 2},
+	6: {"kind": "discard_color", "per_player": true, "colors": [C.METALS], "n": 1},
+	7: {"kind": "pay", "per_player": true, "color": C.METALS, "n": 2},
+	8: {"kind": "discard_stars", "per_player": true, "n": 2},
 	9: {"kind": "optimized_color", "color": C.LIQUIDS},
-	10: {"kind": "pay", "color": C.LIQUIDS, "n": 2},
-	11: {"kind": "discard_color", "colors": [C.LIQUIDS], "n": 1},
+	10: {"kind": "pay", "per_player": true, "color": C.LIQUIDS, "n": 2},
+	11: {"kind": "discard_color", "per_player": true, "colors": [C.LIQUIDS], "n": 1},
 	12: {"kind": "cards_in_sector", "color": C.LIQUIDS, "n": 3},
 	13: {"kind": "dust_deck_empty"},
-	14: {"kind": "discard_color", "colors": [C.ORGANIX], "n": 1},
-	15: {"kind": "lose_archived", "n": 1},
-	16: {"kind": "flip_archived", "n": 1, "stars": 0},
+	14: {"kind": "discard_color", "per_player": true, "colors": [C.ORGANIX], "n": 1},
+	15: {"kind": "lose_archived", "per_player": true, "n": 1},
+	16: {"kind": "flip_archived", "per_player": true, "n": 1, "stars": 0},
 	17: {"kind": "cards_in_sector", "color": C.ORGANIX, "n": 3},
 	18: {"kind": "flip_archived", "n": 1, "stars": 3},
 	19: {"kind": "complete_optimized"},
 	20: {"kind": "dust_deck_empty"},
-	21: {"kind": "discard_stars", "n": 3},
-	22: {"kind": "discard_color", "colors": [C.ELECTRIX], "n": 1},
-	23: {"kind": "pay", "color": C.ELECTRIX, "n": 1},
-	24: {"kind": "discard_stars", "n": 3},
+	21: {"kind": "discard_stars", "per_player": true, "n": 3},
+	22: {"kind": "discard_color", "per_player": true, "colors": [C.ELECTRIX], "n": 1},
+	23: {"kind": "pay", "per_player": true, "color": C.ELECTRIX, "n": 1},
+	24: {"kind": "discard_stars", "per_player": true, "n": 3},
 	25: {"kind": "expedition_bought"},
 	26: {"kind": "destroy_expedition"},
-	27: {"kind": "discard_color", "colors": [C.ELECTRIX, C.THRUST], "n": 2},
+	27: {"kind": "discard_color", "per_player": true, "colors": [C.ELECTRIX, C.THRUST], "n": 2},
 	28: {"kind": "complete_color", "colors": [C.ELECTRIX, C.THRUST]},
 	29: {"kind": "discard_each_color"},
 	30: {"kind": "hand_empty"},
 }
+
+# "per_player" solves cost n x the number of players (rulebook: "per player");
+# the crew can split it however they like.
+static func solve_need(no: int, players: int) -> int:
+	var sv: Dictionary = SOLVES.get(no, {})
+	var n: int = int(sv.get("n", 1))
+	if str(sv.get("kind", "")) == "discard_each_color":
+		return 6
+	return n * maxi(1, players) if bool(sv.get("per_player", false)) else n
 
 const CONDITION_SOLVES: Array[String] = ["complete_rightmost", "optimized_color", "cards_in_sector",
 		"dust_deck_empty", "complete_optimized", "complete_color", "hand_empty", "expedition_bought"]
 
 # — Game state —
 
-func setup(destination_no: int, rng: RandomNumberGenerator) -> void:
+func setup(destination_no: int, deck_rng: RandomNumberGenerator) -> void:
 	destination = destination_no
+	rng.seed = deck_rng.seed + 1
 	deck.clear()
 	for d: Dictionary in FleetData.DANGERS:
 		deck.append(int(d["no"]))
 	for i: int in range(deck.size() - 1, 0, -1):
-		var j: int = rng.randi_range(0, i)
+		var j: int = deck_rng.randi_range(0, i)
 		var t: int = deck[i]
 		deck[i] = deck[j]
 		deck[j] = t
