@@ -396,6 +396,67 @@ func _card_text_for(cd: CardData, is_adv: bool, field: String, english: String) 
 	var text: String = entry.get(lang, "")
 	return text if not text.is_empty() else english
 
+## Log lines and messages name cards by their English card_name (game logic
+## matches on it); this swaps every English card name in a text for the
+## current language's printed name (Techs, both sector sides, expeditions,
+## Generation Fleet Dangers/Destinations). Whole words only, longest first.
+var _name_regex: RegEx = null
+var _name_map: Dictionary = {}
+var _name_map_lang: String = ""
+
+func localize_card_names(text: String) -> String:
+	var lang: String = TranslationServer.get_locale().substr(0, 2)
+	if lang == "en" or text.is_empty():
+		return text
+	if lang != _name_map_lang:
+		_build_name_map(lang)
+	if _name_regex == null:
+		return text
+	var out: String = ""
+	var pos: int = 0
+	for m: RegExMatch in _name_regex.search_all(text):
+		out += text.substr(pos, m.get_start() - pos) + str(_name_map.get(m.get_string(), m.get_string()))
+		pos = m.get_end()
+	return out + text.substr(pos)
+
+func _build_name_map(lang: String) -> void:
+	_name_map_lang = lang
+	_name_map = {}
+	for cd: CardData in techs + expeditions:
+		_add_name(cd.card_name, display_name(cd))
+	for cd: CardData in sectors:
+		_add_name(cd.card_name, display_name(cd, false))
+		_add_name(cd.adv_name, display_name(cd, true))
+	for kind: String in ["danger", "destination"]:
+		var en_rows: Array[Dictionary] = _read_csv("res://data/Generation Ship Full Card Details - %s.EN.csv" % ("Dangers" if kind == "danger" else "Destinations"))
+		for r: Dictionary in en_rows:
+			var n: String = str(r.get("No.", "")).strip_edges()
+			if n.is_valid_int():
+				_add_name(_clean_name(str(r.get("Name", ""))), translated_text("%s:%s:name" % [kind, n], lang).strip_edges())
+	var names: Array = _name_map.keys()
+	names.sort_custom(func(a: String, b: String) -> bool: return a.length() > b.length())
+	var parts: PackedStringArray = []
+	for n: String in names:
+		parts.append(_regex_escape(n))
+	_name_regex = null
+	if not parts.is_empty():
+		_name_regex = RegEx.new()
+		_name_regex.compile("(?<![\\p{L}\\p{N}])(" + "|".join(parts) + ")(?![\\p{L}\\p{N}])")
+
+func _add_name(english: String, local: String) -> void:
+	if english.is_empty() or local.is_empty() or english == local:
+		return
+	_name_map[english] = local
+
+static func _regex_escape(s: String) -> String:
+	var out: String = ""
+	for ch: String in s:
+		if "\\^$.|?*+()[]{}-/".contains(ch):
+			out += "\\" + ch
+		else:
+			out += ch
+	return out
+
 ## A translated text by its key in Card Text Translations.csv ("" if none) —
 ## used for cards outside the decks above (Generation Fleet Dangers/Destinations).
 func translated_text(key: String, lang: String) -> String:
