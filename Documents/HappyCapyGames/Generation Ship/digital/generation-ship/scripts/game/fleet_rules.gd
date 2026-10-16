@@ -46,7 +46,8 @@ const C := CardData.SupplyColor
 #   system_failure       store 1 Electrix on this Danger, then reveal 1 Danger per Electrix on it
 #   shuffle_expeditions  all revealed expeditions go back into the deck
 #   remove_fewest_sector remove the sector with the fewest cards
-#   none                 (Dimension Pocket: nothing solo)
+#   pass_left            every player passes their hand to the left (nothing solo)
+#   none                 nothing
 const PLACE_EFFECTS: Dictionary = {
 	2: {"kind": "to_dust", "n": 3},
 	3: {"kind": "destroy", "n": 1, "where": "rightmost", "pref": -1},
@@ -60,7 +61,7 @@ const PLACE_EFFECTS: Dictionary = {
 	22: {"kind": "system_failure"},
 	25: {"kind": "shuffle_expeditions"},
 	26: {"kind": "remove_fewest_sector"},
-	29: {"kind": "none"},
+	29: {"kind": "pass_left"},
 	30: {"kind": "discard", "n": 3},
 }
 

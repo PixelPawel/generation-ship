@@ -30,6 +30,10 @@ const _REVEAL_FILL_MARGIN := 0.92 * 0.34
 # amount is normally 1 — see CardData.recycle_amount() (Rich Asteroid).
 # Fleet: a Danger refused the player's action (message for the log/tooltip).
 signal fleet_rule_blocked(message: String)
+# Fleet online: a hand card dropped on a teammate's row in the Players column.
+signal shuttle_requested(card_data: CardData, peer_id: int)
+# Returns the teammate under the mouse (0 = none); set by Main in Fleet online.
+var shuttle_target_provider: Callable = Callable()
 signal card_recycled(supply_color: CardData.SupplyColor, amount: int)
 # Follows card_recycled when the recycled card was Rich Asteroid, whose owner
 # may store the Metals on a sector instead (Main offers that choice).
@@ -1111,6 +1115,13 @@ func _try_drop() -> void:
 	if _drag_origin == DragOrigin.HAND and _mouse_over_control_screen():
 		_try_drop_recycle()
 		return
+	if _drag_origin == DragOrigin.HAND and shuttle_target_provider.is_valid():
+		var target: int = int(shuttle_target_provider.call())
+		if target != 0:
+			var cd: CardData = _dragged_card.card_data
+			_handle_failed_drop()   # back to the hand until the shuttle is paid
+			shuttle_requested.emit(cd, target)
+			return
 	if _is_sector_card():
 		_try_drop_sector()
 	else:

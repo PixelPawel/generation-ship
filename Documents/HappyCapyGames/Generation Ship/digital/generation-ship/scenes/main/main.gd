@@ -1877,6 +1877,150 @@ func _server_fleet_final(pid: int, stats: Dictionary) -> void:
 func _rpc_fleet_result(won: bool, mission: Array) -> void:
 	_fleet_show_result(won, mission, _fleet_end_lines, _fleet_end_total)
 
+# — Shuttle: drag a hand card onto a teammate's row in the Players column —
+
+# Called by Board while a hand card is dropped: the teammate whose row is under
+# the mouse on the info screen (0 = none).
+func fleet_shuttle_target_at_mouse() -> int:
+	if not _market_panel or not _market_panel.visible or not _info_screen_mesh:
+		return 0
+	var cam: Camera3D = get_viewport().get_camera_3d()
+	if not cam:
+		return 0
+	var mouse: Vector2 = get_viewport().get_mouse_position()
+	var origin: Vector3 = cam.project_ray_origin(mouse)
+	var dir: Vector3 = cam.project_ray_normal(mouse)
+	var xf: Transform3D = _info_screen_mesh.global_transform
+	var plane: Plane = Plane(xf.basis.z.normalized(), xf.origin)
+	var hit: Variant = plane.intersects_ray(origin, dir)
+	if hit == null:
+		return 0
+	var local: Vector3 = _info_screen_mesh.to_local(hit as Vector3)
+	var aabb: AABB = _info_screen_mesh.mesh.get_aabb()
+	var u: float = (local.x - aabb.position.x) / aabb.size.x
+	var v: float = 1.0 - (local.y - aabb.position.y) / aabb.size.y
+	if u < 0.0 or u > 1.0 or v < 0.0 or v > 1.0:
+		return 0
+	return _market_panel.opponent_at(Vector2(u * float(_info_viewport.size.x), v * float(_info_viewport.size.y)))
+
+func _fleet_on_shuttle_requested(cd: CardData, target: int) -> void:
+	if _fleet == null or _fleet_busy or _effect_mode != EffectMode.NONE:
+		return
+	var cost: int = FleetRules.shuttle_cost()
+	var who: String = str(GameNetwork.player_names.get(target, "Player"))
+	var pay: Dictionary = {}
+	if cost > 0:
+		pay = $Board._compute_payment(CardData.SupplyColor.DUST, cost)
+		if pay.is_empty():
+			_log_action(tr("The shuttle costs %d Dust — you can't pay it.") % cost, FleetFlow.DANGER_COLOR)
+			return
+	var prompt: String = tr("Pay %d Dust to send %s to %s?") % [cost, CardDatabase.display_name(cd), who]
+	_fleet_choice_active = true
+	_choice_popup.show_choices(prompt, [tr("Send"), tr("Cancel")], false, [], cd)
+	var pick: int = await _choice_popup.choice_made
+	_fleet_choice_active = false
+	if pick != 0:
+		return
+	var node: Node3D = null
+	for c: Node3D in $Hand.get_cards():
+		if c.card_data == cd:
+			node = c
+			break
+	if node == null:
+		return
+	for col: int in pay:
+		_cs_display.spend_supply(col, int(pay[col]))
+	$Hand.remove_card_fly_out(node)
+	$Board.refresh_hand_discounts()
+	var ref: Dictionary = CardRef.to_ref(cd)
+	if multiplayer.is_server():
+		_server_fleet_shuttle(multiplayer.get_unique_id(), target, ref)
+	else:
+		_rpc_fleet_shuttle.rpc_id(1, target, ref)
+	_broadcast_my_state()
+
+@rpc("any_peer", "reliable")
+func _rpc_fleet_shuttle(target: int, ref: Dictionary) -> void:
+	if multiplayer.is_server():
+		_server_fleet_shuttle(multiplayer.get_remote_sender_id(), target, ref)
+
+func _server_fleet_shuttle(sender: int, target: int, ref: Dictionary) -> void:
+	if GameNetwork.is_bot(target):
+		var hand: Array[CardData] = BotTurn.bot_hand(self, target)
+		hand.append(CardRef.from_ref(ref))
+		BotTurn.bot_set_hand(self, target, hand)
+		BotTurn.broadcast_bot_states(self)
+	_rpc_fleet_shuttle_delivered.rpc(sender, target, ref)
+
+@rpc("authority", "reliable", "call_local")
+func _rpc_fleet_shuttle_delivered(sender: int, target: int, ref: Dictionary) -> void:
+	var cd: CardData = CardRef.from_ref(ref)
+	var from: String = str(GameNetwork.player_names.get(sender, "Player"))
+	var to: String = str(GameNetwork.player_names.get(target, "Player"))
+	if target == multiplayer.get_unique_id():
+		$Board.add_specific_card_to_hand(cd)
+		$Board.refresh_hand_discounts()
+		_log_action(tr("%s shuttled you %s.") % [from, CardDatabase.display_name(cd)], Color(0.6, 0.9, 1.0))
+		_broadcast_my_state()
+	else:
+		_log_action(tr("%s shuttled a card to %s.") % [from, to], Color(0.6, 0.9, 1.0))
+
+# — Dimension Pocket: everyone passes their hand to the left (lockstep) —
+
+signal fleet_hand_passed
+var _fleet_pass_hands: Dictionary = {}   # host: peer -> [card refs]
+
+func fleet_pass_hand_left() -> void:
+	var refs: Array = []
+	for c: Node3D in $Hand.get_cards():
+		if c.card_data:
+			refs.append(CardRef.to_ref(c.card_data))
+	for c: Node3D in $Hand.get_cards():
+		$Hand.remove_card_fly_out(c)
+	if multiplayer.is_server():
+		_server_fleet_pass_hand(multiplayer.get_unique_id(), refs)
+	else:
+		_rpc_fleet_pass_hand.rpc_id(1, refs)
+	await fleet_hand_passed
+
+@rpc("any_peer", "reliable")
+func _rpc_fleet_pass_hand(refs: Array) -> void:
+	if multiplayer.is_server():
+		_server_fleet_pass_hand(multiplayer.get_remote_sender_id(), refs)
+
+func _server_fleet_pass_hand(pid: int, refs: Array) -> void:
+	_fleet_pass_hands[pid] = refs
+	var order: Array[int] = GameNetwork.player_order
+	for p: int in order:
+		if GameNetwork.is_bot(p):
+			var bot_refs: Array = []
+			for cd: CardData in BotTurn.bot_hand(self, p):
+				bot_refs.append(CardRef.to_ref(cd))
+			_fleet_pass_hands[p] = bot_refs
+		elif not _fleet_pass_hands.has(p):
+			return
+	var passed: Dictionary = {}
+	for i: int in order.size():
+		passed[order[(i + 1) % order.size()]] = _fleet_pass_hands[order[i]]
+	_fleet_pass_hands = {}
+	for p: int in order:
+		if GameNetwork.is_bot(p):
+			var hand: Array[CardData] = []
+			for r: Variant in passed[p]:
+				hand.append(CardRef.from_ref(r as Dictionary))
+			BotTurn.bot_set_hand(self, p, hand)
+	BotTurn.broadcast_bot_states(self)
+	_rpc_fleet_hands_passed.rpc(passed)
+
+@rpc("authority", "reliable", "call_local")
+func _rpc_fleet_hands_passed(passed: Dictionary) -> void:
+	var mine: Array = passed.get(multiplayer.get_unique_id(), []) as Array
+	for r: Variant in mine:
+		$Board.add_specific_card_to_hand(CardRef.from_ref(r as Dictionary))
+	$Board.refresh_hand_discounts()
+	_broadcast_my_state()
+	fleet_hand_passed.emit()
+
 func _game_over() -> void:
 	_show_action_buttons(false)
 	_show_end_turn_button(false)

@@ -209,11 +209,32 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 	)
 
 	_opp_refs[peer_id] = {
+		"entry": entry,
+		"style": style,
 		"status_lbl": slot["status_lbl"],
 		"hand_lbl": slot["hand_lbl"],
 		"supply_lbls": slot["supply_lbls"],
 		"vp_lbl": slot["vp_lbl"],
 	}
+
+## Generation Fleet Shuttle: the teammate whose row is at this info-screen
+## viewport point (0 = none; bots have negative ids).
+func opponent_at(vp_pos: Vector2) -> int:
+	if not visible:
+		return 0
+	for pid: int in _opp_refs:
+		var entry: Control = _opp_refs[pid].get("entry") as Control
+		if entry and entry.is_visible_in_tree() and entry.get_global_rect().has_point(vp_pos):
+			return pid
+	return 0
+
+## Highlights the row a dragged card would be shuttled to (0 = none).
+func set_shuttle_highlight(pid: int) -> void:
+	for p: int in _opp_refs:
+		var style: StyleBoxFlat = _opp_refs[p].get("style") as StyleBoxFlat
+		if style:
+			style.border_color = Color(1.0, 0.85, 0.4) if p == pid else Color(0.22, 0.44, 0.70, 0.38)
+			style.set_border_width_all(3 if p == pid else 1)
 
 func get_slot_center(card_type: String, slot_idx: int) -> Vector2:
 	var slots: Array[Control]

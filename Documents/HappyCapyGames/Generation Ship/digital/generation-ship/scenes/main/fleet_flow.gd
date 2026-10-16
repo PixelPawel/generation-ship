@@ -49,6 +49,23 @@ static func setup(main: Main) -> void:
 		if panel.visible or main._fleet_dest_view.visible:
 			refresh_panel(main))
 	main.add_child(timer)
+	# Shuttle (online): drop a hand card on a teammate's row in the Players column
+	if GameNetwork.is_multiplayer:
+		var board: Node = main.get_node("Board")
+		board.shuttle_target_provider = main.fleet_shuttle_target_at_mouse
+		board.shuttle_requested.connect(main._fleet_on_shuttle_requested)
+		var last_hl: Array = [0]
+		var tree: SceneTree = main.get_tree()
+		var highlight: Callable = func() -> void:
+			if main._market_panel == null:
+				return
+			var dragging: bool = board._dragged_card != null and board._drag_origin == board.DragOrigin.HAND
+			var pid: int = main.fleet_shuttle_target_at_mouse() if dragging else 0
+			if pid != int(last_hl[0]):
+				last_hl[0] = pid
+				main._market_panel.set_shuttle_highlight(pid)
+		tree.process_frame.connect(highlight)
+		main.tree_exiting.connect(func() -> void: tree.process_frame.disconnect(highlight))
 	refresh_panel(main)
 
 # ── Generation start ──────────────────────────────────────────────────────────
@@ -182,6 +199,12 @@ static func _apply(main: Main, no: int, eff: Dictionary) -> void:
 				em._update_slot_visuals(i)
 			em.market_changed.emit()
 			main._log_action(main.tr("%s: %d expedition(s) shuffled back into the deck.") % [_name(no), count], DANGER_COLOR)
+		"pass_left":
+			if GameNetwork.is_multiplayer and GameNetwork.player_order.size() > 1:
+				main._log_action(main.tr("%s: everyone passes their hand to the left.") % _name(no), DANGER_COLOR)
+				await main.fleet_pass_hand_left()
+			else:
+				main._log_action(main.tr("%s: nobody to pass cards to — nothing happens.") % _name(no), DANGER_COLOR)
 		"remove_fewest_sector":
 			var slots: Array[SectorSlot] = _occupied_slots(main)
 			if slots.is_empty():
