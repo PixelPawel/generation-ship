@@ -307,6 +307,8 @@ static func broadcast_bot_states(main: Main) -> void:
 # their own deck, no passing.
 static func apply_bot_effect_steps(main: Main, bot_id: int, steps: Array[Dictionary], slot_idx: int = -1) -> void:
 	for step: Dictionary in steps:
+		if FleetFlow.step_blocked(step):   # Fleet: archiving/storing forbidden by a Danger
+			continue
 		match String(step.get("type", "")):
 			"draw", "draw_recycle_top":
 				var hand: Array[CardData] = bot_hand(main, bot_id)

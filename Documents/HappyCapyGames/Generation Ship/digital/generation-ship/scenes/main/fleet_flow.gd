@@ -503,6 +503,18 @@ static func auto_solve(main: Main) -> void:
 		if GameNetwork.is_multiplayer:
 			main.fleet_request_solved(no)
 
+## An effect step a Danger forbids outright: archiving under Neural Gear
+## Malfunction, storing under it (and Liquids under Anti-Fusion Field).
+static func step_blocked(step: Dictionary) -> bool:
+	match str(step.get("type", "")):
+		"tuck", "tuck_optional", "tuck_any_sector_optional", "recycle_tuck", "recycle_tuck_store_choice":
+			return FleetRules.blocks_archive()
+		"store_on_slot", "store_on_any_sector":
+			return FleetRules.blocks_store(int(step.get("color", -1)))
+		"store_per_card_here", "seedbanks", "caldera_colony":
+			return FleetRules.blocks_store(-1)
+	return false
+
 # The solved Danger shown big with a green SOLVED banner (everyone sees it).
 static func _announce_solved(main: Main, no: int, who: String) -> void:
 	if who.is_empty():

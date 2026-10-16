@@ -2896,6 +2896,12 @@ func _execute_effect_step(step: Dictionary) -> void:
 	if _fleet:   # a free solve met by an earlier step counts before this one
 		FleetFlow.auto_solve(self)
 	_effect_source_name = str(step.get("_source_name", "Effect"))
+	# Fleet: a Danger forbids what this step does (archive / store) — the
+	# player just doesn't pick anything for it
+	if _fleet and FleetFlow.step_blocked(step):
+		_log_effect(tr("a Danger stops this — skipped"))
+		_process_next_effect()
+		return
 	match step.get("type", ""):
 
 		"draw":

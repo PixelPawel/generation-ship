@@ -215,7 +215,7 @@ static func blocks_fuse(color: int) -> bool:
 ## Supplies of this colour can't be stored (Neural Gear Malfunction: any,
 ## Anti-Fusion Field: Liquids). color -1 = "any supply".
 static func blocks_store(color: int) -> bool:
-	return _on(21) or (color == C.LIQUIDS and _on(9))
+	return _on(21) or (color == C.LIQUIDS and _on(9))   # color -1: any supply
 
 ## Cards can't be archived (Neural Gear Malfunction).
 static func blocks_archive() -> bool:
