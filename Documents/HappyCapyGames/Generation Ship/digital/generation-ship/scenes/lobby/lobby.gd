@@ -1,4 +1,5 @@
 extends Control
+const FleetData = preload("res://scripts/game/fleet_data.gd")
 
 signal back_requested
 signal staging_requested
@@ -38,6 +39,13 @@ var _password_prompt: Control = null
 var _password_prompt_input: LineEdit = null
 var _password_prompt_error: Label = null
 var _chat_panel: Control = null
+# Generation Fleet (co-op): set by the main menu before the lobby slides in; the
+# host's choice is synced to joiners (_rpc_sync_mode) and sent with the start.
+var _coop: bool = false
+var _coop_destination: int = 0
+var _mode_label: Label = null
+var _dest_btn: Button = null
+var _dest_picker: Control = null
 
 const _SPINNER_FRAMES: Array[String] = [
 	"|", "/", "—", "\\", "|", "/", "—", "\\", "|", "/",
@@ -121,6 +129,7 @@ func _show_staging() -> void:
 	_preload_done = false
 	_players_ready.clear()
 	_refresh_player_list()
+	_refresh_mode()
 	_start_preload()
 	if multiplayer.is_server() and not _add_bot_btn:
 		var vbox: VBoxContainer = $StagingPanel/VBox
@@ -154,6 +163,57 @@ func _show_staging() -> void:
 		_diff_btn.add_theme_font_size_override("font_size", 18)
 		bot_row.add_child(_diff_btn)
 	staging_requested.emit()
+
+# ── Co-op mode ────────────────────────────────────────────────────────────────
+
+func set_coop(on: bool, destination_no: int) -> void:
+	_coop = on
+	_coop_destination = destination_no
+	_refresh_mode()
+
+func _ensure_mode_ui() -> void:
+	if _mode_label:
+		return
+	var vbox: VBoxContainer = $StagingPanel/VBox
+	_mode_label = Label.new()
+	_mode_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_mode_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_mode_label.add_theme_font_size_override("font_size", 20)
+	_mode_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	vbox.add_child(_mode_label)
+	vbox.move_child(_mode_label, 0)
+	_dest_btn = Button.new()
+	_dest_btn.text = tr("Change Destination")
+	_dest_btn.custom_minimum_size = Vector2(0, 44)
+	_dest_btn.add_theme_font_size_override("font_size", 20)
+	_dest_btn.pressed.connect(func() -> void: _dest_picker.open())
+	vbox.add_child(_dest_btn)
+	vbox.move_child(_dest_btn, 1)
+	_dest_picker = load("res://scenes/ui/fleet_destination_picker.gd").new()
+	_staging_panel.add_child(_dest_picker)   # staging sits a screen below the lobby view
+	_dest_picker.set_lobby_mode()
+	_dest_picker.launch_requested.connect(func(no: int) -> void:
+		_dest_picker.visible = false
+		_coop_destination = no
+		_rpc_sync_mode.rpc(_coop, _coop_destination))
+
+func _refresh_mode() -> void:
+	if not is_inside_tree():
+		return
+	_ensure_mode_ui()
+	_mode_label.visible = _coop
+	_dest_btn.visible = _coop and multiplayer.multiplayer_peer != null and multiplayer.is_server()
+	if _coop:
+		var d: Dictionary = FleetData.destination(_coop_destination)
+		var diff: int = int(d.get("difficulty", 1))
+		_mode_label.text = tr("Co-op: Generation Fleet — %s (%s, %d generations)") % [
+				d.get("name", "?"), tr(FleetData.DIFFICULTY_NAMES[diff]), FleetData.DIFFICULTY_GENERATIONS[diff]]
+
+@rpc("authority", "reliable", "call_local")
+func _rpc_sync_mode(coop: bool, destination_no: int) -> void:
+	_coop = coop
+	_coop_destination = destination_no
+	_refresh_mode()
 
 func _start_preload() -> void:
 	ImageCache.preload_local_art()
@@ -389,7 +449,7 @@ func _on_start_pressed() -> void:
 	if multiplayer.is_server():
 		if _relay:
 			_relay.mark_started()
-		_rpc_load_game.rpc()
+		_rpc_load_game.rpc(_coop, _coop_destination, randi())
 
 func _on_leave_pressed() -> void:
 	_close_connection()
@@ -508,6 +568,7 @@ func _rpc_register(player_name: String) -> void:
 		return
 	_players[multiplayer.get_remote_sender_id()] = player_name
 	_rpc_sync_players.rpc(_players)
+	_rpc_sync_mode.rpc(_coop, _coop_destination)   # joiners play the host's mode
 
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_players(players: Dictionary) -> void:
@@ -515,7 +576,10 @@ func _rpc_sync_players(players: Dictionary) -> void:
 	_refresh_player_list()
 
 @rpc("authority", "reliable", "call_local")
-func _rpc_load_game() -> void:
+func _rpc_load_game(coop: bool = false, destination_no: int = 0, danger_seed: int = 0) -> void:
+	GameNetwork.fleet_mode = coop
+	GameNetwork.fleet_destination = destination_no
+	GameNetwork.fleet_seed = danger_seed
 	var real_ids: Array[int] = []
 	var bot_ids_local: Array[int] = []
 	for k: Variant in _players.keys():

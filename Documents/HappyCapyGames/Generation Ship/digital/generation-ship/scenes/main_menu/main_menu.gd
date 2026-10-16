@@ -89,6 +89,10 @@ func _ready() -> void:
 	_fleet_picker = load("res://scenes/ui/fleet_destination_picker.gd").new()
 	add_child(_fleet_picker)
 	_fleet_picker.launch_requested.connect(_on_fleet_launch)
+	_fleet_picker.crew_requested.connect(func(no: int) -> void:
+		_fleet_picker.visible = false
+		$Panels/LobbyView.set_coop(true, no)
+		_slide_to_lobby())
 	_leaderboard = load("res://scenes/ui/leaderboard_popup.gd").new()
 	add_child(_leaderboard)
 	_photo_scan = load("res://scenes/photo_scan/photo_scan.gd").new()
@@ -526,6 +530,7 @@ func _on_settings_btn_pressed() -> void:
 	$PauseMenu.open_settings()
 
 func _on_multiplayer_pressed() -> void:
+	$Panels/LobbyView.set_coop(false, 0)
 	_slide_to_lobby()
 
 func _on_quit_pressed() -> void:

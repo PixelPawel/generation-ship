@@ -6,6 +6,7 @@ const PopupAnim = preload("res://scripts/popup_anim.gd")
 const FleetData = preload("res://scripts/game/fleet_data.gd")
 
 signal launch_requested(destination_no: int)
+signal crew_requested(destination_no: int)   # play it online / with bots (the lobby)
 
 const _BIG_SIZE: Vector2 = Vector2(300, 214)     # 89 x 63.5 mm landscape
 const _SMALL_SIZE: Vector2 = Vector2(150, 107)
@@ -21,6 +22,7 @@ var _info: Label = null
 var _launch_btn: Button = null
 var _toggle_btn: Button = null
 var _reveal_btn: Button = null
+var _crew_btn: Button = null
 var _frames: Dictionary = {}   # destination no -> PanelContainer (selection frame)
 
 func _ready() -> void:
@@ -94,12 +96,19 @@ func _build_ui() -> void:
 		_show_all = not _show_all
 		_populate())
 	row.add_child(_toggle_btn)
-	_launch_btn = _make_button(tr("Launch"))
+	_launch_btn = _make_button(tr("Launch solo"))
 	_launch_btn.custom_minimum_size = Vector2(180, 0)
 	_launch_btn.pressed.connect(func() -> void:
 		if _selected > 0:
 			launch_requested.emit(_selected))
 	row.add_child(_launch_btn)
+	_crew_btn = _make_button(tr("Play with crew"))
+	_crew_btn.custom_minimum_size = Vector2(200, 0)
+	_crew_btn.tooltip_text = tr("Online with friends and/or bots")
+	_crew_btn.pressed.connect(func() -> void:
+		if _selected > 0:
+			crew_requested.emit(_selected))
+	row.add_child(_crew_btn)
 
 func _make_button(label: String) -> Button:
 	var btn: Button = Button.new()
@@ -167,12 +176,18 @@ func _update_selection() -> void:
 			sb.set_border_width_all(4)
 		(_frames[no] as PanelContainer).add_theme_stylebox_override("panel", sb)
 	_launch_btn.disabled = _selected == 0
+	_crew_btn.disabled = _selected == 0
 	if _selected == 0:
 		_info.text = tr("Pick a Destination for your fleet.")
 	else:
 		var d: Dictionary = FleetData.destination(_selected)
 		var diff: int = int(d["difficulty"])
 		_info.text = tr("%s — %s, %d generations") % [d["name"], tr(FleetData.DIFFICULTY_NAMES[diff]), FleetData.DIFFICULTY_GENERATIONS[diff]]
+
+## In the lobby: the host only chooses (no solo / crew buttons, one "Choose").
+func set_lobby_mode() -> void:
+	_crew_btn.visible = false
+	_launch_btn.text = tr("Choose")
 
 func _input(event: InputEvent) -> void:
 	if not visible:

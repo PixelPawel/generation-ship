@@ -22,7 +22,10 @@ static func setup(main: Main) -> void:
 		return
 	var rules: RefCounted = FleetRules.new()
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.randomize()
+	if GameNetwork.is_multiplayer and GameNetwork.fleet_seed != 0:
+		rng.seed = GameNetwork.fleet_seed   # every peer shuffles the same Danger deck
+	else:
+		rng.randomize()
 	rules.setup(GameNetwork.fleet_destination, rng)
 	FleetRules.current = rules
 	main._fleet = rules

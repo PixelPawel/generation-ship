@@ -24,6 +24,7 @@ var bot_difficulty: Dictionary = {}
 # scene loads. fleet_destination is the Destination card's No. (see FleetData).
 var fleet_mode: bool = false
 var fleet_destination: int = 0
+var fleet_seed: int = 0   # online: the host's Danger-deck shuffle seed, the same on every peer
 
 # Returns true when the local player is allowed to take an action.
 func is_my_turn() -> bool:
