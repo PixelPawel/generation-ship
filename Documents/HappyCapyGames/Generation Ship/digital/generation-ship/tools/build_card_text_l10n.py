@@ -7,6 +7,8 @@ game can't read it directly). Output rows: key,de,it,pl,es,fr with keys
   expedition:<No.>:name / :effect  (Expeditions sheet)
   adv:<No.>:name / :effect         (Advanced Sectors sheet)
   dust:<English name>:name / :effect  (Dust Sectors; game keys dust by name)
+  danger:<No.>:name / :effect / :solve           (Generation Fleet Dangers)
+  destination:<No.>:name / :effect1 / :effect2   (Generation Fleet Destinations)
 Rerun after the translation sheets change.
 """
 import csv, io, os, sys
@@ -17,7 +19,11 @@ TR = os.path.join(DATA, "translations")
 LANGS = ["de", "it", "pl", "es", "fr"]
 PREFIX = "Generation Ship Full Card Details - "
 SHEETS = {"tech": "Techs", "promo": "Promos", "expedition": "Expeditions",
-          "adv": "Advanced Sectors", "dust": "Dust Sectors"}
+          "adv": "Advanced Sectors", "dust": "Dust Sectors",
+          "danger": "Dangers", "destination": "Destinations"}
+# (field key, sheet column) per kind; the card decks only need name + effect
+FIELDS = {"danger": (("name", "Name"), ("effect", "Effect"), ("solve", "Solve")),
+          "destination": (("name", "Name"), ("effect1", "Effect 1"), ("effect2", "Effect 2"))}
 
 def read(path):
     with open(path, encoding="utf-8-sig", newline="") as f:
@@ -45,7 +51,7 @@ for kind, sheet in SHEETS.items():
             ident = dust_en.get(n) if kind == "dust" else n
             if not ident:
                 continue
-            for field, col in (("name", "Name"), ("effect", "Effect")):
+            for field, col in FIELDS.get(kind, (("name", "Name"), ("effect", "Effect"))):
                 text = r.get(col, "").strip()
                 if text:
                     table.setdefault(f"{kind}:{ident}:{field}", {})[lang] = text

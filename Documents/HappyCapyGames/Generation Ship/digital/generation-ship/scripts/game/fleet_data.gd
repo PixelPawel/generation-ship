@@ -170,6 +170,35 @@ static func screen_card_material() -> ShaderMaterial:
 	mat.set_shader_parameter("saturation", 1.2)
 	return mat
 
+# — Card texts (tooltips) —
+# English from the sheets' EN tabs (shipped in data/), other languages from
+# data/Card Text Translations.csv (keys danger:<No.>:name/effect/solve and
+# destination:<No.>:name/effect1/effect2; tools/build_card_text_l10n.py).
+const _EN_SHEETS: Dictionary = {
+	"danger": "res://data/Generation Ship Full Card Details - Dangers.EN.csv",
+	"destination": "res://data/Generation Ship Full Card Details - Destinations.EN.csv",
+}
+const _COLUMNS: Dictionary = {
+	"name": "Name", "effect": "Effect", "solve": "Solve", "effect1": "Effect 1", "effect2": "Effect 2",
+}
+static var _en_rows: Dictionary = {}   # kind -> {no: row}
+
+static func card_text(kind: String, no: int, field: String) -> String:
+	var lang: String = TranslationServer.get_locale().substr(0, 2)
+	if lang != "en":
+		var t: String = CardDatabase.translated_text("%s:%d:%s" % [kind, no, field], lang)
+		if not t.is_empty():
+			return t.strip_edges()
+	if not _en_rows.has(kind):
+		var rows: Dictionary = {}
+		for r: Dictionary in CardDatabase._read_csv(_EN_SHEETS[kind]):
+			var n: String = str(r.get("No.", "")).strip_edges()
+			if n.is_valid_int():
+				rows[int(n)] = r
+		_en_rows[kind] = rows
+	var row: Dictionary = (_en_rows[kind] as Dictionary).get(no, {})
+	return str(row.get(_COLUMNS.get(field, field), "")).strip_edges()
+
 static func shuffled_destinations(rng: RandomNumberGenerator) -> Array[int]:
 	var nos: Array[int] = []
 	for d: Dictionary in DESTINATIONS:

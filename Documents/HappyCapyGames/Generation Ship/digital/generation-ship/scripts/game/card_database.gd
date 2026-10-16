@@ -396,6 +396,13 @@ func _card_text_for(cd: CardData, is_adv: bool, field: String, english: String) 
 	var text: String = entry.get(lang, "")
 	return text if not text.is_empty() else english
 
+## A translated text by its key in Card Text Translations.csv ("" if none) —
+## used for cards outside the decks above (Generation Fleet Dangers/Destinations).
+func translated_text(key: String, lang: String) -> String:
+	if not _card_text_loaded:
+		_load_card_text()
+	return str((_card_text.get(key, {}) as Dictionary).get(lang, ""))
+
 func _load_card_text() -> void:
 	_card_text_loaded = true
 	for row: Dictionary in _read_csv(_CARD_TEXT_PATH):

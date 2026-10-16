@@ -13,6 +13,7 @@ const SOLVED_COLOR: Color = Color(0.5, 1.0, 0.6)
 const CARD_SHOW_SEC: float = 1.6
 const DESTINATION_FILL: float = 0.85   # enlarged Destination: share of the view
 const C := CardData.SupplyColor
+const NL: String = "\n"
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -34,8 +35,15 @@ static func setup(main: Main) -> void:
 	# right-click / long press enlarges like the market's cards; right-clicking
 	# another Danger while one is big swaps (Main._on_market_inspect_right_dismissed)
 	panel.danger_inspect_requested.connect(func(no: int) -> void: inspect_danger(main, no))
-	panel.danger_hover_started.connect(func(no: int) -> void: main._hovered_market_slot = ["danger", no])
-	panel.danger_hover_ended.connect(func() -> void: main._hovered_market_slot = ["", -1])
+	panel.danger_hover_started.connect(func(no: int) -> void:
+		main._hovered_market_slot = ["danger", no]
+		main._show_tooltip(danger_tooltip_title(main, no), danger_tooltip_text(main, no)))
+	panel.danger_hover_ended.connect(func() -> void:
+		main._hovered_market_slot = ["", -1]
+		main._hide_tooltip())
+	main._fleet_dest_view.destination_hover_started.connect(func() -> void:
+		main._show_tooltip(FleetData.card_text("destination", GameNetwork.fleet_destination, "name"), destination_tooltip_text(main)))
+	main._fleet_dest_view.destination_hover_ended.connect(main._hide_tooltip)
 	main._fleet_dest_view.destination_inspect_requested.connect(func() -> void: inspect_destination(main))
 	main.get_node("Board").fleet_rule_blocked.connect(func(msg: String) -> void:
 		main._log_action(msg, DANGER_COLOR)
@@ -903,6 +911,32 @@ static func _after_change(main: Main) -> void:
 	main._refresh_card_counts()
 	main._refresh_vp()
 	refresh_panel(main)
+
+# ── Tooltips ──────────────────────────────────────────────────────────────────
+
+static func danger_tooltip_title(main: Main, no: int) -> String:
+	var always: bool = str(FleetData.danger(no).get("type", "")) == "always"
+	return "%s — %s" % [FleetData.card_text("danger", no, "name"), main.tr("ALWAYS") if always else main.tr("PLACE")]
+
+static func danger_tooltip_text(main: Main, no: int) -> String:
+	var parts: PackedStringArray = []
+	var eff: String = FleetData.card_text("danger", no, "effect")
+	var sol: String = FleetData.card_text("danger", no, "solve")
+	if not eff.is_empty():
+		parts.append(main.tr("Effect: %s") % eff.replace(NL, " "))
+	if not sol.is_empty():
+		parts.append(main.tr("Solve: %s") % sol.replace(NL, " "))
+	if FleetRules.is_condition_solve(no):
+		parts.append(main.tr("(Solves itself as soon as this is met.)"))
+	return NL.join(parts)
+
+static func destination_tooltip_text(main: Main) -> String:
+	var no: int = GameNetwork.fleet_destination
+	var parts: PackedStringArray = [FleetData.card_text("destination", no, "effect1"),
+			FleetData.card_text("destination", no, "effect2"), "", main.tr("Progress:")]
+	for l: Dictionary in mission_lines(main):
+		parts.append(("✔ " if bool(l["done"]) else "• ") + str(l["text"]))
+	return NL.join(parts)
 
 # ── Enlarging (the market's 3D inspect, with art-only cards) ─────────────────
 

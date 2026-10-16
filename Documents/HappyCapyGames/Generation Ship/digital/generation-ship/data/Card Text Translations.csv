@@ -59,6 +59,297 @@
 "adv:8:name","Weltraumbasar","Bazar Spaziale","Kosmiczny Bazar","Bazar Espacial","Bazar Spatial"
 "adv:9:effect","Lagere 1 Liquids hier. Erhalte 1⭐ pro Liquids hier.","Immagazzina 1 Liquids qui. Guadagna 1⭐ per Liquids qui.","Zmagazynuj 1 Liquids tutaj. Zdobądź 1⭐ za Liquids tutaj.","Almacena 1 Liquids aquí. Gana 1⭐ por Liquids aquí.","Stockez 1 Liquids ici. Gagnez 1⭐ par Liquids ici."
 "adv:9:name","Gewächshaus","Serra","Szklarnie","Invernadero","Serre"
+"danger:10:effect","Jeder Spieler wählt: Verliere 2 gelagerte Vorräte oder wirf 2 Karten ab.","Ogni giocatore sceglie: Perdi 2 risorse immagazzinate o scarta 2.","Każdy gracz wybiera: Strać 2 zmagazynowane zasoby lub odrzuć 2.","Cada jugador elige: Pierde 2 suministros almacenados o descarta 2.","Chaque joueur choisit : Perdez 2 matériels stockés ou défaussez-en 2."
+"danger:10:name","Algen-Megablüte","Megafioritura di Alghe","Zakwit Alg","Superfloración de Algas","Méga-Algues"
+"danger:10:solve","Zahle 2 Liquids pro Spieler.","Paga 2 Liquids per giocatore.","Zapłać 2 Liquids na gracza.","Paga 2 Liquids por jugador.","Payez 2 Liquids par joueur."
+"danger:11:effect","Liquids-Karten kosten +2.","Le carte Liquids costano +2.","Karty Liquids kosztują +2.","Las cartas Liquids cuestan +2.","Les cartes Liquids coûtent +2."
+"danger:11:name","Flüchtiges Leck","Perdita di Volatili","Wyciek Cieczy","Fuga Volátil","Fuite Volatile"
+"danger:11:solve","Wirf 1 Liquids-Karte pro Spieler ab.","Scarta 1 carta Liquids per giocatore.","Odrzuć 1 kartę Liquids na gracza.","Descarta 1 carta Liquids por jugador.","Défaussez 1 carte Liquids par joueur."
+"danger:12:effect","Erhalte am Ende einer Generation kein Liquids.","Non guadagnare Liquids alla fine di una generazione.","Nie zdobywaj Liquids na koniec generacji.","No ganes Liquids al final de una generación.","Ne gagnez pas de Liquids à la fin d’une génération."
+"danger:12:name","Wassermangel","Carenza d’Acqua","Niedobór Cieczy","Escasez de Agua","Pénurie d’Eau"
+"danger:12:solve","Habe 3+ Liquids-Karten in 1 Sektor.","Abbi 3 o più carte Liquids in 1 settore.","Miej 3+ karty Liquids w 1 sektorze.","Ten 3 o más cartas Liquids en 1 sector.","Ayez 3 cartes Liquids ou plus dans 1 secteur."
+"danger:13:effect","Wirf 3 fortgeschrittene Sektoren im Markt ab.","Scarta 3 settori avanzati
+sul mercato.","Usuń z gry 3 zaawansowane sektory
+z rynku.","Descarta 3 sectores avanzados
+del mercado.","Défaussez 3 secteurs avancés
+du marché."
+"danger:13:name","Sauerstofffressende kolonie","Supercolonia Mangia-Ossigeno","Superkolonia Pożerająca Tlen","colonia Devoradora de Oxígeno","Supercolonie Mangeuse d’Oxygène"
+"danger:13:solve","Leere 1 der Dust-Sektorstapel.","Svuota 1 dei mazzi di settore Dust.","Opróżnij 1 z talii sektorów Dust.","Vacía 1 de las barajas de sector Dust.","Videz 1 des pioches de secteur Dust."
+"danger:14:effect","Du darfst keine Karten recyceln.","Non puoi riciclare carte.","Nie możesz utylizować kart.","No puedes reciclar cartas.","Vous ne pouvez pas recycler de cartes."
+"danger:14:name","Pandemie","Pandemia","Pandemia","Pandemia","Pandémie"
+"danger:14:solve","Wirf 1 Organix-Karte pro Spieler ab.","Scarta 1 carta Organix per giocatore.","Odrzuć 1 kartę Organix na gracza.","Descarta 1 carta Organix por jugador.","Défaussez 1 carte Organix par joueur."
+"danger:15:effect","Jeder Spieler zerstört 1 Karte, wenn möglich eine Organix-Karte.","Ogni giocatore distrugge 1 carta, Organix se possibile.","Każdy gracz niszczy 1 kartę, jeśli to możliwe kartę Organix.","Cada jugador destruye 1 carta, Organix si es posible.","Chaque joueur détruit 1 carte, une carte Organix si possible."
+"danger:15:name","Mutationen","Mutazioni","Mutacje","Mutaciones","Mutations"
+"danger:15:solve","Verliere 1 archivierte Karte pro Spieler.","Perdi 1 carta archiviata per giocatore.","Strać 1 zarchiwizowaną kartę na gracza.","Pierde 1 carta archivada por jugador.","Perdez 1 carte archivée par joueur."
+"danger:16:effect","Sektoren mit Organix können nicht optimiert werden.","I settori con qualsiasi Organix non possono essere ottimizzati.","Sektory z jakimkolwiek Organix nie mogą być optymalizowane.","Los sectores con cualquier Organix no pueden optimizarse.","Les secteurs avec du Organix ne peuvent pas être optimisés."
+"danger:16:name","Befall","Infestazione","Inwazja","Infestación","Infestation"
+"danger:16:solve","Drehe 1 offen archivierte Karte pro Spieler um.","Gira a faccia in giù 1 carta archiviata a faccia in su, per giocatore.","Odwróć 1 odkrytą zarchiwizowaną kartę na zakrytą, na gracza.","Voltea boca abajo 1 carta archivada boca arriba por jugador.","Retournez 1 carte archivée face visible en face cachée par joueur."
+"danger:17:effect","Erhalte am Ende einer Generation kein Organix.","Non guadagnare Organix alla fine di una generazione.","Nie zdobywaj Organix na koniec generacji.","No ganes Organix al final de una generación.","Ne gagnez pas de Organix à la fin d’une génération."
+"danger:17:name","Pflanzenvirus","Virus della Pianta","Wirus Roślinny","Virus Vegetal","Virus Végétal"
+"danger:17:solve","Habe 3+ Organix-Karten in 1 Sektor.","Abbi 3 o più carte Organix in 1 settore.","Miej 3+ karty Organix w 1 sektorze.","Ten 3 o más cartas Organix en 1 sector.","Ayez 3 cartes Organix ou plus dans 1 secteur."
+"danger:18:effect","Organix-Karten kosten +2.","Le carte Organix costano +2.","Karty Organix kosztują +2.","Las cartas Organix cuestan +2.","Les cartes Organix coûtent +2."
+"danger:18:name","Außerirdischer Erreger","Patogeno Alieno","Obcy Patogen","Patógeno Alienígena","Pathogène Extraterrestre"
+"danger:18:solve","Drehe eine offen archivierte Karte mit 3+⭐ um.","Gira a faccia in giù una carta archiviata a faccia in su con 3+⭐.","Odwróć jedną odkrytą zarchiwizowaną kartę z 3+⭐ na zakrytą.","Voltea boca abajo una carta archivada boca arriba con 3+⭐.","Retournez face cachée une carte archivée face visible avec 3⭐ ou plus."
+"danger:19:effect","Jeder Spieler wählt: Verliere 2 gelagerte Vorräte oder archivierte Karten.","Ogni giocatore sceglie: Perdi 2
+risorse immagazzinate o carte archiviate.","Każdy gracz wybiera: Strać 2
+zmagazynowane zasoby lub zarchiwizowane karty.","Cada jugador elige: Pierde 2
+suministros almacenados o cartas archivadas.","Chaque joueur choisit : Perdez 2 matériels stockés ou cartes archivées."
+"danger:19:name","Gammablitz","Lampo di Raggi Gamma","Rozbłysk Gamma","Estallido de Rayos Gamma","Sursaut Gamma"
+"danger:19:solve","Komplettiere einen vollständig optimierten Sektor.","Completa un settore completamente ottimizzato.","Skompletuj w pełni zoptymalizowany sektor.","Completa un sector totalmente optimizado.","Complétez un secteur entièrement optimisé."
+"danger:1:effect","Shuttle-Kosten +1.","Costo della navetta +1.","Koszt wahadłowca +1.","Coste del transbordador +1.","Coût de la navette +1."
+"danger:1:name","Asteroidengürtel","Fascia di Asteroidi","Pas Asteroid","Cinturón de Asteroides","Ceinture d’Astéroïdes"
+"danger:1:solve","Zahle 2 Dust pro Spieler.","Paga 2 Dust per giocatore.","Zapłać 2 Dust na gracza.","Paga 2 Dust por jugador.","Payez 2 Dust par joueur."
+"danger:20:effect","Jeder Spieler zerstört
+1 Karte, wenn möglich eine Electrix-Karte.","Ogni giocatore distrugge
+1 carta, Electrix se possibile.","Każdy gracz niszczy
+1 kartę, jeśli to możliwe kartę Electrix.","Cada jugador destruye
+1 carta, Electrix si es posible.","Chaque joueur détruit
+1 carte, une carte Electrix si possible."
+"danger:20:name","Kybernetischer Psychopath","Psicopatico Cibernetico","Cybernetyczny Psychopata","Psicópata Cibernético","Psychopathe Cybernétique"
+"danger:20:solve","Leere 1 der Dust-Sektorstapel.","Svuota 1 dei mazzi di settore Dust.","Opróżnij 1 z talii sektorów Dust.","Vacía 1 de las barajas de sector Dust.","Videz 1 des pioches de secteur Dust."
+"danger:21:effect","Du kannst keine Karten archivieren oder Vorräte lagern.","Non puoi archiviare carte
+né immagazzinare risorse.","Nie możesz archiwizować kart
+ani magazynować zasobów.","No puedes archivar cartas
+ni almacenar suministros.","Vous ne pouvez pas archiver de cartes ni stocker de matériels."
+"danger:21:name","Fehlfunktion des Neuralgeräts","Malfunzionamento Neurale","Awaria Neuralnego","Fallo del Engranaje Neural","Dysfonctionnement Neuronal"
+"danger:21:solve","Wirf Karten im Wert von 3⭐ pro Spieler ab.","Scarta carte del valore di 3⭐ per giocatore.","Odrzuć karty o wartości 3⭐ na gracza.","Descarta cartas que valgan 3⭐ por jugador.","Défaussez des cartes valant 3⭐ par joueur."
+"danger:22:effect","Lagere 1 Electrix hier. 
+Decke 1 Gefahr pro Electrix auf.","Immagazzina 1 Electrix qui.
+Rivela 1 pericolo per Electrix.","Zmagazynuj 1 Electrix tutaj.
+Odkryj 1 zagrożenie za Electrix.","Almacena 1 Electrix aquí.
+Revela 1 peligro por Electrix.","Stockez 1 Electrix ici.
+Révélez 1 danger par Electrix."
+"danger:22:name","Systemausfall","Guasto di Sistema","Awaria Systemu","Fallo del Sistema","Panne Système"
+"danger:22:solve","Wirf 1 Electrix-Karte pro Spieler ab.","Scarta 1 carta Electrix per giocatore.","Odrzuć 1 kartę Electrix na gracza.","Descarta 1 carta Electrix por jugador.","Défaussez 1 carte Electrix par joueur."
+"danger:23:effect","Sektorkarten kosten +2.","Le carte settore costano +2.","Karty sektora kosztują +2.","Las cartas de sector cuestan +2.","Les cartes de secteur coûtent +2."
+"danger:23:name","Roboteraufstand","Rivolta dei Robot","Powstanie Robotów","Levantamiento Robótico","Soulèvement des Robots"
+"danger:23:solve","Zahle 1 Electrix pro Spieler.","Paga 1 Electrix per giocatore.","Zapłać 1 Electrix na gracza.","Paga 1 Electrix por jugador.","Payez 1 Electrix par joueur."
+"danger:24:effect","Erhalte am Ende einer Generation kein Electrix.","Non guadagnare Electrix alla fine di una generazione.","Nie zdobywaj Electrix na koniec generacji.","No ganes Electrix al final de una generación.","Ne gagnez pas de Electrix à la fin d’une génération."
+"danger:24:name","Nanitenseuche","Peste di Naniti","Zaraza Nanitów","Plaga de Nanitas","Peste de Nanites"
+"danger:24:solve","Wirf Karten im Wert von 3⭐ pro Spieler ab.","Scarta carte del valore di 3⭐ per giocatore.","Odrzuć karty o wartości 3⭐ na gracza.","Descarta cartas que valgan 3⭐ por jugador.","Défaussez des cartes valant 3⭐ par joueur."
+"danger:25:effect","Mische alle Expeditionen 
+zurück in den Stapel.","Rimescola tutte le spedizioni
+nel mazzo.","Wtasuj wszystkie ekspedycje
+z powrotem do talii.","Mezcla todas las expediciones
+de vuelta al mazo.","Mélangez toutes les expéditions
+dans la pioche."
+"danger:25:name","Unentdecktes Wurmloch","Wormhole Non Rilevato","Niewykryty Tunel Czasoprzestrzenny","Agujero de Gusano No Detectado","Trou de Ver Non Détecté"
+"danger:25:solve","Kaufe 1 Expedition.","Acquista 1 spedizione.","Kup 1 ekspedycję.","Compra 1 expedición.","Achetez 1 expédition."
+"danger:26:effect","Jeder Spieler entfernt den 
+Sektor mit den wenigsten Karten.","Ogni giocatore rimuove il
+settore con meno carte.","Każdy gracz usuwa
+sektor z najmniejszą liczbą kart.","Cada jugador retira el
+sector con menos cartas.","Chaque joueur retire le
+secteur avec le moins de cartes."
+"danger:26:name","Sabotage","Sabotaggio","Sabotaż","Sabotaje","Sabotage"
+"danger:26:solve","Zerstöre 1 Expedition in einem beliebigen Sektor.","Distruggi 1 spedizione in qualsiasi settore.","Zniszcz 1 ekspedycję w dowolnym sektorze.","Destruye 1 expedición en cualquier sector.","Détruisez 1 expédition dans n’importe quel secteur."
+"danger:27:effect","Alle Karten kosten +1.","Tutte le carte costano +1.","Wszystkie karty kosztują +1.","Todas las cartas cuestan +1.","Toutes les cartes coûtent +1."
+"danger:27:name","Abtrünnige KI","IA Ribelle","Zbuntowana SI","IA Rebelde","IA Renégate"
+"danger:27:solve","Wirf 2 Electrix- und/oder Thrust-Karten pro Spieler ab.","Scarta 2 carte Electrix e/o Thrust per giocatore.","Odrzuć 2 karty Electrix i/lub Thrust na gracza.","Descarta 2 cartas Electrix y/o Thrust por jugador.","Défaussez 2 cartes Electrix et/ou Thrust par joueur."
+"danger:28:effect","Du kannst keine Thrust-Karten platzieren oder recyceln.","Non puoi posizionare né riciclare Thrust.","Nie możesz umieszczać ani utylizować Thrust.","No puedes colocar ni reciclar Thrust.","Vous ne pouvez pas poser ni recycler de Thrust."
+"danger:28:name","Barbarei","Barbarie","Barbarzyństwo","Barbarie","Barbarie"
+"danger:28:solve","Vervollständige einen Electrix- oder Thrust-Sektor.","Completa un settore Electrix o Thrust.","Skompletuj sektor Electrix lub Thrust.","Completa un sector Electrix o Thrust.","Complétez un secteur Electrix ou Thrust."
+"danger:29:effect","Jeder Spieler gibt seine Karten nach links weiter.","Ogni giocatore passa le proprie
+carte a sinistra.","Każdy gracz przekazuje swoje
+karty w lewo.","Cada jugador pasa sus
+cartas a la izquierda.","Chaque joueur passe ses cartes à gauche."
+"danger:29:name","Dimensionstasche","Tasca Dimensionale","Kieszeń Wyższego Wymiaru","Bolsillo Dimensional","Poche Dimensionnelle"
+"danger:29:solve","Wirf 1 Karte jeder Farbe ab.","Scarta 1 carta di ogni colore.","Odrzuć 1 kartę każdego koloru.","Descarta 1 carta de cada color.","Défaussez 1 carte de chaque couleur."
+"danger:2:effect","ALLE Spieler wandeln 3 Vorräte auf ihrem Schiff 1:1 in Dust um.","TUTTI i giocatori trasformano 3 risorse sulla propria nave 1:1 in Dust.","WSZYSCY gracze zamieniają 3 zasoby na swoim statku 1:1 na Dust.","TODOS los jugadores transforman 3 suministros en su nave 1:1 en Dust.","TOUS les joueurs transforment 3 matériels sur leur vaisseau 1:1 en Dust."
+"danger:2:name","Kinetischer Impakt","Impatti ad Alta Velocità","Uderzenia z Dużą Prędkością","Impactos a Alta Velocidad","Impacts à Grande Vitesse"
+"danger:2:solve","Zerstöre 1 Karte pro Spieler.
+(dreh die oberste Karte eines Sektors um)","Distruggi 1 carta per giocatore.
+(gira a faccia in giù la carta in cima a un settore)","Zniszcz 1 kartę na gracza.
+(odwróć zakrytą wierzchnią kartę sektora)","Destruye 1 carta por jugador.
+(voltea boca abajo la carta superior de un sector)","Détruisez 1 carte par joueur. (retournez face cachée la carte du dessus d’un secteur)"
+"danger:30:effect","Jeder Spieler wirft 3 Karten ab.","Ogni giocatore scarta 3 carte.","Każdy gracz odrzuca 3 karty.","Cada jugador descarta 3 cartas.","Chaque joueur défausse 3 cartes."
+"danger:30:name","Instabiles Wurmloch","Wormhole Instabile","Niestabilny Tunel Czasoprzestrzenny","Agujero de Gusano Inestable","Trou de Ver Instable"
+"danger:30:solve","Ein beliebiger Spieler hat keine Karten auf der Hand.","Un giocatore qualsiasi non ha carte in mano.","Dowolny gracz nie ma kart w ręce.","Cualquier jugador no tiene cartas en mano.","Un joueur quelconque n’a aucune carte en main."
+"danger:3:effect","Zerstöre die oberste Karte in deinem am weitesten rechts liegenden Sektor.","Distruggi la carta in cima nel tuo settore più a destra.","Zniszcz wierzchnią kartę w swoim najbardziej wysuniętym na prawo sektorze.","Destruye la carta superior en tu sector más a la derecha.","Détruisez la carte du dessus dans votre secteur le plus à droite."
+"danger:3:name","Rumpfbruch","Falla nello Scafo","Łamacz Kadłuba","Brecha en el Casco","Brèche de Coque"
+"danger:3:solve","Vervollständige deinen am weitesten rechts liegenden Sektor.","Completa il tuo settore più a destra.","Skompletuj swój najbardziej wysunięty na prawo sektor.","Completa tu sector más a la derecha.","Complétez votre secteur le plus à droite."
+"danger:4:effect","Du kannst keinen Dust erhalten.
+(du darfst weiterhin lagern)","Non puoi guadagnare Dust.
+(puoi comunque immagazzinare)","Nie możesz zdobywać Dust.
+(nadal możesz magazynować)","No puedes ganar Dust.
+(aún puedes almacenar)","Vous ne pouvez pas gagner de Dust.
+(vous pouvez toujours stocker)"
+"danger:4:name","Bergbauunfall","Incidente Minerario","Wypadek Górniczy","Incidente Minero","Incident Minier"
+"danger:4:solve","Optimiere einen Dust-Sektor vollständig.","Ottimizza completamente un settore Dust.","W pełni zoptymalizuj sektor Dust.","Optimiza completamente un sector Dust.","Optimisez entièrement un secteur Dust."
+"danger:5:effect","Zerstöre die obersten 2 Karten in deinem am weitesten links liegenden Sektor.","Distruggi le 2 carte in cima nel tuo settore più a sinistra.","Zniszcz 2 wierzchnie karty w swoim najbardziej wysuniętym na lewo sektorze.","Destruye las 2 cartas superiores en tu sector más a la izquierda.","Détruisez les 2 cartes du dessus dans votre secteur le plus à gauche."
+"danger:5:name","Beschleunigte Korrosion","Ruggine Accelerata","Przyspieszona Korozja","Oxidación Acelerada","Rouille Accélérée"
+"danger:5:solve","Optimiere einen Metals-Sektor vollständig.","Ottimizza completamente un settore Metals.","W pełni zoptymalizuj sektor Metals.","Optimiza completamente un sector Metals.","Optimisez entièrement un secteur Metals."
+"danger:6:effect","Du kannst keine Metals fusionieren oder erhalten. (du darfst weiterhin lagern)","Non puoi fondere né guadagnare Metals.
+(puoi comunque immagazzinare)","Nie możesz łączyć ani zdobywać Metals.
+(nadal możesz magazynować)","No puedes fusionar ni ganar Metals.
+(aún puedes almacenar)","Vous ne pouvez pas fusionner ni gagner de Metals.
+(vous pouvez toujours stocker)"
+"danger:6:name","Schmelzunfall","Incidente in Fonderia","Wypadek w Hucie","Accidente de Fundición","Accident de Fonderie"
+"danger:6:solve","Wirf 1 Metals-Karte pro Spieler ab.","Scarta 1 carta Metals per giocatore.","Odrzuć 1 kartę Metals na gracza.","Descarta 1 carta Metals por jugador.","Défaussez 1 carte Metals par joueur."
+"danger:7:effect","Jeder Spieler wählt: 
+Zahle 2 Metals oder zerstöre 2 Karten.","Ogni giocatore sceglie:
+Paga 2 Metals o distruggi 2 carte.","Każdy gracz wybiera:
+Zapłać 2 Metals lub zniszcz 2 karty.","Cada jugador elige:
+Paga 2 Metals o destruye 2 cartas.","Chaque joueur choisit :
+Payez 2 Metals ou détruisez 2 cartes."
+"danger:7:name","Triebwerksüberlastung","Sovraccarico dei Motori","Przeciążenie Silników","Sobrecarga de Motores","Surcharge des Moteurs"
+"danger:7:solve","Zahle 2 Metals pro Spieler.","Paga 2 Metals per giocatore.","Zapłać 2 Metals na gracza.","Paga 2 Metals por jugador.","Payez 2 Metals par joueur."
+"danger:8:effect","Du kannst keine IMMER-Effekte auf deinen Karten nutzen.","Non puoi usare gli effetti SEMPRE sulle tue carte.","Nie możesz używać efektów ZAWSZE na swoich kartach.","No puedes usar efectos SIEMPRE en tus cartas.","Vous ne pouvez pas utiliser les effets TOUJOURS sur vos cartes."
+"danger:8:name","Totalitarismus","Totalitarismo","Totalitaryzm","Totalitarismo","Totalitarisme"
+"danger:8:solve","Wirf Karten im Wert von 
+2⭐ pro Spieler ab.","Scarta carte del valore di 2⭐ per giocatore.","Odrzuć karty o wartości 2⭐ na gracza.","Descarta cartas que valgan 2⭐ por jugador.","Défaussez des cartes valant 2⭐ par joueur."
+"danger:9:effect","Du kannst kein Liquids lagern oder fusionieren.
+(du darfst weiterhin erhalten)","Non puoi immagazzinare né fondere Liquids.
+(puoi comunque guadagnare)","Nie możesz magazynować ani łączyć Liquids.
+(nadal możesz zdobywać)","No puedes almacenar ni fusionar Liquids.
+(aún puedes ganar)","Vous ne pouvez pas stocker ni fusionner de Liquids.
+(vous pouvez toujours en gagner)"
+"danger:9:name","Antifusionsfeld","Campo Anti-Fusione","Pole Antyfuzyjne","Campo Antifusión","Champ Anti-Fusion"
+"danger:9:solve","Optimiere einen Liquids-Sektor vollständig.","Ottimizza completamente un settore Liquids.","W pełni zoptymalizuj sektor Liquids.","Optimiza completamente un sector Liquids.","Optimisez entièrement un secteur Liquids."
+"destination:10:effect1","Normal (zirkumsolar) Mittel (3 Generationen)","Normale (circumsolare) Media (3 Generazioni)","Normalny (okołosłoneczny) Średni (3 Generacje)","Normal (circumsolar) Media (3 Generaciones)","Normal (circumsolaire) Moyen (3 Générations)"
+"destination:10:effect2","Mission: Jeder Spieler hat 15⭐ und 3 Liquids-Karten.
+Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: Ogni giocatore ha 15⭐ e 3 carte Liquids.
+Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: Każdy gracz ma 15⭐ i 3 karty Liquids.
+Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: Cada jugador tiene 15⭐ y 3 cartas Liquids.
+Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission: Chaque joueur a 15⭐ et 3 cartes Liquids.
+Navette: 1 Dust pour envoyer une carte à un joueur."
+"destination:10:name","Epsilon Eridani","Epsilon Eridani","Epsilon Eridani","Epsilon Eridani","Epsilon Eridani"
+"destination:11:effect1","Normal (zirkumsolar) Mittel (3 Generationen)","Normale (circumsolare) Media (3 Generazioni)","Normalny (okołosłoneczny) Średni (3 Generacje)","Normal (circumsolar) Media (3 Generaciones)","Normal (circumsolaire) Moyen (3 Générations)"
+"destination:11:effect2","Mission: 15⭐ und lagere 1 Thrust pro Spieler.
+Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: 15⭐ e immagazzina 1 Thrust per giocatore.
+Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: 15⭐ i zmagazynuj 1 Thrust na gracza.
+Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: 15⭐ y almacena 1 Thrust por jugador.
+Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission: 15⭐ et stockez 1 Thrust par joueur.
+Navette: 1 Dust pour envoyer une carte à un joueur."
+"destination:11:name","Cygnus","Cygnus","Cygnus","Cygnus","Cygnus"
+"destination:12:effect1","Normal (zirkumsolar) Mittel (3 Generationen)","Normale (circumsolare) Media (3 Generazioni)","Normalny (okołosłoneczny) Średni (3 Generacje)","Normal (circumsolar) Media (3 Generaciones)","Normal (circumsolaire) Moyen (3 Générations)"
+"destination:12:effect2","Mission: 7 offene ⭐ pro Spieler (archiviert oder platziert).
+Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: 7⭐ a faccia in su per giocatore (archiviate o posizionate).
+Navetta: Paga 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: 7⭐ odkrytych na gracza (zarchiwizowanych lub umieszczonych).
+Wahadłowiec: Zapłać 1 Dust, aby wysłać kartę do dowolnego gracza.","Misión: 7⭐ boca arriba por jugador (archivadas o en juego).
+Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission: 7⭐ face visible par joueur (archivées ou posées).
+Navette: 1 Dust pour envoyer une carte à un joueur."
+"destination:12:name","Procyon","Procione","Procjon","Proción","Procyon"
+"destination:13:effect1","Schwer (galaktisch) Lang (4 Generationen)","Difficile (galattico) Lunga (4 Generazioni)","Trudny (galaktyczny) Długi (4 Generacje)","Difícil (galáctico) Larga (4 Generaciones)","Difficile (galactique) Long (4 Générations)"
+"destination:13:effect2","Mission: 30⭐ & 4 Electrix-Karten pro Spieler.
+Shuttle: 2 Dust eine Karte an einen Spieler geben.","Missione: 30⭐ e 4 carte Electrix per giocatore.
+Navetta: 2 Dust per inviare una carta a qualsiasi giocatore.","Misja: 30⭐ i 4 karty Electrix na gracza.
+Wahadłowiec: 2 Dust, aby wysłać kartę do gracza.","Misión: 30⭐ y 4 cartas Electrix por jugador.
+Transbordador: 2 Dust entregar una tarjeta a un jugador.","Mission: 30⭐ & 4 cartes Electrix par joueur.
+Navette: 2 Dust pour envoyer une carte à un joueur."
+"destination:13:name","Beta Hydri","Beta Hydri","Beta Hydri","Beta Hydri","Beta Hydri"
+"destination:14:effect1","Schwer (galaktisch) Lang (4 Generationen)","Difficile (galattico) Lunga (4 Generazioni)","Trudny (galaktyczny) Długi (4 Generacje)","Difícil (galáctico) Larga (4 Generaciones)","Difficile (galactique) Long (4 Générations)"
+"destination:14:effect2","Mission: 30⭐& 5⭐ auf archivierten Karten pro Spieler.
+Shuttle: 2 Dust eine Karte an einen Spieler geben.","Missione: 30⭐ e 5⭐ su carte archiviate per giocatore.
+Navetta: Paga 2 Dust per inviare una carta a qualsiasi giocatore.","Misja: 30⭐ i 5⭐ na zarchiwizowanych kartach na gracza.
+Wahadłowiec: Zapłać 2 Dust, aby wysłać kartę do dowolnego gracza.","Misión: 30⭐ y 5⭐ en cartas archivadas por jugador.
+Transbordador: 2 Dust entregar una tarjeta a un jugador.","Mission: 30⭐ & 5⭐ sur des cartes archivées par joueur.
+Navette: 2 Dust pour envoyer une carte à un joueur."
+"destination:14:name","„Las“ Vega","“Las” Vega","„Las” Vega","“Las” Vega","« Las » Vega"
+"destination:15:effect1","Schwer (galaktisch) Lang (4 Generationen)","Difficile (galattico) Lunga (4 Generazioni)","Trudny (galaktyczny) Długi (4 Generacje)","Difícil (galáctico) Larga (4 Generaciones)","Difficile (galactique) Long (4 Générations)"
+"destination:15:effect2","Mission: 30⭐ & lagere 3 Liquids pro Spieler.
+Shuttle: 2 Dust eine Karte an einen Spieler geben.","Missione: 30⭐ e immagazzina 3 Liquids per giocatore.
+Navetta: 2 Dust per inviare una carta a qualsiasi giocatore.","Misja: 30⭐ i zmagazynuj 3 Liquids na gracza.
+Wahadłowiec: 2 Dust, aby wysłać kartę do gracza.","Misión: 30⭐ y almacena 3 Liquids por jugador.
+Transbordador: 2 Dust entregar una tarjeta a un jugador.","Mission: 30⭐ & stockez 3 Liquids par joueur.
+Navette: 2 Dust pour envoyer une carte à un joueur."
+"destination:15:name","Pollux","Polluce","Polluks","Pólux","Pollux"
+"destination:16:effect1","Schwer (galaktisch) Lang (4 Generationen)","Difficile (galattico) Lunga (4 Generazioni)","Trudny (galaktyczny) Długi (4 Generacje)","Difícil (galáctico) Larga (4 Generaciones)","Difficile (galactique) Long (4 Générations)"
+"destination:16:effect2","Mission: Jeder Spieler hat 30⭐ & 4 vollständig optimierte Sektoren.
+Shuttle: Zahle 2 Dust, um eine Karte an einen beliebigen Spieler zu schicken.","Missione: Ogni giocatore ha 30⭐ e 4 settori completamente ottimizzati.
+Navetta: Paga 2 Dust per inviare una carta a qualsiasi giocatore.","Misja: Każdy gracz ma 30⭐ i 4 w pełni zoptymalizowane sektory.
+Wahadłowiec: Zapłać 2 Dust, aby wysłać kartę do dowolnego gracza.","Misión: Cada jugador tiene 30⭐ y 4 sectores totalmente optimizados.
+Transbordador: Paga 2 Dust para enviar una carta a cualquier jugador.","Mission : Chaque joueur a 30⭐ & 4 secteurs entièrement optimisés.
+Navette : Payez 2 Dust pour envoyer une carte à n'importe quel joueur."
+"destination:16:name","Arktur","Arturo","Arktur","Arturo","Arcturus"
+"destination:17:effect1","Schwer (galaktisch) Lang (4 Generationen)","Difficile (galattico) Lunga (4 Generazioni)","Trudny (galaktyczny) Długi (4 Generacje)","Difícil (galáctico) Larga (4 Generaciones)","Difficile (galactique) Long (4 Générations)"
+"destination:17:effect2","Mission: 1 Satz gelagerter Dust, Metals, Liquids, Organix, Electrix, Thrust pro Spieler.
+Shuttle: Zahle 2 Dust, um eine Karte an einen beliebigen Spieler zu schicken.","Missione: 1 set di Dust, Metals, Liquids, Organix, Electrix, Thrust immagazzinati per giocatore.
+Navetta: Paga 2 Dust per inviare una carta a qualsiasi giocatore.","Misja: 1 zestaw zmagazynowanych Dust, Metals, Liquids, Organix, Electrix, Thrust na gracza.
+Wahadłowiec: Zapłać 2 Dust, aby wysłać kartę do dowolnego gracza.","Misión: 1 set de Dust, Metals, Liquids, Organix, Electrix, Thrust almacenados por jugador.
+Transbordador: Paga 2 Dust para enviar una carta a cualquier jugador.","Mission : 1 set de Dust, Metals, Liquids, Organix, Electrix, Thrust stockés par joueur.
+Navette : Payez 2 Dust pour envoyer une carte à n'importe quel joueur."
+"destination:17:name","Gamma Serpentis","Gamma Serpentis","Gamma Serpentis","Gamma Serpentis","Gamma Serpentis"
+"destination:18:effect1","Schwer (galaktisch) Lang (4 Generationen)","Difficile (galattico) Lunga (4 Generazioni)","Trudny (galaktyczny) Długi (4 Generacje)","Difícil (galáctico) Larga (4 Generaciones)","Difficile (galactique) Long (4 Générations)"
+"destination:18:effect2","Mission: 40⭐ & lagere 3 Thrust pro Spieler.
+Shuttle: 2 Dust eine Karte an einen Spieler geben.","Missione: 40⭐ e immagazzina 3 Thrust per giocatore.
+Navetta: 2 Dust per inviare una carta a qualsiasi giocatore.","Misja: 40⭐ i zmagazynuj 3 Thrust na gracza.
+Wahadłowiec: 2 Dust, aby wysłać kartę do gracza.","Misión: 40⭐ y almacena 3 Thrust por jugador.
+Transbordador: 2 Dust entregar una tarjeta a un jugador.","Mission: 40⭐ & stockez 3 Thrust par joueur.
+Navette: 2 Dust pour envoyer une carte à un joueur."
+"destination:18:name","Theta Persei","Theta Persei","Theta Persei","Theta Persei","Thêta Persei"
+"destination:1:effect1","Leicht (interplanetar) Kurz (2 Generationen)","Facile (interplanetario) Breve (2 Generazioni)","Łatwy (międzyplanetarny) Krótki (2 Generacje)","Fácil (interplanetario) Corta (2 Generaciones)","Facile (interplanétaire) Court (2 Générations)"
+"destination:1:effect2","Mission: 5⭐ pro Spieler.
+Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: 5⭐ per giocatore.
+Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: 5⭐ na gracza.
+Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: 5⭐ por jugador.
+Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission: 5⭐ par joueur.
+Navette: 1 Dust pour envoyer une carte à un joueur."
+"destination:1:name","Titan","Titano","Tytan","Titán","Titan"
+"destination:2:effect1","Leicht (interplanetar) Kurz (2 Generationen)","Facile (interplanetario) Breve (2 Generazioni)","Łatwy (międzyplanetarny) Krótki (2 Generacje)","Fácil (interplanetario) Corta (2 Generaciones)","Facile (interplanétaire) Court (2 Générations)"
+"destination:2:effect2","Mission: Lagere 3 Vorräte pro Spieler.
+Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: Immagazzina 3 risorse per giocatore.
+Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: Zmagazynuj 3 zasoby na gracza.
+Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: Almacena 3 suministros por jugador.
+Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission: Stockez 3 matériels par joueur.
+Navette: 1 Dust pour envoyer une carte à un joueur."
+"destination:2:name","Mars","Marte","Mars","Marte","Mars"
+"destination:3:effect1","Leicht (interplanetar) Kurz (2 Generationen)","Facile (interplanetario) Breve (2 Generazioni)","Łatwy (międzyplanetarny) Krótki (2 Generacje)","Fácil (interplanetario) Corta (2 Generaciones)","Facile (interplanétaire) Court (2 Générations)"
+"destination:3:effect2","Mission: Jeder Spieler hat 5⭐.
+Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: Ogni giocatore ha 5⭐.
+Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: Każdy gracz ma 5⭐.
+Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: Cada jugador tiene 5⭐.
+Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission: Chaque joueur a 5⭐.
+Navette: 1 Dust pour envoyer une carte à un joueur."
+"destination:3:name","Venus","Venere","Wenus","Venus","Vénus"
+"destination:4:effect1","Leicht (interplanetar) Kurz (2 Generationen)","Facile (interplanetario) Breve (2 Generazioni)","Łatwy (międzyplanetarny) Krótki (2 Generacje)","Fácil (interplanetario) Corta (2 Generaciones)","Facile (interplanétaire) Court (2 Générations)"
+"destination:4:effect2","Mission: 2 vollständig optimierte Sektoren pro Spieler.
+Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: 2 settori completamente ottimizzati per giocatore.
+Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: 2 w pełni zoptymalizowane sektory na gracza.
+Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: 2 sectores totalmente optimizados por jugador.
+Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission: 2 secteurs entièrement optimisés par joueur.
+Navette: 1 Dust pour envoyer une carte à un joueur."
+"destination:4:name","Europa","Europa","Europa","Europa","Europe"
+"destination:5:effect1","Leicht (interplanetar) Kurz (2 Generationen)","Facile (interplanetario) Breve (2 Generazioni)","Łatwy (międzyplanetarny) Krótki (2 Generacje)","Fácil (interplanetario) Corta (2 Generaciones)","Facile (interplanétaire) Court (2 Générations)"
+"destination:5:effect2","Mission: 1 Thrust-Karte pro Spieler.
+Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: 1 carta Thrust per giocatore.
+Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: 1 karta Thrust na gracza.
+Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: 1 carta Thrust por jugador.
+Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission: 1 carte Thrust par joueur.
+Navette: 1 Dust pour envoyer une carte à un joueur."
+"destination:5:name","Jupiter","Giove","Jowisz","Júpiter","Jupiter"
+"destination:6:effect1","Leicht (interplanetar) Kurz (2 Generationen)","Facile (interplanetario) Breve (2 Generazioni)","Łatwy (międzyplanetarny) Krótki (2 Generacje)","Fácil (interplanetario) Corta (2 Generaciones)","Facile (interplanétaire) Court (2 Générations)"
+"destination:6:effect2","Mission: Jeder Spieler hat 2 komplettierte Sektoren.
+Shuttle: Zahle 0 Dust, um eine Karte an einen beliebigen Spieler zu schicken.","Missione: Ogni giocatore ha 2 settori completati.
+Navetta: Paga 0 Dust per inviare una carta a qualsiasi giocatore.","Misja: Każdy gracz ma 2 skompletowane sektory.
+Wahadłowiec: Zapłać 0 Dust, aby wysłać kartę do dowolnego gracza.","Misión: Cada jugador tiene 2 sectores completados.
+Transbordador: Paga 0 Dust para enviar una carta a cualquier jugador.","Mission : Chaque joueur a 2 secteurs complétés.
+Navette : Payez 0 Dust pour envoyer une carte à n'importe quel joueur."
+"destination:6:name","Luna","Luna","Luna","Luna","Luna"
+"destination:7:effect1","Normal (zirkumsolar) Mittel (3 Generationen)","Normale (circumsolare) Media (3 Generazioni)","Normalny (okołosłoneczny) Średni (3 Generacje)","Normal (circumsolar) Media (3 Generaciones)","Normal (circumsolaire) Moyen (3 Générations)"
+"destination:7:effect2","Mission: 18⭐ pro Spieler.
+Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: 18⭐ per giocatore.
+Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: 18⭐ na gracza.
+Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: 18⭐ por jugador.
+Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission: 18⭐ par joueur.
+Navette: 1 Dust pour envoyer une carte à un joueur."
+"destination:7:name","Alpha Centauri","Alpha Centauri","Alfa Centauri","Alfa Centauri","Alpha du Centaure"
+"destination:8:effect1","Normal (zirkumsolar) Mittel (3 Generationen)","Normale (circumsolare) Media (3 Generazioni)","Normalny (okołosłoneczny) Średni (3 Generacje)","Normal (circumsolar) Media (3 Generaciones)","Normal (circumsolaire) Moyen (3 Générations)"
+"destination:8:effect2","Mission: Jeder Spieler hat 15⭐ & 1 gelagerten Vorrat.
+Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: Ogni giocatore ha 15⭐ e 1 risorsa immagazzinata.
+Navetta: Paga 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: Każdy gracz ma 15⭐ i 1 zmagazynowany zasób.
+Wahadłowiec: Zapłać 1 Dust, aby wysłać kartę do dowolnego gracza.","Misión: Cada jugador tiene 15⭐ y 1 suministro almacenado.
+Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission: Chaque joueur a 15⭐ & 1 matériel stocké.
+Navette: 1 Dust pour envoyer une carte à un joueur."
+"destination:8:name","Sirius","Sirio","Syriusz","Sirio","Sirius"
+"destination:9:effect1","Normal (zirkumsolar) Mittel (3 Generationen)","Normale (circumsolare) Media (3 Generazioni)","Normalny (okołosłoneczny) Średni (3 Generacje)","Normal (circumsolar) Media (3 Generaciones)","Normal (circumsolaire) Moyen (3 Générations)"
+"destination:9:effect2","Mission: 15⭐ und archiviere 3 Karten pro Spieler.
+Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: 15⭐ e archivia 3 carte per giocatore.
+Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: 15⭐ i zarchiwizuj 3 karty na gracza.
+Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: 15⭐ y archiva 3 cartas por jugador.
+Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission: 15⭐ et archivez 3 cartes par joueur.
+Navette: 1 Dust pour envoyer une carte à un joueur."
+"destination:9:name","Tau Ceti","Tau Ceti","Tau Ceti","Tau Ceti","Tau Ceti"
 "dust:Bioreactors:effect","Recycle bis zu 4 Karten, ziehe dann ebenso viele.","Ricicla fino a 4 carte, poi pesca altrettante.","Zutylizuj do 4 kart, następnie dobierz tyle samo.","Recicla hasta 4 cartas, luego roba esa cantidad.","Recyclez jusqu’à 4 cartes, puis piochez autant."
 "dust:Bioreactors:name","Bioreaktor","Bioreattore","Bioreaktor","Biorreactor","Bioréacteurs"
 "dust:Cargo Bays:effect","Decke bis zu 3 Sektoren auf. Du darfst auf einen bieten.","Rivela fino a 3 settori. Puoi fare un’offerta per uno.","Odkryj do 3 sektorów. Możesz licytować o jeden z nich.","Revela hasta 3 sectores. Puedes pujar por uno.","Révélez jusqu’à 3 secteurs. Vous pouvez enchérir sur l’un d’eux."

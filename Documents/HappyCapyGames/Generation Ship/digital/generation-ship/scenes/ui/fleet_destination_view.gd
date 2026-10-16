@@ -7,6 +7,8 @@ const FleetData = preload("res://scripts/game/fleet_data.gd")
 const LongPressGestureScript := preload("res://scenes/ui/long_press_gesture.gd")
 
 signal destination_inspect_requested
+signal destination_hover_started
+signal destination_hover_ended
 
 const SCREEN_SIZE: Vector2 = Vector2(360, 460)
 const CARD_SIZE: Vector2 = Vector2(324, 231)    # 89 x 63.5 mm
@@ -59,6 +61,8 @@ func _ready() -> void:
 				destination_inspect_requested.emit()
 		elif ev is InputEventMouseMotion:
 			gesture.update_position((ev as InputEventMouseMotion).position))
+	_card.mouse_entered.connect(func() -> void: destination_hover_started.emit())
+	_card.mouse_exited.connect(func() -> void: destination_hover_ended.emit())
 	box.add_child(_card)
 
 	_gen_label = _text(22, HEAD_COLOR)
