@@ -135,6 +135,41 @@ static func danger_back_art() -> String:
 static func destination_back_art() -> String:
 	return CardDatabase._art_path(DESTINATION_ART_FOLDER, "GS Destiniations Back 89x63,5mm.png")
 
+# — Cards on the cockpit screens —
+# The print art (750 px wide) shrunk ~3.5x on a screen without mipmaps comes out
+# blurry and aliased, so the screens get a copy pre-shrunk once with Lanczos to
+# the exact pixel size shown. Cached per path and size.
+static var _screen_tex_cache: Dictionary = {}
+
+static func screen_texture(path: String, box: Vector2) -> Texture2D:
+	if path.is_empty():
+		return null
+	var key: String = "%s@%dx%d" % [path, int(box.x), int(box.y)]
+	if _screen_tex_cache.has(key):
+		return _screen_tex_cache[key]
+	var tex: Texture2D = load(path) as Texture2D
+	if tex == null:
+		return null
+	var img: Image = tex.get_image()
+	if img == null or img.is_compressed():
+		return tex
+	var scale: float = minf(box.x / float(img.get_width()), box.y / float(img.get_height()))
+	if scale < 1.0:
+		img = img.duplicate() as Image
+		img.resize(maxi(1, roundi(img.get_width() * scale)), maxi(1, roundi(img.get_height() * scale)), Image.INTERPOLATE_LANCZOS)
+	var out: Texture2D = ImageTexture.create_from_image(img)
+	_screen_tex_cache[key] = out
+	return out
+
+## The card shader settings that keep card text readable under the screen glow.
+static func screen_card_material() -> ShaderMaterial:
+	var mat: ShaderMaterial = ShaderMaterial.new()
+	mat.shader = load("res://shaders/card_rounded.gdshader")
+	mat.set_shader_parameter("brightness", 0.82)
+	mat.set_shader_parameter("contrast", 1.25)
+	mat.set_shader_parameter("saturation", 1.2)
+	return mat
+
 static func shuffled_destinations(rng: RandomNumberGenerator) -> Array[int]:
 	var nos: Array[int] = []
 	for d: Dictionary in DESTINATIONS:

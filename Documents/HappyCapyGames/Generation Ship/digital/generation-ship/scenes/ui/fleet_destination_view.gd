@@ -43,10 +43,7 @@ func _ready() -> void:
 	_card.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_card.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_card.mouse_filter = Control.MOUSE_FILTER_STOP
-	var mat: ShaderMaterial = ShaderMaterial.new()
-	mat.shader = load("res://shaders/card_rounded.gdshader")
-	mat.set_shader_parameter("brightness", 1.0)
-	_card.material = mat
+	_card.material = FleetData.screen_card_material()
 	_card.gui_input.connect(func(event: InputEvent) -> void:
 		if event is InputEventMouseButton and (event as InputEventMouseButton).pressed \
 				and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
@@ -63,8 +60,7 @@ func _ready() -> void:
 	box.add_child(_shuttle_label)
 
 func setup(destination_no: int) -> void:
-	var path: String = FleetData.destination_art(destination_no)
-	_card.texture = load(path) as Texture2D if not path.is_empty() else null
+	_card.texture = FleetData.screen_texture(FleetData.destination_art(destination_no), CARD_SIZE)
 	_shuttle_label.text = tr("Shuttle cost: %d Dust") % int(FleetData.destination(destination_no).get("shuttle", 0))
 
 func set_generation(current: int, total: int) -> void:

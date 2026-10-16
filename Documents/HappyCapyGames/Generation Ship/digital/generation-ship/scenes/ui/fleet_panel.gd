@@ -73,8 +73,7 @@ func _make_danger(no: int, card_size: Vector2, solvable: bool) -> Control:
 	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(tag)
 	var rect: TextureRect = _card_rect(card_size)
-	var path: String = FleetData.danger_art(no)
-	rect.texture = load(path) as Texture2D if not path.is_empty() else null
+	rect.texture = FleetData.screen_texture(FleetData.danger_art(no), card_size)
 	rect.mouse_filter = Control.MOUSE_FILTER_STOP
 	rect.gui_input.connect(func(event: InputEvent) -> void:
 		if _is_click(event):
@@ -95,10 +94,7 @@ func _card_rect(card_size: Vector2) -> TextureRect:
 	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var mat: ShaderMaterial = ShaderMaterial.new()
-	mat.shader = load("res://shaders/card_rounded.gdshader")
-	mat.set_shader_parameter("brightness", 1.0)
-	rect.material = mat
+	rect.material = FleetData.screen_card_material()
 	return rect
 
 func _header(t: String) -> Label:
