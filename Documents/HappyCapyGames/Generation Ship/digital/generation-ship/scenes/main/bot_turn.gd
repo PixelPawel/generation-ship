@@ -38,6 +38,8 @@ static func update_bots_for_new_round(main: Main) -> void:
 		main.bot_hands[bot_id] = main.get_node("Board").draw_card_data(6)
 		var supply: Dictionary = main.bot_supplies.get(bot_id, {})
 		for color: CardData.SupplyColor in CardData.SupplyColor.values():
+			if FleetRules.blocks_income(int(color)):   # Fleet Dangers
+				continue
 			supply[int(color)] = supply.get(int(color), 0) + 1
 		main.bot_supplies[bot_id] = supply
 
@@ -134,6 +136,12 @@ static func run_bot_turn(main: Main, bot_id: int) -> void:
 			await main.get_tree().create_timer(0.5).timeout
 			main._server_handle_end_turn()
 		"start_auction":
+			if GameNetwork.fleet_mode:   # Fleet: expeditions at printed cost, no auction
+				bot_buy_expedition_fleet(main, bot_id, action["card"] as CardData)
+				broadcast_bot_states(main)
+				await main.get_tree().create_timer(0.5).timeout
+				main._server_handle_end_turn()
+				return
 			bot_start_auction(main, bot_id, action["card"] as CardData)
 			broadcast_bot_states(main)
 			# No end_turn call here — the auction (and whoever wins it) still
@@ -178,7 +186,8 @@ static func _new_slot_entry(cd: CardData, is_advanced: bool) -> Dictionary:
 
 static func bot_buy_sector(main: Main, bot_id: int, card_data: CardData) -> void:
 	var color: int = int(card_data.color)
-	main.bot_supplies[bot_id][color] = max(0, main.bot_supplies[bot_id].get(color, 0) - max(0, card_data.cost))
+	var cost: int = max(0, card_data.cost) + FleetRules.cost_increase(card_data)
+	main.bot_supplies[bot_id][color] = max(0, main.bot_supplies[bot_id].get(color, 0) - cost)
 	main.get_node("Board").get_market().remove_card(card_data)
 	main.bot_boards[bot_id].append(_new_slot_entry(card_data, false))
 	var _bname: String = GameNetwork.player_names.get(bot_id, main.tr("Bot"))
@@ -190,7 +199,8 @@ static func bot_place_tech(main: Main, bot_id: int, card_data: CardData, slot_id
 	hand.erase(card_data)
 	bot_set_hand(main, bot_id, hand)
 	var color: int = int(card_data.color)
-	main.bot_supplies[bot_id][color] = max(0, main.bot_supplies[bot_id].get(color, 0) - max(0, card_data.cost))
+	var cost: int = max(0, card_data.cost) + FleetRules.cost_increase(card_data)
+	main.bot_supplies[bot_id][color] = max(0, main.bot_supplies[bot_id].get(color, 0) - cost)
 	_attach_stack_card(main, bot_id, slot_idx, card_data)
 	var _bname: String = GameNetwork.player_names.get(bot_id, main.tr("Bot"))
 	main._broadcast_log(main.tr("%s: placed %s") % [_bname, card_data.card_name], CardData.color_tint(card_data.color))
@@ -314,6 +324,8 @@ static func apply_bot_effect_steps(main: Main, bot_id: int, steps: Array[Diction
 				main._server_handle_draw_all_players(count, bot_id, source)
 			"gain_supply":
 				var c: int = int(step.get("color", 0))
+				if FleetRules.blocks_gain(c):   # Fleet Dangers
+					continue
 				main.bot_supplies[bot_id][c] = (main.bot_supplies[bot_id].get(c, 0) as int) + int(step.get("amount", 1))
 			"gain_supply_per_stored":
 				if slot_idx >= 0 and slot_idx < main.bot_boards[bot_id].size():
@@ -529,3 +541,128 @@ static func bot_fleet_pay_pledges(main: Main) -> void:
 
 static func bot_fleet_clear_pledges(_main: Main) -> void:
 	_fleet_pledges.clear()
+
+
+# ── Generation Fleet: bot crewmates (host) ───────────────────────────────────
+
+# Expeditions in Fleet: no auction, the printed cost (plus Danger surcharges).
+static func bot_buy_expedition_fleet(main: Main, bot_id: int, cd: CardData) -> void:
+	var color: int = int(cd.color)
+	var cost: int = max(0, cd.cost) + FleetRules.cost_increase(cd)
+	main.bot_supplies[bot_id][color] = max(0, (main.bot_supplies[bot_id].get(color, 0) as int) - cost)
+	if GameNetwork.is_multiplayer:
+		main._rpc_sync_market_removal.rpc(CardRef.to_ref(cd))
+	else:
+		main.get_node("Board").remove_market_card(cd)
+	var board: Array = main.bot_boards.get(bot_id, []) as Array
+	var difficulty: int = GameNetwork.bot_difficulty.get(bot_id, BotAI.Difficulty.EASY)
+	var slot_idx: int = BotAI.pick_stack_slot(board, cd, difficulty)
+	var _bname: String = GameNetwork.player_names.get(bot_id, main.tr("Bot"))
+	if slot_idx == -1:
+		main.bot_supplies[bot_id][color] = (main.bot_supplies[bot_id].get(color, 0) as int) + CardData.recycle_amount(cd)
+		return
+	_attach_stack_card(main, bot_id, slot_idx, cd)
+	main.fleet_expedition_bought()
+	main._broadcast_log(main.tr("%s: bought %s") % [_bname, cd.card_name], CardData.color_tint(cd.color))
+
+# A Place Danger on a bot's ship — the same effect the humans resolve, with
+# simple fixed choices. Shared ones (market, System Failure, passing hands)
+# happen once for everyone elsewhere.
+static func bot_fleet_place(main: Main, bot_id: int, no: int) -> void:
+	_bot_fleet_apply(main, bot_id, FleetRules.PLACE_EFFECTS.get(no, {}) as Dictionary)
+
+static func _bot_fleet_apply(main: Main, bot_id: int, eff: Dictionary) -> void:
+	var sup: Dictionary = main.bot_supplies.get(bot_id, {}) as Dictionary
+	var board: Array = main.bot_boards.get(bot_id, []) as Array
+	var n: int = int(eff.get("n", 1))
+	match str(eff.get("kind", "")):
+		"to_dust":
+			for i: int in n:
+				var best: int = -1
+				for c: int in [CardData.SupplyColor.METALS, CardData.SupplyColor.LIQUIDS, CardData.SupplyColor.ORGANIX,
+						CardData.SupplyColor.ELECTRIX, CardData.SupplyColor.THRUST]:
+					if int(sup.get(c, 0)) > 0:
+						best = c   # the last (most valuable) colour it has
+				if best < 0:
+					break
+				sup[best] = int(sup[best]) - 1
+				if not FleetRules.blocks_gain(CardData.SupplyColor.DUST):
+					sup[CardData.SupplyColor.DUST] = int(sup.get(CardData.SupplyColor.DUST, 0)) + 1
+		"destroy":
+			for i: int in n:
+				var idx: int = _bot_destroy_target(board, str(eff.get("where", "any")), int(eff.get("pref", -1)))
+				if idx < 0:
+					break
+				var e: Dictionary = board[idx] as Dictionary
+				var techs: Array = e.get("techs", []) as Array
+				var gone: Variant = techs.pop_back()
+				e["fleet_destroyed"] = int(e.get("fleet_destroyed", 0)) + 1   # still counts toward complete
+				if gone is CardData and (gone as CardData).card_type == CardData.CardType.TECH:
+					main.get_node("Board").add_to_discard(gone as CardData)
+		"choose":
+			for o: Variant in eff.get("options", []) as Array:
+				var opt: Dictionary = o as Dictionary
+				if str(opt.get("kind", "")) == "pay" and int(sup.get(int(opt["color"]), 0)) < int(opt["n"]):
+					continue
+				_bot_fleet_apply(main, bot_id, opt)
+				return
+		"pay":
+			var c: int = int(eff["color"])
+			if int(sup.get(c, 0)) >= n:
+				sup[c] = int(sup[c]) - n
+		"lose_stored", "lose_stored_or_archived":
+			for i: int in n:
+				var done: bool = false
+				for e_v: Variant in board:
+					var stored: Dictionary = (e_v as Dictionary).get("stored_supply", {}) as Dictionary
+					for c: Variant in stored.keys():
+						if int(stored[c]) > 0:
+							stored[c] = int(stored[c]) - 1
+							done = true
+							break
+					if done:
+						break
+				if not done and str(eff["kind"]) == "lose_stored_or_archived":
+					for e_v: Variant in board:
+						var tucked: Array = (e_v as Dictionary).get("tucked_cards", []) as Array
+						if not tucked.is_empty():
+							tucked.pop_back()
+							done = true
+							break
+				if not done:
+					break
+		"discard":
+			var hand: Array[CardData] = bot_hand(main, bot_id)
+			for i: int in mini(n, hand.size()):
+				main.get_node("Board").add_to_discard(hand.pop_back())
+			bot_set_hand(main, bot_id, hand)
+		"remove_fewest_sector":
+			var fewest: int = -1
+			for i: int in board.size():
+				var cnt: int = 1 + ((board[i] as Dictionary).get("techs", []) as Array).size()
+				if fewest < 0 or cnt < 1 + ((board[fewest] as Dictionary).get("techs", []) as Array).size():
+					fewest = i
+			if fewest >= 0:
+				for t: Variant in (board[fewest] as Dictionary).get("techs", []) as Array:
+					if t is CardData and (t as CardData).card_type == CardData.CardType.TECH:
+						main.get_node("Board").add_to_discard(t as CardData)
+				board.remove_at(fewest)
+
+static func _bot_destroy_target(board: Array, where: String, pref: int) -> int:
+	var with_techs: Array[int] = []
+	for i: int in board.size():
+		if not ((board[i] as Dictionary).get("techs", []) as Array).is_empty():
+			with_techs.append(i)
+	if with_techs.is_empty():
+		return -1
+	if where == "rightmost":
+		return board.size() - 1 if with_techs.has(board.size() - 1) else -1
+	if where == "leftmost":
+		return 0 if with_techs.has(0) else -1
+	if pref >= 0:
+		for i: int in with_techs:
+			var techs: Array = (board[i] as Dictionary)["techs"] as Array
+			var top: CardData = techs.back() as CardData
+			if top and int(top.color) == pref:
+				return i
+	return with_techs[0]

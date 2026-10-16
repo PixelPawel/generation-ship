@@ -1,5 +1,6 @@
 class_name BotAI
 extends RefCounted
+const FleetRules = preload("res://scripts/game/fleet_rules.gd")
 
 enum Difficulty { EASY = 0, NORMAL = 1, HARD = 2 }
 
@@ -368,8 +369,10 @@ static func _get_affordable_auction_plays(market_expeditions: Array[CardData], s
 
 static func _is_affordable(play: Dictionary, supplies: Dictionary) -> bool:
 	var card: CardData = play["card"] as CardData
+	if str(play.get("type", "")) == "place_tech" and FleetRules.blocks_place(int(card.color)):
+		return false   # Fleet: Barbarism
 	var avail: int = supplies.get(int(card.color), 0) as int
-	return avail >= max(0, card.cost)
+	return avail >= max(0, card.cost) + FleetRules.cost_increase(card)
 
 static func _play_color(play: Dictionary) -> int:
 	return int((play["card"] as CardData).color)

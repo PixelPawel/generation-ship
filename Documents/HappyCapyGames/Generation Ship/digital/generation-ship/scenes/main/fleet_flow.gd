@@ -112,6 +112,10 @@ static func resolve_place(main: Main, no: int) -> void:
 	var eff: Dictionary = FleetRules.PLACE_EFFECTS.get(no, {"kind": "none"})
 	main._effect_source_name = _name(no)
 	await _apply(main, no, eff)
+	if GameNetwork.is_multiplayer and main.multiplayer.is_server():
+		for bot_id: int in GameNetwork.bot_ids:
+			BotTurn.bot_fleet_place(main, bot_id, no)
+		BotTurn.broadcast_bot_states(main)
 	_after_change(main)
 
 static func _apply(main: Main, no: int, eff: Dictionary) -> void:
@@ -735,7 +739,7 @@ static func bot_stats(main: Main, bot_id: int) -> Dictionary:
 		var techs: Array = e.get("techs", []) as Array
 		if bool(e.get("is_optimized", false)):
 			st["optimized"] = int(st["optimized"]) + 1
-		if techs.size() >= 5:
+		if techs.size() + int(e.get("fleet_destroyed", 0)) >= 5:
 			st["complete"] = int(st["complete"]) + 1
 		var cards: Array = [{"cd": sector, "adv": bool(e.get("is_advanced", false))}]
 		for t: Variant in techs:
