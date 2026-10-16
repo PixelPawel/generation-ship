@@ -3,8 +3,9 @@ extends Control
 # 2 (gs_ui_switch_flat2) flips the info screen between the market and this: the
 # Dangers revealed so far that aren't solved yet, and the Danger deck. (The
 # Destination is on the control screen, see fleet_destination_view.gd.)
-# The cards fill the screen; like the market's, right-click (long press on
-# touch) enlarges one and a click anywhere shrinks it again.
+# The cards fill the screen's height (a horizontal scrollbar when more are in
+# play than fit); like the market's, right-click (long press on touch)
+# enlarges one and a click anywhere shrinks it again.
 const FleetData = preload("res://scripts/game/fleet_data.gd")
 const LongPressGestureScript := preload("res://scenes/ui/long_press_gesture.gd")
 
@@ -21,11 +22,13 @@ const HEAD_H: float = 34.0         # "DANGERS" row
 const TAG_H: float = 24.0          # PLACE / ALWAYS
 const BUTTON_H: float = 44.0       # Solve
 const V_SEP: float = 6.0
+const SCROLLBAR_H: float = 18.0    # room kept for the horizontal scrollbar
 const HEAD_COLOR: Color = Color(1.0, 0.85, 0.4)
 const PLACE_COLOR: Color = Color(0.45, 0.85, 0.65)
 const ALWAYS_COLOR: Color = Color(0.8, 0.55, 0.95)
 
 var _danger_row: HBoxContainer = null
+var _scroll: ScrollContainer = null
 var _deck_label: Label = null
 var _empty_label: Label = null
 var _rects: Dictionary = {}   # danger no -> TextureRect
@@ -56,6 +59,7 @@ func set_dangers(dangers: Array, deck_left: int) -> void:
 		if btn:
 			btn.disabled = not bool(d.get("solvable", false))
 	_empty_label.visible = dangers.is_empty()
+	_scroll.visible = not dangers.is_empty()
 	_deck_label.text = tr("Danger deck: %d") % deck_left
 
 ## Viewport position of a Danger card's centre (where its enlarge starts).
@@ -63,19 +67,10 @@ func get_danger_center(danger_no: int) -> Vector2:
 	var rect: TextureRect = _rects.get(danger_no) as TextureRect
 	return rect.get_global_rect().get_center() if rect else SCREEN_SIZE * 0.5
 
-# As big as the screen allows: full height for a few cards, narrower when
-# more are in play.
-func _card_size(count: int) -> Vector2:
-	var avail_w: float = SCREEN_SIZE.x - 2.0 * MARGIN.x
-	var avail_h: float = SCREEN_SIZE.y - 2.0 * MARGIN.y - HEAD_H - TAG_H - BUTTON_H - 4.0 * V_SEP
-	var h: float = avail_h
-	var w: float = h * CARD_ASPECT
-	var n: int = maxi(1, count)
-	var fit_w: float = (avail_w - CARD_GAP * float(n - 1)) / float(n)
-	if w > fit_w:
-		w = fit_w
-		h = w / CARD_ASPECT
-	return Vector2(floorf(w), floorf(h))
+# Always the full height of the screen; more cards than fit scroll sideways.
+func _card_size(_count: int) -> Vector2:
+	var h: float = SCREEN_SIZE.y - 2.0 * MARGIN.y - HEAD_H - TAG_H - BUTTON_H - 4.0 * V_SEP - SCROLLBAR_H
+	return Vector2(floorf(h * CARD_ASPECT), floorf(h))
 
 func _build_ui() -> void:
 	size = SCREEN_SIZE
@@ -95,10 +90,17 @@ func _build_ui() -> void:
 	head_row.add_child(head)
 	_deck_label = _text(20, Color(0.7, 0.75, 0.85))
 	head_row.add_child(_deck_label)
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_scroll.mouse_filter = Control.MOUSE_FILTER_PASS
+	col.add_child(_scroll)
 	_danger_row = HBoxContainer.new()
-	_danger_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_danger_row.alignment = BoxContainer.ALIGNMENT_CENTER   # centred while they all fit
+	_danger_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_danger_row.add_theme_constant_override("separation", int(CARD_GAP))
-	col.add_child(_danger_row)
+	_scroll.add_child(_danger_row)
 	_empty_label = _text(24, Color(0.6, 0.65, 0.75))
 	_empty_label.text = tr("No active dangers. Three are revealed at the start of every generation.")
 	_empty_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -133,6 +135,10 @@ func _make_danger(no: int, card_size: Vector2) -> Control:
 					gesture.end()
 			elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
 				danger_inspect_requested.emit(no)
+			elif mb.pressed and mb.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_LEFT]:
+				_scroll.scroll_horizontal -= int(card_size.x * 0.5)   # the wheel scrolls sideways
+			elif mb.pressed and mb.button_index in [MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_RIGHT]:
+				_scroll.scroll_horizontal += int(card_size.x * 0.5)
 		elif ev is InputEventMouseMotion:
 			gesture.update_position((ev as InputEventMouseMotion).position))
 	rect.mouse_entered.connect(func() -> void:
