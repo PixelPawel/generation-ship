@@ -1142,5 +1142,7 @@ static func _placed_expeditions(main: Main) -> Array[Dictionary]:
 				out.append({"slot": s, "card": c, "label": "%s (%s)" % [c.card_data.card_name, _sector_name(s)]})
 	return out
 
+# The Danger's printed name in the player's language (prompts, banners, log).
 static func _name(no: int) -> String:
-	return str(FleetData.danger(no).get("name", "?"))
+	var local: String = FleetData.card_text("danger", no, "name")
+	return local if not local.is_empty() else str(FleetData.danger(no).get("name", "?"))
