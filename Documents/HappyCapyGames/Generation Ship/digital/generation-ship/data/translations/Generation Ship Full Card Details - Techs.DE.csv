@@ -47,7 +47,7 @@ No.,Language,Name,Link,Color,Cost,Flavor,Printed Star,Star Card,Type,Effect,Done
 46,Deutsch,Fracht-Lander,GS Techs 44x67mm46.png,Metals,2,Hoffentlich gibt es da unten eine Tankstelle.,⭐⭐,Yes,Score,⭐⭐,Done,Daniel,
 47,Deutsch,Müllpresse,GS Techs 44x67mm47.png,Metals,3,Was für einen unglaublichen Geruch du entdeckt hast!,,No,Always,"Wenn du Dust-Karten recycelst, erhalte 1 zusätzlichen Dust.",Done,Daniel,
 48,Deutsch,Müllpresse,GS Techs 44x67mm48.png,Metals,3,Was für einen unglaublichen Geruch du entdeckt hast!,,No,Always,"Wenn du Dust-Karten recycelst, erhalte 1 zusätzlichen Dust.",Done,Daniel,
-49,Deutsch,Abfallwirtschaft,GS Techs 44x67mm49.png,Metals,2,Im Weltraum ist jeder ein Experte.,,No,Always,Kaufe Liquids-Karte Tech für -1.,Done,Daniel,
+49,Deutsch,Abfallwirtschaft,GS Techs 44x67mm49.png,Metals,2,Im Weltraum ist jeder ein Experte.,,No,Always,Kaufe Liquids Tech für -1.,Done,Daniel,
 50,Deutsch,Strahlungsabsorber,GS Techs 44x67mm50.png,Metals,3,Strahlend gut!,,No,Place,"Wenn dieser Sektor komplett ist, recycle bis zu 3, ziehe dann ebenso viele.",Done,?,
 51,Deutsch,Strahlungsabsorber,GS Techs 44x67mm51.png,Metals,3,Strahlend gut!,,No,Place,"Wenn dieser Sektor komplett ist, recycle bis zu 3, ziehe dann ebenso viele.",Done,Daniel,
 52,Deutsch,Atmokontrollsystem,GS Techs 44x67mm52.png,Liquids,1,Ahhhh.,,No,Place,"Wenn dieser Sektor neu ist, ziehe 1.",Done,Daniel,
@@ -60,9 +60,9 @@ No.,Language,Name,Link,Color,Cost,Flavor,Printed Star,Star Card,Type,Effect,Done
 59,Deutsch,Filter,GS Techs 44x67mm59.png,Liquids,1,"Warum bin ich schon wieder der Einzige, der es auffüllt?",⭐,Yes,Score,⭐,Done,Daniel,
 60,Deutsch,Bodenerzeuger,GS Techs 44x67mm60.png,Liquids,2,"Dir ist klar, dass der Name unseres Planeten „Dreck“ bedeutet?",⭐⭐,Yes,Score,⭐⭐,Done,Daniel,
 61,Deutsch,Bodenerzeuger,GS Techs 44x67mm61.png,Liquids,2,"Dir ist klar, dass der Name unseres Planeten „Dreck“ bedeutet?",⭐⭐,Yes,Score,⭐⭐,Done,Daniel,
-62,Deutsch,Biodome,GS Techs 44x67mm62.png,Liquids,3,Ich hab alles da. Ich kann alles besorgen.,,No,Always,"Wenn du eine Liquids-Karte Karte platzierst, ziehe 1.
+62,Deutsch,Biodome,GS Techs 44x67mm62.png,Liquids,3,Ich hab alles da. Ich kann alles besorgen.,,No,Always,"Wenn du eine Liquids-Karte platzierst, ziehe 1.
 (auch bei dieser Karte).",Done,Alex,
-63,Deutsch,Biodome,GS Techs 44x67mm63.png,Liquids,3,Ich hab alles da. Ich kann alles besorgen.,,No,Always,"Wenn du eine Liquids-Karte Karte platzierst, ziehe 1.
+63,Deutsch,Biodome,GS Techs 44x67mm63.png,Liquids,3,Ich hab alles da. Ich kann alles besorgen.,,No,Always,"Wenn du eine Liquids-Karte platzierst, ziehe 1.
 (auch bei dieser Karte).",Done,Alex,
 64,Deutsch,Eisschild,GS Techs 44x67mm64.png,Liquids,3,Ein Schneepflug. Aber im Weltraum.,,No,Place,"Ziehe 2. Wenn dieser Sektor komplett ist, ziehe stattdessen 3.",Done,Alex,
 65,Deutsch,Eisschild,GS Techs 44x67mm65.png,Liquids,3,Ein Schneepflug. Aber im Weltraum.,,No,Place,"Ziehe 2. Wenn dieser Sektor komplett ist, ziehe stattdessen 3.",Done,Alex,
@@ -115,9 +115,9 @@ No.,Language,Name,Link,Color,Cost,Flavor,Printed Star,Star Card,Type,Effect,Done
 112,Deutsch,Flotten Kommunikation,GS Techs 44x67mm112.png,Electrix,1,"Wir haben die Freigabe, Clarence.",,No,Place,"Ziehe 1 pro Spieler. Behalte 1, gib die Karten dann nach links weiter, jeder Spieler behält 1.",Done,Daniel,
 113,Deutsch,Nanofertigung,GS Techs 44x67mm113.png,Electrix,2,Größe spielt doch eine Rolle.,,No,Place,"Fusioniere 1:1 dreimal, oder sechsmal, wenn dieser Sektor komplett ist.",Done,Alex,
 114,Deutsch,Nanofertigung,GS Techs 44x67mm114.png,Electrix,2,Größe spielt doch eine Rolle.,,No,Place,"Fusioniere 1:1 dreimal, oder sechsmal, wenn dieser Sektor komplett ist.",Done,Alex,
-115,Deutsch,Industrieakademie,GS Techs 44x67mm115.png,Electrix,1,Sechsecken sind die bestecken.,,No,Always,Kaufe Metals-Karte Tech für -1.,Done,Daniel,
+115,Deutsch,Industrieakademie,GS Techs 44x67mm115.png,Electrix,1,Sechsecken sind die bestecken.,,No,Always,Kaufe Metals Tech für -1.,Done,Daniel,
 116,Deutsch,Klonlabor,GS Techs 44x67mm116.png,Electrix,2,"Zwei Dumme, ein Gedanke",,No,Always,Kaufe Organix Tech für -1.,Done,Daniel,
-117,Deutsch,Physikakademie,GS Techs 44x67mm117.png,Electrix,2,Das kenn ich aus den Geschichtsbüchern. Der Big Apple!,,No,Always,Kaufe Electrix- Tech für -1.,Done,Daniel,
+117,Deutsch,Physikakademie,GS Techs 44x67mm117.png,Electrix,2,Das kenn ich aus den Geschichtsbüchern. Der Big Apple!,,No,Always,Kaufe Electrix Tech für -1.,Done,Daniel,
 118,Deutsch,Himmelshaken,GS Techs 44x67mm118.png,Electrix,3,"Eine Lieferung alle 7,4 Minuten eingeplant.",⭐,Yes,Always,"Kaufe (Star Card) Tech für -1.
 (Karten mit aufgedrucktem ⭐)",Done,Daniel,
 119,Deutsch,Märkte,GS Techs 44x67mm119.png,Thrust,1,Meine gorram Aktien sind im Klo!,⭐,Yes,Score,⭐,Done,Daniel,

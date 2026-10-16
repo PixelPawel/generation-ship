@@ -23,9 +23,9 @@
 "adv:1:name","Zentraler Transport","Trasporto Centrale","Transport Centralny","Transporte Central","Transport Central"
 "adv:20:effect","Lagere 2 beliebige Vorräte auf beliebigen Sektoren.","Immagazzina 2 risorse a scelta su qualsiasi settore.","Zmagazynuj 2 dowolne zasoby w dowolnych sektorach.","Almacena 2 suministros a elección en cualquier sector.","Stockez 2 matériels au choix sur n’importe quels secteurs."
 "adv:20:name","Holodrucker","Olostampanti","Holodrukarki","Holoimpresoras","Holo-Imprimantes"
-"adv:21:effect","Decke 1 Expedition auf. Du darfst auf eine beliebige Expedition bieten.","Rivela 1 espedizione. Puoi fare un’offerta per qualsiasi spedizione.","Odkryj 1 ekspedycję. Możesz licytować o dowolną ekspedycję.","Revela 1 expedición. Puedes pujar por cualquier expedición","Révélez 1 expédition. Vous pouvez enchérir sur n’importe quelle expédition."
+"adv:21:effect","Decke 1 Expedition auf. Du darfst auf eine beliebige Expedition bieten.","Rivela 1 spedizione. Puoi fare un’offerta per qualsiasi spedizione.","Odkryj 1 ekspedycję. Możesz licytować o dowolną ekspedycję.","Revela 1 expedición. Puedes pujar por cualquier expedición","Révélez 1 expédition. Vous pouvez enchérir sur n’importe quelle expédition."
 "adv:21:name","Sondenstarter","Lanciatore di Sonde","Wyrzutnia Sond","Lanzador de Sondas","Lanceur de Sondes"
-"adv:22:effect","Decke 1 Expedition auf. Du darfst auf eine beliebige Expedition bieten.","Rivela 1 espedizione. Puoi fare un’offerta per qualsiasi spedizione.","Odkryj 1 ekspedycję. Możesz licytować o dowolną ekspedycję.","Revela 1 expedición. Puedes pujar por cualquier expedición","Révélez 1 expédition. Vous pouvez enchérir sur n’importe quelle expédition."
+"adv:22:effect","Decke 1 Expedition auf. Du darfst auf eine beliebige Expedition bieten.","Rivela 1 spedizione. Puoi fare un’offerta per qualsiasi spedizione.","Odkryj 1 ekspedycję. Możesz licytować o dowolną ekspedycję.","Revela 1 expedición. Puedes pujar por cualquier expedición","Révélez 1 expédition. Vous pouvez enchérir sur n’importe quelle expédition."
 "adv:22:name","Sondenstarter","Lanciatore di Sonde","Wyrzutnia Sond","Lanzador de Sondas","Lanceur de Sondes"
 "adv:23:effect","Erhalte 1 Electrix pro Sektor, den du hast.","Guadagna 1 Electrix per ogni settore che possiedi.","Zdobądź 1 Electrix za każdy posiadany sektor.","Gana 1 Electrix por cada sector que tengas.","Gagnez 1 Electrix par secteur que vous possédez."
 "adv:23:name","Triebwerke","Motori","Silniki","Motores","Moteurs"
@@ -87,7 +87,7 @@
 "expedition:16:effect","Erhalte 1⭐ pro Electrix-Karte. (einschließlich dieser)","Guadagna 1⭐ per ogni carta Electrix. (inclusa questa)","Zdobądź 1⭐ za każdą kartę Electrix. (włącznie z tą)","Gana 1⭐ por cada carta Electrix. (incluida esta)","Gagnez 1⭐ par carte Electrix ou plus.
 (y compris celle-ci)"
 "expedition:16:name","Schwarmbewusstsein","Mente Alveare","Umysł Ula","Mente Colmena","Esprit de Ruche"
-"expedition:17:effect","Erhalte 3⭐ pro komplettem und vollständig optimiertem Sektor.","Guadagna 3⭐ per ogni settore completo e completamente ottimizzato.","Zdobądź 3⭐ za każdy kompletny i w pełni zoptymali- zowany sektor.","Gana 3⭐ por cada sector completo y totalmente optimizado.","Gagnez 3⭐ par secteur complet et entièrement optimisé."
+"expedition:17:effect","Erhalte 3⭐ pro komplettem und vollständig optimiertem Sektor.","Guadagna 3⭐ per ogni settore completo e completamente ottimizzato.","Zdobądź 3⭐ za każdy kompletny i w pełni zoptymalizowany sektor.","Gana 3⭐ por cada sector completo y totalmente optimizado.","Gagnez 3⭐ par secteur complet et entièrement optimisé."
 "expedition:17:name","Asteroidenkolonien","Colonie di Asteroidi","Kolonie Asteroid","Colonias de Asteroides","Colonies d’Astéroïdes"
 "expedition:18:effect","Erhalte 15⭐ pro Satz gelagerter Vorräte (Dust, Metals, Liquids, Organix, Electrix, Thrust)","Guadagna 15⭐ per ogni set di risorse immagazzinate (Dust, Metals, Liquids, Organix, Electrix, Thrust)","Zdobądź 15⭐ za każdy zestaw zmagazynowanych zasobów (Dust, Metals, Liquids, Organix, Electrix, Thrust)","Gana 15⭐ por cada set de suministros almacenados (Dust, Metals, Liquids, Organix, Electrix, Thrust)","Gagnez 15⭐ par set de matériels stockés (Dust, Metals, Liquids, Organix, Electrix, Thrust)"
 "expedition:18:name","Urbanisierter Planet","Pianeta Urbanizzato","Zurbanizowana Planeta","Planeta Urbanizado","Planète Urbanisée"
@@ -112,10 +112,10 @@
 "expedition:26:effect","Recycle beliebige Karten von 1 Sektor und lagere die Vorräte auf diesem Sektor.","Ricicla un numero qualsiasi di carte da 1 settore e immagazzina le risorse su quel settore.","Zutylizuj dowolne karty z 1 sektora i zmagazynuj zasoby w tym sektorze.","Recicla cualquier cantidad de cartas de 1 sector y almacena los suministros en ese sector.","Recyclez n’importe quelles cartes d’1 secteur et stockez les matériels sur ce secteur."
 "expedition:26:name","Kaldera-Kolonie","Colonia della Caldera","Kolonia Kaldery","Colonia de la Caldera","Colonie de la Caldeira"
 "expedition:2:effect","Erhalte 2⭐ pro (Star Card).
-(Jede Karte mit aufgedrucktem ⭐)","Guadagna 2⭐ per ogni carta una (Star Card).
-(Qualsiasi carta con stampata)","Zdobądź 2⭐ za każdą kartę (Star Card).
-(Karta z ydrukowaną⭐)","Gana 2⭐ por cada carta (Star Card).
-(Una carta con ⭐ impreso)","Gagnez 2⭐ par carte une (Star Card) ou plus.
+(Jede Karte mit aufgedrucktem ⭐)","Guadagna 2⭐ per ogni (Star Card).
+(Qualsiasi carta con ⭐ stampata)","Zdobądź 2⭐ za każdą kartę (Star Card).
+(Karta z wydrukowaną⭐)","Gana 2⭐ por cada carta (Star Card).
+(Una carta con ⭐ impreso)","Gagnez 2⭐ par (Star Card).
 (Toute carte avec ⭐ imprimée)"
 "expedition:2:name","Erde 2.0","Terra 2.0","Ziemia 2.0","Tierra 2.0","Terre 2.0"
 "expedition:3:effect","Erhalte 2 ⭐ pro Thrust-Karte. (einschließlich dieser)","Guadagna 2 ⭐ per ogni carta Thrust. (inclusa questa)","Zdobądź 2 ⭐ za każdą kartę Thrust. (włącznie z tą)","Gana 2 ⭐ por cada carta Thrust. (incluida esta)","Gagnez 2⭐ par carte Thrust ou plus.
@@ -185,11 +185,11 @@ Si este sector está totalmente optimizado, gana 2 Organix en su lugar.","Gagnez
 "tech:113:name","Nanofertigung","Nanoassemblaggio","Nanomontaż","Nanoensamblaje","Nano-Assemblage"
 "tech:114:effect","Fusioniere 1:1 dreimal, oder sechsmal, wenn dieser Sektor komplett ist.","Fondi 1:1 tre volte, o sei volte se questo settore è completo.","Połącz 1:1 trzy razy, lub sześć razy, jeśli ten sektor jest kompletny.","Fusiona 1:1 tres veces, o seis veces si este sector está completo.","Fusionnez 1:1 trois fois, ou six fois si ce secteur est complet."
 "tech:114:name","Nanofertigung","Nanoassemblaggio","Nanomontaż","Nanoensamblaje","Nano-Assemblage"
-"tech:115:effect","Kaufe Metals-Karte Tech für -1.","Acquista carte tecnologia Metals per -1.","Kupuj karty technologii Metals za -1.","Compra cartas de tecnología Metals por -1.","Achetez les cartes technologie Metals pour -1."
+"tech:115:effect","Kaufe Metals Tech für -1.","Acquista carte tecnologia Metals per -1.","Kupuj karty technologii Metals za -1.","Compra cartas de tecnología Metals por -1.","Achetez les cartes technologie Metals pour -1."
 "tech:115:name","Industrieakademie","Accademia Industriale","Akademia Przemysłowa","Academia Industrial","Académie Industrielle"
 "tech:116:effect","Kaufe Organix Tech für -1.","Acquista carte tecnologia Organix per -1.","Kupuj karty technologii Organix za -1.","Compra cartas de tecnología Organix por -1.","Achetez les cartes technologie Organix pour -1."
 "tech:116:name","Klonlabor","Laboratorio di Clonazione","Laboratoria Klonowania","Laboratorio de Clonación","Laboratoires de Clonage"
-"tech:117:effect","Kaufe Electrix- Tech für -1.","Acquista carte tecnologia Electrix per -1.","Kupuj karty technologii Electrix za -1.","Compra cartas de tecnología Electrix por -1.","Achetez les cartes technologie Electrix pour -1."
+"tech:117:effect","Kaufe Electrix Tech für -1.","Acquista carte tecnologia Electrix per -1.","Kupuj karty technologii Electrix za -1.","Compra cartas de tecnología Electrix por -1.","Achetez les cartes technologie Electrix pour -1."
 "tech:117:name","Physikakademie","Accademia di Fisica","Akademia Fizyki","Academia de Física","Académie de Physique"
 "tech:118:effect","Kaufe (Star Card) Tech für -1.
 (Karten mit aufgedrucktem ⭐)","Acquista carte tecnologia (Star Cards) per -1. (Qualsiasi carta con una ⭐ stampata)","Kupuj karty technologii (Star Cards) za -1. (Dowolna karta z wydrukowaną ⭐)","Compra cartas de tecnología (Star Cards) por -1. (Cualquier carta con ⭐ impresa)","Achetez les cartes technologie (Star Cards) pour -1. (Toute carte avec une ⭐ imprimée)"
@@ -238,7 +238,7 @@ Si este sector está totalmente optimizado, gana 2 Organix en su lugar.","Gagnez
 "tech:136:effect","Wenn du 9+ gelagerte Vorräte hast: 12⭐","Se hai 9 o più risorse immagazzinate: 12⭐","Jeśli masz 9+ zmagazynowanych zasobów: 12⭐","Si tienes 9 o más suministros almacenados: 12⭐","Si vous avez 9+ matériels stockés: 12⭐"
 "tech:136:name","Weltraumaufzug","Ascensore Spaziale","Winda Kosmiczna","Ascensor Espacial","Ascenseur Spatial"
 "tech:137:effect","Wenn du 6 komplette Sektoren hast: 12⭐","Se hai 6 settori completati:
-12⭐","Jeśli masz 6+ skompletowanych sektorów: 9 ⭐","Si tienes 6 sectores completos:
+12⭐","Jeśli masz 6 skompletowanych sektorów: 12⭐","Si tienes 6 sectores completos:
 12⭐","Si vous avez 6 secteurs complétés:
 12⭐"
 "tech:137:name","Atmosphärenprozessor","Processore Atmosferico","Procesor Atmosfery","Procesador de Atmósfera","Processeur Atmosphérique"
@@ -320,11 +320,11 @@ Puoi fare un’offerta per 1.","Odkryj 2 ekspedycje. Możesz licytować o 1.","R
 "tech:45:name","Fracht-Lander","Lander da Carico","Lądowniki Transportowe","Módulos de Carga","Atterrisseurs Cargo"
 "tech:46:effect","⭐⭐","⭐⭐","⭐⭐","⭐⭐","⭐⭐"
 "tech:46:name","Fracht-Lander","Lander da Carico","Lądowniki Transportowe","Módulos de Carga","Atterrisseurs Cargo"
-"tech:47:effect","Wenn du Dust-Karten recycelst, erhalte 1 zusätzlichen Dust.","Always","Gdy utylizujesz karty Dust, zdobądź 1 dodatkowy Dust.","Cuando reciclas cartas Dust, gana 1 Dust extra.","Always"
+"tech:47:effect","Wenn du Dust-Karten recycelst, erhalte 1 zusätzlichen Dust.","Quando ricicli carte Dust, guadagna 1 Dust extra.","Gdy utylizujesz karty Dust, zdobądź 1 dodatkowy Dust.","Cuando reciclas cartas Dust, gana 1 Dust extra.","Quand vous recyclez des cartes Dust, gagnez 1 Dust supplémentaire."
 "tech:47:name","Müllpresse","Compattatore di Rifiuti","Zgniatarka Śmieci","Compactador de Basura","Compacteur à Déchets"
-"tech:48:effect","Wenn du Dust-Karten recycelst, erhalte 1 zusätzlichen Dust.","Always","Gdy utylizujesz karty Dust, zdobądź 1 dodatkowy Dust.","Cuando reciclas cartas Dust, gana 1 Dust extra.","Always"
+"tech:48:effect","Wenn du Dust-Karten recycelst, erhalte 1 zusätzlichen Dust.","Quando ricicli carte Dust, guadagna 1 Dust extra.","Gdy utylizujesz karty Dust, zdobądź 1 dodatkowy Dust.","Cuando reciclas cartas Dust, gana 1 Dust extra.","Quand vous recyclez des cartes Dust, gagnez 1 Dust supplémentaire."
 "tech:48:name","Müllpresse","Compattatore di Rifiuti","Zgniatarka Śmieci","Compactador de Basura","Compacteur à Déchets"
-"tech:49:effect","Kaufe Liquids-Karte Tech für -1.","Acquista carte tecnologia Liquids per -1.","Kupuj karty technologii Liquids za -1.","Compra cartas de tecnología Liquids por -1.","Achetez les cartes technologie Liquids pour -1."
+"tech:49:effect","Kaufe Liquids Tech für -1.","Acquista carte tecnologia Liquids per -1.","Kupuj karty technologii Liquids za -1.","Compra cartas de tecnología Liquids por -1.","Achetez les cartes technologie Liquids pour -1."
 "tech:49:name","Abfallwirtschaft","Gestione dei Rifiuti","Gospodarka Odpadami","Gestión de Residuos","Gestion des Déchets"
 "tech:4:effect","⭐","⭐","⭐","⭐","⭐"
 "tech:4:name","Aufblasbare Habitate","Habitat Gonfiabili","Nadmuchiwane Habitaty","Hábitats Inflables","Habitats Gonflables"
@@ -354,14 +354,14 @@ Puoi fare un’offerta per 1.","Odkryj 2 ekspedycje. Możesz licytować o 1.","R
 "tech:60:name","Bodenerzeuger","Generatore di Suolo","Generator Gleby","Generador de Suelo","Générateur de Sol"
 "tech:61:effect","⭐⭐","⭐⭐","⭐⭐","⭐⭐","⭐⭐"
 "tech:61:name","Bodenerzeuger","Generatore di Suolo","Generator Gleby","Generador de Suelo","Générateur de Sol"
-"tech:62:effect","Wenn du eine Liquids-Karte Karte platzierst, ziehe 1.
+"tech:62:effect","Wenn du eine Liquids-Karte platzierst, ziehe 1.
 (auch bei dieser Karte).","Quando posizioni Liquids: Pesca 1.
 (inclusa questa)","Gdy umieszczasz Liquids: dobierz 1.
 (włącznie z tą)","Cuando coloques Liquids: roba 1.
 (incluido esto)","Quand vous posez Liquids: Piochez 1.
 (y compris celle-ci)"
 "tech:62:name","Biodome","Biodomi","Biokopuły","Biodomos","Biodômes"
-"tech:63:effect","Wenn du eine Liquids-Karte Karte platzierst, ziehe 1.
+"tech:63:effect","Wenn du eine Liquids-Karte platzierst, ziehe 1.
 (auch bei dieser Karte).","Quando posizioni Liquids: Pesca 1.
 (inclusa questa)","Gdy umieszczasz Liquids: dobierz 1.
 (włącznie z tą)","Cuando coloques Liquids: roba 1.

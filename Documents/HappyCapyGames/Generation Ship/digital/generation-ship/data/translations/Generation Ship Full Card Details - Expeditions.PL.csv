@@ -1,7 +1,7 @@
 ﻿"No.","Name","Link","Color","Cost","Flavor","Printed Star","Star card","Type","Effect","Effect 2","Done","Artist","Check"
 "1","Portal Einstein-Rosen","GS Expeditions 44x67mm26.png","Thrrust","2","Co to jest Op’rah?","⭐⭐","Yes","Always","Gdy umieszczasz (Star Card), zmagazynuj 1 zasób tego koloru w tym sektorze.","(Zmagazynowane zasoby liczą się jako 1⭐)","Done","Alex",""
 "2","Ziemia 2.0","GS Expeditions 44x67mm25.png","Thrrust","4","To darmowa nieruchomość.","⭐⭐","Yes","Score","Zdobądź 2⭐ za każdą kartę (Star Card).
-(Karta z ydrukowaną⭐)","(Dowolna karta z wydrukowaną ⭐)","Done","Alex",""
+(Karta z wydrukowaną⭐)","(Dowolna karta z wydrukowaną ⭐)","Done","Alex",""
 "3","Floty Exodusu","GS Expeditions 44x67mm24.png","Thrrust","3","Podążajcie za Galacticą!","⭐⭐","Yes","Score","Zdobądź 2 ⭐ za każdą kartę Thrust. (włącznie z tą)","Maks. 24⭐","Done","Alex",""
 "4","Równikowy Superloop","GS Expeditions 44x67mm23.png","Thrrust","3","Tylko kilka... drobnych...
 problemów technicznych.","⭐⭐","Yes","Score","Skopiuj do 6⭐ z wierzchniej karty w każdym sektorze.","Maks. 36⭐","Done","Alex",""
@@ -17,7 +17,7 @@ problemów technicznych.","⭐⭐","Yes","Score","Skopiuj do 6⭐ z wierzchniej 
 "14","Kolonia Chmur","GS Expeditions 44x67mm10.png","Electrix","3","Twoje miejsce jest tu, z nami, wśród chmur.","⭐⭐","Yes","Score","Zdobądź 1⭐ za każdą zakrytą zarchiwizowaną kartę.","Maks. 18⭐","Done","Alex",""
 "15","Kolebka Przemysłu","GS Expeditions 44x67mm12.png","Electrix","2","Najnowsza technologia.","⭐⭐⭐⭐⭐","Yes","Always","Zdobądź 1 Electrix, gdy kupujesz ekspedycję.","⭐⭐⭐⭐⭐","Done","Daniel",""
 "16","Umysł Ula","GS Expeditions 44x67mm11.png","Electrix","3","Myślisz o tym, o czym ja myślę?","⭐⭐","Yes","Score","Zdobądź 1⭐ za każdą kartę Electrix. (włącznie z tą)","Maks. 12⭐","Done","Daniel",""
-"17","Kolonie Asteroid","GS Expeditions 44x67mm13.png","Electrix","3","Mi sasa, Bossmang.","⭐⭐","Yes","Score","Zdobądź 3⭐ za każdy kompletny i w pełni zoptymali- zowany sektor.","Maks. 18⭐","Done","Daniel",""
+"17","Kolonie Asteroid","GS Expeditions 44x67mm13.png","Electrix","3","Mi sasa, Bossmang.","⭐⭐","Yes","Score","Zdobądź 3⭐ za każdy kompletny i w pełni zoptymalizowany sektor.","Maks. 18⭐","Done","Daniel",""
 "18","Zurbanizowana Planeta","GS Expeditions 44x67mm9.png","Electrix","2","Nowe życie czeka na ciebie w koloniach!","⭐⭐","Yes","Score","Zdobądź 15⭐ za każdy zestaw zmagazynowanych zasobów (Dust, Metals, Liquids, Organix, Electrix, Thrust)","(Zmagazynowane zasoby liczą się jako 1⭐)","Done","Daniel",""
 "19","Miliony Kolonistów","GS Expeditions 44x67mm8.png","Liquids","3","Ledwo przyjechałem, a już stoję w korku.","⭐⭐","Yes","Score","Zdobądź 2⭐ za każdy kompletny sektor.","Maks. 12⭐","Done","Daniel",""
 "20","Sojusz","GS Expeditions 44x67mm7.png","Liquids","3","Niezła impreza, muszę przyznać.","⭐⭐","Yes","Score","Zdobądź 2⭐ za każdą ekspedycję posiadaną przez innego gracza.","Maks. 12⭐","Done","Daniel",""
