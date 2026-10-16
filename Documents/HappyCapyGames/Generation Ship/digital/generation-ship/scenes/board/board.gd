@@ -1134,7 +1134,11 @@ func request_recycle(card: Node3D) -> void:
 	# Fleet: Pandemic (no recycling) / Barbarism (no Thrust)
 	if card.card_data and FleetRules.blocks_recycle(card.card_data.color):
 		fleet_rule_blocked.emit(tr("A Danger stops you recycling this card."))
+		# _try_drop_recycle hid it for the Recycle panel, and it's still in the
+		# hand's list (add_card alone is a no-op then): show it, re-seat it.
+		card.visible = true
 		if _hand:
+			_hand.detach_card(card)
 			_hand.add_card(card, true)
 		return
 	if _hand:

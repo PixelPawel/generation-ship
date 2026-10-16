@@ -32,7 +32,9 @@ static func setup(main: Main) -> void:
 	main._fleet_dest_view.destination_inspect_requested.connect(func() -> void:
 		show_card(main, FleetData.destination_art(GameNetwork.fleet_destination), true, 0.0))
 	main.get_node("Board").fleet_rule_blocked.connect(func(msg: String) -> void:
-		main._log_action(msg, DANGER_COLOR))
+		main._log_action(msg, DANGER_COLOR)
+		main._show_tooltip(main.tr("Danger"), msg)
+		main.get_tree().create_timer(2.5).timeout.connect(main._hide_tooltip))
 	# Solve buttons and mission progress follow the game while the screen shows
 	var timer: Timer = Timer.new()
 	timer.wait_time = 0.5
