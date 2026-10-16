@@ -7,6 +7,7 @@ const TurnBanner = preload("res://scenes/ui/turn_banner.gd")
 const FleetData = preload("res://scripts/game/fleet_data.gd")
 const FleetRules = preload("res://scripts/game/fleet_rules.gd")
 const FleetFlow = preload("res://scenes/main/fleet_flow.gd")
+const AuctionFlow = preload("res://scenes/main/auction_flow.gd")
 const EffectSteps = preload("res://scenes/main/effect_steps.gd")
 
 @export var card_scene: PackedScene
@@ -1180,25 +1181,6 @@ func _refresh_all_opp_status_labels() -> void:
 	for pid: int in _opp_panels:
 		_refresh_opp_status_label(pid)
 
-# Overlays each opponent's market-widget status label with their standing in
-# the currently-running auction (leader's live bid, who's currently deciding,
-# who's already passed) — restored to the normal turn status via
-# _refresh_all_opp_status_labels() once the auction resolves.
-func _set_auction_opponent_statuses(remaining_ids: Array, leader_id: int, active_id: int, current_bid: int) -> void:
-	if not _market_panel:
-		return
-	var my_id: int = multiplayer.get_unique_id()
-	for peer_id: int in GameNetwork.player_order:
-		if peer_id == my_id:
-			continue
-		if peer_id == leader_id:
-			_market_panel.set_opponent_auction_label(peer_id, tr("Bid: %d") % current_bid, Color(1.0, 0.88, 0.35))
-		elif peer_id == active_id:
-			_market_panel.set_opponent_auction_label(peer_id, tr("Deciding…"), Color(0.5, 0.85, 1.0))
-		elif peer_id in remaining_ids:
-			_market_panel.set_opponent_auction_label(peer_id, "", Color(0.7, 0.78, 0.9))
-		else:
-			_market_panel.set_opponent_auction_label(peer_id, tr("Passed"), Color(0.55, 0.55, 0.65))
 
 # Host → All: an opponent's action status changed.
 @rpc("authority", "reliable", "call_local")
@@ -1236,193 +1218,56 @@ func _rpc_recv_board_state(state: Dictionary) -> void:
 
 # ── Auction RPCs ──────────────────────────────────────────────────────────────
 
-# Client → Host: I dragged a card that requires a bid.
 @rpc("any_peer", "reliable")
 func _rpc_request_auction(card_ref: Dictionary, slot_idx: int, is_tech: bool, is_adv: bool, min_bid: int, cost_color_int: int) -> void:
-	if not multiplayer.is_server():
-		return
-	_server_start_auction(card_ref, slot_idx, is_tech, is_adv, min_bid, cost_color_int, multiplayer.get_remote_sender_id())
+	AuctionFlow._rpc_request_auction(self, card_ref, slot_idx, is_tech, is_adv, min_bid, cost_color_int)
 
-# Client → Host: I am raising the bid.
 @rpc("any_peer", "reliable")
 func _rpc_raise_bid(amount: int) -> void:
-	if not multiplayer.is_server():
-		return
-	_server_handle_raise(multiplayer.get_remote_sender_id(), amount)
+	AuctionFlow._rpc_raise_bid(self, amount)
 
-# Client → Host: I am passing on this bid.
 @rpc("any_peer", "reliable")
 func _rpc_pass_bid() -> void:
-	if not multiplayer.is_server():
-		return
-	_server_handle_pass_bid(multiplayer.get_remote_sender_id())
+	AuctionFlow._rpc_pass_bid(self)
 
-# Client → Host: auction winner is forfeiting; offer card to runner-up.
 @rpc("any_peer", "reliable")
 func _rpc_notify_auction_forfeit() -> void:
-	if not multiplayer.is_server():
-		return
-	var _sender: int = multiplayer.get_remote_sender_id()
-	if _sender != _auction_initiator_id and _sender != _auction_leader_id:
-		return
-	_server_offer_to_runner_up()
+	AuctionFlow._rpc_notify_auction_forfeit(self)
 
-# Client → Host: runner-up declined the offer; discard the card.
 @rpc("any_peer", "reliable")
 func _rpc_notify_runner_up_forfeit(card_ref: Dictionary) -> void:
-	if not multiplayer.is_server():
-		return
-	_rpc_sync_market_removal.rpc(card_ref)
-	_rpc_sync_runner_up_phase.rpc(false)
-	_rpc_sync_auction_placement_pending.rpc(false)
+	AuctionFlow._rpc_notify_runner_up_forfeit(self, card_ref)
 
-# Host → Runner-up: you may claim this card at printed cost.
 @rpc("authority", "reliable")
 func _rpc_offer_to_runner_up(card_ref: Dictionary, slot_idx: int, is_tech: bool, is_adv: bool, printed_cost: int, cost_color_int: int) -> void:
-	_on_runner_up_offer(card_ref, slot_idx, is_tech, is_adv, printed_cost, cost_color_int)
+	AuctionFlow._rpc_offer_to_runner_up(self, card_ref, slot_idx, is_tech, is_adv, printed_cost, cost_color_int)
 
-# Host → All: runner-up phase started/ended; block end-turn until resolved.
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_runner_up_phase(active: bool) -> void:
-	_runner_up_phase = active
+	AuctionFlow._rpc_sync_runner_up_phase(self, active)
 
-# Host → All: an auction's card still needs placing (or no longer does).
-# See _auction_placement_pending for why this has to be synced to everyone,
-# not just tracked on the winner's own client.
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_auction_placement_pending(pending: bool) -> void:
-	_auction_placement_pending = pending
-	if not pending:
-		# _try_auto_end_turn() only ever advances *this client's own* turn
-		# (it bails immediately unless GameNetwork.is_my_turn()), so it can
-		# never end a bot's turn — bots have no client of their own. A bot
-		# that started this auction needs its turn ended explicitly here,
-		# once the resulting placement (bot or human winner) has fully
-		# settled; is_major_action_taken() guards against double-firing if
-		# this sync ever arrives more than once for the same turn.
-		if multiplayer.is_server() and GameNetwork.is_bot(GameNetwork.active_peer_id) and $Board.is_major_action_taken():
-			_server_handle_end_turn()
-		_try_auto_end_turn()
+	AuctionFlow._rpc_sync_auction_placement_pending(self, pending)
 
-# Client (whoever currently owes the placement) → Host: my auction win has
-# been placed, recycled, or otherwise resolved — safe to unblock everyone.
 @rpc("any_peer", "reliable")
 func _rpc_notify_auction_placement_done() -> void:
-	if not multiplayer.is_server():
-		return
-	_rpc_sync_auction_placement_pending.rpc(false)
+	AuctionFlow._rpc_notify_auction_placement_done(self)
 
 func _notify_auction_placement_done() -> void:
-	if not _auction_win_awaiting_placement:
-		return
-	_auction_win_awaiting_placement = false
-	if GameNetwork.is_host:
-		_rpc_sync_auction_placement_pending.rpc(false)
-	else:
-		_rpc_notify_auction_placement_done.rpc_id(1)
+	await AuctionFlow._notify_auction_placement_done(self)
 
-# Host → All: auction has started, show bid popup.
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_auction_started(card_ref: Dictionary, slot_idx: int, is_tech: bool, is_adv: bool, min_bid: int, cost_color_int: int, initiator_id: int, active_id: int, leader_name: String, remaining_ids: Array) -> void:
-	_auction_card_ref = card_ref
-	_auction_slot_idx = slot_idx
-	_auction_is_tech = is_tech
-	_auction_is_adv = is_adv
-	_auction_cost_color = cost_color_int as CardData.SupplyColor
-	_auction_current_bid = min_bid
-	_auction_leader_id = initiator_id
-	_auction_initiator_id = initiator_id
-	var cd: CardData = CardRef.from_ref(card_ref)
-	var card_name: String = ""
-	if cd:
-		card_name = cd.adv_name if (is_adv and not cd.adv_name.is_empty()) else cd.card_name
-	var my_id: int = multiplayer.get_unique_id()
-	var is_active: bool = my_id == active_id
-	var can_pass: bool = is_active and my_id != initiator_id
-	var _initiator_name: String = GameNetwork.player_names.get(initiator_id, "Player")
-	if GameNetwork.is_multiplayer and initiator_id != multiplayer.get_unique_id():
-		_show_auction_banner(tr("%s: auction for %s") % [_initiator_name, card_name])
-	_log_action(tr("%s: auction for %s") % [_initiator_name, card_name], Color(1.0, 0.72, 0.28))
-	_bid_popup.show_auction(cd, is_adv, min_bid, leader_name, _auction_cost_color, is_active, can_pass)
-	_auction_active = true
-	_auction_starting = false
-	_show_action_buttons(false)
-	UIAudio.play_auction_music()
-	_set_auction_opponent_statuses(remaining_ids, initiator_id, active_id, min_bid)
-	if multiplayer.is_server() and GameNetwork.is_bot(active_id):
-		var _ab1: int = active_id
-		get_tree().create_timer(0.6).timeout.connect(func() -> void: BotTurn.bot_decide_bid(self, _ab1))
+	AuctionFlow._rpc_sync_auction_started(self, card_ref, slot_idx, is_tech, is_adv, min_bid, cost_color_int, initiator_id, active_id, leader_name, remaining_ids)
 
-# Host → All: bid state has changed.
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_auction_state(current_bid: int, leader_id: int, active_id: int, leader_name: String, remaining_ids: Array) -> void:
-	_auction_current_bid = current_bid
-	_auction_leader_id = leader_id
-	var my_id: int = multiplayer.get_unique_id()
-	var is_active: bool = my_id == active_id
-	var can_pass: bool = is_active and my_id != leader_id
-	_bid_popup.update_auction(current_bid, leader_name, is_active, can_pass)
-	_set_auction_opponent_statuses(remaining_ids, leader_id, active_id, current_bid)
-	if multiplayer.is_server() and GameNetwork.is_bot(active_id):
-		var _ab2: int = active_id
-		get_tree().create_timer(0.6).timeout.connect(func() -> void: BotTurn.bot_decide_bid(self, _ab2))
+	AuctionFlow._rpc_sync_auction_state(self, current_bid, leader_id, active_id, leader_name, remaining_ids)
 
-# Host → All: auction resolved — winner places the card.
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, card_ref: Dictionary, _slot_idx: int, is_tech: bool, cost_color_int: int) -> void:
-	_auction_active = false
-	_auction_starting = false
-	_is_runner_up_offer = false
-	_bid_popup.hide()
-	UIAudio.stop_auction_music()
-	_refresh_all_opp_status_labels()
-	_auction_placement_pending = true
-	var cost_color: CardData.SupplyColor = cost_color_int as CardData.SupplyColor
-	var my_id: int = multiplayer.get_unique_id()
-	if my_id == winner_id:
-		_pending_auction_win = true
-		_auction_win_awaiting_placement = true
-		_auction_win_is_initiator = (my_id == initiator_id)
-		if not _auction_win_is_initiator:
-			_pending_won_card_ref = card_ref
-		var cd: CardData = CardRef.from_ref(card_ref)
-		var c_name: String = ""
-		if cd:
-			c_name = cd.adv_name if (_auction_is_adv and not cd.adv_name.is_empty()) else cd.card_name
-		var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(cost_color)
-		_bid_payment_panel.show_bid_payment(c_name, final_bid, valid_colors, _cs_display, cd, _auction_is_adv)
-	else:
-		if my_id == initiator_id:
-			$Board.cancel_purchase()
-			# Losing an auction you initiated still spends your major action
-			# for the turn, but _auction_placement_pending (set above) keeps
-			# end-turn blocked until the actual winner places their card —
-			# _rpc_sync_auction_placement_pending re-checks it once that's done.
-		_show_action_buttons(true)
-	# Bots have no client to drive the normal drag-to-place step, so the host
-	# resolves payment/placement for them right here and clears the
-	# placement-pending flag itself — otherwise it would never clear and
-	# end-turn would stay blocked for everyone for the rest of the game.
-	if multiplayer.is_server() and GameNetwork.is_bot(winner_id):
-		BotTurn.bot_resolve_auction_win(self, winner_id, card_ref, final_bid, cost_color, is_tech, _auction_is_adv)
-		_rpc_sync_auction_placement_pending.rpc(false)
-	_update_turn_ui()
-	var _cd_toast: CardData = CardRef.from_ref(card_ref)
-	var _cn_toast: String = ""
-	if _cd_toast:
-		_cn_toast = _cd_toast.adv_name if (_auction_is_adv and not _cd_toast.adv_name.is_empty()) else _cd_toast.card_name
-	var _wn_toast: String = GameNetwork.player_names.get(winner_id, "Player")
-	var won_banner: TurnBanner = TurnBanner.new()
-	$UILayer.add_child(won_banner)
-	won_banner.play(tr("%s won %s for %d") % [_wn_toast, _cn_toast, final_bid], Color(1.0, 0.92, 0.35), "", AUCTION_BANNER_LENGTH)
-	_log_action(tr("%s won %s for %d") % [_wn_toast, _cn_toast, final_bid], Color(1.0, 0.92, 0.35))
-	UIAudio.play_gavel_sfx()
-	if winner_id == multiplayer.get_unique_id():
-		Haptics.thump()
-	if _bid_is_from_effect:
-		_bid_is_from_effect = false
-		_process_next_effect()
-	_broadcast_my_state()
+	await AuctionFlow._rpc_sync_auction_won(self, initiator_id, winner_id, final_bid, card_ref, _slot_idx, is_tech, cost_color_int)
 
 # ── Interfleet Comms RPCs ─────────────────────────────────────────────────────
 # Host-authoritative pass-around: draw N (N = player count) into a shared
@@ -1618,50 +1463,11 @@ func _update_interfleet_ui(active_id: int) -> void:
 		_show_effect_hint(tr("Waiting for %s to pick a card (Interfleet Comms)…") % pname)
 
 func _show_auction_toast(message: String) -> void:
-	var panel := PanelContainer.new()
-	panel.anchor_left = 0.5
-	panel.anchor_right = 0.5
-	panel.anchor_top = 0.08
-	panel.anchor_bottom = 0.08
-	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	panel.offset_left = -220.0
-	panel.offset_right = 220.0
-	panel.offset_top = 0.0
-	panel.offset_bottom = 48.0
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.08, 0.14, 0.90)
-	style.border_color = Color(0.8, 0.7, 0.3, 0.85)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(4)
-	style.content_margin_left = 16.0
-	style.content_margin_right = 16.0
-	style.content_margin_top = 8.0
-	style.content_margin_bottom = 8.0
-	panel.add_theme_stylebox_override("panel", style)
-	var lbl := Label.new()
-	lbl.text = message
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", 18)
-	lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
-	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_child(lbl)
-	$UILayer.add_child(panel)
-	var tween: Tween = create_tween()
-	tween.tween_interval(2.5)
-	tween.tween_property(panel, "modulate:a", 0.0, 0.8)
-	tween.tween_callback(panel.queue_free)
+	AuctionFlow._show_auction_toast(self, message)
 
 const AUCTION_COLOR: Color = Color(1.0, 0.72, 0.28)
 const AUCTION_BANNER_LENGTH: float = 1.5   # auction pop-ups stay 50 % longer than "Your Turn"
 
-# Someone else started an auction: the turn pop-up in amber, the card underneath.
-func _show_auction_banner(subtitle: String) -> void:
-	var banner: TurnBanner = TurnBanner.new()
-	$UILayer.add_child(banner)
-	banner.play(tr("⚠  AUCTION").replace("⚠", "").strip_edges(), AUCTION_COLOR, subtitle, AUCTION_BANNER_LENGTH)
 
 # Fleet: the mission decides — all win or all lose. A win goes on the Fleet board.
 func _fleet_game_over(lines: Array[Dictionary], total: int) -> void:
@@ -2880,124 +2686,24 @@ func _ice9_choose_card(slot: SectorSlot) -> void:
 # ── Bid / payment flow ────────────────────────────────────────────────────────
 
 func _on_bid_required(card: Node3D, slot: Node3D, min_cost: int, cost_color: CardData.SupplyColor, is_tech: bool) -> void:
-	_show_action_buttons(false)
-	_bid_color = cost_color
-	_bid_card_data = card.card_data
-	_bid_is_advanced = card.is_advanced
-	_bid_card_name = card.card_data.adv_name if card.is_advanced else card.card_data.card_name
-	var effective_min: int = max(0, min_cost - $Board.get_purchase_discount(card.card_data, slot as SectorSlot, card.is_advanced))
-	if not GameNetwork.is_multiplayer:
-		_bid_popup.show_bid(card.card_data, card.is_advanced, effective_min, cost_color)
-		return
-	_pending_auction_card_ref = CardRef.to_ref(card.card_data)
-	_pending_auction_slot_idx = $Board.get_slot_index(slot as SectorSlot)
-	_pending_auction_is_tech = is_tech
-	_pending_auction_is_adv = card.is_advanced
-	_pending_auction = true
-	_bid_popup.show_bid(card.card_data, card.is_advanced, effective_min, cost_color)
+	AuctionFlow._on_bid_required(self, card, slot, min_cost, cost_color, is_tech)
 
 func _on_bid_raised(amount: int) -> void:
-	if GameNetwork.is_host:
-		_server_handle_raise(1, amount)
-	else:
-		_rpc_raise_bid.rpc_id(1, amount)
+	AuctionFlow._on_bid_raised(self, amount)
 
 func _on_bid_passed() -> void:
-	if GameNetwork.is_host:
-		_server_handle_pass_bid(1)
-	else:
-		_rpc_pass_bid.rpc_id(1)
+	AuctionFlow._on_bid_passed(self)
 
 func _server_start_auction(card_ref: Dictionary, slot_idx: int, is_tech: bool, is_adv: bool, min_bid: int, cost_color_int: int, initiator_id: int) -> void:
-	_auction_card_ref = card_ref
-	_auction_slot_idx = slot_idx
-	_auction_is_tech = is_tech
-	_auction_is_adv = is_adv
-	_auction_cost_color = cost_color_int as CardData.SupplyColor
-	_auction_current_bid = min_bid
-	_auction_leader_id = initiator_id
-	_auction_initiator_id = initiator_id
-	var start_pos: int = GameNetwork.player_order.find(initiator_id)
-	var n: int = GameNetwork.player_order.size()
-	_auction_remaining = []
-	_auction_second_id = -1
-	for j: int in n:
-		_auction_remaining.append(GameNetwork.player_order[(start_pos + j) % n])
-	if _auction_remaining.size() <= 1:
-		_rpc_sync_auction_won.rpc(initiator_id, initiator_id, min_bid, card_ref, slot_idx, is_tech, cost_color_int)
-		return
-	_auction_active_idx = 1
-	var active_id: int = _auction_remaining[_auction_active_idx]
-	var leader_name: String = GameNetwork.player_names.get(initiator_id, "Player")
-	_rpc_sync_auction_started.rpc(card_ref, slot_idx, is_tech, is_adv, min_bid, cost_color_int, initiator_id, active_id, leader_name, _auction_remaining)
+	AuctionFlow._server_start_auction(self, card_ref, slot_idx, is_tech, is_adv, min_bid, cost_color_int, initiator_id)
 
 func _server_handle_raise(peer_id: int, amount: int) -> void:
-	if _auction_remaining.is_empty():
-		return
-	if peer_id != _auction_remaining[_auction_active_idx]:
-		return
-	if amount <= _auction_current_bid:
-		return
-	_auction_second_id = _auction_leader_id
-	_auction_current_bid = amount
-	_auction_leader_id = peer_id
-	_auction_active_idx = (_auction_active_idx + 1) % _auction_remaining.size()
-	var active_id: int = _auction_remaining[_auction_active_idx]
-	var leader_name: String = GameNetwork.player_names.get(_auction_leader_id, "Player")
-	_rpc_sync_auction_state.rpc(_auction_current_bid, _auction_leader_id, active_id, leader_name, _auction_remaining)
+	AuctionFlow._server_handle_raise(self, peer_id, amount)
 
 func _server_handle_pass_bid(peer_id: int) -> void:
-	if _auction_remaining.is_empty():
-		return
-	if peer_id != _auction_remaining[_auction_active_idx]:
-		return
-	if peer_id == _auction_leader_id:
-		return
-	_auction_remaining.remove_at(_auction_active_idx)
-	if _auction_active_idx >= _auction_remaining.size():
-		_auction_active_idx = 0
-	if _auction_remaining.size() == 1:
-		_rpc_sync_auction_won.rpc(_auction_initiator_id, _auction_leader_id, _auction_current_bid, _auction_card_ref, _auction_slot_idx, _auction_is_tech, int(_auction_cost_color))
-		return
-	var active_id: int = _auction_remaining[_auction_active_idx]
-	var leader_name: String = GameNetwork.player_names.get(_auction_leader_id, "Player")
-	_rpc_sync_auction_state.rpc(_auction_current_bid, _auction_leader_id, active_id, leader_name, _auction_remaining)
+	AuctionFlow._server_handle_pass_bid(self, peer_id)
 
-func _server_offer_to_runner_up() -> void:
-	if _auction_second_id == -1:
-		_rpc_sync_auction_placement_pending.rpc(false)
-		return
-	var cd: CardData = CardRef.from_ref(_auction_card_ref)
-	if not cd:
-		_rpc_sync_auction_placement_pending.rpc(false)
-		return
-	if GameNetwork.is_bot(_auction_second_id):
-		# Bots have no payment-panel UI to accept this at printed cost —
-		# treat it the same as a human runner-up declining outright.
-		_rpc_sync_market_removal.rpc(_auction_card_ref)
-		_rpc_sync_auction_placement_pending.rpc(false)
-		return
-	_rpc_sync_runner_up_phase.rpc(true)
-	var printed_cost: int = cd.adv_cost if _auction_is_adv else cd.cost
-	if _auction_second_id == multiplayer.get_unique_id():
-		_on_runner_up_offer(_auction_card_ref, _auction_slot_idx, _auction_is_tech, _auction_is_adv, printed_cost, int(_auction_cost_color))
-	else:
-		_rpc_offer_to_runner_up.rpc_id(_auction_second_id, _auction_card_ref, _auction_slot_idx, _auction_is_tech, _auction_is_adv, printed_cost, int(_auction_cost_color))
 
-func _on_runner_up_offer(card_ref: Dictionary, _slot_idx: int, _is_tech: bool, is_adv: bool, printed_cost: int, cost_color_int: int) -> void:
-	var cd: CardData = CardRef.from_ref(card_ref)
-	if not cd:
-		return
-	_pending_won_card_ref = card_ref
-	_pending_auction_win = true
-	_auction_win_awaiting_placement = true
-	_auction_win_is_initiator = false
-	_is_runner_up_offer = true
-	var c_name: String = cd.adv_name if (is_adv and not cd.adv_name.is_empty()) else cd.card_name
-	var cost_color: CardData.SupplyColor = cost_color_int as CardData.SupplyColor
-	var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(cost_color)
-	_bid_payment_panel.show_bid_payment(c_name, printed_cost, valid_colors, _cs_display, cd, is_adv)
-	_update_turn_ui()
 
 func _on_market_card_taken(cd: CardData) -> void:
 	if not GameNetwork.is_multiplayer:
@@ -3182,118 +2888,19 @@ func _rpc_sync_hand_dealt(peer_id: int, card_refs: Array) -> void:
 	_broadcast_my_state()
 
 func _on_bid_confirmed(amount: int) -> void:
-	if _pending_auction:
-		_pending_auction = false
-		_auction_starting = true
-		$Board.set_major_action_taken()
-		var my_id: int = multiplayer.get_unique_id()
-		if GameNetwork.is_host:
-			_server_start_auction(_pending_auction_card_ref, _pending_auction_slot_idx, _pending_auction_is_tech, _pending_auction_is_adv, amount, int(_bid_color), my_id)
-		else:
-			_rpc_request_auction.rpc_id(1, _pending_auction_card_ref, _pending_auction_slot_idx, _pending_auction_is_tech, _pending_auction_is_adv, amount, int(_bid_color))
-		return
-	_bid_amount = amount
-	var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(_bid_color)
-	_bid_payment_panel.show_bid_payment(_bid_card_name, amount, valid_colors, _cs_display, _bid_card_data, _bid_is_advanced)
+	AuctionFlow._on_bid_confirmed(self, amount)
 
-# Right-click during an auction win's targeting arrow (see
-# Board._cancel_prepaid_to_payment) — the winning bid itself is already
-# settled, so this just re-opens the payment-allocation step for the same
-# fixed amount, reusing _bid_amount/_bid_card_name/etc. still cached from
-# the original bid rather than re-running the auction.
 func _on_auction_payment_cancel_requested() -> void:
-	_pending_auction_recancel = true
-	var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(_bid_color)
-	_bid_payment_panel.show_bid_payment(_bid_card_name, _bid_amount, valid_colors, _cs_display, _bid_card_data, _bid_is_advanced)
+	AuctionFlow._on_auction_payment_cancel_requested(self)
 
 func _on_bid_payment_confirmed(allocations: Dictionary) -> void:
-	if _effect_mode == EffectMode.PAYMENT_CONFIRM:
-		_effect_mode = EffectMode.NONE
-		$Board.hide_payment_confirm_arrow()
-		$Board.confirm_payment_with_allocations(allocations)
-		return
-	# Supply is deliberately NOT spent here anymore — same rule as every
-	# other purchase now: it's only actually taken once the card lands on a
-	# slot for real (see Board.complete_purchase/_finalize_placement), not
-	# at this earlier payment-choice step. allocations is just carried
-	# through to whichever placement path handles that.
-	if _pending_auction_recancel:
-		_pending_auction_recancel = false
-		$Board.resume_auction_win_drag(allocations)
-		_show_action_buttons(true)
-		_broadcast_my_state()
-		return
-	if _pending_auction_win:
-		_pending_auction_win = false
-		if _auction_win_is_initiator:
-			$Board.complete_purchase(allocations)
-		else:
-			var card: CardData = CardRef.from_ref(_pending_won_card_ref)
-			if not $Board.begin_auction_win_drag(card, allocations):
-				push_warning("AuctionWin: card not found in market")
-				_notify_auction_placement_done()
-		_show_action_buttons(true)
-		_broadcast_my_state()
-		return
-	$Board.complete_purchase(allocations)
-	_show_action_buttons(true)
-	if _bid_is_from_effect:
-		_bid_is_from_effect = false
-		_process_next_effect()
+	AuctionFlow._on_bid_payment_confirmed(self, allocations)
 
 func _on_bid_payment_forfeited() -> void:
-	if _effect_mode == EffectMode.PAYMENT_CONFIRM:
-		_effect_mode = EffectMode.NONE
-		$Board.hide_payment_confirm_arrow()
-		$Board.cancel_payment_confirm()
-		return
-	if _pending_auction_recancel:
-		# re-opened after the win (right-click on the arrow): Cancel means
-		# back to placing it, not giving up a card that's already ours
-		_pending_auction_recancel = false
-		$Board.resume_cancelled_auction_drag()
-		_show_action_buttons(true)
-		_broadcast_my_state()
-		return
-	if _pending_auction_win:
-		_pending_auction_win = false
-		_auction_win_awaiting_placement = false
-		if _auction_win_is_initiator:
-			$Board.cancel_purchase()
-			$Board.reset_turn()
-			if GameNetwork.is_host:
-				_server_offer_to_runner_up()
-			else:
-				_rpc_notify_auction_forfeit.rpc_id(1)
-		else:
-			if _is_runner_up_offer:
-				_is_runner_up_offer = false
-				if GameNetwork.is_host:
-					_rpc_sync_market_removal.rpc(_pending_won_card_ref)
-					_rpc_sync_runner_up_phase.rpc(false)
-					_rpc_sync_auction_placement_pending.rpc(false)
-				else:
-					_rpc_notify_runner_up_forfeit.rpc_id(1, _pending_won_card_ref)
-			else:
-				if GameNetwork.is_host:
-					_server_offer_to_runner_up()
-				else:
-					_rpc_notify_auction_forfeit.rpc_id(1)
-		_show_action_buttons(true)
-		return
-	$Board.cancel_purchase()
-	_show_action_buttons(true)
-	if _bid_is_from_effect:
-		_bid_is_from_effect = false
-		_process_next_effect()
+	await AuctionFlow._on_bid_payment_forfeited(self)
 
 func _on_bid_cancelled() -> void:
-	_pending_auction = false
-	$Board.cancel_purchase()
-	_show_action_buttons(true)
-	if _bid_is_from_effect:
-		_bid_is_from_effect = false
-		_process_next_effect()
+	AuctionFlow._on_bid_cancelled(self)
 
 func _on_market_card_drag_failed(_card: Node3D) -> void:
 	if _bid_is_from_effect:
@@ -3402,32 +3009,7 @@ func _execute_expedition_reveal(slot_idx: int) -> void:
 	_show_reveal_big_then_continue("expedition", slot_idx, revealed)
 
 func _on_payment_confirm_required(card: Node3D, slot: SectorSlot, pay_amounts: Dictionary, _is_tech: bool) -> void:
-	_effect_mode = EffectMode.PAYMENT_CONFIRM
-	var card_name: String = ""
-	var cost_color: CardData.SupplyColor = CardData.SupplyColor.DUST
-	var total: int = 0
-	var cd: CardData = null
-	var is_adv: bool = false
-	if card.card_data:
-		cd = card.card_data
-		is_adv = bool(card.get("is_advanced"))
-		card_name = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
-		cost_color = CardData.effective_color(cd, is_adv)   # Fleet buys advanced sectors outright
-		for v: Variant in pay_amounts.values():
-			total += int(v)
-	if total == 0:
-		_effect_mode = EffectMode.NONE
-		$Board.confirm_payment()
-		return
-	var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(cost_color)
-	_bid_payment_panel.show_bid_payment(card_name, total, valid_colors, _cs_display, cd, is_adv)
-	var cam: Camera3D = get_viewport().get_camera_3d()
-	if cam and _info_screen_mesh and slot:
-		var aabb: AABB = _info_screen_mesh.mesh.get_aabb()
-		var from_world: Vector3 = _info_screen_mesh.to_global(aabb.get_center())
-		var from_2d: Vector2 = cam.unproject_position(from_world)
-		var to_2d: Vector2 = cam.unproject_position(slot.global_position)
-		$Board.show_payment_confirm_arrow(from_2d, to_2d)
+	AuctionFlow._on_payment_confirm_required(self, card, slot, pay_amounts, _is_tech)
 
 # The targeting arrow shown after a market purchase snaps to a slot but
 # doesn't place immediately anymore — this confirms the exact target first,
@@ -3818,18 +3400,8 @@ func _rpc_sync_peer_converted_to_bot(peer_id: int, display_name: String) -> void
 	GameNetwork.bot_difficulty[peer_id] = BotAI.Difficulty.EASY
 	GameNetwork.player_names[peer_id] = display_name
 
-# Host-only: force-resolves an auction outcome that was waiting on peer_id's
-# own input (a runner-up offer, or paying/placing after winning) when that
-# input can never come because they've disconnected. Deliberately doesn't
-# touch $Board — cancel_purchase()/reset_turn() are per-client operations on
-# state that only ever existed on peer_id's own (now-gone) client.
 func _host_force_decline_pending_auction(peer_id: int) -> void:
-	if _runner_up_phase and _auction_second_id == peer_id:
-		_rpc_sync_market_removal.rpc(_auction_card_ref)
-		_rpc_sync_runner_up_phase.rpc(false)
-		_rpc_sync_auction_placement_pending.rpc(false)
-	elif _auction_placement_pending and _auction_leader_id == peer_id:
-		_server_offer_to_runner_up()
+	AuctionFlow._host_force_decline_pending_auction(self, peer_id)
 
 # ── Music ─────────────────────────────────────────────────────────────────────
 

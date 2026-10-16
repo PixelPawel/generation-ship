@@ -148,7 +148,11 @@ def main():
     # comments don't count as uses
     rest_main = "\n".join(l.split("#", 1)[0] for l in keep_lines)
     others = "\n".join(l.split("#", 1)[0] for l in others.split("\n"))
-    needs_wrapper = [f for f in moved if re.search(r"(?<![\w])%s\b" % f, rest_main + others)]
+    # RPC functions must stay on the Main node: always a wrapper (with its @rpc),
+    # and moved code reaches them through main.
+    rpc_funcs = {f for f in moved if any(l.startswith("@rpc") for l in lines[funcs[f][0]:funcs[f][1]])}
+    needs_wrapper = [f for f in moved if f in rpc_funcs or re.search(r"(?<![\w])%s\b" % f, rest_main + others)]
+    moved_set = moved_set - rpc_funcs
     unknown = {}
     out_funcs = []
     for f in moved:
@@ -161,7 +165,8 @@ def main():
         new_block = []
         for k, l in enumerate(block):
             if k < sig_off:
-                new_block.append(l)
+                if not l.startswith("@"):   # annotations (@rpc) stay on the wrapper in main.gd
+                    new_block.append(l)
                 continue
             if k == sig_off:
                 m = re.match(r"^(static\s+)?func\s+(\w+)\s*\((.*)$", l)
@@ -237,7 +242,8 @@ def main():
                 is_coro = "await" in "\n".join(lines[sig_i:e])
                 if is_coro:
                     body = ("\treturn await " if ret and ret != "-> void" else "\tawait ") + call
-                new_lines.append(sig if sig.endswith(":") else sig)
+                new_lines.extend(l for l in lines[s:sig_i] if l.startswith("@"))   # e.g. @rpc(...)
+                new_lines.append(sig)
                 new_lines.append(body)
                 placed_wrappers.add(f)
             idx = e
