@@ -29,7 +29,7 @@ static func setup(main: Main) -> void:
 	panel.danger_solve_pressed.connect(func(no: int) -> void: try_solve(main, no))
 	panel.danger_inspect_requested.connect(func(no: int) -> void:
 		show_card(main, FleetData.danger_art(no), false, 0.0))
-	panel.destination_inspect_requested.connect(func() -> void:
+	main._fleet_dest_view.destination_inspect_requested.connect(func() -> void:
 		show_card(main, FleetData.destination_art(GameNetwork.fleet_destination), true, 0.0))
 	main.get_node("Board").fleet_rule_blocked.connect(func(msg: String) -> void:
 		main._log_action(msg, DANGER_COLOR))
@@ -38,7 +38,7 @@ static func setup(main: Main) -> void:
 	timer.wait_time = 0.5
 	timer.autostart = true
 	timer.timeout.connect(func() -> void:
-		if panel.visible:
+		if panel.visible or main._fleet_dest_view.visible:
 			refresh_panel(main))
 	main.add_child(timer)
 	refresh_panel(main)
@@ -571,8 +571,9 @@ static func refresh_panel(main: Main) -> void:
 		var no: int = int(e["no"])
 		list.append({"no": no, "solvable": not main._fleet_busy and can_solve(main, no)})
 	main._fleet_panel.set_dangers(list, main._fleet.deck.size())
-	main._fleet_panel.set_mission_progress(mission_lines(main))
-	main._fleet_panel.set_generation(main._round, main._max_rounds)
+	if main._fleet_dest_view:
+		main._fleet_dest_view.set_mission_progress(mission_lines(main))
+		main._fleet_dest_view.set_generation(main._round, main._max_rounds)
 
 static func _after_change(main: Main) -> void:
 	main.get_node("Board").refresh_hand_discounts()

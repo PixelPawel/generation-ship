@@ -1,28 +1,21 @@
 extends Control
-# Generation Fleet: the Dangers screen on the cockpit's info screen. The red
-# switch (gs_ui_switch_flat2) flips the info screen between the market and
-# this. Left: the Destination (mission, generations, shuttle cost). Right: the
-# Dangers revealed so far that aren't solved yet, and the Danger deck.
+# Generation Fleet: the Dangers screen on the cockpit's info screen. Red switch
+# 2 (gs_ui_switch_flat2) flips the info screen between the market and this: the
+# Dangers revealed so far that aren't solved yet, and the Danger deck. (The
+# Destination is on the control screen, see fleet_destination_view.gd.)
 const FleetData = preload("res://scripts/game/fleet_data.gd")
 
 signal danger_solve_pressed(danger_no: int)
 signal danger_inspect_requested(danger_no: int)
-signal destination_inspect_requested
 
 const SCREEN_SIZE: Vector2 = Vector2(1200, 572)
-const DEST_SIZE: Vector2 = Vector2(360, 257)      # 89 x 63.5 mm
-const DANGER_SIZE: Vector2 = Vector2(170, 238)    # 63.5 x 89 mm
-const DANGER_SIZE_SMALL: Vector2 = Vector2(128, 179)
+const DANGER_SIZE: Vector2 = Vector2(210, 294)    # 63.5 x 89 mm
+const DANGER_SIZE_SMALL: Vector2 = Vector2(150, 210)
 const HEAD_COLOR: Color = Color(1.0, 0.85, 0.4)
 const TEXT_COLOR: Color = Color(0.85, 0.9, 1.0)
 const PLACE_COLOR: Color = Color(0.45, 0.85, 0.65)
 const ALWAYS_COLOR: Color = Color(0.8, 0.55, 0.95)
 
-var _destination_no: int = 0
-var _dest_rect: TextureRect = null
-var _gen_label: Label = null
-var _mission_label: Label = null
-var _shuttle_label: Label = null
 var _danger_row: HBoxContainer = null
 var _deck_label: Label = null
 var _empty_label: Label = null
@@ -30,28 +23,11 @@ var _empty_label: Label = null
 func _ready() -> void:
 	_build_ui()
 
-func setup(destination_no: int) -> void:
-	_destination_no = destination_no
-	var path: String = FleetData.destination_art(destination_no)
-	_dest_rect.texture = load(path) as Texture2D if not path.is_empty() else null
-	var d: Dictionary = FleetData.destination(destination_no)
-	_shuttle_label.text = tr("Shuttle cost: %d Dust") % int(d.get("shuttle", 0))
-
-func set_generation(current: int, total: int) -> void:
-	_gen_label.text = tr("Generation %d / %d") % [current, total]
-
-# lines: [{text, done}] — one per mission part, already worded for the player.
-func set_mission_progress(lines: Array) -> void:
-	var parts: PackedStringArray = []
-	for l: Dictionary in lines:
-		parts.append(("✔ " if bool(l.get("done", false)) else "• ") + str(l.get("text", "")))
-	_mission_label.text = "\n".join(parts)
-
 # dangers: [{no, solvable}] — the active (revealed, unsolved) Dangers, oldest first.
 func set_dangers(dangers: Array, deck_left: int) -> void:
 	for child: Node in _danger_row.get_children():
 		child.queue_free()
-	var size: Vector2 = DANGER_SIZE if dangers.size() <= 4 else DANGER_SIZE_SMALL
+	var size: Vector2 = DANGER_SIZE if dangers.size() <= 5 else DANGER_SIZE_SMALL
 	for d: Dictionary in dangers:
 		_danger_row.add_child(_make_danger(int(d["no"]), size, bool(d.get("solvable", false))))
 	_empty_label.visible = dangers.is_empty()
@@ -66,27 +42,6 @@ func _build_ui() -> void:
 	root.size = SCREEN_SIZE - Vector2(48, 36)
 	root.add_theme_constant_override("separation", 28)
 	add_child(root)
-
-	# — Destination —
-	var left: VBoxContainer = VBoxContainer.new()
-	left.custom_minimum_size = Vector2(DEST_SIZE.x, 0)
-	left.add_theme_constant_override("separation", 8)
-	root.add_child(left)
-	left.add_child(_header(tr("DESTINATION")))
-	_dest_rect = _card_rect(DEST_SIZE)
-	_dest_rect.mouse_filter = Control.MOUSE_FILTER_STOP
-	_dest_rect.gui_input.connect(func(event: InputEvent) -> void:
-		if _is_click(event):
-			destination_inspect_requested.emit())
-	left.add_child(_dest_rect)
-	_gen_label = _text(26, HEAD_COLOR)
-	left.add_child(_gen_label)
-	_mission_label = _text(22, TEXT_COLOR)
-	_mission_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_mission_label.custom_minimum_size = Vector2(DEST_SIZE.x, 0)
-	left.add_child(_mission_label)
-	_shuttle_label = _text(20, Color(0.7, 0.75, 0.85))
-	left.add_child(_shuttle_label)
 
 	# — Dangers —
 	var right: VBoxContainer = VBoxContainer.new()

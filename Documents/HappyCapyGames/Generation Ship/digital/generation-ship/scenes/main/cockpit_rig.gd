@@ -20,6 +20,10 @@ static func setup_control_screen_display(main: Main) -> void:
 
 	main._cs_display = SupplyUI.new()
 	main.cs_viewport.add_child(main._cs_display)
+	if GameNetwork.fleet_mode:   # red switch 1 flips to the Destination
+		main._fleet_dest_view = load("res://scenes/ui/fleet_destination_view.gd").new()
+		main.cs_viewport.add_child(main._fleet_dest_view)
+		main._fleet_dest_view.visible = false
 
 	var panel: Control = main._cs_display.get_child(0) as Control
 	if panel:
@@ -143,6 +147,15 @@ static func setup_cockpit_switches(main: Main) -> void:
 	var switch1: MeshInstance3D = ui_cockpit.find_child("gs_ui_switch_flat1", true, false) as MeshInstance3D
 	if switch1:
 		setup_switch_input(switch1, func() -> void:
+			# Fleet: the red switch flips the control screen between supplies and Destination
+			if GameNetwork.fleet_mode:
+				if cockpit_anim:
+					if main._fleet_dest_shown:
+						cockpit_anim.play_backwards("gs_ui_switch_flat1_on")
+					else:
+						cockpit_anim.play("gs_ui_switch_flat1_on")
+				main.toggle_fleet_destination()
+				return
 			main._ui_control_shown = not main._ui_control_shown
 			if cockpit_anim:
 				if main._ui_control_shown:

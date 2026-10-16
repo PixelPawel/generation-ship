@@ -107,6 +107,9 @@ var _market_panel: Control = null
 # Generation Fleet: the Dangers screen, swapped with the market by the red switch.
 var _fleet_panel: Control = null
 var _fleet_screen_shown: bool = false
+# ...and the Destination on the control screen, swapped with the supplies by red switch 1.
+var _fleet_dest_view: Control = null
+var _fleet_dest_shown: bool = false
 var _fleet: RefCounted = null              # FleetRules of this game (null outside Fleet)
 var _fleet_busy: bool = false              # Dangers resolving / a solve in progress
 var _fleet_choice_active: bool = false     # FleetFlow is awaiting the choice popup
@@ -310,7 +313,6 @@ func _ready() -> void:
 	ImageCache.preload_urls(_collect_urls())
 
 	CockpitRig.setup_info_screen_display(self)
-	FleetFlow.setup(self)
 
 
 	_bid_payment_panel = load("res://scenes/ui/bid_payment_panel.gd").new()
@@ -383,6 +385,7 @@ func _ready() -> void:
 
 	_setup_music()
 	CockpitRig.setup_control_screen_display(self)
+	FleetFlow.setup(self)   # needs both Fleet screens (info + control)
 	OpponentBoardView.setup_enemy_screen_display(self)
 	CockpitRig.setup_log_screen_display(self)
 	CockpitRig.setup_floating_tooltip(self)
@@ -538,7 +541,7 @@ func _do_game_setup(sector_order: Array, exp_order: Array, tech_order: Array) ->
 	_round = 1
 	if GameNetwork.fleet_mode and _fleet_panel:
 		_max_rounds = FleetData.generations(GameNetwork.fleet_destination)
-		_fleet_panel.setup(GameNetwork.fleet_destination)
+		_fleet_dest_view.setup(GameNetwork.fleet_destination)
 		_fleet_panel.set_dangers([], FleetData.DANGERS.size())
 	_update_round_label()
 	_init_supply()
@@ -900,14 +903,21 @@ func _info_panel_active() -> bool:
 			return true
 	return false
 
+func toggle_fleet_destination() -> void:
+	_fleet_dest_shown = not _fleet_dest_shown
+	_fleet_dest_view.visible = _fleet_dest_shown
+	_cs_display.visible = not _fleet_dest_shown
+	if _fleet_dest_shown:
+		FleetFlow.refresh_panel(self)
+
 func toggle_fleet_screen() -> void:
 	_fleet_screen_shown = not _fleet_screen_shown
 	_show_info_base(not _info_panel_active())
 
 func _update_round_label() -> void:
 	_cs_display.set_round(_round, _max_rounds)
-	if _fleet_panel:
-		_fleet_panel.set_generation(_round, _max_rounds)
+	if _fleet_dest_view:
+		_fleet_dest_view.set_generation(_round, _max_rounds)
 	_cs_display.show_game_info(true)
 
 # ── Multiplayer turn management ───────────────────────────────────────────────
