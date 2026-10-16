@@ -21,7 +21,7 @@ var _info: Label = null
 var _launch_btn: Button = null
 var _toggle_btn: Button = null
 var _reveal_btn: Button = null
-var _frames: Dictionary = {}   # destination no -> Panel (selection frame)
+var _frames: Dictionary = {}   # destination no -> PanelContainer (selection frame)
 
 func _ready() -> void:
 	_rng.randomize()
@@ -130,8 +130,9 @@ func _populate() -> void:
 	_update_selection()
 
 func _make_card(no: int, size: Vector2) -> Control:
-	var frame: Panel = Panel.new()
-	frame.custom_minimum_size = size + Vector2(8, 8)
+	# PanelContainer lays the art out at its minimum size; a plain Panel left the
+	# TextureRect at the PNG's full resolution.
+	var frame: PanelContainer = PanelContainer.new()
 	frame.mouse_filter = Control.MOUSE_FILTER_STOP
 	frame.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	frame.gui_input.connect(func(event: InputEvent) -> void:
@@ -143,8 +144,7 @@ func _make_card(no: int, size: Vector2) -> Control:
 	var path: String = FleetData.destination_art(no)
 	if not path.is_empty():
 		rect.texture = load(path) as Texture2D
-	rect.position = Vector2(4, 4)
-	rect.size = size
+	rect.custom_minimum_size = size
 	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -161,10 +161,11 @@ func _update_selection() -> void:
 		var sb: StyleBoxFlat = StyleBoxFlat.new()
 		sb.bg_color = Color(0, 0, 0, 0)
 		sb.set_corner_radius_all(10)
+		sb.set_content_margin_all(4)
 		if no == _selected:
 			sb.border_color = _SELECTED_COLOR
 			sb.set_border_width_all(4)
-		(_frames[no] as Panel).add_theme_stylebox_override("panel", sb)
+		(_frames[no] as PanelContainer).add_theme_stylebox_override("panel", sb)
 	_launch_btn.disabled = _selected == 0
 	if _selected == 0:
 		_info.text = tr("Pick a Destination for your fleet.")
