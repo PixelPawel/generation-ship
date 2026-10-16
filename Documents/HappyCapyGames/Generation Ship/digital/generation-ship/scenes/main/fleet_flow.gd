@@ -223,30 +223,37 @@ static func _option_text(main: Main, o: Dictionary) -> String:
 # Flip the top card of sectors face down. where: "rightmost"/"leftmost" (all n
 # from that sector) or "any" (the player picks a sector each time; pref = a
 # colour that must be picked if any top card has it).
-static func _destroy(main: Main, no: int, n: int, where: String, pref: int) -> void:
+# ask (solving): always show the picker, with Cancel. Returns false if cancelled.
+static func _destroy(main: Main, no: int, n: int, where: String, pref: int, ask: bool = false) -> bool:
 	for i: int in n:
 		var target: SectorSlot = null
 		if where == "rightmost" or where == "leftmost":
 			var slots: Array[SectorSlot] = _occupied_slots(main)
 			if slots.is_empty():
-				return
+				return true
 			target = slots[slots.size() - 1] if where == "rightmost" else slots[0]
 			if target.fleet_top_card() == null:
 				main._log_action(main.tr("%s: no card left to destroy there.") % _name(no), DANGER_COLOR)
-				return
+				return true
 		else:
 			var cands: Array[SectorSlot] = _destroyable_slots(main, pref)
 			if cands.is_empty():
-				return
+				return true
 			target = cands[0]
-			if cands.size() > 1:
+			if cands.size() > 1 or ask:
 				var labels: Array = []
 				for s: SectorSlot in cands:
 					labels.append(_sector_label(s))
-				target = cands[await _pick_option(main, main.tr("%s: destroy the top card of which sector?") % _name(no), labels)]
+				if ask:
+					labels.append(main.tr("Cancel"))
+				var pick: int = await _pick_option(main, main.tr("%s: destroy the top card of which sector?") % _name(no), labels)
+				if pick >= cands.size():
+					return false
+				target = cands[pick]
 		var card: Node3D = target.fleet_top_card()
 		target.fleet_destroy_card(card, _back_path(card))
 		main._log_action(main.tr("%s: %s destroyed (flipped face down).") % [_name(no), card.card_data.card_name], DANGER_COLOR)
+	return true
 
 static func _destroyable_slots(main: Main, pref: int) -> Array[SectorSlot]:
 	var all: Array[SectorSlot] = []
@@ -266,7 +273,8 @@ static func _back_path(card: Node3D) -> String:
 	return CardDatabase.tech_back_path()
 
 # Lose n stored supplies (and/or archived cards), the player picking each one.
-static func _lose_items(main: Main, no: int, n: int, stored: bool, archived: bool) -> void:
+# ask (solving): always show the picker, with Cancel. Returns false if cancelled.
+static func _lose_items(main: Main, no: int, n: int, stored: bool, archived: bool, ask: bool = false) -> bool:
 	for i: int in n:
 		var items: Array[Dictionary] = []
 		for s: SectorSlot in _occupied_slots(main):
@@ -279,13 +287,18 @@ static func _lose_items(main: Main, no: int, n: int, stored: bool, archived: boo
 					var cd: CardData = t["data"]
 					items.append({"slot": s, "tuck": t, "label": main.tr("Archived %s under %s") % [cd.card_name if bool(t["face_up"]) else main.tr("face-down card"), _sector_name(s)]})
 		if items.is_empty():
-			return
+			return true
 		var pick: Dictionary = items[0]
-		if items.size() > 1:
+		if items.size() > 1 or ask:
 			var labels: Array = []
 			for it: Dictionary in items:
 				labels.append(it["label"])
-			pick = items[await _pick_option(main, main.tr("%s: lose which? (%d of %d)") % [_name(no), i + 1, n], labels)]
+			if ask:
+				labels.append(main.tr("Cancel"))
+			var idx: int = await _pick_option(main, main.tr("%s: lose which? (%d of %d)") % [_name(no), i + 1, n], labels)
+			if idx >= items.size():
+				return false
+			pick = items[idx]
 		var slot: SectorSlot = pick["slot"]
 		if pick.has("color"):
 			var col: int = int(pick["color"])
@@ -297,6 +310,7 @@ static func _lose_items(main: Main, no: int, n: int, stored: bool, archived: boo
 			main.get_node("Board").add_to_discard((pick["tuck"] as Dictionary)["data"])
 		slot.refresh_display()
 		main._log_action(main.tr("%s: lost %s.") % [_name(no), pick["label"]], DANGER_COLOR)
+	return true
 
 # ── Solving ───────────────────────────────────────────────────────────────────
 
@@ -397,23 +411,11 @@ static func try_solve(main: Main, no: int) -> void:
 					cands.append(c)
 			done = await _discard_for_stars(main, no, cands, n)
 		"discard_each_color":
-			var picks: Array[Node3D] = []
-			var hand: Array[Node3D] = _hand_cards(main)
-			for col: int in 6:
-				var of_col: Array[Node3D] = _cards_of_colors(hand, [col])
-				of_col.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.card_data.stars < b.card_data.stars)
-				picks.append(of_col[0])
-			var names: PackedStringArray = []
-			for c: Node3D in picks:
-				names.append(c.card_data.card_name)
-			var ok: int = await _pick_option(main, main.tr("Solve %s: discard %s?") % [_name(no), ", ".join(names)], [main.tr("Discard"), main.tr("Cancel")])
-			done = ok == 0
-			if done:
-				_discard_nodes(main, picks)
+			done = await _discard_each_color(main, no)
 		"destroy":
-			await _destroy(main, no, n, "any", -1)
+			done = await _destroy(main, no, n, "any", -1, true)
 		"lose_archived":
-			await _lose_items(main, no, n, false, true)
+			done = await _lose_items(main, no, n, false, true, true)
 		"flip_archived":
 			var items: Array[Dictionary] = _archived(main, true, int(sv.get("stars", 0)))
 			var labels: Array = []
@@ -444,6 +446,26 @@ static func try_solve(main: Main, no: int) -> void:
 	UIAudio.play_fuse_sfx()
 	_after_change(main)
 
+# Dimension Pocket: the player picks 1 card of each of the 6 colours (none = cancel).
+static func _discard_each_color(main: Main, no: int) -> bool:
+	var cands: Array[Node3D] = []
+	for c: Node3D in _hand_cards(main):
+		cands.append(c)
+	while true:
+		var idx: Array[int] = await _pick_cards(main, main.tr("Solve %s: pick 1 card of each colour (none = cancel)") % _name(no), cands, 6)
+		if idx.is_empty():
+			return false
+		var colors: Dictionary = {}
+		var picks: Array[Node3D] = []
+		for i: int in idx:
+			picks.append(cands[i])
+			colors[int(cands[i].card_data.color)] = true
+		if picks.size() == 6 and colors.size() == 6:
+			_discard_nodes(main, picks)
+			return true
+		main._log_action(main.tr("Pick exactly one card of each of the 6 colours."), DANGER_COLOR)
+	return false
+
 static func _discard_for_stars(main: Main, no: int, cands: Array[Node3D], need: int) -> bool:
 	while true:
 		var idx: Array[int] = await _pick_cards(main, main.tr("Solve %s: discard cards worth %d ⭐ (none = cancel)") % [_name(no), need], cands, 0)
@@ -466,10 +488,7 @@ static func _discard_from_hand(main: Main, prompt: String, cands: Array[Node3D],
 	var need: int = mini(n, cands.size())
 	if need <= 0:
 		return mandatory
-	if cands.size() == need and mandatory:
-		_discard_nodes(main, cands)
-		return true
-	while true:
+	while true:   # always the player's pick, even when every card has to go
 		var idx: Array[int] = await _pick_cards(main, prompt + (main.tr(" — pick %d") % need), cands, need)
 		if idx.size() == need:
 			var picks: Array[Node3D] = []
