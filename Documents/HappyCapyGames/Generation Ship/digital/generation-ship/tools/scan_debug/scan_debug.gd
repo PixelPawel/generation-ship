@@ -7,7 +7,6 @@ extends Node
 
 const DialReaderScript := preload("res://scripts/photo_scan/dial_reader.gd")
 const TableauReaderScript := preload("res://scripts/photo_scan/tableau_reader.gd")
-const COLOR_NAMES: Array[String] = ["Dust", "Metals", "Liquids", "Organix", "Electrix", "Thrust"]
 
 func _ready() -> void:
 	# CardDatabase loads its cards deferred in the game; wait until it has them

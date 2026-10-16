@@ -9,8 +9,6 @@ const TECH_COLUMN_HALF_X := 0.1
 const PENDING_HOVER_Y := 0.05
 const TECH_ZONE_Z_FRONT := 0.2
 const TECH_ZONE_Z_BACK := 0.3
-const MIN_SLOT_DISTANCE := 0.075
-const _SLOT_SCENE := preload("res://scenes/board/sector_slot.tscn")
 const _MARKET_CARD_ROTATION := Vector3(-PI / 2.0, 0.0, 0.0)
 # How far the market-inspect clone travels from the clicked screen point
 # toward the camera (0 = stays at the screen, 1 = ends up at the camera).
@@ -1242,14 +1240,6 @@ func cancel_recycle() -> void:
 	if _hand:
 		_hand.add_card(card, true)
 
-func _spawn_slot_at_pos(pos: Vector3) -> SectorSlot:
-	var slot: SectorSlot = _SLOT_SCENE.instantiate() as SectorSlot
-	_sector_row.add_child(slot)
-	slot.global_position = Vector3(pos.x, DRAG_Y, pos.z)
-	slot.scale = Vector3(0.1, 0.1, 0.1)
-	slot.slot_clicked.connect(_on_sector_slot_clicked)
-	return slot
-
 func _cleanup_pending_dynamic_slot() -> void:
 	if is_instance_valid(_pending_dynamic_slot) and not _pending_dynamic_slot.occupied:
 		_pending_dynamic_slot.queue_free()
@@ -1838,25 +1828,6 @@ func cancel_payment_confirm() -> void:
 		_expedition_market.return_card(card)
 	else:
 		_market.return_card(card)
-
-func _find_sector_by_name(sec_name: String, is_adv: bool) -> CardData:
-	for cd: CardData in CardDatabase.sectors:
-		if is_adv:
-			if cd.adv_name == sec_name:
-				return cd
-		else:
-			if cd.card_name == sec_name:
-				return cd
-	return null
-
-func _find_placed_card_by_name(card_name: String) -> CardData:
-	for cd: CardData in CardDatabase.techs:
-		if cd.card_name == card_name:
-			return cd
-	for cd: CardData in CardDatabase.expeditions:
-		if cd.card_name == card_name:
-			return cd
-	return null
 
 # Karma Chameleon ("counts as a color of your choice while being placed")
 # sits out of its own placement's optimize check — SectorSlot.

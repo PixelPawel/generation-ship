@@ -1,7 +1,6 @@
 extends CanvasLayer
 
 const FADE_DURATION: float = 0.25
-const SLIDE_DURATION: float = 0.5
 
 var _overlay: ColorRect
 

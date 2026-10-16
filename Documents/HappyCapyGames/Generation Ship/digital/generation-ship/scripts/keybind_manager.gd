@@ -3,12 +3,6 @@ extends Node
 const SETTINGS_PATH: String = "user://settings.cfg"
 
 const ACTION_NAMES: Array[String] = ["end_turn", "pause_menu", "voice_ptt", "toggle_chat"]
-const ACTION_LABELS: Dictionary = {
-	"end_turn": "End Turn",
-	"pause_menu": "Pause Menu",
-	"voice_ptt": "Push to Talk",
-	"toggle_chat": "Open Chat",
-}
 const ACTION_DEFAULTS: Dictionary = {
 	"end_turn": KEY_SPACE,
 	"pause_menu": KEY_ESCAPE,

@@ -129,12 +129,6 @@ static func destination_art(no: int) -> String:
 static func danger_art(no: int) -> String:
 	return CardDatabase._art_path(DANGER_ART_FOLDER, _paged(DANGER_ART_BASE, no))
 
-static func danger_back_art() -> String:
-	return CardDatabase._art_path(DANGER_ART_FOLDER, "GS Dangers Back 63,5x89mm.png")
-
-static func destination_back_art() -> String:
-	return CardDatabase._art_path(DESTINATION_ART_FOLDER, "GS Destiniations Back 89x63,5mm.png")
-
 # — Cards on the cockpit screens —
 # The print art (750 px wide) shrunk ~3.5x on a screen without mipmaps comes out
 # blurry and aliased, so the screens get a copy pre-shrunk once with Lanczos to

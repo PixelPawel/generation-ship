@@ -75,7 +75,6 @@ func _ready() -> void:
 # Icon centres of the supply diamond (within FLOW_SIZE). Shared with
 # ChoicePopup's color choices so both read the same way.
 const FLOW_SIZE: Vector2 = Vector2(230, 280)
-const FLOW_ICON_SIZE: float = 52.0
 const FLOW_POSITIONS: Dictionary = {
 	CardData.SupplyColor.DUST:     Vector2(115, 34),
 	CardData.SupplyColor.LIQUIDS:  Vector2(39, 100),

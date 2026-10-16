@@ -6,7 +6,6 @@ extends Control
 # parent; ignores the mouse. Only animates while visible.
 
 const GOLD: Color = Color(1.0, 0.82, 0.3)
-const PEAK: Color = Color(1.0, 0.97, 0.85)
 # The game's own "pick a slot" prompts (revealing a sector or expedition) use it
 # too, in green: set tint before it's shown.
 var tint: Color = GOLD

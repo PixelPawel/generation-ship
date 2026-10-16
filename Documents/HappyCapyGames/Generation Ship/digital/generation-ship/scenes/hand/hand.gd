@@ -131,13 +131,6 @@ func set_discard_mode(active: bool) -> void:
 func get_cards() -> Array[Node3D]:
 	return _cards.duplicate()
 
-func get_card_data_list() -> Array[CardData]:
-	var result: Array[CardData] = []
-	for card: Node3D in _cards:
-		if card.card_data:
-			result.append(card.card_data)
-	return result
-
 func clear() -> void:
 	for card: Node3D in _cards.duplicate():
 		remove_card(card)

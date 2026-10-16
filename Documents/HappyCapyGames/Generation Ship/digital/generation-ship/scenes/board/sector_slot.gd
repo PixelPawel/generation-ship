@@ -409,12 +409,6 @@ func fleet_remove_sector() -> Array[CardData]:
 	refresh_display()
 	return removed
 
-func reset_optimize() -> void:
-	optimize_count = 0
-	is_optimized = false
-	triggered_levels.fill(false)
-	refresh_optimize_display()
-
 func _process(_delta: float) -> void:
 	if _slot_mat:
 		_slot_mat.set_shader_parameter("highlight_t", _highlight_value)

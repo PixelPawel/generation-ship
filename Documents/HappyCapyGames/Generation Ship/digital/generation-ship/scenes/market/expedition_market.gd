@@ -38,12 +38,6 @@ func add_round_cards() -> void:
 func reveal_to_slot(slot_idx: int) -> CardData:
 	return _add_card_to_slot(slot_idx)
 
-func get_slot_sizes() -> Array[int]:
-	var result: Array[int] = []
-	for stack: Array in _stacks:
-		result.append(stack.size())
-	return result
-
 func _add_card_to_slot(slot_idx: int) -> CardData:
 	var data: CardData = _expedition_deck.draw_card()
 	if not data:
