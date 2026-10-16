@@ -7,6 +7,7 @@ const TurnBanner = preload("res://scenes/ui/turn_banner.gd")
 const FleetData = preload("res://scripts/game/fleet_data.gd")
 const FleetRules = preload("res://scripts/game/fleet_rules.gd")
 const FleetFlow = preload("res://scenes/main/fleet_flow.gd")
+const CardPassing = preload("res://scenes/main/card_passing.gd")
 const AuctionFlow = preload("res://scenes/main/auction_flow.gd")
 const EffectSteps = preload("res://scenes/main/effect_steps.gd")
 
@@ -1276,89 +1277,29 @@ func _rpc_sync_auction_won(initiator_id: int, winner_id: int, final_bid: int, ca
 # auction RPC pattern above — a rotating mini-sequence independent of whose
 # real game-turn it is.
 
-# Client → Host: I placed Interfleet Comms; draw the shared pool and start.
 @rpc("any_peer", "reliable")
 func _rpc_request_interfleet() -> void:
-	if not multiplayer.is_server():
-		return
-	_server_start_interfleet(multiplayer.get_remote_sender_id())
+	CardPassing._rpc_request_interfleet(self)
 
-# Client → Host: I'm keeping the pool card at this index.
 @rpc("any_peer", "reliable")
 func _rpc_request_interfleet_pick(idx: int) -> void:
-	if not multiplayer.is_server():
-		return
-	_server_handle_interfleet_pick(multiplayer.get_remote_sender_id(), idx)
+	CardPassing._rpc_request_interfleet_pick(self, idx)
 
-# Host → All: sequence started — full pool, full pick order, who triggered it.
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_interfleet_started(pool_refs: Array, order: Array, initiator_id: int) -> void:
-	_interfleet_pool_refs = pool_refs.duplicate()
-	_interfleet_remaining_order = []
-	for v: Variant in order:
-		_interfleet_remaining_order.append(int(v))
-	_interfleet_initiator_id = initiator_id
-	_interfleet_active = true
-	_effect_mode = EffectMode.EFFECT_INTERFLEET_PICK
-	var iname: String = GameNetwork.player_names.get(initiator_id, "Player")
-	_log_action(tr("%s: Interfleet Comms — drew %d card(s) to pass around") % [iname, _interfleet_pool_refs.size()], Color(0.6, 0.85, 1.0))
-	if not _interfleet_remaining_order.is_empty():
-		_update_interfleet_ui(_interfleet_remaining_order[0])
+	CardPassing._rpc_sync_interfleet_started(self, pool_refs, order, initiator_id)
 
-# Host → All: pool/order changed after a pick (still 2+ players left to serve).
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_interfleet_state(pool_refs: Array, order: Array) -> void:
-	_interfleet_pool_refs = pool_refs.duplicate()
-	_interfleet_remaining_order = []
-	for v: Variant in order:
-		_interfleet_remaining_order.append(int(v))
-	if not _interfleet_remaining_order.is_empty():
-		_update_interfleet_ui(_interfleet_remaining_order[0])
+	CardPassing._rpc_sync_interfleet_state(self, pool_refs, order)
 
-# Host → All: a specific player kept a specific card.
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_interfleet_pick_result(peer_id: int, card_ref: Dictionary) -> void:
-	var my_id: int = multiplayer.get_unique_id()
-	var cd: CardData = CardRef.from_ref(card_ref)
-	if my_id == peer_id:
-		if cd:
-			$Board.add_specific_card_to_hand(cd)
-			_log_action(tr("You kept %s (Interfleet Comms)") % cd.card_name, Color(0.6, 1.0, 0.6))
-		_broadcast_my_state()
-	elif multiplayer.is_server() and GameNetwork.is_bot(peer_id):
-		if cd:
-			var hand: Array[CardData] = BotTurn.bot_hand(self, peer_id)
-			hand.append(cd)
-			BotTurn.bot_set_hand(self, peer_id, hand)
-	else:
-		var pname: String = GameNetwork.player_names.get(peer_id, "Player")
-		_log_action(tr("%s kept a card (Interfleet Comms)") % pname, Color(0.6, 0.85, 1.0))
+	CardPassing._rpc_sync_interfleet_pick_result(self, peer_id, card_ref)
 
-# Host → All: sequence complete — the last player auto-received the final
-# card; resumes the initiator's own effect queue.
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_interfleet_finished(recipient_id: int, card_ref: Dictionary, initiator_id: int) -> void:
-	_interfleet_active = false
-	_interfleet_awaiting_pick = false
-	_hide_effect_hint()
-	_choice_popup.hide()
-	if _effect_mode == EffectMode.EFFECT_INTERFLEET_PICK:
-		_effect_mode = EffectMode.NONE
-	var my_id: int = multiplayer.get_unique_id()
-	var cd: CardData = CardRef.from_ref(card_ref)
-	if my_id == recipient_id:
-		if cd:
-			$Board.add_specific_card_to_hand(cd)
-		_broadcast_my_state()
-	elif multiplayer.is_server() and GameNetwork.is_bot(recipient_id):
-		if cd:
-			var hand: Array[CardData] = BotTurn.bot_hand(self, recipient_id)
-			hand.append(cd)
-			BotTurn.bot_set_hand(self, recipient_id, hand)
-	var rname: String = GameNetwork.player_names.get(recipient_id, "Player")
-	_log_action(tr("%s automatically received the last Interfleet Comms card") % rname, Color(0.6, 0.85, 1.0))
-	if my_id == initiator_id:
-		_process_next_effect()
+	await CardPassing._rpc_sync_interfleet_finished(self, recipient_id, card_ref, initiator_id)
 
 # ── "Every player draws" RPCs (Gas Cloud) ─────────────────────────────────────
 # The tech deck is now a shared resource (see _server_deal_hands_to_real_peers)
@@ -1366,101 +1307,25 @@ func _rpc_sync_interfleet_finished(recipient_id: int, card_ref: Dictionary, init
 # undiverged deck would race and could hand out duplicate cards. Host draws
 # the whole batch once and distributes named cards explicitly instead.
 
-# Client → Host: I placed a "draw_all_players" card; deal it for everyone.
 @rpc("any_peer", "reliable")
 func _rpc_request_draw_all_players(count: int, source: String) -> void:
-	if not multiplayer.is_server():
-		return
-	_server_handle_draw_all_players(count, multiplayer.get_remote_sender_id(), source)
+	CardPassing._rpc_request_draw_all_players(self, count, source)
 
-# Host-only: deal to real peers via the shared hand-delivery mechanism, deal
-# to bots inline (their own separate, non-networked path), then tell
-# everyone it's done so the initiator's effect queue can resume.
 func _server_handle_draw_all_players(count: int, initiator_id: int, source: String) -> void:
-	_server_deal_hands_to_real_peers(count)
-	for bot_id: int in GameNetwork.bot_ids:
-		BotTurn.apply_bot_effect_steps(self, bot_id, [{type = "draw", count = count}])
-	BotTurn.broadcast_bot_states(self)
-	_rpc_sync_draw_all_finished.rpc(initiator_id, source, count)
+	CardPassing._server_handle_draw_all_players(self, count, initiator_id, source)
 
-# Host → All: the draw-for-everyone is complete — log it once, and resume the
-# initiator's own effect queue if it's still waiting on this.
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_draw_all_finished(initiator_id: int, source: String, count: int) -> void:
-	_log_action(tr("%s: everyone draws %d card(s)") % [source, count], Color(0.6, 0.85, 0.75))
-	if _effect_mode == EffectMode.EFFECT_AWAITING_ALL_DRAW and multiplayer.get_unique_id() == initiator_id:
-		_effect_mode = EffectMode.NONE
-		_process_next_effect()
+	CardPassing._rpc_sync_draw_all_finished(self, initiator_id, source, count)
 
 func _server_start_interfleet(initiator_id: int) -> void:
-	var order: Array[int] = GameNetwork.player_order.duplicate()
-	var start_pos: int = maxi(order.find(initiator_id), 0)
-	var n: int = order.size()
-	var rotated: Array[int] = []
-	for j: int in n:
-		rotated.append(order[(start_pos + j) % n])
-	var drawn: Array[CardData] = $Board.draw_card_data(n)
-	if drawn.size() < n:
-		rotated = rotated.slice(0, drawn.size())
-	var pool_refs: Array = []
-	for cd: CardData in drawn:
-		pool_refs.append(CardRef.to_ref(cd))
-	_interfleet_initiator_id = initiator_id
-	_interfleet_remaining_order = rotated
-	_interfleet_pool_refs = pool_refs
-	_interfleet_active = true
-	_rpc_sync_interfleet_started.rpc(pool_refs, rotated, initiator_id)
-	_server_interfleet_advance()
+	CardPassing._server_start_interfleet(self, initiator_id)
 
-func _server_interfleet_advance() -> void:
-	if _interfleet_remaining_order.size() <= 1:
-		_server_finish_interfleet()
-		return
-	var active_id: int = _interfleet_remaining_order[0]
-	_rpc_sync_interfleet_state.rpc(_interfleet_pool_refs, _interfleet_remaining_order)
-	if GameNetwork.is_bot(active_id):
-		var _bid: int = active_id
-		get_tree().create_timer(0.6).timeout.connect(func() -> void: BotTurn.bot_decide_interfleet_pick(self, _bid))
 
 func _server_handle_interfleet_pick(peer_id: int, idx: int) -> void:
-	if _interfleet_remaining_order.is_empty() or peer_id != _interfleet_remaining_order[0]:
-		return
-	if idx < 0 or idx >= _interfleet_pool_refs.size():
-		return
-	var chosen_ref: Dictionary = _interfleet_pool_refs[idx]
-	_interfleet_pool_refs.remove_at(idx)
-	_interfleet_remaining_order.remove_at(0)
-	_rpc_sync_interfleet_pick_result.rpc(peer_id, chosen_ref)
-	_server_interfleet_advance()
+	CardPassing._server_handle_interfleet_pick(self, peer_id, idx)
 
-func _server_finish_interfleet() -> void:
-	var recipient_id: int = _interfleet_remaining_order[0] if not _interfleet_remaining_order.is_empty() else _interfleet_initiator_id
-	var card_ref: Dictionary = _interfleet_pool_refs[0] if not _interfleet_pool_refs.is_empty() else {}
-	var initiator_id: int = _interfleet_initiator_id
-	_interfleet_remaining_order = []
-	_interfleet_pool_refs = []
-	_interfleet_active = false
-	_rpc_sync_interfleet_finished.rpc(recipient_id, card_ref, initiator_id)
 
-# Shown only to the active picker (a mandatory choice, no skip); everyone
-# else sees the existing effect-hint panel — same "your turn" vs. "waiting"
-# framing the sector-reveal flow already uses, no new UI nodes needed.
-func _update_interfleet_ui(active_id: int) -> void:
-	var my_id: int = multiplayer.get_unique_id()
-	if my_id == active_id:
-		var pool: Array[CardData] = []
-		for ref: Dictionary in _interfleet_pool_refs:
-			var cd: CardData = CardRef.from_ref(ref)
-			if cd:
-				pool.append(cd)
-		_interfleet_awaiting_pick = true
-		_hide_effect_hint()
-		_choice_popup.show_card_choices(tr("Interfleet Comms — keep one card:"), pool, false)
-	else:
-		_interfleet_awaiting_pick = false
-		_choice_popup.hide()
-		var pname: String = GameNetwork.player_names.get(active_id, "Player")
-		_show_effect_hint(tr("Waiting for %s to pick a card (Interfleet Comms)…") % pname)
 
 func _show_auction_toast(message: String) -> void:
 	AuctionFlow._show_auction_toast(self, message)
@@ -1688,91 +1553,20 @@ func _rpc_fleet_result(won: bool, mission: Array) -> void:
 
 # — Shuttle: drag a hand card onto a teammate's row in the Players column —
 
-# Called by Board while a hand card is dropped: the teammate whose row is under
-# the mouse on the info screen (0 = none).
 func fleet_shuttle_target_at_mouse() -> int:
-	if not _market_panel or not _market_panel.visible or not _info_screen_mesh:
-		return 0
-	var cam: Camera3D = get_viewport().get_camera_3d()
-	if not cam:
-		return 0
-	var mouse: Vector2 = get_viewport().get_mouse_position()
-	var origin: Vector3 = cam.project_ray_origin(mouse)
-	var dir: Vector3 = cam.project_ray_normal(mouse)
-	var xf: Transform3D = _info_screen_mesh.global_transform
-	var plane: Plane = Plane(xf.basis.z.normalized(), xf.origin)
-	var hit: Variant = plane.intersects_ray(origin, dir)
-	if hit == null:
-		return 0
-	var local: Vector3 = _info_screen_mesh.to_local(hit as Vector3)
-	var aabb: AABB = _info_screen_mesh.mesh.get_aabb()
-	var u: float = (local.x - aabb.position.x) / aabb.size.x
-	var v: float = 1.0 - (local.y - aabb.position.y) / aabb.size.y
-	if u < 0.0 or u > 1.0 or v < 0.0 or v > 1.0:
-		return 0
-	return _market_panel.opponent_at(Vector2(u * float(_info_viewport.size.x), v * float(_info_viewport.size.y)))
+	return CardPassing.fleet_shuttle_target_at_mouse(self)
 
 func _fleet_on_shuttle_requested(cd: CardData, target: int) -> void:
-	if _fleet == null or _fleet_busy or _effect_mode != EffectMode.NONE:
-		return
-	var cost: int = FleetRules.shuttle_cost()
-	var who: String = str(GameNetwork.player_names.get(target, "Player"))
-	var pay: Dictionary = {}
-	if cost > 0:
-		pay = $Board._compute_payment(CardData.SupplyColor.DUST, cost)
-		if pay.is_empty():
-			_log_action(tr("The shuttle costs %d Dust — you can't pay it.") % cost, FleetFlow.DANGER_COLOR)
-			return
-	var prompt: String = tr("Pay %d Dust to send %s to %s?") % [cost, CardDatabase.display_name(cd), who]
-	_fleet_choice_active = true
-	_choice_popup.show_choices(prompt, [tr("Send"), tr("Cancel")], false, [], cd)
-	var pick: int = await _choice_popup.choice_made
-	_fleet_choice_active = false
-	if pick != 0:
-		return
-	var node: Node3D = null
-	for c: Node3D in $Hand.get_cards():
-		if c.card_data == cd:
-			node = c
-			break
-	if node == null:
-		return
-	for col: int in pay:
-		_cs_display.spend_supply(col, int(pay[col]))
-	$Hand.remove_card_fly_out(node)
-	$Board.refresh_hand_discounts()
-	var ref: Dictionary = CardRef.to_ref(cd)
-	if multiplayer.is_server():
-		_server_fleet_shuttle(multiplayer.get_unique_id(), target, ref)
-	else:
-		_rpc_fleet_shuttle.rpc_id(1, target, ref)
-	_broadcast_my_state()
+	await CardPassing._fleet_on_shuttle_requested(self, cd, target)
 
 @rpc("any_peer", "reliable")
 func _rpc_fleet_shuttle(target: int, ref: Dictionary) -> void:
-	if multiplayer.is_server():
-		_server_fleet_shuttle(multiplayer.get_remote_sender_id(), target, ref)
+	CardPassing._rpc_fleet_shuttle(self, target, ref)
 
-func _server_fleet_shuttle(sender: int, target: int, ref: Dictionary) -> void:
-	if GameNetwork.is_bot(target):
-		var hand: Array[CardData] = BotTurn.bot_hand(self, target)
-		hand.append(CardRef.from_ref(ref))
-		BotTurn.bot_set_hand(self, target, hand)
-		BotTurn.broadcast_bot_states(self)
-	_rpc_fleet_shuttle_delivered.rpc(sender, target, ref)
 
 @rpc("authority", "reliable", "call_local")
 func _rpc_fleet_shuttle_delivered(sender: int, target: int, ref: Dictionary) -> void:
-	var cd: CardData = CardRef.from_ref(ref)
-	var from: String = str(GameNetwork.player_names.get(sender, "Player"))
-	var to: String = str(GameNetwork.player_names.get(target, "Player"))
-	if target == multiplayer.get_unique_id():
-		$Board.add_specific_card_to_hand(cd)
-		$Board.refresh_hand_discounts()
-		_log_action(tr("%s shuttled you %s.") % [from, CardDatabase.display_name(cd)], Color(0.6, 0.9, 1.0))
-		_broadcast_my_state()
-	else:
-		_log_action(tr("%s shuttled a card to %s.") % [from, to], Color(0.6, 0.9, 1.0))
+	CardPassing._rpc_fleet_shuttle_delivered(self, sender, target, ref)
 
 # — Dimension Pocket: everyone passes their hand to the left (lockstep) —
 
@@ -1780,55 +1574,16 @@ signal fleet_hand_passed
 var _fleet_pass_hands: Dictionary = {}   # host: peer -> [card refs]
 
 func fleet_pass_hand_left() -> void:
-	var refs: Array = []
-	for c: Node3D in $Hand.get_cards():
-		if c.card_data:
-			refs.append(CardRef.to_ref(c.card_data))
-	for c: Node3D in $Hand.get_cards():
-		$Hand.remove_card_fly_out(c)
-	if multiplayer.is_server():
-		_server_fleet_pass_hand(multiplayer.get_unique_id(), refs)
-	else:
-		_rpc_fleet_pass_hand.rpc_id(1, refs)
-	await fleet_hand_passed
+	await CardPassing.fleet_pass_hand_left(self)
 
 @rpc("any_peer", "reliable")
 func _rpc_fleet_pass_hand(refs: Array) -> void:
-	if multiplayer.is_server():
-		_server_fleet_pass_hand(multiplayer.get_remote_sender_id(), refs)
+	CardPassing._rpc_fleet_pass_hand(self, refs)
 
-func _server_fleet_pass_hand(pid: int, refs: Array) -> void:
-	_fleet_pass_hands[pid] = refs
-	var order: Array[int] = GameNetwork.player_order
-	for p: int in order:
-		if GameNetwork.is_bot(p):
-			var bot_refs: Array = []
-			for cd: CardData in BotTurn.bot_hand(self, p):
-				bot_refs.append(CardRef.to_ref(cd))
-			_fleet_pass_hands[p] = bot_refs
-		elif not _fleet_pass_hands.has(p):
-			return
-	var passed: Dictionary = {}
-	for i: int in order.size():
-		passed[order[(i + 1) % order.size()]] = _fleet_pass_hands[order[i]]
-	_fleet_pass_hands = {}
-	for p: int in order:
-		if GameNetwork.is_bot(p):
-			var hand: Array[CardData] = []
-			for r: Variant in passed[p]:
-				hand.append(CardRef.from_ref(r as Dictionary))
-			BotTurn.bot_set_hand(self, p, hand)
-	BotTurn.broadcast_bot_states(self)
-	_rpc_fleet_hands_passed.rpc(passed)
 
 @rpc("authority", "reliable", "call_local")
 func _rpc_fleet_hands_passed(passed: Dictionary) -> void:
-	var mine: Array = passed.get(multiplayer.get_unique_id(), []) as Array
-	for r: Variant in mine:
-		$Board.add_specific_card_to_hand(CardRef.from_ref(r as Dictionary))
-	$Board.refresh_hand_discounts()
-	_broadcast_my_state()
-	fleet_hand_passed.emit()
+	CardPassing._rpc_fleet_hands_passed(self, passed)
 
 func _game_over() -> void:
 	_show_action_buttons(false)
