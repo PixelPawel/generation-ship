@@ -383,10 +383,18 @@ func inspect_market_card(slot_type: String, slot_idx: int, world_pos: Vector3, s
 			source_card = _expedition_market.get_top_node(slot_idx)
 	if not source_card or not source_card.card_data:
 		return
+	inspect_card_data(source_card.card_data, source_card.is_advanced, [slot_type, slot_idx], world_pos, screen_center)
+
+# The market's right-click enlarge for any card data — also used by the Fleet
+# screens (Dangers, the Destination), whose "cards" are art-only CardData.
+# slot_key ([type, index]) comes back in market_inspect_right_dismissed.
+func inspect_card_data(cd: CardData, is_adv: bool, slot_key: Array, world_pos: Vector3, screen_center: Vector3) -> void:
+	if _inspecting_card and is_instance_valid(_inspecting_card):
+		return
 	var clone: Node3D = _card_scene.instantiate()
 	add_child(clone)
-	clone.is_advanced = source_card.is_advanced
-	clone.set_card_data(source_card.card_data)
+	clone.is_advanced = is_adv
+	clone.set_card_data(cd)
 	clone.rotation = _MARKET_CARD_ROTATION
 	clone.can_drag = false
 	# The card emerges from wherever was actually clicked (world_pos), but
@@ -403,7 +411,7 @@ func inspect_market_card(slot_type: String, slot_idx: int, world_pos: Vector3, s
 		vanish = world_pos + away_dir * (dist * INSPECT_VANISH_PULL)
 	clone.enlarge_from(target, vanish, Vector3.ONE * _placed_card_enlarge_scale())
 	_inspecting_card = clone
-	_inspecting_slot = [slot_type, slot_idx]
+	_inspecting_slot = slot_key
 	# collapse_if_elevated()'s tween frees the clone once it finishes, but
 	# nothing else clears this reference — every other read already guards
 	# with is_instance_valid(), so a dangling pointer here is harmless in

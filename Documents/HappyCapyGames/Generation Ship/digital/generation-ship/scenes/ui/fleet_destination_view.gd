@@ -4,6 +4,7 @@ extends Control
 # supplies and this: the Destination card, generation, mission progress and
 # shuttle cost.
 const FleetData = preload("res://scripts/game/fleet_data.gd")
+const LongPressGestureScript := preload("res://scenes/ui/long_press_gesture.gd")
 
 signal destination_inspect_requested
 
@@ -44,10 +45,20 @@ func _ready() -> void:
 	_card.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_card.mouse_filter = Control.MOUSE_FILTER_STOP
 	_card.material = FleetData.screen_card_material()
-	_card.gui_input.connect(func(event: InputEvent) -> void:
-		if event is InputEventMouseButton and (event as InputEventMouseButton).pressed \
-				and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
-			destination_inspect_requested.emit())
+	# like the market's cards: right-click (long press on touch) enlarges
+	var gesture := LongPressGestureScript.new()
+	_card.gui_input.connect(func(ev: InputEvent) -> void:
+		if ev is InputEventMouseButton:
+			var mb: InputEventMouseButton = ev as InputEventMouseButton
+			if mb.button_index == MOUSE_BUTTON_LEFT:
+				if mb.pressed:
+					gesture.begin(_card.get_tree(), mb.position, func(): destination_inspect_requested.emit())
+				else:
+					gesture.end()
+			elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+				destination_inspect_requested.emit()
+		elif ev is InputEventMouseMotion:
+			gesture.update_position((ev as InputEventMouseMotion).position))
 	box.add_child(_card)
 
 	_gen_label = _text(22, HEAD_COLOR)

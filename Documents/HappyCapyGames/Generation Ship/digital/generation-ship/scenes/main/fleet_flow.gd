@@ -27,10 +27,12 @@ static func setup(main: Main) -> void:
 	main._fleet = rules
 	var panel: Control = main._fleet_panel
 	panel.danger_solve_pressed.connect(func(no: int) -> void: try_solve(main, no))
-	panel.danger_inspect_requested.connect(func(no: int) -> void:
-		show_card(main, FleetData.danger_art(no), false, 0.0))
-	main._fleet_dest_view.destination_inspect_requested.connect(func() -> void:
-		show_card(main, FleetData.destination_art(GameNetwork.fleet_destination), true, 0.0))
+	# right-click / long press enlarges like the market's cards; right-clicking
+	# another Danger while one is big swaps (Main._on_market_inspect_right_dismissed)
+	panel.danger_inspect_requested.connect(func(no: int) -> void: inspect_danger(main, no))
+	panel.danger_hover_started.connect(func(no: int) -> void: main._hovered_market_slot = ["danger", no])
+	panel.danger_hover_ended.connect(func() -> void: main._hovered_market_slot = ["", -1])
+	main._fleet_dest_view.destination_inspect_requested.connect(func() -> void: inspect_destination(main))
 	main.get_node("Board").fleet_rule_blocked.connect(func(msg: String) -> void:
 		main._log_action(msg, DANGER_COLOR)
 		main._show_tooltip(main.tr("Danger"), msg)
@@ -583,6 +585,40 @@ static func _after_change(main: Main) -> void:
 	main._refresh_card_counts()
 	main._refresh_vp()
 	refresh_panel(main)
+
+# ── Enlarging (the market's 3D inspect, with art-only cards) ─────────────────
+
+static var _art_cards: Dictionary = {}   # art path -> CardData
+
+# A CardData that only carries art, for Board.inspect_card_data. Portrait cards
+# use the tech card shape, landscape ones the sector shape.
+static func _art_card(path: String, card_name: String, landscape: bool) -> CardData:
+	if _art_cards.has(path):
+		return _art_cards[path]
+	var cd: CardData = CardData.new()
+	cd.card_name = card_name
+	cd.card_type = CardData.CardType.SECTOR if landscape else CardData.CardType.TECH
+	cd.local_art_path = path
+	_art_cards[path] = cd
+	return cd
+
+static func inspect_danger(main: Main, no: int) -> void:
+	var path: String = FleetData.danger_art(no)
+	if path.is_empty():
+		return
+	var origin: Vector3 = CockpitRig.viewport_to_world(main, main._fleet_panel.get_danger_center(no))
+	var center: Vector3 = CockpitRig.viewport_to_world(main, Vector2(main._info_viewport.size) * 0.5)
+	main.get_node("Board").inspect_card_data(_art_card(path, _name(no), false), false, ["danger", no], origin, center)
+
+static func inspect_destination(main: Main) -> void:
+	var dest: Dictionary = FleetData.destination(GameNetwork.fleet_destination)
+	var path: String = FleetData.destination_art(GameNetwork.fleet_destination)
+	if path.is_empty():
+		return
+	var screen: MeshInstance3D = main.get_node("UiControl").find_child("gs_ui_control_screen", true, false) as MeshInstance3D
+	var origin: Vector3 = screen.to_global(screen.mesh.get_aabb().get_center()) if screen else main.get_node("UiControl").global_position
+	var center: Vector3 = CockpitRig.viewport_to_world(main, Vector2(main._info_viewport.size) * 0.5)
+	main.get_node("Board").inspect_card_data(_art_card(path, str(dest.get("name", "")), true), false, ["destination", 0], origin, center)
 
 # A card shown big on screen (no dimming behind it): for duration seconds, or
 # until clicked when duration is 0.

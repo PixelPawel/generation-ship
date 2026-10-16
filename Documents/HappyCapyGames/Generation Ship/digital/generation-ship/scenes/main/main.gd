@@ -3584,6 +3584,9 @@ func _on_market_inspect_right_dismissed(slot_type: String, slot_idx: int) -> voi
 	_on_market_card_inspect_requested(t, i)
 
 func _on_market_card_inspect_requested(slot_type: String, slot_idx: int) -> void:
+	if slot_type == "danger":   # Fleet Dangers screen
+		FleetFlow.inspect_danger(self, slot_idx)
+		return
 	var origin: Vector3 = CockpitRig.viewport_to_world(self, _market_panel.get_slot_center(slot_type, slot_idx))
 	var screen_center: Vector3 = CockpitRig.viewport_to_world(self, Vector2(_info_viewport.size) * 0.5)
 	$Board.inspect_market_card(slot_type, slot_idx, origin, screen_center)
