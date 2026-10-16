@@ -183,12 +183,7 @@ static func _apply(main: Main, no: int, eff: Dictionary) -> void:
 			for s: SectorSlot in slots:
 				if s.get_all_placed_cards().size() == fewest:
 					cands.append(s)
-			var target: SectorSlot = cands[0]
-			if cands.size() > 1:
-				var labels: Array = []
-				for s: SectorSlot in cands:
-					labels.append(_sector_label(s))
-				target = cands[await _pick_option(main, main.tr("%s: which sector is removed?") % _name(no), labels)]
+			var target: SectorSlot = await _pick_sector(main, main.tr("%s: which sector is removed?") % _name(no), cands, false)
 			var label: String = _sector_label(target)
 			for cd: CardData in target.fleet_remove_sector():
 				board.add_to_discard(cd)
@@ -240,17 +235,9 @@ static func _destroy(main: Main, no: int, n: int, where: String, pref: int, ask:
 			var cands: Array[SectorSlot] = _destroyable_slots(main, pref)
 			if cands.is_empty():
 				return true
-			target = cands[0]
-			if cands.size() > 1 or ask:
-				var labels: Array = []
-				for s: SectorSlot in cands:
-					labels.append(_sector_label(s))
-				if ask:
-					labels.append(main.tr("Cancel"))
-				var pick: int = await _pick_option(main, main.tr("%s: destroy the top card of which sector?") % _name(no), labels)
-				if pick >= cands.size():
-					return false
-				target = cands[pick]
+			target = await _pick_sector(main, main.tr("%s: destroy the top card of which sector?") % _name(no), cands, ask)
+			if target == null:
+				return false
 		var card: Node3D = target.fleet_top_card()
 		target.fleet_destroy_card(card, _back_path(card))
 		main._log_action(main.tr("%s: %s destroyed (flipped face down).") % [_name(no), card.card_data.card_name], DANGER_COLOR)
@@ -290,13 +277,22 @@ static func _lose_items(main: Main, no: int, n: int, stored: bool, archived: boo
 		if items.is_empty():
 			return true
 		var pick: Dictionary = items[0]
-		if items.size() > 1 or ask:
+		var prompt: String = main.tr("%s: lose which? (%d of %d)") % [_name(no), i + 1, n]
+		if not stored:   # archived cards only: show the cards
+			var cards: Array[CardData] = []
+			for it: Dictionary in items:
+				cards.append((it["tuck"] as Dictionary)["data"])
+			var ci: int = await _pick_card(main, prompt, cards, ask)
+			if ci < 0:
+				return false
+			pick = items[ci]
+		elif items.size() > 1 or ask:
 			var labels: Array = []
 			for it: Dictionary in items:
 				labels.append(it["label"])
 			if ask:
 				labels.append(main.tr("Cancel"))
-			var idx: int = await _pick_option(main, main.tr("%s: lose which? (%d of %d)") % [_name(no), i + 1, n], labels)
+			var idx: int = await _pick_option(main, prompt, labels)
 			if idx >= items.size():
 				return false
 			pick = items[idx]
@@ -419,23 +415,21 @@ static func try_solve(main: Main, no: int) -> void:
 			done = await _lose_items(main, no, n, false, true, true)
 		"flip_archived":
 			var items: Array[Dictionary] = _archived(main, true, int(sv.get("stars", 0)))
-			var labels: Array = []
+			var cards: Array[CardData] = []
 			for it: Dictionary in items:
-				labels.append(it["label"])
-			labels.append(main.tr("Cancel"))
-			var pick: int = await _pick_option(main, main.tr("Solve %s: flip which archived card face down?") % _name(no), labels)
-			done = pick < items.size()
+				cards.append((it["tuck"] as Dictionary)["data"])
+			var pick: int = await _pick_card(main, main.tr("Solve %s: flip which archived card face down?") % _name(no), cards)
+			done = pick >= 0
 			if done:
 				(items[pick]["tuck"] as Dictionary)["face_up"] = false
 				(items[pick]["slot"] as SectorSlot).refresh_display()
 		"destroy_expedition":
 			var exps: Array[Dictionary] = _placed_expeditions(main)
-			var labels: Array = []
+			var cards: Array[CardData] = []
 			for it: Dictionary in exps:
-				labels.append(it["label"])
-			labels.append(main.tr("Cancel"))
-			var pick: int = await _pick_option(main, main.tr("Solve %s: destroy which expedition?") % _name(no), labels)
-			done = pick < exps.size()
+				cards.append((it["card"] as Node3D).card_data)
+			var pick: int = await _pick_card(main, main.tr("Solve %s: destroy which expedition?") % _name(no), cards)
+			done = pick >= 0
 			if done:
 				var card: Node3D = exps[pick]["card"]
 				(exps[pick]["slot"] as SectorSlot).fleet_destroy_card(card, CardDatabase.expedition_back_path())
@@ -696,6 +690,46 @@ static func _pick_color(main: Main, prompt: String, colors: Array[int]) -> int:
 	var idx: int = await main._choice_popup.choice_made
 	main._fleet_choice_active = false
 	return idx
+
+# The sector picker (sector card art), for cands only. Its Skip cancels when
+# cancelable, otherwise the picker comes back. Returns null if cancelled.
+static func _pick_sector(main: Main, prompt: String, cands: Array[SectorSlot], cancelable: bool) -> SectorSlot:
+	var picker: Control = main._sector_picker
+	while true:
+		var result: Array = []
+		var on_sel: Callable = func(s: SectorSlot) -> void: result.append(s)
+		var on_skip: Callable = func() -> void: result.append(null)
+		picker.sector_selected.connect(on_sel)
+		picker.skipped.connect(on_skip)
+		main._fleet_choice_active = true
+		picker.setup(prompt, cands)
+		while result.is_empty():
+			await main.get_tree().process_frame
+		picker.sector_selected.disconnect(on_sel)
+		picker.skipped.disconnect(on_skip)
+		picker.hide()
+		main._fleet_choice_active = false
+		if result[0] != null or cancelable:
+			return result[0] as SectorSlot
+	return null
+
+# One card, shown with its art. Returns its index, or -1 if cancelled (only
+# offered when cancelable).
+static func _pick_card(main: Main, prompt: String, cards: Array[CardData], cancelable: bool = true) -> int:
+	var popup: Control = main._choice_popup
+	var result: Array = []
+	var on_pick: Callable = func(i: int) -> void: result.append(i)
+	var on_skip: Callable = func() -> void: result.append(-1)
+	popup.choice_made.connect(on_pick)
+	popup.skipped.connect(on_skip)
+	main._fleet_choice_active = true
+	popup.show_card_choices(prompt, cards, cancelable)
+	while result.is_empty():
+		await main.get_tree().process_frame
+	popup.choice_made.disconnect(on_pick)
+	popup.skipped.disconnect(on_skip)
+	main._fleet_choice_active = false
+	return int(result[0])
 
 static func _pick_cards(main: Main, prompt: String, cards: Array[Node3D], max_select: int) -> Array[int]:
 	var data: Array[CardData] = []

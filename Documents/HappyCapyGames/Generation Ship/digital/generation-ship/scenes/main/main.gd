@@ -2158,9 +2158,13 @@ func _on_choice_skipped() -> void:
 		_process_next_effect()
 
 func _on_sector_selected_from_picker(slot: SectorSlot) -> void:
+	if _fleet_choice_active:   # FleetFlow awaits the picker itself
+		return
 	_on_sector_info_requested(slot)
 
 func _on_sector_picker_skipped() -> void:
+	if _fleet_choice_active:
+		return
 	$Board.set_cargo_click_mode(false)
 	_pending_store_spread = false
 	_finish_interactive_step()
