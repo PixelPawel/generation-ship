@@ -46,6 +46,7 @@ static func setup(main: Main) -> void:
 	timer.wait_time = 0.5
 	timer.autostart = true
 	timer.timeout.connect(func() -> void:
+		auto_solve(main)
 		if panel.visible or main._fleet_dest_view.visible:
 			refresh_panel(main))
 	main.add_child(timer)
@@ -88,6 +89,7 @@ static func start_generation(main: Main) -> void:
 	_after_change(main)
 	main._set_action_buttons_disabled(false)
 	main._fleet_busy = false
+	auto_solve(main)
 
 static func _resolve_revealed(main: Main, nos: Array[int]) -> void:
 	for no: int in nos:
@@ -479,9 +481,39 @@ static func try_solve(main: Main, no: int) -> void:
 	if not done:
 		return
 	main._fleet.solve(no)
-	main._log_action(main.tr("Danger solved: %s") % _name(no), SOLVED_COLOR)
-	UIAudio.play_fuse_sfx()
+	_announce_solved(main, no, "")
 	_after_change(main)
+
+# ── Free solves: conditions solve themselves the moment they're met ───────────
+# (e.g. optimizing a Dust sector solves Mining Incident before that optimize's
+# own Dust gain resolves). Checked when a card is placed, before every effect
+# step and every half second; not while the generation's Dangers resolve.
+static func auto_solve(main: Main) -> void:
+	if main._fleet == null or main._fleet_busy:
+		return
+	for e: Dictionary in main._fleet.active.duplicate():
+		var no: int = int(e["no"])
+		if not FleetRules.is_condition_solve(no) or not can_solve(main, no):
+			continue
+		# solved here at once (so the rest of this move already plays without
+		# it), then the crew is told
+		main._fleet.solve(no)
+		_announce_solved(main, no, "")
+		_after_change(main)
+		if GameNetwork.is_multiplayer:
+			main.fleet_request_solved(no)
+
+# The solved Danger shown big with a green SOLVED banner (everyone sees it).
+static func _announce_solved(main: Main, no: int, who: String) -> void:
+	if who.is_empty():
+		main._log_action(main.tr("Danger solved: %s") % _name(no), SOLVED_COLOR)
+	else:
+		main._log_action(main.tr("Danger solved by %s: %s") % [who, _name(no)], SOLVED_COLOR)
+	UIAudio.play_fuse_sfx()
+	show_card(main, FleetData.danger_art(no), false, CARD_SHOW_SEC)
+	var banner: Node = TurnBanner.new()
+	main.get_node("UILayer").add_child(banner)
+	banner.play(main.tr("SOLVED"), SOLVED_COLOR, _name(no), 1.0)
 
 # Dimension Pocket: the player picks 1 card of each of the 6 colours (none = cancel).
 # ── Solving online ────────────────────────────────────────────────────────────
@@ -502,10 +534,9 @@ static func _try_solve_online(main: Main, no: int) -> void:
 
 static func on_solved(main: Main, no: int, who: String) -> void:
 	if main._fleet == null or main._fleet.entry(no).is_empty():
-		return
+		return   # (already solved here — the one who solved it)
 	main._fleet.solve(no)
-	main._log_action(main.tr("Danger solved by %s: %s") % [who, _name(no)], SOLVED_COLOR)
-	UIAudio.play_fuse_sfx()
+	_announce_solved(main, no, who)
 	_after_change(main)
 
 static func _item_data(it: Dictionary) -> CardData:

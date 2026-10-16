@@ -1746,6 +1746,7 @@ func _fleet_peer_left(peer_id: int) -> void:
 func fleet_expedition_bought() -> void:
 	if not GameNetwork.is_multiplayer:
 		_fleet.on_expedition_bought()
+		FleetFlow.auto_solve(self)
 	elif multiplayer.is_server():
 		_rpc_fleet_expedition_bought.rpc()
 	else:
@@ -1760,6 +1761,7 @@ func _rpc_fleet_req_expedition_bought() -> void:
 func _rpc_fleet_expedition_bought() -> void:
 	if _fleet:
 		_fleet.on_expedition_bought()
+		FleetFlow.auto_solve(self)
 
 # — Solving: conditions —
 
@@ -2680,6 +2682,8 @@ func _on_sector_revealed(card_data: CardData, slot_idx: int) -> void:
 func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	if _fleet and card.card_data and card.card_data.card_type == CardData.CardType.EXPEDITION:
 		fleet_expedition_bought()   # Fleet: Undetected Wormhole's solve
+	if _fleet:   # free solves met by this placement go before its effects resolve
+		FleetFlow.auto_solve(self)
 	if not card.card_data:
 		return
 	_notify_auction_placement_done()
@@ -2889,6 +2893,8 @@ func _process_next_effect() -> void:
 	_execute_effect_step(step)
 
 func _execute_effect_step(step: Dictionary) -> void:
+	if _fleet:   # a free solve met by an earlier step counts before this one
+		FleetFlow.auto_solve(self)
 	_effect_source_name = str(step.get("_source_name", "Effect"))
 	match step.get("type", ""):
 
