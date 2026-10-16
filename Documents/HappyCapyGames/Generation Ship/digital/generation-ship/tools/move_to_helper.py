@@ -255,13 +255,28 @@ def main():
     pre = 'const %s = preload("res://%s")' % (const_name, helper_rel)
     if pre not in new_main:
         new_main = re.sub(r'(const FleetFlow = preload\("[^"]+"\)\n)', r"\1" + pre + "\n", new_main, count=1)
-    helper = "extends RefCounted\n" + "\n".join("# " + d if d else "#" for d in doc.split("\n")) + "\n\n" + \
-             "\n\n".join(out_funcs) + "\n"
+    helper_path = os.path.join(ROOT, helper_rel)
+    if os.path.exists(helper_path):
+        # append to an existing helper: its own preloads need no Main. prefix,
+        # its own name none at all, and no function may exist twice
+        existing = open(helper_path, encoding="utf-8").read()
+        own = set(re.findall(r"^const\s+(\w+)\s*:?=\s*preload", existing, re.M))
+        code = "\n\n".join(out_funcs)
+        code = code.replace("Main.%s." % const_name, "")
+        for c in own:
+            code = code.replace("Main.%s." % c, "%s." % c)
+        clash = set(re.findall(r"^static func (\w+)", existing, re.M)) & set(re.findall(r"^static func (\w+)", code, re.M))
+        assert not clash, ("already in the helper", clash)
+        header = "\n\n# " + "\n# ".join(doc.split("\n")) + "\n\n" if doc else "\n\n"
+        helper = existing.rstrip("\n") + header + code + "\n"
+    else:
+        helper = "extends RefCounted\n" + "\n".join("# " + d if d else "#" for d in doc.split("\n")) + "\n\n" + \
+                 "\n\n".join(out_funcs) + "\n"
     print("moved:", len(moved), " wrappers kept in main:", sorted(placed_wrappers))
     print("unclassified identifiers (check!):", sorted(unknown))
     if dry:
         return
-    open(os.path.join(ROOT, helper_rel), "w", encoding="utf-8", newline="").write(helper)
+    open(helper_path, "w", encoding="utf-8", newline="").write(helper)
     open(MAIN, "w", encoding="utf-8", newline="").write(new_main)
 
 

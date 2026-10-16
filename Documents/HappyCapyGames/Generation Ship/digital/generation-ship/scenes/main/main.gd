@@ -1334,222 +1334,90 @@ const AUCTION_COLOR: Color = Color(1.0, 0.72, 0.28)
 const AUCTION_BANNER_LENGTH: float = 1.5   # auction pop-ups stay 50 % longer than "Your Turn"
 
 
-# Fleet: the mission decides — all win or all lose. A win goes on the Fleet board.
 func _fleet_game_over(lines: Array[Dictionary], total: int) -> void:
-	if GameNetwork.is_multiplayer:   # the host checks the mission over every ship
-		_fleet_end_lines = lines
-		_fleet_end_total = total
-		if multiplayer.is_server():
-			_server_fleet_final(multiplayer.get_unique_id(), FleetFlow.stats(self))
-		else:
-			_rpc_fleet_final.rpc_id(1, FleetFlow.stats(self))
-		return
-	_fleet_show_result(FleetFlow.mission_met(self), FleetFlow.mission_lines(self), lines, total)
+	FleetFlow._fleet_game_over(self, lines, total)
 
 var _fleet_end_lines: Array[Dictionary] = []
 var _fleet_end_total: int = 0
 
-func _fleet_show_result(won: bool, mission: Array, lines: Array[Dictionary], total: int) -> void:
-	var dest: Dictionary = FleetData.destination(GameNetwork.fleet_destination)
-	for l: Dictionary in mission:
-		_log_action(("✔ " if bool(l["done"]) else "✘ ") + str(l["text"]),
-				Color(0.5, 1.0, 0.6) if bool(l["done"]) else Color(1.0, 0.5, 0.4))
-	if won:
-		LeaderboardManager.submit_score(total, ScoringSnapshotCodec.encode_lines(lines),
-				LeaderboardManager.SOURCE_FLEET, GameNetwork.fleet_destination)
-	var banner: TurnBanner = TurnBanner.new()
-	$UILayer.add_child(banner)
-	banner.play(tr("MISSION COMPLETE") if won else tr("MISSION FAILED"),
-			Color(0.5, 1.0, 0.6) if won else Color(1.0, 0.45, 0.35), str(dest.get("name", "")), 1.6)
-	await banner.finished
-	_scoreboard.set_title(tr("Mission complete — %s") % dest.get("name", "") if won
-			else tr("Mission failed — %s") % dest.get("name", ""), Color(0.5, 1.0, 0.6) if won else Color(1.0, 0.5, 0.4))
-	_scoreboard.show_scores(lines, total)
-	FleetRules.current = null
 
 # ── Fleet online ──────────────────────────────────────────────────────────────
 
-# Generation start online: nobody's turn while every peer resolves the same
-# Dangers on its own ship; each acks the host, which then starts the first turn.
 func _fleet_generation_barrier(first: int) -> void:
-	_fleet_first_peer = first
-	GameNetwork.active_peer_id = 0
-	_update_turn_ui(false)
-	await FleetFlow.start_generation(self)
-	_set_action_buttons_disabled(true)
-	_broadcast_my_state()
-	_log_action(tr("Waiting for the crew to deal with their Dangers…"), Color(0.7, 0.75, 0.85))
-	if multiplayer.is_server():
-		_server_fleet_ack(multiplayer.get_unique_id())
-	else:
-		_rpc_fleet_ack.rpc_id(1)
+	await FleetFlow._fleet_generation_barrier(self, first)
 
 @rpc("any_peer", "reliable")
 func _rpc_fleet_ack() -> void:
-	if multiplayer.is_server():
-		_server_fleet_ack(multiplayer.get_remote_sender_id())
+	FleetFlow._rpc_fleet_ack(self)
 
-func _server_fleet_ack(pid: int) -> void:
-	_fleet_acks[pid] = true
-	for p: int in GameNetwork.player_order:
-		if not GameNetwork.is_bot(p) and not _fleet_acks.has(p):
-			return
-	_fleet_acks.clear()
-	_rpc_fleet_generation_ready.rpc(_fleet_first_peer)
 
 @rpc("authority", "reliable", "call_local")
 func _rpc_fleet_generation_ready(first: int) -> void:
-	GameNetwork.active_peer_id = first
-	_set_action_buttons_disabled(false)
-	_update_turn_ui()
-	if multiplayer.is_server() and GameNetwork.is_bot(first):
-		BotTurn.run_bot_turn(self, first)
+	FleetFlow._rpc_fleet_generation_ready(self, first)
 
-# A player who left counts as done / pledging nothing (their seat is a bot now).
 func _fleet_peer_left(peer_id: int) -> void:
-	if not GameNetwork.fleet_mode:
-		return
-	if not _fleet_session.is_empty():
-		_server_fleet_pledge(peer_id, int(_fleet_session["no"]), 0, [])
-	_server_fleet_ack(peer_id)
-	if not _fleet_final.is_empty():
-		_server_fleet_final(peer_id, FleetFlow.bot_stats(self, peer_id))
+	FleetFlow._fleet_peer_left(self, peer_id)
 
 func fleet_expedition_bought() -> void:
-	if not GameNetwork.is_multiplayer:
-		_fleet.on_expedition_bought()
-		FleetFlow.auto_solve(self)
-	elif multiplayer.is_server():
-		_rpc_fleet_expedition_bought.rpc()
-	else:
-		_rpc_fleet_req_expedition_bought.rpc_id(1)
+	FleetFlow.fleet_expedition_bought(self)
 
 @rpc("any_peer", "reliable")
 func _rpc_fleet_req_expedition_bought() -> void:
-	if multiplayer.is_server():
-		_rpc_fleet_expedition_bought.rpc()
+	FleetFlow._rpc_fleet_req_expedition_bought(self)
 
 @rpc("authority", "reliable", "call_local")
 func _rpc_fleet_expedition_bought() -> void:
-	if _fleet:
-		_fleet.on_expedition_bought()
-		FleetFlow.auto_solve(self)
+	FleetFlow._rpc_fleet_expedition_bought(self)
 
 # — Solving: conditions —
 
 func fleet_request_solved(no: int) -> void:
-	if multiplayer.is_server():
-		_rpc_fleet_solved.rpc(no, str(GameNetwork.player_names.get(multiplayer.get_unique_id(), "Host")))
-	else:
-		_rpc_fleet_req_solved.rpc_id(1, no)
+	FleetFlow.fleet_request_solved(self, no)
 
 @rpc("any_peer", "reliable")
 func _rpc_fleet_req_solved(no: int) -> void:
-	if multiplayer.is_server():
-		_rpc_fleet_solved.rpc(no, str(GameNetwork.player_names.get(multiplayer.get_remote_sender_id(), "Player")))
+	FleetFlow._rpc_fleet_req_solved(self, no)
 
 @rpc("authority", "reliable", "call_local")
 func _rpc_fleet_solved(no: int, who: String) -> void:
-	FleetFlow.on_solved(self, no, who)
+	FleetFlow._rpc_fleet_solved(self, no, who)
 
 # — Solving: pledges —
 
 func fleet_request_session(no: int) -> void:
-	if multiplayer.is_server():
-		_server_fleet_open(no, multiplayer.get_unique_id())
-	else:
-		_rpc_fleet_req_session.rpc_id(1, no)
+	FleetFlow.fleet_request_session(self, no)
 
 @rpc("any_peer", "reliable")
 func _rpc_fleet_req_session(no: int) -> void:
-	if multiplayer.is_server():
-		_server_fleet_open(no, multiplayer.get_remote_sender_id())
+	FleetFlow._rpc_fleet_req_session(self, no)
 
-func _server_fleet_open(no: int, initiator: int) -> void:
-	if not _fleet_session.is_empty() or _fleet == null or _fleet.entry(no).is_empty():
-		return
-	var waiting: Array[int] = []
-	for p: int in GameNetwork.player_order:
-		if not GameNetwork.is_bot(p):
-			waiting.append(p)
-	var need: int = FleetRules.solve_need(no, GameNetwork.player_order.size())
-	_fleet_session = {"no": no, "need": need, "total": 0, "colors": {}, "waiting": waiting}
-	_rpc_fleet_session.rpc(no, str(GameNetwork.player_names.get(initiator, "Player")), need)
-	# bot crewmates chip in what they can (host)
-	for p: int in GameNetwork.player_order:
-		if GameNetwork.is_bot(p):
-			var bp: Dictionary = BotTurn.bot_fleet_pledge(self, p, no, need)
-			_fleet_session["total"] = int(_fleet_session["total"]) + int(bp.get("units", 0))
-			for c: Variant in bp.get("colors", []):
-				_fleet_session["colors"][int(c)] = true
 
 @rpc("authority", "reliable", "call_local")
 func _rpc_fleet_session(no: int, who: String, need: int) -> void:
-	_fleet_session_no = no
-	FleetFlow.refresh_panel(self)
-	FleetFlow.pledge_prompt(self, no, who, need)
+	FleetFlow._rpc_fleet_session(self, no, who, need)
 
 func fleet_send_pledge(no: int, units: int, colors: Array) -> void:
-	if multiplayer.is_server():
-		_server_fleet_pledge(multiplayer.get_unique_id(), no, units, colors)
-	else:
-		_rpc_fleet_pledge.rpc_id(1, no, units, colors)
+	FleetFlow.fleet_send_pledge(self, no, units, colors)
 
 @rpc("any_peer", "reliable")
 func _rpc_fleet_pledge(no: int, units: int, colors: Array) -> void:
-	if multiplayer.is_server():
-		_server_fleet_pledge(multiplayer.get_remote_sender_id(), no, units, colors)
+	FleetFlow._rpc_fleet_pledge(self, no, units, colors)
 
-func _server_fleet_pledge(pid: int, no: int, units: int, colors: Array) -> void:
-	if _fleet_session.is_empty() or int(_fleet_session["no"]) != no:
-		return
-	var waiting: Array[int] = _fleet_session["waiting"]
-	if not waiting.has(pid):
-		return
-	waiting.erase(pid)
-	_fleet_session["total"] = int(_fleet_session["total"]) + units
-	for c: Variant in colors:
-		_fleet_session["colors"][int(c)] = true
-	if not waiting.is_empty():
-		return
-	var need: int = int(_fleet_session["need"])
-	var each_color: bool = str(FleetRules.SOLVES.get(no, {}).get("kind", "")) == "discard_each_color"
-	var total: int = (_fleet_session["colors"] as Dictionary).size() if each_color else int(_fleet_session["total"])
-	_fleet_session = {}
-	_rpc_fleet_session_result.rpc(no, total >= need, total, need)
 
 @rpc("authority", "reliable", "call_local")
 func _rpc_fleet_session_result(no: int, ok: bool, total: int, need: int) -> void:
-	_fleet_session_no = 0
-	FleetFlow.on_session_result(self, no, ok, total, need)
-	if ok and multiplayer.is_server():
-		BotTurn.bot_fleet_pay_pledges(self)
-	elif multiplayer.is_server():
-		BotTurn.bot_fleet_clear_pledges(self)
+	FleetFlow._rpc_fleet_session_result(self, no, ok, total, need)
 
 # — The end: the host checks the mission over every ship —
 
 @rpc("any_peer", "reliable")
 func _rpc_fleet_final(stats: Dictionary) -> void:
-	if multiplayer.is_server():
-		_server_fleet_final(multiplayer.get_remote_sender_id(), stats)
+	FleetFlow._rpc_fleet_final(self, stats)
 
-func _server_fleet_final(pid: int, stats: Dictionary) -> void:
-	_fleet_final[pid] = stats
-	for p: int in GameNetwork.player_order:
-		if GameNetwork.is_bot(p):
-			_fleet_final[p] = FleetFlow.bot_stats(self, p)
-		elif not _fleet_final.has(p):
-			return
-	var all_stats: Array = []
-	for p: int in GameNetwork.player_order:
-		all_stats.append(_fleet_final[p])
-	_fleet_final = {}
-	_rpc_fleet_result.rpc(FleetFlow.mission_met(self, all_stats), FleetFlow.mission_lines(self, all_stats))
 
 @rpc("authority", "reliable", "call_local")
 func _rpc_fleet_result(won: bool, mission: Array) -> void:
-	_fleet_show_result(won, mission, _fleet_end_lines, _fleet_end_total)
+	FleetFlow._rpc_fleet_result(self, won, mission)
 
 # — Shuttle: drag a hand card onto a teammate's row in the Players column —
 
