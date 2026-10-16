@@ -270,14 +270,16 @@ func _collapse_elevation() -> void:
 # Shows a "-N" badge next to the printed cost (cost reductions only ever
 # apply to tech cards, so this is only ever called for hand cards — see
 # Board.refresh_hand_discounts()).
+# amount < 0 is a surcharge (Fleet Dangers), shown as a red "+N".
 func set_discount(amount: int) -> void:
-	if amount <= 0:
+	if amount == 0:
 		if _discount_badge:
 			_discount_badge.visible = false
 		return
 	if not _discount_badge:
 		_discount_badge = _make_discount_badge()
-	_discount_badge.text = "-%d" % amount
+	_discount_badge.text = ("-%d" % amount) if amount > 0 else ("+%d" % -amount)
+	_discount_badge.modulate = Color(0.35, 1.0, 0.45) if amount > 0 else Color(1.0, 0.4, 0.35)
 	_discount_badge.visible = true
 
 func _make_discount_badge() -> Label3D:

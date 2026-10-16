@@ -5,6 +5,8 @@ const TutorialSession = preload("res://scripts/tutorial_session.gd")
 const CardInspectOverlay = preload("res://scenes/ui/card_inspect_overlay.gd")
 const TurnBanner = preload("res://scenes/ui/turn_banner.gd")
 const FleetData = preload("res://scripts/game/fleet_data.gd")
+const FleetRules = preload("res://scripts/game/fleet_rules.gd")
+const FleetFlow = preload("res://scenes/main/fleet_flow.gd")
 
 @export var card_scene: PackedScene
 
@@ -105,6 +107,9 @@ var _market_panel: Control = null
 # Generation Fleet: the Dangers screen, swapped with the market by the red switch.
 var _fleet_panel: Control = null
 var _fleet_screen_shown: bool = false
+var _fleet: RefCounted = null              # FleetRules of this game (null outside Fleet)
+var _fleet_busy: bool = false              # Dangers resolving / a solve in progress
+var _fleet_choice_active: bool = false     # FleetFlow is awaiting the choice popup
 var _bid_payment_panel: Control = null
 var _placement_confirm_panel: PlacementConfirmPanel = null
 var _cargo_drones_panel: CargoDronesPanel = null
@@ -305,6 +310,7 @@ func _ready() -> void:
 	ImageCache.preload_urls(_collect_urls())
 
 	CockpitRig.setup_info_screen_display(self)
+	FleetFlow.setup(self)
 
 
 	_bid_payment_panel = load("res://scenes/ui/bid_payment_panel.gd").new()
@@ -743,6 +749,8 @@ func _rpc_start_game(sector_order: Array, exp_order: Array, tech_order: Array) -
 	if GameNetwork.is_multiplayer:
 		_broadcast_my_state()
 	await get_tree().create_timer(2.0).timeout
+	if GameNetwork.fleet_mode:   # Fleet: 3 Dangers after the opening draw
+		await FleetFlow.start_generation(self)
 	_start_first_turn_tutorial_if_needed()
 	if GameNetwork.is_my_turn():
 		_show_your_turn_banner()
@@ -827,6 +835,8 @@ func _apply_supply_generation() -> float:
 	for i: int in generators.size():
 		var entry: Dictionary = generators[i]
 		var color: CardData.SupplyColor = entry["color"] as CardData.SupplyColor
+		if FleetRules.blocks_income(color):   # Fleet: a Danger cuts this colour's income
+			continue
 		var card: Node3D = entry["card"] as Node3D
 		var screen_pos: Vector2 = cam.unproject_position(card.global_position)
 		ui.animate_supply_incoming(screen_pos, color, float(i) * 0.1)
@@ -870,6 +880,11 @@ func _end_round() -> void:
 		$Board.add_expedition_round_cards()
 	_show_action_buttons(true)
 	_set_action_buttons_disabled(false)
+	if GameNetwork.fleet_mode:   # Fleet: Dangers after the draw
+		call_deferred("_fleet_generation_start")
+
+func _fleet_generation_start() -> void:
+	await FleetFlow.start_generation(self)
 
 # The info screen's base layer (whatever shows when no payment/choice panel is
 # up): the market, or in Fleet the Dangers screen if the red switch selected it.
@@ -1616,6 +1631,26 @@ func _show_auction_banner(subtitle: String) -> void:
 	$UILayer.add_child(banner)
 	banner.play(tr("⚠  AUCTION").replace("⚠", "").strip_edges(), AUCTION_COLOR, subtitle, AUCTION_BANNER_LENGTH)
 
+# Fleet: the mission decides — all win or all lose. A win goes on the Fleet board.
+func _fleet_game_over(lines: Array[Dictionary], total: int) -> void:
+	var won: bool = FleetFlow.mission_met(self)
+	var dest: Dictionary = FleetData.destination(GameNetwork.fleet_destination)
+	for l: Dictionary in FleetFlow.mission_lines(self):
+		_log_action(("✔ " if bool(l["done"]) else "✘ ") + str(l["text"]),
+				Color(0.5, 1.0, 0.6) if bool(l["done"]) else Color(1.0, 0.5, 0.4))
+	if won:
+		LeaderboardManager.submit_score(total, ScoringSnapshotCodec.encode_lines(lines),
+				LeaderboardManager.SOURCE_FLEET, GameNetwork.fleet_destination)
+	var banner: TurnBanner = TurnBanner.new()
+	$UILayer.add_child(banner)
+	banner.play(tr("MISSION COMPLETE") if won else tr("MISSION FAILED"),
+			Color(0.5, 1.0, 0.6) if won else Color(1.0, 0.45, 0.35), str(dest.get("name", "")), 1.6)
+	await banner.finished
+	_scoreboard.set_title(tr("Mission complete — %s") % dest.get("name", "") if won
+			else tr("Mission failed — %s") % dest.get("name", ""), Color(0.5, 1.0, 0.6) if won else Color(1.0, 0.5, 0.4))
+	_scoreboard.show_scores(lines, total)
+	FleetRules.current = null
+
 func _game_over() -> void:
 	_show_action_buttons(false)
 	_show_end_turn_button(false)
@@ -1628,8 +1663,11 @@ func _game_over() -> void:
 	# Every client submits only its own final score — Steam always attributes
 	# an upload to whichever account is locally logged in, so there's no
 	# "submit on behalf of an opponent" path to worry about here.
-	# a tutorial score isn't a real game; Fleet is won or lost, not scored
-	if not TutorialSession.active and not GameNetwork.fleet_mode:
+	# a tutorial score isn't a real game; Fleet has its own board, wins only
+	if GameNetwork.fleet_mode:
+		_fleet_game_over(lines, total)
+		return
+	if not TutorialSession.active:
 		LeaderboardManager.submit_score(total, ScoringSnapshotCodec.encode_lines(lines))
 	if not GameNetwork.is_multiplayer:
 		_scoreboard.show_scores(lines, total)
@@ -1691,7 +1729,7 @@ func _recycle_card_to_supply(card: Node3D, color: CardData.SupplyColor) -> void:
 	$Hand.remove_card_fly_out(card)
 
 func _on_recycle_confirm_required(card: Node3D, color: CardData.SupplyColor) -> void:
-	var tc_count: int = $Board.count_tech_by_name("Trash Compactor") if color == CardData.SupplyColor.DUST else 0
+	var tc_count: int = $Board.count_tech_by_name("Trash Compactor") if color == CardData.SupplyColor.DUST and not FleetRules.always_effects_off() else 0
 	if _recycle_panel:
 		_recycle_panel.call("show_recycle", card.card_data if card.card_data else null, color, tc_count)
 
@@ -1711,8 +1749,13 @@ func _gather_hand_source() -> Array[CardData]:
 		source = all_cards
 	_pending_recycle_cards = []
 	var card_data: Array[CardData] = []
+	# Fleet: cards a Danger won't let you recycle aren't offered for recycling
+	var recycling: bool = _effect_mode in [EffectMode.EFFECT_RECYCLE, EffectMode.EFFECT_RECYCLE_OPTIONAL,
+			EffectMode.EFFECT_RECYCLE_TUCK, EffectMode.EFFECT_RECYCLE_DOUBLE, EffectMode.EFFECT_RECYCLE_TUCK_STORE]
 	for c: Node3D in source:
 		var cd: CardData = c.get("card_data") as CardData
+		if cd and recycling and FleetRules.blocks_recycle(cd.color):
+			continue
 		if cd:
 			_pending_recycle_cards.append(c)
 			card_data.append(cd)
@@ -1887,6 +1930,8 @@ func _on_effect_done_pressed() -> void:
 		_finish_interactive_step()
 
 func _on_choice_made(index: int) -> void:
+	if _fleet_choice_active:   # FleetFlow awaits this popup itself
+		return
 	if _interfleet_awaiting_pick:
 		_interfleet_awaiting_pick = false
 		if GameNetwork.is_host:
@@ -1920,6 +1965,8 @@ func _auto_pick_single_option() -> bool:
 	return true
 
 func _on_multiselect_confirmed(indices: Array[int]) -> void:
+	if _fleet_choice_active:
+		return
 	match _effect_mode:
 		EffectMode.EFFECT_SEEDBANKS:
 			_apply_seedbanks(indices)
@@ -2091,6 +2138,8 @@ func _apply_caldera_recycle(indices: Array[int]) -> void:
 	_finish_interactive_step()
 
 func _on_choice_skipped() -> void:
+	if _fleet_choice_active:
+		return
 	_pending_recycle_cards = []
 	_pending_choice_options = []
 	if _effect_mode != EffectMode.NONE:
@@ -2255,6 +2304,8 @@ func _on_sector_revealed(card_data: CardData, slot_idx: int) -> void:
 # ── Place effect processing ───────────────────────────────────────────────────
 
 func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
+	if _fleet and card.card_data and card.card_data.card_type == CardData.CardType.EXPEDITION:
+		_fleet.on_expedition_bought()   # Fleet: Undetected Wormhole's solve
 	if not card.card_data:
 		return
 	_notify_auction_placement_done()
@@ -2275,10 +2326,11 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	_effect_queue.clear()
 
 	var always_steps: Array[Dictionary] = []
-	always_steps.append_array(AlwaysEffects.get_colocated_steps(card.card_data, card, slot))
-	always_steps.append_array(AlwaysEffects.get_board_wide_placement_steps(card, $Board.get_all_sector_slots()))
-	always_steps.append_array(AlwaysEffects.get_board_wide_steps(slot, $Board.get_all_sector_slots()))
-	always_steps.append_array(AlwaysEffects.get_global_expedition_steps(card.card_data, $Board.get_all_placed_expeditions()))
+	if not FleetRules.always_effects_off():   # Fleet: Totalitarianism
+		always_steps.append_array(AlwaysEffects.get_colocated_steps(card.card_data, card, slot))
+		always_steps.append_array(AlwaysEffects.get_board_wide_placement_steps(card, $Board.get_all_sector_slots()))
+		always_steps.append_array(AlwaysEffects.get_board_wide_steps(slot, $Board.get_all_sector_slots()))
+		always_steps.append_array(AlwaysEffects.get_global_expedition_steps(card.card_data, $Board.get_all_placed_expeditions()))
 	var place_steps: Array[Dictionary] = PlaceEffects.get_steps(card.card_data, slot)
 	# optimize_triggered (see board.gd) always fires just before card_placed
 	# for the same placement, so this is already staged by now if this
@@ -3071,7 +3123,7 @@ func _on_bid_required(card: Node3D, slot: Node3D, min_cost: int, cost_color: Car
 	_bid_card_data = card.card_data
 	_bid_is_advanced = card.is_advanced
 	_bid_card_name = card.card_data.adv_name if card.is_advanced else card.card_data.card_name
-	var effective_min: int = max(0, min_cost - $Board.get_purchase_discount(card.card_data, slot as SectorSlot))
+	var effective_min: int = max(0, min_cost - $Board.get_purchase_discount(card.card_data, slot as SectorSlot, card.is_advanced))
 	if not GameNetwork.is_multiplayer:
 		_bid_popup.show_bid(card.card_data, card.is_advanced, effective_min, cost_color)
 		return
@@ -3858,7 +3910,7 @@ func _refresh_card_counts() -> void:
 	for slot: SectorSlot in $Board.get_all_sector_slots():
 		for card_node: Node3D in slot.get_all_placed_cards():
 			var cd: CardData = card_node.get("card_data")
-			if cd == null:
+			if cd == null or card_node.has_meta(FleetRules.DESTROYED_META):
 				continue
 			var is_adv: bool = cd.card_type == CardData.CardType.SECTOR and bool(card_node.get("is_advanced"))
 			var color: CardData.SupplyColor = cd.adv_color if is_adv else cd.color
@@ -4064,7 +4116,7 @@ func _on_unplaceable_card_recycled(card_data: CardData) -> void:
 	_try_auto_end_turn()
 
 func _apply_recycle_bonus(color: CardData.SupplyColor) -> void:
-	if color != CardData.SupplyColor.DUST:
+	if color != CardData.SupplyColor.DUST or FleetRules.always_effects_off():
 		return
 	var count: int = $Board.count_tech_by_name("Trash Compactor")
 	if count > 0:

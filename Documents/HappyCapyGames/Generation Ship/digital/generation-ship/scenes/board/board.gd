@@ -1,4 +1,5 @@
 extends Node3D
+const FleetRules = preload("res://scripts/game/fleet_rules.gd")
 const Haptics = preload("res://scripts/haptics.gd")
 
 const DRAG_Y := 0.55
@@ -27,6 +28,8 @@ const _CARD_PORTRAIT_SIZE := Vector2(0.63, 0.88)
 const _REVEAL_FILL_MARGIN := 0.92 * 0.34
 
 # amount is normally 1 — see CardData.recycle_amount() (Rich Asteroid).
+# Fleet: a Danger refused the player's action (message for the log/tooltip).
+signal fleet_rule_blocked(message: String)
 signal card_recycled(supply_color: CardData.SupplyColor, amount: int)
 # Follows card_recycled when the recycled card was Rich Asteroid, whose owner
 # may store the Metals on a sector instead (Main offers that choice).
@@ -558,7 +561,7 @@ func count_tech_by_name(tech_name: String) -> int:
 		if not slot.occupied:
 			continue
 		for card: Node3D in slot.get_all_placed_cards():
-			if card.card_data and card.card_data.card_name == tech_name:
+			if card.card_data and card.card_data.card_name == tech_name and not card.has_meta(FleetRules.DESTROYED_META):
 				count += 1
 	return count
 
@@ -607,7 +610,7 @@ func get_sector_count_by_color(color: CardData.SupplyColor) -> int:
 			count += 1
 	return count
 
-func get_purchase_discount(target: CardData, placement_slot: SectorSlot = null) -> int:
+func get_purchase_discount(target: CardData, placement_slot: SectorSlot = null, is_advanced: bool = false) -> int:
 	var discount: int = 0
 	for slot: SectorSlot in _sector_row.get_children():
 		if not slot.occupied:
@@ -620,7 +623,7 @@ func get_purchase_discount(target: CardData, placement_slot: SectorSlot = null) 
 		var placed_cards: Array[Node3D] = slot.get_all_placed_cards()
 		for card_node: Node3D in placed_cards:
 			var cd: CardData = card_node.card_data
-			if not cd:
+			if not cd or card_node.has_meta(FleetRules.DESTROYED_META):
 				continue
 			match cd.card_name:
 				"Waste Management":
@@ -651,7 +654,11 @@ func get_purchase_discount(target: CardData, placement_slot: SectorSlot = null) 
 				"Seasons":
 					if placement_slot == slot and card_node == placed_cards[-1] and target.card_type == CardData.CardType.TECH:
 						discount += 2
-	return discount
+	# Fleet: Totalitarianism switches these Always discounts off; other Dangers
+	# make cards dearer (the result can go negative = a surcharge).
+	if FleetRules.always_effects_off():
+		discount = 0
+	return discount - FleetRules.cost_increase(target, is_advanced)
 
 func get_supply_generators() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
@@ -659,7 +666,7 @@ func get_supply_generators() -> Array[Dictionary]:
 		if not slot.occupied:
 			continue
 		for card: Node3D in slot.get_all_placed_cards():
-			if not card.card_data:
+			if not card.card_data or card.has_meta(FleetRules.DESTROYED_META):
 				continue
 			var supply_color: CardData.SupplyColor
 			if card.card_data.card_type == CardData.CardType.SECTOR and card.is_advanced:
@@ -1124,6 +1131,12 @@ func _mouse_over_control_screen() -> bool:
 func request_recycle(card: Node3D) -> void:
 	if _pending_recycle_card or not is_instance_valid(card):
 		return
+	# Fleet: Pandemic (no recycling) / Barbarism (no Thrust)
+	if card.card_data and FleetRules.blocks_recycle(card.card_data.color):
+		fleet_rule_blocked.emit(tr("A Danger stops you recycling this card."))
+		if _hand:
+			_hand.add_card(card, true)
+		return
 	if _hand:
 		_hand.detach_card(card)
 	var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
@@ -1216,7 +1229,7 @@ func _find_nearest_tech_slot(max_dist: float = TECH_COLUMN_HALF_X) -> SectorSlot
 func _resolve_card_payment(placed: Node3D, slot: SectorSlot, is_tech: bool) -> bool:
 	var cd: CardData = placed.card_data
 	var pay_amounts: Dictionary = {}
-	if cd and cd.cost > 0:
+	if cd:   # (a 0-cost card can still carry a Fleet Danger surcharge)
 		var effective_cost: int = max(0, cd.cost - get_purchase_discount(cd, slot))
 		if effective_cost > 0:
 			var single_options: Array[CardData.SupplyColor] = _viable_single_color_options(cd.color, effective_cost)
@@ -1278,6 +1291,11 @@ func _try_drop_sector() -> void:
 
 func _try_drop_tech() -> void:
 	if _drag_origin == DragOrigin.HAND and _major_action_taken:
+		_handle_failed_drop()
+		return
+	# Fleet: Barbarism — Thrust cards can't be placed
+	if _dragged_card and _dragged_card.card_data and FleetRules.blocks_place(_dragged_card.card_data.color):
+		fleet_rule_blocked.emit(tr("A Danger stops you placing this card."))
 		_handle_failed_drop()
 		return
 	var best_sector: SectorSlot = _find_nearest_tech_slot()
@@ -1839,6 +1857,10 @@ func _update_optimize_state(slot: SectorSlot) -> Array[int]:
 	var cd: CardData = slot.placed_card.card_data
 	var is_adv: bool = bool(slot.placed_card.get("is_advanced"))
 	var pool: Array[int] = slot.get_placed_tech_colors()
+	# Fleet: Infestation — sectors with any Organix card can't be optimized
+	# (nothing new triggers; levels already reached stay)
+	if FleetRules.blocks_optimize_with_organix() and pool.has(CardData.SupplyColor.ORGANIX):
+		return []
 	var result: Dictionary = OptimizeLogic.update_optimize_state(
 		cd, is_adv, pool, slot.optimize_count, slot.max_optimizations, slot.triggered_levels)
 	slot.optimize_count = result["optimize_count"]

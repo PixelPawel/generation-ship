@@ -1,5 +1,6 @@
 class_name SectorSlot
 extends Node3D
+const FleetRules = preload("res://scripts/game/fleet_rules.gd")
 const Haptics = preload("res://scripts/haptics.gd")
 
 const TechSlotScript := preload("res://scenes/board/tech_slot.gd")
@@ -362,6 +363,52 @@ func accept_tech_card(card: Node3D) -> void:
 		if card.card_data:
 			last_placed_tech_cost = card.card_data.cost
 
+# ── Generation Fleet (Dangers) ───────────────────────────────────────────────
+
+## The top placed card (tech/expedition) that isn't destroyed yet, or null.
+func fleet_top_card() -> Node3D:
+	for i: int in range(_tech_slots.size() - 1, -1, -1):
+		var ts: Node3D = _tech_slots[i]
+		if ts.occupied and ts.placed_card and not ts.placed_card.has_meta(FleetRules.DESTROYED_META):
+			return ts.placed_card
+	return null
+
+## "Destroy": flip a placed card face down. It keeps its place (the sector
+## keeps its card count) but loses its colour, stars, income and effects.
+func fleet_destroy_card(card: Node3D, back_path: String) -> void:
+	card.set_meta(FleetRules.DESTROYED_META, true)
+	card.call("set_face_down", back_path)
+	refresh_optimize_display()
+
+## Sabotage: the whole sector goes — its cards, stored supplies and archived
+## cards. Returns the cards' data (the techs go to the discard pile).
+func fleet_remove_sector() -> Array[CardData]:
+	var removed: Array[CardData] = []
+	for ts: Node3D in _tech_slots:
+		if ts.occupied and ts.placed_card:
+			if ts.placed_card.card_data:
+				removed.append(ts.placed_card.card_data)
+			ts.placed_card.queue_free()
+		ts.occupied = false
+		ts.placed_card = null
+	if placed_card:
+		if placed_card.card_data:
+			removed.append(placed_card.card_data)
+		placed_card.queue_free()
+		placed_card = null
+	occupied = false
+	_mesh.visible = true
+	tucked_cards.clear()
+	stored_supply.clear()
+	_clear_optimize_display()
+	max_optimizations = 1
+	optimize_count = 0
+	is_optimized = false
+	triggered_levels.fill(false)
+	_refresh_state_badges()
+	refresh_display()
+	return removed
+
 func reset_optimize() -> void:
 	optimize_count = 0
 	is_optimized = false
@@ -495,10 +542,14 @@ func is_complete() -> bool:
 	return occupied and not has_tech_space()
 
 func add_tucked_card(data: CardData, face_up: bool) -> void:
+	if FleetRules.blocks_archive():   # Fleet: Neural Gear Malfunction — the card is lost
+		return
 	tucked_cards.append({"data": data, "face_up": face_up})
 	refresh_display()
 
 func add_stored_supply(color: CardData.SupplyColor, amount: int) -> void:
+	if amount > 0 and FleetRules.blocks_store(color):   # Fleet Dangers
+		return
 	stored_supply[color] = stored_supply.get(color, 0) + amount
 	refresh_display()
 
@@ -762,7 +813,7 @@ func get_placed_tech_colors() -> Array[int]:
 	var result: Array[int] = []
 	for ts: Node3D in _tech_slots:
 		if ts.occupied and ts.placed_card and ts.placed_card.card_data:
-			if ts.placed_card.has_meta(COLOR_CHOICE_PENDING_META):
+			if ts.placed_card.has_meta(COLOR_CHOICE_PENDING_META) or ts.placed_card.has_meta(FleetRules.DESTROYED_META):
 				continue
 			var cd: CardData = ts.placed_card.card_data
 			result.append(cd.placing_color_override if cd.placing_color_override >= 0 else int(cd.color))

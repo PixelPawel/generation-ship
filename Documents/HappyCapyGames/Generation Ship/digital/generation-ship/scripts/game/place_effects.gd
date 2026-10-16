@@ -32,7 +32,7 @@ static func _slot_placed_colors(slot: SectorSlot) -> Array[int]:
 	var placed_colors: Array[int] = []
 	for c: Node3D in slot.get_all_placed_cards():
 		var cdata: CardData = c.get("card_data")
-		if cdata:
+		if cdata and not c.has_meta("fleet_destroyed"):   # Fleet: a destroyed card has no colour
 			placed_colors.append(int(CardData.effective_color(cdata, bool(c.get("is_advanced")))))
 	return placed_colors
 

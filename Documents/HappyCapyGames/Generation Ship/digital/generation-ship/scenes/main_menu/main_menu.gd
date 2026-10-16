@@ -1,4 +1,5 @@
 extends Control
+const FleetRules = preload("res://scripts/game/fleet_rules.gd")
 const Haptics = preload("res://scripts/haptics.gd")
 const TutorialSession = preload("res://scripts/tutorial_session.gd")
 const MenuIconButton = preload("res://scenes/ui/menu_icon_button.gd")
@@ -64,6 +65,7 @@ const FULLSCREEN_IDX: int = 5
 func _ready() -> void:
 	TutorialSession.active = false   # however the last game ended
 	GameNetwork.fleet_mode = false
+	FleetRules.current = null
 	theme = GameTheme.get_theme()
 	_apply_saved_settings()
 	_setup_video()

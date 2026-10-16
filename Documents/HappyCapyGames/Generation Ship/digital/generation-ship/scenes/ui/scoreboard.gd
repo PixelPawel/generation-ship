@@ -2,6 +2,7 @@ class_name Scoreboard
 extends Control
 
 var _rows_container: VBoxContainer
+var _title: Label
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -17,6 +18,7 @@ func _ready() -> void:
 	panel.add_child(vbox)
 
 	var title := Label.new()
+	_title = title
 	title.text = tr("Final Scores")
 	title.add_theme_font_size_override("font_size", 36)
 	title.add_theme_color_override("font_color", Color.WHITE)
@@ -29,6 +31,11 @@ func _ready() -> void:
 	_rows_container = VBoxContainer.new()
 	_rows_container.add_theme_constant_override("separation", 8)
 	vbox.add_child(_rows_container)
+
+# Generation Fleet: "Mission complete/failed" instead of "Final Scores".
+func set_title(text: String, color: Color = Color.WHITE) -> void:
+	_title.text = text
+	_title.add_theme_color_override("font_color", color)
 
 # Solo / single-player: flat expanded list
 func show_scores(lines: Array[Dictionary], total: int) -> void:

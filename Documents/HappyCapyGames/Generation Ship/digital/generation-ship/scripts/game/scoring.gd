@@ -30,7 +30,8 @@ static func _all_placed_cards(slots: Array) -> Array:
 	var result: Array = []
 	for slot: SectorSlot in slots:
 		for card: Node3D in slot.get_all_placed_cards():
-			result.append(card)
+			if not card.has_meta("fleet_destroyed"):   # Fleet: destroyed cards don't score
+				result.append(card)
 	return result
 
 static func _by_type(cards: Array, type: CardData.CardType) -> Array:

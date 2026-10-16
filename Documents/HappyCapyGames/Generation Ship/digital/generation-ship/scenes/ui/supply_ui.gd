@@ -1,5 +1,6 @@
 class_name SupplyUI
 extends Control
+const FleetRules = preload("res://scripts/game/fleet_rules.gd")
 const Haptics = preload("res://scripts/haptics.gd")
 
 signal supply_changed
@@ -246,6 +247,8 @@ func _on_fuse_clicked(src: int, dst: int) -> void:
 	_fuse(src, dst)
 
 func _fuse(source: int, target: int) -> void:
+	if FleetRules.blocks_fuse(source) or FleetRules.blocks_fuse(target):   # Fleet Dangers
+		return
 	var is_dust_free: bool = source == CardData.SupplyColor.DUST and _fuse_dust_1to1
 	var used_token: bool = not is_dust_free and _fuse_1to1_remaining > 0
 	var cost: int = 1 if (is_dust_free or used_token) else 2
@@ -302,7 +305,8 @@ func _refresh_arrows() -> void:
 		var can_fuse: bool = _counts.get(src, 0) >= _get_fuse_threshold(src)
 		var is_1to1: bool = (src == CardData.SupplyColor.DUST and _fuse_dust_1to1) or _fuse_1to1_remaining > 0
 		for dst: int in FUSE_MAP[src]:
-			_flow.set_arrow_enabled(src, dst, can_fuse, is_1to1)
+			var allowed: bool = not (FleetRules.blocks_fuse(src) or FleetRules.blocks_fuse(dst))
+			_flow.set_arrow_enabled(src, dst, can_fuse and allowed, is_1to1)
 
 func set_supply(supply_color: CardData.SupplyColor, count: int) -> void:
 	_counts[supply_color] = count
@@ -312,6 +316,10 @@ func set_supply(supply_color: CardData.SupplyColor, count: int) -> void:
 	supply_changed.emit()
 
 func add_supply(supply_color: CardData.SupplyColor, amount: int) -> void:
+	# Fleet: a Danger stops this colour being gained (storing still works)
+	if amount > 0 and FleetRules.blocks_gain(supply_color):
+		_spawn_floating_label(supply_color, "✕")
+		return
 	set_supply(supply_color, _counts.get(supply_color, 0) + amount)
 	if amount > 0:
 		_spawn_floating_label(supply_color, "+%d" % amount)
