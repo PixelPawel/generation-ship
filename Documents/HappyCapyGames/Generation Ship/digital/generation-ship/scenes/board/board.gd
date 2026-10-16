@@ -1275,17 +1275,21 @@ func _resolve_card_payment(placed: Node3D, slot: SectorSlot, is_tech: bool) -> b
 	var cd: CardData = placed.card_data
 	var pay_amounts: Dictionary = {}
 	if cd:   # (a 0-cost card can still carry a Fleet Danger surcharge)
-		var effective_cost: int = max(0, cd.cost - get_purchase_discount(cd, slot))
+		# an advanced sector bought outright (Fleet: no auction) pays its advanced side
+		var is_adv: bool = cd.card_type == CardData.CardType.SECTOR and bool(placed.get("is_advanced"))
+		var base_cost: int = cd.adv_cost if is_adv else cd.cost
+		var pay_color: CardData.SupplyColor = CardData.effective_color(cd, is_adv)
+		var effective_cost: int = max(0, base_cost - get_purchase_discount(cd, slot, is_adv))
 		if effective_cost > 0:
-			var single_options: Array[CardData.SupplyColor] = _viable_single_color_options(cd.color, effective_cost)
+			var single_options: Array[CardData.SupplyColor] = _viable_single_color_options(pay_color, effective_cost)
 			if single_options.size() > 1:
 				pay_amounts = {single_options[0]: effective_cost}
 			else:
-				pay_amounts = _compute_payment(cd.color, effective_cost)
+				pay_amounts = _compute_payment(pay_color, effective_cost)
 				if pay_amounts.is_empty():
 					# Can't fully afford: open the payment window anyway so the player
 					# can see what's needed and cancel deliberately.
-					var valid: Array[CardData.SupplyColor] = CardData.valid_payment_colors(cd.color)
+					var valid: Array[CardData.SupplyColor] = CardData.valid_payment_colors(pay_color)
 					if valid.is_empty():
 						_handle_failed_drop()
 						return false
@@ -1538,10 +1542,12 @@ func _should_bid(card: Node3D) -> bool:
 		return false
 	if not card.card_data:
 		return false
+	# Fleet: expeditions and advanced sectors are bought at their printed cost
+	# (plus Danger surcharges), no bidding against your own crew
 	if card.card_data.card_type == CardData.CardType.EXPEDITION:
-		return not GameNetwork.fleet_mode   # Fleet: pay the printed cost, no bidding
+		return not GameNetwork.fleet_mode
 	if card.card_data.card_type == CardData.CardType.SECTOR and card.is_advanced:
-		return true
+		return not GameNetwork.fleet_mode
 	return false
 
 func _start_bid(card: Node3D, slot: Node3D, is_tech: bool) -> void:

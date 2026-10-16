@@ -4024,7 +4024,7 @@ func _on_payment_confirm_required(card: Node3D, slot: SectorSlot, pay_amounts: D
 		cd = card.card_data
 		is_adv = bool(card.get("is_advanced"))
 		card_name = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
-		cost_color = cd.color
+		cost_color = CardData.effective_color(cd, is_adv)   # Fleet buys advanced sectors outright
 		for v: Variant in pay_amounts.values():
 			total += int(v)
 	if total == 0:
