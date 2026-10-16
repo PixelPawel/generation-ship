@@ -388,7 +388,10 @@ func inspect_market_card(slot_type: String, slot_idx: int, world_pos: Vector3, s
 # The market's right-click enlarge for any card data — also used by the Fleet
 # screens (Dangers, the Destination), whose "cards" are art-only CardData.
 # slot_key ([type, index]) comes back in market_inspect_right_dismissed.
-func inspect_card_data(cd: CardData, is_adv: bool, slot_key: Array, world_pos: Vector3, screen_center: Vector3) -> void:
+# fill_view > 0: instead of the market size, the card fills that share of the
+# view (height, or width for a wide card), in front of screen_center but kept
+# fully on screen.
+func inspect_card_data(cd: CardData, is_adv: bool, slot_key: Array, world_pos: Vector3, screen_center: Vector3, fill_view: float = 0.0) -> void:
 	if _inspecting_card and is_instance_valid(_inspecting_card):
 		return
 	var clone: Node3D = _card_scene.instantiate()
@@ -409,7 +412,26 @@ func inspect_card_data(cd: CardData, is_adv: bool, slot_key: Array, world_pos: V
 		var away_dir: Vector3 = (world_pos - cam.global_position).normalized()
 		var dist: float = cam.global_position.distance_to(world_pos)
 		vanish = world_pos + away_dir * (dist * INSPECT_VANISH_PULL)
-	clone.enlarge_from(target, vanish, Vector3.ONE * _placed_card_enlarge_scale())
+	var enlarge: Vector3 = Vector3.ONE * _placed_card_enlarge_scale()
+	if cam and fill_view > 0.0:
+		var cam_xf: Transform3D = cam.global_transform
+		var local: Vector3 = cam_xf.affine_inverse() * target
+		var d: float = -local.z
+		var half_h: float = d * tan(deg_to_rad(cam.fov) * 0.5)
+		var vp: Vector2 = get_viewport().get_visible_rect().size
+		var half_w: float = half_h * vp.x / maxf(1.0, vp.y)
+		# card mesh is 0.63 x 0.88 (a landscape card is turned: 0.88 x 0.63)
+		var landscape: bool = cd.card_type == CardData.CardType.SECTOR
+		var card_w: float = 0.88 if landscape else 0.63
+		var card_h: float = 0.63 if landscape else 0.88
+		var g: float = minf(2.0 * half_h * fill_view / card_h, 2.0 * half_w * fill_view / card_w)
+		var w: float = card_w * g
+		var h: float = card_h * g
+		local.x = clampf(local.x, -half_w + w * 0.5, half_w - w * 0.5)
+		local.y = clampf(local.y, -half_h + h * 0.5, half_h - h * 0.5)
+		target = cam_xf * local
+		enlarge = Vector3.ONE * (g / maxf(0.0001, global_transform.basis.get_scale().x))
+	clone.enlarge_from(target, vanish, enlarge)
 	_inspecting_card = clone
 	_inspecting_slot = slot_key
 	# collapse_if_elevated()'s tween frees the clone once it finishes, but

@@ -11,6 +11,7 @@ const TurnBanner = preload("res://scenes/ui/turn_banner.gd")
 const DANGER_COLOR: Color = Color(1.0, 0.5, 0.4)
 const SOLVED_COLOR: Color = Color(0.5, 1.0, 0.6)
 const CARD_SHOW_SEC: float = 1.6
+const DESTINATION_FILL: float = 0.85   # enlarged Destination: share of the view
 const C := CardData.SupplyColor
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
@@ -634,10 +635,10 @@ static func inspect_destination(main: Main) -> void:
 	var path: String = FleetData.destination_art(GameNetwork.fleet_destination)
 	if path.is_empty():
 		return
+	# grows out of the control screen, in front of it, big enough to read
 	var screen: MeshInstance3D = main.get_node("UiControl").find_child("gs_ui_control_screen", true, false) as MeshInstance3D
 	var origin: Vector3 = screen.to_global(screen.mesh.get_aabb().get_center()) if screen else main.get_node("UiControl").global_position
-	var center: Vector3 = CockpitRig.viewport_to_world(main, Vector2(main._info_viewport.size) * 0.5)
-	main.get_node("Board").inspect_card_data(_art_card(path, str(dest.get("name", "")), true), false, ["destination", 0], origin, center)
+	main.get_node("Board").inspect_card_data(_art_card(path, str(dest.get("name", "")), true), false, ["destination", 0], origin, origin, DESTINATION_FILL)
 
 # A card shown big on screen (no dimming behind it): for duration seconds, or
 # until clicked when duration is 0.
