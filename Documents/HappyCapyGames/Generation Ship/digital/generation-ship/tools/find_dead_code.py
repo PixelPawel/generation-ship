@@ -51,7 +51,7 @@ def main() -> None:
                 if kind == "func" and (name in ENGINE or name.startswith("_rpc_")):
                     continue
                 # engine virtuals of an *Extension class (e.g. MultiplayerPeerExtension)
-                if kind == "func" and name.startswith("_") and re.search(r"^extends \w+Extension", t, re.M):
+                if kind == "func" and name.startswith("_") and re.search(r"^extends \w+Extension", t, re.M):
                     continue
                 defs = len(re.findall(r"^(?:static\s+)?(?:func|signal|const|var)\s+%s\b" % re.escape(name), t, re.M))
                 total_defs = sum(len(re.findall(r"^\s*(?:@\w+(?:\([^)]*\))?\s+)*(?:static\s+)?(?:func|signal|const|var)\s+%s\b" % re.escape(name), x, re.M))
