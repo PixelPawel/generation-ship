@@ -166,6 +166,15 @@ static func setup_cockpit_switches(main: Main) -> void:
 	var switch2: MeshInstance3D = ui_cockpit.find_child("gs_ui_switch_flat2", true, false) as MeshInstance3D
 	if switch2:
 		setup_switch_input(switch2, func() -> void:
+			# Fleet: the red switch flips the info screen between market and Dangers
+			if GameNetwork.fleet_mode:
+				if cockpit_anim:
+					if main._fleet_screen_shown:
+						cockpit_anim.play_backwards("gs_ui_switch_flat2_on")
+					else:
+						cockpit_anim.play("gs_ui_switch_flat2_on")
+				main.toggle_fleet_screen()
+				return
 			main._ui_info_shown = not main._ui_info_shown
 			if cockpit_anim:
 				if main._ui_info_shown:
@@ -601,6 +610,10 @@ static func setup_info_screen_display(main: Main) -> void:
 	main._market_panel = load("res://scenes/ui/market_panel.gd").new()
 	main._info_viewport.add_child(main._market_panel)
 	main._market_panel.scale = Vector2(1.68, 1.68)
+	if GameNetwork.fleet_mode:
+		main._fleet_panel = load("res://scenes/ui/fleet_panel.gd").new()
+		main._info_viewport.add_child(main._fleet_panel)
+		main._fleet_panel.visible = false
 
 	main._market_panel.sector_advanced_pressed.connect(main._on_market_sector_advanced_pressed)
 	main._market_panel.sector_dust_pressed.connect(main._on_market_sector_dust_pressed)
@@ -779,14 +792,14 @@ static func register_info_panel(main: Main, panel: Control) -> void:
 		if not main._market_panel:
 			return
 		if panel.visible:
-			main._market_panel.visible = false
+			main._show_info_base(false)
 		else:
 			var any_active: bool = false
 			for p: Control in main.info_panels:
 				if p != panel and p.is_inside_tree() and p.visible:
 					any_active = true
 					break
-			main._market_panel.visible = not any_active
+			main._show_info_base(not any_active)
 	)
 
 static func setup_log_screen_display(main: Main) -> void:

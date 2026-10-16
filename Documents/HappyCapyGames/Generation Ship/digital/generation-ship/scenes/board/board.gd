@@ -1476,7 +1476,7 @@ func _should_bid(card: Node3D) -> bool:
 	if not card.card_data:
 		return false
 	if card.card_data.card_type == CardData.CardType.EXPEDITION:
-		return true
+		return not GameNetwork.fleet_mode   # Fleet: pay the printed cost, no bidding
 	if card.card_data.card_type == CardData.CardType.SECTOR and card.is_advanced:
 		return true
 	return false

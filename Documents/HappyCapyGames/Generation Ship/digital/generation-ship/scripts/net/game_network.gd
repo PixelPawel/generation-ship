@@ -20,6 +20,11 @@ var bot_ids: Array[int] = []
 # Difficulty per bot: bot_id → int (BotAI.Difficulty). Set by lobby before scene change.
 var bot_difficulty: Dictionary = {}
 
+# Generation Fleet (co-op): set by the menu's Destination pick before the game
+# scene loads. fleet_destination is the Destination card's No. (see FleetData).
+var fleet_mode: bool = false
+var fleet_destination: int = 0
+
 # Returns true when the local player is allowed to take an action.
 func is_my_turn() -> bool:
 	if not is_multiplayer:

@@ -4,10 +4,13 @@ const Haptics = preload("res://scripts/haptics.gd")
 const TutorialSession = preload("res://scripts/tutorial_session.gd")
 const CardInspectOverlay = preload("res://scenes/ui/card_inspect_overlay.gd")
 const TurnBanner = preload("res://scenes/ui/turn_banner.gd")
+const FleetData = preload("res://scripts/game/fleet_data.gd")
 
 @export var card_scene: PackedScene
 
 const MAX_ROUNDS := 4
+# Generations this game: MAX_ROUNDS, or the Destination's duration in Fleet.
+var _max_rounds: int = MAX_ROUNDS
 const SETTINGS_PATH: String = "user://settings.cfg"
 
 var _round: int = 0
@@ -99,6 +102,9 @@ var _recycle_panel: Control = null
 var _sector_picker: SectorPickerPanel = null
 var _supply_cost_panel: SupplyCostPanel = null
 var _market_panel: Control = null
+# Generation Fleet: the Dangers screen, swapped with the market by the red switch.
+var _fleet_panel: Control = null
+var _fleet_screen_shown: bool = false
 var _bid_payment_panel: Control = null
 var _placement_confirm_panel: PlacementConfirmPanel = null
 var _cargo_drones_panel: CargoDronesPanel = null
@@ -524,6 +530,10 @@ func _deferred_pre_setup() -> void:
 func _do_game_setup(sector_order: Array, exp_order: Array, tech_order: Array) -> void:
 	_pre_setup_done = true
 	_round = 1
+	if GameNetwork.fleet_mode and _fleet_panel:
+		_max_rounds = FleetData.generations(GameNetwork.fleet_destination)
+		_fleet_panel.setup(GameNetwork.fleet_destination)
+		_fleet_panel.set_dangers([], FleetData.DANGERS.size())
 	_update_round_label()
 	_init_supply()
 	if sector_order.is_empty():
@@ -538,7 +548,9 @@ func _do_game_setup(sector_order: Array, exp_order: Array, tech_order: Array) ->
 		$Board.setup_expedition_deck(CardDatabase.expeditions)
 	else:
 		$Board.setup_expedition_deck_ordered(exp_order)
-	$Board.setup_expedition_market(not TutorialSession.active)   # tutorial: none until its bid step
+	# tutorial: none until its bid step. Fleet: expeditions are never revealed
+	# by the round order, only by Sector and Tech effects.
+	$Board.setup_expedition_market(not TutorialSession.active and not GameNetwork.fleet_mode)
 	if tech_order.is_empty():
 		$Board.setup_tech_deck(CardDatabase.techs)
 	else:
@@ -556,7 +568,7 @@ func _do_game_setup(sector_order: Array, exp_order: Array, tech_order: Array) ->
 	_update_turn_ui(false)
 	if GameNetwork.is_multiplayer:
 		OpponentBoardView.build_opponent_widget(self)
-	_log_action(tr("─── Round 1 / %d ───") % MAX_ROUNDS, Color(0.6, 0.82, 1.0))
+	_log_action(tr("─── Round 1 / %d ───") % _max_rounds, Color(0.6, 0.82, 1.0))
 
 func _show_tooltip(title: String, desc: String) -> void:
 	if not _tooltip_panel:
@@ -839,12 +851,12 @@ func _end_round() -> void:
 	_opp_statuses.clear()
 	_refresh_all_opp_status_labels()
 	$Board.reset_turn()
-	if _round >= MAX_ROUNDS:
+	if _round >= _max_rounds:
 		_log_action(tr("─── Game over ───"), Color(0.6, 0.82, 1.0))
 		_game_over()
 		return
 	_round += 1
-	_log_action(tr("─── Round %d / %d ───") % [_round, MAX_ROUNDS], Color(0.6, 0.82, 1.0))
+	_log_action(tr("─── Round %d / %d ───") % [_round, _max_rounds], Color(0.6, 0.82, 1.0))
 	_update_round_label()
 	if not GameNetwork.is_multiplayer:
 		$Board.draw_cards(6)
@@ -854,12 +866,33 @@ func _end_round() -> void:
 	if multiplayer.is_server() and not GameNetwork.bot_ids.is_empty():
 		BotTurn.update_bots_for_new_round(self)
 	$Board.reveal_sector_round_cards()
-	$Board.add_expedition_round_cards()
+	if not GameNetwork.fleet_mode:
+		$Board.add_expedition_round_cards()
 	_show_action_buttons(true)
 	_set_action_buttons_disabled(false)
 
+# The info screen's base layer (whatever shows when no payment/choice panel is
+# up): the market, or in Fleet the Dangers screen if the red switch selected it.
+func _show_info_base(show: bool) -> void:
+	if _market_panel:
+		_market_panel.visible = show and not _fleet_screen_shown
+	if _fleet_panel:
+		_fleet_panel.visible = show and _fleet_screen_shown
+
+func _info_panel_active() -> bool:
+	for p: Control in info_panels:
+		if p.is_inside_tree() and p.visible:
+			return true
+	return false
+
+func toggle_fleet_screen() -> void:
+	_fleet_screen_shown = not _fleet_screen_shown
+	_show_info_base(not _info_panel_active())
+
 func _update_round_label() -> void:
-	_cs_display.set_round(_round, MAX_ROUNDS)
+	_cs_display.set_round(_round, _max_rounds)
+	if _fleet_panel:
+		_fleet_panel.set_generation(_round, _max_rounds)
 	_cs_display.show_game_info(true)
 
 # ── Multiplayer turn management ───────────────────────────────────────────────
@@ -1595,7 +1628,8 @@ func _game_over() -> void:
 	# Every client submits only its own final score — Steam always attributes
 	# an upload to whichever account is locally logged in, so there's no
 	# "submit on behalf of an opponent" path to worry about here.
-	if not TutorialSession.active:   # a tutorial score isn't a real game
+	# a tutorial score isn't a real game; Fleet is won or lost, not scored
+	if not TutorialSession.active and not GameNetwork.fleet_mode:
 		LeaderboardManager.submit_score(total, ScoringSnapshotCodec.encode_lines(lines))
 	if not GameNetwork.is_multiplayer:
 		_scoreboard.show_scores(lines, total)

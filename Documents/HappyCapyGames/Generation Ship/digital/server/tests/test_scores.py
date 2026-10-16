@@ -70,3 +70,31 @@ def test_migrates_old_board():
     scores.init_scores()
     top = client.get("/v1/scores/top", params={"source": "play"}).json()
     assert [(e["name"], e["score"], e["source"]) for e in top["entries"]] == [("Eve", 77, "play")]
+
+
+def test_fleet_board_own_and_out_of_all():
+    P5 = "dev:ffffffffffffffffffffffffffffffff"
+    r = client.post("/v1/scores", json={"player": P5, "name": "Fay", "score": 44, "platform": "test",
+                                        "source": "fleet", "destination": 13})
+    assert r.status_code == 200 and r.json()["rank"] == 1
+    fleet = client.get("/v1/scores/top", params={"player": P5, "source": "fleet"}).json()
+    assert [(e["name"], e["score"], e["destination"]) for e in fleet["entries"]] == [("Fay", 44, 13)]
+    assert fleet["mine"]["score"] == 44
+    every = client.get("/v1/scores/top", params={"player": P5}).json()
+    assert all(e["source"] != "fleet" for e in every["entries"])
+    assert every["mine"] is None
+    assert client.post("/v1/scores", json={"player": P5, "name": "x", "score": 1, "source": "fleet",
+                                           "destination": 500}).status_code == 422
+
+
+def test_adds_destination_column_to_sourced_board():
+    from app import main, scores
+    with main.db() as c:
+        c.execute("DROP TABLE scores")
+        c.execute("CREATE TABLE scores (player TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'play', "
+                  "name TEXT NOT NULL, score INTEGER NOT NULL, details TEXT NOT NULL, platform TEXT NOT NULL, "
+                  "updated_at INTEGER NOT NULL, PRIMARY KEY (player, source))")
+        c.execute("INSERT INTO scores VALUES ('dev:abababababababababababababababab', 'play', 'Gus', 33, '[]', 'steam', 1)")
+    scores.init_scores()
+    top = client.get("/v1/scores/top", params={"source": "play"}).json()
+    assert [(e["name"], e["destination"]) for e in top["entries"]] == [("Gus", 0)]

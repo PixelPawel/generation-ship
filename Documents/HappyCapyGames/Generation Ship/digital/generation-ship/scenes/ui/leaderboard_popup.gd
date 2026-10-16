@@ -1,5 +1,6 @@
 extends Control
 const PopupAnim = preload("res://scripts/popup_anim.gd")
+const FleetData = preload("res://scripts/game/fleet_data.gd")
 # Top-100 global leaderboard popup. Data comes from LeaderboardManager (our
 # own API server, shared by Steam and Android) — see that autoload.
 
@@ -13,6 +14,7 @@ const FILTERS: Array[Array] = [   # [LeaderboardManager.SOURCE_*, label]
 	["all", "All"],
 	["play", "Real Play"],
 	["scan", "Scan Tableau"],
+	["fleet", "Generation Fleet"],
 ]
 const SCAN_TAG_COLOR: Color = Color(0.4, 0.85, 1.0)
 # The look of the main menu's Leaderboard tile (tools/menu_leaderboard_tile.py).
@@ -215,6 +217,18 @@ func _add_row(entry: Dictionary) -> void:
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_lbl.clip_text = true
 	row.add_child(name_lbl)
+
+	# a won co-op game: which Destination the fleet reached
+	if str(entry.get("source", "")) == LeaderboardManager.SOURCE_FLEET:
+		var dest: Dictionary = FleetData.destination(int(entry.get("destination", 0)))
+		if not dest.is_empty():
+			var dtag: Label = Label.new()
+			dtag.text = "%s · %s" % [dest["name"], tr(FleetData.DIFFICULTY_NAMES[int(dest["difficulty"])])]
+			dtag.add_theme_font_size_override("font_size", 13)
+			dtag.add_theme_color_override("font_color", SCAN_TAG_COLOR)
+			dtag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			dtag.mouse_filter = Control.MOUSE_FILTER_PASS
+			row.add_child(dtag)
 
 	# a ship read from a photo, not a game played in the app
 	if str(entry.get("source", "")) == LeaderboardManager.SOURCE_SCAN:

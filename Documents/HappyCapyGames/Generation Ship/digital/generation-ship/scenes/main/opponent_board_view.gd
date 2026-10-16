@@ -223,7 +223,7 @@ static func show_opponent_board(main: Main, peer_id: int) -> void:
 	if main.opp_info_panel:
 		close_opponent_board_view(main)
 	if main._market_panel:
-		main._market_panel.visible = false
+		main._show_info_base(false)
 	build_opp_info_panel(main, peer_id)
 
 static func build_opp_info_panel(main: Main, peer_id: int) -> void:
@@ -558,4 +558,4 @@ static func close_opponent_board_view(main: Main) -> void:
 		main.opp_info_panel.queue_free()
 		main.opp_info_panel = null
 	if main._market_panel:
-		main._market_panel.visible = true
+		main._show_info_base(true)

@@ -4,7 +4,9 @@ One row per player and source (same ids as votes: "steam:<id>" or "dev:<device
 id>"), keeping their best total; a lower score only refreshes the display name.
 Source "play" is a game played to the end in the app, "scan" a tableau read
 from a photo (Scan Tableau) - anyone can photograph any ship, so the board can
-show either or both, and a scan never replaces a played best.
+show either or both, and a scan never replaces a played best. "fleet" is a won
+Generation Fleet (co-op) game, ranked by stars, with the Destination's No.; it
+has its own board and is left out of "all" (co-op stars don't compare).
 `details` is the game's packed per-line score breakdown (ScoringSnapshotCodec),
 stored as-is so the leaderboard can show how a score was made.
 Same trust model as the old Steam board: clients report their own score.
@@ -21,7 +23,8 @@ router = APIRouter()
 MAX_SCORE = 999
 MAX_DETAILS = 32
 TOP_LIMIT = 100
-SOURCES = ("play", "scan")
+SOURCES = ("play", "scan", "fleet")
+OWN_BOARD_SOURCES = ("fleet",)    # not part of the "all" board
 
 
 _TABLE = """CREATE TABLE IF NOT EXISTS {name} (
@@ -32,6 +35,7 @@ _TABLE = """CREATE TABLE IF NOT EXISTS {name} (
     details TEXT NOT NULL,
     platform TEXT NOT NULL,
     updated_at INTEGER NOT NULL,
+    destination INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (player, source)
 )"""
 
@@ -48,6 +52,9 @@ def init_scores() -> None:
             c.execute("DROP TABLE scores")
             c.execute("ALTER TABLE scores_new RENAME TO scores")
         c.execute(_TABLE.format(name="scores"))
+        cols = [r[1] for r in c.execute("PRAGMA table_info(scores)").fetchall()]
+        if "destination" not in cols:
+            c.execute("ALTER TABLE scores ADD COLUMN destination INTEGER NOT NULL DEFAULT 0")
         c.execute("CREATE INDEX IF NOT EXISTS scores_score ON scores(score DESC, updated_at ASC)")
 
 
@@ -61,6 +68,7 @@ class ScoreIn(BaseModel):
     details: list[int] = Field(default_factory=list, max_length=MAX_DETAILS)
     platform: str = Field(default="", max_length=16)
     source: str = "play"     # older clients only ever sent played games
+    destination: int = Field(default=0, ge=0, le=99)   # fleet: the Destination card's No.
 
 
 def _clean_name(name: str) -> str:
@@ -69,8 +77,11 @@ def _clean_name(name: str) -> str:
 
 
 def _where(source: str) -> tuple[str, tuple]:
-    """SQL filter for a board: one source, or "all" of them."""
-    return ("source = ? AND ", (source,)) if source in SOURCES else ("", ())
+    """SQL filter for a board: one source, or "all" of them (except the own-board ones)."""
+    if source in SOURCES:
+        return "source = ? AND ", (source,)
+    marks = ", ".join("?" * len(OWN_BOARD_SOURCES))
+    return f"source NOT IN ({marks}) AND ", OWN_BOARD_SOURCES
 
 
 def _rank(c, score: int, updated_at: int, source: str = "all") -> int:
@@ -97,11 +108,12 @@ def post_score(entry: ScoreIn, request: Request) -> dict:
         row = c.execute("SELECT score FROM scores WHERE player = ? AND source = ?", key).fetchone()
         if row is None or entry.score > row[0]:
             c.execute(
-                """INSERT INTO scores (player, source, name, score, details, platform, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)
+                """INSERT INTO scores (player, source, name, score, details, platform, updated_at, destination)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(player, source) DO UPDATE SET name = excluded.name, score = excluded.score,
-                   details = excluded.details, platform = excluded.platform, updated_at = excluded.updated_at""",
-                (entry.player, entry.source, name, entry.score, details, entry.platform[:16], now),
+                   details = excluded.details, platform = excluded.platform, updated_at = excluded.updated_at,
+                   destination = excluded.destination""",
+                (entry.player, entry.source, name, entry.score, details, entry.platform[:16], now, entry.destination),
             )
             best = True
         else:
@@ -114,18 +126,18 @@ def post_score(entry: ScoreIn, request: Request) -> dict:
 @router.get("/v1/scores/top")
 def top_scores(player: str | None = None, limit: int = Query(TOP_LIMIT, ge=1, le=TOP_LIMIT),
                source: str = "all") -> dict:
-    """The board for one source ("play", "scan") or "all" (a player can be on it once per source)."""
+    """The board for one source ("play", "scan", "fleet") or "all" (a player can be on it once per source)."""
     w, args = _where(source)
     with db() as c:
         rows = c.execute(
-            f"SELECT player, source, name, score, details, platform, updated_at FROM scores "
+            f"SELECT player, source, name, score, details, platform, updated_at, destination FROM scores "
             f"WHERE {w}1 ORDER BY score DESC, updated_at ASC LIMIT ?",
             args + (limit,),
         ).fetchall()
         entries = [
             {"rank": i + 1, "name": n, "score": s, "details": json.loads(d), "platform": p, "source": src,
-             "me": bool(player) and pl == player}
-            for i, (pl, src, n, s, d, p, _u) in enumerate(rows)
+             "destination": dest, "me": bool(player) and pl == player}
+            for i, (pl, src, n, s, d, p, _u, dest) in enumerate(rows)
         ]
         mine = None
         if player and VOTER_RE.match(player):
