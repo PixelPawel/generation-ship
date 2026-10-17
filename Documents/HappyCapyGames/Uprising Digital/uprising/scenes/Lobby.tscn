@@ -52,21 +52,15 @@ theme_override_constants/separation = 14
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
 theme_override_font_sizes/font_size = 30
-text = "Choose your faction"
+text = "Gather your table"
 vertical_alignment = 1
 
 [node name="Status" type="Label" parent="Margin/Rows/Header"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"MutedLabel"
-text = "Not connected yet."
 vertical_alignment = 1
 text_overrun_behavior = 3
-
-[node name="InviteButton" type="Button" parent="Margin/Rows/Header"]
-layout_mode = 2
-size_flags_vertical = 4
-text = "Invite friends"
 
 [node name="LeaveButton" type="Button" parent="Margin/Rows/Header"]
 layout_mode = 2
@@ -76,222 +70,131 @@ text = "Back to menu"
 [node name="Body" type="HBoxContainer" parent="Margin/Rows"]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/separation = 16
+theme_override_constants/separation = 28
+alignment = 1
 
-[node name="Factions" type="VBoxContainer" parent="Margin/Rows/Body"]
-custom_minimum_size = Vector2(240, 0)
+[node name="Ways" type="PanelContainer" parent="Margin/Rows/Body"]
+custom_minimum_size = Vector2(400, 0)
 layout_mode = 2
-theme_override_constants/separation = 6
 
-[node name="Dossier" type="VBoxContainer" parent="Margin/Rows/Body"]
+[node name="VBox" type="VBoxContainer" parent="Margin/Rows/Body/Ways"]
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 12
-
-[node name="TopRow" type="HBoxContainer" parent="Margin/Rows/Body/Dossier"]
-custom_minimum_size = Vector2(0, 286)
-layout_mode = 2
-theme_override_constants/separation = 18
-
-[node name="BoardFrame" type="Control" parent="Margin/Rows/Body/Dossier/TopRow"]
-custom_minimum_size = Vector2(552, 286)
-layout_mode = 2
-mouse_default_cursor_shape = 2
-
-[node name="BoardImage" type="TextureRect" parent="Margin/Rows/Body/Dossier/TopRow/BoardFrame"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-expand_mode = 1
-stretch_mode = 5
-
-[node name="BoardHint" type="Label" parent="Margin/Rows/Body/Dossier/TopRow/BoardFrame"]
-layout_mode = 1
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -260.0
-offset_top = -24.0
-offset_right = -6.0
-offset_bottom = -2.0
-grow_horizontal = 0
-grow_vertical = 0
-mouse_filter = 2
-theme_type_variation = &"MutedLabel"
-theme_override_font_sizes/font_size = 14
-text = "Click the board to turn it over"
-horizontal_alignment = 2
-
-[node name="Info" type="VBoxContainer" parent="Margin/Rows/Body/Dossier/TopRow"]
-layout_mode = 2
-size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="FactionName" type="Label" parent="Margin/Rows/Body/Dossier/TopRow/Info"]
+[node name="SteamHeading" type="Label" parent="Margin/Rows/Body/Ways/VBox"]
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
-theme_override_font_sizes/font_size = 40
-text = "Faction"
+theme_override_font_sizes/font_size = 24
+text = "Steam friends"
 
-[node name="FactionFacts" type="Label" parent="Margin/Rows/Body/Dossier/TopRow/Info"]
-custom_minimum_size = Vector2(240, 0)
-layout_mode = 2
-autowrap_mode = 3
-text = ""
-
-[node name="Holder" type="Label" parent="Margin/Rows/Body/Dossier/TopRow/Info"]
+[node name="SteamNote" type="Label" parent="Margin/Rows/Body/Ways/VBox"]
+custom_minimum_size = Vector2(360, 0)
 layout_mode = 2
 theme_type_variation = &"MutedLabel"
+theme_override_font_sizes/font_size = 15
 autowrap_mode = 3
-text = ""
 
-[node name="Spacer" type="Control" parent="Margin/Rows/Body/Dossier/TopRow/Info"]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="ClaimButton" type="Button" parent="Margin/Rows/Body/Dossier/TopRow/Info"]
-custom_minimum_size = Vector2(0, 42)
-layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "Lead this faction"
-
-[node name="Heroes" type="HBoxContainer" parent="Margin/Rows/Body/Dossier"]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 16
-
-[node name="Footer" type="HBoxContainer" parent="Margin/Rows"]
-custom_minimum_size = Vector2(0, 46)
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="Seats" type="HBoxContainer" parent="Margin/Rows/Footer"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 8
-
-[node name="ReadyButton" type="Button" parent="Margin/Rows/Footer"]
-custom_minimum_size = Vector2(130, 40)
-layout_mode = 2
-size_flags_vertical = 4
-text = "I'm ready"
-
-[node name="StartButton" type="Button" parent="Margin/Rows/Footer"]
-custom_minimum_size = Vector2(150, 40)
-layout_mode = 2
-size_flags_vertical = 4
-text = "Start the game"
-
-[node name="ConnectPanel" type="PanelContainer" parent="."]
-layout_mode = 1
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -330.0
-offset_top = -150.0
-offset_right = 330.0
-offset_bottom = -14.0
-grow_horizontal = 2
-grow_vertical = 0
-
-[node name="VBox" type="VBoxContainer" parent="ConnectPanel"]
+[node name="SteamButtons" type="HBoxContainer" parent="Margin/Rows/Body/Ways/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Heading" type="Label" parent="ConnectPanel/VBox"]
-layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-text = "Gather your table"
-
-[node name="SteamRow" type="HBoxContainer" parent="ConnectPanel/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="HostSteamButton" type="Button" parent="ConnectPanel/VBox/SteamRow"]
+[node name="HostSteamButton" type="Button" parent="Margin/Rows/Body/Ways/VBox/SteamButtons"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Host for friends"
 
-[node name="JoinSteamButton" type="Button" parent="ConnectPanel/VBox/SteamRow"]
+[node name="FindButton" type="Button" parent="Margin/Rows/Body/Ways/VBox/SteamButtons"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Join a friend"
+text = "Find a friend's table"
 
-[node name="LanRow" type="HBoxContainer" parent="ConnectPanel/VBox"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="HostLanButton" type="Button" parent="ConnectPanel/VBox/LanRow"]
-layout_mode = 2
-text = "Host on this network"
-
-[node name="AddressEdit" type="LineEdit" parent="ConnectPanel/VBox/LanRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-placeholder_text = "Host address, e.g. 192.168.1.20"
-
-[node name="JoinLanButton" type="Button" parent="ConnectPanel/VBox/LanRow"]
-layout_mode = 2
-text = "Join by address"
-
-[node name="Note" type="Label" parent="ConnectPanel/VBox"]
-layout_mode = 2
-theme_type_variation = &"MutedLabel"
-theme_override_font_sizes/font_size = 14
-autowrap_mode = 3
-text = ""
-
-[node name="LobbyList" type="PanelContainer" parent="."]
-visible = false
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -260.0
-offset_top = -170.0
-offset_right = 260.0
-offset_bottom = 170.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="VBox" type="VBoxContainer" parent="LobbyList"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="Heading" type="Label" parent="LobbyList/VBox"]
-layout_mode = 2
-theme_type_variation = &"HeadingLabel"
-text = "Open lobbies"
-
-[node name="Scroll" type="ScrollContainer" parent="LobbyList/VBox"]
+[node name="Found" type="ScrollContainer" parent="Margin/Rows/Body/Ways/VBox"]
+custom_minimum_size = Vector2(0, 96)
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="Rows" type="VBoxContainer" parent="LobbyList/VBox/Scroll"]
+[node name="Rows" type="VBoxContainer" parent="Margin/Rows/Body/Ways/VBox/Found"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
-[node name="Buttons" type="HBoxContainer" parent="LobbyList/VBox"]
+[node name="Rule" type="HSeparator" parent="Margin/Rows/Body/Ways/VBox"]
+modulate = Color(1, 1, 1, 0.5)
+layout_mode = 2
+
+[node name="LanHeading" type="Label" parent="Margin/Rows/Body/Ways/VBox"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 24
+text = "This network"
+
+[node name="LanNote" type="Label" parent="Margin/Rows/Body/Ways/VBox"]
+custom_minimum_size = Vector2(360, 0)
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+theme_override_font_sizes/font_size = 15
+autowrap_mode = 3
+text = "For players on the same home or office network."
+
+[node name="HostLanButton" type="Button" parent="Margin/Rows/Body/Ways/VBox"]
+layout_mode = 2
+text = "Host on this network"
+
+[node name="LanJoin" type="HBoxContainer" parent="Margin/Rows/Body/Ways/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 8
-alignment = 2
 
-[node name="RefreshButton" type="Button" parent="LobbyList/VBox/Buttons"]
+[node name="AddressEdit" type="LineEdit" parent="Margin/Rows/Body/Ways/VBox/LanJoin"]
 layout_mode = 2
-text = "Refresh"
+size_flags_horizontal = 3
+placeholder_text = "Host's address, e.g. 192.168.1.20"
 
-[node name="CloseButton" type="Button" parent="LobbyList/VBox/Buttons"]
+[node name="JoinLanButton" type="Button" parent="Margin/Rows/Body/Ways/VBox/LanJoin"]
+custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
-text = "Close"
+text = "Join"
+
+[node name="Table" type="VBoxContainer" parent="Margin/Rows/Body"]
+custom_minimum_size = Vector2(520, 0)
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TableHeading" type="Label" parent="Margin/Rows/Body/Table"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 28
+text = "Your table"
+
+[node name="TableNote" type="Label" parent="Margin/Rows/Body/Table"]
+custom_minimum_size = Vector2(480, 0)
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+autowrap_mode = 3
+
+[node name="Seats" type="VBoxContainer" parent="Margin/Rows/Body/Table"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Spacer" type="Control" parent="Margin/Rows/Body/Table"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Actions" type="HBoxContainer" parent="Margin/Rows/Body/Table"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="InviteButton" type="Button" parent="Margin/Rows/Body/Table/Actions"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Invite Steam friends"
+
+[node name="Gap" type="Control" parent="Margin/Rows/Body/Table/Actions"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ChooseButton" type="Button" parent="Margin/Rows/Body/Table/Actions"]
+custom_minimum_size = Vector2(210, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Choose factions"

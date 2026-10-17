@@ -672,6 +672,18 @@ func _lobby_setup_checks(card_db: Node) -> void:
 	_check(net_script.validate_pick(roster, 5, "Druwhn", "Syndra", card_db).is_empty(), "an open faction with its own Hero is fine")
 	_check(net_script.validate_pick(roster, 1, "Krowh", "Kha'al", card_db).is_empty(), "the holder may switch Hero")
 	_check(net_script.validate_pick(roster, 5, "", "", card_db).is_empty(), "releasing a pick is always fine")
+	_check(not net_script.validate_pick(roster, 5, "Ytuma", "Fjalka", card_db).is_empty(), "expansion factions can't be claimed until their rules exist")
+
+	var catalog: GDScript = load("res://scripts/data/tables/faction_catalog.gd")
+	var all_heroes_found: bool = true
+	for f: String in catalog.FACTIONS:
+		var heroes: Array[HeroCard] = catalog.heroes_of(card_db, f)
+		all_heroes_found = all_heroes_found and heroes.size() == 2
+		for h: HeroCard in heroes:
+			all_heroes_found = all_heroes_found and catalog.start_cards(f, h.card_name).size() >= 2
+	_check(catalog.FACTIONS.size() == 10 and all_heroes_found, "faction screen: all 10 factions with 2 Heroes each, every Hero starting with 2+ cards")
+	var fhayanor_start: Array[String] = catalog.start_cards("Druwhn", "Fhayanor")
+	_check(", ".join(fhayanor_start) == "Intuition, Swordsisters", "Core START Feats come from the Feat decks")
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 91

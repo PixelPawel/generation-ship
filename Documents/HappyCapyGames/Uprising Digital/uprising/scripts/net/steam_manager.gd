@@ -27,11 +27,14 @@ const MAX_MEMBERS: int = 4
 const FALLBACK_CONSTANTS: Dictionary = {
 	"STEAM_API_INIT_RESULT_OK": 0, "RESULT_OK": 1, "LOBBY_TYPE_FRIENDS_ONLY": 1, "LOBBY_TYPE_PUBLIC": 2,
 	"LOBBY_COMPARISON_EQUAL": 0, "LOBBY_DISTANCE_FILTER_WORLDWIDE": 3, "CHAT_ROOM_ENTER_RESPONSE_SUCCESS": 1,
+	"FRIEND_FLAG_IMMEDIATE": 4,
 }
 
 signal lobby_hosted(lobby_id: int)
 signal lobby_entered(lobby_id: int, owner_steam_id: int)
-signal lobby_list_received(lobbies: Array)  # [{id, host, members}]
+## [{id, host, members, friend}] - members is -1 when Steam doesn't say
+## (a friend's friends-only lobby we aren't in yet).
+signal lobby_list_received(lobbies: Array)
 signal lobby_failed(reason: String)
 signal invite_accepted(lobby_id: int)
 
@@ -39,6 +42,7 @@ var steam: Object = null
 var is_initialized: bool = false
 var init_message: String = ""
 var lobby_id: int = 0
+var _friend_lobbies: Array = []
 
 
 func _ready() -> void:
@@ -117,13 +121,34 @@ func host_lobby(friends_only: bool) -> void:
 	steam.call("createLobby", _const("LOBBY_TYPE_FRIENDS_ONLY") if friends_only else _const("LOBBY_TYPE_PUBLIC"), MAX_MEMBERS)
 
 
+## Friends-only lobbies (what "Host for friends" makes) never show up in
+## Steam's lobby search, so the list is the tables friends are sitting at
+## right now plus any public tagged lobbies; both arrive together through
+## lobby_list_received once the search answers.
 func request_lobby_list() -> void:
 	if not is_initialized:
 		lobby_failed.emit(init_message)
 		return
+	_friend_lobbies = _find_friend_lobbies()
 	steam.call("addRequestLobbyListDistanceFilter", _const("LOBBY_DISTANCE_FILTER_WORLDWIDE"))
 	steam.call("addRequestLobbyListStringFilter", LOBBY_TAG_KEY, LOBBY_TAG, _const("LOBBY_COMPARISON_EQUAL"))
 	steam.call("requestLobbyList")
+
+
+## Friends in a lobby of this App ID. On the shared test App ID (480) that
+## can be another game's lobby - _on_lobby_joined checks the tag and leaves.
+func _find_friend_lobbies() -> Array:
+	var out: Array = []
+	var app_id: int = int(steam.call("getAppID"))
+	var flags: int = _const("FRIEND_FLAG_IMMEDIATE")
+	for i: int in range(int(steam.call("getFriendCount", flags))):
+		var friend_id: int = int(steam.call("getFriendByIndex", i, flags))
+		var played: Dictionary = steam.call("getFriendGamePlayed", friend_id)
+		var lobby: int = int(played.get("lobby", 0))
+		if lobby == 0 or int(played.get("id", 0)) != app_id:
+			continue
+		out.append({"id": lobby, "host": friend_name(friend_id), "members": -1, "friend": true})
+	return out
 
 
 func join_lobby(id: int) -> void:
@@ -162,20 +187,33 @@ func _on_lobby_created(connect_result: int, id: int) -> void:
 
 func _on_lobby_joined(id: int, _permissions: int, _locked: bool, response: int) -> void:
 	if response != _const("CHAT_ROOM_ENTER_RESPONSE_SUCCESS"):
-		lobby_failed.emit("Couldn't join that lobby (it may be full or closed).")
+		lobby_failed.emit("Couldn't join that table. It may be full or already choosing factions.")
+		return
+	var owner_id: int = int(steam.call("getLobbyOwner", id))
+	# Our own new lobby can report in before its tag is set; anyone else's
+	# must carry the tag.
+	if owner_id != steam_id() and str(steam.call("getLobbyData", id, LOBBY_TAG_KEY)) != LOBBY_TAG:
+		steam.call("leaveLobby", id)
+		lobby_failed.emit("That friend is in a different game, not an Uprising table.")
 		return
 	lobby_id = id
-	lobby_entered.emit(id, int(steam.call("getLobbyOwner", id)))
+	lobby_entered.emit(id, owner_id)
 
 
 func _on_lobby_match_list(lobbies: Array) -> void:
-	var out: Array = []
+	var out: Array = _friend_lobbies.duplicate()
+	var seen: Array = []
+	for f: Variant in out:
+		seen.append(int((f as Dictionary)["id"]))
 	for l: Variant in lobbies:
 		var id: int = int(l)
+		if seen.has(id):
+			continue
 		out.append({
 			"id": id,
 			"host": str(steam.call("getLobbyData", id, "host")),
 			"members": int(steam.call("getNumLobbyMembers", id)),
+			"friend": false,
 		})
 	lobby_list_received.emit(out)
 
