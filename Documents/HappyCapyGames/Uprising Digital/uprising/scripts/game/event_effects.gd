@@ -413,7 +413,7 @@ static func _horde_on_empty(ctx: EffectContext, threat: int, used_regions: Array
 	var all: Array[Vector2i] = NemesisAI.empty_hexes(ctx.state)
 	var fresh: Array[Vector2i] = []
 	for c: Vector2i in all:
-		if not used_regions.has(RegionMath.region_for(c, ctx.state.capital_coord)):
+		if not used_regions.has(RegionMath.region_at(ctx.state, c)):
 			fresh.append(c)
 	var spot: Vector2i = NemesisAI.pick_hex(ctx.state, fresh if not fresh.is_empty() else all)
 	if spot == Vector2i.MIN:
@@ -427,14 +427,14 @@ static func _horde_on_empty(ctx: EffectContext, threat: int, used_regions: Array
 		ctx.state.chaos_vp += 1
 		return ""
 	NemesisAI.spawn_horde(ctx.state, spot, ctx.card_db, threat)
-	return RegionMath.region_for(spot, ctx.state.capital_coord)
+	return RegionMath.region_at(ctx.state, spot)
 
 
 ## "Place N Hordes on any empty hex(es) in the same region."
 static func _hordes_same_region(ctx: EffectContext, count: int, threat: int) -> void:
 	var best_region: String = ""
 	var best_room: int = -1
-	for region: String in RegionMath.REGIONS:
+	for region: String in RegionMath.regions(ctx.state):
 		var room: int = 0
 		for c: Vector2i in RegionMath.region_hexes(ctx.state, region):
 			if EffectUtil.hex_is_empty(ctx.state, c):

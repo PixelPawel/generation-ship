@@ -333,12 +333,33 @@ func _hero_panel(f: String, h: HeroCard, selected: bool, mine: bool) -> Control:
 	col.add_theme_constant_override("separation", 4)
 	row.add_child(col)
 
+	var me: Dictionary = net.roster.get(_my_id(), {})
+	var solo: bool = net.is_solo()
+	var is_ally: bool = solo and str(me.get("ally", "")) == h.card_name
+	var name_row := HBoxContainer.new()
+	name_row.add_theme_constant_override("separation", 8)
+	col.add_child(name_row)
 	var name_label := Label.new()
 	name_label.theme_type_variation = &"HeadingLabel"
 	name_label.add_theme_font_size_override("font_size", 24)
-	name_label.add_theme_color_override("font_color", GOLD if selected else BONE)
+	name_label.add_theme_color_override("font_color", GOLD if selected or is_ally else BONE)
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.text = h.card_name
-	col.add_child(name_label)
+	name_row.add_child(name_label)
+	if selected and mine:
+		name_row.add_child(_badge("Your Hero", GOLD))
+	elif is_ally:
+		name_row.add_child(_badge("Allied Hero", GOLD))
+	elif solo and FactionCatalog.is_playable(f) and h.card_name != str(me.get("hero", "")):
+		# True Solo: any Hero of any faction (even your own) can be the ally.
+		var ally_button := Button.new()
+		ally_button.text = "Make ally"
+		ally_button.add_theme_font_size_override("font_size", 15)
+		ally_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var ally_starts: Array[String] = FactionCatalog.ally_start_cards(f, h.card_name)
+		ally_button.tooltip_text = "As your allied Hero, %s starts with %s." % [h.card_name, " and ".join(ally_starts)] if not ally_starts.is_empty() else "Take %s as your allied Hero." % h.card_name
+		ally_button.pressed.connect(func() -> void: net.request_ally(h.card_name))
+		name_row.add_child(ally_button)
 	# The first flavor line is the Hero's role ("Krowh Necromancer"); the
 	# Titans' rows hold a rules sentence there instead, which is skipped.
 	var role_text: String = h.flavor.split("\n")[0].strip_edges() if not h.flavor.is_empty() else ""
@@ -356,15 +377,16 @@ func _hero_panel(f: String, h: HeroCard, selected: bool, mine: bool) -> Control:
 	var starts := Label.new()
 	starts.theme_type_variation = &"MutedLabel"
 	starts.add_theme_font_size_override("font_size", 14)
-	starts.text = "Starts with"
+	starts.text = "Starts with, as your allied Hero" if is_ally else "Starts with"
 	col.add_child(starts)
 	var cards_row := HBoxContainer.new()
 	cards_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cards_row.add_theme_constant_override("separation", 8)
 	col.add_child(cards_row)
-	for card_name: String in FactionCatalog.start_cards(f, h.card_name):
+	var start_list: Array[String] = FactionCatalog.ally_start_cards(f, h.card_name) if is_ally else FactionCatalog.start_cards(f, h.card_name)
+	for card_name: String in start_list:
 		var fc := TextureRect.new()
-		fc.custom_minimum_size = Vector2(80, 118)
+		fc.custom_minimum_size = Vector2(76, 112)
 		fc.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		fc.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		fc.texture = _tex(images.get_image_path("Feats", "EN", card_name, "Name"))
@@ -372,13 +394,16 @@ func _hero_panel(f: String, h: HeroCard, selected: bool, mine: bool) -> Control:
 		fc.tooltip_text = "%s (%s)\n%s" % [card_name, info.phase, info.text] if info != null and not info.text.is_empty() else card_name
 		fc.mouse_filter = Control.MOUSE_FILTER_PASS
 		cards_row.add_child(fc)
-	if selected and mine:
-		var lead := Label.new()
-		lead.add_theme_color_override("font_color", GOLD)
-		lead.add_theme_font_size_override("font_size", 15)
-		lead.text = "Your Hero"
-		col.add_child(lead)
 	return panel
+
+
+func _badge(text: String, color: Color) -> Label:
+	var badge := Label.new()
+	badge.add_theme_color_override("font_color", color)
+	badge.add_theme_font_size_override("font_size", 15)
+	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	badge.text = text
+	return badge
 
 
 func _on_hero_input(event: InputEvent, f: String, hero_name: String) -> void:
@@ -411,6 +436,9 @@ func _on_board_input(event: InputEvent) -> void:
 func _refresh_seats() -> void:
 	for child: Node in seats_box.get_children():
 		child.queue_free()
+	if net.is_solo():
+		seats_box.add_child(_solo_summary())
+		return
 	var ids: Array = net.seats()
 	for i: int in range(int(net.MAX_PLAYERS)):
 		var chip := PanelContainer.new()
@@ -444,10 +472,49 @@ func _refresh_seats() -> void:
 		seats_box.add_child(chip)
 
 
+## True Solo Mode footer: your party instead of the seats.
+func _solo_summary() -> Control:
+	var me: Dictionary = net.roster.get(_my_id(), {})
+	var f: String = str(me.get("faction", ""))
+	var ally: String = str(me.get("ally", ""))
+	var chip := PanelContainer.new()
+	chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = PANEL_BG
+	sb.border_width_left = 4
+	sb.border_color = FactionCatalog.accent(f) if not f.is_empty() else Color(TEAL, 0.5)
+	sb.set_corner_radius_all(2)
+	sb.content_margin_left = 12
+	sb.content_margin_right = 8
+	sb.content_margin_top = 3
+	sb.content_margin_bottom = 3
+	chip.add_theme_stylebox_override("panel", sb)
+	var label := Label.new()
+	label.add_theme_font_size_override("font_size", 15)
+	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	var lead: String = "%s, led by %s" % [f, str(me.get("hero", ""))] if not f.is_empty() else "No faction yet"
+	var with_ally: String = "allied Hero: %s (%s)" % [ally, _faction_of_hero(ally)] if not ally.is_empty() else "no allied Hero yet (Make ally on any Hero)"
+	label.text = "True Solo Mode\n%s, %s" % [lead, with_ally]
+	chip.add_child(label)
+	return chip
+
+
+func _faction_of_hero(hero_name: String) -> String:
+	for f: String in FactionCatalog.FACTIONS:
+		for h: HeroCard in FactionCatalog.heroes_of(card_db, f):
+			if h.card_name == hero_name:
+				return f
+	return ""
+
+
 func _refresh_buttons() -> void:
 	var host: bool = net.is_host()
-	back_button.text = "Back to the table" if host else "Leave the table"
-	back_button.tooltip_text = "Wait for more players. Everyone keeps their choice." if host else ""
+	if net.is_solo():
+		back_button.text = "Back"
+		back_button.tooltip_text = ""
+	else:
+		back_button.text = "Back to the table" if host else "Leave the table"
+		back_button.tooltip_text = "Wait for more players. Everyone keeps their choice." if host else ""
 	var me: int = _my_id()
 	ready_button.visible = not host
 	if ready_button.visible and net.roster.has(me):
@@ -465,7 +532,10 @@ func _update_status() -> void:
 		status_label.text = _message
 		return
 	var me: int = _my_id()
-	if net.is_host():
+	if net.is_solo():
+		var solo_blocker: String = net.start_blocker()
+		status_label.text = solo_blocker if not solo_blocker.is_empty() else "Your party is set. Start when you like."
+	elif net.is_host():
 		var blocker: String = net.start_blocker()
 		status_label.text = blocker if not blocker.is_empty() else "Everyone is ready. Start when you like."
 	elif not net.roster.has(me) or str(net.roster[me]["faction"]).is_empty():
@@ -506,7 +576,7 @@ func _on_start_pressed() -> void:
 
 
 func _on_back_pressed() -> void:
-	if net.is_host():
+	if net.is_host() and not net.is_solo():
 		net.reopen_table()  # everyone follows through lobby_phase_changed
 	else:
 		net.leave_lobby()

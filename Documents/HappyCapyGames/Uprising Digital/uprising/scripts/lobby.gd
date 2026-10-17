@@ -1,7 +1,8 @@
 extends Control
 
-## Table screen, the first stop after the main menu: host a table (for Steam
-## friends or on this network) or join one, and watch the seats fill. Once
+## Table screen, the first stop after the main menu: play solo (True Solo
+## Mode, straight to the faction screen), host a table (for Steam friends or
+## on this network) or join one, and watch the seats fill. Once
 ## everyone is here the host presses "Choose factions" - the table closes to
 ## newcomers (NetworkManager.begin_faction_choice) and every player moves to
 ## the faction screen together. The host can reopen the table from there,
@@ -25,6 +26,7 @@ const MESSAGE_SECONDS := 6.0
 @onready var status_label: Label = $Margin/Rows/Header/Status
 @onready var leave_button: Button = $Margin/Rows/Header/LeaveButton
 @onready var ways_panel: PanelContainer = $Margin/Rows/Body/Ways
+@onready var solo_button: Button = $Margin/Rows/Body/Ways/VBox/SoloRow/SoloButton
 @onready var steam_note: Label = $Margin/Rows/Body/Ways/VBox/SteamNote
 @onready var host_steam_button: Button = $Margin/Rows/Body/Ways/VBox/SteamButtons/HostSteamButton
 @onready var find_button: Button = $Margin/Rows/Body/Ways/VBox/SteamButtons/FindButton
@@ -53,6 +55,7 @@ func _ready() -> void:
 		return
 
 	leave_button.pressed.connect(_on_leave_pressed)
+	solo_button.pressed.connect(func() -> void: net.start_solo())  # straight on to the faction screen
 	host_steam_button.pressed.connect(_on_host_steam_pressed)
 	find_button.pressed.connect(_on_find_pressed)
 	host_lan_button.pressed.connect(_on_host_lan_pressed)
@@ -125,6 +128,7 @@ func _refresh_ways() -> void:
 		return
 	var busy: bool = net.is_connecting()
 	var steam_ok: bool = net.steam_available()
+	solo_button.disabled = busy
 	host_steam_button.disabled = not steam_ok or busy
 	find_button.disabled = not steam_ok or busy
 	host_lan_button.disabled = busy
@@ -132,7 +136,7 @@ func _refresh_ways() -> void:
 	address_edit.editable = not busy
 	found.visible = steam_ok
 	if steam_ok:
-		steam_note.text = "Host a table your friends can join from their Steam friends list, or sit down at a friend's table."
+		steam_note.text = "Host a table for Steam friends, or join a friend's."
 	else:
 		steam_note.text = "%s You can still play on this network." % str(net.steam.init_message)
 

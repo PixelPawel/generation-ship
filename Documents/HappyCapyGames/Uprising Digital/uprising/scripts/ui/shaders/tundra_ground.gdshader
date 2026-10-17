@@ -24,6 +24,10 @@ uniform vec4 ice_color : source_color = vec4(0.03, 0.3, 0.36, 1.0);
 uniform float ice_amount = 1.0;
 
 uniform float board_half = 13.4;
+// A board that isn't a square round the origin (the True Solo map is about
+// twice as wide as deep and off-centre); zero size = the square above.
+uniform vec2 board_half_xy = vec2(0.0);
+uniform vec2 board_center = vec2(0.0);
 uniform float flat_margin = 2.0;
 uniform float drift_ramp = 12.0;
 uniform float drift_height = 1.8;
@@ -40,7 +44,8 @@ uniform float sparkle_strength = 0.5;
 varying vec3 world_pos;
 
 float board_distance(vec2 p) {
-	vec2 d = abs(p) - vec2(board_half);
+	vec2 half_size = board_half_xy.x > 0.0 ? board_half_xy : vec2(board_half);
+	vec2 d = abs(p - board_center) - half_size;
 	return length(max(d, vec2(0.0))) + min(max(d.x, d.y), 0.0);
 }
 

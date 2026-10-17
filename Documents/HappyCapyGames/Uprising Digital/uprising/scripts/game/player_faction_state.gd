@@ -46,6 +46,73 @@ var wiles_ready: bool = false
 var has_passed: bool = false
 var has_acted_this_turn: bool = false
 
+## True Solo Mode (rulebook p74-79): the allied Hero, a second standee that
+## shares this faction's AP, resources, Units and player board. Its Feats
+## and Items sit in the same feats_in_play / items_in_hand lists - abilities
+## that say "you" work for both Heroes - and ally_cards marks which are its
+## own (for "On your Hero's hex" and where a discarded Feat goes). "" when
+## there is no allied Hero, which is every multiplayer game.
+var ally_hero_name: String = ""
+var ally_coord: Vector2i = Vector2i.ZERO
+var ally_feat_deck: Array[String] = []
+var ally_pending_feats: Array[String] = []
+var ally_attr_bonus: Dictionary = {}
+## Feat/Item name -> true for the allied Hero's cards.
+var ally_cards: Dictionary = {}
+## True while swap_heroes() has the allied Hero in the main Hero's fields
+## (the allied Hero is acting). Always false between actions; not saved.
+var heroes_swapped: bool = false
+
+
+func has_ally() -> bool:
+	return not ally_hero_name.is_empty()
+
+
+## Exchanges the main and allied Hero's own fields, so rules code written for
+## "the Hero" acts for the allied Hero. Call again to swap back.
+func swap_heroes() -> void:
+	var n: String = hero_name
+	hero_name = ally_hero_name
+	ally_hero_name = n
+	var c: Vector2i = hero_coord
+	hero_coord = ally_coord
+	ally_coord = c
+	var deck: Array[String] = feat_deck
+	feat_deck = ally_feat_deck
+	ally_feat_deck = deck
+	var pending: Array[String] = pending_feats
+	pending_feats = ally_pending_feats
+	ally_pending_feats = pending
+	var bonus: Dictionary = attr_bonus
+	attr_bonus = ally_attr_bonus
+	ally_attr_bonus = bonus
+	heroes_swapped = not heroes_swapped
+
+
+## Whether `card` belongs to the Hero currently in the main Hero's fields.
+func card_is_acting_heros(card: String) -> bool:
+	return ally_cards.has(card) == heroes_swapped
+
+
+## Where the Hero who owns `card` stands.
+func card_hero_coord(card: String) -> Vector2i:
+	return hero_coord if card_is_acting_heros(card) else ally_coord
+
+
+## A card just gained goes to the Hero currently acting.
+func claim_card(card: String) -> void:
+	if not has_ally():
+		return
+	if heroes_swapped:
+		ally_cards[card] = true
+	else:
+		ally_cards.erase(card)
+
+
+## Either of this faction's Heroes stands on `coord`.
+func hero_at(coord: Vector2i) -> bool:
+	return hero_coord == coord or (has_ally() and ally_coord == coord)
+
 
 func to_dict() -> Dictionary:
 	return {
@@ -61,6 +128,9 @@ func to_dict() -> Dictionary:
 		"pending_feats": pending_feats.duplicate(), "attr_bonus": attr_bonus.duplicate(),
 		"asheforge_coord": {"x": asheforge_coord.x, "y": asheforge_coord.y}, "wiles_ready": wiles_ready,
 		"has_passed": has_passed, "has_acted_this_turn": has_acted_this_turn,
+		"ally_hero_name": ally_hero_name, "ally_coord": {"x": ally_coord.x, "y": ally_coord.y},
+		"ally_feat_deck": ally_feat_deck.duplicate(), "ally_pending_feats": ally_pending_feats.duplicate(),
+		"ally_attr_bonus": ally_attr_bonus.duplicate(), "ally_cards": ally_cards.duplicate(),
 	}
 
 
@@ -103,4 +173,13 @@ static func from_dict(d: Dictionary) -> PlayerFactionState:
 	s.wiles_ready = bool(d.get("wiles_ready", false))
 	s.has_passed = d.get("has_passed", false)
 	s.has_acted_this_turn = d.get("has_acted_this_turn", false)
+	s.ally_hero_name = str(d.get("ally_hero_name", ""))
+	var al: Dictionary = d.get("ally_coord", {"x": 0, "y": 0})
+	s.ally_coord = Vector2i(int(al.get("x", 0)), int(al.get("y", 0)))
+	for f4: Variant in (d.get("ally_feat_deck", []) as Array):
+		s.ally_feat_deck.append(str(f4))
+	for f5: Variant in (d.get("ally_pending_feats", []) as Array):
+		s.ally_pending_feats.append(str(f5))
+	s.ally_attr_bonus = (d.get("ally_attr_bonus", {}) as Dictionary).duplicate()
+	s.ally_cards = (d.get("ally_cards", {}) as Dictionary).duplicate()
 	return s

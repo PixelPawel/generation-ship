@@ -18,6 +18,37 @@ extends RefCounted
 const REGIONS: Array[String] = ["Screaming Sea", "Howling White", "Fog Grave"]
 const BOARD_RADIUS: int = 3
 
+## The solo side of the map (True Solo Mode, rulebook p75-77): 28 spaces in
+## three Regions of 9 plus The Howling Abyss at the southern tip, read off
+## the printed solo map (TTS solo-mode-map-8000.jpg) space by space.
+## Coordinates are relative to The Capital.
+const SOLO_REGIONS: Array[String] = ["Obsidian Depths", "Wandering Sea", "Darkmirror", "The Howling Abyss"]
+const SOLO_REGION_OF: Dictionary = {
+	Vector2i(0, -2): "Obsidian Depths", Vector2i(0, -1): "Obsidian Depths", Vector2i(0, 0): "Obsidian Depths",
+	Vector2i(-1, -1): "Obsidian Depths", Vector2i(-1, 0): "Obsidian Depths", Vector2i(1, -2): "Obsidian Depths",
+	Vector2i(1, -1): "Obsidian Depths", Vector2i(-2, 0): "Obsidian Depths", Vector2i(2, -2): "Obsidian Depths",
+	Vector2i(0, 1): "Wandering Sea", Vector2i(-1, 1): "Wandering Sea", Vector2i(-1, 2): "Wandering Sea",
+	Vector2i(-1, 3): "Wandering Sea", Vector2i(-2, 1): "Wandering Sea", Vector2i(-2, 2): "Wandering Sea",
+	Vector2i(-2, 3): "Wandering Sea", Vector2i(-3, 2): "Wandering Sea", Vector2i(-3, 3): "Wandering Sea",
+	Vector2i(0, 2): "Darkmirror", Vector2i(1, 0): "Darkmirror", Vector2i(1, 1): "Darkmirror",
+	Vector2i(1, 2): "Darkmirror", Vector2i(2, -1): "Darkmirror", Vector2i(2, 0): "Darkmirror",
+	Vector2i(2, 1): "Darkmirror", Vector2i(3, -1): "Darkmirror", Vector2i(3, 0): "Darkmirror",
+	Vector2i(0, 3): "The Howling Abyss",
+}
+
+
+## The Regions of the map this game is played on.
+static func regions(state: GameState) -> Array[String]:
+	return SOLO_REGIONS if state != null and state.solo else REGIONS
+
+
+## Printed Region of a space on this game's map ("" off the board).
+static func region_at(state: GameState, coord: Vector2i) -> String:
+	var center: Vector2i = state.capital_coord if state != null else Vector2i.ZERO
+	if state != null and state.solo:
+		return str(SOLO_REGION_OF.get(coord - center, ""))
+	return region_for(coord, center)
+
 
 ## Printed Region of a board space, "" if it lies off the 37-hex board.
 ## Pure geometry - whether a tile currently covers it is region_hexes()'s job.
@@ -39,7 +70,7 @@ static func region_hexes(state: GameState, region: String) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	for coord: Vector2i in state.hexes.keys():
 		var t: HexTileState = state.hexes[coord]
-		if t.role == "outer" and region_for(coord, state.capital_coord) == region:
+		if t.role == "outer" and region_at(state, coord) == region:
 			out.append(coord)
 	out.sort()
 	return out

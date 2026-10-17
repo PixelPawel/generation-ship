@@ -877,7 +877,7 @@ static func _ready_card(state: GameState, side: Combatant, coord: Vector2i, card
 	var p: PlayerFactionState = _owner(state, side)
 	if p == null or not NemesisCards.CardAbilitiesRef.active(p, card):
 		return false
-	if hero_hex and p.hero_coord != coord:
+	if hero_hex and p.card_hero_coord(card) != coord:  # the card's own Hero (True Solo has two)
 		return false
 	return _limit_free(side, "card:" + card, limit)
 
@@ -1079,7 +1079,7 @@ static func _cards_after_combat(state: GameState, card_db: Node, coord: Vector2i
 	if p == null:
 		return
 	var abilities: GDScript = NemesisCards.CardAbilitiesRef
-	var on_hex: bool = p.hero_coord == coord
+	var on_hex: bool = p.card_hero_coord("Pillage") == coord
 	var units_here: int = tile.unit_count(side.faction)
 	if units_here > 0 and on_hex and abilities.active(p, "Pillage"):
 		var ctx := EffectContext.new()
@@ -1118,7 +1118,7 @@ static func _cards_after_combat(state: GameState, card_db: Node, coord: Vector2i
 	for spec: Array in [["Censer of Shadows", basic_lost, false], ["Healing Potion", any_lost, true]]:
 		var card: String = spec[0]
 		var unit2: String = spec[1]
-		if unit2.is_empty() or not on_hex or not abilities.active(p, card):
+		if unit2.is_empty() or p.card_hero_coord(card) != coord or not abilities.active(p, card):
 			continue
 		var haven2: Vector2i = NemesisAI.weakest_haven(state, p.faction)
 		if haven2 == Vector2i.MIN or state.hexes[haven2].add_units(p.faction, unit2, 1) == 0:

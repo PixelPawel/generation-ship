@@ -133,6 +133,17 @@ static func start_cards(faction: String, hero: String) -> Array[String]:
 	return out
 
 
+## True Solo Mode: what `hero` starts with as the allied Hero - its START
+## Feats without the Unit Feats, which leave an ally's deck (rulebook p74).
+static func ally_start_cards(faction: String, hero: String) -> Array[String]:
+	var out: Array[String] = []
+	var units: Array[String] = GameActions.CardAbilities.UNIT_FEATS
+	for c: String in start_cards(faction, hero):
+		if not units.has(c) and not (FACTION_START_CARDS.get(faction, []) as Array).has(c):
+			out.append(c)
+	return out
+
+
 static func feat_card(card_db: Node, card_name: String) -> FeatCard:
 	if card_db == null:
 		return null

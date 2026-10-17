@@ -28,6 +28,13 @@ const CURSE_SHADER := "res://scripts/ui/shaders/curse_overlay.gdshader"
 ## Printed board: 7208 px, centred on The Capital, 269.315 px per world unit
 ## (least-squares fit of 35 printed hex centres; Render/lib/uprising_assets.py).
 const BOARD_WORLD_SIZE: float = 7208.0 / 269.31542306
+## True Solo Mode is played on the solo side of the map, sideboards printed
+## round it: TTS solo-mode-map-8000.jpg cut to 4096 px. In the 8000 x 4034
+## original The Capital sits at (4029, 1751) and a hex is 318.5 px corner to
+## centre (grid fitted to the printed gaps), i.e. 159.25 px per world unit.
+const SOLO_BOARD_TEXTURE := "res://assets/art/board/solo_map_4k.jpg"
+const SOLO_BOARD_SIZE := Vector2(8000.0 / 159.25, 4034.0 / 159.25)
+const SOLO_BOARD_CENTER := Vector2((4000.0 - 4029.0) / 159.25, (2017.0 - 1751.0) / 159.25)
 const TILE_TOP: float = 0.2
 const SQRT3: float = 1.7320508
 
@@ -74,6 +81,10 @@ var _has_built: bool = false
 var _capital_flipped: bool = false
 var _snow: GPUParticles3D
 var _tops: Dictionary = {}           # Vector2i -> float (surface height pieces stand on)
+var _board_mesh: MeshInstance3D
+var _board_edge: MeshInstance3D
+var _tundra_mat: ShaderMaterial
+var _solo_board: bool = false
 
 
 func _ready() -> void:
@@ -126,6 +137,8 @@ func apply_state(state: GameState) -> void:
 		return
 	var first: bool = not _has_built
 	_has_built = true
+	if state.solo != _solo_board:
+		_use_solo_board(state.solo)
 	# GameState.capital_flipped: The Capital turned to "Uprising in the Capital"
 	_capital_flipped = state.get("capital_flipped") == true
 	var present: Dictionary = {}
@@ -140,6 +153,8 @@ func apply_state(state: GameState) -> void:
 	var wanted: Dictionary = {}   # key -> Dictionary
 	for p: PlayerFactionState in state.players:
 		wanted["hero:" + p.faction] = {"coord": p.hero_coord, "kind": "hero", "path": PieceLibrary.hero_model(p.faction, p.hero_name), "scale": PieceLibrary.TTS_HERO}
+		if p.has_ally():  # True Solo: the allied Hero's own standee
+			wanted["ally:" + p.faction] = {"coord": p.ally_coord, "kind": "hero", "path": PieceLibrary.hero_model(_hero_faction(p.ally_hero_name), p.ally_hero_name), "scale": PieceLibrary.TTS_HERO}
 	for l: LegionInstance in state.legions:
 		wanted["legion:%d" % l.id] = {"coord": l.coord, "kind": "legion", "path": PieceLibrary.legion_model(l.card_name), "scale": PieceLibrary.TTS_NEMESIS, "threat": l.threat}
 	for h: HordeInstance in state.hordes:
@@ -655,6 +670,7 @@ func _build_table() -> void:
 	board.material_override = bm
 	board.position.y = -0.002
 	add_child(board)
+	_board_mesh = board
 
 	var edge := MeshInstance3D.new()
 	edge.name = "BoardEdge"
@@ -667,8 +683,38 @@ func _build_table() -> void:
 	edge.material_override = em
 	edge.position.y = -0.052  # top face sits under the printed board, no z-fighting
 	add_child(edge)
+	_board_edge = edge
 
 	_build_tundra()
+
+
+## True Solo Mode: the wider solo map (sideboards included), off-centre from
+## The Capital; the tundra keeps its flat margin round the new outline.
+func _use_solo_board(solo: bool) -> void:
+	_solo_board = solo
+	var size: Vector2 = SOLO_BOARD_SIZE if solo else Vector2(BOARD_WORLD_SIZE, BOARD_WORLD_SIZE)
+	var center: Vector2 = SOLO_BOARD_CENTER if solo else Vector2.ZERO
+	var path: String = SOLO_BOARD_TEXTURE if solo else BOARD_TEXTURE
+	if _board_mesh != null:
+		(_board_mesh.mesh as PlaneMesh).size = size
+		_board_mesh.position = Vector3(center.x, _board_mesh.position.y, center.y)
+		if ResourceLoader.exists(path):
+			(_board_mesh.material_override as StandardMaterial3D).albedo_texture = load(path) as Texture2D
+	if _board_edge != null:
+		(_board_edge.mesh as BoxMesh).size = Vector3(size.x, 0.09, size.y)
+		_board_edge.position = Vector3(center.x, _board_edge.position.y, center.y)
+	if _tundra_mat != null:
+		_tundra_mat.set_shader_parameter("board_half_xy", size * 0.5)
+		_tundra_mat.set_shader_parameter("board_center", center)
+
+
+func _hero_faction(hero_name: String) -> String:
+	var card_db: Node = get_node_or_null("/root/CardDatabase")
+	if card_db != null:
+		for h: HeroCard in card_db.heroes_all:
+			if h.card_name == hero_name:
+				return h.faction
+	return ""
 
 
 ## The frozen tundra round the board: displaced, textured snow ground
@@ -689,6 +735,7 @@ func _build_tundra() -> void:
 		if ResourceLoader.exists(path):
 			mat.set_shader_parameter(str(param), load(path) as Texture2D)
 	mat.set_shader_parameter("board_half", BOARD_WORLD_SIZE * 0.5)
+	_tundra_mat = mat
 
 	var ground := MeshInstance3D.new()
 	ground.name = "Tundra"

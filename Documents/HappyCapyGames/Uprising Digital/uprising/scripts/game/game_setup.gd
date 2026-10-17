@@ -110,6 +110,36 @@ const LAYOUTS: Dictionary = {
 	},
 }
 
+## True Solo Mode, the solo side of the map (rulebook p76-77): The Capital,
+## 8 random face-down hexes on its 6 neighbours and either side of the Home
+## hex, 2 Sea Towers, the Home hex to the south. The other 16 of the 28
+## spaces are printed explored Ice Waste (RegionMath.SOLO_REGION_OF).
+## Curses, Garrisons and Skeletons per difficulty, from the p77 diagrams.
+const SOLO_HOME: Vector2i = Vector2i(0, 2)
+const SOLO_TOWERS: Array[Vector2i] = [Vector2i(-2, 2), Vector2i(2, 0)]
+const SOLO_INTERIOR: Array[Vector2i] = [
+	Vector2i(0, -1), Vector2i(1, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 1), Vector2i(-1, 0),
+	Vector2i(-1, 2), Vector2i(1, 1),
+]
+const SOLO_SKELETONS: Array[Vector2i] = [Vector2i(-2, 0), Vector2i(2, -2), Vector2i(0, 3)]
+const SOLO_CURSES: Dictionary = {
+	"Rebel": [],
+	"Veteran": [Vector2i(0, -2), Vector2i(0, 3)],
+	"Nightmare": [Vector2i(0, -2), Vector2i(3, 0), Vector2i(0, 3)],
+	"Apocalypse": [Vector2i(0, -2), Vector2i(3, 0), Vector2i(0, 3)],
+}
+const SOLO_GARRISONS: Dictionary = {
+	"Rebel": [],
+	"Veteran": [Vector2i(1, -1), Vector2i(0, 1), Vector2i(-1, 0)],
+	"Nightmare": [Vector2i(0, -1), Vector2i(1, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 1), Vector2i(-1, 0)],
+	"Apocalypse": [Vector2i(0, -1), Vector2i(1, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 1), Vector2i(-1, 0)],
+}
+const SOLO_AP: int = 10
+const SOLO_RESOURCES: int = 6
+## "Not recommended for the True Solo Mode ... too powerful with only one
+## player" (rulebook p78; only Rebel Council is in the Core deck).
+const SOLO_EXCLUDED_QUESTS: Array[String] = ["Boon of the Fallen Comrades", "Rebel Council", "For the Greater Good"]
+
 ## Each Core faction's Home hex card (Hexes.csv, Type=Home).
 const HOME_HEX_BY_FACTION: Dictionary = {
 	"Druwhn": "Yfelskog", "Duerkhar": "Khatrak Kautil", "Krowh": "Pak Glandris", "Mohyar": "Winterholm",
@@ -356,6 +386,132 @@ static func build_game_state(card_db: Node, picks: Array, rng: RandomNumberGener
 	state.first_player_index = 0
 	state.current_player_index = 0
 	return state
+
+
+## True Solo Mode (rulebook p74-79): one faction, its main Hero and an
+## allied Hero from any faction (pick = {"faction", "hero", "ally"}), on the
+## solo side of the map. 10 AP, 6 of each resource, 5 Legions and 5 Hordes
+## (6 each on Nightmare/Apocalypse), the Feat decks of both Heroes - the
+## ally's without Unit Feats - and 2 + 1 START Feats in play.
+## Events: the 24 Solo Event cards aren't in the card data yet, so the
+## regular Events stand in (resolved under the solo general rules).
+static func build_solo_game_state(card_db: Node, pick: Dictionary, difficulty: String = "Veteran", rng: RandomNumberGenerator = null) -> GameState:
+	if rng == null:
+		rng = RandomNumberGenerator.new()
+		rng.randomize()
+	if not SOLO_CURSES.has(difficulty):
+		difficulty = "Veteran"
+	var faction: String = str(pick.get("faction", ""))
+	var state := GameState.new()
+	state.solo = true
+	state.phase = GameState.Phase.REFRESH
+	state.chapter = 1
+	state.max_chapters = 2
+	state.difficulty = difficulty
+	state.capital_coord = Vector2i.ZERO
+
+	# Hex stack: the normal hexes split by the resource on their back (what
+	# they produce), 3 drawn from each, shuffled together, 8 placed.
+	var by_resource: Dictionary = {"Salt": [], "Plunder": [], "Food": []}
+	for h: HexCard in card_db.hexes:
+		if h.hex_type != "Normal" or h.card_name == "Capital":
+			continue
+		for res: String in ["Salt", "Plunder", "Food"]:
+			if _hex_yield(h, res) > 0:
+				(by_resource[res] as Array).append(h)
+				break
+	var stack: Array = []
+	for res2: String in ["Salt", "Plunder", "Food"]:
+		var pile: Array = by_resource[res2]
+		_shuffle(pile, rng)
+		stack.append_array(pile.slice(0, 3))
+	_shuffle(stack, rng)
+	var towers: Array = card_db.hexes.filter(func(h: HexCard) -> bool: return h.hex_type == "Sea Tower")
+	_shuffle(towers, rng)
+
+	_place_hex(state, state.capital_coord, "capital", "", true, "", CAPITAL_BASELINE_GARRISONS)
+	var home_card: String = str(HOME_HEX_BY_FACTION.get(faction, ""))
+	_place_hex(state, SOLO_HOME, "home", home_card, true, faction, 0)
+	state.hexes[SOLO_HOME].haven_faction = faction
+	for i: int in range(SOLO_TOWERS.size()):
+		var tower: HexCard = towers[i] if i < towers.size() else null
+		_place_hex(state, SOLO_TOWERS[i], "sea_tower", tower.card_name if tower != null else "", false, "", 0)
+	for i2: int in range(SOLO_INTERIOR.size()):
+		var hex: HexCard = stack[i2] if i2 < stack.size() else null
+		_place_hex(state, SOLO_INTERIOR[i2], "interior", hex.card_name if hex != null else "", false, "", 0)
+	for offset: Variant in RegionMath.SOLO_REGION_OF.keys():
+		var tile: HexTileState = state.ensure_hex(state.capital_coord + (offset as Vector2i), "outer")
+		if tile.role == "outer":
+			tile.explored = true
+
+	for g: Variant in (SOLO_GARRISONS[difficulty] as Array):
+		state.hexes[g as Vector2i].garrison_level = 1
+	for c: Variant in (SOLO_CURSES[difficulty] as Array):
+		state.hexes[c as Vector2i].curse = true
+	for s: Vector2i in SOLO_SKELETONS:
+		state.hexes[s].skeleton_count += 1
+
+	var p := PlayerFactionState.new()
+	p.faction = faction
+	p.hero_name = str(pick.get("hero", ""))
+	if p.hero_name.is_empty():
+		var first: HeroCard = _first_hero_for_faction(card_db, faction)
+		p.hero_name = first.card_name if first != null else ""
+	p.ally_hero_name = str(pick.get("ally", ""))
+	p.salt = SOLO_RESOURCES
+	p.plunder = SOLO_RESOURCES
+	p.food = SOLO_RESOURCES
+	p.action_points = SOLO_AP
+	p.max_action_points = SOLO_AP
+	p.hero_coord = SOLO_HOME
+	p.ally_coord = SOLO_HOME
+	state.players.append(p)
+
+	var deck_size: int = 6 if difficulty == "Nightmare" or difficulty == "Apocalypse" else 5
+	var legion_names: Array[String] = []
+	for l: LegionCard in card_db.legions:
+		legion_names.append(l.card_name)
+	_shuffle(legion_names, rng)
+	state.legion_deck = legion_names.slice(0, mini(deck_size, legion_names.size()))
+	var horde_names: Array[String] = []
+	for hc: HordeCard in card_db.hordes:
+		horde_names.append(hc.card_name)
+	_shuffle(horde_names, rng)
+	state.horde_deck = horde_names.slice(0, mini(deck_size, horde_names.size()))
+
+	var druid_names: Array[String] = []
+	for d: DruidCard in card_db.druids:
+		druid_names.append(d.card_name)
+	_shuffle(druid_names, rng)
+	for i3: int in range(mini(4, druid_names.size())):
+		var di := DruidInstance.new()
+		di.card_name = druid_names[i3]
+		state.druids_in_play.append(di)
+
+	var item_names: Array[String] = []
+	for it: ItemCard in card_db.items:
+		item_names.append(it.card_name)
+	_shuffle(item_names, rng)
+	state.item_deck = item_names
+	var quest_names: Array[String] = []
+	for q: QuestCard in card_db.quests:
+		if not SOLO_EXCLUDED_QUESTS.has(q.card_name):
+			quest_names.append(q.card_name)
+	_shuffle(quest_names, rng)
+	state.quest_deck = quest_names
+
+	GameActions.CardAbilities.setup_player(state, card_db, p, rng)
+	var event_effects: GDScript = load("res://scripts/game/event_effects.gd")
+	event_effects.pick_chapter_events(state, card_db, rng)
+	state.first_player_index = 0
+	state.current_player_index = 0
+	return state
+
+
+## A hex's printed yield of `res` ("2", "-" or "").
+static func _hex_yield(h: HexCard, res: String) -> int:
+	var v: String = h.salt if res == "Salt" else (h.plunder if res == "Plunder" else h.food)
+	return v.strip_edges().to_int() if v.strip_edges().is_valid_int() else 0
 
 
 static func _place_hex(state: GameState, coord: Vector2i, role: String, card_name: String, explored: bool, owning_faction: String, garrison_level: int) -> void:

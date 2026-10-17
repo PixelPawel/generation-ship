@@ -28,6 +28,8 @@ static func capture(state: GameState) -> Dictionary:
 	var heroes: Dictionary = {}
 	for p: PlayerFactionState in state.players:
 		heroes[p.faction] = p.hero_coord
+		if p.has_ally():
+			heroes[p.faction + ":ally"] = p.ally_coord
 	return {
 		"hexes": hexes, "nemesis": nemesis, "heroes": heroes,
 		"capital": state.capital_coord, "capital_flipped": state.get("capital_flipped") == true,

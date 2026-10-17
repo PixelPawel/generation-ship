@@ -19,7 +19,7 @@ static func _score_empire(state: GameState) -> void:
 			hexes_with_garrison += 1
 	state.empire_vp += hexes_with_garrison
 	state.empire_vp += state.legions.size()
-	state.empire_vp += 2 * state.imperial_graveyard.size()
+	state.empire_vp += _graveyard_vp(state, state.imperial_graveyard)
 	state.imperial_graveyard.clear()
 
 
@@ -30,11 +30,23 @@ static func _score_chaos(state: GameState) -> void:
 			curse_count += 1
 	state.chaos_vp += curse_count
 	state.chaos_vp += state.hordes.size()
-	state.chaos_vp += 2 * state.chaos_graveyard.size()
+	state.chaos_vp += _graveyard_vp(state, state.chaos_graveyard)
 	state.chaos_graveyard.clear()
 	# Units in either Graveyard return to their reserves.
 	for p: PlayerFactionState in state.players:
 		p.graveyard_units.clear()
+
+
+## 2 VP per faction in the Graveyard; True Solo Mode (rulebook p79) counts
+## Units instead - 1 VP each, 2 on Nightmare and Apocalypse.
+static func _graveyard_vp(state: GameState, yard: Dictionary) -> int:
+	if not state.solo:
+		return 2 * yard.size()
+	var units: int = 0
+	for f: Variant in yard.keys():
+		units += int(yard[f])
+	var each: int = 2 if state.difficulty == "Nightmare" or state.difficulty == "Apocalypse" else 1
+	return units * each
 
 
 static func _score_players(state: GameState, card_db: Node) -> void:

@@ -215,6 +215,9 @@ static func weakest_haven(state: GameState, faction: String) -> Vector2i:
 ## candidates, the first in turn order that still has a Haven. Everyone
 ## targeted (or Haven-less) -> The Capital, for the rest of the game.
 static func assign_target(state: GameState, legion: LegionInstance) -> void:
+	if state.solo:
+		_assign_solo_target(state, legion)
+		return
 	var targeted: Dictionary = {}
 	for l: LegionInstance in state.legions:
 		if l != legion and l.has_target and l.target_faction != "Capital" and not l.target_faction.is_empty():
@@ -230,6 +233,35 @@ static func assign_target(state: GameState, legion: LegionInstance) -> void:
 			return
 	legion.target_faction = "Capital"
 	legion.target_coord = state.capital_coord
+	legion.has_target = true
+
+
+## True Solo Mode (rulebook p76): any number of Targets on your Havens. A
+## new one goes on the Haven with the fewest Units that has no Target yet;
+## only when every Haven has one does it double up (fewest Units first).
+static func _assign_solo_target(state: GameState, legion: LegionInstance) -> void:
+	var faction: String = state.players[0].faction if not state.players.is_empty() else ""
+	var taken: Dictionary = {}
+	for l: LegionInstance in state.legions:
+		if l != legion and l.has_target and l.target_faction == faction:
+			taken[l.target_coord] = true
+	var best: Vector2i = Vector2i.MIN
+	var best_units: int = 999999
+	var coords: Array = state.hexes.keys()
+	coords.sort()
+	for coord: Vector2i in coords:
+		var t: HexTileState = state.hexes[coord]
+		if t.haven_faction == faction and not taken.has(coord) and t.total_player_units() < best_units:
+			best_units = t.total_player_units()
+			best = coord
+	if best == Vector2i.MIN:
+		best = weakest_haven(state, faction)
+	if best != Vector2i.MIN:
+		legion.target_faction = faction
+		legion.target_coord = best
+	else:
+		legion.target_faction = "Capital"
+		legion.target_coord = state.capital_coord
 	legion.has_target = true
 
 

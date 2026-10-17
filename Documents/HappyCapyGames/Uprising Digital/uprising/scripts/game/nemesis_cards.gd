@@ -106,13 +106,23 @@ static func horde_immediate(state: GameState, card_db: Node, horde: HordeInstanc
 			else:
 				state.chaos_vp += 1
 		"Siren":
-			# Call of the Wild: the Heroes with the lowest Guile stand on her hex.
+			# Call of the Wild: the Heroes with the lowest Guile stand on her hex
+			# (True Solo: an allied Hero counts on its own - tied, both go).
 			var lowest: int = 999
 			for p: PlayerFactionState in state.players:
 				lowest = mini(lowest, _attr(card_db, p, "guile"))
+				if p.has_ally():
+					p.swap_heroes()
+					lowest = mini(lowest, _attr(card_db, p, "guile"))
+					p.swap_heroes()
 			for p2: PlayerFactionState in state.players:
 				if _attr(card_db, p2, "guile") == lowest:
 					p2.hero_coord = horde.coord
+				if p2.has_ally():
+					p2.swap_heroes()
+					if _attr(card_db, p2, "guile") == lowest:
+						p2.hero_coord = horde.coord
+					p2.swap_heroes()
 		"Banished":
 			# Primordial Pleasures: Threat 5, then 1 Quest's failure effect.
 			horde.threat = 5

@@ -13,6 +13,9 @@ var phase: Phase = Phase.REFRESH
 var chapter: int = 1
 var max_chapters: int = 2
 var difficulty: String = "Veteran"  # Rebel | Veteran | Nightmare | Apocalypse
+## True Solo Mode (rulebook p74): one faction with a main and an allied Hero
+## on the solo side of the map.
+var solo: bool = false
 var capital_coord: Vector2i = Vector2i.ZERO
 
 var hexes: Dictionary = {}    # Vector2i -> HexTileState
@@ -96,7 +99,7 @@ func to_dict() -> Dictionary:
 
 	return {
 		"phase": phase, "chapter": chapter, "max_chapters": max_chapters, "difficulty": difficulty,
-		"capital_coord": {"x": capital_coord.x, "y": capital_coord.y},
+		"solo": solo, "capital_coord": {"x": capital_coord.x, "y": capital_coord.y},
 		"hexes": hexes_out, "players": players_out, "legions": legions_out, "hordes": hordes_out,
 		"druids_in_play": druids_out,
 		"item_deck": item_deck.duplicate(), "item_discard": item_discard.duplicate(),
@@ -124,6 +127,7 @@ static func from_dict(d: Dictionary) -> GameState:
 	s.chapter = d.get("chapter", 1)
 	s.max_chapters = d.get("max_chapters", 2)
 	s.difficulty = d.get("difficulty", "Veteran")
+	s.solo = bool(d.get("solo", false))
 	var capital_in: Dictionary = d.get("capital_coord", {"x": 0, "y": 0})
 	s.capital_coord = Vector2i(capital_in.get("x", 0), capital_in.get("y", 0))
 

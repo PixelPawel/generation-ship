@@ -64,6 +64,8 @@ var last_status_msec: int = -STATUS_CARRY_MSEC
 var _next_seat: int = 0
 ## A Steam lobby create/join was asked for and hasn't answered yet.
 var _steam_pending: bool = false
+## A client connection is up (or coming up) but no roster has arrived yet.
+var _client_connecting: bool = false
 
 
 func _ready() -> void:
@@ -173,6 +175,7 @@ func join_lan(address: String, port: int = LAN_PORT) -> Error:
 	if err != OK:
 		return err
 	transport = "lan"
+	_client_connecting = true
 	lobby_status.emit("Connecting to %s..." % address)
 	return OK
 
@@ -218,7 +221,41 @@ func leave_lobby() -> void:
 
 ## A Steam host/join or a client connection is still under way.
 func is_connecting() -> bool:
-	return _steam_pending or (multiplayer.multiplayer_peer != null and roster.is_empty())
+	return _steam_pending or _client_connecting
+
+
+## True Solo Mode: no network at all - Godot's offline peer, a table of one
+## that goes straight to choosing a faction, a main Hero and an allied Hero.
+func start_solo() -> void:
+	leave_lobby()
+	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
+	transport = "solo"
+	_add_member(1, local_name)
+	roster[1]["ally"] = ""
+	roster_changed.emit(roster)
+	_set_phase("factions")
+
+
+func is_solo() -> bool:
+	return transport == "solo"
+
+
+## True Solo Mode: the allied Hero - any Hero of a playable faction except
+## the main Hero ("" clears it).
+func request_ally(hero: String) -> void:
+	if not is_solo() or not roster.has(1):
+		return
+	if not hero.is_empty():
+		var ok: bool = false
+		for f: String in FactionCatalog.PLAYABLE:
+			for h: HeroCard in FactionCatalog.heroes_of(get_node_or_null("/root/CardDatabase"), f):
+				if h.card_name == hero:
+					ok = true
+		if not ok or hero == str(roster[1].get("hero", "")):
+			lobby_status.emit("%s can't be your allied Hero." % hero)
+			return
+	roster[1]["ally"] = hero
+	roster_changed.emit(roster)
 
 
 func disconnect_network() -> void:
@@ -230,6 +267,7 @@ func disconnect_network() -> void:
 	peer_factions.clear()
 	transport = ""
 	_next_seat = 0
+	_client_connecting = false
 	_set_phase("gathering")
 	roster_changed.emit(roster)
 
@@ -276,6 +314,7 @@ func _on_steam_lobby_entered(_lobby_id: int, owner_steam_id: int) -> void:
 		return
 	multiplayer.multiplayer_peer = peer
 	transport = "steam"
+	_client_connecting = true
 	lobby_status.emit("Connecting to %s..." % steam.friend_name(owner_steam_id))
 
 
@@ -391,6 +430,8 @@ func _apply_pick(peer_id: int, faction: String, hero: String) -> void:
 		return
 	roster[peer_id]["faction"] = faction
 	roster[peer_id]["hero"] = hero
+	if is_solo() and str(roster[peer_id].get("ally", "")) == hero:
+		roster[peer_id]["ally"] = ""  # one Hero can't be both
 	roster[peer_id]["ready"] = false
 	_broadcast_roster()
 
@@ -433,6 +474,7 @@ func _broadcast_roster() -> void:
 
 @rpc("authority", "call_remote", "reliable")
 func _rpc_roster(data: Dictionary, phase: String) -> void:
+	_client_connecting = false
 	roster = data
 	_set_phase(phase)
 	roster_changed.emit(roster)
@@ -484,6 +526,13 @@ func seats() -> Array:
 
 ## "" when the host may start; else what's missing.
 func start_blocker() -> String:
+	if is_solo():
+		var me: Dictionary = roster.get(1, {})
+		if str(me.get("faction", "")).is_empty():
+			return "Choose your faction and main Hero."
+		if str(me.get("ally", "")).is_empty():
+			return "Choose an allied Hero from any faction."
+		return ""
 	if roster.size() < 2:
 		return "Waiting for at least one more player."
 	if lobby_phase != "factions":
@@ -508,12 +557,20 @@ func start_game() -> Error:
 		assign_faction(int(id), str(roster[id]["faction"]))
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
-	var state: GameState = GameSetup.build_game_state(card_db, picks, rng)
+	var state: GameState = null
+	if is_solo():
+		var me: Dictionary = roster[1]
+		state = GameSetup.build_solo_game_state(card_db, {"faction": str(me["faction"]), "hero": str(me["hero"]), "ally": str(me.get("ally", ""))}, "Veteran", rng)
+	else:
+		state = GameSetup.build_game_state(card_db, picks, rng)
 	action_handler = Callable(self, "default_action_handler")
 	if steam != null:
 		steam.set_lobby_joinable(false)
 	set_initial_state(state)
-	_rpc_begin_game.rpc()
+	if is_solo():
+		_rpc_begin_game()  # nobody to send it to
+	else:
+		_rpc_begin_game.rpc()
 	return OK
 
 

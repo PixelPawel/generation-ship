@@ -24,6 +24,10 @@ const EVENT_STAGGER: float = 0.18
 
 var selected_coord: Vector2i = Vector2i.ZERO
 var has_selected_coord: bool = false
+## True Solo Mode: Move, Explore, Haven, Market, Quest, Trade and building
+## without a Haven go to the allied Hero while this is on.
+var ally_acting: bool = false
+var _hero_button: Button = null
 
 var _last_snapshot: Dictionary = {}
 var _hover_coord: Vector2i = Vector2i(999, 999)
@@ -147,6 +151,7 @@ func _update_hud(state: GameState) -> void:
 		resources_label.text = "%s: %d AP, %d Salt, %d Plunder, %d Food, %d VP" % [p.faction, p.action_points, p.salt, p.plunder, p.food, p.vp]
 	else:
 		resources_label.text = "Waiting for the other player to connect"
+	_update_hero_button(p)
 
 	selected_label.text = _describe_hex(state, selected_coord) if has_selected_coord else "Click a hex to see what is on it."
 	var sel_tile: HexTileState = state.get_hex(selected_coord) if has_selected_coord else null
@@ -164,7 +169,7 @@ func _describe_hex(state: GameState, coord: Vector2i) -> String:
 		return "%s (off the board)" % coord
 	var title: String = tile.hex_card_name if tile.explored and not tile.hex_card_name.is_empty() else ("Unexplored hex" if not tile.explored else tile.role.capitalize())
 	if tile.role == "outer":
-		title = RegionMath.region_for(coord, state.capital_coord)
+		title = RegionMath.region_at(state, coord)
 	var parts: Array[String] = [title]
 	if tile.curse:
 		parts.append("Cursed")
@@ -186,7 +191,32 @@ func _describe_hex(state: GameState, coord: Vector2i) -> String:
 	for p: PlayerFactionState in state.players:
 		if p.hero_coord == coord:
 			parts.append("Hero %s" % p.hero_name)
+		if p.has_ally() and p.ally_coord == coord:
+			parts.append("Allied Hero %s" % p.ally_hero_name)
 	return "\n".join(parts)
+
+
+## True Solo Mode: one button above the actions picks which Hero acts.
+func _update_hero_button(p: PlayerFactionState) -> void:
+	if p == null or not p.has_ally():
+		if _hero_button != null:
+			_hero_button.visible = false
+		return
+	if _hero_button == null:
+		var vbox: Node = hud.get_node("Panel/VBox")
+		var actions: Node = vbox.get_node("Actions")
+		_hero_button = Button.new()
+		_hero_button.name = "HeroButton"
+		_hero_button.tooltip_text = "Which Hero takes Move, Explore, Haven, Market, Quest and Trade. Both share your AP and resources."
+		_hero_button.pressed.connect(func() -> void:
+			ally_acting = not ally_acting
+			var net: Node = get_node("/root/NetworkManager")
+			if net.current_state != null:
+				_update_hud(net.current_state))
+		vbox.add_child(_hero_button)
+		vbox.move_child(_hero_button, actions.get_index())
+	_hero_button.visible = true
+	_hero_button.text = "Acting Hero: %s (allied)" % p.ally_hero_name if ally_acting else "Acting Hero: %s" % p.hero_name
 
 
 func select_coord(coord: Vector2i) -> void:
@@ -231,6 +261,8 @@ func _coord_dict(c: Vector2i) -> Dictionary:
 
 
 func _submit(action: Dictionary) -> void:
+	if ally_acting and GameActions.HERO_ACTIONS.has(str(action.get("type", ""))):
+		action["hero_slot"] = "ally"
 	get_node("/root/NetworkManager").submit_action(action)
 
 

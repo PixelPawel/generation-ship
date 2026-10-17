@@ -28,6 +28,17 @@ const START_FEATS: Array[String] = [
 ]
 const ATTRIBUTE_FEATS: Dictionary = {"Guile Leadership": ["lead", "guile"], "Might Magic": ["might", "magic"]}
 const CARD_LIMIT: int = 10
+## True Solo Mode: 14 Feats and Items across both Heroes, attribute Feats
+## (under the Hero card) not counted (rulebook p76).
+const SOLO_CARD_LIMIT: int = 14
+## Unit Feats - the ones naming a specific Unit or showing one in their art -
+## leave the allied Hero's deck in True Solo Mode (rulebook p74). Read off
+## the Core cards; removing them leaves every Hero exactly 1 START Feat,
+## which is what the rule expects of an allied Hero.
+const UNIT_FEATS: Array[String] = [
+	"Beastmasters", "Swordsisters", "Koloth", "Warsong", "Younglings", "Trolls", "Vargs",
+	"Berserkers", "Crossfire", "Rebel Marksmen", "Slavers",
+]
 
 const FEAT_DECKS: Dictionary = {
 	"Fhayanor": ["Ambush", "Assasins", "Beastmasters", "Caravans", "Hit and Run", "Informants", "Intuition", "Swordsisters"],
@@ -79,10 +90,17 @@ static func flip(p: PlayerFactionState, card: String) -> void:
 ## Item (to the discard pile; Caravans pays 1 Salt for it).
 static func discard(state: GameState, p: PlayerFactionState, card: String) -> void:
 	if p.feats_in_play.has(card):
+		var own_deck: bool = p.card_is_acting_heros(card)  # True Solo: back to its own Hero's deck
 		p.feats_in_play.erase(card)
 		p.flipped_feats.erase(card)
-		p.feat_deck.append(card)
+		if own_deck:
+			p.feat_deck.append(card)
+		else:
+			p.ally_feat_deck.append(card)
+		if not p.feats_in_play.has(card):
+			p.ally_cards.erase(card)
 	elif p.items_in_hand.has(card):
+		p.ally_cards.erase(card)
 		p.items_in_hand.erase(card)
 		p.flipped_items.erase(card)
 		state.item_discard.append(card)
@@ -99,12 +117,30 @@ static func feat_deck_for(hero_name: String) -> Array[String]:
 	return deck
 
 
-## Setup: START Feats into play, the rest shuffled into the Feat deck.
+## Setup: START Feats into play, the rest shuffled into the Feat deck. With
+## an allied Hero (True Solo) its own deck follows: no Unit Feats, no card
+## the main Hero's deck already holds (both Heroes may be one faction's).
 static func setup_player(state: GameState, card_db: Node, p: PlayerFactionState, rng: RandomNumberGenerator) -> void:
 	p.feats_in_play.clear()
 	p.feat_deck.clear()
+	p.ally_cards.clear()
+	_setup_deck(state, card_db, p, rng, [])
+	if p.has_ally():
+		var taken: Array[String] = p.feats_in_play.duplicate()
+		taken.append_array(p.feat_deck)
+		for a: String in ATTRIBUTE_FEATS.keys():
+			taken.erase(a)  # each Hero has their own attribute Feats
+		taken.append_array(UNIT_FEATS)
+		p.swap_heroes()
+		_setup_deck(state, card_db, p, rng, taken)
+		p.swap_heroes()
+
+
+static func _setup_deck(state: GameState, card_db: Node, p: PlayerFactionState, rng: RandomNumberGenerator, skip: Array[String]) -> void:
 	var rest: Array[String] = []
 	for f: String in feat_deck_for(p.hero_name):
+		if skip.has(f):
+			continue
 		if START_FEATS.has(f):
 			gain_feat(state, card_db, p, f)
 		else:
@@ -122,8 +158,10 @@ static func setup_player(state: GameState, card_db: Node, p: PlayerFactionState,
 ## resources and +1 to one of their two attributes (the Hero's stronger one).
 static func gain_feat(state: GameState, card_db: Node, p: PlayerFactionState, feat: String) -> void:
 	p.feat_deck.erase(feat)
-	if not p.feats_in_play.has(feat):
+	# Both Heroes of a True Solo game have their own attribute Feats.
+	if not p.feats_in_play.has(feat) or (p.has_ally() and ATTRIBUTE_FEATS.has(feat)):
 		p.feats_in_play.append(feat)
+	p.claim_card(feat)
 	if ATTRIBUTE_FEATS.has(feat):
 		var pair: Array = ATTRIBUTE_FEATS[feat]
 		var a: String = str(pair[0])
@@ -149,9 +187,10 @@ static func draw_feat(state: GameState, card_db: Node, p: PlayerFactionState) ->
 
 
 ## Feats + Items over 10: the least useful card goes (the cheapest Item,
-## else the lowest-priority Feat).
+## else the lowest-priority Feat). True Solo: 14 across both Heroes, with
+## the attribute Feats under the Hero cards left out.
 static func enforce_limit(state: GameState, p: PlayerFactionState, card_db: Node = null) -> void:
-	while p.feats_in_play.size() + p.items_in_hand.size() > CARD_LIMIT:
+	while _limited_cards(p) > (SOLO_CARD_LIMIT if p.has_ally() else CARD_LIMIT):
 		if not p.items_in_hand.is_empty():
 			var cheapest: String = p.items_in_hand[0]
 			for it: String in p.items_in_hand:
@@ -159,7 +198,22 @@ static func enforce_limit(state: GameState, p: PlayerFactionState, card_db: Node
 					cheapest = it
 			discard(state, p, cheapest)
 		else:
-			discard(state, p, _worst_feat(p.feats_in_play))
+			var counted: Array[String] = []
+			for f: String in p.feats_in_play:
+				if not (p.has_ally() and ATTRIBUTE_FEATS.has(f)):
+					counted.append(f)
+			if counted.is_empty():
+				return
+			discard(state, p, _worst_feat(counted))
+
+
+static func _limited_cards(p: PlayerFactionState) -> int:
+	var n: int = p.feats_in_play.size() + p.items_in_hand.size()
+	if p.has_ally():
+		for f: String in p.feats_in_play:
+			if ATTRIBUTE_FEATS.has(f):
+				n -= 1
+	return n
 
 
 static func _rank(feat: String) -> int:
@@ -176,8 +230,17 @@ static func _worst_feat(feats: Array[String]) -> String:
 
 
 ## Build Phase start (rulebook p17): draw 2 Feats, keep 1, the other goes
-## under the deck. The pair waits in pending_feats for a "pick_feat".
+## under the deck. The pair waits in pending_feats for a "pick_feat". True
+## Solo: the allied Hero does the same from their own deck (p78).
 static func draw_for_build(p: PlayerFactionState) -> void:
+	_draw_two(p)
+	if p.has_ally():
+		p.swap_heroes()
+		_draw_two(p)
+		p.swap_heroes()
+
+
+static func _draw_two(p: PlayerFactionState) -> void:
 	p.pending_feats.clear()
 	for _i: int in range(mini(2, p.feat_deck.size())):
 		p.pending_feats.append(p.feat_deck.pop_front())
@@ -195,6 +258,14 @@ static func pick_feat(state: GameState, card_db: Node, p: PlayerFactionState, fe
 
 
 static func auto_pick(state: GameState, card_db: Node, p: PlayerFactionState) -> void:
+	_auto_pick_one(state, card_db, p)
+	if p.has_ally():
+		p.swap_heroes()
+		_auto_pick_one(state, card_db, p)
+		p.swap_heroes()
+
+
+static func _auto_pick_one(state: GameState, card_db: Node, p: PlayerFactionState) -> void:
 	if p.pending_feats.is_empty():
 		return
 	var best: String = p.pending_feats[0]

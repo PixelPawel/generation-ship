@@ -167,6 +167,7 @@ func _run() -> void:
 	_combat_card_checks(card_db)
 	_aether_checks(card_db)
 	_lobby_setup_checks(card_db)
+	_solo_checks(card_db)
 
 	# --- Save/load keeps typed Units ---
 	var round_trip: GameState = GameState.from_dict(state.to_dict())
@@ -715,6 +716,86 @@ func _hex(state: GameState, coord: Vector2i, card_name: String) -> HexTileState:
 	t.hex_card_name = card_name
 	t.explored = true
 	return t
+
+
+## True Solo Mode: the solo map, the allied Hero, the Hero swap, scoring,
+## Targets and the 14-card limit.
+func _solo_checks(card_db: Node) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 97
+	var s: GameState = GameSetup.build_solo_game_state(card_db, {"faction": "Krowh", "hero": "Dugpa", "ally": "Syndra"}, "Veteran", rng)
+	var roles: Dictionary = {}
+	for t: HexTileState in s.hexes.values():
+		roles[t.role] = int(roles.get(t.role, 0)) + 1
+	_check(s.solo and s.hexes.size() == 28 and int(roles.get("interior", 0)) == 8 and int(roles.get("sea_tower", 0)) == 2 and int(roles.get("outer", 0)) == 16, "solo map: 28 spaces, 8 face-down hexes, 2 Sea Towers, 16 printed Ice Waste (roles %s)" % [roles])
+	var p: PlayerFactionState = s.players[0]
+	_check(s.players.size() == 1 and p.max_action_points == 10 and p.salt == 6 and p.plunder == 6 and p.food == 6, "solo: 10 AP and 6 of each resource")
+	_check(s.legion_deck.size() == 5 and s.horde_deck.size() == 5 and not s.quest_deck.has("Rebel Council"), "solo: 5 Legions, 5 Hordes, no Rebel Council")
+	_check(p.hero_coord == GameSetup.SOLO_HOME and p.ally_coord == GameSetup.SOLO_HOME and s.get_hex(GameSetup.SOLO_HOME).haven_faction == "Krowh", "both Heroes start on the Home hex, which holds the first Haven")
+	var curses: int = 0
+	var garrisons: int = 0
+	for t2: HexTileState in s.hexes.values():
+		if t2.curse:
+			curses += 1
+		if t2.role != "capital":
+			garrisons += t2.garrison_level
+	_check(curses == 2 and garrisons == 3 and s.get_hex(Vector2i.ZERO).garrison_level == 3, "Veteran solo: 2 Curses, 3 Garrisons round a level-3 Capital")
+	_check(RegionMath.region_at(s, Vector2i(0, 3)) == "The Howling Abyss" and RegionMath.region_at(s, Vector2i(-3, 3)) == "Wandering Sea" and RegionMath.region_hexes(s, "Darkmirror").size() == 5, "solo Regions: The Howling Abyss, Wandering Sea, 5 uncovered Darkmirror spaces")
+
+	var ally_owned: Array[String] = []
+	for f: String in p.feats_in_play:
+		if p.ally_cards.has(f):
+			ally_owned.append(f)
+	_check(p.feats_in_play.has("Dark Ritual") and p.feats_in_play.has("Trolls") and ", ".join(ally_owned) == "Teleport", "solo START Feats: Dark Ritual + Trolls for Dugpa, Teleport for the allied Syndra (%s / %s)" % [p.feats_in_play, ally_owned])
+	var unit_free: bool = not p.ally_feat_deck.is_empty()
+	for f2: String in p.ally_feat_deck:
+		if GameActions.CardAbilities.UNIT_FEATS.has(f2):
+			unit_free = false
+	_check(unit_free, "the allied Hero's Feat deck has no Unit Feats (%s)" % [p.ally_feat_deck])
+
+	s.phase = GameState.Phase.ACTIONS
+	s.current_player_index = 0
+	var r: Dictionary = GameActions.apply(s, {"type": "move", "to": {"x": 0, "y": 1}, "hero_slot": "ally"}, "Krowh", card_db)
+	_check(bool(r.get("ok", false)) and p.ally_coord == Vector2i(0, 1) and p.hero_coord == GameSetup.SOLO_HOME and p.hero_name == "Dugpa" and p.action_points == 9, "solo Move by the allied Hero moves only Syndra, paid from the shared AP")
+	_check(p.card_hero_coord("Teleport") == Vector2i(0, 1) and p.card_hero_coord("Dark Ritual") == GameSetup.SOLO_HOME, "each Hero's cards go where that Hero stands")
+
+	GameActions.CardAbilities.draw_for_build(p)
+	_check(p.pending_feats.size() == 2 and p.ally_pending_feats.size() == 2, "solo Build Phase: 2 Feats drawn for each Hero")
+	var ally_pick: String = p.ally_pending_feats[0]
+	var pr: Dictionary = GameActions.apply(s, {"type": "pick_feat", "feat": ally_pick, "hero_slot": "ally"}, "Krowh", card_db)
+	_check(bool(pr.get("ok", false)) and p.ally_cards.has(ally_pick) and p.ally_pending_feats.is_empty() and p.pending_feats.size() == 2, "the allied Hero picks from its own pair and owns the Feat")
+
+	var garrison_hexes: int = 0
+	for t3: HexTileState in s.hexes.values():
+		if t3.garrison_level > 0:
+			garrison_hexes += 1
+	s.imperial_graveyard = {"Krowh": 3}
+	var empire_before: int = s.empire_vp
+	Scoring._score_empire(s)
+	_check(s.empire_vp == empire_before + garrison_hexes + s.legions.size() + 3, "solo scoring: The Empire gains 1 VP per Unit in its Graveyard")
+
+	var first := LegionInstance.new()
+	NemesisAI.assign_target(s, first)
+	s.legions.append(first)
+	var second := LegionInstance.new()
+	NemesisAI.assign_target(s, second)
+	_check(first.target_faction == "Krowh" and first.target_coord == GameSetup.SOLO_HOME and second.target_coord == GameSetup.SOLO_HOME, "solo Targets: every Legion may target your Havens, doubling up when all have one")
+
+	var lim := PlayerFactionState.new()
+	lim.faction = "Krowh"
+	lim.hero_name = "Dugpa"
+	lim.ally_hero_name = "Syndra"
+	for i: int in range(14):
+		lim.items_in_hand.append("Item %d" % i)
+	lim.feats_in_play.append("Might Magic")
+	GameActions.CardAbilities.enforce_limit(s, lim, null)
+	var kept: int = lim.items_in_hand.size()
+	lim.items_in_hand.append("Item 14")
+	GameActions.CardAbilities.enforce_limit(s, lim, null)
+	_check(kept == 14 and lim.items_in_hand.size() == 14, "solo: 14 cards across both Heroes, attribute Feats not counted")
+
+	var mp: GameState = GameSetup.build_game_state(card_db, [{"faction": "Krowh", "hero": "Dugpa"}, {"faction": "Druwhn", "hero": "Syndra"}], rng)
+	_check(not mp.solo and not mp.players[0].has_ally() and mp.players[0].max_action_points == 8, "multiplayer games have no allied Hero")
 
 
 func _sorted(a: Array[String]) -> Array[String]:

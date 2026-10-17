@@ -260,7 +260,7 @@ static func on_dealt(state: GameState, card_db: Node, quest_name: String, factio
 			NemesisAI.spawn_legion(state, card_db, state.capital_coord, 3)
 		"Cleanse the Wastes":
 			# Legions of Undead: 2 Skeletons on 1 empty hex in each region with no Skeletons.
-			for region: String in RegionMath.REGIONS:
+			for region: String in RegionMath.regions(state):
 				var spaces: Array[Vector2i] = RegionMath.region_hexes(state, region)
 				var has_skeletons: bool = false
 				for c: Vector2i in spaces:

@@ -19,9 +19,43 @@ const AP_COST := 1
 const MAX_HAVENS := 5
 const QUEST_FLOW_PATH := "res://scripts/game/quest_flow.gd"
 const CardAbilities := preload("res://scripts/game/card_abilities.gd")
+## Actions a single Hero takes. In True Solo Mode action["hero_slot"] =
+## "ally" has the allied Hero take them; use_card always follows whoever
+## owns the card.
+const HERO_ACTIONS: Array[String] = ["move", "explore", "haven", "market", "quest", "pick_feat", "build_unit", "trade"]
 
 
 static func apply(state: GameState, action: Dictionary, faction: String, card_db: Node) -> Dictionary:
+	var actor: PlayerFactionState = state.find_player(faction)
+	if actor == null or not actor.has_ally() or not _ally_acts(actor, action):
+		return _apply(state, action, faction, card_db)
+	# The allied Hero acts: swap it into the main Hero's fields for the
+	# action, and whatever cards it gains on the way are its own.
+	var before: Dictionary = {}
+	for f: String in actor.feats_in_play:
+		before[f] = true
+	for it: String in actor.items_in_hand:
+		before[it] = true
+	actor.swap_heroes()
+	var result: Dictionary = _apply(state, action, faction, card_db)
+	for f2: String in actor.feats_in_play:
+		if not before.has(f2):
+			actor.claim_card(f2)
+	for it2: String in actor.items_in_hand:
+		if not before.has(it2):
+			actor.claim_card(it2)
+	actor.swap_heroes()
+	return result
+
+
+static func _ally_acts(p: PlayerFactionState, action: Dictionary) -> bool:
+	var type: String = str(action.get("type", ""))
+	if type == "use_card":
+		return not p.card_is_acting_heros(str(action.get("card", "")))
+	return HERO_ACTIONS.has(type) and str(action.get("hero_slot", "")) == "ally"
+
+
+static func _apply(state: GameState, action: Dictionary, faction: String, card_db: Node) -> Dictionary:
 	var type: String = str(action.get("type", ""))
 	match type:
 		"move":
@@ -154,6 +188,25 @@ static func _trade(state: GameState, action: Dictionary, faction: String, card_d
 		for it4: Variant in (action.get("take_items", []) as Array):
 			partner.items_in_hand.erase(str(it4))
 			p.items_in_hand.append(str(it4))
+	# True Solo: hand Items between your own two Heroes ("swap_items").
+	var handed: Array = action.get("swap_items", [])
+	if not handed.is_empty():
+		var together: bool = p.hero_coord == p.ally_coord or (CardAbilities.trades_adjacent(p) and HexMath.distance(p.hero_coord, p.ally_coord) == 1)
+		if not p.has_ally() or not together:
+			return {"ok": false, "reason": "your two Heroes must share a hex to hand over Items"}
+		for it5: Variant in handed:
+			if not p.items_in_hand.has(str(it5)):
+				return {"ok": false, "reason": "'%s' isn't one of your Items" % it5}
+			p.swap_heroes()  # the receiving Hero must be able to use it
+			var usable: bool = hero_can_use_item(card_db, p, str(it5))
+			p.swap_heroes()
+			if not usable:
+				return {"ok": false, "reason": "your other Hero can't use '%s'" % it5}
+		for it6: Variant in handed:
+			if p.ally_cards.has(str(it6)):
+				p.ally_cards.erase(str(it6))
+			else:
+				p.ally_cards[str(it6)] = true
 	p.action_points -= AP_COST
 	p.salt += 1 + CardAbilities.trade_bonus(p)
 	state.phase_log = "%s Trades%s" % [faction, " with %s" % partner.faction if partner != null else ""]
@@ -264,6 +317,17 @@ static func _command(state: GameState, action: Dictionary, faction: String, card
 			p.hero_coord = target
 		else:
 			hero_moves = false
+	# True Solo: Command can bring both Heroes into the hex (rulebook p78).
+	var ally_moves: bool = bool(action.get("ally_hero", false)) and p.has_ally() and p.ally_coord != target
+	if ally_moves:
+		var at: HexTileState = state.get_hex(p.ally_coord)
+		var ally_on_tower: bool = at != null and at.role == "sea_tower" and at.explored
+		if HexMath.distance(p.ally_coord, target) == 1 or ally_on_tower:
+			p.ally_coord = target
+		else:
+			ally_moves = false
+	if ally_moves:
+		hero_moves = true  # for the log line
 
 	if free_cmd:
 		p.wiles_ready = false
