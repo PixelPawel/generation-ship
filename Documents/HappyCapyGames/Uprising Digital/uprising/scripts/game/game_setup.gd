@@ -205,6 +205,16 @@ static func build_2p_normal_game_state(card_db: Node, rng: RandomNumberGenerator
 	for coord: Vector2i in layout.skeleton_counts.keys():
 		state.ensure_hex(coord, "outer")
 
+	# Every other space of the printed 37-hex board is a bare Region space:
+	# explored Ice Waste, no Haven ever (rulebook p7 "These hexes stay
+	# empty. They are explored Ice Waste hexes", p14). Units, Heroes and the
+	# Nemesis move through them like any hex.
+	for coord: Vector2i in HexMath.spiral(layout.capital_coord, RegionMath.BOARD_RADIUS):
+		state.ensure_hex(coord, "outer")
+	for tile: HexTileState in state.hexes.values():
+		if tile.role == "outer":
+			tile.explored = true
+
 	for coord: Vector2i in layout.garrison_counts.keys():
 		state.hexes[coord].garrison_level = layout.garrison_counts[coord]
 	for coord: Vector2i in layout.curse_coords:
@@ -223,6 +233,9 @@ static func build_2p_normal_game_state(card_db: Node, rng: RandomNumberGenerator
 		p.food = STARTING_RESOURCE_VETERAN
 		p.action_points = STARTING_AP
 		p.max_action_points = STARTING_AP
+		for home: Vector2i in layout.home_factions.keys():
+			if layout.home_factions[home] == faction:
+				p.hero_coord = home  # rulebook Setup: the Hero standee starts on its home hex.
 		state.players.append(p)
 
 	# 2-faction game: 5 Legion + 5 Horde cards staged face-down (rulebook

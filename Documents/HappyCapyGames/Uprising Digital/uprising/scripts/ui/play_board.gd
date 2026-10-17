@@ -21,8 +21,15 @@ const ROLE_COLORS := {
 	"home": Color(0.3, 0.55, 0.85),
 	"sea_tower": Color(0.2, 0.65, 0.75),
 	"interior": Color(0.35, 0.35, 0.38),
-	"outer": Color(0.5, 0.2, 0.5),
+	"outer": Color(0.55, 0.78, 0.82),  # bare Region space: explored Ice Waste
 }
+
+## Same upright rotation GameBoardSetup verified for the extracted standee
+## meshes (they ship lying flat).
+const STANDEE_UPRIGHT_ROTATION := Vector3(90, 0, 0)
+const HERO_HEIGHT := 2.4  # world units, a bit over one hex radius
+
+var heroes_root: Node3D
 
 var selected_coord: Vector2i = Vector2i.ZERO
 var has_selected_coord: bool = false
@@ -56,6 +63,10 @@ func _ready() -> void:
 	_wire_button("EndTurnButton", _on_end_turn_pressed)
 	_wire_button("PassButton", _on_pass_pressed)
 	_wire_button("EndPhaseButton", _on_end_phase_pressed)
+
+	heroes_root = Node3D.new()
+	heroes_root.name = "Heroes"
+	add_child(heroes_root)
 
 	if net.current_state != null:
 		_on_state_updated(net.current_state)
@@ -109,6 +120,35 @@ func _rebuild_hexes(state: GameState) -> void:
 		if has_selected_coord and coord == selected_coord:
 			tint = tint.lightened(0.5)
 		HexTextureLibrary.apply_material(inst, tile.role, tile.hex_card_name, tile.owning_faction, tile.explored, fallback_color, tint)
+	_rebuild_heroes(state)
+
+
+## One standee per Hero on their hex, nudged apart when several share it.
+func _rebuild_heroes(state: GameState) -> void:
+	for child: Node in heroes_root.get_children():
+		child.queue_free()
+	var model_manifest: Node = get_node_or_null("/root/ModelManifest")
+	for i: int in range(state.players.size()):
+		var p: PlayerFactionState = state.players[i]
+		var offset := Vector3(-0.7 + 1.4 * float(i % 2), 0.25, -0.5 + 1.0 * float(i / 2))
+		var path: String = model_manifest.find_model_path(p.faction, p.hero_name) if model_manifest != null else ""
+		var mesh: Mesh = load(path) if not path.is_empty() else null
+		var inst := MeshInstance3D.new()
+		inst.name = "Hero_%s" % p.faction
+		heroes_root.add_child(inst)
+		inst.position = HexMath.to_world(p.hero_coord) + offset
+		if mesh != null:
+			inst.mesh = mesh
+			inst.rotation_degrees = STANDEE_UPRIGHT_ROTATION
+			var depth: float = maxf(mesh.get_aabb().size.z, 0.01)  # lying flat, Z is the standee's height
+			inst.scale = Vector3.ONE * (HERO_HEIGHT / depth)
+		else:
+			var marker := CylinderMesh.new()
+			marker.top_radius = 0.3
+			marker.bottom_radius = 0.45
+			marker.height = 1.4
+			inst.mesh = marker
+			inst.position.y += 0.7
 
 
 func _update_hud(state: GameState) -> void:
@@ -127,12 +167,46 @@ func _update_hud(state: GameState) -> void:
 	else:
 		resources_label.text = "Waiting for opponent to connect..."
 
-	selected_label.text = "Selected: %s" % (str(selected_coord) if has_selected_coord else "(none)")
+	selected_label.text = "Selected: %s" % (_describe_hex(state, selected_coord) if has_selected_coord else "(none)")
 	var sel_tile: HexTileState = state.get_hex(selected_coord) if has_selected_coord else null
 	if sel_tile != null and sel_tile.orientable_by == my_faction:
-		selected_label.text += " - Rotate Hex to turn its impassable edges"
+		selected_label.text += "
+Rotate Hex to turn its impassable edges"
 	if not state.phase_log.is_empty():
 		log_label.text = state.phase_log
+
+
+## Plain-text summary of everything on a hex - the board doesn't draw Units
+## or Nemesis pieces yet.
+func _describe_hex(state: GameState, coord: Vector2i) -> String:
+	var tile: HexTileState = state.get_hex(coord)
+	if tile == null:
+		return "%s (off the board)" % coord
+	var title: String = tile.hex_card_name if tile.explored and not tile.hex_card_name.is_empty() else ("unexplored" if not tile.explored else tile.role)
+	if tile.role == "outer":
+		title = "%s (Region)" % RegionMath.region_for(coord, state.capital_coord)
+	var parts: Array[String] = ["%s %s" % [coord, title]]
+	if tile.curse:
+		parts.append("Curse")
+	if not tile.haven_faction.is_empty():
+		parts.append("%s Haven%s%s" % [tile.haven_faction, " +Tower" if tile.tower else "", " +Wall" if tile.wall else ""])
+	var faction: String = tile.player_faction_here()
+	if not faction.is_empty():
+		var stack: Dictionary = tile.unit_stack(faction)
+		var bits: Array[String] = []
+		for unit_name: Variant in stack.keys():
+			bits.append("%dx %s" % [int(stack[unit_name]), unit_name])
+		parts.append("%s: %s" % [faction, ", ".join(bits)])
+	if tile.garrison_level > 0:
+		parts.append("Garrison L%d" % tile.garrison_level)
+	if tile.skeleton_count > 0:
+		parts.append("%d Skeleton(s)" % tile.skeleton_count)
+	for n: Variant in EffectUtil.nemesis_at(state, coord):
+		parts.append("%s (Threat %d, %d tokens)" % [n.card_name, n.threat, n.activation_tokens])
+	for p: PlayerFactionState in state.players:
+		if p.hero_coord == coord:
+			parts.append("Hero %s" % p.hero_name)
+	return " | ".join(parts)
 
 
 func select_coord(coord: Vector2i) -> void:
@@ -180,9 +254,7 @@ func _on_command_pressed() -> void:
 
 
 func _on_explore_pressed() -> void:
-	if not has_selected_coord:
-		return
-	_submit({"type": "explore", "at": _coord_dict(selected_coord)})
+	_submit({"type": "explore"})  # always the Hero's own hex
 
 
 func _on_rotate_pressed() -> void:
@@ -196,9 +268,7 @@ func _on_rotate_pressed() -> void:
 
 
 func _on_haven_pressed() -> void:
-	if not has_selected_coord:
-		return
-	_submit({"type": "haven", "at": _coord_dict(selected_coord)})
+	_submit({"type": "haven"})  # always the Hero's own hex
 
 
 func _on_market_pressed() -> void:

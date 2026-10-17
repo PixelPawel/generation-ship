@@ -24,6 +24,37 @@ static func hex_is_empty_of_units(state: GameState, coord: Vector2i) -> bool:
 	return true
 
 
+## Rulebook p50: an "empty hex" (for Nemesis placement) has no Haven, no
+## Units of any kind and no Curse - a Hero may stand there. Different from
+## hex_is_empty_of_units(), which Hex "If empty, place..." text uses.
+static func hex_is_empty(state: GameState, coord: Vector2i) -> bool:
+	var tile: HexTileState = state.get_hex(coord)
+	if tile == null:
+		return false
+	return tile.haven_faction.is_empty() and not tile.curse and hex_is_empty_of_units(state, coord)
+
+
+## Legions and Hordes standing on `coord`.
+static func nemesis_at(state: GameState, coord: Vector2i) -> Array:
+	var out: Array = []
+	for l: LegionInstance in state.legions:
+		if l.coord == coord:
+			out.append(l)
+	for h: HordeInstance in state.hordes:
+		if h.coord == coord:
+			out.append(h)
+	return out
+
+
+static func hero_card(card_db: Node, hero_name: String) -> HeroCard:
+	if card_db == null or hero_name.is_empty():
+		return null
+	for h: HeroCard in card_db.heroes:
+		if h.card_name == hero_name:
+			return h
+	return null
+
+
 ## EN HexCard for a hex's card name, null if unknown (e.g. "" for an
 ## unrevealed region hex).
 static func hex_card(card_db: Node, card_name: String) -> HexCard:

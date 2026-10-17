@@ -66,6 +66,7 @@ func _run() -> void:
 	board.select_coord(interior_coord)
 	_check(board.has_selected_coord and board.selected_coord == interior_coord, "select_coord updated PlayBoard's selection")
 
+	net.current_state.find_player(f1).hero_coord = interior_coord  # Explore acts on the Hero's hex
 	var ap_before: int = net.current_state.find_player(f1).action_points
 	board._on_explore_pressed()
 	await process_frame

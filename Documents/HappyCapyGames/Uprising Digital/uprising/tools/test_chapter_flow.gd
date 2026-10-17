@@ -53,6 +53,7 @@ func _run() -> void:
 	_check(interior_coord != Vector2i.ZERO or state.hexes.has(Vector2i.ZERO), "found an interior hex with a transcribed effect to Explore")
 	var target_tile: HexTileState = state.get_hex(interior_coord)
 	var explore_card: String = target_tile.hex_card_name
+	state.find_player(f1).hero_coord = interior_coord  # Explore acts on the Hero's own hex
 	var r3: Dictionary = GameActions.apply(state, {"type": "explore", "at": {"x": interior_coord.x, "y": interior_coord.y}}, f1, card_db)
 	_check(r3.get("ok", false), "Explore succeeds: %s" % r3.get("reason", ""))
 	_check(state.get_hex(interior_coord).explored, "hex is now explored")
@@ -76,10 +77,17 @@ func _run() -> void:
 		if t.role == "interior" and not t.explored:
 			interior_coord2 = coord
 			break
+	state.find_player(f2).hero_coord = interior_coord2
 	GameActions.apply(state, {"type": "explore", "at": {"x": interior_coord2.x, "y": interior_coord2.y}}, f2, card_db)
 	GameActions.apply(state, {"type": "end_turn"}, f2, card_db)  # explore already ended the turn's action, but not the turn itself - end_turn advances back to f1... need f2's turn again for Haven.
 	# f1's turn now; give it back to f2 by having f1 pass, then f2 acts.
 	GameActions.apply(state, {"type": "pass"}, f1, card_db)
+	# The flip may have placed Garrisons/Skeletons there - pretend f2 fought them off.
+	state.get_hex(interior_coord2).garrison_level = 0
+	state.get_hex(interior_coord2).skeleton_count = 0
+	for n: Variant in EffectUtil.nemesis_at(state, interior_coord2):
+		state.legions.erase(n)
+		state.hordes.erase(n)
 	var r6: Dictionary = GameActions.apply(state, {"type": "haven", "at": {"x": interior_coord2.x, "y": interior_coord2.y}}, f2, card_db)
 	_check(r6.get("ok", false), "Haven succeeds: %s" % r6.get("reason", ""))
 	_check(state.get_hex(interior_coord2).haven_faction == f2, "Haven now belongs to f2")

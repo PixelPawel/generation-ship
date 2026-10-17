@@ -5,6 +5,9 @@ var faction: String = ""
 var hero_name: String = ""
 var peer_id: int = -1        # network peer that controls this faction, -1 = unclaimed/bot
 var is_bot: bool = false
+## Where the Hero standee stands (rulebook p10: starts on the home hex).
+## Explore and Haven act on this hex, Move/Command change it.
+var hero_coord: Vector2i = Vector2i.ZERO
 
 var salt: int = 0
 var plunder: int = 0
@@ -26,6 +29,7 @@ var has_acted_this_turn: bool = false
 func to_dict() -> Dictionary:
 	return {
 		"faction": faction, "hero_name": hero_name, "peer_id": peer_id, "is_bot": is_bot,
+		"hero_coord": {"x": hero_coord.x, "y": hero_coord.y},
 		"salt": salt, "plunder": plunder, "food": food,
 		"action_points": action_points, "max_action_points": max_action_points,
 		"vp": vp, "feats_in_play": feats_in_play.duplicate(),
@@ -40,6 +44,8 @@ static func from_dict(d: Dictionary) -> PlayerFactionState:
 	s.hero_name = d.get("hero_name", "")
 	s.peer_id = d.get("peer_id", -1)
 	s.is_bot = d.get("is_bot", false)
+	var hc: Dictionary = d.get("hero_coord", {"x": 0, "y": 0})
+	s.hero_coord = Vector2i(int(hc.get("x", 0)), int(hc.get("y", 0)))
 	s.salt = d.get("salt", 0)
 	s.plunder = d.get("plunder", 0)
 	s.food = d.get("food", 0)

@@ -71,6 +71,10 @@ static func active_players(state: GameState) -> Array[PlayerFactionState]:
 
 
 # --- Move: 1 AP/hex, your turn only, does NOT end your turn. ---
+## Rulebook p18: the Hero steps onto an adjacent hex - even an unexplored
+## one, one with enemy Units, or across impassable terrain (Heroes may
+## cross it, and never start combat). From an explored Sea Tower the Hero
+## may move to any hex.
 static func _move(state: GameState, action: Dictionary, faction: String) -> Dictionary:
 	if not is_players_turn(state, faction):
 		return {"ok": false, "reason": "not your turn"}
@@ -78,12 +82,15 @@ static func _move(state: GameState, action: Dictionary, faction: String) -> Dict
 	if p.action_points < AP_COST:
 		return {"ok": false, "reason": "not enough AP"}
 	var to: Vector2i = _coord(action, "to")
-	# Hero movement doesn't have a tracked position in GameState yet (no
-	# "hero_coord" field) - this deducts AP and logs the move; Hero
-	# position tracking is a Milestone 5 UI/state concern once the board
-	# view needs to actually place the Hero standee.
+	if not state.hexes.has(to) or to == p.hero_coord:
+		return {"ok": false, "reason": "pick another hex on the board"}
+	var here: HexTileState = state.get_hex(p.hero_coord)
+	var from_sea_tower: bool = here != null and here.role == "sea_tower" and here.explored
+	if HexMath.distance(p.hero_coord, to) != 1 and not from_sea_tower:
+		return {"ok": false, "reason": "your Hero can only Move to an adjacent hex"}
+	p.hero_coord = to
 	p.action_points -= AP_COST
-	state.phase_log = "%s moves Hero toward %s" % [faction, to]
+	state.phase_log = "%s moves their Hero to %s" % [faction, to]
 	return {"ok": true}
 
 
@@ -155,10 +162,20 @@ static func _command(state: GameState, action: Dictionary, faction: String, card
 		ft.remove_unit(faction, mv[1], added)
 		moved += added
 
+	# "...and/or your adjacent Hero" - only when asked (action["hero"]).
+	var hero_moves: bool = bool(action.get("hero", false)) and p.hero_coord != target
+	if hero_moves:
+		var ht: HexTileState = state.get_hex(p.hero_coord)
+		var hero_on_tower: bool = ht != null and ht.role == "sea_tower" and ht.explored
+		if HexMath.distance(p.hero_coord, target) == 1 or hero_on_tower:
+			p.hero_coord = target
+		else:
+			hero_moves = false
+
 	p.action_points -= AP_COST
 	p.food -= 1
 	p.has_acted_this_turn = true
-	state.phase_log = "%s Commands %d Unit(s) to %s" % [faction, moved, target]
+	state.phase_log = "%s Commands %d Unit(s)%s to %s" % [faction, moved, " and their Hero" if hero_moves else "", target]
 	if CombatResolver.hex_needs_combat(state, target):
 		var r: CombatResolver.Result = CombatResolver.resolve_hex(state, target, card_db)
 		state.phase_log += " | " + "; ".join(r.log)
@@ -195,7 +212,9 @@ static func _explore(state: GameState, action: Dictionary, faction: String, card
 		return {"ok": false, "reason": "already took your one Action this turn"}
 	if p.action_points < AP_COST:
 		return {"ok": false, "reason": "not enough AP"}
-	var coord: Vector2i = _coord(action, "at")
+	var coord: Vector2i = p.hero_coord  # rulebook p22: "When your Hero is on an unexplored hex"
+	if action.has("at") and _coord(action, "at") != coord:
+		return {"ok": false, "reason": "your Hero must stand on the hex to Explore it"}
 	var tile: HexTileState = state.get_hex(coord)
 	if tile == null:
 		return {"ok": false, "reason": "no hex there"}
@@ -257,7 +276,9 @@ static func _haven(state: GameState, action: Dictionary, faction: String) -> Dic
 	var cost: int = board.haven_plunder_cost if board != null else 2
 	if p.action_points < AP_COST or p.plunder < cost:
 		return {"ok": false, "reason": "not enough AP/Plunder"}
-	var coord: Vector2i = _coord(action, "at")
+	var coord: Vector2i = p.hero_coord  # rulebook p22: "in your Hero's explored hex"
+	if action.has("at") and _coord(action, "at") != coord:
+		return {"ok": false, "reason": "your Hero must stand on the hex to build a Haven there"}
 	var tile: HexTileState = state.get_hex(coord)
 	if tile == null or not tile.explored:
 		return {"ok": false, "reason": "hex must be explored"}
@@ -286,9 +307,10 @@ static func _haven(state: GameState, action: Dictionary, faction: String) -> Dic
 
 # --- Market: 1 AP + the Item's Salt cost, ends turn. ---
 ## Buys one of the 3 face-up Items (GameState.item_market, dealt in
-## Refresh). Cost comes from the Items CSV, -1 Salt on a Sea Tower
-## (action["on_sea_tower"] until Hero position is tracked). The Hero
-## attribute requirement isn't checked yet.
+## Refresh) at its Items CSV Salt cost, 1 less while the Hero stands on an
+## explored Sea Tower (its ongoing effect). The Hero must be able to use
+## the Item - attributes at least those printed on it (rulebook p24) - and
+## the Market refills at once ("The market is always full").
 static func _market(state: GameState, action: Dictionary, faction: String, card_db: Node) -> Dictionary:
 	if not is_players_turn(state, faction):
 		return {"ok": false, "reason": "not your turn"}
@@ -296,21 +318,35 @@ static func _market(state: GameState, action: Dictionary, faction: String, card_
 	if p.has_acted_this_turn:
 		return {"ok": false, "reason": "already took your one Action this turn"}
 	var item_name: String = str(action.get("item", ""))
-	if not state.item_market.has(item_name):
-		return {"ok": false, "reason": "item not in the Market"}
+	if not state.item_market.has(item_name) or state.flipped_market.has(item_name):
+		return {"ok": false, "reason": "item not available in the Market"}
+	if not hero_can_use_item(card_db, p, item_name):
+		return {"ok": false, "reason": "your Hero lacks the attributes to use '%s'" % item_name}
 	var cost: int = item_cost(card_db, item_name)
-	if bool(action.get("on_sea_tower", false)):
+	var here: HexTileState = state.get_hex(p.hero_coord)
+	if here != null and here.role == "sea_tower" and here.explored:
 		cost = maxi(0, cost - 1)
 	if p.action_points < AP_COST or p.salt < cost:
 		return {"ok": false, "reason": "not enough AP/Salt"}
 
 	state.item_market.erase(item_name)
+	ChapterFlow.refill_row(state.item_market, state.item_deck, state.item_discard, 3)
 	p.items_in_hand.append(item_name)
 	p.action_points -= AP_COST
 	p.salt -= cost
 	p.has_acted_this_turn = true
 	state.phase_log = "%s buys Item '%s' for %d Salt" % [faction, item_name, cost]
 	return {"ok": true}
+
+
+static func hero_can_use_item(card_db: Node, p: PlayerFactionState, item_name: String) -> bool:
+	var hero: HeroCard = EffectUtil.hero_card(card_db, p.hero_name)
+	if card_db == null or hero == null:
+		return true
+	for it: ItemCard in card_db.items:
+		if it.card_name == item_name:
+			return hero.might >= it.might and hero.magic >= it.magic and hero.lead >= it.lead and hero.guile >= it.guile
+	return true
 
 
 static func item_cost(card_db: Node, item_name: String) -> int:
@@ -370,7 +406,9 @@ static func _build_unit(state: GameState, action: Dictionary, faction: String) -
 		return {"ok": false, "reason": "unknown unit '%s' for %s" % [unit_name, faction]}
 	var coord: Vector2i = _coord(action, "at")
 	var tile: HexTileState = state.get_hex(coord)
-	if tile == null or tile.haven_faction != faction:
+	if tile == null:
+		return {"ok": false, "reason": "no hex there"}
+	if tile.haven_faction != faction and not _homeless_build_ok(state, p, coord):
 		return {"ok": false, "reason": "must build on your own Haven"}
 	if tile.unit_count(faction) >= HexTileState.MAX_UNITS:
 		return {"ok": false, "reason": "hex already has 5 Units"}
@@ -385,8 +423,25 @@ static func _build_unit(state: GameState, action: Dictionary, faction: String) -
 		return pay_result
 
 	tile.add_units(faction, unit_name)
+	if tile.haven_faction != faction:
+		p.hero_coord = coord  # homeless build: the Hero goes where the Units appear
 	state.phase_log = "%s builds a %s at %s" % [faction, unit_name, coord]
 	return {"ok": true}
+
+
+## Rulebook p17: "If you have no Havens, place your Hero on any explored
+## empty hex and build Units there."
+static func _homeless_build_ok(state: GameState, p: PlayerFactionState, coord: Vector2i) -> bool:
+	for t: HexTileState in state.hexes.values():
+		if t.haven_faction == p.faction:
+			return false
+	var tile: HexTileState = state.get_hex(coord)
+	if tile == null or tile.role == "outer" or not tile.explored or tile.curse or not tile.haven_faction.is_empty():
+		return false
+	if coord != p.hero_coord and tile.unit_count(p.faction) > 0:
+		return false  # Units already gathered under the Hero elsewhere
+	var others: int = tile.total_player_units() - tile.unit_count(p.faction)
+	return others == 0 and tile.garrison_level == 0 and tile.skeleton_count == 0 and EffectUtil.nemesis_at(state, coord).is_empty()
 
 
 static func _build_defense(state: GameState, action: Dictionary, faction: String) -> Dictionary:

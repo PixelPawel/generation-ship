@@ -46,6 +46,24 @@ static func roll(color: String, rng: RandomNumberGenerator) -> Array[String]:
 	return result
 
 
+## Hero Dice (rulebook p12, p25): 1 red per Might, 1 purple per Magic, 1
+## blue per Leadership, and per Guile a white OR yellow die chosen before
+## rolling (`guile_color`; yellow leans Skulls, white Shields).
+static func hero_pool(hero: HeroCard, guile_color: String = "yellow") -> Array[String]:
+	var pool: Array[String] = []
+	if hero == null:
+		return pool
+	for _i: int in range(hero.might):
+		pool.append("red")
+	for _i: int in range(hero.magic):
+		pool.append("purple")
+	for _i: int in range(hero.lead):
+		pool.append("blue")
+	for _i: int in range(hero.guile):
+		pool.append(guile_color)
+	return pool
+
+
 ## Rolls a whole pool of dice (e.g. one Legion/Horde's Archery or Clash
 ## row from LegionHordeCombatTable) and returns aggregate symbol counts.
 static func roll_pool(colors: Array, rng: RandomNumberGenerator) -> Dictionary:

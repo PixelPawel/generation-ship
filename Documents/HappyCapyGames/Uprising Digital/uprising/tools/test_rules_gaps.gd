@@ -157,6 +157,7 @@ func _run() -> void:
 	_check(buyer.salt == 20 - cost and buyer.items_in_hand.has(item) and not rs.item_market.has(item), "paid %d Salt and the Item left the Market" % cost)
 
 	_impassable_checks(card_db)
+	_region_and_hero_checks(card_db)
 
 	# --- Save/load keeps typed Units ---
 	var round_trip: GameState = GameState.from_dict(state.to_dict())
@@ -211,6 +212,7 @@ func _impassable_checks(card_db: Node) -> void:
 	# Explore -> the explorer may orient the hex until their turn ends.
 	var fh: HexTileState = _hex(s, Vector2i(-1, 2), "Frosthold Pass")
 	fh.explored = false
+	p.hero_coord = Vector2i(-1, 2)
 	var ex: Dictionary = GameActions.apply(s, {"type": "explore", "at": {"x": -1, "y": 2}}, "Krowh", card_db)
 	_check(ex.get("ok", false) and fh.orientable_by == "Krowh", "Explore lets the explorer orient Frosthold Pass")
 	_check(not GameActions.apply(s, {"type": "orient", "at": {"x": -1, "y": 2}, "rotation": 2}, "Druwhn", card_db).get("ok", false), "another faction can't orient it")
@@ -218,6 +220,52 @@ func _impassable_checks(card_db: Node) -> void:
 	GameActions.apply(s, {"type": "end_turn"}, "Krowh", card_db)
 	_check(fh.orientable_by.is_empty(), "orientation locks when the turn ends")
 	_check(HexTileState.from_dict(fh.to_dict()).rotation == 3, "rotation survives save/load")
+
+
+## Regions as printed on the board, the full 37-space board, Hero movement.
+func _region_and_hero_checks(card_db: Node) -> void:
+	_check(RegionMath.region_for(Vector2i(0, -3)) == "Screaming Sea", "north tip is Screaming Sea")
+	_check(RegionMath.region_for(Vector2i(0, 3)) == "Howling White", "south tip is Howling White")
+	_check(RegionMath.region_for(Vector2i(3, -1)) == "Fog Grave", "east edge is Fog Grave")
+	_check(RegionMath.region_for(Vector2i.ZERO) == "Screaming Sea", "the center space is printed Screaming Sea")
+	_check(RegionMath.region_for(Vector2i(4, 0)).is_empty(), "off the 37-hex board there is no Region")
+	var counts: Dictionary = {}
+	for c: Vector2i in HexMath.spiral(Vector2i.ZERO, 3):
+		var reg: String = RegionMath.region_for(c)
+		counts[reg] = int(counts.get(reg, 0)) + 1
+	_check(counts == {"Screaming Sea": 13, "Howling White": 12, "Fog Grave": 12}, "wedges are 13/12/12, got %s" % counts)
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 21
+	var s: GameState = GameSetup.build_2p_normal_game_state(card_db, rng)
+	_check(s.hexes.size() == 37, "the whole 37-space board exists, got %d" % s.hexes.size())
+	var covered: int = 0
+	for t: HexTileState in s.hexes.values():
+		if t.role != "outer":
+			covered += 1
+	var uncovered: int = 0
+	for reg: String in RegionMath.REGIONS:
+		uncovered += RegionMath.region_hexes(s, reg).size()
+	_check(uncovered == 37 - covered, "only uncovered spaces count as Region hexes (%d)" % uncovered)
+
+	var p: PlayerFactionState = s.players[0]
+	_check(s.get_hex(p.hero_coord).role == "home", "the Hero starts on the home hex")
+	s.phase = GameState.Phase.ACTIONS
+	s.current_player_index = 0
+	var start: Vector2i = p.hero_coord
+	var far: Vector2i = start + Vector2i(0, 2) if s.hexes.has(start + Vector2i(0, 2)) else start + Vector2i(0, -2)
+	_check(not GameActions.apply(s, {"type": "move", "to": {"x": far.x, "y": far.y}}, p.faction, card_db).get("ok", false), "Move 2 hexes away is refused")
+	var next: Vector2i = Vector2i.MIN
+	for n: Vector2i in HexMath.neighbors(start):
+		if s.hexes.has(n):
+			next = n
+			break
+	var mv: Dictionary = GameActions.apply(s, {"type": "move", "to": {"x": next.x, "y": next.y}}, p.faction, card_db)
+	_check(mv.get("ok", false) and p.hero_coord == next and p.action_points == 7, "Move steps the Hero to a neighbor for 1 AP")
+	_check(not GameActions.apply(s, {"type": "explore", "at": {"x": start.x, "y": start.y}}, p.faction, card_db).get("ok", false), "Explore elsewhere than the Hero's hex is refused")
+	var pool: Array[String] = DiceModel.hero_pool(EffectUtil.hero_card(card_db, "Hanzo"), "white")
+	pool.sort()
+	_check(pool == ["purple", "white", "white", "white"], "Hanzo's Hero Dice: 1 purple + 3 Guile dice, got %s" % [pool])
 
 
 func _hex(state: GameState, coord: Vector2i, card_name: String) -> HexTileState:
