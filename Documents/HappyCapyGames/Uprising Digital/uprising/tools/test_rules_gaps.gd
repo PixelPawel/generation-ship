@@ -162,6 +162,7 @@ func _run() -> void:
 	_nemesis_entry_checks(card_db)
 	_event_checks(card_db)
 	_card_power_checks(card_db)
+	_economy_checks(card_db)
 
 	# --- Save/load keeps typed Units ---
 	var round_trip: GameState = GameState.from_dict(state.to_dict())
@@ -497,6 +498,49 @@ func _card_power_checks(card_db: Node) -> void:
 	var far_haven: Vector2i = p.hero_coord
 	var step: Vector2i = NemesisAI._best_step(s, s.capital_coord + Vector2i(3, -3), far_haven, true, "Empire", "The Warlock")
 	_check(step == far_haven, "The Warlock moves straight onto his Target")
+
+
+## 3:1 exchange, Hero-to-Hero trades, the Haven limit, final VP purchase.
+func _economy_checks(card_db: Node) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 52
+	var s: GameState = GameSetup.build_2p_normal_game_state(card_db, rng)
+	var a: PlayerFactionState = s.players[0]
+	var b: PlayerFactionState = s.players[1]
+	a.food = 3
+	a.salt = 0
+	_check(GameActions.apply(s, {"type": "exchange", "give": "Food", "get": "Salt"}, a.faction, card_db).get("ok", false) and a.food == 0 and a.salt == 1, "3 Food become 1 Salt, no AP")
+	_check(not GameActions.apply(s, {"type": "exchange", "give": "Food", "get": "Salt"}, a.faction, card_db).get("ok", false), "exchange needs 3 of the resource")
+
+	a.action_points = 3
+	_check(not GameActions.apply(s, {"type": "trade", "with": b.faction, "give": {"Salt": 1}}, a.faction, card_db).get("ok", false), "trading needs both Heroes on one hex")
+	b.hero_coord = a.hero_coord
+	a.plunder = 4
+	var b_plunder: int = b.plunder
+	var t: Dictionary = GameActions.apply(s, {"type": "trade", "with": b.faction, "give": {"Plunder": 3}}, a.faction, card_db)
+	_check(t.get("ok", false) and a.plunder == 1 and b.plunder == b_plunder + 3 and a.salt == 2, "Trade: 1 Salt for the AP and 3 Plunder handed over")
+
+	for c: Vector2i in s.hexes.keys():
+		var tile: HexTileState = s.hexes[c]
+		if tile.role == "interior":
+			tile.haven_faction = a.faction
+	var havens: int = 0
+	for t2: HexTileState in s.hexes.values():
+		if t2.haven_faction == a.faction:
+			havens += 1
+	_check(havens > GameActions.MAX_HAVENS, "test setup: %s holds %d Havens" % [a.faction, havens])
+
+	s.chapter = s.max_chapters
+	a.salt = 10
+	a.plunder = 0
+	a.food = 0
+	b.salt = 0
+	b.plunder = 0
+	b.food = 0
+	a.vp = 20
+	b.vp = 0
+	Scoring._buy_vp_with_resources(s)
+	_check(a.salt == 0 and b.vp == 2, "last Chapter: 10 resources buy 2 VP for the player furthest behind (b VP %d)" % b.vp)
 
 
 func _hex(state: GameState, coord: Vector2i, card_name: String) -> HexTileState:

@@ -15,6 +15,8 @@ extends RefCounted
 ## isn't tracked yet (see _move).
 
 const AP_COST := 1
+## Haven tokens on a player board (its production track runs 0-5 Havens).
+const MAX_HAVENS := 5
 const QUEST_FLOW_PATH := "res://scripts/game/quest_flow.gd"
 
 
@@ -24,7 +26,9 @@ static func apply(state: GameState, action: Dictionary, faction: String, card_db
 		"move":
 			return _move(state, action, faction)
 		"trade":
-			return _trade(state, action, faction)
+			return _trade(state, action, faction, card_db)
+		"exchange":
+			return _exchange(state, action, faction)
 		"command":
 			return _command(state, action, faction, card_db)
 		"explore":
@@ -96,15 +100,83 @@ static func _move(state: GameState, action: Dictionary, faction: String) -> Dict
 
 
 # --- Trade: 1 AP -> 1 Salt, ALWAYS usable, any phase, doesn't end turn. ---
-static func _trade(state: GameState, action: Dictionary, faction: String) -> Dictionary:
+## Rulebook p19: "Gain 1 Salt. Heros here may give or take resources from
+## each other, as well as any Item the receiving Hero could use."
+## Optional: action["with"] = another faction whose Hero shares this hex,
+## "give"/"take" = {"Salt": n, "Plunder": n, "Food": n}, "give_items"/
+## "take_items" = [item names].
+static func _trade(state: GameState, action: Dictionary, faction: String, card_db: Node = null) -> Dictionary:
 	var p: PlayerFactionState = state.find_player(faction)
 	if p == null:
 		return {"ok": false, "reason": "unknown faction"}
 	if p.action_points < AP_COST:
 		return {"ok": false, "reason": "not enough AP"}
+	var partner: PlayerFactionState = null
+	if action.has("with"):
+		partner = state.find_player(str(action["with"]))
+		if partner == null or partner == p or partner.hero_coord != p.hero_coord:
+			return {"ok": false, "reason": "you can only trade with a Hero on your hex"}
+		var give: Dictionary = action.get("give", {})
+		var take: Dictionary = action.get("take", {})
+		for res: String in ["Salt", "Plunder", "Food"]:
+			if _res(p, res) < int(give.get(res, 0)) or _res(partner, res) < int(take.get(res, 0)):
+				return {"ok": false, "reason": "not enough %s to trade" % res}
+		for it: Variant in (action.get("give_items", []) as Array):
+			if not p.items_in_hand.has(str(it)) or not hero_can_use_item(card_db, partner, str(it)):
+				return {"ok": false, "reason": "'%s' can't be given" % it}
+		for it2: Variant in (action.get("take_items", []) as Array):
+			if not partner.items_in_hand.has(str(it2)) or not hero_can_use_item(card_db, p, str(it2)):
+				return {"ok": false, "reason": "'%s' can't be taken" % it2}
+		for res2: String in ["Salt", "Plunder", "Food"]:
+			var n: int = int(give.get(res2, 0)) - int(take.get(res2, 0))
+			_add_res(p, res2, -n)
+			_add_res(partner, res2, n)
+		for it3: Variant in (action.get("give_items", []) as Array):
+			p.items_in_hand.erase(str(it3))
+			partner.items_in_hand.append(str(it3))
+		for it4: Variant in (action.get("take_items", []) as Array):
+			partner.items_in_hand.erase(str(it4))
+			p.items_in_hand.append(str(it4))
 	p.action_points -= AP_COST
 	p.salt += 1
+	state.phase_log = "%s Trades%s" % [faction, " with %s" % partner.faction if partner != null else ""]
 	return {"ok": true}
+
+
+## "You may ALWAYS exchange 3 of the same resource for 1 other resource.
+## This costs zero AP." (player boards, rulebook p17)
+static func _exchange(state: GameState, action: Dictionary, faction: String) -> Dictionary:
+	var p: PlayerFactionState = state.find_player(faction)
+	var give: String = str(action.get("give", ""))
+	var get_res: String = str(action.get("get", ""))
+	var kinds: Array[String] = ["Salt", "Plunder", "Food"]
+	if p == null or not kinds.has(give) or not kinds.has(get_res) or give == get_res:
+		return {"ok": false, "reason": "exchange 3 of one resource for 1 of another"}
+	if _res(p, give) < 3:
+		return {"ok": false, "reason": "you need 3 %s" % give}
+	_add_res(p, give, -3)
+	_add_res(p, get_res, 1)
+	state.phase_log = "%s exchanges 3 %s for 1 %s" % [faction, give, get_res]
+	return {"ok": true}
+
+
+static func _res(p: PlayerFactionState, res: String) -> int:
+	match res:
+		"Salt":
+			return p.salt
+		"Plunder":
+			return p.plunder
+	return p.food
+
+
+static func _add_res(p: PlayerFactionState, res: String, n: int) -> void:
+	match res:
+		"Salt":
+			p.salt += n
+		"Plunder":
+			p.plunder += n
+		"Food":
+			p.food += n
 
 
 # --- Command: 1 AP + 1 Food, gathers adjacent Units/Hero into target hex, ends turn. ---
@@ -297,8 +369,14 @@ static func _haven(state: GameState, action: Dictionary, faction: String) -> Dic
 	for h: HordeInstance in state.hordes:
 		if h.coord == coord:
 			return {"ok": false, "reason": "a Horde is here"}
-	if tile.role == "outer":
-		return {"ok": false, "reason": "a Region hex can never gain a Haven"}
+	if tile.role == "outer" or tile.role == "capital":
+		return {"ok": false, "reason": "a hex with an X can never gain a Haven"}
+	var havens: int = 0
+	for t: HexTileState in state.hexes.values():
+		if t.haven_faction == faction:
+			havens += 1
+	if havens >= MAX_HAVENS:
+		return {"ok": false, "reason": "all %d of your Havens are on the map" % MAX_HAVENS}
 
 	tile.haven_faction = faction
 	p.action_points -= AP_COST

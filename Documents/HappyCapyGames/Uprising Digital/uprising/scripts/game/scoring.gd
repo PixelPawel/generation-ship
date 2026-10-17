@@ -48,6 +48,34 @@ static func _score_players(state: GameState, card_db: Node) -> void:
 			if _hex_has_bonus_vp(tile, card_db):
 				bonus_vp += 1
 		p.vp += 2 * haven_count + bonus_vp
+	if state.chapter >= state.max_chapters:
+		_buy_vp_with_resources(state)
+
+
+## "Players may now spend any 5 resources for 1 VP, without limit, and give
+## each VP to any 1 faction. This is normally done on the last Chapter."
+## Done automatically on the last Chapter: the richest player pays, the
+## player with the fewest VP receives (everyone must beat the Nemesis).
+static func _buy_vp_with_resources(state: GameState) -> void:
+	for _guard: int in range(500):
+		var payer: PlayerFactionState = null
+		for p: PlayerFactionState in state.players:
+			if p.salt + p.plunder + p.food >= 5 and (payer == null or p.salt + p.plunder + p.food > payer.salt + payer.plunder + payer.food):
+				payer = p
+		if payer == null:
+			return
+		for _i: int in range(5):
+			if payer.salt >= payer.plunder and payer.salt >= payer.food and payer.salt > 0:
+				payer.salt -= 1
+			elif payer.plunder >= payer.food and payer.plunder > 0:
+				payer.plunder -= 1
+			else:
+				payer.food -= 1
+		var poorest: PlayerFactionState = state.players[0]
+		for p2: PlayerFactionState in state.players:
+			if p2.vp < poorest.vp:
+				poorest = p2
+		poorest.vp += 1
 
 
 ## Parses the Hex CSV's free-text "Special" column (e.g. "1 VP", "1 VP to
