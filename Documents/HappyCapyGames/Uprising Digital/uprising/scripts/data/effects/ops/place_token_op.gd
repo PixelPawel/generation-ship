@@ -1,14 +1,14 @@
 class_name PlaceTokenOp
 extends EffectOp
 
-## Unconditional placement (no empty/reinforce branching - see
-## PlaceOrReinforceOp for that pattern). kind in {"Garrison","Skeleton","Curse"}.
-## target_mode "here" (default) uses ctx.hex_coord; "chosen_empty_hex" defers
-## to ctx.choice_resolver("empty_hex", [...]) for cards like Golgardei's
-## "Place 2 Garrisons on Empty Hexes with no X" (a DIFFERENT hex than the
-## one triggering the effect) - with no resolver set, this is a documented
-## no-op (logged, not silently dropped), matching the project's existing
-## choice-resolver boundary rather than guessing a target.
+## "Place N Garrisons/Skeletons/Curses ..." with the rulebook's placement
+## rules (p46-51), delegated to NemesisAI:
+## - target_mode "here": on ctx.hex_coord - Garrisons stack to 3 (a 4th
+##   scores The Empire 1 VP), 3 Skeletons become a Horde, a Curse destroys
+##   Garrisons and removes any Haven (already Cursed -> Chaos 1 VP);
+## - "with_others" (Skeletons): onto hexes that already have Skeletons;
+## - "empty_no_x" / "chosen_empty_hex_no_x" (Garrisons): spread over empty
+##   hexes with no X.
 var kind: String = "Garrison"
 var count: int = 1
 var target_mode: String = "here"
@@ -21,30 +21,27 @@ func _init(p_kind: String = "Garrison", p_count: int = 1, p_target_mode: String 
 
 
 func execute(ctx: EffectContext) -> void:
-	var coord: Vector2i
-	if target_mode == "here":
-		if not ctx.has_hex_coord:
-			ctx.log("PlaceTokenOp: no hex_coord in context, skipped")
+	match target_mode:
+		"with_others":
+			NemesisAI.place_skeleton_with_others(ctx.state, ctx.card_db, count)
+			ctx.log("Placed %d Skeleton(s) with other Skeletons" % count)
 			return
-		coord = ctx.hex_coord
-	else:
-		if not ctx.choice_resolver.is_valid():
-			ctx.log("PlaceTokenOp: target_mode '%s' needs a choice_resolver, none set - skipped" % target_mode)
+		"empty_no_x", "chosen_empty_hex_no_x":
+			for _i: int in range(count):
+				NemesisAI.place_garrison_on_empty_hex(ctx.state)
+			ctx.log("Placed %d Garrison(s) on empty hexes with no X" % count)
 			return
-		var chosen: Variant = ctx.choice_resolver.call(target_mode, [])
-		if not (chosen is Vector2i):
-			ctx.log("PlaceTokenOp: choice_resolver returned no valid hex - skipped")
-			return
-		coord = chosen
-
-	var tile: HexTileState = ctx.state.ensure_hex(coord)
+	if not ctx.has_hex_coord:
+		ctx.log("PlaceTokenOp: no hex_coord in context, skipped")
+		return
+	var coord: Vector2i = ctx.hex_coord
 	match kind:
 		"Garrison":
-			tile.garrison_level = mini(3, tile.garrison_level + count)
+			NemesisAI.add_garrisons(ctx.state, coord, count)
 		"Skeleton":
-			tile.skeleton_count = mini(2, tile.skeleton_count + count)
+			NemesisAI.add_skeletons(ctx.state, ctx.card_db, coord, count)
 		"Curse":
-			tile.curse = true
+			NemesisAI.place_curse_on(ctx.state, ctx.card_db, coord)
 		_:
 			push_error("PlaceTokenOp: unsupported kind '%s'" % kind)
 			return

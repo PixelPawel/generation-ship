@@ -21,6 +21,11 @@ func execute(ctx: EffectContext) -> void:
 	var coord: Vector2i
 	if target_mode == "here" and ctx.has_hex_coord:
 		coord = ctx.hex_coord
+	elif target_mode == "haven_or_empty_explored" and not ctx.choice_resolver.is_valid():
+		coord = _haven_or_empty(ctx)
+		if coord == Vector2i.MIN:
+			ctx.log("%s has no Haven with room and no empty explored hex - no Unit" % ctx.acting_faction)
+			return
 	elif ctx.choice_resolver.is_valid():
 		var chosen: Variant = ctx.choice_resolver.call(target_mode, [])
 		if not (chosen is Vector2i):
@@ -34,6 +39,26 @@ func execute(ctx: EffectContext) -> void:
 	var tile: HexTileState = ctx.state.ensure_hex(coord)
 	var added: int = tile.add_units(ctx.acting_faction, PlayerboardTable.default_unit(ctx.acting_faction), count)
 	ctx.log("%s gains %d Basic Unit(s) on %s" % [ctx.acting_faction, added, coord])
+
+
+## "on a Haven or an Empty Explored Hex": the faction's Haven with the
+## fewest Units that still has room, else the empty explored hex (no X)
+## farthest from trouble.
+func _haven_or_empty(ctx: EffectContext) -> Vector2i:
+	var best: Vector2i = Vector2i.MIN
+	var fewest: int = HexTileState.MAX_UNITS
+	var coords: Array = ctx.state.hexes.keys()
+	coords.sort()
+	for c: Vector2i in coords:
+		var t: HexTileState = ctx.state.hexes[c]
+		if t.haven_faction == ctx.acting_faction and t.unit_count(ctx.acting_faction) < fewest:
+			fewest = t.unit_count(ctx.acting_faction)
+			best = c
+	if best != Vector2i.MIN:
+		return best
+	var empties: Array[Vector2i] = NemesisAI.empty_hexes(ctx.state, func(_c: Vector2i, t: HexTileState) -> bool:
+		return t.explored and NemesisAI.no_x(t))
+	return NemesisAI.pick_hex(ctx.state, empties)
 
 
 func describe() -> String:

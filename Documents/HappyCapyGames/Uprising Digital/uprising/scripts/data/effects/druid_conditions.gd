@@ -33,7 +33,7 @@ static func apply_refresh_phase(state: GameState) -> Array[String]:
 	for d: DruidInstance in state.druids_in_play:
 		if state.aether_pool <= 0:
 			break
-		if check(d.card_name, state):
+		if not d.face_down and check(d.card_name, state):
 			d.aether += 1
 			state.aether_pool -= 1
 			gained.append(d.card_name)

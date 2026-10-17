@@ -32,7 +32,8 @@ func _run() -> void:
 		_check(prog != null and prog.ops.size() > 0, "'%s' program has ops" % name)
 		_check(prog.source_card == name, "'%s' program source_card matches" % name)
 	_check(not HexEffectPrograms.has_program("Capital"), "Capital intentionally excluded (Nemesis-triggered, not Explore)")
-	_check(not HexEffectPrograms.has_program("Netherwood"), "Netherwood intentionally excluded (needs multi-threshold dice op)")
+	for name2: String in ["Netherwood", "Dawngaard", "Guragi Tower", "Hellhound Tower", "Zeegard", "Midnight Tower"]:
+		_check(HexEffectPrograms.has_program(name2), "'%s' has an explore program" % name2)
 
 	# --- Bruthgaard: Gain 2 Food, place-or-reinforce 2 Skeletons (empty), then +2 more (clamped to cap 2) ---
 	var rng := RandomNumberGenerator.new()
@@ -46,13 +47,18 @@ func _run() -> void:
 	var p: PlayerFactionState = state.find_player(faction)
 	_check(p.food == starting_food + 2, "Bruthgaard: food +2, got %d expected %d" % [p.food, starting_food + 2])
 	var tile: HexTileState = state.get_hex(test_coord)
-	_check(tile.skeleton_count == 2, "Bruthgaard: skeleton_count clamped to cap 2, got %d" % tile.skeleton_count)
+	_check(tile.skeleton_count == 2, "Bruthgaard: 2 Skeletons here (the other 2 join hexes with Skeletons), got %d" % tile.skeleton_count)
 
 	# --- Reinforce branch: run Bruthgaard AGAIN on the same now-occupied hex - should reinforce by 1, not reset to 2 (already at cap so stays 2, but exercises the non-empty branch) ---
 	var salt_before: int = p.salt
-	_run_program(state, card_db, "Grim Fangs", faction, test_coord)  # different card, same occupied hex - exercises "not empty -> reinforce by 1" branch
+	var hordes_before: int = state.hordes.size()
+	_run_program(state, card_db, "Grim Fangs", faction, test_coord)  # same occupied hex - "not empty -> reinforce by 1"
 	tile = state.get_hex(test_coord)
-	_check(tile.skeleton_count == 2, "Grim Fangs on occupied hex: reinforce-by-1 clamps at cap 2, got %d" % tile.skeleton_count)
+	var horde_here: bool = false
+	for h: HordeInstance in state.hordes:
+		if h.coord == test_coord:
+			horde_here = true
+	_check(tile.skeleton_count == 0 and horde_here and state.hordes.size() > hordes_before, "Grim Fangs reinforces the 2 Skeletons to 3, which become a Horde (skeletons=%d)" % tile.skeleton_count)
 	_check(p.salt == salt_before + 2, "Grim Fangs: salt +2, got %d expected %d" % [p.salt, salt_before + 2])
 
 	# --- Tomb of the Elder Kings: removes garrison, places 2 skeletons, draws+keeps an Item ---
@@ -102,7 +108,8 @@ func _run() -> void:
 	p2 = state.find_player(second_faction)
 	_check(tile4.skeleton_count == 0, "Imperial Slave Mines: skeletons removed")
 	_check(tile4.garrison_level == 2, "Imperial Slave Mines: 2 Garrisons placed, got %d" % tile4.garrison_level)
-	_check(p.plunder == plunder_before_1 + 2, "Imperial Slave Mines: roller gains 2 (dice, all-Skull; each-other-player bonus is for OTHERS, not self) - got %d expected %d" % [p.plunder, plunder_before_1 + 2])
+	var hero_dice: int = DiceModel.hero_pool(EffectUtil.hero_card(card_db, p.hero_name)).size()
+	_check(p.plunder == plunder_before_1 + hero_dice, "Imperial Slave Mines: roller gains 1 per Hero Die (all Skulls; the bonus is for OTHERS) - got %d expected %d" % [p.plunder, plunder_before_1 + hero_dice])
 	_check(p2.plunder == plunder_before_2 + 1, "Imperial Slave Mines: other player gains 1 Plunder, got %d expected %d" % [p2.plunder, plunder_before_2 + 1])
 
 	# --- PlaceOrReinforceOp respects the rulebook's "empty = no Legion/Horde either" rule ---

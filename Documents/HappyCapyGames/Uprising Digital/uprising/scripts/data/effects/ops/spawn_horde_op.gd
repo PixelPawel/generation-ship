@@ -1,8 +1,10 @@
 class_name SpawnHordeOp
 extends EffectOp
 
-## Mirrors SpawnLegionOp - see its doc comment for the shared "Immediate
-## effect resolution is the caller's job" note.
+## "Place 1 Horde at Threat N" through NemesisAI.spawn_horde (immediate
+## effect, then any combat). target_mode "here" uses ctx.hex_coord; anything
+## else picks an empty hex (rulebook p53: a hex with a Curse is not empty),
+## or a hex with a Skeleton or Curse if none is empty.
 var threat: int = 4
 var target_mode: String = "here"
 
@@ -13,39 +15,24 @@ func _init(p_threat: int = 4, p_target_mode: String = "here") -> void:
 
 
 func execute(ctx: EffectContext) -> void:
-	if ctx.state.horde_deck.is_empty():
-		ctx.log("SpawnHordeOp: horde_deck empty, Chaos gains 1 VP instead (rulebook p50 impossible-placement rule)")
-		ctx.state.chaos_vp += 1
-		return
-	var coord: Vector2i = _resolve_target(ctx)
-	var card_name: String = ctx.state.horde_deck.pop_front()
-	var inst := HordeInstance.new()
-	inst.id = _next_id(ctx.state)
-	inst.card_name = card_name
-	inst.threat = threat
-	inst.coord = coord
-	inst.activation_tokens = 0
-	ctx.state.hordes.append(inst)
-	ctx.log("Spawned Horde '%s' (id=%d) at Threat %d on %s" % [card_name, inst.id, threat, coord])
-
-
-func _resolve_target(ctx: EffectContext) -> Vector2i:
+	var coord: Vector2i = Vector2i.MIN
 	if target_mode == "here" and ctx.has_hex_coord:
-		return ctx.hex_coord
-	if ctx.choice_resolver.is_valid():
-		var chosen: Variant = ctx.choice_resolver.call(target_mode, [])
-		if chosen is Vector2i:
-			return chosen
-	return ctx.hex_coord if ctx.has_hex_coord else Vector2i.ZERO
-
-
-func _next_id(state: GameState) -> int:
-	var max_id: int = -1
-	for l: LegionInstance in state.legions:
-		max_id = maxi(max_id, l.id)
-	for h: HordeInstance in state.hordes:
-		max_id = maxi(max_id, h.id)
-	return max_id + 1
+		coord = ctx.hex_coord
+	else:
+		coord = NemesisAI.pick_hex(ctx.state, NemesisAI.empty_hexes(ctx.state))
+		if coord == Vector2i.MIN:
+			var fallback: Array[Vector2i] = []
+			for c: Vector2i in ctx.state.hexes.keys():
+				var t: HexTileState = ctx.state.hexes[c]
+				if t.skeleton_count > 0 or t.curse:
+					fallback.append(c)
+			coord = NemesisAI.pick_hex(ctx.state, fallback)
+	if coord == Vector2i.MIN:
+		ctx.state.chaos_vp += 1
+		ctx.log("nowhere to place a Horde - Chaos gains 1 VP")
+		return
+	var inst: HordeInstance = NemesisAI.spawn_horde(ctx.state, coord, ctx.card_db, threat)
+	ctx.log("Horde %s at Threat %d on %s" % [inst.card_name if inst != null else "(none left)", threat, coord])
 
 
 func describe() -> String:

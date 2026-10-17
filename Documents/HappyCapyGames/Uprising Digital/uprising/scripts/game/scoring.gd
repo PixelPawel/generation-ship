@@ -32,6 +32,9 @@ static func _score_chaos(state: GameState) -> void:
 	state.chaos_vp += state.hordes.size()
 	state.chaos_vp += 2 * state.chaos_graveyard.size()
 	state.chaos_graveyard.clear()
+	# Units in either Graveyard return to their reserves.
+	for p: PlayerFactionState in state.players:
+		p.graveyard_units.clear()
 
 
 static func _score_players(state: GameState, card_db: Node) -> void:

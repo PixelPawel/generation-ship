@@ -134,9 +134,7 @@ static func resolve_hex(state: GameState, coord: Vector2i, card_db: Node, rng: R
 			_fight(state, coord, tile, terrain, me, foe, result, rng, card_db)
 		if _strength(state, tile, me) <= 0 and _next_opponent(state, coord, tile, "player") != null and not tile.haven_faction.is_empty():
 			result.log.append("%s lost every Unit - Haven and Defenses removed" % player_faction)
-			tile.haven_faction = ""
-			tile.tower = false
-			tile.wall = false
+			NemesisAI.remove_haven(state, card_db, coord)
 
 	if tile.total_player_units() <= 0:
 		var guard2: int = 0
@@ -340,7 +338,7 @@ static func _round(state: GameState, coord: Vector2i, tile: HexTileState, terrai
 		var count: int = side_and_count[1]
 		if count > 0 and tile.skeleton_count > 0:
 			result.log.append("Skeleton Bolt x%d: +%d Skeleton" % [count, count])
-			add_skeletons(state, coord, count, result.log, card_db)
+			add_skeletons(state, coord, count, result.log, card_db, true)
 
 
 static func _roll_faces(pool: Array[String], rng: RandomNumberGenerator) -> Array:
@@ -388,6 +386,9 @@ static func _take_hits(state: GameState, tile: HexTileState, victim: Combatant, 
 				result.player_units_lost += 1
 				var graveyard: Dictionary = state.imperial_graveyard if killer.allegiance() == "Empire" else state.chaos_graveyard
 				graveyard[victim.faction] = int(graveyard.get(victim.faction, 0)) + 1
+				var owner: PlayerFactionState = state.find_player(victim.faction)
+				if owner != null:
+					owner.graveyard_units[unit_name] = int(owner.graveyard_units.get(unit_name, 0)) + 1
 		"garrison":
 			var levels: int = mini(n, tile.garrison_level)
 			tile.garrison_level -= levels
@@ -460,14 +461,15 @@ static func _cost_total(cost: Dictionary) -> int:
 
 
 ## Places `count` Skeletons on `coord`; whenever 3 share the hex they are
-## removed and become 1 new Horde there (rulebook p48).
-static func add_skeletons(state: GameState, coord: Vector2i, count: int, log: Array[String], card_db: Node = null) -> void:
+## removed and become 1 new Horde there (rulebook p48). `in_combat`: the
+## new Horde waits for the running combat loop to fight it.
+static func add_skeletons(state: GameState, coord: Vector2i, count: int, log: Array[String], card_db: Node = null, in_combat: bool = false) -> void:
 	var tile: HexTileState = state.ensure_hex(coord)
 	for _i: int in range(count):
 		tile.skeleton_count += 1
 		if tile.skeleton_count >= 3:
 			tile.skeleton_count -= 3
-			var h: HordeInstance = NemesisAI.spawn_horde(state, coord, card_db)
+			var h: HordeInstance = NemesisAI.spawn_horde(state, coord, card_db, -1, {"no_combat": in_combat})
 			if h != null:
 				log.append("3 Skeletons on %s become Horde '%s'" % [coord, h.card_name])
 			else:

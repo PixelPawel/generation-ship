@@ -1,45 +1,40 @@
 class_name HexEffectPrograms
 extends RefCounted
 
-## Hand-transcribed EffectPrograms for the Core Box's 20 "Normal"-type
-## hexes (assets/data/UPRISING _ FULL CARD DETAILS - Hexes.csv, EN, Box=
-## Core, Type=Normal) - the FIRST category in the plan's own transcription
-## order (Hex explore effects gate board interaction; Events/Quests/Feats/
-## Items come after). Every effect string below is quoted verbatim from
-## that CSV in each function's comment so the transcription can be checked
-## against the source without re-opening the spreadsheet.
+## Explore effects of the Core box hexes (Hexes.csv, EN, Box=Core): the 19
+## Normal hexes and the 5 Sea Towers. Each builder quotes its CSV Effect
+## text verbatim so the transcription can be checked against the source.
+## The Capital and the Home hexes start face-up and are never explored.
 ##
-## Deliberately built as GDScript (a Dictionary of builder functions), NOT
-## authored JSON/.tres files yet, despite the plan's stated preference for
-## JSON - typed constructors are faster to write correctly and to keep in
-## sync with the op vocabulary while that vocabulary is still this new
-## (built and validated in this same session). Migrating to
-## data-file-authored effects (so non-programmer edits don't need a
-## GDScript change) is a reasonable follow-up once the vocabulary has
-## proven stable against a wider transcription pass - not done now to
-## avoid churn on a still-moving target.
-##
-## 3 of the 20 Core Normal hexes are NOT included below, on purpose:
-## - "Capital": its effect ("Gain 5 VP if this hex is flipped") triggers
-##   off the Nemesis-side Capital-flip mechanic (rulebook p47), not the
-##   Explore action - a different trigger entirely, out of scope for this
-##   hex-explore transcription pass.
-## - "Netherwood": a genuinely multi-branch dice-threshold effect (roll,
-##   then one of 3 different rewards depending on which symbol-count
-##   threshold was met, with a 4th "if you fail all" branch) that needs
-##   more op-vocabulary support (multi-threshold RollHeroDiceReward, or a
-##   dedicated op) than was worth building for a single card on a first
-##   pass - flagged rather than force-fit into the current ops.
-## - Two effects reference mechanics this pass doesn't model yet and are
-##   transcribed PARTIALLY, with the unmodeled clause left as a code
-##   comment rather than silently dropped: Kyushi's Tavern's free Quest
-##   Action (needs GameActions, Milestone 4) and Dunkelholm's "then
-##   discards 1" (needs a real discard-choice, Milestone 5 UI).
-##
-## RollHeroDiceRewardOp's dice_count below uses a PLACEHOLDER value (see
-## that op's own class doc) since real Hero Dice count depends on
-## attributes not wired up yet - flagged inline on each such line, not
-## silently invented.
+## Rewritten 2026-10-17 against the rulebook's placement rules: "Place N
+## Skeletons with other Skeletons" goes onto OTHER hexes that have
+## Skeletons (it used to land on the explored hex itself), "Place N
+## Garrisons on empty hexes with no X" really places them (it used to
+## need a choice_resolver Explore never set, so it was skipped), "Roll your
+## Hero Dice" rolls the real Hero Dice, and Netherwood, Kyushi's Tavern's
+## free Quest and the Sea Towers are now covered. Player choices
+## ("Gain 2 resources", which player rolls...) use the defaults described
+## in each op. Feats aren't tracked as cards yet, so "draws/discards 1
+## Feat" is only logged.
+
+const QUEST_FLOW_PATH := "res://scripts/game/quest_flow.gd"
+
+
+## A one-off clause written as a function of the EffectContext.
+class FnOp extends EffectOp:
+	var fn: Callable
+	var text: String
+
+	func _init(p_text: String, p_fn: Callable) -> void:
+		text = p_text
+		fn = p_fn
+
+	func execute(ctx: EffectContext) -> void:
+		fn.call(ctx)
+
+	func describe() -> String:
+		return text
+
 
 static func get_program(card_name: String) -> EffectProgram:
 	var builder: Callable = _BUILDERS.get(card_name, Callable())
@@ -70,8 +65,19 @@ static var _BUILDERS: Dictionary = {
 	"Rigga": _rigga,
 	"Dunkelholm": _dunkelholm,
 	"Fjoelja Stone Circle": _fjoelja_stone_circle,
+	"Netherwood": _netherwood,
 	"Trollward": _trollward,
+	"Dawngaard": _dawngaard,
+	"Guragi Tower": _guragi_tower,
+	"Hellhound Tower": _hellhound_tower,
+	"Zeegard": _zeegard,
+	"Midnight Tower": _midnight_tower,
 }
+
+
+static func _feat_note(text: String) -> FnOp:
+	return FnOp.new(text, func(ctx: EffectContext) -> void:
+		ctx.log("%s (Feats are not tracked as cards yet)" % text))
 
 
 ## "Gain 2 FOOD + If Empty, place 2 Skeletons here; if not Reinforce here.
@@ -80,7 +86,7 @@ static func _bruthgaard() -> EffectProgram:
 	return EffectProgram.new("Bruthgaard", [
 		GainResourceOp.new("Food", 2),
 		PlaceOrReinforceOp.new("Skeleton", 2),
-		PlaceTokenOp.new("Skeleton", 2, "here"),
+		PlaceTokenOp.new("Skeleton", 2, "with_others"),
 	])
 
 
@@ -90,7 +96,7 @@ static func _golgardei() -> EffectProgram:
 	return EffectProgram.new("Golgardei", [
 		GainResourceOp.new("Food", 2),
 		PlaceOrReinforceOp.new("Garrison", 2),
-		PlaceTokenOp.new("Garrison", 2, "chosen_empty_hex_no_x"),
+		PlaceTokenOp.new("Garrison", 2, "empty_no_x"),
 	])
 
 
@@ -100,19 +106,19 @@ static func _golgardei() -> EffectProgram:
 static func _plains_of_rhun() -> EffectProgram:
 	return EffectProgram.new("Plains of Rhun", [
 		PlaceOrReinforceOp.new("Garrison", 1),
-		PlaceTokenOp.new("Garrison", 1, "chosen_empty_hex_no_x"),
+		PlaceTokenOp.new("Garrison", 1, "empty_no_x"),
 		EachPlayerOp.new([GainResourceOp.new("Food", 1)], true),
-		RollHeroDiceRewardOp.new(2, "Skull", GainResourceOp.new("Food", 1)),  # dice_count placeholder, see class doc
+		RollHeroDiceRewardOp.new("Skull", GainResourceOp.new("Food", 1)),
 	])
 
 
 ## "Gain 2 PLUNDER. + If Empty, place 1 Garrison here; if not Reinfroce
-## here. + Place 2 Garrisons on Empty Hexes with no X." [sic, "Reinfroce" typo in source]
+## here. + Place 2 Garrisons on Empty Hexes with no X." [sic]
 static func _frosthold_pass() -> EffectProgram:
 	return EffectProgram.new("Frosthold Pass", [
 		GainResourceOp.new("Plunder", 2),
 		PlaceOrReinforceOp.new("Garrison", 1),
-		PlaceTokenOp.new("Garrison", 2, "chosen_empty_hex_no_x"),
+		PlaceTokenOp.new("Garrison", 2, "empty_no_x"),
 	])
 
 
@@ -122,7 +128,7 @@ static func _imperial_slave_mines() -> EffectProgram:
 	return EffectProgram.new("Imperial Slave Mines", [
 		RemoveTokenOp.new("Skeleton"),
 		PlaceTokenOp.new("Garrison", 2, "here"),
-		RollHeroDiceRewardOp.new(2, "Skull", GainResourceOp.new("Plunder", 1)),  # dice_count placeholder
+		RollHeroDiceRewardOp.new("Skull", GainResourceOp.new("Plunder", 1)),
 		EachPlayerOp.new([GainResourceOp.new("Plunder", 1)], true),
 	])
 
@@ -145,7 +151,7 @@ static func _black_ice() -> EffectProgram:
 	return EffectProgram.new("Black Ice", [
 		GainResourceOp.new("Salt", 2),
 		PlaceOrReinforceOp.new("Skeleton", 1),
-		PlaceTokenOp.new("Skeleton", 1, "here"),
+		PlaceTokenOp.new("Skeleton", 1, "with_others"),
 		PlaceActivationTokenOp.new(),
 	])
 
@@ -156,7 +162,7 @@ static func _grim_fangs() -> EffectProgram:
 	return EffectProgram.new("Grim Fangs", [
 		GainResourceOp.new("Salt", 2),
 		PlaceOrReinforceOp.new("Skeleton", 2),
-		PlaceTokenOp.new("Skeleton", 2, "here"),
+		PlaceTokenOp.new("Skeleton", 2, "with_others"),
 	])
 
 
@@ -166,7 +172,7 @@ static func _raufrost() -> EffectProgram:
 	return EffectProgram.new("Raufrost", [
 		GainResourceOp.new("Salt", 2),
 		PlaceOrReinforceOp.new("Garrison", 1),
-		PlaceTokenOp.new("Garrison", 1, "chosen_empty_hex_no_x"),
+		PlaceTokenOp.new("Garrison", 1, "empty_no_x"),
 	])
 
 
@@ -176,7 +182,7 @@ static func _shadowdawn() -> EffectProgram:
 	return EffectProgram.new("Shadowdawn", [
 		GainResourceOp.new("Salt", 2),
 		PlaceOrReinforceOp.new("Skeleton", 2),
-		PlaceTokenOp.new("Skeleton", 1, "here"),
+		PlaceTokenOp.new("Skeleton", 1, "with_others"),
 	])
 
 
@@ -185,7 +191,7 @@ static func _shadowdawn() -> EffectProgram:
 static func _taurel_caravan_passage() -> EffectProgram:
 	return EffectProgram.new("Taurel Caravan Passage", [
 		PlaceOrReinforceOp.new("Skeleton", 1),
-		RollHeroDiceRewardOp.new(2, "Skull", GainResourceOp.new("Salt", 1)),  # dice_count placeholder
+		RollHeroDiceRewardOp.new("Skull", GainResourceOp.new("Salt", 1)),
 		EachPlayerOp.new([GainResourceOp.new("Salt", 2)], true),
 	])
 
@@ -196,7 +202,7 @@ static func _torment() -> EffectProgram:
 	return EffectProgram.new("Torment", [
 		GainResourceOp.new("Salt", 3),
 		PlaceOrReinforceOp.new("Skeleton", 1),
-		PlaceTokenOp.new("Skeleton", 2, "here"),
+		PlaceTokenOp.new("Skeleton", 2, "with_others"),
 	])
 
 
@@ -214,15 +220,18 @@ static func _fyrnhalla() -> EffectProgram:
 ## "Gain 3 FOOD. + If Empty, place 1 Garrison here; if not, Reinforce
 ## here. + Take a Quest Action (for 0 AP) with +1 BLUE. If you fail,
 ## ignore any Failure Effects."
-## The free-Quest-Action clause needs GameActions (Milestone 4) - NOT
-## modeled here, deliberately, rather than faked.
 static func _kyushis_tavern() -> EffectProgram:
 	return EffectProgram.new("Kyushis Tavern", [
 		GainResourceOp.new("Food", 3),
 		PlaceOrReinforceOp.new("Garrison", 1),
-		# TODO (Milestone 4): "Take a Quest Action (for 0 AP) with +1 BLUE.
-		# If you fail, ignore any Failure Effects." needs a real Quest
-		# Action + bonus-die + failure-suppression mechanism.
+		FnOp.new("Free Quest Action with +1 BLUE", func(ctx: EffectContext) -> void:
+			var quest_flow: GDScript = load(QUEST_FLOW_PATH)
+			var quest: String = quest_flow.best_quest_for(ctx.state, ctx.card_db, ctx.acting_faction, ["blue"])
+			if quest.is_empty():
+				ctx.log("Kyushi's Tavern: no Quest to attempt")
+				return
+			var r: Dictionary = quest_flow.attempt(ctx.state, ctx.card_db, ctx.acting_faction, quest, {"extra_dice": ["blue"], "ignore_failure": true})
+			ctx.log(str(r.get("log", ""))))
 	])
 
 
@@ -232,37 +241,57 @@ static func _rigga() -> EffectProgram:
 	return EffectProgram.new("Rigga", [
 		GainResourceOp.new("Food", 2),
 		PlaceOrReinforceOp.new("Garrison", 1),
-		PlaceTokenOp.new("Garrison", 1, "chosen_empty_hex_no_x"),
+		PlaceTokenOp.new("Garrison", 1, "empty_no_x"),
 	])
 
 
 ## "Gain 2 PLUNDER. + Remove any Skeletons here. Place 2 Garrisons here. +
 ## Each Player draws 1 Feat, then discards 1 Feat."
-## The "then discards 1" half needs a real discard choice (Milestone 5 UI)
-## - only the draw is modeled here, deliberately, rather than faked.
 static func _dunkelholm() -> EffectProgram:
 	return EffectProgram.new("Dunkelholm", [
 		GainResourceOp.new("Plunder", 2),
 		RemoveTokenOp.new("Skeleton"),
 		PlaceTokenOp.new("Garrison", 2, "here"),
-		EachPlayerOp.new([DrawCardOp.new("Feat", 1)], false),
-		# TODO (Milestone 5): "then discards 1 Feat" needs a player-facing
-		# discard choice per player.
+		_feat_note("Each player draws 1 Feat, then discards 1 Feat"),
 	])
 
 
 ## "Gain 2 PLUNDER + If Empty, place 2 Skeletons here; if not Reinforce
 ## here. + Each Player gains 1 Basic Unit on a Haven or an Empty Explored
 ## Hex."
-## "on a Haven or an Empty Explored Hex" is a real player choice among
-## multiple hexes - PlaceUnitOp's "here" fallback is used below as an
-## explicit simplification (place on the triggering hex itself), NOT the
-## full choice; flagged rather than silently wrong.
 static func _fjoelja_stone_circle() -> EffectProgram:
 	return EffectProgram.new("Fjoelja Stone Circle", [
 		GainResourceOp.new("Plunder", 2),
 		PlaceOrReinforceOp.new("Skeleton", 2),
-		EachPlayerOp.new([PlaceUnitOp.new(1, "here")], false),  # simplified target, see doc comment above
+		EachPlayerOp.new([PlaceUnitOp.new(1, "haven_or_empty_explored")], false),
+	])
+
+
+## "Gain 2 RESOURCES. + Choose a player to roll their Hero Dice: 4+ SKULL =
+## Every player gains 2 resources / 2+ SHIELD = Every player draws 1 Feat /
+## 2+ BOLT = Every player gains 1 VP / If you fail all, place 1 Horde here
+## (and only here)."
+## The roller is the Hero with the most dice.
+static func _netherwood() -> EffectProgram:
+	return EffectProgram.new("Netherwood", [
+		GainResourceOp.new("Any", 2),
+		FnOp.new("Netherwood roll", func(ctx: EffectContext) -> void:
+			var roll: Dictionary = roll_best_hero(ctx, "yellow")
+			var hit: bool = false
+			if int(roll["Skull"]) >= 4:
+				hit = true
+				EachPlayerOp.new([GainResourceOp.new("Any", 2)], false).execute(ctx)
+			if int(roll["Shield"]) >= 2:
+				hit = true
+				_feat_note("Every player draws 1 Feat").execute(ctx)
+			if int(roll["Bolt"]) >= 2:
+				hit = true
+				for p: PlayerFactionState in ctx.state.players:
+					p.vp += 1
+				ctx.log("Every player gains 1 VP")
+			if not hit:
+				NemesisAI.spawn_horde(ctx.state, ctx.hex_coord, ctx.card_db)
+				ctx.log("Netherwood: every goal failed - a Horde rises here")),
 	])
 
 
@@ -275,3 +304,82 @@ static func _trollward() -> EffectProgram:
 		PlaceOrReinforceOp.new("Garrison", 2),
 		PlaceActivationTokenOp.new(),
 	])
+
+
+## Sea Tower "Dawngaard": "Gain 2 SALT. + Remove any Skeletons here. +
+## Place 2 Garrisons here."
+static func _dawngaard() -> EffectProgram:
+	return EffectProgram.new("Dawngaard", [
+		GainResourceOp.new("Salt", 2),
+		RemoveTokenOp.new("Skeleton"),
+		PlaceTokenOp.new("Garrison", 2, "here"),
+	])
+
+
+## Sea Tower "Guragi Tower": "Gain 4 SALT. + Remove any Garrisons here. +
+## Place 2 Skeletons here."
+static func _guragi_tower() -> EffectProgram:
+	return EffectProgram.new("Guragi Tower", [
+		GainResourceOp.new("Salt", 4),
+		RemoveTokenOp.new("Garrison"),
+		PlaceTokenOp.new("Skeleton", 2, "here"),
+	])
+
+
+## Sea Tower "Hellhound Tower": "Gain 4 SALT.: Remove any Garrisons here.
+## Place 1 Curse here. Place 2 Skeletons here."
+static func _hellhound_tower() -> EffectProgram:
+	return EffectProgram.new("Hellhound Tower", [
+		GainResourceOp.new("Salt", 4),
+		RemoveTokenOp.new("Garrison"),
+		PlaceTokenOp.new("Curse", 1, "here"),
+		PlaceTokenOp.new("Skeleton", 2, "here"),
+	])
+
+
+## Sea Tower "Zeegard": "Gain 2 SALT. + Remove any Skeletons here. + Place
+## 3 Garrisons here."
+static func _zeegard() -> EffectProgram:
+	return EffectProgram.new("Zeegard", [
+		GainResourceOp.new("Salt", 2),
+		RemoveTokenOp.new("Skeleton"),
+		PlaceTokenOp.new("Garrison", 3, "here"),
+	])
+
+
+## Sea Tower "Midnight Tower": "Gain 4 SALT. + Place 1 Horde, and 1 Legion
+## and its Target, from the box, at Threat 7 here. Ignore their immediate
+## effects."
+static func _midnight_tower() -> EffectProgram:
+	return EffectProgram.new("Midnight Tower", [
+		GainResourceOp.new("Salt", 4),
+		FnOp.new("Horde + Legion from the box at Threat 7", func(ctx: EffectContext) -> void:
+			NemesisAI.spawn_horde(ctx.state, ctx.hex_coord, ctx.card_db, 7, {"from_box": true, "ignore_immediate": true, "no_combat": true})
+			NemesisAI.spawn_legion(ctx.state, ctx.card_db, ctx.hex_coord, 7, {"from_box": true, "ignore_immediate": true, "target": "here", "no_combat": true})
+			NemesisAI.resolve_combat_at(ctx.state, ctx.card_db, ctx.hex_coord)),
+	])
+
+
+## The player whose Hero has the most dice rolls them (ties: turn order).
+## Returns symbol counts plus "roller".
+static func roll_best_hero(ctx: EffectContext, guile_color: String) -> Dictionary:
+	var best: PlayerFactionState = null
+	var best_size: int = -1
+	for p: PlayerFactionState in ctx.state.players:
+		var size: int = DiceModel.hero_pool(EffectUtil.hero_card(ctx.card_db, p.hero_name)).size()
+		if size > best_size:
+			best_size = size
+			best = p
+	var counts: Dictionary = {"Skull": 0, "Shield": 0, "Bolt": 0, "roller": ""}
+	if best == null:
+		return counts
+	if ctx.rng == null:
+		ctx.rng = RandomNumberGenerator.new()
+		ctx.rng.randomize()
+	var pool: Array[String] = DiceModel.hero_pool(EffectUtil.hero_card(ctx.card_db, best.hero_name), guile_color)
+	var rolled: Dictionary = DiceModel.roll_pool(pool, ctx.rng)
+	for k: Variant in rolled.keys():
+		counts[k] = rolled[k]
+	counts["roller"] = best.faction
+	ctx.log("%s rolls their Hero Dice: %d Skull, %d Shield, %d Bolt" % [best.faction, counts["Skull"], counts["Shield"], counts["Bolt"]])
+	return counts

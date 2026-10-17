@@ -20,20 +20,32 @@ func execute(ctx: EffectContext) -> void:
 	if p == null:
 		ctx.log("GainResourceOp: no acting player, skipped")
 		return
-	var actual_resource: String = resource
 	if resource == "Any":
-		if ctx.choice_resolver.is_valid():
-			actual_resource = str(ctx.choice_resolver.call("resource", ["Salt", "Plunder", "Food"]))
-		else:
-			actual_resource = "Salt"
-	match actual_resource:
+		# "Gain N resources": any mix - without a UI choice, each one goes to
+		# whatever the player holds least of (ties Salt, Plunder, Food).
+		for _i: int in range(amount):
+			var pick: String = "Salt"
+			if ctx.choice_resolver.is_valid():
+				pick = str(ctx.choice_resolver.call("resource", ["Salt", "Plunder", "Food"]))
+			elif p.plunder < p.salt and p.plunder <= p.food:
+				pick = "Plunder"
+			elif p.food < p.salt and p.food < p.plunder:
+				pick = "Food"
+			_add(p, pick, 1)
+		ctx.log("%s gains %d resources" % [p.faction, amount])
+		return
+	_add(p, resource, amount)
+	ctx.log("%s gains %d %s" % [p.faction, amount, resource])
+
+
+static func _add(p: PlayerFactionState, res: String, n: int) -> void:
+	match res:
 		"Salt":
-			p.salt += amount
+			p.salt += n
 		"Plunder":
-			p.plunder += amount
+			p.plunder += n
 		"Food":
-			p.food += amount
-	ctx.log("%s gains %d %s" % [p.faction, amount, actual_resource])
+			p.food += n
 
 
 func describe() -> String:

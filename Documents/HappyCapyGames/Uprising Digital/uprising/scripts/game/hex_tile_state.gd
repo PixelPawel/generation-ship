@@ -44,7 +44,7 @@ const IMPASSABLE_ART_EDGES: Dictionary = {
 	"Rigga": [1, 5],
 	"Dunkelholm": [0, 2, 5],
 	"Dawngaard": [2, 5],
-	"Zeegaard": [0, 2, 4],
+	"Zeegard": [0, 2, 4],  # CSV spelling (the art file is Zeegaard.png)
 }
 
 

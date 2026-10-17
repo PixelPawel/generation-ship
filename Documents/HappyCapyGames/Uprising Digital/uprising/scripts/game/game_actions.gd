@@ -15,6 +15,7 @@ extends RefCounted
 ## isn't tracked yet (see _move).
 
 const AP_COST := 1
+const QUEST_FLOW_PATH := "res://scripts/game/quest_flow.gd"
 
 
 static func apply(state: GameState, action: Dictionary, faction: String, card_db: Node) -> Dictionary:
@@ -235,6 +236,7 @@ static func _explore(state: GameState, action: Dictionary, faction: String, card
 		ctx.state = state
 		ctx.card_db = card_db
 		ctx.rng = RandomNumberGenerator.new()
+		ctx.rng.randomize()
 		ctx.acting_faction = faction
 		ctx.hex_coord = coord
 		ctx.has_hex_coord = true
@@ -358,7 +360,9 @@ static func item_cost(card_db: Node, item_name: String) -> int:
 	return 0
 
 
-# --- Quest: 1 AP, rolls Hero Dice against the Quest's goal thresholds, ends turn. ---
+# --- Quest: 1 AP, roll the Hero Dice against a face-up Quest, ends turn. ---
+## Resolution (goals, rewards, solve/failure effects, what happens to the
+## card) lives in quest_flow.gd.
 static func _quest(state: GameState, action: Dictionary, faction: String, card_db: Node) -> Dictionary:
 	if not is_players_turn(state, faction):
 		return {"ok": false, "reason": "not your turn"}
@@ -370,21 +374,14 @@ static func _quest(state: GameState, action: Dictionary, faction: String, card_d
 	var quest_name: String = str(action.get("quest", ""))
 	if not state.quest_row.has(quest_name):
 		return {"ok": false, "reason": "quest not face-up"}
-
+	var quest_flow: GDScript = load(QUEST_FLOW_PATH)
+	var r: Dictionary = quest_flow.attempt(state, card_db, faction, quest_name, {})
+	if not r.get("ok", false):
+		return r
 	p.action_points -= AP_COST
 	p.has_acted_this_turn = true
-	# Real dice count depends on Hero attributes (Might/Magic/Lead/Guile) -
-	# same documented placeholder boundary as RollHeroDiceRewardOp
-	# (Milestone 4 TODO: wire to the acting Hero's actual HeroCard).
-	var dice_count: int = int(action.get("dice_count", 3))
-	var rng := RandomNumberGenerator.new()
-	rng.randomize()
-	var skulls: int = 0
-	for _i: int in range(dice_count):
-		if rng.randi_range(0, 3) == 0:  # placeholder 25% Skull, see EffectContext.roll_symbol()
-			skulls += 1
-	state.phase_log = "%s attempts Quest '%s': rolled %d Skulls (dice_count is a placeholder, see comment)" % [faction, quest_name, skulls]
-	return {"ok": true, "skulls": skulls}
+	state.phase_log = str(r.get("log", ""))
+	return {"ok": true, "solved": r.get("solved", false)}
 
 
 static func _build_unit(state: GameState, action: Dictionary, faction: String) -> Dictionary:
@@ -412,11 +409,8 @@ static func _build_unit(state: GameState, action: Dictionary, faction: String) -
 		return {"ok": false, "reason": "must build on your own Haven"}
 	if tile.unit_count(faction) >= HexTileState.MAX_UNITS:
 		return {"ok": false, "reason": "hex already has 5 Units"}
-	var on_map: int = 0
-	for t: HexTileState in state.hexes.values():
-		on_map += int(t.unit_stack(faction).get(unit_name, 0))
-	if on_map >= entry.reserve_size:
-		return {"ok": false, "reason": "all %d %s are already on the map" % [entry.reserve_size, unit_name]}
+	if NemesisAI.NemesisCards.reserve_left(state, p, unit_name) <= 0:
+		return {"ok": false, "reason": "no %s left in your reserve (on the map or in a Graveyard)" % unit_name}
 
 	var pay_result: Dictionary = _pay_cost(p, entry.cost, action)
 	if not pay_result.get("ok", false):

@@ -21,6 +21,13 @@ var vp: int = 0
 var feats_in_play: Array[String] = []
 var feats_deck_remaining: int = 0   # count only - the shuffled order is host-only, not networked card-by-card
 var items_in_hand: Array[String] = []
+## Items flipped face-down (unusable) until the next Refresh Phase.
+var flipped_items: Array[String] = []
+## This faction's Units sitting in either Graveyard, by type (unit name ->
+## count) - out of the reserve until the Scoring Phase returns them.
+var graveyard_units: Dictionary = {}
+## Quests solved "Gain this card" style, kept in front of the player.
+var quests_in_play: Array[String] = []
 
 var has_passed: bool = false
 var has_acted_this_turn: bool = false
@@ -34,6 +41,8 @@ func to_dict() -> Dictionary:
 		"action_points": action_points, "max_action_points": max_action_points,
 		"vp": vp, "feats_in_play": feats_in_play.duplicate(),
 		"feats_deck_remaining": feats_deck_remaining, "items_in_hand": items_in_hand.duplicate(),
+		"flipped_items": flipped_items.duplicate(), "graveyard_units": graveyard_units.duplicate(),
+		"quests_in_play": quests_in_play.duplicate(),
 		"has_passed": has_passed, "has_acted_this_turn": has_acted_this_turn,
 	}
 
@@ -59,6 +68,11 @@ static func from_dict(d: Dictionary) -> PlayerFactionState:
 	var items: Array = d.get("items_in_hand", [])
 	for it: Variant in items:
 		s.items_in_hand.append(str(it))
+	for it: Variant in (d.get("flipped_items", []) as Array):
+		s.flipped_items.append(str(it))
+	s.graveyard_units = (d.get("graveyard_units", {}) as Dictionary).duplicate()
+	for q: Variant in (d.get("quests_in_play", []) as Array):
+		s.quests_in_play.append(str(q))
 	s.has_passed = d.get("has_passed", false)
 	s.has_acted_this_turn = d.get("has_acted_this_turn", false)
 	return s

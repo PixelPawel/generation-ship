@@ -18,7 +18,7 @@ extends RefCounted
 static func advance_phase(state: GameState, card_db: Node) -> Dictionary:
 	match state.phase:
 		GameState.Phase.REFRESH:
-			_refresh_phase(state)
+			_refresh_phase(state, card_db)
 			state.phase = GameState.Phase.EVENTS
 			return {"ok": true}
 		GameState.Phase.EVENTS:
@@ -57,18 +57,38 @@ static func advance_phase(state: GameState, card_db: Node) -> Dictionary:
 	return {"ok": false, "reason": "unknown phase"}
 
 
-static func _refresh_phase(state: GameState) -> void:
+static func _refresh_phase(state: GameState, card_db: Node = null) -> void:
 	var gained: Array[String] = DruidConditions.apply_refresh_phase(state)
 	for p: PlayerFactionState in state.players:
 		p.action_points = p.max_action_points
 		p.has_passed = false
 		p.has_acted_this_turn = false
+		p.flipped_items.clear()  # "Flip all your face-down cards back up"
 	if state.players.size() > 0 and state.chapter > 1:
 		state.first_player_index = (state.first_player_index + 1) % state.players.size()
 	state.current_player_index = state.first_player_index
 	deal_row(state.item_market, state.item_deck, state.item_discard, 3, state.flipped_market)
-	deal_row(state.quest_row, state.quest_deck, state.quest_discard, 3)
+	_deal_quests(state, card_db)
 	state.phase_log = "Refresh: Aether placed on %s" % [gained] if not gained.is_empty() else "Refresh: no Aether conditions met"
+
+
+## Rulebook p15: "Deal 3 new Quests (discard the old ones, unless that
+## Quest says not to) and resolve any immediate effects on the new Quests."
+static func _deal_quests(state: GameState, card_db: Node) -> void:
+	var quest_flow: GDScript = load("res://scripts/game/quest_flow.gd")
+	var keep: Array[String] = []
+	for q: String in state.quest_row:
+		if quest_flow.STAY_UNTIL_SOLVED.has(q):
+			keep.append(q)
+		else:
+			for item: Variant in (state.quest_items.get(q, []) as Array):
+				state.item_discard.append(str(item))
+			state.quest_items.erase(q)
+	deal_row(state.quest_row, state.quest_deck, state.quest_discard, 3, keep)
+	var first: String = state.players[state.first_player_index % state.players.size()].faction if not state.players.is_empty() else ""
+	for q2: String in state.quest_row.duplicate():
+		if not keep.has(q2):  # everything not kept was just dealt
+			quest_flow.on_dealt(state, card_db, q2, first)
 
 
 ## Rulebook p15: discard the old face-up cards (except any in `keep`, e.g.

@@ -1,21 +1,32 @@
 class_name NemesisAI
 extends RefCounted
 
-## Legion/Horde activation (rulebook p27, 44-55). Legions and Hordes
-## activate together in ascending printed Initiative order
-## (LegionHordeCombatTable.get_card(name).initiative), consuming
-## Activation Tokens one at a time.
+## The Empire and Chaos as the game runs them (rulebook p44-55): Legion/
+## Horde activation, putting new Legions/Hordes/Garrisons/Skeletons/Curses
+## on the map, and Legion Targets.
 ##
-## Movement priority (A) Haven-fewest-Units > (B) enemy-hex-fewest-
-## Units/Threat > (C) empty hex > (D) any hex on the shortest path is
-## evaluated over immediate NEIGHBORS only (a greedy single-step choice) -
-## per the rulebook's own "move 1 hex" step. Combat is resolved inside
-## each activation (2026-10-17), so a Legion that loses never strips the
-## Haven, and later activations see the post-combat board.
+## Activation: Legions and Hordes activate together in ascending printed
+## Initiative order (LegionHordeCombatTable.get_card(name).initiative),
+## consuming Activation Tokens one at a time. Movement priority (A) Haven-
+## fewest-Units > (B) enemy-hex-fewest-Units/Threat > (C) empty hex > (D)
+## any hex on the shortest route is evaluated over immediate NEIGHBORS only
+## (a greedy single-step choice) - per the rulebook's own "move 1 hex" step.
+## Combat is resolved inside each activation, so a Legion that loses never
+## strips the Haven, and later activations see the post-combat board.
 ## Distances are route lengths that never cross impassable terrain
-## (GameState.route_distances), and no step crosses it either. Not yet
-## modelled: Legions/Hordes using an explored Sea Tower's "adjacent to any
-## hex" effect (rulebook p18).
+## (GameState.route_distances), and no step crosses it either.
+##
+## Placement choices the rulebook leaves to "the acting player" (which
+## empty hex, which faction gets a Target...) use pick_hex(): the hex
+## farthest from every player Haven - the spot a player would pick to keep
+## trouble away - with a stable tie-break. Cards' own immediate effects
+## live in nemesis_cards.gd.
+##
+## Not yet modelled: Legions/Hordes using an explored Sea Tower's
+## "adjacent to any hex" effect (rulebook p18), and the limited number of
+## Garrison/Skeleton/Curse pieces in the box.
+
+const NemesisCards := preload("res://scripts/game/nemesis_cards.gd")
 
 
 static func run_nemesis_phase(state: GameState, card_db: Node) -> void:
@@ -23,7 +34,7 @@ static func run_nemesis_phase(state: GameState, card_db: Node) -> void:
 	all.append_array(state.legions)
 	all.append_array(state.hordes)
 	all.sort_custom(func(a: Variant, b: Variant) -> bool:
-		return _initiative(a.card_name) < _initiative(b.card_name))
+		return initiative(a.card_name) < initiative(b.card_name))
 
 	for entry: Variant in all:
 		while entry.activation_tokens > 0:
@@ -31,135 +42,272 @@ static func run_nemesis_phase(state: GameState, card_db: Node) -> void:
 			if not (state.legions.has(entry) or state.hordes.has(entry)):
 				break
 			entry.activation_tokens -= 1
-			if entry is LegionInstance:
-				_activate_legion(state, entry as LegionInstance, card_db)
-			else:
-				_activate_horde(state, entry as HordeInstance, card_db)
+			activate_now(state, card_db, entry)
 
 
-static func _initiative(card_name: String) -> int:
+static func initiative(card_name: String) -> int:
 	var card: LegionHordeCombatTable.CombatCard = LegionHordeCombatTable.get_card(card_name)
 	return card.initiative if card != null else 999
+
+
+## One activation without spending a token ("You do not need an Activation
+## Token to activate").
+static func activate_now(state: GameState, card_db: Node, entry: Variant) -> void:
+	if entry is LegionInstance and state.legions.has(entry):
+		_activate_legion(state, entry as LegionInstance, card_db)
+	elif entry is HordeInstance and state.hordes.has(entry):
+		_activate_horde(state, entry as HordeInstance, card_db)
 
 
 ## Rulebook p54 "Activate a Legion", steps 1-5. Combat (step 3) is fought
 ## right here, before the next activation, not batched at phase end.
 static func _activate_legion(state: GameState, legion: LegionInstance, card_db: Node) -> void:
 	# Step 1: place 1 Garrison here, or +1 VP if already 3 (not The Capital).
-	var tile: HexTileState = state.ensure_hex(legion.coord)
-	if tile.garrison_level < 3:
-		tile.garrison_level += 1
-	elif tile.role == "capital":
-		place_garrison_on_empty_hex(state)
-	else:
-		state.empire_vp += 1
+	add_garrisons(state, legion.coord, 1)
 
 	# Step 2: move 1 hex toward Target (not if already on it).
-	var target_coord: Vector2i = _resolve_target_coord(state, legion.target_faction)
+	var target_coord: Vector2i = legion.target_coord if legion.has_target else state.capital_coord
 	if legion.coord != target_coord:
 		legion.coord = _best_step(state, legion.coord, target_coord, true, "Empire")
 
 	# Step 3: combat with player or Chaos Units here.
-	if CombatResolver.hex_needs_combat(state, legion.coord):
-		var r: CombatResolver.Result = CombatResolver.resolve_hex(state, legion.coord, card_db)
-		state.phase_log += " | " + "; ".join(r.log)
+	resolve_combat_at(state, card_db, legion.coord)
 	if not state.legions.has(legion):
 		return
 
-	# Steps 4-5: survived -> remove any Haven here, retarget if it was the Target.
+	# Steps 4-5: survived -> remove any Haven here (retargets via remove_haven).
 	var arrived_tile: HexTileState = state.ensure_hex(legion.coord)
 	if not arrived_tile.haven_faction.is_empty() and arrived_tile.total_player_units() == 0:
-		var destroyed_faction: String = arrived_tile.haven_faction
-		_remove_haven(arrived_tile)
-		if legion.target_faction == destroyed_faction:
-			legion.target_faction = _retarget(state, destroyed_faction)
+		remove_haven(state, card_db, legion.coord)
 
 
 ## Rulebook p55 "Activate a Horde", steps 1-4.
 static func _activate_horde(state: GameState, horde: HordeInstance, card_db: Node) -> void:
-	var tile: HexTileState = state.ensure_hex(horde.coord)
-	if tile.curse:
-		state.chaos_vp += 1
-	else:
-		place_curse(state, tile)
+	place_curse_on(state, card_db, horde.coord)
 
 	horde.coord = _best_step(state, horde.coord, state.capital_coord, false, "Chaos")
 
-	if CombatResolver.hex_needs_combat(state, horde.coord):
-		var r: CombatResolver.Result = CombatResolver.resolve_hex(state, horde.coord, card_db)
-		state.phase_log += " | " + "; ".join(r.log)
+	resolve_combat_at(state, card_db, horde.coord)
 	if not state.hordes.has(horde):
 		return
 
 	var arrived_tile: HexTileState = state.ensure_hex(horde.coord)
 	if not arrived_tile.haven_faction.is_empty() and arrived_tile.total_player_units() == 0:
-		_remove_haven(arrived_tile)
+		remove_haven(state, card_db, horde.coord)
 
 
-static func _remove_haven(tile: HexTileState) -> void:
+static func resolve_combat_at(state: GameState, card_db: Node, coord: Vector2i) -> void:
+	if CombatResolver.hex_needs_combat(state, coord):
+		var r: CombatResolver.Result = CombatResolver.resolve_hex(state, coord, card_db)
+		log_line(state, "; ".join(r.log))
+
+
+static func log_line(state: GameState, text: String) -> void:
+	if text.is_empty():
+		return
+	state.phase_log = text if state.phase_log.is_empty() else state.phase_log + " | " + text
+
+
+# --- Havens and Targets ---------------------------------------------------
+
+## Removes the Haven (and its Tower and Wall) on `coord`, then moves any
+## Target that was on it (rulebook p47 "Retarget").
+static func remove_haven(state: GameState, card_db: Node, coord: Vector2i) -> void:
+	var tile: HexTileState = state.get_hex(coord)
+	if tile == null or tile.haven_faction.is_empty():
+		return
+	var faction: String = tile.haven_faction
 	tile.haven_faction = ""
 	tile.tower = false
 	tile.wall = false
+	for l: LegionInstance in state.legions:
+		if l.has_target and l.target_faction == faction and l.target_coord == coord:
+			retarget(state, card_db, l)
 
 
-## Rulebook p49: a Curse destroys any Garrisons here (to the Chaos
-## Graveyard) and removes any Haven, Tower and Wall.
-static func place_curse(state: GameState, tile: HexTileState) -> void:
-	tile.curse = true
-	if tile.garrison_level > 0:
-		state.chaos_graveyard["Empire"] = int(state.chaos_graveyard.get("Empire", 0)) + tile.garrison_level
-		tile.garrison_level = 0
-	_remove_haven(tile)
+## "Place the Target on another Haven of that faction with the fewest
+## Units. If the faction has none left, place the Target on The Capital
+## (where it will stay)."
+static func retarget(state: GameState, card_db: Node, legion: LegionInstance) -> void:
+	var haven: Vector2i = weakest_haven(state, legion.target_faction)
+	if haven != Vector2i.MIN:
+		legion.target_coord = haven
+	else:
+		legion.target_faction = "Capital"
+		legion.target_coord = state.capital_coord
+	NemesisCards.on_retarget(state, card_db, legion)
 
 
-## "Place a Garrison on an empty hex with no X" (rulebook p47, p50): an
-## empty hex has no Haven, Units or Curse. Several qualify -> the one
-## nearest The Capital (stand-in for the acting player's choice). None ->
-## stack on another Garrison below 3. Can't -> The Empire gains 1 VP.
-static func place_garrison_on_empty_hex(state: GameState) -> void:
+## The faction's Haven with the fewest Units, Vector2i.MIN if it has none.
+static func weakest_haven(state: GameState, faction: String) -> Vector2i:
 	var best: Vector2i = Vector2i.MIN
-	var best_dist: int = 99999
-	for coord: Vector2i in state.hexes.keys():
+	var best_units: int = 999999
+	var coords: Array = state.hexes.keys()
+	coords.sort()
+	for coord: Vector2i in coords:
 		var t: HexTileState = state.hexes[coord]
-		if t.role == "capital" or t.role == "outer" or t.curse or not t.haven_faction.is_empty():
-			continue
-		if not EffectUtil.hex_is_empty_of_units(state, coord):
-			continue
-		var d: int = HexMath.distance(coord, state.capital_coord)
-		if d < best_dist:
-			best_dist = d
+		if t.haven_faction == faction and t.total_player_units() < best_units:
+			best_units = t.total_player_units()
 			best = coord
-	if best != Vector2i.MIN:
-		(state.hexes[best] as HexTileState).garrison_level = 1
-		return
-	for coord2: Vector2i in state.hexes.keys():
-		var t2: HexTileState = state.hexes[coord2]
-		if t2.garrison_level > 0 and t2.garrison_level < 3:
-			t2.garrison_level += 1
+	return best
+
+
+## "Choose one player faction with no Target. Then place the Target on one
+## of that faction's Havens that has the fewest Units." With several
+## candidates, the first in turn order that still has a Haven. Everyone
+## targeted (or Haven-less) -> The Capital, for the rest of the game.
+static func assign_target(state: GameState, legion: LegionInstance) -> void:
+	var targeted: Dictionary = {}
+	for l: LegionInstance in state.legions:
+		if l != legion and l.has_target and l.target_faction != "Capital" and not l.target_faction.is_empty():
+			targeted[l.target_faction] = true
+	for p: PlayerFactionState in state.players:
+		if targeted.has(p.faction):
+			continue
+		var haven: Vector2i = weakest_haven(state, p.faction)
+		if haven != Vector2i.MIN:
+			legion.target_faction = p.faction
+			legion.target_coord = haven
+			legion.has_target = true
 			return
-	state.empire_vp += 1
+	legion.target_faction = "Capital"
+	legion.target_coord = state.capital_coord
+	legion.has_target = true
 
 
-## Draws the top Horde card and places it on `coord` (e.g. 3 Skeletons
-## merging, rulebook p48). Initial Threat comes from the current Chapter's
-## Event card ("Horde at Threat N"), defaulting to 4 when it doesn't say.
-## Its immediate effect is not executed yet. No card left -> Chaos +1 VP.
-static func spawn_horde(state: GameState, coord: Vector2i, card_db: Node = null) -> HordeInstance:
-	if state.horde_deck.is_empty():
+## Kept for older callers: the faction a new Legion would target.
+static func assign_new_legion_target(state: GameState) -> String:
+	var probe := LegionInstance.new()
+	assign_target(state, probe)
+	return probe.target_faction
+
+
+# --- New Legions and Hordes -------------------------------------------------
+
+## "Place a Legion" (rulebook p47, p52): draw the top Legion card, stand it
+## on `coord` (The Capital unless told otherwise) at `threat`, place its
+## Target, resolve its immediate effect, and only then any combat. Can't
+## draw one -> The Empire gains 1 VP. opts: "target" = "auto" (default) |
+## "capital" | "here" (fixed on `coord`, never retargets) | "fixed" with
+## "target_coord"; "from_box" draws a Core Legion not in the deck or in
+## play; "ignore_immediate"; "no_combat".
+static func spawn_legion(state: GameState, card_db: Node, coord: Vector2i, threat: int, opts: Dictionary = {}) -> LegionInstance:
+	var card_name: String = _draw_card(state, card_db, "Legion", bool(opts.get("from_box", false)))
+	if card_name.is_empty():
+		state.empire_vp += 1
+		log_line(state, "no Legion left to place - The Empire gains 1 VP")
+		return null
+	var inst := LegionInstance.new()
+	inst.id = next_nemesis_id(state)
+	inst.card_name = card_name
+	inst.threat = mini(threat, max_threat(card_name))
+	inst.coord = coord
+	inst.activation_tokens = state.legion_deck_tokens
+	state.legion_deck_tokens = 0
+	state.legions.append(inst)
+	match str(opts.get("target", "auto")):
+		"capital":
+			inst.target_faction = "Capital"
+			inst.target_coord = state.capital_coord
+			inst.has_target = true
+		"here":
+			inst.target_faction = ""
+			inst.target_coord = coord
+			inst.has_target = true
+		"fixed":
+			inst.target_faction = ""
+			inst.target_coord = opts.get("target_coord", coord)
+			inst.has_target = true
+		_:
+			assign_target(state, inst)
+	log_line(state, "Legion '%s' enters at Threat %d on %s" % [card_name, inst.threat, coord])
+	if not bool(opts.get("ignore_immediate", false)):
+		NemesisCards.legion_immediate(state, card_db, inst)
+	if not bool(opts.get("no_combat", false)) and state.legions.has(inst):
+		resolve_combat_at(state, card_db, inst.coord)
+	return inst
+
+
+## "Place a Horde" (rulebook p49, p53): like spawn_legion, with no Target.
+## `threat` < 0 takes it from this Chapter's Event ("Horde at Threat N"),
+## else 4. Can't draw one -> Chaos gains 1 VP.
+static func spawn_horde(state: GameState, coord: Vector2i, card_db: Node = null, threat: int = -1, opts: Dictionary = {}) -> HordeInstance:
+	var card_name: String = _draw_card(state, card_db, "Horde", bool(opts.get("from_box", false)))
+	if card_name.is_empty():
 		state.chaos_vp += 1
+		log_line(state, "no Horde left to place - Chaos gains 1 VP")
 		return null
 	var inst := HordeInstance.new()
+	inst.id = next_nemesis_id(state)
+	inst.card_name = card_name
+	inst.threat = mini(threat if threat > 0 else event_threat(state, card_db, "Horde"), max_threat(card_name))
+	inst.coord = coord
+	inst.activation_tokens = state.horde_deck_tokens
+	state.horde_deck_tokens = 0
+	state.hordes.append(inst)
+	log_line(state, "Horde '%s' enters at Threat %d on %s" % [card_name, inst.threat, coord])
+	if not bool(opts.get("ignore_immediate", false)):
+		NemesisCards.horde_immediate(state, card_db, inst)
+	if not bool(opts.get("no_combat", false)) and state.hordes.has(inst):
+		resolve_combat_at(state, card_db, inst.coord)
+	return inst
+
+
+static func _draw_card(state: GameState, card_db: Node, kind: String, from_box: bool) -> String:
+	var deck: Array[String] = state.legion_deck if kind == "Legion" else state.horde_deck
+	if not from_box:
+		return deck.pop_front() if not deck.is_empty() else ""
+	if card_db == null:
+		return ""
+	var pool: Array[String] = []
+	var cards: Array = card_db.legions if kind == "Legion" else card_db.hordes
+	for c: Variant in cards:
+		var name: String = c.card_name
+		if deck.has(name) or _in_play(state, name):
+			continue
+		pool.append(name)
+	if pool.is_empty():
+		return ""
+	pool.sort()
+	return pool[(state.chapter * 7 + pool.size()) % pool.size()]
+
+
+static func _in_play(state: GameState, card_name: String) -> bool:
+	for l: LegionInstance in state.legions:
+		if l.card_name == card_name:
+			return true
+	for h: HordeInstance in state.hordes:
+		if h.card_name == card_name:
+			return true
+	return false
+
+
+static func next_nemesis_id(state: GameState) -> int:
 	var max_id: int = -1
 	for l: LegionInstance in state.legions:
 		max_id = maxi(max_id, l.id)
 	for h: HordeInstance in state.hordes:
 		max_id = maxi(max_id, h.id)
-	inst.id = max_id + 1
-	inst.card_name = state.horde_deck.pop_front()
-	inst.threat = event_threat(state, card_db, "Horde")
-	inst.coord = coord
-	state.hordes.append(inst)
-	return inst
+	return max_id + 1
+
+
+static func max_threat(card_name: String) -> int:
+	var card: LegionHordeCombatTable.CombatCard = LegionHordeCombatTable.get_card(card_name)
+	return card.max_threat if card != null else 7
+
+
+## Changes a Legion's or Horde's Threat; anything above its maximum scores
+## its faction 1 VP per point instead (rulebook p45).
+static func add_threat(state: GameState, entry: Variant, amount: int) -> void:
+	var cap: int = max_threat(entry.card_name)
+	var wanted: int = entry.threat + amount
+	if wanted > cap:
+		if entry is LegionInstance:
+			state.empire_vp += wanted - cap
+		else:
+			state.chaos_vp += wanted - cap
+		wanted = cap
+	entry.threat = maxi(0, wanted)
 
 
 ## "Place 1 Legion/Horde at Threat N" from this Chapter's Event card text.
@@ -168,7 +316,7 @@ static func event_threat(state: GameState, card_db: Node, kind: String) -> int:
 	if card_db == null or event_name.is_empty():
 		return 4
 	var re := RegEx.new()
-	re.compile(kind + "\\s+at\\s+Threat\\s+(\\d)")
+	re.compile(kind + "s?\\s+at\\s+Threat\\s+(\\d)")
 	for e: EventCard in card_db.events_all:
 		if e.card_name == event_name and e.lang == "EN":
 			var m: RegExMatch = re.search(e.effect_1 + "\n" + e.effect_2)
@@ -176,6 +324,167 @@ static func event_threat(state: GameState, card_db: Node, kind: String) -> int:
 				return m.get_string(1).to_int()
 	return 4
 
+
+# --- Garrisons, Skeletons, Curses -----------------------------------------
+
+## "Place N Garrisons here": each stacks one level; a 4th on a hex scores
+## The Empire 1 VP instead - except on The Capital, where it goes to an
+## empty hex with no X (rulebook p46-47, p50).
+static func add_garrisons(state: GameState, coord: Vector2i, count: int) -> void:
+	var tile: HexTileState = state.ensure_hex(coord)
+	for _i: int in range(count):
+		if tile.curse:
+			state.empire_vp += 1  # a Cursed hex can't hold Garrisons
+		elif tile.garrison_level < 3:
+			tile.garrison_level += 1
+		elif tile.role == "capital":
+			place_garrison_on_empty_hex(state)
+		else:
+			state.empire_vp += 1
+
+
+## "Place a Garrison on an empty hex with no X" (rulebook p47, p50): an
+## empty hex has no Haven, Units or Curse; The Empire spreads out, so new
+## hexes first (pick_hex), then a hex with a Legion, then stacking on
+## another Garrison below 3. Can't -> The Empire gains 1 VP.
+static func place_garrison_on_empty_hex(state: GameState) -> void:
+	var empties: Array[Vector2i] = []
+	for coord: Vector2i in state.hexes.keys():
+		var t: HexTileState = state.hexes[coord]
+		if no_x(t) and EffectUtil.hex_is_empty(state, coord):
+			empties.append(coord)
+	var best: Vector2i = pick_hex(state, empties)
+	if best != Vector2i.MIN:
+		state.hexes[best].garrison_level = 1
+		return
+	for coord2: Vector2i in state.hexes.keys():
+		var t2: HexTileState = state.hexes[coord2]
+		if no_x(t2) and t2.garrison_level == 0 and not t2.curse and t2.total_player_units() == 0 and t2.haven_faction.is_empty():
+			for l: LegionInstance in state.legions:
+				if l.coord == coord2:
+					t2.garrison_level = 1
+					return
+	var stacks: Array = state.hexes.keys()
+	stacks.sort()
+	for coord3: Vector2i in stacks:
+		var t3: HexTileState = state.hexes[coord3]
+		if t3.garrison_level > 0 and t3.garrison_level < 3:
+			t3.garrison_level += 1
+			return
+	state.empire_vp += 1
+
+
+## Hexes that show no X: Haven-able spaces (not Region spaces, not The
+## Capital).
+static func no_x(tile: HexTileState) -> bool:
+	return tile != null and tile.role != "outer" and tile.role != "capital"
+
+
+## "Place 1 Curse here": a Curse destroys any Garrisons (to the Chaos
+## Graveyard) and removes any Haven, Tower and Wall; an already Cursed hex
+## scores Chaos 1 VP instead (rulebook p49).
+static func place_curse_on(state: GameState, card_db: Node, coord: Vector2i) -> void:
+	var tile: HexTileState = state.ensure_hex(coord)
+	if tile.curse:
+		state.chaos_vp += 1
+		return
+	place_curse(state, tile, card_db, coord)
+
+
+static func place_curse(state: GameState, tile: HexTileState, card_db: Node = null, coord: Vector2i = Vector2i.MIN) -> void:
+	tile.curse = true
+	if tile.garrison_level > 0:
+		state.chaos_graveyard["Empire"] = int(state.chaos_graveyard.get("Empire", 0)) + tile.garrison_level
+		tile.garrison_level = 0
+	if not tile.haven_faction.is_empty():
+		if coord == Vector2i.MIN:
+			for c: Vector2i in state.hexes.keys():
+				if state.hexes[c] == tile:
+					coord = c
+		remove_haven(state, card_db, coord)
+
+
+## "Place N Skeletons here" - 3 on one hex become a Horde (rulebook p48).
+static func add_skeletons(state: GameState, card_db: Node, coord: Vector2i, count: int, in_combat: bool = false) -> void:
+	var notes: Array[String] = []
+	CombatResolver.add_skeletons(state, coord, count, notes, card_db, in_combat)
+	log_line(state, "; ".join(notes))
+
+
+## "Place 1 Skeleton with other Skeletons" (rulebook p51): onto a hex with
+## 1 or 2 Skeletons - a hex with 1 first, so no Horde forms if avoidable -
+## or an empty hex when there are none on the map.
+static func place_skeleton_with_others(state: GameState, card_db: Node, count: int = 1) -> void:
+	for _i: int in range(count):
+		var ones: Array[Vector2i] = []
+		var twos: Array[Vector2i] = []
+		for coord: Vector2i in state.hexes.keys():
+			var n: int = (state.hexes[coord] as HexTileState).skeleton_count
+			if n == 1:
+				ones.append(coord)
+			elif n == 2:
+				twos.append(coord)
+		var target: Vector2i = pick_hex(state, ones)
+		if target == Vector2i.MIN:
+			target = pick_hex(state, twos)
+		if target == Vector2i.MIN:
+			target = pick_hex(state, empty_hexes(state))
+		if target == Vector2i.MIN:
+			state.chaos_vp += 1
+			continue
+		add_skeletons(state, card_db, target, 1)
+
+
+## Empty hexes (no Haven, Units or Curse), optionally only those where
+## `filter.call(coord, tile)` is true.
+static func empty_hexes(state: GameState, filter: Callable = Callable()) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for coord: Vector2i in state.hexes.keys():
+		if not EffectUtil.hex_is_empty(state, coord):
+			continue
+		if filter.is_valid() and not bool(filter.call(coord, state.hexes[coord])):
+			continue
+		out.append(coord)
+	out.sort()
+	return out
+
+
+## The acting player's pick among `candidates`: farthest from any player
+## Haven (keep the trouble away), ties to the first in sorted order.
+## Vector2i.MIN when there is nothing to pick.
+static func pick_hex(state: GameState, candidates: Array[Vector2i]) -> Vector2i:
+	if candidates.is_empty():
+		return Vector2i.MIN
+	var havens: Array[Vector2i] = []
+	for coord: Vector2i in state.hexes.keys():
+		if not (state.hexes[coord] as HexTileState).haven_faction.is_empty():
+			havens.append(coord)
+	var sorted: Array[Vector2i] = candidates.duplicate()
+	sorted.sort()
+	var best: Vector2i = sorted[0]
+	var best_score: int = -1
+	for c: Vector2i in sorted:
+		var nearest: int = 99
+		for h: Vector2i in havens:
+			nearest = mini(nearest, HexMath.distance(c, h))
+		if nearest > best_score:
+			best_score = nearest
+			best = c
+	return best
+
+
+## True if any Haven is on or next to `coord`.
+static func near_haven(state: GameState, coord: Vector2i) -> bool:
+	var spots: Array[Vector2i] = [coord]
+	spots.append_array(HexMath.neighbors(coord))
+	for c: Vector2i in spots:
+		var t: HexTileState = state.get_hex(c)
+		if t != null and not t.haven_faction.is_empty():
+			return true
+	return false
+
+
+# --- Movement -----------------------------------------------------------------
 
 ## Picks the best single step from `from` toward/away-from `target`,
 ## following the rulebook's priority tiers (p54-55): A) a Haven, fewest
@@ -225,11 +534,10 @@ static func _best_step(state: GameState, from: Vector2i, target: Vector2i, towar
 
 	# Tier C: into an empty hex.
 	for c: Vector2i in candidates:
-		var t2: HexTileState = state.get_hex(c)
-		if (t2 == null or (not t2.curse and t2.haven_faction.is_empty())) and EffectUtil.hex_is_empty_of_units(state, c):
+		if EffectUtil.hex_is_empty(state, c):
 			return c
 
-	# Tier D: any candidate on the shortest path.
+	# Tier D: any candidate on the shortest route.
 	return candidates[0]
 
 
@@ -251,43 +559,3 @@ static func _enemy_strength(state: GameState, coord: Vector2i, mover: String) ->
 			if l.coord == coord:
 				total += l.threat
 	return total
-
-
-static func _resolve_target_coord(state: GameState, target_faction: String) -> Vector2i:
-	if target_faction.is_empty() or target_faction == "Capital":
-		return state.capital_coord
-	var best_coord: Vector2i = state.capital_coord
-	var best_units: int = 999999
-	var found: bool = false
-	for coord: Vector2i in state.hexes.keys():
-		var t: HexTileState = state.hexes[coord]
-		if t.haven_faction == target_faction:
-			var units: int = t.total_player_units()
-			if units < best_units:
-				best_units = units
-				best_coord = coord
-				found = true
-	if not found:
-		return state.capital_coord  # that faction has no Havens left - Capital.
-	return best_coord
-
-
-static func _retarget(state: GameState, destroyed_faction: String) -> String:
-	for coord: Vector2i in state.hexes.keys():
-		var t: HexTileState = state.hexes[coord]
-		if t.haven_faction == destroyed_faction:
-			return destroyed_faction  # still has another Haven somewhere.
-	return "Capital"
-
-
-## Assigns a new Legion's initial Target: the first player faction without
-## a current Target, or "Capital" if all factions already have one.
-static func assign_new_legion_target(state: GameState) -> String:
-	var targeted: Dictionary = {}
-	for l: LegionInstance in state.legions:
-		if not l.target_faction.is_empty():
-			targeted[l.target_faction] = true
-	for p: PlayerFactionState in state.players:
-		if not targeted.has(p.faction):
-			return p.faction
-	return "Capital"

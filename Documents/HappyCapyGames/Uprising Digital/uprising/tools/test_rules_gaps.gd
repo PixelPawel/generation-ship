@@ -30,7 +30,7 @@ func _run() -> void:
 	_check(PlayerboardTable.get_unit("Mohyar", "Hunters").is_archer(), "Hunters are Archers")
 
 	var state := GameState.new()
-	state.horde_deck = ["Counter of Omens", "Oda the Fallen"]
+	state.horde_deck = ["Oda the Fallen", "Counter of Omens"]  # Oda first: his entry effect adds no Skeletons
 	var p := PlayerFactionState.new()
 	p.faction = "Duerkhar"
 	state.players.append(p)
@@ -141,7 +141,7 @@ func _run() -> void:
 	_check(rs.item_market.size() == 3 and rs.quest_row.size() == 3, "Refresh deals 3 Items + 3 Quests")
 	_check(rs.item_deck.size() == deck_before - 3, "the Items came off the deck")
 	var first_items: Array[String] = rs.item_market.duplicate()
-	ChapterFlow._refresh_phase(rs)
+	ChapterFlow._refresh_phase(rs, card_db)
 	_check(rs.item_discard == first_items, "the next Refresh discards the old Items")
 
 	# --- Market: buy a face-up Item at its CSV Salt cost ---
@@ -158,6 +158,8 @@ func _run() -> void:
 
 	_impassable_checks(card_db)
 	_region_and_hero_checks(card_db)
+	_quest_checks(card_db)
+	_nemesis_entry_checks(card_db)
 
 	# --- Save/load keeps typed Units ---
 	var round_trip: GameState = GameState.from_dict(state.to_dict())
@@ -266,6 +268,84 @@ func _region_and_hero_checks(card_db: Node) -> void:
 	var pool: Array[String] = DiceModel.hero_pool(EffectUtil.hero_card(card_db, "Hanzo"), "white")
 	pool.sort()
 	_check(pool == ["purple", "white", "white", "white"], "Hanzo's Hero Dice: 1 purple + 3 Guile dice, got %s" % [pool])
+
+
+## Quest goals, rewards, solve/failure effects and what happens to the card.
+func _quest_checks(card_db: Node) -> void:
+	var quest_flow: GDScript = load("res://scripts/game/quest_flow.gd")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4
+	var s: GameState = GameSetup.build_2p_normal_game_state(card_db, rng)
+	ChapterFlow.refill_row(s.item_market, s.item_deck, s.item_discard, 3)
+	var p: PlayerFactionState = s.players[0]
+	s.quest_row = ["Intercept the Empress"]
+	var q: QuestCard = quest_flow.card(card_db, "Intercept the Empress")
+	_check(quest_flow.goals(q) == {"successes": 2, "Skull": 4, "Shield": 1, "Bolt": 2}, "Intercept the Empress goals parse as 2+ of 4 Skull / 1 Shield / 2 Bolt")
+	# Ice Waste bonus die: the Hero on a Region space (explored Ice Waste).
+	for c: Vector2i in s.hexes.keys():
+		if s.hexes[c].role == "outer":
+			p.hero_coord = c
+			break
+	_check(quest_flow.bonus_dice(s, card_db, p, q) == ["red"], "Hero on Ice Waste earns Intercept's +1 RED")
+	var vp0: int = p.vp
+	var salt0: int = p.salt
+	var items0: int = p.items_in_hand.size()
+	var r: Dictionary = quest_flow.attempt(s, card_db, p.faction, "Intercept the Empress", {"fixed_roll": {"Skull": 4, "Shield": 0, "Bolt": 2}})
+	_check(r.get("solved", false), "4 Skulls + 2 Bolts meet 2 goals: solved")
+	_check(p.vp == vp0 + 2 and p.salt == salt0 + 3, "rewards: Skull goal 2 VP, Bolt goal 3 Salt (VP %d->%d, Salt %d->%d)" % [vp0, p.vp, salt0, p.salt])
+	_check(p.items_in_hand.size() == items0 + 1, "solve: gained 1 Item from the Market")
+	_check(not s.quest_row.has("Intercept the Empress") and s.quest_discard.has("Intercept the Empress"), "'Discard this Quest' discards it")
+
+	s.quest_row = ["Intercept the Empress"]
+	var empire0: int = s.empire_vp
+	var r2: Dictionary = quest_flow.attempt(s, card_db, p.faction, "Intercept the Empress", {"fixed_roll": {"Skull": 1, "Shield": 1, "Bolt": 0}})
+	_check(not r2.get("solved", true) and s.empire_vp == empire0 + 2, "only 1 goal met: failed, The Empire gains 2 VP")
+
+	s.quest_row = ["Tua Than Allies"]
+	quest_flow.attempt(s, card_db, p.faction, "Tua Than Allies", {"fixed_roll": {"Skull": 3, "Shield": 0, "Bolt": 0}})
+	_check(p.quests_in_play.has("Tua Than Allies") and not s.quest_row.has("Tua Than Allies"), "'Gain this card' moves the solved Quest in front of the player")
+
+	s.quest_row = ["Instruction of the Druids"]
+	var chaos0: int = s.chaos_vp
+	quest_flow.attempt(s, card_db, p.faction, "Instruction of the Druids", {"fixed_roll": {"Skull": 0, "Shield": 0, "Bolt": 0}})
+	_check(s.quest_row.has("Instruction of the Druids") and s.chaos_vp == chaos0 + 1, "failure 'Chaos gains 1 VP' (no discard) leaves the Quest in the row")
+
+
+## New Legions get a Target and their immediate effect; Hordes too.
+func _nemesis_entry_checks(card_db: Node) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9
+	var s: GameState = GameSetup.build_2p_normal_game_state(card_db, rng)
+	var p: PlayerFactionState = s.players[0]
+	s.legion_deck = ["The Courtesan", "The Imperial Guard"]
+	var ap0: int = p.max_action_points
+	var courtesan: LegionInstance = NemesisAI.spawn_legion(s, card_db, s.capital_coord, 4)
+	_check(courtesan != null and courtesan.has_target and courtesan.target_faction == p.faction, "the first Legion targets the first player's Haven")
+	_check(courtesan.target_coord == p.hero_coord, "its Target sits on that faction's (home) Haven")
+	_check(p.max_action_points == ap0 - 1, "Dark Lullaby: the targeted player loses 1 AP for the rest of the game")
+	var guard_stacks: int = 0
+	for t: HexTileState in s.hexes.values():
+		if t.garrison_level > 0 and t.role != "capital":
+			guard_stacks += t.garrison_level
+	var guard: LegionInstance = NemesisAI.spawn_legion(s, card_db, s.capital_coord, 4)
+	var after: int = 0
+	for t2: HexTileState in s.hexes.values():
+		if t2.garrison_level > 0 and t2.role != "capital":
+			after += t2.garrison_level
+	_check(guard != null and guard.target_faction == s.players[1].faction, "the second Legion targets the other faction")
+	_check(after > guard_stacks, "Defensive Stance stacks a Garrison on every Garrison hex (%d -> %d levels)" % [guard_stacks, after])
+	_check(NemesisAI.spawn_legion(s, card_db, s.capital_coord, 4) == null, "an empty Legion deck gives The Empire 1 VP instead")
+
+	s.horde_deck = ["Counter of Omens", "Oda the Fallen"]
+	var spot: Vector2i = NemesisAI.pick_hex(s, NemesisAI.empty_hexes(s))
+	var counter: HordeInstance = NemesisAI.spawn_horde(s, spot, card_db, 4)
+	_check(counter != null and s.get_hex(spot).skeleton_count == 2, "Army of Bone: 2 Skeletons on the Counter's hex")
+	var oda: HordeInstance = NemesisAI.spawn_horde(s, spot, card_db, 4)
+	_check(oda != null and oda.threat == 6 and counter.threat == 5, "Doomsday: Oda +2 Threat, every other Horde +1")
+
+	# A Haven that falls moves its Target to the faction's next Haven, else The Capital.
+	NemesisAI.remove_haven(s, card_db, courtesan.target_coord)
+	_check(courtesan.target_faction == "Capital" and courtesan.target_coord == s.capital_coord, "losing its only Haven sends the Target to The Capital")
 
 
 func _hex(state: GameState, coord: Vector2i, card_name: String) -> HexTileState:
