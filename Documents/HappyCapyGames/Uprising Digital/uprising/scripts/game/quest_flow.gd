@@ -674,15 +674,10 @@ static func _strongest_nemesis(state: GameState) -> Variant:
 	return best
 
 
-## A Legion/Horde destroyed by a card effect: removed, and the player who
-## caused it gains the bottom effect's VP (rulebook p47, p49).
+## A Legion/Horde destroyed by a card effect: its bottom effect resolves
+## for the player who caused it (rulebook p47, p49).
 static func _destroy_by_effect(ctx: EffectContext, foe: Variant) -> void:
-	ctx.state.legions.erase(foe)
-	ctx.state.hordes.erase(foe)
-	var c: LegionHordeCombatTable.CombatCard = LegionHordeCombatTable.get_card(foe.card_name)
-	var p: PlayerFactionState = ctx.state.find_player(ctx.acting_faction)
-	if p != null and c != null:
-		p.vp += c.on_destroy_vp
+	CombatResolver.destroy_nemesis(ctx.state, ctx.card_db, foe, ctx.acting_faction, foe.coord)
 	ctx.log("%s is destroyed" % foe.card_name)
 
 

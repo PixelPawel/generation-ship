@@ -177,9 +177,7 @@ static func _command(state: GameState, action: Dictionary, faction: String, card
 	p.food -= 1
 	p.has_acted_this_turn = true
 	state.phase_log = "%s Commands %d Unit(s)%s to %s" % [faction, moved, " and their Hero" if hero_moves else "", target]
-	if CombatResolver.hex_needs_combat(state, target):
-		var r: CombatResolver.Result = CombatResolver.resolve_hex(state, target, card_db)
-		state.phase_log += " | " + "; ".join(r.log)
+	NemesisAI.resolve_combat_at(state, card_db, target)  # also The Capital's ongoing effect
 	return {"ok": true}
 
 

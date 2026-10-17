@@ -214,12 +214,12 @@ static func _to_graveyard(state: GameState, p: PlayerFactionState, unit_name: St
 
 
 ## Copies of a Unit type still in the faction's reserve: printed count minus
-## those on the map and those in a Graveyard.
+## those on the map, those in a Graveyard and those removed from the game.
 static func reserve_left(state: GameState, p: PlayerFactionState, unit_name: String) -> int:
 	var entry: PlayerboardTable.UnitEntry = PlayerboardTable.get_unit(p.faction, unit_name)
 	if entry == null:
 		return 0
-	var used: int = int(p.graveyard_units.get(unit_name, 0))
+	var used: int = int(p.graveyard_units.get(unit_name, 0)) + int(p.removed_units.get(unit_name, 0))
 	for t: HexTileState in state.hexes.values():
 		used += int(t.unit_stack(p.faction).get(unit_name, 0))
 	return maxi(0, entry.reserve_size - used)

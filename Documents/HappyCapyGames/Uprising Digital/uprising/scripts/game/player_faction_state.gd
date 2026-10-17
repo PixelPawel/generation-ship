@@ -28,6 +28,8 @@ var flipped_items: Array[String] = []
 var graveyard_units: Dictionary = {}
 ## Quests solved "Gain this card" style, kept in front of the player.
 var quests_in_play: Array[String] = []
+## Units removed from the game for good (The Executioner): unit name -> count.
+var removed_units: Dictionary = {}
 
 var has_passed: bool = false
 var has_acted_this_turn: bool = false
@@ -42,7 +44,7 @@ func to_dict() -> Dictionary:
 		"vp": vp, "feats_in_play": feats_in_play.duplicate(),
 		"feats_deck_remaining": feats_deck_remaining, "items_in_hand": items_in_hand.duplicate(),
 		"flipped_items": flipped_items.duplicate(), "graveyard_units": graveyard_units.duplicate(),
-		"quests_in_play": quests_in_play.duplicate(),
+		"quests_in_play": quests_in_play.duplicate(), "removed_units": removed_units.duplicate(),
 		"has_passed": has_passed, "has_acted_this_turn": has_acted_this_turn,
 	}
 
@@ -73,6 +75,7 @@ static func from_dict(d: Dictionary) -> PlayerFactionState:
 	s.graveyard_units = (d.get("graveyard_units", {}) as Dictionary).duplicate()
 	for q: Variant in (d.get("quests_in_play", []) as Array):
 		s.quests_in_play.append(str(q))
+	s.removed_units = (d.get("removed_units", {}) as Dictionary).duplicate()
 	s.has_passed = d.get("has_passed", false)
 	s.has_acted_this_turn = d.get("has_acted_this_turn", false)
 	return s

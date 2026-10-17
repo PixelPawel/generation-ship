@@ -48,6 +48,10 @@ var horde_deck_tokens: int = 0
 ## AP each player has parked on the Coven of Yssat (faction -> count);
 ## returned when the Coven is destroyed.
 var coven_held_ap: Dictionary = {}
+## The Capital hex flipped to its "Uprising in the Capital" side (rulebook p47).
+var capital_flipped: bool = false
+## The Banished went back under the Horde deck once ("Once per game").
+var banished_returned: bool = false
 var event_decks: Dictionary = {}   # chapter(int) -> Array[String] (deck for that chapter, minus the 1 pre-placed card)
 var chapter_events: Dictionary = {}  # chapter(int) -> String (this chapter's revealed/pending Event card name)
 ## The most recently revealed Event - its printed Threat is the default
@@ -97,6 +101,7 @@ func to_dict() -> Dictionary:
 		"legion_deck": legion_deck.duplicate(), "horde_deck": horde_deck.duplicate(),
 		"legion_deck_tokens": legion_deck_tokens, "horde_deck_tokens": horde_deck_tokens,
 		"coven_held_ap": coven_held_ap.duplicate(),
+		"capital_flipped": capital_flipped, "banished_returned": banished_returned,
 		"event_decks": _stringify_int_keys(event_decks),
 		"chapter_events": _stringify_int_keys(chapter_events), "latest_event": latest_event,
 		"empire_vp": empire_vp, "chaos_vp": chaos_vp,
@@ -151,6 +156,8 @@ static func from_dict(d: Dictionary) -> GameState:
 	s.legion_deck_tokens = int(d.get("legion_deck_tokens", 0))
 	s.horde_deck_tokens = int(d.get("horde_deck_tokens", 0))
 	s.coven_held_ap = (d.get("coven_held_ap", {}) as Dictionary).duplicate()
+	s.capital_flipped = bool(d.get("capital_flipped", false))
+	s.banished_returned = bool(d.get("banished_returned", false))
 	s.event_decks = _intify_keys(d.get("event_decks", {}))
 	s.chapter_events = _intify_keys(d.get("chapter_events", {}))
 	s.latest_event = str(d.get("latest_event", ""))

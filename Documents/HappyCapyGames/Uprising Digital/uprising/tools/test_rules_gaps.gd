@@ -161,6 +161,7 @@ func _run() -> void:
 	_quest_checks(card_db)
 	_nemesis_entry_checks(card_db)
 	_event_checks(card_db)
+	_card_power_checks(card_db)
 
 	# --- Save/load keeps typed Units ---
 	var round_trip: GameState = GameState.from_dict(state.to_dict())
@@ -405,6 +406,97 @@ func _event_checks(card_db: Node) -> void:
 	t.phase = GameState.Phase.EVENTS
 	ChapterFlow.advance_phase(t, card_db)
 	_check(t.latest_event == str(t.chapter_events[1]), "the Events Phase reveals and resolves Chapter 1's Event")
+
+
+## Legion/Horde combat abilities, bottom effects, The Capital, the Warlock.
+func _card_power_checks(card_db: Node) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 41
+	var s: GameState = GameSetup.build_2p_normal_game_state(card_db, rng)
+	var p: PlayerFactionState = s.players[0]
+	var spot: Vector2i = Vector2i.MIN
+	for c: Vector2i in s.hexes.keys():
+		if s.hexes[c].role == "outer" and EffectUtil.hex_is_empty(s, c):
+			spot = c
+			break
+	var tile: HexTileState = s.hexes[spot]
+
+	var assassin := LegionInstance.new()
+	assassin.card_name = "The Assassin"
+	assassin.threat = 4
+	assassin.coord = spot
+	s.legions.append(assassin)
+	var side := CombatResolver.Combatant.new()
+	side.kind = "legion"
+	side.faction = "Empire"
+	side.legion = assassin
+	var base: int = CombatResolver._dice(s, tile, side, "archery", "", spot).size()
+	_check(CombatResolver._dice(s, tile, side, "archery", "Badlands", spot).size() == base + 2, "The Assassin gains 2 red in Archery on Badlands")
+
+	var executioner := LegionInstance.new()
+	executioner.card_name = "The Executioner"
+	executioner.threat = 4
+	executioner.coord = spot
+	s.legions.append(executioner)
+	var ex_side := CombatResolver.Combatant.new()
+	ex_side.kind = "legion"
+	ex_side.faction = "Empire"
+	ex_side.legion = executioner
+	var without: int = CombatResolver._dice(s, tile, ex_side, "clash", "", spot).size()
+	assassin.has_target = true
+	assassin.target_coord = spot
+	_check(CombatResolver._dice(s, tile, ex_side, "clash", "", spot).size() == without + 1, "The Executioner gains 1 purple with a Target on the hex")
+	s.legions.erase(assassin)
+	s.legions.erase(executioner)
+
+	# Bottom effects.
+	var spymaster := LegionInstance.new()
+	spymaster.card_name = "The Spymaster"
+	spymaster.threat = 1
+	spymaster.coord = spot
+	s.legions.append(spymaster)
+	ChapterFlow.refill_row(s.item_market, s.item_deck, s.item_discard, 3)
+	s.flipped_market.append(s.item_market[0])
+	var vp0: int = p.vp
+	CombatResolver.destroy_nemesis(s, card_db, spymaster, p.faction, spot)
+	_check(not s.legions.has(spymaster) and p.vp == vp0 + 4, "The Spymaster destroyed: +4 VP to the player")
+	_check(s.flipped_market.is_empty() and s.item_market.size() == 3, "his flipped Market Items are discarded and the Market refilled")
+
+	s.horde_deck = ["Coven of Yssat"]
+	var coven: HordeInstance = NemesisAI.spawn_horde(s, spot, card_db, 4, {"no_combat": true})
+	var max_ap: int = p.max_action_points
+	CombatResolver.destroy_nemesis(s, card_db, coven, "Empire", spot)
+	_check(p.max_action_points == max_ap + 1 and s.coven_held_ap.is_empty(), "the Coven gone (even by The Empire): every player gets their AP back")
+
+	# The Capital's ongoing effect.
+	var cap: HexTileState = s.get_hex(s.capital_coord)
+	cap.garrison_level = 0
+	for l: LegionInstance in s.legions.duplicate():
+		if l.coord == s.capital_coord:
+			s.legions.erase(l)
+	s.legion_deck = ["The Warlock"]
+	cap.add_units(p.faction, PlayerboardTable.default_unit(p.faction), 1)
+	NemesisAI.check_capital(s, card_db)
+	var legion_here: bool = false
+	for l2: LegionInstance in s.legions:
+		if l2.card_name == "The Warlock" and l2.coord == s.capital_coord:
+			legion_here = true
+	_check(legion_here or cap.unit_count(p.faction) == 0, "only rebels on The Capital: a Legion is placed there and fights")
+	s.legion_deck.clear()
+	cap.garrison_level = 0
+	for l3: LegionInstance in s.legions.duplicate():
+		if l3.coord == s.capital_coord:
+			s.legions.erase(l3)
+	cap.units.clear()
+	cap.add_units(p.faction, PlayerboardTable.default_unit(p.faction), 1)
+	var vp1: int = p.vp
+	NemesisAI.check_capital(s, card_db)
+	_check(s.capital_flipped and p.vp == vp1 + 5, "no Legion left: The Capital flips and its holder gains 5 VP")
+
+	# The Warlock is always adjacent to any hex: straight to his Target.
+	var far_haven: Vector2i = p.hero_coord
+	var step: Vector2i = NemesisAI._best_step(s, s.capital_coord + Vector2i(3, -3), far_haven, true, "Empire", "The Warlock")
+	_check(step == far_haven, "The Warlock moves straight onto his Target")
 
 
 func _hex(state: GameState, coord: Vector2i, card_name: String) -> HexTileState:

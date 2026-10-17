@@ -22,9 +22,14 @@ extends RefCounted
 ## trouble away - with a stable tie-break. Cards' own immediate effects
 ## live in nemesis_cards.gd.
 ##
-## Not yet modelled: Legions/Hordes using an explored Sea Tower's
-## "adjacent to any hex" effect (rulebook p18), and the limited number of
-## Garrison/Skeleton/Curse pieces in the box.
+## Sea Towers (rulebook p18, p55): a Legion on an explored Sea Tower is
+## adjacent to every hex and steps straight onto its Target; a Horde there
+## may step to any hex not farther from The Capital (routes counted without
+## the Sea Tower shortcut). The Warlock "is always adjacent to any hex".
+## The Capital (p47): whenever only non-Imperial Units stand on it, a Legion
+## is placed there, again and again; with no Legion left the Capital flips
+## and the faction with Units on it gains 5 VP. Not modelled: the limited
+## number of Garrison/Skeleton/Curse pieces in the box.
 
 const NemesisCards := preload("res://scripts/game/nemesis_cards.gd")
 
@@ -68,7 +73,7 @@ static func _activate_legion(state: GameState, legion: LegionInstance, card_db: 
 	# Step 2: move 1 hex toward Target (not if already on it).
 	var target_coord: Vector2i = legion.target_coord if legion.has_target else state.capital_coord
 	if legion.coord != target_coord:
-		legion.coord = _best_step(state, legion.coord, target_coord, true, "Empire")
+		legion.coord = _best_step(state, legion.coord, target_coord, true, "Empire", legion.card_name)
 
 	# Step 3: combat with player or Chaos Units here.
 	resolve_combat_at(state, card_db, legion.coord)
@@ -83,9 +88,17 @@ static func _activate_legion(state: GameState, legion: LegionInstance, card_db: 
 
 ## Rulebook p55 "Activate a Horde", steps 1-4.
 static func _activate_horde(state: GameState, horde: HordeInstance, card_db: Node) -> void:
+	# Druidic Prophetess (kept Quest): "When a Horde activates, place 1 Basic
+	# Unit of any player on any of their Havens."
+	for p: PlayerFactionState in state.players:
+		if p.quests_in_play.has("Druidic Prophetess"):
+			var haven: Vector2i = weakest_haven(state, p.faction)
+			if haven != Vector2i.MIN:
+				state.hexes[haven].add_units(p.faction, PlayerboardTable.default_unit(p.faction), 1)
+
 	place_curse_on(state, card_db, horde.coord)
 
-	horde.coord = _best_step(state, horde.coord, state.capital_coord, false, "Chaos")
+	horde.coord = _best_step(state, horde.coord, state.capital_coord, false, "Chaos", horde.card_name)
 
 	resolve_combat_at(state, card_db, horde.coord)
 	if not state.hordes.has(horde):
@@ -100,6 +113,45 @@ static func resolve_combat_at(state: GameState, card_db: Node, coord: Vector2i) 
 	if CombatResolver.hex_needs_combat(state, coord):
 		var r: CombatResolver.Result = CombatResolver.resolve_hex(state, coord, card_db)
 		log_line(state, "; ".join(r.log))
+	if coord == state.capital_coord:
+		check_capital(state, card_db)
+
+
+## The Capital's ongoing effect (rulebook p47): "If there are ever ONLY
+## non-Imperial Units on The Capital, place 1 Legion on The Capital
+## immediately. This will repeat until there are no more Legions or no more
+## non-Imperial Units. If you cannot draw a Legion, flip The Capital and
+## give 5 VP to the faction with Units on it."
+static func check_capital(state: GameState, card_db: Node) -> void:
+	var c: Vector2i = state.capital_coord
+	for _i: int in range(10):
+		var tile: HexTileState = state.get_hex(c)
+		if tile == null or state.capital_flipped:
+			return
+		var imperial: bool = tile.garrison_level > 0
+		var chaos: bool = tile.skeleton_count > 0
+		for n: Variant in EffectUtil.nemesis_at(state, c):
+			if n is LegionInstance:
+				imperial = true
+			else:
+				chaos = true
+		var player: String = tile.player_faction_here()
+		if imperial or (player.is_empty() and not chaos):
+			return
+		if state.legion_deck.is_empty():
+			state.capital_flipped = true
+			var p: PlayerFactionState = state.find_player(player)
+			if p != null:
+				p.vp += 5
+			else:
+				state.chaos_vp += 5
+			log_line(state, "Uprising in the Capital! The Capital flips - %s gains 5 VP" % (player if not player.is_empty() else "Chaos"))
+			return
+		log_line(state, "only rebels and monsters hold The Capital - a Legion is placed there")
+		spawn_legion(state, card_db, c, event_threat(state, card_db, "Legion"), {"no_combat": true})
+		if CombatResolver.hex_needs_combat(state, c):
+			var r: CombatResolver.Result = CombatResolver.resolve_hex(state, c, card_db)
+			log_line(state, "; ".join(r.log))
 
 
 static func log_line(state: GameState, text: String) -> void:
@@ -485,13 +537,26 @@ static func near_haven(state: GameState, coord: Vector2i) -> bool:
 ## Curse); D) any remaining candidate. `toward` = true for Legions (must
 ## get strictly closer to target), false for Hordes (must not get farther
 ## from The Capital). "Closer" counts the route around impassable terrain.
-static func _best_step(state: GameState, from: Vector2i, target: Vector2i, toward: bool, mover: String) -> Vector2i:
+static func _best_step(state: GameState, from: Vector2i, target: Vector2i, toward: bool, mover: String, mover_card: String = "") -> Vector2i:
+	var here: HexTileState = state.get_hex(from)
+	var on_tower: bool = here != null and here.role == "sea_tower" and here.explored
+	# Adjacent to every hex: a Legion goes straight to its Target.
+	if toward and (on_tower or mover_card == "The Warlock") and state.hexes.has(target):
+		return target
 	var routes: Dictionary = state.route_distances(target)
 	var unreachable: int = 999999
 	var current_dist: int = int(routes.get(from, unreachable))
 	var candidates: Array[Vector2i] = []
-	for n: Vector2i in HexMath.neighbors(from):
-		if not state.hexes.has(n) or state.edge_blocked(from, n):
+	var steps: Array[Vector2i] = []
+	if on_tower:
+		for c: Vector2i in state.hexes.keys():
+			if c != from:
+				steps.append(c)
+		steps.sort()
+	else:
+		steps = HexMath.neighbors(from)
+	for n: Vector2i in steps:
+		if not state.hexes.has(n) or (not on_tower and state.edge_blocked(from, n)):
 			continue
 		var d: int = int(routes.get(n, unreachable))
 		if toward and d < current_dist:
