@@ -22,9 +22,11 @@ ImageManifest="*res://scripts/data/image_manifest.gd"
 ModelManifest="*res://scripts/data/model_manifest.gd"
 NetworkManager="*res://scripts/net/network_manager.gd"
 LobbyConfig="*res://scripts/net/lobby_config.gd"
+WindowMode="*res://scripts/ui/window_mode.gd"
 
 [display]
 
+window/size/mode=3
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
