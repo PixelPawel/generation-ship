@@ -55,7 +55,13 @@ extends RefCounted
 ##   their bottom effect (destroy_nemesis).
 ## - After Combat: if the player lost every Unit and enemies remain, their
 ##   Haven, Tower and Wall here are removed (p36).
-## Not automated: Feats and Items in combat.
+## - Feats and Items in combat (card_abilities.gd lists who owns what): used
+##   automatically when the Hero is on the hex where the card asks for it,
+##   respecting once-per-round/-combat limits and costs. Free and flip
+##   cards are used when they help this round; paid cards against
+##   Legions/Hordes while affordable; desperate ones (Koloth, Dark Ritual)
+##   only when the stack would otherwise be wiped out. Urn of Malice,
+##   Glory, Frenzy and Horn of Brotherhood are left to the player.
 
 const NemesisCards := preload("res://scripts/game/nemesis_cards.gd")
 
@@ -99,6 +105,9 @@ class Combatant:
 	var used_round: Dictionary = {}
 	var used_combat: Dictionary = {}
 	var escaped: bool = false
+	var lost_round: Dictionary = {}   # player Units destroyed this round, by type
+	var lost_combat: Dictionary = {}  # ... and this whole combat
+	var killed_imperial: bool = false # destroyed a Legion or a Garrison stack this combat
 
 	func allegiance() -> String:
 		match kind:
@@ -274,6 +283,10 @@ static func _fight(state: GameState, coord: Vector2i, tile: HexTileState, terrai
 	result.opponents_fought.append(b.label() if a.kind == "player" else "%s vs %s" % [a.label(), b.label()])
 	a.used_combat = {}
 	b.used_combat = {}
+	a.lost_combat = {}
+	b.lost_combat = {}
+	a.killed_imperial = false
+	b.killed_imperial = false
 	var start_a: int = _strength(state, tile, a)
 	var start_b: int = _strength(state, tile, b)
 
@@ -299,6 +312,8 @@ static func _fight(state: GameState, coord: Vector2i, tile: HexTileState, terrai
 			b_clash = a_clash.duplicate()
 		_round(state, coord, tile, terrain, a, b, a_clash, b_clash, "clash", result, rng, card_db)
 
+	if a.kind == "player":
+		_cards_after_combat(state, card_db, coord, tile, a, b, result)
 	result.log.append("%s (%d) vs %s (%d) on %s terrain: %s %d left, %s %d left" % [
 		a.label(), start_a, b.label(), start_b, terrain if not terrain.is_empty() else "no",
 		a.label(), _strength(state, tile, a), b.label(), _strength(state, tile, b)])
@@ -405,12 +420,18 @@ static func _round(state: GameState, coord: Vector2i, tile: HexTileState, terrai
 		a_pool: Array[String], b_pool: Array[String], round_type: String, result: Result, rng: RandomNumberGenerator, card_db: Node) -> void:
 	a.used_round = {}
 	b.used_round = {}
+	a.lost_round = {}
+	b.lost_round = {}
 	var sa := RoundSide.new()
 	var sb := RoundSide.new()
 	sa.pool = a_pool
 	sb.pool = b_pool
-	sa.faces = _roll_faces(a_pool, rng)
-	sb.faces = _roll_faces(b_pool, rng)
+	if a.kind == "player":
+		_cards_before_rolling(state, card_db, coord, tile, a, b, round_type, sa.pool, result)
+	if b.kind == "player":
+		_cards_before_rolling(state, card_db, coord, tile, b, a, round_type, sb.pool, result)
+	sa.faces = _roll_faces(sa.pool, rng)
+	sb.faces = _roll_faces(sb.pool, rng)
 	if terrain == "Woods" and round_type == "archery":
 		_reroll_blanks(sa.pool, sa.faces, 2, rng)
 		_reroll_blanks(sb.pool, sb.faces, 2, rng)
@@ -420,6 +441,10 @@ static func _round(state: GameState, coord: Vector2i, tile: HexTileState, terrai
 		_reroll_blanks(sb.pool, sb.faces, 2, rng)
 	_count_into(sa)
 	_count_into(sb)
+	if a.kind == "player":
+		_cards_before_damage(state, card_db, coord, tile, a, b, round_type, sa, sb, result, rng)
+	if b.kind == "player":
+		_cards_before_damage(state, card_db, coord, tile, b, a, round_type, sb, sa, result, rng)
 
 	_use_bolts(state, coord, tile, terrain, a, b, sa, sb, result, card_db, rng)
 	_use_bolts(state, coord, tile, terrain, b, a, sb, sa, result, card_db, rng)
@@ -437,6 +462,10 @@ static func _round(state: GameState, coord: Vector2i, tile: HexTileState, terrai
 
 	_take_hits(state, card_db, coord, tile, a, b, dmg_on_a, result)
 	_take_hits(state, card_db, coord, tile, b, a, dmg_on_b, result)
+	if a.kind == "player":
+		_cards_after_damage(state, card_db, coord, tile, a, b, round_type, result, rng)
+	if b.kind == "player":
+		_cards_after_damage(state, card_db, coord, tile, b, a, round_type, result, rng)
 
 	# After Damage.
 	for pair: Array in [[a, b, sa], [b, a, sb]]:
@@ -836,6 +865,299 @@ static func _graveyard_unit(state: GameState, faction: String) -> String:
 	return best
 
 
+# --- Feats and Items in combat -----------------------------------------------
+
+static func _owner(state: GameState, side: Combatant) -> PlayerFactionState:
+	return state.find_player(side.faction) if side.kind == "player" else null
+
+
+static func _ready_card(state: GameState, side: Combatant, coord: Vector2i, card: String, limit: String, hero_hex: bool) -> bool:
+	var p: PlayerFactionState = _owner(state, side)
+	if p == null or not NemesisCards.CardAbilitiesRef.active(p, card):
+		return false
+	if hero_hex and p.hero_coord != coord:
+		return false
+	return _limit_free(side, "card:" + card, limit)
+
+
+static func _spend(side: Combatant, card: String, limit: String) -> void:
+	_mark(side, "card:" + card, limit)
+
+
+static func _big_foe(enemy: Combatant) -> bool:
+	return enemy.kind == "legion" or enemy.kind == "horde"
+
+
+## Before Rolling: cards that add dice.
+static func _cards_before_rolling(state: GameState, card_db: Node, coord: Vector2i, tile: HexTileState, side: Combatant, enemy: Combatant,
+		round_type: String, pool: Array[String], result: Result) -> void:
+	var p: PlayerFactionState = _owner(state, side)
+	if p == null:
+		return
+	var abilities: GDScript = NemesisCards.CardAbilitiesRef
+	var stack: Dictionary = tile.unit_stack(side.faction)
+	var archery: bool = round_type == "archery"
+	if archery:
+		for spec: Array in [["Blackfire", "salt", "white"], ["Bottled Demon", "salt", "red"], ["Bow of the Iceborn", "food", "yellow"]]:
+			var card: String = spec[0]
+			if _ready_card(state, side, coord, card, "round", true) and _big_foe(enemy) and _pay(p, spec[1], 1):
+				_spend(side, card, "round")
+				pool.append(str(spec[2]))
+				result.log.append("%s: +1 %s die" % [card, spec[2]])
+		if _ready_card(state, side, coord, "Vargs", "none", false) and int(stack.get("Vargs", 0)) >= 2:
+			pool.append("yellow")
+		if _ready_card(state, side, coord, "Crossfire", "round", false) and int(stack.get("Hunters", 0)) >= 2:
+			_spend(side, "Crossfire", "round")
+			pool.append("blue")
+	else:
+		if _ready_card(state, side, coord, "Abad Warpaint", "none", true) and _big_foe(enemy):
+			abilities.discard(state, p, "Abad Warpaint")
+			pool.append("red")
+			result.log.append("Abad Warpaint: +1 red die")
+		if _ready_card(state, side, coord, "Warsong", "round", false) and int(stack.get("Oathsworn", 0)) >= 2:
+			_spend(side, "Warsong", "round")
+			pool.append("blue")
+	if _ready_card(state, side, coord, "Hit and Run", "round", false) and _strength(state, tile, enemy) > tile.unit_count(side.faction):
+		_spend(side, "Hit and Run", "round")
+		pool.append("blue")
+
+
+## Before Damage: rerolls, turned dice, extra symbols, ignored enemy symbols.
+static func _cards_before_damage(state: GameState, card_db: Node, coord: Vector2i, tile: HexTileState, side: Combatant, enemy: Combatant,
+		round_type: String, mine: RoundSide, theirs: RoundSide, result: Result, rng: RandomNumberGenerator) -> void:
+	var p: PlayerFactionState = _owner(state, side)
+	if p == null:
+		return
+	var abilities: GDScript = NemesisCards.CardAbilitiesRef
+	var archery: bool = round_type == "archery"
+	var clash: bool = not archery
+	# Rerolls first.
+	if archery and _ready_card(state, side, coord, "Ambush", "round", true):
+		_spend(side, "Ambush", "round")
+		_reroll_blanks(mine.pool, mine.faces, 2, rng)
+	if archery and _ready_card(state, side, coord, "Rebel Marksmen", "none", false):
+		var whites: bool = false
+		for i: int in range(mine.faces.size()):
+			if mine.pool[i] == "white" and (mine.faces[i] as Array).is_empty():
+				whites = true
+		if whites:
+			abilities.flip(p, "Rebel Marksmen")
+			for j: int in range(mine.faces.size()):
+				if mine.pool[j] == "white" and (mine.faces[j] as Array).is_empty():
+					mine.faces[j] = DiceModel.roll("white", rng)
+	if _ready_card(state, side, coord, "Tricky", "none", true) and _blanks(mine) >= 2:
+		abilities.flip(p, "Tricky")
+		_reroll_blanks(mine.pool, mine.faces, 99, rng)
+	_count_into(mine)
+	# Turned dice: a blank becomes a Skull (or a Shield when hits are coming).
+	var incoming: int = maxi(0, theirs.skulls - mine.shields)
+	if clash and _ready_card(state, side, coord, "Leviathans Harpoon", "round", true) and _turn_blank(mine, "Shield" if incoming > tile.unit_count(side.faction) - 1 else "Skull"):
+		_spend(side, "Leviathans Harpoon", "round")
+	if _ready_card(state, side, coord, "Phalanx", "combat", true) and incoming > 0 and _turn_blank(mine, "Shield"):
+		_spend(side, "Phalanx", "combat")
+	if clash and _ready_card(state, side, coord, "The Flenser", "combat", true) and _turn_white(mine, "Skull"):
+		_spend(side, "The Flenser", "combat")
+	if clash and _ready_card(state, side, coord, "Assasins", "round", true) and _big_foe(enemy) and p.salt >= 1 and _turn_blank(mine, "Skull"):
+		p.salt -= 1
+		_spend(side, "Assasins", "round")
+	_count_into(mine)
+	# Extra symbols.
+	if archery and _ready_card(state, side, coord, "Spikeshell", "round", true):
+		_spend(side, "Spikeshell", "round")
+		mine.extra_shields += 1
+	if clash and _ready_card(state, side, coord, "Drums of Terror", "none", true) and _blanks(theirs) >= 1:
+		mine.extra_shields += 1
+	if clash and _ready_card(state, side, coord, "Wyrmscale", "none", true) and _blanks(mine) >= 2:
+		mine.bolts += 1
+	if clash and _ready_card(state, side, coord, "Axe of the Giants", "round", true) and _big_foe(enemy) and _pay(p, "food", 1):
+		_spend(side, "Axe of the Giants", "round")
+		mine.extra_skulls += 1
+	if clash and _ready_card(state, side, coord, "Whip of Thorns", "round", true) and _big_foe(enemy) and _pay(p, "food", 2):
+		_spend(side, "Whip of Thorns", "round")
+		if incoming > 0:
+			mine.extra_shields += 1
+		else:
+			mine.extra_skulls += 1
+	if _ready_card(state, side, coord, "The First Idol", "round", true) and theirs.shields > mine.bolts and p.salt + p.plunder + p.food >= 4:
+		var quest_flow: GDScript = load("res://scripts/game/quest_flow.gd")
+		quest_flow._pay_any(p, 2)
+		_spend(side, "The First Idol", "round")
+		mine.bolts += 1
+	if clash and _ready_card(state, side, coord, "Beastmasters", "none", true) and incoming > 0:
+		var beasts: int = int(tile.unit_stack(side.faction).get("Beastmasters", 0))
+		if beasts > 0:
+			abilities.flip(p, "Beastmasters")
+			mine.extra_shields += beasts
+	if _ready_card(state, side, coord, "Illusionist", "round", true) and mine.bolts > 0 and incoming > mine.shields:
+		_spend(side, "Illusionist", "round")
+		mine.extra_shields += mine.bolts
+		mine.bolts = 0
+	# Ignore enemy symbols.
+	if archery and _ready_card(state, side, coord, "Traps", "round", true):
+		_spend(side, "Traps", "round")
+		if theirs.skulls > 0:
+			theirs.skull_reduction += 1
+		elif theirs.shields > 0:
+			theirs.shields -= 1
+	if _ready_card(state, side, coord, "Treachery", "none", true) and theirs.shields > 0 and mine.skulls > 0 and p.salt >= 1:
+		p.salt -= 1
+		theirs.shields -= 1
+	# Desperate measures when the stack would be wiped out.
+	var units: int = tile.unit_count(side.faction)
+	var hits: int = maxi(0, theirs.skulls + theirs.extra_skulls - theirs.skull_reduction - mine.shields - mine.extra_shields)
+	if hits >= units and units > 0:
+		if _ready_card(state, side, coord, "Koloth", "none", false) and int(tile.unit_stack(side.faction).get("Koloth", 0)) > 0:
+			abilities.discard(state, p, "Koloth")
+			tile.remove_unit(side.faction, "Koloth")
+			theirs.skull_reduction += theirs.skulls + theirs.extra_skulls
+			result.log.append("Koloth: the Koloth falls, every enemy Skull is ignored")
+		elif clash and _ready_card(state, side, coord, "Dark Ritual", "round", true):
+			var basic: String = PlayerboardTable.default_unit(side.faction)
+			if NemesisCards.reserve_left(state, p, basic) > 0:
+				_spend(side, "Dark Ritual", "round")
+				p.removed_units[basic] = int(p.removed_units.get(basic, 0)) + 1
+				mine.extra_shields += 1
+				mine.bolts += 1
+				result.log.append("Dark Ritual: a %s is sacrificed for a Shield and a Bolt" % basic)
+
+
+## After Damage: cards that answer this round's losses.
+static func _cards_after_damage(state: GameState, card_db: Node, coord: Vector2i, tile: HexTileState, side: Combatant, enemy: Combatant,
+		round_type: String, result: Result, rng: RandomNumberGenerator) -> void:
+	var p: PlayerFactionState = _owner(state, side)
+	if p == null or side.lost_round.is_empty():
+		return
+	var abilities: GDScript = NemesisCards.CardAbilitiesRef
+	var extra: int = 0
+	if int(side.lost_round.get("Trolls", 0)) > 0 and abilities.active(p, "Trolls"):
+		for sym: String in DiceModel.roll("black", rng):
+			extra += 2 if sym == "Bolt" else (1 if sym == "Skull" else 0)
+	if round_type == "clash" and int(side.lost_round.get("Berserkers", 0)) > 0 and _ready_card(state, side, coord, "Berserkers", "none", true):
+		extra += int(side.lost_round["Berserkers"])
+	if round_type == "clash" and _ready_card(state, side, coord, "Bloodlust", "none", true):
+		var dice: Array[String] = []
+		for unit: Variant in side.lost_round.keys():
+			var e: PlayerboardTable.UnitEntry = PlayerboardTable.get_unit(side.faction, str(unit))
+			for _i: int in range(int(side.lost_round[unit])):
+				dice.append(e.die if e != null else "yellow")
+		abilities.discard(state, p, "Bloodlust")
+		extra += int(DiceModel.roll_pool(dice, rng)["Skull"])
+	if extra > 0 and _strength(state, tile, enemy) > 0:
+		result.log.append("%s's fallen strike back for %d" % [side.faction, extra])
+		_take_hits(state, card_db, coord, tile, enemy, side, extra, result)
+	# Necromancy: a fallen Basic Unit back onto this hex.
+	if _ready_card(state, side, coord, "Necromancy", "none", true):
+		for unit2: Variant in side.lost_round.keys():
+			var e2: PlayerboardTable.UnitEntry = PlayerboardTable.get_unit(side.faction, str(unit2))
+			if e2 != null and e2.is_basic() and tile.add_units(side.faction, str(unit2), 1) > 0:
+				abilities.flip(p, "Necromancy")
+				p.graveyard_units[str(unit2)] = maxi(0, int(p.graveyard_units.get(str(unit2), 0)) - 1)
+				var yard: Dictionary = state.imperial_graveyard if enemy.allegiance() == "Empire" else state.chaos_graveyard
+				yard[side.faction] = maxi(0, int(yard.get(side.faction, 0)) - 1)
+				result.log.append("Necromancy: a %s rises again" % unit2)
+				break
+
+
+## After Combat: cards that pay off once the fighting stops.
+static func _cards_after_combat(state: GameState, card_db: Node, coord: Vector2i, tile: HexTileState, side: Combatant, enemy: Combatant, result: Result) -> void:
+	var p: PlayerFactionState = _owner(state, side)
+	if p == null:
+		return
+	var abilities: GDScript = NemesisCards.CardAbilitiesRef
+	var on_hex: bool = p.hero_coord == coord
+	var units_here: int = tile.unit_count(side.faction)
+	if units_here > 0 and on_hex and abilities.active(p, "Pillage"):
+		var ctx := EffectContext.new()
+		ctx.state = state
+		ctx.acting_faction = p.faction
+		GainResourceOp.new("Any", 2).execute(ctx)
+		result.log.append("Pillage: %s gains 2 resources" % p.faction)
+	if side.killed_imperial and int(tile.unit_stack(side.faction).get("Slavers", 0)) > 0 and abilities.active(p, "Slavers"):
+		var haven: Vector2i = NemesisAI.weakest_haven(state, p.faction)
+		if haven != Vector2i.MIN and state.hexes[haven].add_units(p.faction, PlayerboardTable.default_unit(p.faction), 1) > 0:
+			result.log.append("Slavers: a freed captive joins %s" % p.faction)
+	if (enemy.kind == "garrison" or enemy.kind == "legion") and abilities.active(p, "Spoils of War") and units_here > 0:
+		var imperial_left: bool = tile.garrison_level > 0
+		for l: LegionInstance in state.legions:
+			if l.coord == coord:
+				imperial_left = true
+		if not imperial_left:
+			var quest_flow: GDScript = load("res://scripts/game/quest_flow.gd")
+			var ctx2: EffectContext = quest_flow._ctx(state, card_db, p.faction, {})
+			quest_flow._gain_market_item(ctx2, true)
+	if units_here > 0 and int(tile.unit_stack(side.faction).get("Younglings", 0)) > 0 and abilities.active(p, "Younglings") and NemesisCards.reserve_left(state, p, "Oathsworn") > 0:
+		abilities.flip(p, "Younglings")
+		tile.remove_unit(p.faction, "Younglings")
+		tile.add_units(p.faction, "Oathsworn", 1)
+		result.log.append("Younglings: a Youngling becomes an Oathsworn")
+	# Fallen Units back onto a Haven.
+	var basic_lost: String = ""
+	var any_lost: String = ""
+	for unit: Variant in side.lost_combat.keys():
+		var e: PlayerboardTable.UnitEntry = PlayerboardTable.get_unit(side.faction, str(unit))
+		if e == null or int(p.graveyard_units.get(str(unit), 0)) <= 0:
+			continue
+		any_lost = str(unit)
+		if e.is_basic():
+			basic_lost = str(unit)
+	for spec: Array in [["Censer of Shadows", basic_lost, false], ["Healing Potion", any_lost, true]]:
+		var card: String = spec[0]
+		var unit2: String = spec[1]
+		if unit2.is_empty() or not on_hex or not abilities.active(p, card):
+			continue
+		var haven2: Vector2i = NemesisAI.weakest_haven(state, p.faction)
+		if haven2 == Vector2i.MIN or state.hexes[haven2].add_units(p.faction, unit2, 1) == 0:
+			continue
+		p.graveyard_units[unit2] = maxi(0, int(p.graveyard_units.get(unit2, 0)) - 1)
+		var yard2: Dictionary = state.imperial_graveyard if enemy.allegiance() == "Empire" else state.chaos_graveyard
+		yard2[side.faction] = maxi(0, int(yard2.get(side.faction, 0)) - 1)
+		if bool(spec[2]):
+			abilities.discard(state, p, card)
+		result.log.append("%s: a fallen %s returns to a Haven" % [card, unit2])
+
+
+static func _pay(p: PlayerFactionState, res: String, n: int) -> bool:
+	match res:
+		"salt":
+			if p.salt >= n:
+				p.salt -= n
+				return true
+		"food":
+			if p.food >= n:
+				p.food -= n
+				return true
+		"plunder":
+			if p.plunder >= n:
+				p.plunder -= n
+				return true
+	return false
+
+
+static func _blanks(rs: RoundSide) -> int:
+	var n: int = 0
+	for f: Variant in rs.faces:
+		if (f as Array).is_empty():
+			n += 1
+	return n
+
+
+## Turns one blank die (else the weakest face) to show a single `symbol`.
+static func _turn_blank(rs: RoundSide, symbol: String) -> bool:
+	for i: int in range(rs.faces.size()):
+		if (rs.faces[i] as Array).is_empty():
+			rs.faces[i] = [symbol]
+			return true
+	return false
+
+
+static func _turn_white(rs: RoundSide, symbol: String) -> bool:
+	for i: int in range(rs.faces.size()):
+		if rs.pool[i] == "white" and not (rs.faces[i] as Array).has(symbol):
+			rs.faces[i] = [symbol]
+			return true
+	return false
+
+
 ## Applies `n` unblocked Skulls to `victim`, dealt by `killer`.
 static func _take_hits(state: GameState, card_db: Node, coord: Vector2i, tile: HexTileState, victim: Combatant, killer: Combatant, n: int, result: Result) -> void:
 	if n <= 0 or _strength(state, tile, victim) <= 0:
@@ -857,6 +1179,8 @@ static func _take_hits(state: GameState, card_db: Node, coord: Vector2i, tile: H
 					break
 				tile.remove_unit(victim.faction, unit_name)
 				result.player_units_lost += 1
+				victim.lost_round[unit_name] = int(victim.lost_round.get(unit_name, 0)) + 1
+				victim.lost_combat[unit_name] = int(victim.lost_combat.get(unit_name, 0)) + 1
 				var graveyard: Dictionary = state.imperial_graveyard if killer.allegiance() == "Empire" else state.chaos_graveyard
 				graveyard[victim.faction] = int(graveyard.get(victim.faction, 0)) + 1
 				var owner: PlayerFactionState = state.find_player(victim.faction)
@@ -868,6 +1192,7 @@ static func _take_hits(state: GameState, card_db: Node, coord: Vector2i, tile: H
 			if killer.kind == "player":
 				_award_player(state, killer.faction, levels, result)
 				if tile.garrison_level == 0 and levels > 0:
+					killer.killed_imperial = true
 					_break_the_shackles(state, killer.faction, result)
 			elif levels > 0:
 				state.chaos_graveyard["Empire"] = int(state.chaos_graveyard.get("Empire", 0)) + levels
@@ -882,6 +1207,8 @@ static func _take_hits(state: GameState, card_db: Node, coord: Vector2i, tile: H
 			var target: Variant = victim.entry()
 			target.threat = maxi(0, target.threat - n)
 			if target.threat <= 0:
+				if killer.kind == "player" and victim.kind == "legion":
+					killer.killed_imperial = true
 				destroy_nemesis(state, card_db, target, killer.faction if killer.kind == "player" else killer.allegiance(), coord, result)
 
 

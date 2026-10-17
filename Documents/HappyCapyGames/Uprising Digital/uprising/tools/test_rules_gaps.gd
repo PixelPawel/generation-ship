@@ -164,6 +164,7 @@ func _run() -> void:
 	_card_power_checks(card_db)
 	_economy_checks(card_db)
 	_feat_checks(card_db)
+	_combat_card_checks(card_db)
 
 	# --- Save/load keeps typed Units ---
 	var round_trip: GameState = GameState.from_dict(state.to_dict())
@@ -590,6 +591,54 @@ func _feat_checks(card_db: Node) -> void:
 		a.items_in_hand.append("Abad Warpaint")
 	abilities.enforce_limit(s, a, card_db)
 	_check(a.feats_in_play.size() + a.items_in_hand.size() <= abilities.CARD_LIMIT, "Feats + Items are capped at 10")
+
+
+## Items/Feats inside combat.
+func _combat_card_checks(card_db: Node) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 71
+	var s: GameState = GameSetup.build_2p_normal_game_state(card_db, rng)
+	var p: PlayerFactionState = s.players[0]
+	var spot: Vector2i = Vector2i.MIN
+	for c: Vector2i in s.hexes.keys():
+		if s.hexes[c].role == "outer" and EffectUtil.hex_is_empty(s, c):
+			spot = c
+			break
+	var tile: HexTileState = s.hexes[spot]
+	tile.add_units(p.faction, PlayerboardTable.default_unit(p.faction), 2)
+	p.hero_coord = spot
+	p.items_in_hand.append("Blackfire")
+	p.salt = 3
+	var me := CombatResolver.Combatant.new()
+	me.kind = "player"
+	me.faction = p.faction
+	var foe := CombatResolver.Combatant.new()
+	foe.kind = "legion"
+	foe.faction = "Empire"
+	var l := LegionInstance.new()
+	l.card_name = "The Warlock"
+	l.threat = 3
+	l.coord = spot
+	s.legions.append(l)
+	foe.legion = l
+	var pool: Array[String] = []
+	var result := CombatResolver.Result.new()
+	CombatResolver._cards_before_rolling(s, card_db, spot, tile, me, foe, "archery", pool, result)
+	_check(pool == ["white"] and p.salt == 2, "Blackfire: 1 Salt buys a white Archery die (pool %s)" % [pool])
+	var pool2: Array[String] = []
+	CombatResolver._cards_before_rolling(s, card_db, spot, tile, me, foe, "archery", pool2, result)
+	_check(pool2.is_empty(), "Blackfire is once per round")
+	p.hero_coord = spot + Vector2i(1, 0)
+	me.used_round = {}
+	var pool3: Array[String] = []
+	CombatResolver._cards_before_rolling(s, card_db, spot, tile, me, foe, "archery", pool3, result)
+	_check(pool3.is_empty(), "Blackfire needs the Hero on the combat hex")
+
+	p.hero_coord = spot
+	p.feats_in_play.append("Pillage")
+	var res0: int = p.salt + p.plunder + p.food
+	CombatResolver._cards_after_combat(s, card_db, spot, tile, me, foe, result)
+	_check(p.salt + p.plunder + p.food == res0 + 2, "Pillage: Units left on the Hero's hex after combat earn 2 resources")
 
 
 func _hex(state: GameState, coord: Vector2i, card_name: String) -> HexTileState:
