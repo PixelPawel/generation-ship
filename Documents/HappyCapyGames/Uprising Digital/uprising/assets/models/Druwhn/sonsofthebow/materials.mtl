@@ -1,7 +1,0 @@
-newmtl Druwhn_SonsoftheBow
-Kd 1.0000 1.0000 1.0000
-map_Kd sons_of_the_bow.png
-
-newmtl GameObject_Bone
-Kd 0.9490 0.9098 0.7686
-

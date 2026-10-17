@@ -1,7 +1,0 @@
-newmtl Krowh_Tribesmen
-Kd 1.0000 1.0000 1.0000
-map_Kd tribesmen.png
-
-newmtl GameObject_Red
-Kd 0.7490 0.1373 0.1333
-
