@@ -120,7 +120,7 @@ func _run() -> void:
 	# --- CombatResolver: player Units vs 2 Skeletons on a hex, deterministic dice ---
 	var combat_coord := Vector2i(77, 77)
 	var ctile: HexTileState = state.ensure_hex(combat_coord)
-	ctile.units[f1] = 3
+	ctile.add_units(f1, PlayerboardTable.default_unit(f1), 3)
 	ctile.skeleton_count = 2
 	var combat_rng := RandomNumberGenerator.new()
 	combat_rng.seed = 5

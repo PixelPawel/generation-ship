@@ -14,8 +14,14 @@ extends RefCounted
 ## of data worth a human spot-check against the physical dice before
 ## trusting it as flawless (same caveat as legion_horde_combat_table.gd).
 ##
+## Re-checked 2026-10-17 against a zoomed crop of the card: purple's top
+## face is a DOUBLE Bolt and black's top face a TRIPLE Skull (both were
+## previously under-counted by one symbol). The rulebook's p39 example
+## ("The New Emperor rolls a Bolt-Bolt" on purple/yellow/white) confirms
+## the purple one independently.
+##
 ## 6 colors x 6 faces. Each face is an Array[String] of the symbols it
-## shows (usually 1, sometimes 2) from {"Skull","Shield","Bolt"} - a face
+## shows (usually 1, sometimes 2 or 3) from {"Skull","Shield","Bolt"} - a face
 ## with an empty array is a Blank.
 
 static var FACES: Dictionary = {
@@ -23,13 +29,13 @@ static var FACES: Dictionary = {
 	"yellow": [["Skull"], ["Skull"], ["Skull"], ["Skull"], [], []],
 	"red": [["Skull", "Skull"], ["Skull", "Bolt"], ["Skull"], ["Skull"], [], []],
 	"blue": [["Shield"], ["Shield"], ["Skull"], ["Skull"], ["Skull"], []],
-	"purple": [["Bolt"], ["Skull", "Bolt"], ["Skull"], ["Skull"], ["Skull"], []],
-	"black": [["Skull", "Skull"], ["Skull", "Skull"], ["Skull"], ["Skull"], ["Skull"], ["Bolt"]],
+	"purple": [["Bolt", "Bolt"], ["Skull", "Bolt"], ["Skull"], ["Skull"], ["Skull"], []],
+	"black": [["Skull", "Skull", "Skull"], ["Skull", "Skull"], ["Skull"], ["Skull"], ["Skull"], ["Bolt"]],
 }
 
 
 ## Rolls one die of `color`, returning the list of symbols on the face that
-## came up (0-2 symbols; empty = Blank). Uses `rng` for determinism in
+## came up (0-3 symbols; empty = Blank). Uses `rng` for determinism in
 ## tests.
 static func roll(color: String, rng: RandomNumberGenerator) -> Array[String]:
 	var faces: Array = FACES.get(color, [[]])

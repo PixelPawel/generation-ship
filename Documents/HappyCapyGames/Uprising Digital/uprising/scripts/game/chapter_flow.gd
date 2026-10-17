@@ -11,10 +11,9 @@ extends RefCounted
 ## resolved (no EventEffectPrograms exist yet - Milestone 3's
 ## transcription order was Hexes first; Events/Quests/Feats/Items are
 ## follow-up work) - only the mechanical Threat+2 and Activation-Token
-## steps run automatically. The "deal 3 new Items/Quests" Refresh Phase
-## step is skipped since GameState has no separate "market row"/"quest
-## board" concept yet (GameActions.market/quest already documented this
-## same gap).
+## steps run automatically. Refresh deals 3 new Items/Quests
+## (GameState.item_market/quest_row); Quests that say "do not discard"
+## and Quest immediate effects are not applied yet.
 
 static func advance_phase(state: GameState, card_db: Node) -> Dictionary:
 	match state.phase:
@@ -41,7 +40,7 @@ static func advance_phase(state: GameState, card_db: Node) -> Dictionary:
 			return {"ok": true}
 		GameState.Phase.NEMESIS:
 			state.phase = GameState.Phase.PRODUCTION
-			_production_phase(state)
+			_production_phase(state, card_db)
 			return {"ok": true}
 		GameState.Phase.PRODUCTION:
 			state.phase = GameState.Phase.SCORING
@@ -65,7 +64,24 @@ static func _refresh_phase(state: GameState) -> void:
 	if state.players.size() > 0 and state.chapter > 1:
 		state.first_player_index = (state.first_player_index + 1) % state.players.size()
 	state.current_player_index = state.first_player_index
+	deal_row(state.item_market, state.item_deck, state.item_discard, 3)
+	deal_row(state.quest_row, state.quest_deck, state.quest_discard, 3)
 	state.phase_log = "Refresh: Aether placed on %s" % [gained] if not gained.is_empty() else "Refresh: no Aether conditions met"
+
+
+## Rulebook p15: discard the old face-up cards, deal `count` new ones,
+## reshuffling the discard pile into the deck if it runs dry.
+static func deal_row(row: Array[String], deck: Array[String], discard: Array[String], count: int) -> void:
+	discard.append_array(row)
+	row.clear()
+	for _i: int in range(count):
+		if deck.is_empty():
+			if discard.is_empty():
+				return
+			deck.append_array(discard)
+			discard.clear()
+			deck.shuffle()
+		row.append(deck.pop_front())
 
 
 static func _events_phase(state: GameState) -> void:
@@ -115,37 +131,19 @@ static func _start_actions_phase(state: GameState) -> void:
 
 static func _nemesis_phase(state: GameState, card_db: Node) -> void:
 	NemesisAI.run_nemesis_phase(state, card_db)
-	# Resolve combat at every hex where a player faction shares space with
-	# Garrison/Skeleton/Legion/Horde (NemesisAI flags these via
-	# phase_log during movement, but the authoritative check is simply
-	# "any hex with both player Units and Nemesis presence").
+	# Combats normally happen during each activation (NemesisAI); this
+	# sweep only catches hexes left contested some other way.
 	for coord: Vector2i in state.hexes.keys().duplicate():
-		var tile: HexTileState = state.hexes.get(coord)
-		if tile == null:
-			continue
-		var has_player: bool = false
-		for v: Variant in tile.units.values():
-			if int(v) > 0:
-				has_player = true
-				break
-		if not has_player:
-			continue
-		var has_nemesis: bool = tile.garrison_level > 0 or tile.skeleton_count > 0
-		if not has_nemesis:
-			for l: LegionInstance in state.legions:
-				if l.coord == coord:
-					has_nemesis = true
-					break
-		if not has_nemesis:
-			for h: HordeInstance in state.hordes:
-				if h.coord == coord:
-					has_nemesis = true
-					break
-		if has_nemesis:
+		if CombatResolver.hex_needs_combat(state, coord):
 			CombatResolver.resolve_hex(state, coord, card_db)
 
 
-static func _production_phase(state: GameState) -> void:
+## Rulebook p29: the player board's production for the current Haven
+## count, plus each Haven hex's own printed resources (Hexes CSV
+## Salt/Plunder/Food - Woods/Highlands 2 Plunder, Marshes/Badlands 2
+## Food, Ice Waste 2 Salt, Home hexes 1 of each). Cursed hexes produce
+## nothing.
+static func _production_phase(state: GameState, card_db: Node) -> void:
 	for p: PlayerFactionState in state.players:
 		var haven_count: int = 0
 		for tile: HexTileState in state.hexes.values():
@@ -159,22 +157,12 @@ static func _production_phase(state: GameState) -> void:
 			p.plunder += int(yield_.get("Plunder", 0))
 			p.food += int(yield_.get("Food", 0))
 		for tile: HexTileState in state.hexes.values():
-			if tile.haven_faction != p.faction or tile.curse:
+			if tile.haven_faction != p.faction:
 				continue
-			p.salt += _terrain_bonus(tile, "Salt")
-			p.plunder += _terrain_bonus(tile, "Plunder")
-			p.food += _terrain_bonus(tile, "Food")
-
-
-## Rulebook: Woods/Highlands -> 2 Plunder, Marsh/Badlands -> 2 Food,
-## Ice Waste -> 2 Salt (per-hex bonus, verified against the sampled Hexes
-## CSV's own Terrain column values during Milestone 3, not hardcoded
-## blind - hex_card_name lookup is needed for the real terrain, but
-## HexTileState doesn't carry terrain directly; this is a placeholder
-## no-op until terrain is threaded through HexTileState (Milestone 4
-## follow-up) rather than silently guessing.
-static func _terrain_bonus(_tile: HexTileState, _resource: String) -> int:
-	return 0
+			var bonus: Dictionary = EffectUtil.hex_production(tile, card_db)
+			p.salt += int(bonus["Salt"])
+			p.plunder += int(bonus["Plunder"])
+			p.food += int(bonus["Food"])
 
 
 static func check_win_loss(state: GameState) -> String:

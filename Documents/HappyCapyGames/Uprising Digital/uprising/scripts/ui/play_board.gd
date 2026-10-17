@@ -188,17 +188,17 @@ func _on_haven_pressed() -> void:
 func _on_market_pressed() -> void:
 	var net: Node = get_node("/root/NetworkManager")
 	var state: GameState = net.current_state
-	if state == null or state.item_deck.is_empty():
+	if state == null or state.item_market.is_empty():
 		return
-	_submit({"type": "market", "item": state.item_deck[0], "salt_cost": 0})
+	_submit({"type": "market", "item": state.item_market[0]})
 
 
 func _on_quest_pressed() -> void:
 	var net: Node = get_node("/root/NetworkManager")
 	var state: GameState = net.current_state
-	if state == null or state.quest_deck.is_empty():
+	if state == null or state.quest_row.is_empty():
 		return
-	_submit({"type": "quest", "quest": state.quest_deck[0]})
+	_submit({"type": "quest", "quest": state.quest_row[0]})
 
 
 func _on_build_unit_pressed() -> void:

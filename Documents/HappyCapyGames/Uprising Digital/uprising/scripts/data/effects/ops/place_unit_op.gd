@@ -1,13 +1,11 @@
 class_name PlaceUnitOp
 extends EffectOp
 
-## "Gain 1 Basic Unit on a Haven or an Empty Explored Hex." - deliberately
-## coarse for now: increments ctx.state's per-hex unit COUNT for the
-## acting faction (HexTileState.units[faction]), not a specific typed Unit
-## (Warrior/Rider/Archer, Basic/Elite) - full per-unit-type tracking is a
-## Milestone 4 concern once GameActions/CombatResolver need that
-## granularity (matches HexTileState's own doc comment on this same
-## simplification). target_mode "here" only for now; a real "choose a
+## "Gain 1 Basic Unit on a Haven or an Empty Explored Hex." - places the
+## faction's Basic Warrior (PlayerboardTable.default_unit) until a UI can
+## ask which Basic Unit (Warrior or Archer) the player wants. Capped at
+## 5 Units per hex by HexTileState.add_units. target_mode "here" only for
+## now; a real "choose a
 ## Haven or empty hex" picker is a Milestone 5 UI concern, deferred to
 ## ctx.choice_resolver same as other multi-target ops.
 var count: int = 1
@@ -34,9 +32,8 @@ func execute(ctx: EffectContext) -> void:
 		return
 
 	var tile: HexTileState = ctx.state.ensure_hex(coord)
-	var current: int = int(tile.units.get(ctx.acting_faction, 0))
-	tile.units[ctx.acting_faction] = mini(5, current + count)
-	ctx.log("%s gains %d Basic Unit(s) on %s" % [ctx.acting_faction, count, coord])
+	var added: int = tile.add_units(ctx.acting_faction, PlayerboardTable.default_unit(ctx.acting_faction), count)
+	ctx.log("%s gains %d Basic Unit(s) on %s" % [ctx.acting_faction, added, coord])
 
 
 func describe() -> String:

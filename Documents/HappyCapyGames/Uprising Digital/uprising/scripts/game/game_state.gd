@@ -30,6 +30,10 @@ var item_deck: Array[String] = []
 var item_discard: Array[String] = []
 var quest_deck: Array[String] = []
 var quest_discard: Array[String] = []
+## The 3 face-up Items players can buy and the 3 face-up Quests they can
+## attempt (rulebook p15: dealt fresh every Refresh Phase).
+var item_market: Array[String] = []
+var quest_row: Array[String] = []
 var legion_deck: Array[String] = []
 var horde_deck: Array[String] = []
 var event_decks: Dictionary = {}   # chapter(int) -> Array[String] (deck for that chapter, minus the 1 pre-placed card)
@@ -73,6 +77,7 @@ func to_dict() -> Dictionary:
 		"druids_in_play": druids_out,
 		"item_deck": item_deck.duplicate(), "item_discard": item_discard.duplicate(),
 		"quest_deck": quest_deck.duplicate(), "quest_discard": quest_discard.duplicate(),
+		"item_market": item_market.duplicate(), "quest_row": quest_row.duplicate(),
 		"legion_deck": legion_deck.duplicate(), "horde_deck": horde_deck.duplicate(),
 		"event_decks": _stringify_int_keys(event_decks),
 		"chapter_events": _stringify_int_keys(chapter_events),
@@ -114,6 +119,10 @@ static func from_dict(d: Dictionary) -> GameState:
 		s.quest_deck.append(str(v))
 	for v: Variant in (d.get("quest_discard", []) as Array):
 		s.quest_discard.append(str(v))
+	for v: Variant in (d.get("item_market", []) as Array):
+		s.item_market.append(str(v))
+	for v: Variant in (d.get("quest_row", []) as Array):
+		s.quest_row.append(str(v))
 	for v: Variant in (d.get("legion_deck", []) as Array):
 		s.legion_deck.append(str(v))
 	for v: Variant in (d.get("horde_deck", []) as Array):

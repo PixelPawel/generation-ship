@@ -102,5 +102,5 @@ static func _hexes_with_garrisons(state: GameState) -> int:
 static func _total_units(state: GameState, faction: String) -> int:
 	var total: int = 0
 	for tile: HexTileState in state.hexes.values():
-		total += int(tile.units.get(faction, 0))
+		total += tile.unit_count(faction)
 	return total
