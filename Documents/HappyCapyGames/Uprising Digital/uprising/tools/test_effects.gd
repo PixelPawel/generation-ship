@@ -108,7 +108,7 @@ func _run() -> void:
 	p2 = state.find_player(second_faction)
 	_check(tile4.skeleton_count == 0, "Imperial Slave Mines: skeletons removed")
 	_check(tile4.garrison_level == 2, "Imperial Slave Mines: 2 Garrisons placed, got %d" % tile4.garrison_level)
-	var hero_dice: int = DiceModel.hero_pool(EffectUtil.hero_card(card_db, p.hero_name)).size()
+	var hero_dice: int = GameActions.CardAbilities.outside_roll_pool(card_db, p, "yellow").size()
 	_check(p.plunder == plunder_before_1 + hero_dice, "Imperial Slave Mines: roller gains 1 per Hero Die (all Skulls; the bonus is for OTHERS) - got %d expected %d" % [p.plunder, plunder_before_1 + hero_dice])
 	_check(p2.plunder == plunder_before_2 + 1, "Imperial Slave Mines: other player gains 1 Plunder, got %d expected %d" % [p2.plunder, plunder_before_2 + 1])
 

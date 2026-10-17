@@ -22,7 +22,7 @@ func execute(ctx: EffectContext) -> void:
 	if p == null:
 		return
 	var guile: String = "white" if reward_symbol == "Shield" else "yellow"
-	var pool: Array[String] = DiceModel.hero_pool(EffectUtil.hero_card(ctx.card_db, p.hero_name), guile)
+	var pool: Array[String] = GameActions.CardAbilities.outside_roll_pool(ctx.card_db, p, guile)
 	var hits: int = 0
 	for color: String in pool:
 		if ctx.dice_roller.is_valid():

@@ -18,6 +18,7 @@ const AP_COST := 1
 ## Haven tokens on a player board (its production track runs 0-5 Havens).
 const MAX_HAVENS := 5
 const QUEST_FLOW_PATH := "res://scripts/game/quest_flow.gd"
+const CardAbilities := preload("res://scripts/game/card_abilities.gd")
 
 
 static func apply(state: GameState, action: Dictionary, faction: String, card_db: Node) -> Dictionary:
@@ -35,6 +36,16 @@ static func apply(state: GameState, action: Dictionary, faction: String, card_db
 			return _explore(state, action, faction, card_db)
 		"orient":
 			return _orient(state, action, faction)
+		"use_card":
+			var user: PlayerFactionState = state.find_player(faction)
+			if user == null:
+				return {"ok": false, "reason": "unknown faction"}
+			return CardAbilities.use_card(state, card_db, user, str(action.get("card", "")), action)
+		"pick_feat":
+			var picker: PlayerFactionState = state.find_player(faction)
+			if picker == null or not CardAbilities.pick_feat(state, card_db, picker, str(action.get("feat", ""))):
+				return {"ok": false, "reason": "pick one of the 2 Feats you drew"}
+			return {"ok": true}
 		"haven":
 			return _haven(state, action, faction)
 		"market":
@@ -84,17 +95,22 @@ static func _move(state: GameState, action: Dictionary, faction: String) -> Dict
 	if not is_players_turn(state, faction):
 		return {"ok": false, "reason": "not your turn"}
 	var p: PlayerFactionState = state.find_player(faction)
-	if p.action_points < AP_COST:
+	var free: bool = p.wiles_ready
+	if p.action_points < AP_COST and not free:
 		return {"ok": false, "reason": "not enough AP"}
 	var to: Vector2i = _coord(action, "to")
 	if not state.hexes.has(to) or to == p.hero_coord:
 		return {"ok": false, "reason": "pick another hex on the board"}
 	var here: HexTileState = state.get_hex(p.hero_coord)
 	var from_sea_tower: bool = here != null and here.role == "sea_tower" and here.explored
-	if HexMath.distance(p.hero_coord, to) != 1 and not from_sea_tower:
+	var anywhere: bool = from_sea_tower or CardAbilities.hero_adjacent_everywhere(p)
+	if HexMath.distance(p.hero_coord, to) != 1 and not anywhere:
 		return {"ok": false, "reason": "your Hero can only Move to an adjacent hex"}
 	p.hero_coord = to
-	p.action_points -= AP_COST
+	if free:
+		p.wiles_ready = false  # Wiles: no AP
+	else:
+		p.action_points -= AP_COST
 	state.phase_log = "%s moves their Hero to %s" % [faction, to]
 	return {"ok": true}
 
@@ -114,7 +130,8 @@ static func _trade(state: GameState, action: Dictionary, faction: String, card_d
 	var partner: PlayerFactionState = null
 	if action.has("with"):
 		partner = state.find_player(str(action["with"]))
-		if partner == null or partner == p or partner.hero_coord != p.hero_coord:
+		var near: bool = partner != null and (partner.hero_coord == p.hero_coord or (CardAbilities.trades_adjacent(p) and HexMath.distance(partner.hero_coord, p.hero_coord) == 1))
+		if partner == null or partner == p or not near:
 			return {"ok": false, "reason": "you can only trade with a Hero on your hex"}
 		var give: Dictionary = action.get("give", {})
 		var take: Dictionary = action.get("take", {})
@@ -138,7 +155,7 @@ static func _trade(state: GameState, action: Dictionary, faction: String, card_d
 			partner.items_in_hand.erase(str(it4))
 			p.items_in_hand.append(str(it4))
 	p.action_points -= AP_COST
-	p.salt += 1
+	p.salt += 1 + CardAbilities.trade_bonus(p)
 	state.phase_log = "%s Trades%s" % [faction, " with %s" % partner.faction if partner != null else ""]
 	return {"ok": true}
 
@@ -193,8 +210,11 @@ static func _command(state: GameState, action: Dictionary, faction: String, card
 	var p: PlayerFactionState = state.find_player(faction)
 	if p.has_acted_this_turn:
 		return {"ok": false, "reason": "already took your one Action this turn"}
-	if p.action_points < AP_COST or p.food < 1:
+	var free_cmd: bool = p.wiles_ready
+	var food_cost: int = 0 if free_cmd else CardAbilities.command_food_cost(p)
+	if not free_cmd and (p.action_points < AP_COST or p.food < food_cost):
 		return {"ok": false, "reason": "not enough AP/Food"}
+	var compass: bool = bool(action.get("compass", false)) and CardAbilities.active(p, "Nethersea Compass")
 	var target: Vector2i = _coord(action, "to")
 	var target_tile: HexTileState = state.get_hex(target)
 	if target_tile == null or not (target_tile.explored or target_tile.role == "outer"):
@@ -221,7 +241,7 @@ static func _command(state: GameState, action: Dictionary, faction: String, card
 				moves.append([neighbor, str(unit_name), int(stack[unit_name])])
 
 	for mv: Array in moves:
-		if not can_command_from(state, mv[0], target):
+		if not compass and not can_command_from(state, mv[0], target):
 			return {"ok": false, "reason": "Units on %s can't reach %s (not adjacent, or impassable terrain)" % [mv[0], target]}
 
 	var moved: int = 0
@@ -245,8 +265,13 @@ static func _command(state: GameState, action: Dictionary, faction: String, card
 		else:
 			hero_moves = false
 
-	p.action_points -= AP_COST
-	p.food -= 1
+	if free_cmd:
+		p.wiles_ready = false
+	else:
+		p.action_points -= AP_COST
+		p.food -= food_cost
+	if compass:
+		CardAbilities.discard(state, p, "Nethersea Compass")
 	p.has_acted_this_turn = true
 	state.phase_log = "%s Commands %d Unit(s)%s to %s" % [faction, moved, " and their Hero" if hero_moves else "", target]
 	NemesisAI.resolve_combat_at(state, card_db, target)  # also The Capital's ongoing effect
@@ -349,7 +374,8 @@ static func _haven(state: GameState, action: Dictionary, faction: String) -> Dic
 		return {"ok": false, "reason": "already took your one Action this turn"}
 	var board: PlayerboardTable.FactionBoard = PlayerboardTable.get_board(faction)
 	var cost: int = board.haven_plunder_cost if board != null else 2
-	if p.action_points < AP_COST or p.plunder < cost:
+	var free_haven: bool = p.wiles_ready
+	if not free_haven and (p.action_points < AP_COST or p.plunder < cost):
 		return {"ok": false, "reason": "not enough AP/Plunder"}
 	var coord: Vector2i = p.hero_coord  # rulebook p22: "in your Hero's explored hex"
 	if action.has("at") and _coord(action, "at") != coord:
@@ -379,8 +405,13 @@ static func _haven(state: GameState, action: Dictionary, faction: String) -> Dic
 		return {"ok": false, "reason": "all %d of your Havens are on the map" % MAX_HAVENS}
 
 	tile.haven_faction = faction
-	p.action_points -= AP_COST
-	p.plunder -= cost
+	if free_haven:
+		p.wiles_ready = false
+	else:
+		p.action_points -= AP_COST
+		p.plunder -= cost
+	if CardAbilities.active(p, "Asheforge"):
+		p.asheforge_coord = coord  # "When you place a Haven, you may build Units and Defenses here."
 	p.has_acted_this_turn = true
 	state.phase_log = "%s builds a Haven at %s" % [faction, coord]
 	return {"ok": true}
@@ -403,16 +434,18 @@ static func _market(state: GameState, action: Dictionary, faction: String, card_
 		return {"ok": false, "reason": "item not available in the Market"}
 	if not hero_can_use_item(card_db, p, item_name):
 		return {"ok": false, "reason": "your Hero lacks the attributes to use '%s'" % item_name}
-	var cost: int = item_cost(card_db, item_name)
+	var cost: int = item_cost(card_db, item_name) - CardAbilities.item_discount(p)
 	var here: HexTileState = state.get_hex(p.hero_coord)
 	if here != null and here.role == "sea_tower" and here.explored:
-		cost = maxi(0, cost - 1)
+		cost -= 1
+	cost = maxi(0, cost)
 	if p.action_points < AP_COST or p.salt < cost:
 		return {"ok": false, "reason": "not enough AP/Salt"}
 
 	state.item_market.erase(item_name)
 	ChapterFlow.refill_row(state.item_market, state.item_deck, state.item_discard, 3)
 	p.items_in_hand.append(item_name)
+	CardAbilities.enforce_limit(state, p, card_db)
 	p.action_points -= AP_COST
 	p.salt -= cost
 	p.has_acted_this_turn = true
@@ -421,12 +454,12 @@ static func _market(state: GameState, action: Dictionary, faction: String, card_
 
 
 static func hero_can_use_item(card_db: Node, p: PlayerFactionState, item_name: String) -> bool:
-	var hero: HeroCard = EffectUtil.hero_card(card_db, p.hero_name)
-	if card_db == null or hero == null:
+	if card_db == null or p == null or CardAbilities.ignores_item_requirements(p):
 		return true
 	for it: ItemCard in card_db.items:
 		if it.card_name == item_name:
-			return hero.might >= it.might and hero.magic >= it.magic and hero.lead >= it.lead and hero.guile >= it.guile
+			var ok: bool = EffectUtil.hero_attr(card_db, p, "might") >= it.might and EffectUtil.hero_attr(card_db, p, "magic") >= it.magic
+			return ok and EffectUtil.hero_attr(card_db, p, "lead") >= it.lead and EffectUtil.hero_attr(card_db, p, "guile") >= it.guile
 	return true
 
 
@@ -463,12 +496,20 @@ static func _quest(state: GameState, action: Dictionary, faction: String, card_d
 	return {"ok": true, "solved": r.get("solved", false)}
 
 
+## Building outside the Build Phase: right after an Asheforge Haven (on
+## that hex) or while Survivors is open ("Every player may build...").
+static func _build_window_open(state: GameState, p: PlayerFactionState, coord: Vector2i) -> bool:
+	if state.phase == GameState.Phase.BUILD or state.open_build_until_turn_end:
+		return true
+	return state.phase == GameState.Phase.ACTIONS and p != null and p.asheforge_coord == coord
+
+
 static func _build_unit(state: GameState, action: Dictionary, faction: String) -> Dictionary:
-	if state.phase != GameState.Phase.BUILD:
-		return {"ok": false, "reason": "can only build during the Build Phase"}
 	var p: PlayerFactionState = state.find_player(faction)
 	if p == null:
 		return {"ok": false, "reason": "unknown faction"}
+	if not _build_window_open(state, p, _coord(action, "at")):
+		return {"ok": false, "reason": "can only build during the Build Phase"}
 	var board: PlayerboardTable.FactionBoard = PlayerboardTable.get_board(faction)
 	if board == null:
 		return {"ok": false, "reason": "no playerboard data for faction"}
@@ -518,11 +559,11 @@ static func _homeless_build_ok(state: GameState, p: PlayerFactionState, coord: V
 
 
 static func _build_defense(state: GameState, action: Dictionary, faction: String) -> Dictionary:
-	if state.phase != GameState.Phase.BUILD:
-		return {"ok": false, "reason": "can only build during the Build Phase"}
 	var p: PlayerFactionState = state.find_player(faction)
 	if p == null:
 		return {"ok": false, "reason": "unknown faction"}
+	if not _build_window_open(state, p, _coord(action, "at")):
+		return {"ok": false, "reason": "can only build during the Build Phase"}
 	var board: PlayerboardTable.FactionBoard = PlayerboardTable.get_board(faction)
 	var kind: String = str(action.get("kind", "Tower"))  # "Tower" | "Wall"
 	var coord: Vector2i = _coord(action, "at")
@@ -595,6 +636,8 @@ static func _end_turn(state: GameState, faction: String) -> Dictionary:
 		return {"ok": false, "reason": "not your turn"}
 	var p: PlayerFactionState = state.find_player(faction)
 	p.has_acted_this_turn = false
+	p.asheforge_coord = Vector2i.MIN
+	state.open_build_until_turn_end = false
 	_clear_orientable(state, faction)
 	_advance_turn(state)
 	return {"ok": true}

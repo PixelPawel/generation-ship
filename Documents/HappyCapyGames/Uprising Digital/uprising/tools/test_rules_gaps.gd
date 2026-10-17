@@ -163,6 +163,7 @@ func _run() -> void:
 	_event_checks(card_db)
 	_card_power_checks(card_db)
 	_economy_checks(card_db)
+	_feat_checks(card_db)
 
 	# --- Save/load keeps typed Units ---
 	var round_trip: GameState = GameState.from_dict(state.to_dict())
@@ -541,6 +542,54 @@ func _economy_checks(card_db: Node) -> void:
 	b.vp = 0
 	Scoring._buy_vp_with_resources(s)
 	_check(a.salt == 0 and b.vp == 2, "last Chapter: 10 resources buy 2 VP for the player furthest behind (b VP %d)" % b.vp)
+
+
+## Feat decks, START Feats, the Build Phase draw, card uses.
+func _feat_checks(card_db: Node) -> void:
+	var abilities: GDScript = GameActions.CardAbilities
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 61
+	var s: GameState = GameSetup.build_2p_normal_game_state(card_db, rng)
+	for p: PlayerFactionState in s.players:
+		var starts: Array[String] = []
+		for f: String in p.feats_in_play:
+			if abilities.START_FEATS.has(f):
+				starts.append(f)
+		_check(starts.size() == 2, "%s (%s) starts with 2 START Feats, got %s" % [p.faction, p.hero_name, starts])
+		_check(p.feat_deck.size() == abilities.feat_deck_for(p.hero_name).size() - 2, "%s's other Feats form the deck (%d)" % [p.faction, p.feat_deck.size()])
+
+	var a: PlayerFactionState = s.players[0]
+	s.phase = GameState.Phase.EVENTS
+	ChapterFlow.advance_phase(s, card_db)  # -> BUILD, draws 2 Feats each
+	_check(a.pending_feats.size() == 2, "Build Phase: 2 Feats drawn to pick from, got %s" % [a.pending_feats])
+	var keep: String = a.pending_feats[0]
+	var other: String = a.pending_feats[1]
+	_check(GameActions.apply(s, {"type": "pick_feat", "feat": keep}, a.faction, card_db).get("ok", false), "pick_feat keeps one")
+	_check(a.feats_in_play.has(keep) and a.feat_deck.back() == other and a.pending_feats.is_empty(), "the other goes under the Feat deck")
+	for p2: PlayerFactionState in s.players:
+		p2.has_passed = true
+	ChapterFlow.advance_phase(s, card_db)  # -> ACTIONS, auto-picks for the rest
+	_check(s.players[1].pending_feats.is_empty(), "leaving the Build Phase picks for anyone who didn't")
+
+	var bonus0: int = int(a.attr_bonus.get("might", 0)) + int(a.attr_bonus.get("magic", 0))
+	var res0: int = a.salt + a.plunder + a.food
+	a.feat_deck.push_front("Might Magic")
+	a.feats_in_play.erase("Might Magic")
+	abilities.draw_feat(s, card_db, a)
+	_check(int(a.attr_bonus.get("might", 0)) + int(a.attr_bonus.get("magic", 0)) == bonus0 + 1 and a.salt + a.plunder + a.food == res0 + 3, "Might Magic: +1 Might or Magic and 3 resources")
+
+	a.items_in_hand.append("Dragonfruits")
+	var food_a: int = a.food
+	var food_b: int = s.players[1].food
+	var r: Dictionary = GameActions.apply(s, {"type": "use_card", "card": "Dragonfruits"}, a.faction, card_db)
+	_check(r.get("ok", false) and a.food == food_a + 5 and s.players[1].food == food_b + 2 and not a.items_in_hand.has("Dragonfruits"), "Dragonfruits: +5 Food, others +2, discarded")
+
+	if a.feats_in_play.has("Intuition"):
+		_check(GameActions.hero_can_use_item(card_db, a, "Axe of the Giants"), "Intuition: any Item can be used, whatever the attributes")
+	for i: int in range(12):
+		a.items_in_hand.append("Abad Warpaint")
+	abilities.enforce_limit(s, a, card_db)
+	_check(a.feats_in_play.size() + a.items_in_hand.size() <= abilities.CARD_LIMIT, "Feats + Items are capped at 10")
 
 
 func _hex(state: GameState, coord: Vector2i, card_name: String) -> HexTileState:

@@ -662,13 +662,16 @@ static func _hit_or_threat(state: GameState, card_db: Node, coord: Vector2i, til
 					top = GameActions.item_cost(card_db, it)
 					item = it
 			if not item.is_empty():
-				p.items_in_hand.erase(item)
-				state.item_discard.append(item)
+				NemesisCards.CardAbilitiesRef.discard(state, p, item)
 				result.log.append("%s discards '%s'" % [p.faction, item])
+			elif not p.feats_in_play.is_empty():
+				NemesisCards.CardAbilitiesRef.discard(state, p, NemesisCards.CardAbilitiesRef._worst_feat(p.feats_in_play))
 		"flip":
 			for it2: String in p.items_in_hand:
 				if not p.flipped_items.has(it2):
 					p.flipped_items.append(it2)
+			for f: String in p.feats_in_play:
+				NemesisCards.CardAbilitiesRef.flip(p, f)
 		"unit":
 			var unit: String = _priciest_unit(tile, p.faction)
 			if not unit.is_empty():
@@ -918,14 +921,13 @@ static func destroy_nemesis(state: GameState, card_db: Node, entry: Variant, kil
 			state.chaos_vp += vp
 		notes.append("%s destroyed by %s (+%d VP)" % [name, killer, vp])
 	else:
-		var hero: HeroCard = EffectUtil.hero_card(card_db, p.hero_name)
 		match name:
 			"The Courtesan":
 				var rng := RandomNumberGenerator.new()
 				rng.randomize()
-				vp += int(DiceModel.roll_pool(DiceModel.hero_pool(hero, "yellow"), rng)["Skull"])
+				vp += int(DiceModel.roll_pool(NemesisCards.CardAbilitiesRef.outside_roll_pool(card_db, p, "yellow"), rng)["Skull"])
 			"The Mage Breaker":
-				vp += hero.magic if hero != null else 0
+				vp += EffectUtil.hero_attr(card_db, p, "magic")
 				for it2: String in state.item_market:
 					if not state.flipped_market.has(it2):
 						state.item_discard.append(it2)
@@ -933,7 +935,7 @@ static func destroy_nemesis(state: GameState, card_db: Node, entry: Variant, kil
 				state.item_market.append_array(state.flipped_market)
 				ChapterFlow.refill_row(state.item_market, state.item_deck, state.item_discard, 3)
 			"Siren":
-				vp += hero.guile if hero != null else 0
+				vp += EffectUtil.hero_attr(card_db, p, "guile")
 			"The New Emperor":
 				NemesisAI.add_garrisons(state, state.capital_coord, 2)
 			"The Imperial Guard":
@@ -950,6 +952,10 @@ static func destroy_nemesis(state: GameState, card_db: Node, entry: Variant, kil
 				if not state.banished_returned:
 					state.banished_returned = true
 					state.horde_deck.append("Banished")
+		# Ziyoya Bard: "Discard this, to double the VP of any Horde or Legion when it is destroyed."
+		if vp >= 3 and NemesisCards.CardAbilitiesRef.active(p, "Ziyoya Bard"):
+			NemesisCards.CardAbilitiesRef.discard(state, p, "Ziyoya Bard")
+			vp *= 2
 		p.vp += vp
 		if result != null:
 			result.vp_awarded["self"] = int(result.vp_awarded.get("self", 0)) + vp

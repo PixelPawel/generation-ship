@@ -275,6 +275,10 @@ static func build_2p_normal_game_state(card_db: Node, rng: RandomNumberGenerator
 	_shuffle(quest_names, rng)
 	state.quest_deck = quest_names
 
+	# Feat decks: START Feats into play, the rest shuffled (rulebook Setup).
+	for fp: PlayerFactionState in state.players:
+		GameActions.CardAbilities.setup_player(state, card_db, fp, rng)
+
 	# One face-down Event per Chapter (rulebook Setup).
 	var event_effects: GDScript = load("res://scripts/game/event_effects.gd")
 	event_effects.pick_chapter_events(state, card_db, rng)

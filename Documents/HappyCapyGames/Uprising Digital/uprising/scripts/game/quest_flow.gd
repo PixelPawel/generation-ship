@@ -46,6 +46,14 @@ static func goals(q: QuestCard) -> Dictionary:
 	return {"successes": maxi(1, _num(q.successes)), "Skull": _num(q.skulls), "Shield": _num(q.shields), "Bolt": _num(q.bolts)}
 
 
+static func _met_goals(g: Dictionary, rolled: Dictionary) -> Array[String]:
+	var met: Array[String] = []
+	for sym: String in SYMBOLS:
+		if int(g[sym]) > 0 and int(rolled.get(sym, 0)) >= int(g[sym]):
+			met.append(sym)
+	return met
+
+
 static func _reward_text(q: QuestCard, symbol: String) -> String:
 	match symbol:
 		"Skull":
@@ -127,7 +135,7 @@ static func success_chance(q: QuestCard, pool: Array[String], rng: RandomNumberG
 
 
 static func _pool(state: GameState, card_db: Node, p: PlayerFactionState, q: QuestCard, guile: String, extra: Array) -> Array[String]:
-	var pool: Array[String] = DiceModel.hero_pool(EffectUtil.hero_card(card_db, p.hero_name), guile)
+	var pool: Array[String] = NemesisCards.CardAbilitiesRef.outside_roll_pool(card_db, p, guile)
 	pool.append_array(bonus_dice(state, card_db, p, q))
 	for e: Variant in extra:
 		pool.append(str(e))
@@ -136,8 +144,7 @@ static func _pool(state: GameState, card_db: Node, p: PlayerFactionState, q: Que
 
 ## The Guile colour (white or yellow) with the better odds for this Quest.
 static func best_guile(state: GameState, card_db: Node, p: PlayerFactionState, q: QuestCard, extra: Array, rng: RandomNumberGenerator) -> String:
-	var hero: HeroCard = EffectUtil.hero_card(card_db, p.hero_name)
-	if hero == null or hero.guile == 0:
+	if EffectUtil.hero_attr(card_db, p, "guile") == 0:
 		return "yellow"
 	var y: float = success_chance(q, _pool(state, card_db, p, q, "yellow", extra), rng)
 	var w: float = success_chance(q, _pool(state, card_db, p, q, "white", extra), rng)
@@ -183,10 +190,10 @@ static func attempt(state: GameState, card_db: Node, faction: String, quest_name
 	var pool: Array[String] = _pool(state, card_db, p, q, guile, extra)
 	var rolled: Dictionary = opts.get("fixed_roll", DiceModel.roll_pool(pool, ctx.rng))
 	var g: Dictionary = goals(q)
-	var met: Array[String] = []
-	for sym: String in SYMBOLS:
-		if int(g[sym]) > 0 and int(rolled.get(sym, 0)) >= int(g[sym]):
-			met.append(sym)
+	var met: Array[String] = _met_goals(g, rolled)
+	if met.size() < int(g["successes"]) and not opts.has("fixed_roll"):
+		rolled = NemesisCards.CardAbilitiesRef.second_chance(p, pool, rolled, ctx.rng)  # Icewaterpipe / Tricky
+		met = _met_goals(g, rolled)
 	var solved: bool = met.size() >= int(g["successes"])
 	ctx.log("%s attempts '%s' with %s: %d Skull, %d Shield, %d Bolt - %s" % [
 		faction, quest_name, pool, int(rolled.get("Skull", 0)), int(rolled.get("Shield", 0)), int(rolled.get("Bolt", 0)),
@@ -196,6 +203,8 @@ static func attempt(state: GameState, card_db: Node, faction: String, quest_name
 		_solve(ctx, q, rolled, met)
 		for sym: String in met:
 			_reward(ctx, q, _reward_text(q, sym), rolled)
+		if not met.is_empty() and NemesisCards.CardAbilitiesRef.active(p, "Astute"):
+			_reward(ctx, q, _reward_text(q, met[0]), rolled)  # Astute: one goal's reward again
 	elif not bool(opts.get("ignore_failure", false)):
 		_fail(ctx, q, rolled)
 	_after(ctx, q, solved, bool(opts.get("ignore_failure", false)))
@@ -345,7 +354,15 @@ static func _solve(ctx: EffectContext, q: QuestCard, rolled: Dictionary, met: Ar
 		"Imperial Spy":
 			_strip_tokens(ctx, "Legion")
 		"Instruction of the Druids":
-			ctx.log("%s gains any 1 of their Feats (Feats are not tracked as cards yet)" % p.faction)
+			# Gain any 1 of your Feats; shuffle the Feat deck.
+			if not p.feat_deck.is_empty():
+				var best: String = p.feat_deck[0]
+				for f: String in p.feat_deck:
+					if NemesisCards.CardAbilitiesRef._rank(f) < NemesisCards.CardAbilitiesRef._rank(best):
+						best = f
+				NemesisCards.CardAbilitiesRef.gain_feat(state, ctx.card_db, p, best)
+				p.feat_deck.shuffle()
+				ctx.log("%s gains Feat '%s'" % [p.faction, best])
 		"Intercept the Empress":
 			_gain_market_item(ctx, false)
 		"Koloth Migration":
@@ -766,6 +783,7 @@ static func _gain_market_item(ctx: EffectContext, must_use: bool) -> void:
 	ctx.state.item_market.erase(pick)
 	ChapterFlow.refill_row(ctx.state.item_market, ctx.state.item_deck, ctx.state.item_discard, 3)
 	p.items_in_hand.append(pick)
+	NemesisCards.CardAbilitiesRef.enforce_limit(ctx.state, p, ctx.card_db)
 	ctx.log("%s gains Item '%s'" % [p.faction, pick])
 
 

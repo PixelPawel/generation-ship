@@ -47,6 +47,12 @@ static func run_nemesis_phase(state: GameState, card_db: Node) -> void:
 			if not (state.legions.has(entry) or state.hordes.has(entry)):
 				break
 			entry.activation_tokens -= 1
+			# Assassins Dagger: each Activation Token removed costs 1 Threat.
+			if state.daggers.has(str(entry.id)):
+				entry.threat -= 1
+				if entry.threat <= 0:
+					CombatResolver.destroy_nemesis(state, card_db, entry, str(state.daggers[str(entry.id)]), entry.coord)
+					break
 			activate_now(state, card_db, entry)
 
 

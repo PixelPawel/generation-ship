@@ -30,6 +30,18 @@ var graveyard_units: Dictionary = {}
 var quests_in_play: Array[String] = []
 ## Units removed from the game for good (The Executioner): unit name -> count.
 var removed_units: Dictionary = {}
+## The Hero's Feat deck (top = front) and Feats flipped (used) until the next
+## Refresh Phase; feats_in_play holds the face-up and flipped ones alike.
+var feat_deck: Array[String] = []
+var flipped_feats: Array[String] = []
+## The 2 Feats drawn at the start of the Build Phase, waiting for a pick.
+var pending_feats: Array[String] = []
+## Attribute boosts from the "Guile Leadership" / "Might Magic" Feats.
+var attr_bonus: Dictionary = {}
+## A Haven placed this turn with Asheforge lets Units/Defenses be built there.
+var asheforge_coord: Vector2i = Vector2i.MIN
+## Wiles flipped: the next Command, Haven or Move costs no AP or resources.
+var wiles_ready: bool = false
 
 var has_passed: bool = false
 var has_acted_this_turn: bool = false
@@ -45,6 +57,9 @@ func to_dict() -> Dictionary:
 		"feats_deck_remaining": feats_deck_remaining, "items_in_hand": items_in_hand.duplicate(),
 		"flipped_items": flipped_items.duplicate(), "graveyard_units": graveyard_units.duplicate(),
 		"quests_in_play": quests_in_play.duplicate(), "removed_units": removed_units.duplicate(),
+		"feat_deck": feat_deck.duplicate(), "flipped_feats": flipped_feats.duplicate(),
+		"pending_feats": pending_feats.duplicate(), "attr_bonus": attr_bonus.duplicate(),
+		"asheforge_coord": {"x": asheforge_coord.x, "y": asheforge_coord.y}, "wiles_ready": wiles_ready,
 		"has_passed": has_passed, "has_acted_this_turn": has_acted_this_turn,
 	}
 
@@ -76,6 +91,16 @@ static func from_dict(d: Dictionary) -> PlayerFactionState:
 	for q: Variant in (d.get("quests_in_play", []) as Array):
 		s.quests_in_play.append(str(q))
 	s.removed_units = (d.get("removed_units", {}) as Dictionary).duplicate()
+	for f: Variant in (d.get("feat_deck", []) as Array):
+		s.feat_deck.append(str(f))
+	for f2: Variant in (d.get("flipped_feats", []) as Array):
+		s.flipped_feats.append(str(f2))
+	for f3: Variant in (d.get("pending_feats", []) as Array):
+		s.pending_feats.append(str(f3))
+	s.attr_bonus = (d.get("attr_bonus", {}) as Dictionary).duplicate()
+	var ac: Dictionary = d.get("asheforge_coord", {"x": Vector2i.MIN.x, "y": Vector2i.MIN.y})
+	s.asheforge_coord = Vector2i(int(ac.get("x", Vector2i.MIN.x)), int(ac.get("y", Vector2i.MIN.y)))
+	s.wiles_ready = bool(d.get("wiles_ready", false))
 	s.has_passed = d.get("has_passed", false)
 	s.has_acted_this_turn = d.get("has_acted_this_turn", false)
 	return s

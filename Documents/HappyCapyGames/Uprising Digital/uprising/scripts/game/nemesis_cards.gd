@@ -9,6 +9,7 @@ extends RefCounted
 ## real cards yet, so effects that flip or discard Feats are logged only.
 
 const QUEST_FLOW_PATH := "res://scripts/game/quest_flow.gd"
+const CardAbilitiesRef := preload("res://scripts/game/card_abilities.gd")
 
 
 # --- Immediate effects (resolved when the card enters play) -----------------
@@ -42,7 +43,10 @@ static func legion_immediate(state: GameState, card_db: Node, legion: LegionInst
 			# Imperial Bounty: the targeted player flips their starting Feats; 1 Activation Token on her.
 			legion.activation_tokens += 1
 			if target_player != null:
-				NemesisAI.log_line(state, "Imperial Bounty: %s flips their starting Feats (Feats not tracked yet)" % target_player.faction)
+				for f: String in target_player.feats_in_play:
+					if CardAbilitiesRef.START_FEATS.has(f):
+						CardAbilitiesRef.flip(target_player, f)
+				NemesisAI.log_line(state, "Imperial Bounty: %s flips their starting Feats" % target_player.faction)
 		"The Imperial Guard":
 			# Defensive Stance: 1 Garrison on every hex with a Garrison, except The Capital.
 			var stacks: Array[Vector2i] = []
@@ -226,14 +230,4 @@ static func reserve_left(state: GameState, p: PlayerFactionState, unit_name: Str
 
 
 static func _attr(card_db: Node, p: PlayerFactionState, attr: String) -> int:
-	var hero: HeroCard = EffectUtil.hero_card(card_db, p.hero_name)
-	if hero == null:
-		return 0
-	match attr:
-		"might":
-			return hero.might
-		"magic":
-			return hero.magic
-		"lead":
-			return hero.lead
-	return hero.guile
+	return EffectUtil.hero_attr(card_db, p, attr)

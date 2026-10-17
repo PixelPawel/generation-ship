@@ -21,6 +21,11 @@ func execute(ctx: EffectContext) -> void:
 	var p: PlayerFactionState = ctx.state.find_player(ctx.acting_faction)
 	if p == null:
 		return
+	if deck == "Feat":
+		for _f: int in range(count):
+			var feat: String = GameActions.CardAbilities.draw_feat(ctx.state, ctx.card_db, p)
+			ctx.log("%s draws Feat '%s'" % [p.faction, feat])
+		return
 	for _i: int in range(count):
 		var drawn: String = _draw(ctx.state)
 		if drawn.is_empty():
@@ -43,7 +48,7 @@ func _draw(state: GameState) -> String:
 				return ""
 			return state.item_deck.pop_back()
 		"Feat":
-			return ""  # Feat decks are per-Hero, not in GameState yet (Milestone 4) - not modeled.
+			return ""  # handled in execute() through the player's own Feat deck
 		"Quest":
 			if state.quest_deck.is_empty():
 				return ""

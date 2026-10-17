@@ -119,7 +119,7 @@ static func _first_half(ctx: EffectContext, event_name: String) -> void:
 		"Long live the Emperor", "The Empire strikes":
 			NemesisAI.add_garrisons(state, state.capital_coord, _players(ctx))
 		"Madness sweeps the Land":
-			ctx.log("Every player draws 1 Feat, then discards 1 Feat (Feats are not tracked as cards yet)")
+			HexEffectPrograms.draw_then_discard_feat(state, ctx.card_db)
 		"Prolonged Eclipse":
 			_garrison_on_every_garrison(state)
 			_flip_one(ctx)
@@ -138,7 +138,7 @@ static func _first_half(ctx: EffectContext, event_name: String) -> void:
 		"The Frozen Fleet":
 			EachPlayerOp.new([GainResourceOp.new("Any", 4)], false).execute(ctx)
 		"The God Touched":
-			ctx.log("Feat offer declined (Feats are not tracked as cards yet)")
+			ctx.log("Feat-for-Bolts-on-Curses offer declined")
 		"Unholy Omens":
 			_skeletons_on(ctx, 2, _unexplored_empty(state))
 			_garrisons_on_one_hex(ctx, 3)
@@ -150,7 +150,10 @@ static func _first_half(ctx: EffectContext, event_name: String) -> void:
 		"Guidance from the Druids":
 			var r2: Dictionary = HexEffectPrograms.roll_best_hero(ctx, "white")
 			var symbols: int = int(r2["Skull"]) + int(r2["Shield"]) + int(r2["Bolt"])
-			ctx.log("Every player %s 1 Feat (Feats are not tracked as cards yet)" % ("draws" if symbols >= 6 else "draws no"))
+			if symbols >= 6:
+				for fp: PlayerFactionState in state.players:
+					GameActions.CardAbilities.draw_feat(state, ctx.card_db, fp)
+				ctx.log("Every player draws 1 Feat")
 		"Imperial Inspection":
 			var r3: Dictionary = HexEffectPrograms.roll_best_hero(ctx, "white")
 			if int(r3["Skull"]) + int(r3["Shield"]) + int(r3["Bolt"]) < 6:
@@ -158,7 +161,9 @@ static func _first_half(ctx: EffectContext, event_name: String) -> void:
 		"Imperial Spy Network":
 			var r4: Dictionary = HexEffectPrograms.roll_best_hero(ctx, "white")
 			if int(r4["Skull"]) + int(r4["Shield"]) + int(r4["Bolt"]) < 5:
-				ctx.log("Every player discards 1 Feat (Feats are not tracked as cards yet)")
+				for fp2: PlayerFactionState in state.players:
+					if not fp2.feats_in_play.is_empty():
+						GameActions.CardAbilities.discard(state, fp2, GameActions.CardAbilities._worst_feat(fp2.feats_in_play))
 		"Ravening Hunger":
 			for p5: PlayerFactionState in state.players:
 				var home2: Vector2i = _home_of(state, p5.faction)
@@ -221,7 +226,11 @@ static func _first_half(ctx: EffectContext, event_name: String) -> void:
 					NemesisAI.add_skeletons(state, ctx.card_db, coord2, 2)
 					NemesisAI.resolve_combat_at(state, ctx.card_db, coord2)
 		"Vision from the Old Gods":
-			ctx.log("Feat offer declined (Feats are not tracked as cards yet)")
+			# Every player may place 1 AP on the Trade Action to draw 1 Feat - taken.
+			for fp3: PlayerFactionState in state.players:
+				if fp3.action_points >= 1 and not fp3.feat_deck.is_empty():
+					fp3.action_points -= 1
+					GameActions.CardAbilities.draw_feat(state, ctx.card_db, fp3)
 
 
 # --- Bottom halves --------------------------------------------------------------

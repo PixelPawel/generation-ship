@@ -46,6 +46,38 @@ static func nemesis_at(state: GameState, coord: Vector2i) -> Array:
 	return out
 
 
+## A Hero attribute ("might", "magic", "lead", "guile") including Feat boosts.
+static func hero_attr(card_db: Node, p: PlayerFactionState, attr: String) -> int:
+	var hero: HeroCard = hero_card(card_db, p.hero_name)
+	var base: int = 0
+	if hero != null:
+		match attr:
+			"might":
+				base = hero.might
+			"magic":
+				base = hero.magic
+			"lead":
+				base = hero.lead
+			"guile":
+				base = hero.guile
+	return base + int(p.attr_bonus.get(attr, 0))
+
+
+## The player's Hero Dice (rulebook p12): red per Might, purple per Magic,
+## blue per Leadership, `guile_color` (white or yellow) per Guile.
+static func hero_dice(card_db: Node, p: PlayerFactionState, guile_color: String = "yellow") -> Array[String]:
+	var pool: Array[String] = []
+	for _i: int in range(hero_attr(card_db, p, "might")):
+		pool.append("red")
+	for _i: int in range(hero_attr(card_db, p, "magic")):
+		pool.append("purple")
+	for _i: int in range(hero_attr(card_db, p, "lead")):
+		pool.append("blue")
+	for _i: int in range(hero_attr(card_db, p, "guile")):
+		pool.append(guile_color)
+	return pool
+
+
 static func hero_card(card_db: Node, hero_name: String) -> HeroCard:
 	if card_db == null or hero_name.is_empty():
 		return null

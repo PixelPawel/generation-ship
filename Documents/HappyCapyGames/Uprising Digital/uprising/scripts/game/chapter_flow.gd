@@ -26,6 +26,8 @@ static func advance_phase(state: GameState, card_db: Node) -> Dictionary:
 		GameState.Phase.BUILD:
 			if not GameActions.active_players(state).is_empty():
 				return {"ok": false, "reason": "not every player is ready (still has AP and hasn't Passed)"}
+			for fp: PlayerFactionState in state.players:
+				GameActions.CardAbilities.auto_pick(state, card_db, fp)  # Feats nobody picked
 			state.phase = GameState.Phase.ACTIONS
 			_start_actions_phase(state)
 			return {"ok": true}
@@ -61,6 +63,7 @@ static func _refresh_phase(state: GameState, card_db: Node = null) -> void:
 		p.has_passed = false
 		p.has_acted_this_turn = false
 		p.flipped_items.clear()  # "Flip all your face-down cards back up"
+		p.flipped_feats.clear()
 	if state.players.size() > 0 and state.chapter > 1:
 		state.first_player_index = (state.first_player_index + 1) % state.players.size()
 	state.current_player_index = state.first_player_index
@@ -150,9 +153,12 @@ static func _events_phase(state: GameState, card_db: Node = null) -> void:
 		h.activation_tokens += tokens_each
 
 
+## Rulebook p17: "At the beginning of the Build Phase draw 2 Feats from your
+## Feat deck, then pick 1."
 static func _start_build_phase(state: GameState) -> void:
 	for p: PlayerFactionState in state.players:
 		p.has_passed = p.is_bot
+		GameActions.CardAbilities.draw_for_build(p)
 
 
 static func _start_actions_phase(state: GameState) -> void:

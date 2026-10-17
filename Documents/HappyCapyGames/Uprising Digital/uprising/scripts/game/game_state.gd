@@ -52,6 +52,11 @@ var coven_held_ap: Dictionary = {}
 var capital_flipped: bool = false
 ## The Banished went back under the Horde deck once ("Once per game").
 var banished_returned: bool = false
+## Assassins Dagger: Legion/Horde id (as text) -> the faction whose dagger is
+## on it; each Activation Token removed from it costs it 1 Threat.
+var daggers: Dictionary = {}
+## Survivors flipped: every player may build Units and Defenses this turn.
+var open_build_until_turn_end: bool = false
 var event_decks: Dictionary = {}   # chapter(int) -> Array[String] (deck for that chapter, minus the 1 pre-placed card)
 var chapter_events: Dictionary = {}  # chapter(int) -> String (this chapter's revealed/pending Event card name)
 ## The most recently revealed Event - its printed Threat is the default
@@ -102,6 +107,7 @@ func to_dict() -> Dictionary:
 		"legion_deck_tokens": legion_deck_tokens, "horde_deck_tokens": horde_deck_tokens,
 		"coven_held_ap": coven_held_ap.duplicate(),
 		"capital_flipped": capital_flipped, "banished_returned": banished_returned,
+		"daggers": daggers.duplicate(), "open_build_until_turn_end": open_build_until_turn_end,
 		"event_decks": _stringify_int_keys(event_decks),
 		"chapter_events": _stringify_int_keys(chapter_events), "latest_event": latest_event,
 		"empire_vp": empire_vp, "chaos_vp": chaos_vp,
@@ -158,6 +164,8 @@ static func from_dict(d: Dictionary) -> GameState:
 	s.coven_held_ap = (d.get("coven_held_ap", {}) as Dictionary).duplicate()
 	s.capital_flipped = bool(d.get("capital_flipped", false))
 	s.banished_returned = bool(d.get("banished_returned", false))
+	s.daggers = (d.get("daggers", {}) as Dictionary).duplicate()
+	s.open_build_until_turn_end = bool(d.get("open_build_until_turn_end", false))
 	s.event_decks = _intify_keys(d.get("event_decks", {}))
 	s.chapter_events = _intify_keys(d.get("chapter_events", {}))
 	s.latest_event = str(d.get("latest_event", ""))

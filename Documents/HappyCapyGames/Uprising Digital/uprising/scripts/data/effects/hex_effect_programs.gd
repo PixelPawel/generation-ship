@@ -252,7 +252,8 @@ static func _dunkelholm() -> EffectProgram:
 		GainResourceOp.new("Plunder", 2),
 		RemoveTokenOp.new("Skeleton"),
 		PlaceTokenOp.new("Garrison", 2, "here"),
-		_feat_note("Each player draws 1 Feat, then discards 1 Feat"),
+		FnOp.new("Each player draws 1 Feat, then discards 1 Feat", func(ctx: EffectContext) -> void:
+			draw_then_discard_feat(ctx.state, ctx.card_db)),
 	])
 
 
@@ -283,7 +284,9 @@ static func _netherwood() -> EffectProgram:
 				EachPlayerOp.new([GainResourceOp.new("Any", 2)], false).execute(ctx)
 			if int(roll["Shield"]) >= 2:
 				hit = true
-				_feat_note("Every player draws 1 Feat").execute(ctx)
+				for fp: PlayerFactionState in ctx.state.players:
+					GameActions.CardAbilities.draw_feat(ctx.state, ctx.card_db, fp)
+				ctx.log("Every player draws 1 Feat")
 			if int(roll["Bolt"]) >= 2:
 				hit = true
 				for p: PlayerFactionState in ctx.state.players:
@@ -360,13 +363,21 @@ static func _midnight_tower() -> EffectProgram:
 	])
 
 
+## "Each player draws 1 Feat, then discards 1 Feat" - the least useful goes.
+static func draw_then_discard_feat(state: GameState, card_db: Node) -> void:
+	for p: PlayerFactionState in state.players:
+		GameActions.CardAbilities.draw_feat(state, card_db, p)
+		if not p.feats_in_play.is_empty():
+			GameActions.CardAbilities.discard(state, p, GameActions.CardAbilities._worst_feat(p.feats_in_play))
+
+
 ## The player whose Hero has the most dice rolls them (ties: turn order).
 ## Returns symbol counts plus "roller".
 static func roll_best_hero(ctx: EffectContext, guile_color: String) -> Dictionary:
 	var best: PlayerFactionState = null
 	var best_size: int = -1
 	for p: PlayerFactionState in ctx.state.players:
-		var size: int = DiceModel.hero_pool(EffectUtil.hero_card(ctx.card_db, p.hero_name)).size()
+		var size: int = GameActions.CardAbilities.outside_roll_pool(ctx.card_db, p, "yellow").size()
 		if size > best_size:
 			best_size = size
 			best = p
@@ -376,7 +387,7 @@ static func roll_best_hero(ctx: EffectContext, guile_color: String) -> Dictionar
 	if ctx.rng == null:
 		ctx.rng = RandomNumberGenerator.new()
 		ctx.rng.randomize()
-	var pool: Array[String] = DiceModel.hero_pool(EffectUtil.hero_card(ctx.card_db, best.hero_name), guile_color)
+	var pool: Array[String] = GameActions.CardAbilities.outside_roll_pool(ctx.card_db, best, guile_color)
 	var rolled: Dictionary = DiceModel.roll_pool(pool, ctx.rng)
 	for k: Variant in rolled.keys():
 		counts[k] = rolled[k]
