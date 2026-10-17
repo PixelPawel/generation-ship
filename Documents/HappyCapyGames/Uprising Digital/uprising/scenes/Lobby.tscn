@@ -1,41 +1,297 @@
-[gd_scene load_steps=2 format=3 uid="uid://blobby001"]
+[gd_scene load_steps=4 format=3 uid="uid://blobby001"]
 
 [ext_resource type="Script" path="res://scripts/lobby.gd" id="1_lobby"]
+[ext_resource type="Theme" path="res://assets/art/ui/uprising_theme.tres" id="2_theme"]
+[ext_resource type="Texture2D" path="res://assets/art/menu/menu_backdrop.jpg" id="3_backdrop"]
 
 [node name="Lobby" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
 script = ExtResource("1_lobby")
 
-[node name="CenterContainer" type="CenterContainer" parent="."]
+[node name="Background" type="TextureRect" parent="."]
+modulate = Color(0.42, 0.5, 0.54, 1)
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("3_backdrop")
+expand_mode = 1
+stretch_mode = 6
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer"]
-layout_mode = 2
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 14
 
-[node name="PortEdit" type="LineEdit" parent="CenterContainer/VBoxContainer"]
+[node name="Rows" type="VBoxContainer" parent="Margin"]
 layout_mode = 2
-text = "8955"
-placeholder_text = "Port"
+theme_override_constants/separation = 10
 
-[node name="HostButton" type="Button" parent="CenterContainer/VBoxContainer"]
+[node name="Header" type="HBoxContainer" parent="Margin/Rows"]
+custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
-text = "Host Game (2 Player Normal)"
+theme_override_constants/separation = 14
 
-[node name="AddressEdit" type="LineEdit" parent="CenterContainer/VBoxContainer"]
+[node name="Title" type="Label" parent="Margin/Rows/Header"]
 layout_mode = 2
-text = "127.0.0.1"
-placeholder_text = "Address"
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 30
+text = "Choose your faction"
+vertical_alignment = 1
 
-[node name="JoinButton" type="Button" parent="CenterContainer/VBoxContainer"]
+[node name="Status" type="Label" parent="Margin/Rows/Header"]
 layout_mode = 2
-text = "Join Game"
+size_flags_horizontal = 3
+theme_type_variation = &"MutedLabel"
+text = "Not connected yet."
+vertical_alignment = 1
+text_overrun_behavior = 3
 
-[node name="StatusLabel" type="Label" parent="CenterContainer/VBoxContainer"]
+[node name="InviteButton" type="Button" parent="Margin/Rows/Header"]
 layout_mode = 2
+size_flags_vertical = 4
+text = "Invite friends"
+
+[node name="LeaveButton" type="Button" parent="Margin/Rows/Header"]
+layout_mode = 2
+size_flags_vertical = 4
+text = "Back to menu"
+
+[node name="Body" type="HBoxContainer" parent="Margin/Rows"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="Factions" type="VBoxContainer" parent="Margin/Rows/Body"]
+custom_minimum_size = Vector2(240, 0)
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Dossier" type="VBoxContainer" parent="Margin/Rows/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="TopRow" type="HBoxContainer" parent="Margin/Rows/Body/Dossier"]
+custom_minimum_size = Vector2(0, 286)
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="BoardFrame" type="Control" parent="Margin/Rows/Body/Dossier/TopRow"]
+custom_minimum_size = Vector2(552, 286)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+
+[node name="BoardImage" type="TextureRect" parent="Margin/Rows/Body/Dossier/TopRow/BoardFrame"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="BoardHint" type="Label" parent="Margin/Rows/Body/Dossier/TopRow/BoardFrame"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -24.0
+offset_right = -6.0
+offset_bottom = -2.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"MutedLabel"
+theme_override_font_sizes/font_size = 14
+text = "Click the board to turn it over"
+horizontal_alignment = 2
+
+[node name="Info" type="VBoxContainer" parent="Margin/Rows/Body/Dossier/TopRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="FactionName" type="Label" parent="Margin/Rows/Body/Dossier/TopRow/Info"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 40
+text = "Faction"
+
+[node name="FactionFacts" type="Label" parent="Margin/Rows/Body/Dossier/TopRow/Info"]
+custom_minimum_size = Vector2(240, 0)
+layout_mode = 2
+autowrap_mode = 3
 text = ""
+
+[node name="Holder" type="Label" parent="Margin/Rows/Body/Dossier/TopRow/Info"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+autowrap_mode = 3
+text = ""
+
+[node name="Spacer" type="Control" parent="Margin/Rows/Body/Dossier/TopRow/Info"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ClaimButton" type="Button" parent="Margin/Rows/Body/Dossier/TopRow/Info"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Lead this faction"
+
+[node name="Heroes" type="HBoxContainer" parent="Margin/Rows/Body/Dossier"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="Footer" type="HBoxContainer" parent="Margin/Rows"]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Seats" type="HBoxContainer" parent="Margin/Rows/Footer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="ReadyButton" type="Button" parent="Margin/Rows/Footer"]
+custom_minimum_size = Vector2(130, 40)
+layout_mode = 2
+size_flags_vertical = 4
+text = "I'm ready"
+
+[node name="StartButton" type="Button" parent="Margin/Rows/Footer"]
+custom_minimum_size = Vector2(150, 40)
+layout_mode = 2
+size_flags_vertical = 4
+text = "Start the game"
+
+[node name="ConnectPanel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -330.0
+offset_top = -150.0
+offset_right = 330.0
+offset_bottom = -14.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="VBox" type="VBoxContainer" parent="ConnectPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Heading" type="Label" parent="ConnectPanel/VBox"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "Gather your table"
+
+[node name="SteamRow" type="HBoxContainer" parent="ConnectPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HostSteamButton" type="Button" parent="ConnectPanel/VBox/SteamRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Host for friends"
+
+[node name="JoinSteamButton" type="Button" parent="ConnectPanel/VBox/SteamRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Join a friend"
+
+[node name="LanRow" type="HBoxContainer" parent="ConnectPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HostLanButton" type="Button" parent="ConnectPanel/VBox/LanRow"]
+layout_mode = 2
+text = "Host on this network"
+
+[node name="AddressEdit" type="LineEdit" parent="ConnectPanel/VBox/LanRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Host address, e.g. 192.168.1.20"
+
+[node name="JoinLanButton" type="Button" parent="ConnectPanel/VBox/LanRow"]
+layout_mode = 2
+text = "Join by address"
+
+[node name="Note" type="Label" parent="ConnectPanel/VBox"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+theme_override_font_sizes/font_size = 14
+autowrap_mode = 3
+text = ""
+
+[node name="LobbyList" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -260.0
+offset_top = -170.0
+offset_right = 260.0
+offset_bottom = 170.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="LobbyList"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Heading" type="Label" parent="LobbyList/VBox"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "Open lobbies"
+
+[node name="Scroll" type="ScrollContainer" parent="LobbyList/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Rows" type="VBoxContainer" parent="LobbyList/VBox/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Buttons" type="HBoxContainer" parent="LobbyList/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 2
+
+[node name="RefreshButton" type="Button" parent="LobbyList/VBox/Buttons"]
+layout_mode = 2
+text = "Refresh"
+
+[node name="CloseButton" type="Button" parent="LobbyList/VBox/Buttons"]
+layout_mode = 2
+text = "Close"

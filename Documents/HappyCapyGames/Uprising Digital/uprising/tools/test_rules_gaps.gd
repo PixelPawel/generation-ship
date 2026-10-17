@@ -166,6 +166,7 @@ func _run() -> void:
 	_feat_checks(card_db)
 	_combat_card_checks(card_db)
 	_aether_checks(card_db)
+	_lobby_setup_checks(card_db)
 
 	# --- Save/load keeps typed Units ---
 	var round_trip: GameState = GameState.from_dict(state.to_dict())
@@ -660,6 +661,41 @@ func _aether_checks(card_db: Node) -> void:
 	p.food = 0
 	var fixed: Dictionary = abilities.last_ditch(s, p, ["white"], {"Skull": 2, "Shield": 0, "Bolt": 0}, {"Skull": 3, "Shield": -1, "Bolt": -1}, 1, rng)
 	_check(int(fixed["Skull"]) == 3 and p.salt == 0, "Runestones: 2 resources add the 1 missing Skull")
+
+
+## Lobby picks -> game: 2-4 seats on the TTS layouts, one faction per seat.
+func _lobby_setup_checks(card_db: Node) -> void:
+	var net_script: GDScript = load("res://scripts/net/network_manager.gd")
+	var roster: Dictionary = {1: {"name": "Ana", "faction": "Krowh", "hero": "Dugpa"}, 5: {"name": "Bo", "faction": "", "hero": ""}}
+	_check(not net_script.validate_pick(roster, 5, "Krowh", "Dugpa", card_db).is_empty(), "a faction another seat leads can't be claimed")
+	_check(not net_script.validate_pick(roster, 5, "Druwhn", "Dugpa", card_db).is_empty(), "the Hero must belong to the faction")
+	_check(net_script.validate_pick(roster, 5, "Druwhn", "Syndra", card_db).is_empty(), "an open faction with its own Hero is fine")
+	_check(net_script.validate_pick(roster, 1, "Krowh", "Kha'al", card_db).is_empty(), "the holder may switch Hero")
+	_check(net_script.validate_pick(roster, 5, "", "", card_db).is_empty(), "releasing a pick is always fine")
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 91
+	for picks: Array in [
+		[{"faction": "Mohyar", "hero": "Ronja"}, {"faction": "Druwhn", "hero": "Syndra"}, {"faction": "Krowh", "hero": "Kha'al"}],
+		[{"faction": "Duerkhar", "hero": "Yanny"}, {"faction": "Krowh", "hero": "Dugpa"}, {"faction": "Mohyar", "hero": "Hanzo"}, {"faction": "Druwhn", "hero": "Fhayanor"}],
+	]:
+		var n: int = picks.size()
+		var st: GameState = GameSetup.build_game_state(card_db, picks, rng)
+		var roles: Dictionary = {}
+		var capital_inside: bool = false
+		for t: HexTileState in st.hexes.values():
+			roles[t.role] = int(roles.get(t.role, 0)) + 1
+			if t.role == "interior" and t.hex_card_name == "Capital":
+				capital_inside = true
+		_check(st.players.size() == n and int(roles.get("home", 0)) == n and int(roles.get("sea_tower", 0)) == (GameSetup.LAYOUTS[n]["towers"] as Array).size(), "%d players: %d Home hexes and the TTS Sea Towers (roles %s)" % [n, n, roles])
+		_check(st.hexes.size() == 37 and not capital_inside, "%d players: full board, the Capital never face-down" % n)
+		_check(st.legion_deck.size() == 3 + n and st.horde_deck.size() == 3 + n, "%d players: %d Legion and Horde cards" % [n, 3 + n])
+		var ok: bool = true
+		for i: int in range(n):
+			var p: PlayerFactionState = st.players[i]
+			ok = ok and p.faction == str(picks[i]["faction"]) and p.hero_name == str(picks[i]["hero"])
+			ok = ok and st.get_hex(p.hero_coord).role == "home" and st.get_hex(p.hero_coord).owning_faction == p.faction
+		_check(ok, "%d players: seat order, factions and chosen Heroes carried over, each Hero on its own Home hex" % n)
 
 
 func _hex(state: GameState, coord: Vector2i, card_name: String) -> HexTileState:

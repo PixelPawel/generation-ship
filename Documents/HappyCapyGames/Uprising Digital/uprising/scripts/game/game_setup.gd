@@ -75,66 +75,118 @@ const SKELETON_COORDS_2P: Array[Vector2i] = [Vector2i(0, 3), Vector2i(0, -3), Ve
 ## TTS data, see class doc comment above.
 const CAPITAL_BASELINE_GARRISONS: int = 3
 
+## Normal-difficulty layouts for 2, 3 and 4 factions, converted from the TTS
+## mod's "N Player Normal" setup scripts (2092091239.json, objects e9c8b9 /
+## 5df02f / a1921b) with q = x/5.68, r = z/6.56 - q/2 - the conversion that
+## reproduces every 2-player constant above exactly. Home hexes are the
+## ring-2 spaces those scripts never fill (one per faction, clockwise from
+## the top for 3/4 players); all match the rulebook p7 setup diagrams.
+## Curses sit on the same hexes as one of the Skeletons (cube rounding of
+## the TTS positions; each Curse is placed 2 units off the Skeleton).
+const LAYOUTS: Dictionary = {
+	2: {
+		"homes": [Vector2i(0, 2), Vector2i(0, -2)],
+		"interior": [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -2), Vector2i(1, -1), Vector2i(-1, 0),
+			Vector2i(-1, 1), Vector2i(-1, 2), Vector2i(1, 1), Vector2i(1, 0), Vector2i(0, 1)],
+		"towers": [Vector2i(2, 0), Vector2i(-2, 0)],
+		"curses": [Vector2i(0, 3), Vector2i(0, -3)],
+		"skeletons": [Vector2i(0, 3), Vector2i(0, -3), Vector2i(2, -1)],
+	},
+	3: {
+		"homes": [Vector2i(0, -2), Vector2i(2, 0), Vector2i(-2, 2)],
+		"interior": [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -2), Vector2i(1, -1), Vector2i(-1, 0),
+			Vector2i(-1, 1), Vector2i(-1, 2), Vector2i(1, 1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-2, 1), Vector2i(2, -1)],
+		"towers": [Vector2i(-2, 0), Vector2i(0, 2), Vector2i(2, -2)],
+		"curses": [Vector2i(0, -3), Vector2i(3, 0)],
+		"skeletons": [Vector2i(0, -3), Vector2i(3, 0), Vector2i(-3, 3)],
+	},
+	4: {
+		"homes": [Vector2i(1, -2), Vector2i(2, 0), Vector2i(-1, 2), Vector2i(-2, 0)],
+		"interior": [Vector2i(0, -2), Vector2i(0, -1), Vector2i(-1, -1), Vector2i(-1, 0), Vector2i(-1, 1), Vector2i(-2, 1),
+			Vector2i(-2, 2), Vector2i(0, 1), Vector2i(0, 2), Vector2i(1, 1), Vector2i(1, 0), Vector2i(1, -1), Vector2i(2, -1), Vector2i(2, -2)],
+		"towers": [Vector2i(3, -2), Vector2i(1, 2), Vector2i(-3, 2), Vector2i(-1, -2)],
+		"curses": [Vector2i(3, 0), Vector2i(2, -3)],
+		"skeletons": [Vector2i(3, 0), Vector2i(2, -3), Vector2i(-2, 3)],
+	},
+}
+
+## Each Core faction's Home hex card (Hexes.csv, Type=Home).
+const HOME_HEX_BY_FACTION: Dictionary = {
+	"Druwhn": "Yfelskog", "Duerkhar": "Khatrak Kautil", "Krowh": "Pak Glandris", "Mohyar": "Winterholm",
+}
+const CORE_FACTIONS: Array[String] = ["Druwhn", "Duerkhar", "Krowh", "Mohyar"]
+
 
 ## Builds a 2-player, Normal-difficulty board layout. `faction_names` picks
 ## which 2 of the 4 Core factions get a Home Hex (defaults to the first 2
 ## found in CardDatabase, in CSV order) - the TTS data has no opinion on
 ## which factions are in play, only how many Home Hex slots exist.
-static func build_2p_normal_layout(card_db: Node, rng: RandomNumberGenerator = null) -> BoardLayout:
+## Board for the given factions (2-4, in seat order): Home hexes clockwise,
+## the rest of the hex pool shuffled face-down, Sea Towers face-down,
+## Normal-difficulty Garrisons, Curses and Skeletons.
+static func build_layout(card_db: Node, factions: Array, rng: RandomNumberGenerator = null) -> BoardLayout:
 	if rng == null:
 		rng = RandomNumberGenerator.new()
 		rng.randomize()
+	var n: int = clampi(factions.size(), 2, 4)
+	var spec: Dictionary = LAYOUTS[n]
 
 	var layout := BoardLayout.new()
 	layout.capital_coord = Vector2i.ZERO
 	layout.capital_garrison_count = CAPITAL_BASELINE_GARRISONS
 
 	var core_hexes: Array = card_db.hexes  # Array[HexCard], EN + Core only
-	var home_cards: Array = core_hexes.filter(func(h: HexCard) -> bool: return h.hex_type == "Home")
-	var normal_cards: Array = core_hexes.filter(func(h: HexCard) -> bool: return h.hex_type == "Normal")
+	# The Capital's CSV row is typed "Normal" too - it is never a face-down hex.
+	var normal_cards: Array = core_hexes.filter(func(h: HexCard) -> bool: return h.hex_type == "Normal" and h.card_name != "Capital")
 	var sea_tower_cards: Array = core_hexes.filter(func(h: HexCard) -> bool: return h.hex_type == "Sea Tower")
-
-	_shuffle(home_cards, rng)
 	_shuffle(normal_cards, rng)
 	_shuffle(sea_tower_cards, rng)
 
-	# Home hexes - pair each of the 2 slots with a distinct Core faction's
-	# Home hex card. HexCard doesn't carry a faction field directly, so the
-	# faction is inferred from a fixed name->faction table built from the
-	# 4 known Core Home hex names (verified against the CSV, not guessed).
-	var home_hex_faction_by_name: Dictionary = {
-		"Yfelskog": "Druwhn", "Khatrak Kautil": "Duerkhar",
-		"Pak Glandris": "Krowh", "Winterholm": "Mohyar",
-	}
-	for i: int in range(min(HOME_COORDS_2P.size(), home_cards.size())):
-		var coord: Vector2i = HOME_COORDS_2P[i]
-		var card: HexCard = home_cards[i]
+	var homes: Array = spec["homes"]
+	for i: int in range(n):
+		var coord: Vector2i = homes[i]
+		var faction: String = str(factions[i])
 		layout.home_coords.append(coord)
-		layout.home_hex_cards[coord] = card
-		layout.home_factions[coord] = home_hex_faction_by_name.get(card.card_name, "Unknown")
+		layout.home_factions[coord] = faction
+		for h: HexCard in core_hexes:
+			if h.hex_type == "Home" and h.card_name == str(HOME_HEX_BY_FACTION.get(faction, "")):
+				layout.home_hex_cards[coord] = h
 
-	for i: int in range(VOID_COORDS_2P.size()):
-		var coord: Vector2i = VOID_COORDS_2P[i]
+	var interior: Array = spec["interior"]
+	for i: int in range(interior.size()):
+		var coord: Vector2i = interior[i]
 		layout.interior_coords.append(coord)
 		if i < normal_cards.size():
 			layout.interior_hex_cards[coord] = normal_cards[i]
 
-	for i: int in range(SEA_TOWER_COORDS_2P.size()):
-		var coord: Vector2i = SEA_TOWER_COORDS_2P[i]
+	var towers: Array = spec["towers"]
+	for i: int in range(towers.size()):
+		var coord: Vector2i = towers[i]
 		layout.sea_tower_coords.append(coord)
 		if i < sea_tower_cards.size():
 			layout.sea_tower_hex_cards[coord] = sea_tower_cards[i]
 
 	for coord: Vector2i in GARRISON_COORDS_NORMAL:
 		layout.garrison_counts[coord] = 1
-
-	for coord: Vector2i in CURSE_COORDS_2P_NORMAL:
+	for coord: Vector2i in (spec["curses"] as Array):
 		layout.curse_coords.append(coord)
-
-	for coord: Vector2i in SKELETON_COORDS_2P:
-		layout.skeleton_counts[coord] = layout.skeleton_counts.get(coord, 0) + 1
-
+	for coord: Vector2i in (spec["skeletons"] as Array):
+		layout.skeleton_counts[coord] = int(layout.skeleton_counts.get(coord, 0)) + 1
 	return layout
+
+
+## 2 random factions on the 2-player board (tests and the M1 showcase).
+static func build_2p_normal_layout(card_db: Node, rng: RandomNumberGenerator = null) -> BoardLayout:
+	if rng == null:
+		rng = RandomNumberGenerator.new()
+		rng.randomize()
+	return build_layout(card_db, _random_factions(2, rng), rng)
+
+
+static func _random_factions(count: int, rng: RandomNumberGenerator) -> Array:
+	var pool: Array = CORE_FACTIONS.duplicate()
+	_shuffle(pool, rng)
+	return pool.slice(0, count)
 
 
 static func _shuffle(arr: Array, rng: RandomNumberGenerator) -> void:
@@ -168,8 +220,23 @@ static func build_2p_normal_game_state(card_db: Node, rng: RandomNumberGenerator
 	if rng == null:
 		rng = RandomNumberGenerator.new()
 		rng.randomize()
+	var picks: Array = []
+	for f: Variant in _random_factions(2, rng):
+		var hero: HeroCard = _first_hero_for_faction(card_db, str(f))
+		picks.append({"faction": str(f), "hero": hero.card_name if hero != null else ""})
+	return build_game_state(card_db, picks, rng)
 
-	var layout: BoardLayout = build_2p_normal_layout(card_db, rng)
+
+## A full game for 2-4 seats, each {"faction", "hero"}, in seat (= turn)
+## order - what the lobby hands over.
+static func build_game_state(card_db: Node, picks: Array, rng: RandomNumberGenerator = null) -> GameState:
+	if rng == null:
+		rng = RandomNumberGenerator.new()
+		rng.randomize()
+	var factions: Array = []
+	for pick: Variant in picks:
+		factions.append(str((pick as Dictionary).get("faction", "")))
+	var layout: BoardLayout = build_layout(card_db, factions, rng)
 	var state := GameState.new()
 	state.phase = GameState.Phase.REFRESH
 	state.chapter = 1
@@ -222,12 +289,14 @@ static func build_2p_normal_game_state(card_db: Node, rng: RandomNumberGenerator
 	for coord: Vector2i in layout.skeleton_counts.keys():
 		state.hexes[coord].skeleton_count = layout.skeleton_counts[coord]
 
-	var faction_names: Array = layout.home_factions.values()
-	for faction: String in faction_names:
+	for pick: Variant in picks:
+		var faction: String = str((pick as Dictionary).get("faction", ""))
 		var p := PlayerFactionState.new()
 		p.faction = faction
-		var hero: HeroCard = _first_hero_for_faction(card_db, faction)
-		p.hero_name = hero.card_name if hero else ""
+		p.hero_name = str((pick as Dictionary).get("hero", ""))
+		if p.hero_name.is_empty():
+			var hero: HeroCard = _first_hero_for_faction(card_db, faction)
+			p.hero_name = hero.card_name if hero else ""
 		p.salt = STARTING_RESOURCE_VETERAN
 		p.plunder = STARTING_RESOURCE_VETERAN
 		p.food = STARTING_RESOURCE_VETERAN
@@ -238,19 +307,20 @@ static func build_2p_normal_game_state(card_db: Node, rng: RandomNumberGenerator
 				p.hero_coord = home  # rulebook Setup: the Hero standee starts on its home hex.
 		state.players.append(p)
 
-	# 2-faction game: 5 Legion + 5 Horde cards staged face-down (rulebook
-	# Setup: "+1 each per additional faction beyond 2").
+	# 5 Legion + 5 Horde cards for 2 factions, +1 each per additional faction
+	# (rulebook Setup).
+	var deck_size: int = 3 + picks.size()
 	var legion_names: Array[String] = []
 	for l: LegionCard in card_db.legions:
 		legion_names.append(l.card_name)
 	_shuffle(legion_names, rng)
-	state.legion_deck = legion_names.slice(0, min(5, legion_names.size()))
+	state.legion_deck = legion_names.slice(0, min(deck_size, legion_names.size()))
 
 	var horde_names: Array[String] = []
 	for h: HordeCard in card_db.hordes:
 		horde_names.append(h.card_name)
 	_shuffle(horde_names, rng)
-	state.horde_deck = horde_names.slice(0, min(5, horde_names.size()))
+	state.horde_deck = horde_names.slice(0, min(deck_size, horde_names.size()))
 
 	# 4 random Core Druids in play, 0 Aether each until a Refresh Phase
 	# condition check places some (Milestone 4).
