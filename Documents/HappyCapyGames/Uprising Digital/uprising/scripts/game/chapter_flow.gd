@@ -67,7 +67,7 @@ static func _refresh_phase(state: GameState, card_db: Node = null) -> void:
 	if state.players.size() > 0 and state.chapter > 1:
 		state.first_player_index = (state.first_player_index + 1) % state.players.size()
 	state.current_player_index = state.first_player_index
-	deal_row(state.item_market, state.item_deck, state.item_discard, 3, state.flipped_market)
+	deal_row(state.item_market, state.item_deck, state.item_discard, 3, state.flipped_market, state)
 	_deal_quests(state, card_db)
 	state.phase_log = "Refresh: Aether placed on %s" % [gained] if not gained.is_empty() else "Refresh: no Aether conditions met"
 
@@ -84,7 +84,7 @@ static func _deal_quests(state: GameState, card_db: Node) -> void:
 			for item: Variant in (state.quest_items.get(q, []) as Array):
 				state.item_discard.append(str(item))
 			state.quest_items.erase(q)
-	deal_row(state.quest_row, state.quest_deck, state.quest_discard, 3, keep)
+	deal_row(state.quest_row, state.quest_deck, state.quest_discard, 3, keep, state)
 	var first: String = state.players[state.first_player_index % state.players.size()].faction if not state.players.is_empty() else ""
 	for q2: String in state.quest_row.duplicate():
 		if not keep.has(q2):  # everything not kept was just dealt
@@ -93,7 +93,7 @@ static func _deal_quests(state: GameState, card_db: Node) -> void:
 
 ## Rulebook p15: discard the old face-up cards (except any in `keep`, e.g.
 ## Items The Spymaster flipped), then fill back up to `count`.
-static func deal_row(row: Array[String], deck: Array[String], discard: Array[String], count: int, keep: Array[String] = []) -> void:
+static func deal_row(row: Array[String], deck: Array[String], discard: Array[String], count: int, keep: Array[String] = [], state: GameState = null) -> void:
 	var kept: Array[String] = []
 	for card: String in row:
 		if keep.has(card):
@@ -102,19 +102,22 @@ static func deal_row(row: Array[String], deck: Array[String], discard: Array[Str
 			discard.append(card)
 	row.clear()
 	row.append_array(kept)
-	refill_row(row, deck, discard, count)
+	refill_row(row, deck, discard, count, state)
 
 
 ## Tops a face-up row back up to `count`, reshuffling the discard pile into
-## the deck if it runs dry.
-static func refill_row(row: Array[String], deck: Array[String], discard: Array[String], count: int) -> void:
+## the deck if it runs dry (with the game's own generator when `state` is given).
+static func refill_row(row: Array[String], deck: Array[String], discard: Array[String], count: int, state: GameState = null) -> void:
 	while row.size() < count:
 		if deck.is_empty():
 			if discard.is_empty():
 				return
 			deck.append_array(discard)
 			discard.clear()
-			deck.shuffle()
+			if state != null:
+				state.shuffle(deck)
+			else:
+				deck.shuffle()
 		row.append(deck.pop_front())
 
 

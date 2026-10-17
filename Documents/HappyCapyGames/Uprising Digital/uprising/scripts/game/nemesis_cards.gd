@@ -131,18 +131,26 @@ static func horde_immediate(state: GameState, card_db: Node, horde: HordeInstanc
 				var acting: String = state.players[state.first_player_index % state.players.size()].faction if not state.players.is_empty() else ""
 				quest_flow.resolve_failure(state, card_db, state.quest_row[0], acting)
 		"False Messiah":
-			# A Cult Rising: onto the Haven with the most Units, else a Sea Tower.
-			var best: Vector2i = Vector2i.MIN
+			# A Cult Rising: onto the Haven with the most Units; with no Units on
+			# any Haven (the start of the game) onto a Sea Tower. Ties: the players choose.
 			var most: int = 0
+			var ties: Array[Vector2i] = []
 			var coords: Array = state.hexes.keys()
 			coords.sort()
 			for coord: Vector2i in coords:
 				var t: HexTileState = state.hexes[coord]
-				if not t.haven_faction.is_empty() and t.total_player_units() > most:
+				if t.haven_faction.is_empty() or t.total_player_units() == 0:
+					continue
+				if t.total_player_units() > most:
 					most = t.total_player_units()
-					best = coord
-			if best == Vector2i.MIN:
-				best = pick_sea_tower(state, true)
+					ties.clear()
+				if t.total_player_units() == most:
+					ties.append(coord)
+			var best: Vector2i = Vector2i.MIN
+			if not ties.is_empty():
+				best = NemesisAI.choose_spawn_hex(state, ties, "The False Messiah goes to the Haven with the most Units: which one?")
+			else:
+				best = choose_sea_tower(state, true, "No Units on any Haven: put the False Messiah on a Sea Tower")
 			if best != Vector2i.MIN:
 				horde.coord = best
 		"Oda the Fallen":
@@ -180,6 +188,20 @@ static func remove_a_sea_tower(state: GameState, card_db: Node) -> Vector2i:
 
 
 ## A Sea Tower hex, empty ones first when `prefer_empty`.
+## A Sea Tower for a Horde or Legion - an empty one when `prefer_empty`
+## and there is one - the players choosing which (decisions.gd).
+static func choose_sea_tower(state: GameState, prefer_empty: bool, prompt: String) -> Vector2i:
+	var towers: Array[Vector2i] = []
+	var empty_towers: Array[Vector2i] = []
+	for coord: Vector2i in state.hexes.keys():
+		if (state.hexes[coord] as HexTileState).role == "sea_tower":
+			towers.append(coord)
+			if EffectUtil.hex_is_empty(state, coord):
+				empty_towers.append(coord)
+	var options: Array[Vector2i] = empty_towers if prefer_empty and not empty_towers.is_empty() else towers
+	return NemesisAI.choose_spawn_hex(state, options, prompt)
+
+
 static func pick_sea_tower(state: GameState, prefer_empty: bool) -> Vector2i:
 	var towers: Array[Vector2i] = []
 	var empty_towers: Array[Vector2i] = []

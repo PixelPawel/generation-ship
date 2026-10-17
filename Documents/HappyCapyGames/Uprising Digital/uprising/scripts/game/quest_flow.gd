@@ -157,7 +157,7 @@ static func best_quest_for(state: GameState, card_db: Node, faction: String, ext
 	if p == null:
 		return ""
 	var rng := RandomNumberGenerator.new()
-	rng.randomize()
+	rng.seed = 7741  # fixed: the same estimate, and pick, on every replay
 	var best: String = ""
 	var best_odds: float = -1.0
 	for name: String in state.quest_row:
@@ -325,7 +325,7 @@ static func _solve(ctx: EffectContext, q: QuestCard, rolled: Dictionary, met: Ar
 			# Place any Horde in play on any hex - moved as far from the Havens as possible.
 			if not state.hordes.is_empty():
 				var h: HordeInstance = state.hordes[0]
-				var spot: Vector2i = NemesisAI.pick_hex(state, NemesisAI.empty_hexes(state))
+				var spot: Vector2i = NemesisAI.choose_spawn_hex(state, NemesisAI.empty_hexes(state), "A Deal with Demons: move %s to any empty hex" % h.card_name)
 				if spot != Vector2i.MIN:
 					h.coord = spot
 					ctx.log("%s moves to %s" % [h.card_name, spot])
@@ -365,7 +365,7 @@ static func _solve(ctx: EffectContext, q: QuestCard, rolled: Dictionary, met: Ar
 					if NemesisCards.CardAbilitiesRef._rank(f) < NemesisCards.CardAbilitiesRef._rank(best):
 						best = f
 				NemesisCards.CardAbilitiesRef.gain_feat(state, ctx.card_db, p, best)
-				p.feat_deck.shuffle()
+				state.shuffle(p.feat_deck)
 				ctx.log("%s gains Feat '%s'" % [p.faction, best])
 		"Intercept the Empress":
 			_gain_market_item(ctx, false)
@@ -573,8 +573,7 @@ static func _ctx(state: GameState, card_db: Node, faction: String, opts: Diction
 	ctx.acting_faction = faction
 	var rng: RandomNumberGenerator = opts.get("rng", null)
 	if rng == null:
-		rng = RandomNumberGenerator.new()
-		rng.randomize()
+		rng = state.rng()
 	ctx.rng = rng
 	var p: PlayerFactionState = state.find_player(faction)
 	if p != null:
@@ -785,7 +784,7 @@ static func _gain_market_item(ctx: EffectContext, must_use: bool) -> void:
 	if pick.is_empty():
 		return
 	ctx.state.item_market.erase(pick)
-	ChapterFlow.refill_row(ctx.state.item_market, ctx.state.item_deck, ctx.state.item_discard, 3)
+	ChapterFlow.refill_row(ctx.state.item_market, ctx.state.item_deck, ctx.state.item_discard, 3, ctx.state)
 	p.items_in_hand.append(pick)
 	NemesisCards.CardAbilitiesRef.enforce_limit(ctx.state, p, ctx.card_db)
 	ctx.log("%s gains Item '%s'" % [p.faction, pick])

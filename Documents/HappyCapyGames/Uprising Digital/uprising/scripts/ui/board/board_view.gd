@@ -81,6 +81,7 @@ var _has_built: bool = false
 var _capital_flipped: bool = false
 var _snow: GPUParticles3D
 var _tops: Dictionary = {}           # Vector2i -> float (surface height pieces stand on)
+var _option_rings: Array[MeshInstance3D] = []
 var _board_mesh: MeshInstance3D
 var _board_edge: MeshInstance3D
 var _tundra_mat: ShaderMaterial
@@ -591,6 +592,18 @@ func set_selected(coord: Vector2i, visible_flag: bool) -> void:
 
 func set_hover(coord: Vector2i, visible_flag: bool) -> void:
 	_place_ring(_hover_ring, coord, visible_flag, 0.009)
+
+
+## Hexes a player may choose right now - where a Horde or Legion goes,
+## which Haven takes a Target - ringed in warm gold.
+func set_options(coords: Array) -> void:
+	for ring: MeshInstance3D in _option_rings:
+		ring.queue_free()
+	_option_rings.clear()
+	for c: Variant in coords:
+		var ring: MeshInstance3D = _make_ring(Color(1.0, 0.72, 0.3, 0.9), 1.9, 1.66, 2.6)
+		_place_ring(ring, c as Vector2i, true, 0.015)
+		_option_rings.append(ring)
 
 
 func _place_ring(ring: MeshInstance3D, coord: Vector2i, visible_flag: bool, lift: float) -> void:

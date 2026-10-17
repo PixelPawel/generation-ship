@@ -78,6 +78,41 @@ var current_player_index: int = 0
 
 var phase_log: String = ""   # last human-readable "what just happened" line, for UI (Milestone 5)
 
+## Everything random during play draws from this seeded generator, saved
+## with the state, so the host can replay an action exactly (decisions.gd).
+var rng_seed: int = 0
+var rng_state: int = 0
+var _rng: RandomNumberGenerator = null
+
+## A choice the game waits on (decisions.gd) - kind, prompt, chooser,
+## options - sent to every peer; empty when nobody has to choose.
+var pending_decision: Dictionary = {}
+## Host-side only, while an action runs; never saved or sent.
+var deciding: bool = false
+var decision_queue: Array = []
+var decision_index: int = 0
+var decision_chooser: String = ""
+var pending_preview: Dictionary = {}
+
+
+func rng() -> RandomNumberGenerator:
+	if _rng == null:
+		_rng = RandomNumberGenerator.new()
+		_rng.seed = rng_seed
+		if rng_state != 0:
+			_rng.state = rng_state
+	return _rng
+
+
+## Shuffles `arr` in place with the game's own generator.
+func shuffle(arr: Array) -> void:
+	var g: RandomNumberGenerator = rng()
+	for i: int in range(arr.size() - 1, 0, -1):
+		var j: int = g.randi_range(0, i)
+		var tmp: Variant = arr[i]
+		arr[i] = arr[j]
+		arr[j] = tmp
+
 
 func to_dict() -> Dictionary:
 	var hexes_out: Dictionary = {}
@@ -118,6 +153,8 @@ func to_dict() -> Dictionary:
 		"aether_pool": aether_pool,
 		"first_player_index": first_player_index, "current_player_index": current_player_index,
 		"phase_log": phase_log,
+		"rng_seed": rng_seed, "rng_state": _rng.state if _rng != null else rng_state,
+		"pending_decision": pending_decision.duplicate(true),
 	}
 
 
@@ -182,6 +219,9 @@ static func from_dict(d: Dictionary) -> GameState:
 	s.first_player_index = d.get("first_player_index", 0)
 	s.current_player_index = d.get("current_player_index", 0)
 	s.phase_log = d.get("phase_log", "")
+	s.rng_seed = int(d.get("rng_seed", 0))
+	s.rng_state = int(d.get("rng_state", 0))
+	s.pending_decision = (d.get("pending_decision", {}) as Dictionary).duplicate(true)
 	return s
 
 

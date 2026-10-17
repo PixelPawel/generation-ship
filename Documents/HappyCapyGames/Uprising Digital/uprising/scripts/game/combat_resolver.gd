@@ -167,8 +167,7 @@ class RoundSide:
 
 static func resolve_hex(state: GameState, coord: Vector2i, card_db: Node, rng: RandomNumberGenerator = null) -> Result:
 	if rng == null:
-		rng = RandomNumberGenerator.new()
-		rng.randomize()
+		rng = state.rng()
 	var result := Result.new()
 	var tile: HexTileState = state.get_hex(coord)
 	if tile == null:
@@ -1248,7 +1247,7 @@ static func destroy_nemesis(state: GameState, card_db: Node, entry: Variant, kil
 				state.item_market.erase(it)
 				state.item_discard.append(it)
 			state.flipped_market.clear()
-			ChapterFlow.refill_row(state.item_market, state.item_deck, state.item_discard, 3)
+			ChapterFlow.refill_row(state.item_market, state.item_deck, state.item_discard, 3, state)
 		"Coven of Yssat":
 			for p0: PlayerFactionState in state.players:
 				var held: int = int(state.coven_held_ap.get(p0.faction, 0))
@@ -1265,8 +1264,7 @@ static func destroy_nemesis(state: GameState, card_db: Node, entry: Variant, kil
 	else:
 		match name:
 			"The Courtesan":
-				var rng := RandomNumberGenerator.new()
-				rng.randomize()
+				var rng: RandomNumberGenerator = state.rng()
 				vp += int(DiceModel.roll_pool(NemesisCards.CardAbilitiesRef.outside_roll_pool(card_db, p, "yellow"), rng)["Skull"])
 			"The Mage Breaker":
 				vp += EffectUtil.hero_attr(card_db, p, "magic")
@@ -1275,7 +1273,7 @@ static func destroy_nemesis(state: GameState, card_db: Node, entry: Variant, kil
 						state.item_discard.append(it2)
 				state.item_market.clear()
 				state.item_market.append_array(state.flipped_market)
-				ChapterFlow.refill_row(state.item_market, state.item_deck, state.item_discard, 3)
+				ChapterFlow.refill_row(state.item_market, state.item_deck, state.item_discard, 3, state)
 			"Siren":
 				vp += EffectUtil.hero_attr(card_db, p, "guile")
 			"The New Emperor":

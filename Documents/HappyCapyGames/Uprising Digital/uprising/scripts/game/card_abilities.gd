@@ -407,8 +407,7 @@ static func use_card(state: GameState, card_db: Node, p: PlayerFactionState, car
 	ctx.state = state
 	ctx.card_db = card_db
 	ctx.acting_faction = p.faction
-	ctx.rng = RandomNumberGenerator.new()
-	ctx.rng.randomize()
+	ctx.rng = state.rng()
 	match card:
 		# --- Items ---
 		"Darkstrider Boots":
@@ -455,7 +454,7 @@ static func use_card(state: GameState, card_db: Node, p: PlayerFactionState, car
 			for n: Vector2i in HexMath.neighbors(foe.coord):
 				if state.hexes.has(n) and not state.edge_blocked(foe.coord, n):
 					away.append(n)
-			var to: Vector2i = NemesisAI.pick_hex(state, away)
+			var to: Vector2i = NemesisAI.choose_spawn_hex(state, away, "Orb of Storms: push %s onto a hex next to it" % foe.card_name)
 			if to == Vector2i.MIN:
 				return {"ok": false, "reason": "it has nowhere to go"}
 			foe.coord = to
@@ -503,7 +502,7 @@ static func use_card(state: GameState, card_db: Node, p: PlayerFactionState, car
 			if best.is_empty():
 				return {"ok": false, "reason": "no Quest to choose"}
 			state.quest_deck.erase(best)
-			state.quest_deck.shuffle()
+			state.shuffle(state.quest_deck)
 			state.quest_deck.push_front(best)
 			discard(state, p, card)
 		"Assassins Dagger":
@@ -568,7 +567,7 @@ static func use_card(state: GameState, card_db: Node, p: PlayerFactionState, car
 				state.item_market.erase(it2)
 				state.item_discard.append(it2)
 				n5 += 1
-			ChapterFlow.refill_row(state.item_market, state.item_deck, state.item_discard, 3)
+			ChapterFlow.refill_row(state.item_market, state.item_deck, state.item_discard, 3, state)
 			p.salt += n5
 			flip(p, card)
 		"Wiles":

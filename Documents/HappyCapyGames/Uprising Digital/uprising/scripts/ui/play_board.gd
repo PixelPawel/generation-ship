@@ -103,6 +103,12 @@ func _spawn_effect(kind: String, coord: Vector2i) -> void:
 func _update_hud(state: GameState) -> void:
 	var net: Node = get_node("/root/NetworkManager")
 	hud.call("refresh", state, net.my_faction(), selected_coord, has_selected_coord)
+	# A choice the game waits on (decisions.gd): ring the hexes to choose from.
+	var options: Array = []
+	if str(state.pending_decision.get("shape", "")) == "hex":
+		for o: Variant in (state.pending_decision.get("options", []) as Array):
+			options.append(Vector2i(int((o as Dictionary).get("x", 0)), int((o as Dictionary).get("y", 0))))
+	board.call("set_options", options)
 
 
 func select_coord(coord: Vector2i) -> void:

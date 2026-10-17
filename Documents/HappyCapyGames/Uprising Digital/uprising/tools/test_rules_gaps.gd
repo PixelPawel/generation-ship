@@ -168,6 +168,7 @@ func _run() -> void:
 	_aether_checks(card_db)
 	_lobby_setup_checks(card_db)
 	_solo_checks(card_db)
+	_decision_checks(card_db)
 
 	# --- Save/load keeps typed Units ---
 	var round_trip: GameState = GameState.from_dict(state.to_dict())
@@ -796,6 +797,40 @@ func _solo_checks(card_db: Node) -> void:
 
 	var mp: GameState = GameSetup.build_game_state(card_db, [{"faction": "Krowh", "hero": "Dugpa"}, {"faction": "Druwhn", "hero": "Syndra"}], rng)
 	_check(not mp.solo and not mp.players[0].has_ally() and mp.players[0].max_action_points == 8, "multiplayer games have no allied Hero")
+
+
+## Player choices by replay (decisions.gd): without the host flow the
+## engine's pick stands; an unanswered choice is recorded; a given answer
+## steers it; the game's seeded dice replay from a snapshot.
+func _decision_checks(card_db: Node) -> void:
+	var decisions: GDScript = load("res://scripts/game/decisions.gd")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 101
+	var s: GameState = GameSetup.build_2p_normal_game_state(card_db, rng)
+	var options: Array[Vector2i] = [Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0)]
+	var first: Vector2i = decisions.choose_hex(s, "place", options, "Place it", options[0])
+	_check(first == options[0] and s.pending_decision.is_empty(), "outside the host flow the engine's pick stands")
+	s.deciding = true
+	var open_pick: Vector2i = decisions.choose_hex(s, "place", options, "Place it", options[0])
+	_check(open_pick == options[0] and (s.pending_decision.get("options", []) as Array).size() == 3 and not s.pending_preview.is_empty(), "an unanswered choice is recorded with its options and the board at that moment")
+	s.pending_decision = {}
+	s.decision_queue = [{"x": -1, "y": 0}]
+	s.decision_index = 0
+	var answered: Vector2i = decisions.choose_hex(s, "place", options, "Place it", options[0])
+	_check(answered == Vector2i(-1, 0), "a given answer steers the choice")
+	s.deciding = false
+
+	var snap: Dictionary = s.to_dict()
+	var a: GameState = GameState.from_dict(snap)
+	var b: GameState = GameState.from_dict(snap)
+	var rolls_a: Array = []
+	var rolls_b: Array = []
+	for _i: int in range(5):
+		rolls_a.append(a.rng().randi())
+		rolls_b.append(b.rng().randi())
+	_check(rolls_a == rolls_b, "the game's dice replay from a snapshot")
+	var c: GameState = GameState.from_dict(a.to_dict())
+	_check(c.rng().randi() == a.rng().randi(), "a saved state carries on the same dice")
 
 
 func _sorted(a: Array[String]) -> Array[String]:

@@ -397,8 +397,7 @@ static func _explore(state: GameState, action: Dictionary, faction: String, card
 		var ctx := EffectContext.new()
 		ctx.state = state
 		ctx.card_db = card_db
-		ctx.rng = RandomNumberGenerator.new()
-		ctx.rng.randomize()
+		ctx.rng = state.rng()
 		ctx.acting_faction = faction
 		ctx.hex_coord = coord
 		ctx.has_hex_coord = true
@@ -507,7 +506,7 @@ static func _market(state: GameState, action: Dictionary, faction: String, card_
 		return {"ok": false, "reason": "not enough AP/Salt"}
 
 	state.item_market.erase(item_name)
-	ChapterFlow.refill_row(state.item_market, state.item_deck, state.item_discard, 3)
+	ChapterFlow.refill_row(state.item_market, state.item_deck, state.item_discard, 3, state)
 	p.items_in_hand.append(item_name)
 	CardAbilities.enforce_limit(state, p, card_db)
 	p.action_points -= AP_COST

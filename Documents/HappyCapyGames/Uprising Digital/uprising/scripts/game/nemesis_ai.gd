@@ -32,6 +32,7 @@ extends RefCounted
 ## number of Garrison/Skeleton/Curse pieces in the box.
 
 const NemesisCards := preload("res://scripts/game/nemesis_cards.gd")
+const Decisions := preload("res://scripts/game/decisions.gd")
 
 
 static func run_nemesis_phase(state: GameState, card_db: Node) -> void:
@@ -187,13 +188,51 @@ static func remove_haven(state: GameState, card_db: Node, coord: Vector2i) -> vo
 ## Units. If the faction has none left, place the Target on The Capital
 ## (where it will stay)."
 static func retarget(state: GameState, card_db: Node, legion: LegionInstance) -> void:
-	var haven: Vector2i = weakest_haven(state, legion.target_faction)
+	var haven: Vector2i = choose_weakest_haven(state, legion.target_faction, [], "Move %s's Target to which Haven?" % legion.card_name)
 	if haven != Vector2i.MIN:
 		legion.target_coord = haven
 	else:
 		legion.target_faction = "Capital"
 		legion.target_coord = state.capital_coord
 	NemesisCards.on_retarget(state, card_db, legion)
+
+
+## The faction's Haven with the fewest Units (skipping `exclude`), the
+## players choosing between ties; Vector2i.MIN if it has none.
+static func choose_weakest_haven(state: GameState, faction: String, exclude: Array, prompt: String) -> Vector2i:
+	var fewest: int = 999999
+	var ties: Array[Vector2i] = []
+	var coords: Array = state.hexes.keys()
+	coords.sort()
+	for coord: Vector2i in coords:
+		var t: HexTileState = state.hexes[coord]
+		if t.haven_faction != faction or exclude.has(coord):
+			continue
+		if t.total_player_units() < fewest:
+			fewest = t.total_player_units()
+			ties.clear()
+		if t.total_player_units() == fewest:
+			ties.append(coord)
+	if ties.is_empty():
+		return Vector2i.MIN
+	return Decisions.choose_hex(state, "target_haven", ties, prompt, ties[0])
+
+
+## Where a Horde or Legion goes when the rules leave it open: the players
+## choose (decisions.gd); pick_hex() is the engine's own pick.
+static func choose_spawn_hex(state: GameState, options: Array[Vector2i], prompt: String) -> Vector2i:
+	return Decisions.choose_hex(state, "place", options, prompt, pick_hex(state, options))
+
+
+## "Place the Horde (Name) at Threat N <where>" for a placement prompt.
+static func horde_prompt(state: GameState, threat: int, where: String) -> String:
+	var name: String = state.horde_deck[0] if not state.horde_deck.is_empty() else "Horde"
+	return "Place %s%s %s" % [name, " at Threat %d" % threat if threat > 0 else "", where]
+
+
+static func legion_prompt(state: GameState, threat: int, where: String) -> String:
+	var name: String = state.legion_deck[0] if not state.legion_deck.is_empty() else "Legion"
+	return "Place %s%s %s" % [name, " at Threat %d" % threat if threat > 0 else "", where]
 
 
 ## The faction's Haven with the fewest Units, Vector2i.MIN if it has none.
@@ -222,15 +261,17 @@ static func assign_target(state: GameState, legion: LegionInstance) -> void:
 	for l: LegionInstance in state.legions:
 		if l != legion and l.has_target and l.target_faction != "Capital" and not l.target_faction.is_empty():
 			targeted[l.target_faction] = true
+	var open: Array[String] = []
 	for p: PlayerFactionState in state.players:
-		if targeted.has(p.faction):
-			continue
-		var haven: Vector2i = weakest_haven(state, p.faction)
-		if haven != Vector2i.MIN:
-			legion.target_faction = p.faction
-			legion.target_coord = haven
-			legion.has_target = true
-			return
+		if not targeted.has(p.faction) and weakest_haven(state, p.faction) != Vector2i.MIN:
+			open.append(p.faction)
+	if not open.is_empty():
+		# "Choose one player faction with no Target" - the players decide.
+		var faction: String = Decisions.choose_name(state, "target", open, "Who takes %s's Target?" % legion.card_name, open[0])
+		legion.target_faction = faction
+		legion.target_coord = choose_weakest_haven(state, faction, [], "Put %s's Target on which Haven?" % legion.card_name)
+		legion.has_target = true
+		return
 	legion.target_faction = "Capital"
 	legion.target_coord = state.capital_coord
 	legion.has_target = true
@@ -254,8 +295,10 @@ static func _assign_solo_target(state: GameState, legion: LegionInstance) -> voi
 		if t.haven_faction == faction and not taken.has(coord) and t.total_player_units() < best_units:
 			best_units = t.total_player_units()
 			best = coord
-	if best == Vector2i.MIN:
-		best = weakest_haven(state, faction)
+	if best != Vector2i.MIN:
+		best = choose_weakest_haven(state, faction, taken.keys(), "Put %s's Target on which Haven?" % legion.card_name)
+	else:
+		best = choose_weakest_haven(state, faction, [], "Put %s's Target on which Haven?" % legion.card_name)
 	if best != Vector2i.MIN:
 		legion.target_faction = faction
 		legion.target_coord = best

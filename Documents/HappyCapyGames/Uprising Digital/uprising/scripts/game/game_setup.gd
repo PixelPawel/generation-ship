@@ -379,6 +379,7 @@ static func build_game_state(card_db: Node, picks: Array, rng: RandomNumberGener
 	for fp: PlayerFactionState in state.players:
 		GameActions.CardAbilities.setup_player(state, card_db, fp, rng)
 
+	state.rng_seed = rng.randi()  # the game's own dice from here on
 	# One face-down Event per Chapter (rulebook Setup).
 	var event_effects: GDScript = load("res://scripts/game/event_effects.gd")
 	event_effects.pick_chapter_events(state, card_db, rng)
@@ -501,6 +502,7 @@ static func build_solo_game_state(card_db: Node, pick: Dictionary, difficulty: S
 	state.quest_deck = quest_names
 
 	GameActions.CardAbilities.setup_player(state, card_db, p, rng)
+	state.rng_seed = rng.randi()
 	var event_effects: GDScript = load("res://scripts/game/event_effects.gd")
 	event_effects.pick_chapter_events(state, card_db, rng)
 	state.first_player_index = 0

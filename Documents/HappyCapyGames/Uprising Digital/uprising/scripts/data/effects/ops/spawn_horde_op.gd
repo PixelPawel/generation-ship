@@ -19,14 +19,14 @@ func execute(ctx: EffectContext) -> void:
 	if target_mode == "here" and ctx.has_hex_coord:
 		coord = ctx.hex_coord
 	else:
-		coord = NemesisAI.pick_hex(ctx.state, NemesisAI.empty_hexes(ctx.state))
+		coord = NemesisAI.choose_spawn_hex(ctx.state, NemesisAI.empty_hexes(ctx.state), NemesisAI.horde_prompt(ctx.state, threat, "on an empty hex"))
 		if coord == Vector2i.MIN:
 			var fallback: Array[Vector2i] = []
 			for c: Vector2i in ctx.state.hexes.keys():
 				var t: HexTileState = ctx.state.hexes[c]
 				if t.skeleton_count > 0 or t.curse:
 					fallback.append(c)
-			coord = NemesisAI.pick_hex(ctx.state, fallback)
+			coord = NemesisAI.choose_spawn_hex(ctx.state, fallback, NemesisAI.horde_prompt(ctx.state, threat, "on a hex with a Skeleton or Curse"))
 	if coord == Vector2i.MIN:
 		ctx.state.chaos_vp += 1
 		ctx.log("nowhere to place a Horde - Chaos gains 1 VP")

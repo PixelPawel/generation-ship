@@ -385,8 +385,7 @@ static func roll_best_hero(ctx: EffectContext, guile_color: String) -> Dictionar
 	if best == null:
 		return counts
 	if ctx.rng == null:
-		ctx.rng = RandomNumberGenerator.new()
-		ctx.rng.randomize()
+		ctx.rng = ctx.state.rng() if ctx.state != null else RandomNumberGenerator.new()
 	var pool: Array[String] = GameActions.CardAbilities.outside_roll_pool(ctx.card_db, best, guile_color)
 	var rolled: Dictionary = DiceModel.roll_pool(pool, ctx.rng)
 	for k: Variant in rolled.keys():

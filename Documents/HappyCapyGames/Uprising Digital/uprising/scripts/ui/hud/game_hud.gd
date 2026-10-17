@@ -409,6 +409,8 @@ func refresh(state: GameState, my_faction: String, selected: Vector2i, has_selec
 	if state.phase_log != _last_log and not state.phase_log.is_empty():
 		_last_log = state.phase_log
 		_show_log(state.phase_log)
+	if _popup != null and not state.pending_decision.is_empty() and _popup_kind != "result":
+		_close_popup()
 	if _popup != null:
 		_open_popup(_popup_kind)  # rebuild with the new state
 
@@ -507,8 +509,11 @@ func _terrain_of(card_name: String) -> String:
 
 
 func _refresh_rail() -> void:
+	var waiting: bool = not _state.pending_decision.is_empty()
 	var hint: String = "One Action a turn. Move and Trade don't end it."
-	if _me == null:
+	if waiting:
+		hint = "The game waits on a choice."
+	elif _me == null:
 		hint = "You're watching this game."
 	elif _state.phase != GameState.Phase.ACTIONS:
 		hint = "Actions open in the Actions phase. Trade works any time."
@@ -520,7 +525,7 @@ func _refresh_rail() -> void:
 	_refresh_hero_switch()
 	for action: String in Rules.MAIN_ACTIONS:
 		var parts: Dictionary = _action_buttons[action]
-		var reason: String = Rules.main_reason(_state, _card_db, _me, action, _selected, _has_selected, ally_acting)
+		var reason: String = "Waiting for a choice to be made." if waiting else Rules.main_reason(_state, _card_db, _me, action, _selected, _has_selected, ally_acting)
 		var b: Button = parts["button"]
 		b.disabled = not reason.is_empty()
 		b.tooltip_text = reason if not reason.is_empty() else _action_tooltip(action)
@@ -624,6 +629,13 @@ func _refresh_bar() -> void:
 
 
 func _refresh_flow() -> void:
+	if not _state.pending_decision.is_empty():
+		var chooser: String = str(_state.pending_decision.get("chooser", ""))
+		_flow_primary.visible = false
+		_flow_secondary.visible = false
+		_flow_note.text = "Your choice." if chooser.is_empty() or chooser == _my_faction else "Waiting for %s to choose." % chooser
+		_flow_note.visible = true
+		return
 	var flow: Dictionary = Rules.flow(_state, _me)
 	var primary: Array = flow["primary"]
 	var secondary: Array = flow["secondary"]
@@ -649,6 +661,8 @@ func _refresh_tray() -> void:
 	for child2: Node in _prompt.get_children():
 		child2.queue_free()
 	if _me == null:
+		if not _state.pending_decision.is_empty():
+			_prompt.add_child(_decision_panel())
 		return
 	var panels: int = 0
 	var orient: Array[Vector2i] = Rules.orientable(_state, _me)
@@ -663,6 +677,8 @@ func _refresh_tray() -> void:
 		if not cards.is_empty():
 			_tray.add_child(_cards_panel(cards))
 			panels += 1
+	if not _state.pending_decision.is_empty():
+		_prompt.add_child(_decision_panel())
 	if not _me.pending_feats.is_empty() or not _me.ally_pending_feats.is_empty():
 		_prompt.add_child(_feat_panel())
 	# A crowded tray would run into the hex card - the tray wins.
@@ -741,6 +757,52 @@ func _feat_panel() -> Control:
 					action_requested.emit(action))
 			row.add_child(card)
 	return parts[0]
+
+
+## The choice the game waits on (decisions.gd): for the chooser, the gold
+## rings on the board plus "Place here"; for everyone else, who is choosing.
+func _decision_panel() -> Control:
+	var q: Dictionary = _state.pending_decision
+	var chooser: String = str(q.get("chooser", ""))
+	var mine: bool = chooser.is_empty() or chooser == _my_faction
+	var parts: Array = _tray_panel(str(q.get("prompt", "Choose")), "", Style.CRIMSON)
+	var panel: PanelContainer = parts[0]
+	panel.custom_minimum_size = Vector2(300, 0)
+	var v: VBoxContainer = parts[1]
+	if not mine:
+		v.add_child(Style.label("Waiting for %s to choose." % chooser, 14, Style.MUTED))
+		return panel
+	if str(q.get("shape", "hex")) == "hex":
+		var picked: bool = _has_selected and _is_option(q, _selected)
+		var hint: String = "Click one of the gold-ringed hexes, then place it there."
+		if picked:
+			var tile: HexTileState = _state.get_hex(_selected)
+			hint = "Chosen: %s." % (tile.hex_card_name if tile != null and tile.explored and not tile.hex_card_name.is_empty() else RegionMath.region_at(_state, _selected) if tile != null and tile.role == "outer" else "this hex")
+		var h: Label = Style.label(hint, 14, Style.MUTED)
+		h.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		v.add_child(h)
+		var place: Button = _small_button("Place here", "" if picked else "Select a gold-ringed hex first.", true)
+		place.custom_minimum_size = Vector2(0, 32)
+		place.pressed.connect(func() -> void:
+			action_requested.emit({"type": "decide", "choice": _coord_dict(_selected)}))
+		v.add_child(place)
+	else:
+		var row := _hbox(8)
+		v.add_child(row)
+		for o: Variant in (q.get("options", []) as Array):
+			var name_opt: String = str((o as Dictionary).get("name", ""))
+			var b: Button = _small_button(name_opt, "", true)
+			b.pressed.connect(func() -> void:
+				action_requested.emit({"type": "decide", "choice": {"name": name_opt}}))
+			row.add_child(b)
+	return panel
+
+
+func _is_option(q: Dictionary, c: Vector2i) -> bool:
+	for o: Variant in (q.get("options", []) as Array):
+		if int((o as Dictionary).get("x", -999)) == c.x and int((o as Dictionary).get("y", -999)) == c.y:
+			return true
+	return false
 
 
 func _build_panel() -> Control:

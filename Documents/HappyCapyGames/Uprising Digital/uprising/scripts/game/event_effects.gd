@@ -51,8 +51,7 @@ static func resolve(state: GameState, card_db: Node, event_name: String) -> void
 	var ctx := EffectContext.new()
 	ctx.state = state
 	ctx.card_db = card_db
-	ctx.rng = RandomNumberGenerator.new()
-	ctx.rng.randomize()
+	ctx.rng = state.rng()
 	ctx.acting_faction = state.players[state.first_player_index % state.players.size()].faction if not state.players.is_empty() else ""
 	state.latest_event = event_name
 	ctx.log("Event '%s'" % event_name)
@@ -86,7 +85,7 @@ static func _first_half(ctx: EffectContext, event_name: String) -> void:
 					continue
 				p.action_points -= 1
 				state.item_market.erase(pick)
-				ChapterFlow.refill_row(state.item_market, state.item_deck, state.item_discard, 3)
+				ChapterFlow.refill_row(state.item_market, state.item_deck, state.item_discard, 3, state)
 				p.items_in_hand.append(pick)
 				ctx.log("%s spends 1 AP for '%s'" % [p.faction, pick])
 		"Starving Mobs":
@@ -241,7 +240,7 @@ static func _second_half(ctx: EffectContext, event_name: String) -> void:
 		"Aezhers Essence":
 			# 1 Legion at Threat 4 and its Target on a Sea Tower (it stays); 1 Horde at
 			# Threat 4 on an empty hex next to a different Sea Tower; 1 Curse, no X, empty if possible.
-			var tower: Vector2i = NemesisAI.NemesisCards.pick_sea_tower(state, true)
+			var tower: Vector2i = NemesisAI.NemesisCards.choose_sea_tower(state, true, NemesisAI.legion_prompt(state, 4, "with its Target on a Sea Tower"))
 			if tower != Vector2i.MIN:
 				NemesisAI.spawn_legion(state, ctx.card_db, tower, 4, {"target": "here"})
 			var near_other: Array[Vector2i] = NemesisAI.empty_hexes(state, func(c: Vector2i, _t: HexTileState) -> bool:
@@ -250,7 +249,7 @@ static func _second_half(ctx: EffectContext, event_name: String) -> void:
 					if nt != null and nt.role == "sea_tower" and n != tower:
 						return true
 				return false)
-			_horde_at(ctx, NemesisAI.pick_hex(state, near_other), 4)
+			_horde_at(ctx, NemesisAI.choose_spawn_hex(state, near_other, NemesisAI.horde_prompt(state, 4, "on an empty hex next to another Sea Tower")), 4)
 			_curse_no_x(ctx)
 		"Exiles from the South":
 			_horde_in_region(ctx, "Screaming Sea", 4)
@@ -263,10 +262,10 @@ static func _second_half(ctx: EffectContext, event_name: String) -> void:
 			_horde_in_region(ctx, "Screaming Sea", 4)
 		"Three Bloody Comets":
 			_horde_in_region(ctx, "Fog Grave", 4)
-			_horde_at(ctx, NemesisAI.NemesisCards.pick_sea_tower(state, true), 4)
+			_horde_at(ctx, NemesisAI.NemesisCards.choose_sea_tower(state, true, NemesisAI.horde_prompt(state, 4, "on a Sea Tower")), 4)
 		"Turmoil grips the Lands":
 			_horde_in_region(ctx, "Howling White", 4)
-			_horde_at(ctx, NemesisAI.NemesisCards.pick_sea_tower(state, true), 4)
+			_horde_at(ctx, NemesisAI.NemesisCards.choose_sea_tower(state, true, NemesisAI.horde_prompt(state, 4, "on a Sea Tower")), 4)
 		"Uprising":
 			_horde_in_region(ctx, "Howling White", 4)
 			_horde_in_region(ctx, "Fog Grave", 4)
@@ -292,7 +291,7 @@ static func _second_half(ctx: EffectContext, event_name: String) -> void:
 			activate_all_skeletons(state, ctx.card_db)
 		"The God Touched":
 			_garrisons_on_one_hex(ctx, 3)
-			var tower2: Vector2i = NemesisAI.NemesisCards.pick_sea_tower(state, true)
+			var tower2: Vector2i = NemesisAI.NemesisCards.choose_sea_tower(state, true, NemesisAI.legion_prompt(state, 5, "on a Sea Tower"))
 			if tower2 != Vector2i.MIN:
 				NemesisAI.spawn_legion(state, ctx.card_db, tower2, 5, {"target": "capital"})
 			var no_x: Array[Vector2i] = NemesisAI.empty_hexes(state, func(_c: Vector2i, t: HexTileState) -> bool:
@@ -300,14 +299,14 @@ static func _second_half(ctx: EffectContext, event_name: String) -> void:
 			if no_x.is_empty():
 				_horde_on_empty(ctx, 5, [])
 			else:
-				_horde_at(ctx, NemesisAI.pick_hex(state, no_x), 5)
+				_horde_at(ctx, NemesisAI.choose_spawn_hex(state, no_x, NemesisAI.horde_prompt(state, 5, "on an empty hex without an X")), 5)
 		"Unholy Omens":
 			_legions(ctx, 1, 5)
 			_horde_on_empty(ctx, 5, [])
 			_flip_one(ctx)
 		"A new Dawn":
 			_legions(ctx, 1, 6)
-			var tower3: Vector2i = NemesisAI.NemesisCards.pick_sea_tower(state, true)
+			var tower3: Vector2i = NemesisAI.NemesisCards.choose_sea_tower(state, true, "Place the Hordes at Threat 6 on a Sea Tower")
 			for _i: int in range(1 if _players(ctx) == 2 else 2):
 				_horde_at(ctx, tower3, 6)
 		"Guidance from the Druids":
@@ -402,7 +401,7 @@ static func _horde_in_region(ctx: EffectContext, region: String, threat: int, aw
 	if options.is_empty():
 		options = crowded
 	if not options.is_empty():
-		NemesisAI.spawn_horde(ctx.state, NemesisAI.pick_hex(ctx.state, options), ctx.card_db, threat)
+		NemesisAI.spawn_horde(ctx.state, NemesisAI.choose_spawn_hex(ctx.state, options, NemesisAI.horde_prompt(ctx.state, threat, "in the %s" % region)), ctx.card_db, threat)
 		return
 	_horde_on_empty(ctx, threat, [])
 
@@ -415,14 +414,14 @@ static func _horde_on_empty(ctx: EffectContext, threat: int, used_regions: Array
 	for c: Vector2i in all:
 		if not used_regions.has(RegionMath.region_at(ctx.state, c)):
 			fresh.append(c)
-	var spot: Vector2i = NemesisAI.pick_hex(ctx.state, fresh if not fresh.is_empty() else all)
+	var spot: Vector2i = NemesisAI.choose_spawn_hex(ctx.state, fresh if not fresh.is_empty() else all, NemesisAI.horde_prompt(ctx.state, threat, "on an empty hex"))
 	if spot == Vector2i.MIN:
 		var fallback: Array[Vector2i] = []
 		for c2: Vector2i in ctx.state.hexes.keys():
 			var t: HexTileState = ctx.state.hexes[c2]
 			if t.skeleton_count > 0 or t.curse:
 				fallback.append(c2)
-		spot = NemesisAI.pick_hex(ctx.state, fallback)
+		spot = NemesisAI.choose_spawn_hex(ctx.state, fallback, NemesisAI.horde_prompt(ctx.state, threat, "on a hex with a Skeleton or Curse"))
 	if spot == Vector2i.MIN:
 		ctx.state.chaos_vp += 1
 		return ""

@@ -21,6 +21,7 @@ extends Node
 
 const SteamManagerScript := preload("res://scripts/net/steam_manager.gd")
 const FactionCatalog := preload("res://scripts/data/tables/faction_catalog.gd")
+const Decisions := preload("res://scripts/game/decisions.gd")
 
 const MAX_PLAYERS: int = 4
 const LAN_PORT: int = 8955
@@ -66,6 +67,9 @@ var _next_seat: int = 0
 var _steam_pending: bool = false
 ## A client connection is up (or coming up) but no roster has arrived yet.
 var _client_connecting: bool = false
+## Host: an action waiting on a player's choice (decisions.gd) - the action,
+## its sender, the answers so far and the state from before it ran.
+var _pending: Dictionary = {}
 
 
 func _ready() -> void:
@@ -268,6 +272,7 @@ func disconnect_network() -> void:
 	transport = ""
 	_next_seat = 0
 	_client_connecting = false
+	_pending = {}
 	_set_phase("gathering")
 	roster_changed.emit(roster)
 
@@ -587,6 +592,7 @@ func _rpc_begin_game() -> void:
 ## Host-only: sets the starting state and broadcasts it immediately.
 func set_initial_state(state: GameState) -> void:
 	current_state = state
+	_pending = {}
 	_broadcast_state()
 
 
@@ -616,19 +622,82 @@ func _apply_action(action: Dictionary, sender_id: int) -> void:
 		_rpc_notify_rejected.rpc_id(sender_id, "no action_handler registered on host")
 		return
 
+	if str(action.get("type", "")) == "decide":
+		_answer_decision(action, sender_id)
+		return
+	if not _pending.is_empty():
+		_reject(sender_id, "Waiting for %s to choose first." % str(current_state.pending_decision.get("chooser", "a player")))
+		return
+	_run_action(action, sender_id, [], current_state.to_dict())
+
+
+## Runs `action` with player choices on (decisions.gd). If a choice nobody
+## has made yet comes up, everyone is shown the board at that moment with
+## the question, and the action waits; the committed state stays `snapshot`.
+func _run_action(action: Dictionary, sender_id: int, answers: Array, snapshot: Dictionary) -> void:
+	current_state.deciding = true
+	current_state.decision_queue = answers.duplicate(true)
+	current_state.decision_index = 0
+	current_state.pending_decision = {}
+	current_state.decision_chooser = _chooser_for(action, sender_id)
 	var result: Dictionary = action_handler.call(current_state, action, sender_id)
+	current_state.deciding = false
+	if not current_state.pending_decision.is_empty():
+		_pending = {"action": action, "sender": sender_id, "answers": answers, "snapshot": snapshot}
+		var preview: Dictionary = current_state.pending_preview
+		_broadcast_dict(preview)
+		return
+	_pending = {}
 	if result.get("ok", false):
 		_broadcast_state()
-	elif sender_id == multiplayer.get_unique_id():
-		action_rejected.emit(str(result.get("reason", "rejected")))
 	else:
-		_rpc_notify_rejected.rpc_id(sender_id, str(result.get("reason", "rejected")))
+		_reject(sender_id, str(result.get("reason", "rejected")))
+
+
+## The answer to the open question: run the action again from its snapshot
+## with every answer so far (the same seeded dice, so the same game).
+func _answer_decision(action: Dictionary, sender_id: int) -> void:
+	if _pending.is_empty():
+		_reject(sender_id, "There's nothing to choose right now.")
+		return
+	var question: Dictionary = current_state.pending_decision
+	var chooser: String = str(question.get("chooser", ""))
+	if not chooser.is_empty() and str(peer_factions.get(sender_id, "")) != chooser:
+		_reject(sender_id, "It's %s's choice." % chooser)
+		return
+	var answer: Dictionary = action.get("choice", {})
+	if not Decisions.valid_answer(question, answer):
+		_reject(sender_id, "Pick one of the highlighted options.")
+		return
+	var answers: Array = (_pending["answers"] as Array).duplicate(true)
+	answers.append(answer)
+	var snapshot: Dictionary = _pending["snapshot"]
+	current_state = GameState.from_dict(snapshot)
+	_run_action(_pending["action"], int(_pending["sender"]), answers, snapshot)
+
+
+## Who answers: the first player for whatever a phase brings (rulebook p52
+## "Syndra, the first player..."), otherwise whoever acted.
+func _chooser_for(action: Dictionary, sender_id: int) -> String:
+	if str(action.get("type", "")) == "end_phase" and not current_state.players.is_empty():
+		return current_state.players[current_state.first_player_index % current_state.players.size()].faction
+	return str(peer_factions.get(sender_id, ""))
+
+
+func _reject(sender_id: int, reason: String) -> void:
+	if sender_id == multiplayer.get_unique_id():
+		action_rejected.emit(reason)
+	else:
+		_rpc_notify_rejected.rpc_id(sender_id, reason)
 
 
 func _broadcast_state() -> void:
 	if current_state == null:
 		return
-	var payload: Dictionary = current_state.to_dict()
+	_broadcast_dict(current_state.to_dict())
+
+
+func _broadcast_dict(payload: Dictionary) -> void:
 	if multiplayer.multiplayer_peer != null and multiplayer.get_peers().size() > 0:
 		_rpc_receive_state.rpc(payload)
 	# Apply locally too (the host is also "a peer" of its own game).
