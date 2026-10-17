@@ -18,6 +18,47 @@ var haven_faction: String = ""   # "" = no Haven
 var tower: bool = false
 var wall: bool = false
 
+## Orientation the exploring player chose (rulebook p22: "If there is
+## impassable terrain, place the hex in any orientation you want"), in
+## clockwise 60-degree steps 0-5. Renderers turn the tile mesh by it.
+var rotation: int = 0
+## Faction that may still re-orient this freshly explored hex - set by
+## Explore, cleared when that player's turn ends.
+var orientable_by: String = ""
+
+## Impassable (mountain) edges printed on each Core hex's explored art,
+## clockwise from the flat top edge: 0=N 1=NE 2=SE 3=S 4=SW 5=NW (the art's
+## top edge lies toward world -z, see HexMath.CLOCKWISE_DIRS). Found by
+## scanning every TTS hex PNG for the white jagged border just inside each
+## edge (2026-10-17), then confirmed by eye on close-ups - snowy
+## illustration near an edge (Taurel's top) is not a mountain border.
+## Every other Core hex, Home hex and The Capital has none.
+const IMPASSABLE_ART_EDGES: Dictionary = {
+	"Golgardei": [1, 5],
+	"Plains of Rhun": [0],
+	"Frosthold Pass": [1, 5],
+	"Imperial Slave Mines": [1, 2, 4, 5],
+	"Tomb of the Elder Kings": [0, 1],
+	"Raufrost": [0],
+	"Taurel Caravan Passage": [2, 5],
+	"Rigga": [1, 5],
+	"Dunkelholm": [0, 2, 5],
+	"Dawngaard": [2, 5],
+	"Zeegaard": [0, 2, 4],
+}
+
+
+## World directions (indices into HexMath.CLOCKWISE_DIRS) blocked by this
+## hex's impassable terrain. Unexplored hexes show no terrain; a Curse
+## keeps impassable terrain (rulebook p49).
+func impassable_dirs() -> Array[int]:
+	var out: Array[int] = []
+	if not explored:
+		return out
+	for e: Variant in (IMPASSABLE_ART_EDGES.get(hex_card_name, []) as Array):
+		out.append((int(e) + rotation) % 6)
+	return out
+
 ## faction name -> {unit name (PlayerboardTable.UnitEntry.name) -> count}.
 ## Per-type because combat needs each standee's own die color and role
 ## (Archer/Rider/Warrior). Rulebook p14: at most 5 player Units (of 1
@@ -95,6 +136,7 @@ func to_dict() -> Dictionary:
 		"owning_faction": owning_faction, "garrison_level": garrison_level,
 		"curse": curse, "skeleton_count": skeleton_count,
 		"haven_faction": haven_faction, "tower": tower, "wall": wall,
+		"rotation": rotation, "orientable_by": orientable_by,
 		"units": units.duplicate(true),
 	}
 
@@ -111,6 +153,8 @@ static func from_dict(d: Dictionary) -> HexTileState:
 	s.haven_faction = d.get("haven_faction", "")
 	s.tower = d.get("tower", false)
 	s.wall = d.get("wall", false)
+	s.rotation = int(d.get("rotation", 0))
+	s.orientable_by = str(d.get("orientable_by", ""))
 	var units_in: Dictionary = d.get("units", {})
 	for f: Variant in units_in.keys():
 		var v: Variant = units_in[f]

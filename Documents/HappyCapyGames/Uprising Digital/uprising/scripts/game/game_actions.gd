@@ -7,12 +7,12 @@ extends RefCounted
 ## lookup exists - Milestone 5's job). apply() returns {ok:bool,
 ## reason:String} matching NetworkManager's expected action_handler shape.
 ##
-## Known, documented simplifications (consistent with this project's
-## existing "flag rather than silently guess" pattern): HexTileState has
-## no per-edge impassable-terrain data, so Move/Command don't enforce the
-## rulebook's impassable-edge rule; Sea Tower "adjacent to everywhere" is
-## not yet enforced either. Both are real rulebook mechanics (p14, p44)
-## deferred until hex data carries that information.
+## Impassable terrain (rulebook p14, p20): Command never moves Units across
+## an impassable edge (GameState.edge_blocked); Units on an explored Sea
+## Tower count as adjacent to every hex, Netherwood's to every Sea Tower.
+## The exploring player orients a freshly flipped hex with "orient" until
+## their turn ends. Heroes may cross impassable terrain, but Hero position
+## isn't tracked yet (see _move).
 
 const AP_COST := 1
 
@@ -28,6 +28,8 @@ static func apply(state: GameState, action: Dictionary, faction: String, card_db
 			return _command(state, action, faction, card_db)
 		"explore":
 			return _explore(state, action, faction, card_db)
+		"orient":
+			return _orient(state, action, faction)
 		"haven":
 			return _haven(state, action, faction)
 		"market":
@@ -101,8 +103,10 @@ static func _trade(state: GameState, action: Dictionary, faction: String) -> Dic
 ## Rulebook p20-21: target must be explored and free of another player's
 ## Haven/Units; at most 5 Units end up there. Optional action["units"] =
 ## [{"from": {x,y}, "unit": name, "count": n}, ...] picks exactly what
-## moves; without it every adjacent Unit moves in (Elites first) until the
-## hex is full. Entering a hex with enemies starts combat at once.
+## moves; without it every Unit on a neighboring hex moves in (Elites
+## first) until the hex is full - never across impassable terrain, and
+## Sea Tower Units only when picked explicitly. Entering a hex with
+## enemies starts combat at once.
 static func _command(state: GameState, action: Dictionary, faction: String, card_db: Node) -> Dictionary:
 	if not is_players_turn(state, faction):
 		return {"ok": false, "reason": "not your turn"}
@@ -127,7 +131,7 @@ static func _command(state: GameState, action: Dictionary, faction: String, card
 	else:
 		for neighbor: Vector2i in HexMath.neighbors(target):
 			var nt: HexTileState = state.get_hex(neighbor)
-			if nt == null:
+			if nt == null or state.edge_blocked(neighbor, target):
 				continue
 			var stack: Dictionary = nt.unit_stack(faction)
 			var names: Array = stack.keys()
@@ -137,8 +141,8 @@ static func _command(state: GameState, action: Dictionary, faction: String, card
 				moves.append([neighbor, str(unit_name), int(stack[unit_name])])
 
 	for mv: Array in moves:
-		if HexMath.distance(mv[0], target) != 1:
-			return {"ok": false, "reason": "%s is not adjacent to %s" % [mv[0], target]}
+		if not can_command_from(state, mv[0], target):
+			return {"ok": false, "reason": "Units on %s can't reach %s (not adjacent, or impassable terrain)" % [mv[0], target]}
 
 	var moved: int = 0
 	for mv: Array in moves:
@@ -159,6 +163,22 @@ static func _command(state: GameState, action: Dictionary, faction: String, card
 		var r: CombatResolver.Result = CombatResolver.resolve_hex(state, target, card_db)
 		state.phase_log += " | " + "; ".join(r.log)
 	return {"ok": true}
+
+
+## Can a player's Units on `from` be Commanded into `to`? Neighbors not
+## separated by impassable terrain; Units on an explored Sea Tower are
+## adjacent to any hex (rulebook p18, p21), Units on an explored
+## Netherwood to any Sea Tower (its ongoing effect).
+static func can_command_from(state: GameState, from: Vector2i, to: Vector2i) -> bool:
+	var ft: HexTileState = state.get_hex(from)
+	if ft == null or from == to:
+		return false
+	if ft.role == "sea_tower" and ft.explored:
+		return true
+	var tt: HexTileState = state.get_hex(to)
+	if ft.explored and ft.hex_card_name == "Netherwood" and tt != null and tt.role == "sea_tower":
+		return true
+	return HexMath.distance(from, to) == 1 and not state.edge_blocked(from, to)
 
 
 static func _is_elite(faction: String, unit_name: String) -> bool:
@@ -185,6 +205,9 @@ static func _explore(state: GameState, action: Dictionary, faction: String, card
 		return {"ok": false, "reason": "cannot Explore a Cursed hex"}
 
 	tile.explored = true
+	tile.rotation = posmod(int(action.get("rotation", 0)), 6)
+	if HexTileState.IMPASSABLE_ART_EDGES.has(tile.hex_card_name):
+		tile.orientable_by = faction
 	p.action_points -= AP_COST
 	p.has_acted_this_turn = true
 
@@ -201,6 +224,26 @@ static func _explore(state: GameState, action: Dictionary, faction: String, card
 	else:
 		state.phase_log = "%s explores '%s' (no automated effect)" % [faction, tile.hex_card_name]
 	return {"ok": true}
+
+
+# --- Orient: free, turn a hex you just explored (rulebook p22). ---
+## action = {"at": {x,y}, "rotation": 0-5 clockwise steps}. Only the
+## explorer, only until their turn ends, only hexes with impassable
+## terrain (orientation doesn't matter for any other hex).
+static func _orient(state: GameState, action: Dictionary, faction: String) -> Dictionary:
+	var coord: Vector2i = _coord(action, "at")
+	var tile: HexTileState = state.get_hex(coord)
+	if tile == null or tile.orientable_by != faction:
+		return {"ok": false, "reason": "you can only orient a hex you explored this turn"}
+	tile.rotation = posmod(int(action.get("rotation", 0)), 6)
+	state.phase_log = "%s orients '%s' (rotation %d)" % [faction, tile.hex_card_name, tile.rotation]
+	return {"ok": true}
+
+
+static func _clear_orientable(state: GameState, faction: String) -> void:
+	for tile: HexTileState in state.hexes.values():
+		if tile.orientable_by == faction:
+			tile.orientable_by = ""
 
 
 # --- Haven: 1 AP + faction-specific Plunder cost, ends turn. ---
@@ -424,6 +467,7 @@ static func _end_turn(state: GameState, faction: String) -> Dictionary:
 		return {"ok": false, "reason": "not your turn"}
 	var p: PlayerFactionState = state.find_player(faction)
 	p.has_acted_this_turn = false
+	_clear_orientable(state, faction)
 	_advance_turn(state)
 	return {"ok": true}
 
@@ -433,6 +477,7 @@ static func _pass(state: GameState, faction: String) -> Dictionary:
 	if p == null:
 		return {"ok": false, "reason": "unknown faction"}
 	p.has_passed = true
+	_clear_orientable(state, faction)
 	if is_players_turn(state, faction):
 		_advance_turn(state)
 	return {"ok": true}

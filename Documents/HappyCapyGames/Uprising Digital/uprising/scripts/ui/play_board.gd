@@ -6,8 +6,9 @@ extends Node3D
 ## exposing every GameAction as a button.
 ##
 ## Simplifications, documented rather than silently limited: Market/Quest
-## buttons act on the first available Item/Quest in the deck (a real
-## "pick which one" UI is a reasonable follow-up); build_unit always
+## buttons act on the first face-up Item/Quest (a real "pick which one"
+## UI is a reasonable follow-up); Rotate Hex turns a hex you just explored
+## one step clockwise; build_unit always
 ## builds the faction's first Unit type, defaulting any OR/ANY cost
 ## choice to Salt; Hero position isn't rendered (GameState has no
 ## hero_coord field yet, see GameActions._move's own doc comment) - Move
@@ -45,6 +46,7 @@ func _ready() -> void:
 	_wire_button("TradeButton", _on_trade_pressed)
 	_wire_button("CommandButton", _on_command_pressed)
 	_wire_button("ExploreButton", _on_explore_pressed)
+	_wire_button("RotateButton", _on_rotate_pressed)
 	_wire_button("HavenButton", _on_haven_pressed)
 	_wire_button("MarketButton", _on_market_pressed)
 	_wire_button("QuestButton", _on_quest_pressed)
@@ -97,6 +99,7 @@ func _rebuild_hexes(state: GameState) -> void:
 		inst.name = "Hex_%d_%d" % [coord.x, coord.y]
 		hexes_root.add_child(inst)
 		inst.position = HexMath.to_world(coord)
+		inst.rotation_degrees = Vector3(0, -60.0 * tile.rotation, 0)  # clockwise steps seen from above
 		var fallback_color: Color = ROLE_COLORS.get(tile.role, Color.GRAY)
 		if not tile.explored and tile.role != "capital" and tile.role != "home" and tile.role != "sea_tower":
 			fallback_color = Color(0.15, 0.15, 0.15)
@@ -125,6 +128,9 @@ func _update_hud(state: GameState) -> void:
 		resources_label.text = "Waiting for opponent to connect..."
 
 	selected_label.text = "Selected: %s" % (str(selected_coord) if has_selected_coord else "(none)")
+	var sel_tile: HexTileState = state.get_hex(selected_coord) if has_selected_coord else null
+	if sel_tile != null and sel_tile.orientable_by == my_faction:
+		selected_label.text += " - Rotate Hex to turn its impassable edges"
 	if not state.phase_log.is_empty():
 		log_label.text = state.phase_log
 
@@ -177,6 +183,16 @@ func _on_explore_pressed() -> void:
 	if not has_selected_coord:
 		return
 	_submit({"type": "explore", "at": _coord_dict(selected_coord)})
+
+
+func _on_rotate_pressed() -> void:
+	if not has_selected_coord:
+		return
+	var state: GameState = get_node("/root/NetworkManager").current_state
+	var tile: HexTileState = state.get_hex(selected_coord) if state != null else null
+	if tile == null:
+		return
+	_submit({"type": "orient", "at": _coord_dict(selected_coord), "rotation": (tile.rotation + 1) % 6})
 
 
 func _on_haven_pressed() -> void:

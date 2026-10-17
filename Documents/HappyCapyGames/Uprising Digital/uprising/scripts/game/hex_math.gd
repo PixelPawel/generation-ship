@@ -24,6 +24,23 @@ const NEIGHBOR_DIRS: Array[Vector2i] = [
 ]
 
 
+## The same 6 directions ordered clockwise from north: N, NE, SE, S, SW, NW.
+## "North" is world -z, which is where hex.obj's UVs put the TOP edge of a
+## hex card's art (u grows with +x, Godot-flipped v grows with +z) - so
+## HexTileState.IMPASSABLE_ART_EDGES indices line up with these at
+## rotation 0.
+const CLOCKWISE_DIRS: Array[Vector2i] = [
+	Vector2i(0, -1), Vector2i(1, -1), Vector2i(1, 0),
+	Vector2i(0, 1), Vector2i(-1, 1), Vector2i(-1, 0),
+]
+
+
+## Index into CLOCKWISE_DIRS of the step from `a` to its neighbor `b`, -1
+## if they aren't neighbors.
+static func clockwise_index(a: Vector2i, b: Vector2i) -> int:
+	return CLOCKWISE_DIRS.find(b - a)
+
+
 ## Axial (q, r) -> world position (X/Z plane, Y left at 0 - callers stack
 ## tiles/standees on top as needed).
 static func to_world(coord: Vector2i) -> Vector3:

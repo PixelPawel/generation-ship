@@ -152,6 +152,39 @@ func get_hex(coord: Vector2i) -> HexTileState:
 	return hexes.get(coord)
 
 
+## True if impassable terrain on either hex lies along their shared edge.
+## Rulebook p14: hexes with impassable terrain between them are not
+## adjacent for player Units, Skeletons, Hordes and Legions - Heroes may
+## cross.
+func edge_blocked(a: Vector2i, b: Vector2i) -> bool:
+	var d: int = HexMath.clockwise_index(a, b)
+	if d < 0:
+		return false
+	var ta: HexTileState = hexes.get(a)
+	if ta != null and ta.impassable_dirs().has(d):
+		return true
+	var tb: HexTileState = hexes.get(b)
+	return tb != null and tb.impassable_dirs().has((d + 3) % 6)
+
+
+## Steps from every reachable board hex to `target` along routes that
+## never cross impassable terrain (breadth-first). Unreachable hexes are
+## absent. Legions/Hordes count routes this way (rulebook p54-55).
+func route_distances(target: Vector2i) -> Dictionary:
+	var dist: Dictionary = {target: 0}
+	var frontier: Array[Vector2i] = [target]
+	while not frontier.is_empty():
+		var next: Array[Vector2i] = []
+		for c: Vector2i in frontier:
+			for n: Vector2i in HexMath.neighbors(c):
+				if dist.has(n) or not hexes.has(n) or edge_blocked(c, n):
+					continue
+				dist[n] = int(dist[c]) + 1
+				next.append(n)
+		frontier = next
+	return dist
+
+
 func ensure_hex(coord: Vector2i, default_role: String = "outer") -> HexTileState:
 	if not hexes.has(coord):
 		var tile := HexTileState.new()

@@ -36,6 +36,8 @@ static func advance_phase(state: GameState, card_db: Node) -> Dictionary:
 			if not GameActions.active_players(state).is_empty():
 				return {"ok": false, "reason": "not every player is out of AP / has Passed"}
 			state.phase = GameState.Phase.NEMESIS
+			for tile: HexTileState in state.hexes.values():
+				tile.orientable_by = ""
 			_nemesis_phase(state, card_db)
 			return {"ok": true}
 		GameState.Phase.NEMESIS:

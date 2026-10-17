@@ -65,6 +65,10 @@ text = "Command"
 layout_mode = 2
 text = "Explore"
 
+[node name="RotateButton" type="Button" parent="HUD/Panel/VBox/Actions"]
+layout_mode = 2
+text = "Rotate Hex"
+
 [node name="HavenButton" type="Button" parent="HUD/Panel/VBox/Actions"]
 layout_mode = 2
 text = "Haven"

@@ -32,7 +32,7 @@ func _initialize() -> void:
 		inst.position = Vector3(i * 5.0, 0, 0)
 		var mat := StandardMaterial3D.new()
 		mat.albedo_texture = tex
-		mat.uv1_scale = Vector3(1, 0.5, 1)
+
 		mat.uv1_offset = Vector3(0, offsets[i], 0)
 		inst.material_override = mat
 

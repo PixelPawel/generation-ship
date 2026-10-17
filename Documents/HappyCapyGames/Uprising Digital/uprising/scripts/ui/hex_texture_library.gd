@@ -109,6 +109,12 @@ static func default_explored(role: String) -> bool:
 ## halves and checking which one is upright/readable (tools/hex_texture_probe.gd),
 ## not assumed. EXPLORED_V_OFFSET is the y offset that selects the bottom
 ## (explored/front) half; the top (unexplored/back) half is offset 0.
+##
+## uv1_scale stays 1 (fixed 2026-10-17): hex.obj's top face already maps
+## exactly onto the atlas's top-half hex (Godot-flipped v 0.03-0.50), so
+## the old (1, 0.5) scale squeezed it to the UPPER HALF of the card,
+## stretched - name, effect text and resource icons cut off. Checked
+## offline by re-projecting the mesh UVs in Python, no game run.
 const EXPLORED_V_OFFSET := 0.5
 
 ## Applies the correct card-art material to a hex MeshInstance3D, or a
@@ -134,6 +140,5 @@ static func apply_material(mesh_instance: MeshInstance3D, role: String, card_nam
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = tex
 	mat.albedo_color = tint
-	mat.uv1_scale = Vector3(1, 0.5, 1)
 	mat.uv1_offset = Vector3(0, EXPLORED_V_OFFSET if explored else 0.0, 0)
 	mesh_instance.material_override = mat

@@ -12,8 +12,10 @@ extends RefCounted
 ## per the rulebook's own "move 1 hex" step. Combat is resolved inside
 ## each activation (2026-10-17), so a Legion that loses never strips the
 ## Haven, and later activations see the post-combat board.
-## Impassable-edge terrain isn't enforced (HexTileState has no per-edge
-## data, same boundary as GameActions).
+## Distances are route lengths that never cross impassable terrain
+## (GameState.route_distances), and no step crosses it either. Not yet
+## modelled: Legions/Hordes using an explored Sea Tower's "adjacent to any
+## hex" effect (rulebook p18).
 
 
 static func run_nemesis_phase(state: GameState, card_db: Node) -> void:
@@ -181,14 +183,16 @@ static func event_threat(state: GameState, card_db: Node, kind: String) -> int:
 ## faction), fewest Units/Threat; C) an empty hex (no Haven, Units or
 ## Curse); D) any remaining candidate. `toward` = true for Legions (must
 ## get strictly closer to target), false for Hordes (must not get farther
-## from The Capital).
+## from The Capital). "Closer" counts the route around impassable terrain.
 static func _best_step(state: GameState, from: Vector2i, target: Vector2i, toward: bool, mover: String) -> Vector2i:
-	var current_dist: int = HexMath.distance(from, target)
+	var routes: Dictionary = state.route_distances(target)
+	var unreachable: int = 999999
+	var current_dist: int = int(routes.get(from, unreachable))
 	var candidates: Array[Vector2i] = []
 	for n: Vector2i in HexMath.neighbors(from):
-		if not state.hexes.has(n):
+		if not state.hexes.has(n) or state.edge_blocked(from, n):
 			continue
-		var d: int = HexMath.distance(n, target)
+		var d: int = int(routes.get(n, unreachable))
 		if toward and d < current_dist:
 			candidates.append(n)
 		elif not toward and d <= current_dist:

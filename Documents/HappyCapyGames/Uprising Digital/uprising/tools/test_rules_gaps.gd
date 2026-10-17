@@ -156,6 +156,8 @@ func _run() -> void:
 	_check(mr.get("ok", false), "Market buy succeeds: %s" % mr.get("reason", ""))
 	_check(buyer.salt == 20 - cost and buyer.items_in_hand.has(item) and not rs.item_market.has(item), "paid %d Salt and the Item left the Market" % cost)
 
+	_impassable_checks(card_db)
+
 	# --- Save/load keeps typed Units ---
 	var round_trip: GameState = GameState.from_dict(state.to_dict())
 	_check(round_trip.get_hex(c1).unit_stack("Duerkhar") == t1.unit_stack("Duerkhar"), "typed Unit stacks survive to_dict/from_dict")
@@ -163,6 +165,59 @@ func _run() -> void:
 	_check(legacy.unit_stack("Krowh") == {"Tribesmen": 2}, "old count-only saves load as Basic Warriors")
 
 	_report()
+
+
+## Impassable terrain: Rigga's art has mountains on its NE and NW edges.
+func _impassable_checks(card_db: Node) -> void:
+	_check(HexMath.clockwise_index(Vector2i.ZERO, Vector2i(0, -1)) == 0 and HexMath.clockwise_index(Vector2i.ZERO, Vector2i(1, 0)) == 2, "clockwise directions start at N")
+	var s := GameState.new()
+	for c: Vector2i in HexMath.spiral(Vector2i.ZERO, 2):
+		_hex(s, c, "")
+	var rigga: HexTileState = _hex(s, Vector2i.ZERO, "Rigga")
+	_check(s.edge_blocked(Vector2i.ZERO, Vector2i(1, -1)) and s.edge_blocked(Vector2i(1, -1), Vector2i.ZERO), "Rigga blocks its NE edge, from both sides")
+	_check(s.edge_blocked(Vector2i.ZERO, Vector2i(-1, 0)), "Rigga blocks its NW edge")
+	_check(not s.edge_blocked(Vector2i.ZERO, Vector2i(0, -1)), "Rigga's N edge is open")
+	rigga.rotation = 1
+	_check(s.edge_blocked(Vector2i.ZERO, Vector2i(1, 0)) and s.edge_blocked(Vector2i.ZERO, Vector2i(0, -1)) and not s.edge_blocked(Vector2i.ZERO, Vector2i(1, -1)), "rotating 1 step clockwise moves the blocks to SE and N")
+	rigga.rotation = 0
+	rigga.explored = false
+	_check(not s.edge_blocked(Vector2i.ZERO, Vector2i(1, -1)), "an unexplored hex shows no impassable terrain")
+	rigga.explored = true
+
+	var routes: Dictionary = s.route_distances(Vector2i.ZERO)
+	_check(int(routes.get(Vector2i(1, -1), -1)) == 2, "route from the NE neighbor goes around the mountains (2 steps), got %s" % routes.get(Vector2i(1, -1)))
+	var step: Vector2i = NemesisAI._best_step(s, Vector2i(1, -1), Vector2i.ZERO, true, "Empire")
+	_check(step == Vector2i(0, -1) or step == Vector2i(1, 0), "a Legion walks around impassable terrain instead of across, stepped to %s" % step)
+
+	# Command: blocked across the mountains, allowed from an explored Sea Tower.
+	var p := PlayerFactionState.new()
+	p.faction = "Krowh"
+	p.action_points = 8
+	p.food = 5
+	s.players.append(p)
+	s.phase = GameState.Phase.ACTIONS
+	s.ensure_hex(Vector2i(1, -1)).add_units("Krowh", "Tribesmen", 1)
+	var blocked: Dictionary = GameActions.apply(s, {"type": "command", "to": {"x": 0, "y": 0},
+		"units": [{"from": {"x": 1, "y": -1}, "unit": "Tribesmen", "count": 1}]}, "Krowh", card_db)
+	_check(not blocked.get("ok", false), "Command across impassable terrain is refused")
+	var tower: HexTileState = _hex(s, Vector2i(0, 2), "Guragi Tower")
+	tower.role = "sea_tower"
+	tower.add_units("Krowh", "Deadeyes", 1)
+	var via_tower: Dictionary = GameActions.apply(s, {"type": "command", "to": {"x": 1, "y": -1},
+		"units": [{"from": {"x": 0, "y": 2}, "unit": "Deadeyes", "count": 1}]}, "Krowh", card_db)
+	_check(via_tower.get("ok", false) and s.get_hex(Vector2i(1, -1)).unit_count("Krowh") == 2, "Units on an explored Sea Tower reach a hex 3 steps away: %s" % via_tower.get("reason", ""))
+	GameActions.apply(s, {"type": "end_turn"}, "Krowh", card_db)
+
+	# Explore -> the explorer may orient the hex until their turn ends.
+	var fh: HexTileState = _hex(s, Vector2i(-1, 2), "Frosthold Pass")
+	fh.explored = false
+	var ex: Dictionary = GameActions.apply(s, {"type": "explore", "at": {"x": -1, "y": 2}}, "Krowh", card_db)
+	_check(ex.get("ok", false) and fh.orientable_by == "Krowh", "Explore lets the explorer orient Frosthold Pass")
+	_check(not GameActions.apply(s, {"type": "orient", "at": {"x": -1, "y": 2}, "rotation": 2}, "Druwhn", card_db).get("ok", false), "another faction can't orient it")
+	_check(GameActions.apply(s, {"type": "orient", "at": {"x": -1, "y": 2}, "rotation": 3}, "Krowh", card_db).get("ok", false) and fh.rotation == 3, "the explorer turns it to rotation 3")
+	GameActions.apply(s, {"type": "end_turn"}, "Krowh", card_db)
+	_check(fh.orientable_by.is_empty(), "orientation locks when the turn ends")
+	_check(HexTileState.from_dict(fh.to_dict()).rotation == 3, "rotation survives save/load")
 
 
 func _hex(state: GameState, coord: Vector2i, card_name: String) -> HexTileState:
