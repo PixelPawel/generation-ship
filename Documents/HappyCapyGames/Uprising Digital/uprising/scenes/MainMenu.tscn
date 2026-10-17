@@ -1,32 +1,212 @@
-[gd_scene load_steps=2 format=3 uid="uid://bmainmenu001"]
+[gd_scene load_steps=15 format=3 uid="uid://bmainmenu001"]
 
 [ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
+[ext_resource type="Theme" path="res://assets/art/ui/uprising_theme.tres" id="2_theme"]
+[ext_resource type="Shader" path="res://scripts/ui/shaders/menu_backdrop.gdshader" id="3_bgshader"]
+[ext_resource type="Texture2D" path="res://assets/art/menu/menu_backdrop.jpg" id="4_backdrop"]
+[ext_resource type="Texture2D" path="res://assets/art/menu/uprising_logo.png" id="5_logo"]
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_fog"]
+frequency = 0.008
+fractal_octaves = 4
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_fog"]
+width = 384
+height = 384
+seamless = true
+noise = SubResource("FastNoiseLite_fog")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_backdrop"]
+shader = ExtResource("3_bgshader")
+shader_parameter/backdrop = ExtResource("4_backdrop")
+shader_parameter/fog_noise = SubResource("NoiseTexture2D_fog")
+shader_parameter/rect_size = Vector2(1152, 648)
+shader_parameter/image_size = Vector2(2560, 1440)
+shader_parameter/zoom = 1.0
+shader_parameter/pan = Vector2(0, 0)
+shader_parameter/fade = 1.0
+
+[sub_resource type="Gradient" id="Gradient_flake"]
+offsets = PackedFloat32Array(0, 0.35, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.6, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_flake"]
+gradient = SubResource("Gradient_flake")
+width = 64
+height = 64
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.5, 0)
+
+[sub_resource type="Gradient" id="Gradient_snow_life"]
+offsets = PackedFloat32Array(0, 0.1, 0.82, 1)
+colors = PackedColorArray(1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_snow_life"]
+gradient = SubResource("Gradient_snow_life")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_far"]
+particle_flag_disable_z = true
+emission_shape = 3
+emission_box_extents = Vector3(760, 30, 1)
+direction = Vector3(0.35, 1, 0)
+spread = 14.0
+initial_velocity_min = 24.0
+initial_velocity_max = 46.0
+gravity = Vector3(4, 7, 0)
+scale_min = 0.05
+scale_max = 0.11
+color = Color(0.82, 0.9, 1, 0.5)
+color_ramp = SubResource("GradientTexture1D_snow_life")
+turbulence_enabled = true
+turbulence_noise_strength = 2.0
+turbulence_noise_scale = 6.0
+turbulence_influence_min = 0.04
+turbulence_influence_max = 0.12
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_near"]
+particle_flag_disable_z = true
+emission_shape = 3
+emission_box_extents = Vector3(760, 30, 1)
+direction = Vector3(0.45, 1, 0)
+spread = 18.0
+initial_velocity_min = 70.0
+initial_velocity_max = 120.0
+gravity = Vector3(10, 16, 0)
+scale_min = 0.16
+scale_max = 0.32
+color = Color(0.86, 0.93, 1, 0.32)
+color_ramp = SubResource("GradientTexture1D_snow_life")
+turbulence_enabled = true
+turbulence_noise_strength = 3.0
+turbulence_noise_scale = 4.0
+turbulence_influence_min = 0.05
+turbulence_influence_max = 0.15
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
 script = ExtResource("1_menu")
 
-[node name="CenterContainer" type="CenterContainer" parent="."]
+[node name="Backdrop" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_backdrop")
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 1)
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer"]
-layout_mode = 2
+[node name="SnowFar" type="GPUParticles2D" parent="."]
+position = Vector2(576, -40)
+amount = 240
+texture = SubResource("GradientTexture2D_flake")
+lifetime = 16.0
+preprocess = 16.0
+visibility_rect = Rect2(-1400, -100, 2800, 1600)
+process_material = SubResource("ParticleProcessMaterial_far")
 
-[node name="Title" type="Label" parent="CenterContainer/VBoxContainer"]
-layout_mode = 2
-text = "UPRISING: CURSE OF THE LAST EMPEROR (Reforged)"
-horizontal_alignment = 1
+[node name="SnowNear" type="GPUParticles2D" parent="."]
+position = Vector2(576, -60)
+amount = 36
+texture = SubResource("GradientTexture2D_flake")
+lifetime = 8.0
+preprocess = 8.0
+visibility_rect = Rect2(-1400, -100, 2800, 1600)
+process_material = SubResource("ParticleProcessMaterial_near")
 
-[node name="StartButton" type="Button" parent="CenterContainer/VBoxContainer"]
-layout_mode = 2
-text = "Start"
+[node name="Content" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 70
+theme_override_constants/margin_top = 52
+theme_override_constants/margin_right = 70
+theme_override_constants/margin_bottom = 46
 
-[node name="QuitButton" type="Button" parent="CenterContainer/VBoxContainer"]
+[node name="Column" type="VBoxContainer" parent="Content"]
 layout_mode = 2
+size_flags_horizontal = 0
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="Logo" type="TextureRect" parent="Content/Column"]
+texture_filter = 4
+custom_minimum_size = Vector2(440, 102)
+layout_mode = 2
+size_flags_horizontal = 0
+mouse_filter = 2
+texture = ExtResource("5_logo")
+expand_mode = 1
+stretch_mode = 4
+
+[node name="Subtitle" type="Label" parent="Content/Column"]
+layout_mode = 2
+theme_type_variation = &"SubtitleLabel"
+text = "Curse of the Last Emperor"
+
+[node name="Edition" type="Label" parent="Content/Column"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "Reforged edition"
+
+[node name="SpacerTop" type="Control" parent="Content/Column"]
+custom_minimum_size = Vector2(0, 54)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Buttons" type="VBoxContainer" parent="Content/Column"]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_constants/separation = 4
+
+[node name="StartButton" type="Button" parent="Content/Column/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"MenuButtonBig"
+text = "Play"
+alignment = 0
+
+[node name="QuitButton" type="Button" parent="Content/Column/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 0
+mouse_default_cursor_shape = 2
+theme_type_variation = &"MenuButtonBig"
 text = "Quit"
+alignment = 0
+
+[node name="SpacerBottom" type="Control" parent="Content/Column"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="HoverMarker" type="ColorRect" parent="."]
+layout_mode = 0
+offset_right = 9.0
+offset_bottom = 9.0
+rotation = 0.785398
+pivot_offset = Vector2(4.5, 4.5)
+mouse_filter = 2
+color = Color(0.875, 0.745, 0.424, 1)
+
+[node name="Fader" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 1)

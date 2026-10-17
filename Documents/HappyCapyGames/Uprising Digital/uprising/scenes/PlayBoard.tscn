@@ -1,35 +1,84 @@
-[gd_scene load_steps=2 format=3 uid="uid://bplayboard001"]
+[gd_scene load_steps=7 format=3 uid="uid://bplayboard001"]
 
 [ext_resource type="Script" path="res://scripts/ui/play_board.gd" id="1_play"]
+[ext_resource type="Script" path="res://scripts/ui/board/board_view.gd" id="2_board"]
+[ext_resource type="Script" path="res://scripts/ui/board/board_camera.gd" id="3_camera"]
+[ext_resource type="Theme" path="res://assets/art/ui/uprising_theme.tres" id="4_theme"]
+
+[sub_resource type="Environment" id="Environment_board"]
+background_mode = 1
+background_color = Color(0.03, 0.055, 0.068, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.42, 0.55, 0.62, 1)
+ambient_light_energy = 0.62
+tonemap_mode = 2
+tonemap_white = 6.0
+ssao_enabled = true
+ssao_radius = 0.8
+ssao_intensity = 1.6
+glow_enabled = true
+glow_intensity = 0.7
+glow_bloom = 0.04
+glow_hdr_threshold = 1.1
+fog_enabled = true
+fog_light_color = Color(0.03, 0.055, 0.068, 1)
+fog_density = 0.0025
+adjustment_enabled = true
+adjustment_contrast = 1.06
+adjustment_saturation = 1.05
 
 [node name="PlayBoard" type="Node3D"]
 script = ExtResource("1_play")
 
-[node name="Hexes" type="Node3D" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_board")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
-position = Vector3(0, 20, 0)
-rotation_degrees = Vector3(-55, -30, 0)
+[node name="Moon" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-50, -38, 0)
+light_color = Color(0.8, 0.87, 1, 1)
+light_energy = 1.25
+shadow_enabled = true
+shadow_blur = 1.5
+directional_shadow_max_distance = 80.0
+
+[node name="Rim" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-20, 140, 0)
+light_color = Color(0.55, 0.72, 1, 1)
+light_energy = 0.5
+
+[node name="CapitalGlow" type="OmniLight3D" parent="."]
+position = Vector3(0.6, 1.4, -0.5)
+light_color = Color(1, 0.25, 0.7, 1)
+light_energy = 1.2
+omni_range = 4.5
+
+[node name="Board" type="Node3D" parent="."]
+script = ExtResource("2_board")
+
+[node name="Effects" type="Node3D" parent="."]
 
 [node name="Camera3D" type="Camera3D" parent="."]
-position = Vector3(0, 26, 4)
-rotation_degrees = Vector3(-78, 0, 0)
 current = true
+script = ExtResource("3_camera")
 
 [node name="HUD" type="CanvasLayer" parent="."]
 
-[node name="Panel" type="Panel" parent="HUD"]
-offset_right = 420.0
-offset_bottom = 420.0
+[node name="Panel" type="PanelContainer" parent="HUD"]
+custom_minimum_size = Vector2(360, 0)
+offset_left = 14.0
+offset_top = 14.0
+offset_right = 374.0
+offset_bottom = 300.0
+theme = ExtResource("4_theme")
 
 [node name="VBox" type="VBoxContainer" parent="HUD/Panel"]
-offset_left = 8.0
-offset_top = 8.0
-offset_right = 412.0
-offset_bottom = 412.0
+layout_mode = 2
+theme_override_constants/separation = 8
 
 [node name="StatusLabel" type="Label" parent="HUD/Panel/VBox"]
 layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 20
 text = "Status"
 
 [node name="ResourcesLabel" type="Label" parent="HUD/Panel/VBox"]
@@ -37,70 +86,107 @@ layout_mode = 2
 text = "Resources"
 
 [node name="SelectedLabel" type="Label" parent="HUD/Panel/VBox"]
-layout_mode = 2
-text = "Selected: (none)"
-
-[node name="LogLabel" type="Label" parent="HUD/Panel/VBox"]
+custom_minimum_size = Vector2(330, 0)
 layout_mode = 2
 autowrap_mode = 3
-text = "Log"
+text = "Click a hex to see what is on it."
+
+[node name="LogLabel" type="Label" parent="HUD/Panel/VBox"]
+custom_minimum_size = Vector2(330, 0)
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+autowrap_mode = 3
+text = ""
 
 [node name="Actions" type="GridContainer" parent="HUD/Panel/VBox"]
 layout_mode = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
 columns = 3
 
 [node name="MoveButton" type="Button" parent="HUD/Panel/VBox/Actions"]
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Move"
 
 [node name="TradeButton" type="Button" parent="HUD/Panel/VBox/Actions"]
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Trade"
 
 [node name="CommandButton" type="Button" parent="HUD/Panel/VBox/Actions"]
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Command"
 
 [node name="ExploreButton" type="Button" parent="HUD/Panel/VBox/Actions"]
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Explore"
 
 [node name="RotateButton" type="Button" parent="HUD/Panel/VBox/Actions"]
 layout_mode = 2
-text = "Rotate Hex"
+size_flags_horizontal = 3
+text = "Rotate hex"
 
 [node name="HavenButton" type="Button" parent="HUD/Panel/VBox/Actions"]
 layout_mode = 2
-text = "Haven"
+size_flags_horizontal = 3
+text = "Build Haven"
 
 [node name="MarketButton" type="Button" parent="HUD/Panel/VBox/Actions"]
 layout_mode = 2
-text = "Market"
+size_flags_horizontal = 3
+text = "Buy Item"
 
 [node name="QuestButton" type="Button" parent="HUD/Panel/VBox/Actions"]
 layout_mode = 2
-text = "Quest"
+size_flags_horizontal = 3
+text = "Try Quest"
 
 [node name="BuildUnitButton" type="Button" parent="HUD/Panel/VBox/Actions"]
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Build Unit"
 
 [node name="BuildTowerButton" type="Button" parent="HUD/Panel/VBox/Actions"]
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Build Tower"
 
 [node name="BuildWallButton" type="Button" parent="HUD/Panel/VBox/Actions"]
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Build Wall"
 
 [node name="EndTurnButton" type="Button" parent="HUD/Panel/VBox/Actions"]
 layout_mode = 2
-text = "End Turn"
+size_flags_horizontal = 3
+text = "End turn"
 
 [node name="PassButton" type="Button" parent="HUD/Panel/VBox/Actions"]
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Pass"
 
 [node name="EndPhaseButton" type="Button" parent="HUD/Panel/VBox/Actions"]
 layout_mode = 2
-text = "End Phase"
+size_flags_horizontal = 3
+text = "End phase"
+
+[node name="Hint" type="Label" parent="HUD"]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -560.0
+offset_top = -34.0
+offset_right = -16.0
+offset_bottom = -12.0
+grow_horizontal = 0
+grow_vertical = 0
+theme = ExtResource("4_theme")
+theme_type_variation = &"MutedLabel"
+text = "Right-drag to turn the table, wheel to zoom, middle-drag or WASD to pan, F to reframe."
+horizontal_alignment = 2

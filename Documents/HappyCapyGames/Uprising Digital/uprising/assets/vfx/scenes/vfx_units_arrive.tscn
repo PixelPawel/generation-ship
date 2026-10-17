@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/vfx/vfx_effect.gd" id="1_fx"]
+[ext_resource type="Texture2D" path="res://assets/vfx/fx_burst_8x8.png" id="2_sheet"]
+
+[node name="VfxUnitsArrive" type="Node3D"]
+script = ExtResource("1_fx")
+duration = 1.1
+sheet = ExtResource("2_sheet")
+sheet_height = 1.5
+sheet_time = 1.0
+smoke_color = Color(0.74, 0.78, 0.8, 1)
+smoke_opacity = 0.55
+ring_radius = 1.1
+ring_color = Color(0.45, 0.85, 0.95, 1)
+ring_energy = 1.2
+ring_time = 0.5

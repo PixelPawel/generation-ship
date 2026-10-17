@@ -1,0 +1,37 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/vfx/vfx_effect.gd" id="1_fx"]
+[ext_resource type="Texture2D" path="res://assets/vfx/fx_plume_8x8.png" id="2_sheet"]
+
+[node name="VfxCapitalUprising" type="Node3D"]
+script = ExtResource("1_fx")
+duration = 3.2
+sheet = ExtResource("2_sheet")
+sheet_height = 6.0
+sheet_time = 2.8
+smoke_color = Color(0.32, 0.14, 0.28, 1)
+glow_color = Color(1.0, 0.25, 0.75, 1)
+glow_energy = 1.0
+smoke_opacity = 0.9
+ring_radius = 4.0
+ring_color = Color(1.0, 0.25, 0.75, 1)
+ring_energy = 3.5
+ring_time = 1.1
+rays_size = 5.5
+rays_color = Color(1.0, 0.45, 0.8, 1)
+rays_energy = 2.2
+rays_time = 1.6
+rays_height = 1.6
+spark_count = 90
+spark_color = Color(1.0, 0.55, 0.85, 1)
+spark_energy = 4.0
+spark_size = 0.08
+spark_speed = 5.0
+spark_spread = 60.0
+spark_gravity = -4.0
+spark_lifetime = 1.6
+light_energy = 12.0
+light_color = Color(1.0, 0.3, 0.75, 1)
+light_range = 12.0
+light_time = 2.2
+shake = 0.45

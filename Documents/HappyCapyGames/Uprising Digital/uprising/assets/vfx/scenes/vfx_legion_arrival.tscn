@@ -1,0 +1,35 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/vfx/vfx_effect.gd" id="1_fx"]
+[ext_resource type="Texture2D" path="res://assets/vfx/fx_burst_8x8.png" id="2_sheet"]
+
+[node name="VfxLegionArrival" type="Node3D"]
+script = ExtResource("1_fx")
+duration = 2.0
+sheet = ExtResource("2_sheet")
+sheet_height = 3.2
+sheet_time = 1.6
+smoke_color = Color(0.55, 0.42, 0.55, 1)
+smoke_opacity = 0.85
+ring_radius = 2.8
+ring_color = Color(1.0, 0.25, 0.75, 1)
+ring_energy = 3.0
+ring_time = 0.75
+rays_size = 3.2
+rays_color = Color(1.0, 0.45, 0.8, 1)
+rays_energy = 1.6
+rays_time = 0.9
+rays_height = 1.2
+spark_count = 40
+spark_color = Color(1.0, 0.6, 0.85, 1)
+spark_energy = 3.5
+spark_size = 0.06
+spark_speed = 4.5
+spark_spread = 65.0
+spark_gravity = -6.0
+spark_lifetime = 0.9
+light_energy = 8.0
+light_color = Color(1.0, 0.3, 0.75, 1)
+light_range = 8.0
+light_time = 0.9
+shake = 0.2

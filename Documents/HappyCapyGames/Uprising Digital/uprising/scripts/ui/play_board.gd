@@ -1,40 +1,35 @@
 extends Node3D
 
-## First playable-loop UI (Milestone 5). Renders the live NetworkManager
-## GameState as real hex tiles (same HexMath as Milestone 1's board-setup
-## scene, driven by live state instead of a static BoardLayout) plus a HUD
-## exposing every GameAction as a button.
+## First playable-loop UI (Milestone 5), now drawn as a real tabletop.
+## Renders the live NetworkManager GameState through BoardView (the printed
+## board, hex tiles and every piece from the extracted models), plays board
+## effects for what changed between two states (StateDiff -> VfxLibrary),
+## and keeps the HUD exposing every GameAction as a button.
 ##
 ## Simplifications, documented rather than silently limited: Market/Quest
 ## buttons act on the first face-up Item/Quest (a real "pick which one"
 ## UI is a reasonable follow-up); Rotate Hex turns a hex you just explored
-## one step clockwise; build_unit always
-## builds the faction's first Unit type, defaulting any OR/ANY cost
-## choice to Salt; Hero position isn't rendered (GameState has no
-## hero_coord field yet, see GameActions._move's own doc comment) - Move
-## only deducts AP for now.
+## one step clockwise; build_unit always builds the faction's first Unit
+## type, defaulting any OR/ANY cost choice to Salt.
+##
+## Camera: right-drag turns, wheel zooms, middle-drag or WASD pans, F
+## reframes (board_camera.gd). Left click selects a hex.
 
-const HEX_MESH_PATH := "res://assets/images/3d/hex.obj"
+const StateDiff := preload("res://scripts/ui/board/state_diff.gd")
+const VfxLibrary := preload("res://scripts/ui/vfx/vfx_library.gd")
 
-const ROLE_COLORS := {
-	"capital": Color(0.85, 0.7, 0.2),
-	"home": Color(0.3, 0.55, 0.85),
-	"sea_tower": Color(0.2, 0.65, 0.75),
-	"interior": Color(0.35, 0.35, 0.38),
-	"outer": Color(0.55, 0.78, 0.82),  # bare Region space: explored Ice Waste
-}
-
-## Same upright rotation GameBoardSetup verified for the extracted standee
-## meshes (they ship lying flat).
-const STANDEE_UPRIGHT_ROTATION := Vector3(90, 0, 0)
-const HERO_HEIGHT := 2.4  # world units, a bit over one hex radius
-
-var heroes_root: Node3D
+const PHASE_NAMES: Array[String] = ["Refresh", "Events", "Build", "Actions", "Nemesis", "Production", "Scoring"]
+## Several effects from one update play in a quick cascade, not all at once.
+const EVENT_STAGGER: float = 0.18
 
 var selected_coord: Vector2i = Vector2i.ZERO
 var has_selected_coord: bool = false
 
-@onready var hexes_root: Node3D = $Hexes
+var _last_snapshot: Dictionary = {}
+var _hover_coord: Vector2i = Vector2i(999, 999)
+
+@onready var board: Node3D = $Board
+@onready var effects_root: Node3D = $Effects
 @onready var camera: Camera3D = $Camera3D
 @onready var hud: CanvasLayer = $HUD
 @onready var status_label: Label = $HUD/Panel/VBox/StatusLabel
@@ -64,12 +59,16 @@ func _ready() -> void:
 	_wire_button("PassButton", _on_pass_pressed)
 	_wire_button("EndPhaseButton", _on_end_phase_pressed)
 
-	heroes_root = Node3D.new()
-	heroes_root.name = "Heroes"
-	add_child(heroes_root)
-
 	if net.current_state != null:
 		_on_state_updated(net.current_state)
+
+
+func _process(_delta: float) -> void:
+	if camera.has_method("get_yaw"):
+		board.set("camera_yaw", float(camera.call("get_yaw")))
+	var look_at_point: Variant = camera.get("target")
+	if look_at_point is Vector3:
+		board.call("set_snow_center", look_at_point)
 
 
 func _wire_button(name_path: String, handler: Callable) -> void:
@@ -81,6 +80,10 @@ func _on_peer_connected(id: int) -> void:
 	var net: Node = get_node("/root/NetworkManager")
 	if not net.is_host():
 		return
+	# The lobby decides every player's faction before PlayBoard opens; only
+	# a peer with no faction yet gets the leftover one.
+	if (net.peer_factions as Dictionary).has(id):
+		return
 	if net.current_state == null or net.current_state.players.size() < 2:
 		return
 	var second_faction: String = net.current_state.players[1].faction
@@ -89,144 +92,138 @@ func _on_peer_connected(id: int) -> void:
 
 
 func _on_action_rejected(reason: String) -> void:
-	log_label.text = "REJECTED: %s" % reason
+	log_label.text = "Not allowed: %s" % reason
+	log_label.add_theme_color_override("font_color", Color(0.86, 0.36, 0.42))
 
 
 func _on_state_updated(state: GameState) -> void:
+	var snapshot: Dictionary = StateDiff.capture(state)
+	var events: Array[Dictionary] = StateDiff.diff(_last_snapshot, snapshot)
+	_last_snapshot = snapshot
 	_rebuild_hexes(state)
+	_play_events(events)
 	_update_hud(state)
 
 
+## Kept as the single entry point for redrawing the board.
 func _rebuild_hexes(state: GameState) -> void:
-	for child: Node in hexes_root.get_children():
-		child.queue_free()
-	var hex_mesh: Mesh = load(HEX_MESH_PATH)
-	if hex_mesh == null:
-		return
-	for coord: Vector2i in state.hexes.keys():
-		var tile: HexTileState = state.hexes[coord]
-		var inst := MeshInstance3D.new()
-		inst.mesh = hex_mesh
-		inst.name = "Hex_%d_%d" % [coord.x, coord.y]
-		hexes_root.add_child(inst)
-		inst.position = HexMath.to_world(coord)
-		inst.rotation_degrees = Vector3(0, -60.0 * tile.rotation, 0)  # clockwise steps seen from above
-		var fallback_color: Color = ROLE_COLORS.get(tile.role, Color.GRAY)
-		if not tile.explored and tile.role != "capital" and tile.role != "home" and tile.role != "sea_tower":
-			fallback_color = Color(0.15, 0.15, 0.15)
-		var tint := Color.WHITE
-		if tile.curse:
-			tint = Color(1.0, 0.3, 0.85)  # magenta-ish curse tint, multiplied over real art or fallback alike.
-		if has_selected_coord and coord == selected_coord:
-			tint = tint.lightened(0.5)
-		HexTextureLibrary.apply_material(inst, tile.role, tile.hex_card_name, tile.owning_faction, tile.explored, fallback_color, tint)
-	_rebuild_heroes(state)
+	board.call("apply_state", state)
+	board.call("set_selected", selected_coord, has_selected_coord)
 
 
-## One standee per Hero on their hex, nudged apart when several share it.
-func _rebuild_heroes(state: GameState) -> void:
-	for child: Node in heroes_root.get_children():
-		child.queue_free()
-	var model_manifest: Node = get_node_or_null("/root/ModelManifest")
-	for i: int in range(state.players.size()):
-		var p: PlayerFactionState = state.players[i]
-		var offset := Vector3(-0.7 + 1.4 * float(i % 2), 0.25, -0.5 + 1.0 * float(i / 2))
-		var path: String = model_manifest.find_model_path(p.faction, p.hero_name) if model_manifest != null else ""
-		var mesh: Mesh = load(path) if not path.is_empty() else null
-		var inst := MeshInstance3D.new()
-		inst.name = "Hero_%s" % p.faction
-		heroes_root.add_child(inst)
-		inst.position = HexMath.to_world(p.hero_coord) + offset
-		if mesh != null:
-			inst.mesh = mesh
-			inst.rotation_degrees = STANDEE_UPRIGHT_ROTATION
-			var depth: float = maxf(mesh.get_aabb().size.z, 0.01)  # lying flat, Z is the standee's height
-			inst.scale = Vector3.ONE * (HERO_HEIGHT / depth)
+func _play_events(events: Array[Dictionary]) -> void:
+	var delay: float = 0.0
+	for e: Dictionary in events:
+		var kind: String = str(e["kind"])
+		if not VfxLibrary.has_effect(kind):
+			continue
+		var coord: Vector2i = e["coord"]
+		if delay <= 0.0:
+			_spawn_effect(kind, coord)
 		else:
-			var marker := CylinderMesh.new()
-			marker.top_radius = 0.3
-			marker.bottom_radius = 0.45
-			marker.height = 1.4
-			inst.mesh = marker
-			inst.position.y += 0.7
+			get_tree().create_timer(delay).timeout.connect(_spawn_effect.bind(kind, coord))
+		delay += EVENT_STAGGER
+
+
+func _spawn_effect(kind: String, coord: Vector2i) -> void:
+	if not is_inside_tree():
+		return
+	var pos: Vector3 = board.call("hex_surface", coord)
+	VfxLibrary.spawn(kind, effects_root, pos)
 
 
 func _update_hud(state: GameState) -> void:
 	var net: Node = get_node("/root/NetworkManager")
 	var my_faction: String = net.my_faction()
-	var phase_name: String = ["Refresh", "Events", "Build", "Actions", "Nemesis", "Production", "Scoring"][state.phase]
+	var phase_name: String = PHASE_NAMES[state.phase] if state.phase < PHASE_NAMES.size() else "?"
 	var turn_note: String = ""
 	if state.phase == GameState.Phase.ACTIONS and state.players.size() > 0:
 		var current: PlayerFactionState = state.players[state.current_player_index % state.players.size()]
-		turn_note = " | Turn: %s%s" % [current.faction, " (YOU)" if current.faction == my_faction else ""]
-	status_label.text = "Chapter %d/%d - %s Phase%s" % [state.chapter, state.max_chapters, phase_name, turn_note]
+		turn_note = "\n%s's turn%s" % [current.faction, " (YOU)" if current.faction == my_faction else ""]
+	status_label.text = "Chapter %d of %d, %s phase%s" % [state.chapter, state.max_chapters, phase_name, turn_note]
 
 	var p: PlayerFactionState = state.find_player(my_faction)
 	if p != null:
-		resources_label.text = "%s | AP:%d Salt:%d Plunder:%d Food:%d VP:%d" % [p.faction, p.action_points, p.salt, p.plunder, p.food, p.vp]
+		resources_label.text = "%s: %d AP, %d Salt, %d Plunder, %d Food, %d VP" % [p.faction, p.action_points, p.salt, p.plunder, p.food, p.vp]
 	else:
-		resources_label.text = "Waiting for opponent to connect..."
+		resources_label.text = "Waiting for the other player to connect"
 
-	selected_label.text = "Selected: %s" % (_describe_hex(state, selected_coord) if has_selected_coord else "(none)")
+	selected_label.text = _describe_hex(state, selected_coord) if has_selected_coord else "Click a hex to see what is on it."
 	var sel_tile: HexTileState = state.get_hex(selected_coord) if has_selected_coord else null
 	if sel_tile != null and sel_tile.orientable_by == my_faction:
-		selected_label.text += "
-Rotate Hex to turn its impassable edges"
+		selected_label.text += "\nRotate hex turns its impassable edges."
 	if not state.phase_log.is_empty():
 		log_label.text = state.phase_log
+		log_label.remove_theme_color_override("font_color")
 
 
-## Plain-text summary of everything on a hex - the board doesn't draw Units
-## or Nemesis pieces yet.
+## Plain-text summary of everything on a hex, for the HUD.
 func _describe_hex(state: GameState, coord: Vector2i) -> String:
 	var tile: HexTileState = state.get_hex(coord)
 	if tile == null:
 		return "%s (off the board)" % coord
-	var title: String = tile.hex_card_name if tile.explored and not tile.hex_card_name.is_empty() else ("unexplored" if not tile.explored else tile.role)
+	var title: String = tile.hex_card_name if tile.explored and not tile.hex_card_name.is_empty() else ("Unexplored hex" if not tile.explored else tile.role.capitalize())
 	if tile.role == "outer":
-		title = "%s (Region)" % RegionMath.region_for(coord, state.capital_coord)
-	var parts: Array[String] = ["%s %s" % [coord, title]]
+		title = RegionMath.region_for(coord, state.capital_coord)
+	var parts: Array[String] = [title]
 	if tile.curse:
-		parts.append("Curse")
+		parts.append("Cursed")
 	if not tile.haven_faction.is_empty():
-		parts.append("%s Haven%s%s" % [tile.haven_faction, " +Tower" if tile.tower else "", " +Wall" if tile.wall else ""])
+		parts.append("%s Haven%s%s" % [tile.haven_faction, " with Tower" if tile.tower else "", " and Wall" if tile.wall else ""])
 	var faction: String = tile.player_faction_here()
 	if not faction.is_empty():
 		var stack: Dictionary = tile.unit_stack(faction)
 		var bits: Array[String] = []
 		for unit_name: Variant in stack.keys():
-			bits.append("%dx %s" % [int(stack[unit_name]), unit_name])
+			bits.append("%d %s" % [int(stack[unit_name]), unit_name])
 		parts.append("%s: %s" % [faction, ", ".join(bits)])
 	if tile.garrison_level > 0:
-		parts.append("Garrison L%d" % tile.garrison_level)
+		parts.append("Garrison level %d" % tile.garrison_level)
 	if tile.skeleton_count > 0:
-		parts.append("%d Skeleton(s)" % tile.skeleton_count)
+		parts.append("%d Skeleton%s" % [tile.skeleton_count, "" if tile.skeleton_count == 1 else "s"])
 	for n: Variant in EffectUtil.nemesis_at(state, coord):
-		parts.append("%s (Threat %d, %d tokens)" % [n.card_name, n.threat, n.activation_tokens])
+		parts.append("%s, Threat %d, %d token%s" % [n.card_name, n.threat, n.activation_tokens, "" if n.activation_tokens == 1 else "s"])
 	for p: PlayerFactionState in state.players:
 		if p.hero_coord == coord:
 			parts.append("Hero %s" % p.hero_name)
-	return " | ".join(parts)
+	return "\n".join(parts)
 
 
 func select_coord(coord: Vector2i) -> void:
 	selected_coord = coord
 	has_selected_coord = true
+	board.call("set_selected", coord, true)
 	var net: Node = get_node("/root/NetworkManager")
 	if net.current_state != null:
-		_rebuild_hexes(net.current_state)
 		_update_hud(net.current_state)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var from: Vector3 = camera.project_ray_origin(event.position)
-		var dir: Vector3 = camera.project_ray_normal(event.position)
-		if absf(dir.y) < 0.0001:
-			return
-		var t: float = -from.y / dir.y
-		var world_pos: Vector3 = from + dir * t
-		select_coord(HexMath.from_world(world_pos))
+		var hit: Variant = _board_point(event.position)
+		if hit != null:
+			select_coord(HexMath.from_world(hit))
+	elif event is InputEventMouseMotion:
+		var hit: Variant = _board_point(event.position)
+		var net: Node = get_node("/root/NetworkManager")
+		var state: GameState = net.current_state
+		if hit != null and state != null:
+			var c: Vector2i = HexMath.from_world(hit)
+			if c != _hover_coord:
+				_hover_coord = c
+				board.call("set_hover", c, state.hexes.has(c))
+
+
+## Where the mouse ray meets the board (the tile tops), or null.
+func _board_point(screen_pos: Vector2) -> Variant:
+	var from: Vector3 = camera.project_ray_origin(screen_pos)
+	var dir: Vector3 = camera.project_ray_normal(screen_pos)
+	if absf(dir.y) < 0.0001:
+		return null
+	var t: float = (0.1 - from.y) / dir.y
+	if t < 0.0:
+		return null
+	return from + dir * t
 
 
 func _coord_dict(c: Vector2i) -> Dictionary:
@@ -292,10 +289,10 @@ func _on_build_unit_pressed() -> void:
 		return
 	var net: Node = get_node("/root/NetworkManager")
 	var faction: String = net.my_faction()
-	var board: PlayerboardTable.FactionBoard = PlayerboardTable.get_board(faction)
-	if board == null or board.units.is_empty():
+	var board_table: PlayerboardTable.FactionBoard = PlayerboardTable.get_board(faction)
+	if board_table == null or board_table.units.is_empty():
 		return
-	var unit: PlayerboardTable.UnitEntry = board.units[0]
+	var unit: PlayerboardTable.UnitEntry = board_table.units[0]
 	var action: Dictionary = {"type": "build_unit", "unit": unit.name, "at": _coord_dict(selected_coord)}
 	if unit.cost.get("type", "fixed") == "or":
 		action["or_choice"] = "Salt"
