@@ -42,8 +42,9 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 
-	_check(board.get_node("HUD/Panel/VBox/StatusLabel").text.find("Refresh") != -1,
-		"HUD shows Refresh phase initially, got '%s'" % board.get_node("HUD/Panel/VBox/StatusLabel").text)
+	var hud: Control = board.get_node("HUD/Hud")
+	_check(hud.status_label.text.find("Refresh") != -1,
+		"HUD shows Refresh phase initially, got '%s'" % hud.status_label.text)
 
 	# Drive the state to ACTIONS phase directly (same shortcut M4's own
 	# test uses) so button presses have something to act on.
@@ -52,8 +53,8 @@ func _run() -> void:
 	net.state_updated.emit(net.current_state)
 	await process_frame
 
-	_check(board.get_node("HUD/Panel/VBox/StatusLabel").text.find("YOU") != -1,
-		"HUD shows it's the host's (f1's) turn, got '%s'" % board.get_node("HUD/Panel/VBox/StatusLabel").text)
+	_check(hud.turn_label.text.find("Your turn") != -1,
+		"HUD shows it's the host's (f1's) turn, got '%s'" % hud.turn_label.text)
 
 	# Programmatically select an unexplored interior hex and press Explore.
 	var interior_coord: Vector2i = Vector2i(-999, -999)
