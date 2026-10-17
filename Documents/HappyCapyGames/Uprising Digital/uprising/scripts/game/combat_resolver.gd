@@ -44,7 +44,7 @@ extends RefCounted
 ## - Player Bolts: a face-up Druid's Godpower when it pays off (Silence when
 ##   the hit would wipe the stack, Mountain Heart against a lethal die,
 ##   Treemother, Deep Dweller, Faceless One, Shapeshifter, Wanderer), else
-##   cancel an enemy Shield. Red Hand, Watcher and Aether are not offered.
+##   cancel an enemy Shield. Red Hand and Watcher are not offered.
 ## - Kept Quest cards: Deepling Allies ignores Highlands, Tua Than Allies
 ##   +1 blue in Clash on Marshes, Ramparts lets a Wall/Tower take 1 hit per
 ##   round; Break the Shackles (face-up) pays 2 resources per Legion or
@@ -62,6 +62,8 @@ extends RefCounted
 ##   Legions/Hordes while affordable; desperate ones (Koloth, Dark Ritual)
 ##   only when the stack would otherwise be wiped out. Urn of Malice,
 ##   Glory, Frenzy and Horn of Brotherhood are left to the player.
+## - Aether (shared, rulebook p40): rerolls a player's roll that shows no
+##   Skull at all, or fires Silence when the stack would be wiped out.
 
 const NemesisCards := preload("res://scripts/game/nemesis_cards.gd")
 
@@ -1002,9 +1004,22 @@ static func _cards_before_damage(state: GameState, card_db: Node, coord: Vector2
 	if _ready_card(state, side, coord, "Treachery", "none", true) and theirs.shields > 0 and mine.skulls > 0 and p.salt >= 1:
 		p.salt -= 1
 		theirs.shields -= 1
+	# Aether (rulebook p40, once per roll): reroll ALL dice when they show no Skull at all.
+	if mine.skulls + mine.extra_skulls == 0 and mine.faces.size() >= 2 and not side.used_round.has("aether_reroll") and abilities.spend_aether(state):
+		side.used_round["aether_reroll"] = true
+		mine.faces = _roll_faces(mine.pool, rng)
+		_count_into(mine)
+		result.log.append("%s spends 1 Aether to reroll every die" % side.faction)
 	# Desperate measures when the stack would be wiped out.
 	var units: int = tile.unit_count(side.faction)
 	var hits: int = maxi(0, theirs.skulls + theirs.extra_skulls - theirs.skull_reduction - mine.shields - mine.extra_shields)
+	if hits >= units and units > 0 and _druid_ready(state, side, "Silence") and not side.used_round.has("aether_power") and abilities.spend_aether(state):
+		# Aether fires a Druid Godpower too: Silence - nobody takes Skulls this round.
+		side.used_round["aether_power"] = true
+		_use_druid(side, "Silence")
+		mine.ignore_skulls = true
+		result.log.append("%s spends 1 Aether on Silence" % side.faction)
+		return
 	if hits >= units and units > 0:
 		if _ready_card(state, side, coord, "Koloth", "none", false) and int(tile.unit_stack(side.faction).get("Koloth", 0)) > 0:
 			abilities.discard(state, p, "Koloth")

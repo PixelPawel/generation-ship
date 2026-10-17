@@ -265,6 +265,65 @@ static func second_chance(p: PlayerFactionState, pool: Array[String], rolled: Di
 	return rolled
 
 
+## Takes 1 Aether off the Druid holding the most and returns it to the bag
+## (rulebook p40: "remove 1 Aether from any Druid ... put it back into the
+## bag"). False when no Druid has any.
+static func spend_aether(state: GameState) -> bool:
+	var best: DruidInstance = null
+	for d: DruidInstance in state.druids_in_play:
+		if d.aether > 0 and (best == null or d.aether > best.aether):
+			best = d
+	if best == null:
+		return false
+	best.aether -= 1
+	state.aether_pool += 1
+	return true
+
+
+## Last-ditch fixes for a roll outside combat that still misses its goals
+## (`needs` = symbol -> how many are needed): 1 Aether rerolls ALL the dice
+## (once per roll); Mask of Jein (discard) turns up to 2 dice; Runestones
+## (2 resources) adds 1 symbol, once per roll. Returns the new counts.
+static func last_ditch(state: GameState, p: PlayerFactionState, pool: Array[String], rolled: Dictionary, needs: Dictionary, successes: int, rng: RandomNumberGenerator) -> Dictionary:
+	var counts: Dictionary = rolled.duplicate()
+	if _goals_met(counts, needs) < successes and spend_aether(state):
+		counts = DiceModel.roll_pool(pool, rng)
+	if _goals_met(counts, needs) < successes and active(p, "Mask of Jein"):
+		var gap: String = _closest_gap(counts, needs)
+		if not gap.is_empty() and int(needs[gap]) - int(counts.get(gap, 0)) <= 2:
+			discard(state, p, "Mask of Jein")
+			counts[gap] = int(needs[gap])
+	if _goals_met(counts, needs) < successes and active(p, "Runestones") and p.salt + p.plunder + p.food >= 2:
+		var gap2: String = _closest_gap(counts, needs)
+		if not gap2.is_empty() and int(needs[gap2]) - int(counts.get(gap2, 0)) == 1:
+			var quest_flow: GDScript = load("res://scripts/game/quest_flow.gd")
+			quest_flow._pay_any(p, 2)
+			counts[gap2] = int(counts.get(gap2, 0)) + 1
+	return counts
+
+
+static func _goals_met(counts: Dictionary, needs: Dictionary) -> int:
+	var met: int = 0
+	for sym: Variant in needs.keys():
+		if int(needs[sym]) > 0 and int(counts.get(sym, 0)) >= int(needs[sym]):
+			met += 1
+	return met
+
+
+static func _closest_gap(counts: Dictionary, needs: Dictionary) -> String:
+	var best: String = ""
+	var best_gap: int = 99
+	for sym: Variant in needs.keys():
+		var need: int = int(needs[sym])
+		if need <= 0:
+			continue
+		var gap: int = need - int(counts.get(sym, 0))
+		if gap > 0 and gap < best_gap:
+			best_gap = gap
+			best = str(sym)
+	return best
+
+
 # --- Actions-phase cards ("use_card") ------------------------------------------
 
 ## Uses an Actions-phase card (or an "Always" one that does something on

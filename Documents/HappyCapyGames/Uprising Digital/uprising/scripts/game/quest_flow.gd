@@ -194,6 +194,10 @@ static func attempt(state: GameState, card_db: Node, faction: String, quest_name
 	if met.size() < int(g["successes"]) and not opts.has("fixed_roll"):
 		rolled = NemesisCards.CardAbilitiesRef.second_chance(p, pool, rolled, ctx.rng)  # Icewaterpipe / Tricky
 		met = _met_goals(g, rolled)
+		if met.size() < int(g["successes"]):
+			var needs: Dictionary = {"Skull": g["Skull"], "Shield": g["Shield"], "Bolt": g["Bolt"]}
+			rolled = NemesisCards.CardAbilitiesRef.last_ditch(state, p, pool, rolled, needs, int(g["successes"]), ctx.rng)  # Aether / Mask of Jein / Runestones
+			met = _met_goals(g, rolled)
 	var solved: bool = met.size() >= int(g["successes"])
 	ctx.log("%s attempts '%s' with %s: %d Skull, %d Shield, %d Bolt - %s" % [
 		faction, quest_name, pool, int(rolled.get("Skull", 0)), int(rolled.get("Shield", 0)), int(rolled.get("Bolt", 0)),

@@ -165,6 +165,7 @@ func _run() -> void:
 	_economy_checks(card_db)
 	_feat_checks(card_db)
 	_combat_card_checks(card_db)
+	_aether_checks(card_db)
 
 	# --- Save/load keeps typed Units ---
 	var round_trip: GameState = GameState.from_dict(state.to_dict())
@@ -639,6 +640,26 @@ func _combat_card_checks(card_db: Node) -> void:
 	var res0: int = p.salt + p.plunder + p.food
 	CombatResolver._cards_after_combat(s, card_db, spot, tile, me, foe, result)
 	_check(p.salt + p.plunder + p.food == res0 + 2, "Pillage: Units left on the Hero's hex after combat earn 2 resources")
+
+
+## Aether and the last-ditch roll fixes.
+func _aether_checks(card_db: Node) -> void:
+	var abilities: GDScript = GameActions.CardAbilities
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 81
+	var s: GameState = GameSetup.build_2p_normal_game_state(card_db, rng)
+	_check(not abilities.spend_aether(s), "no Aether on any Druid: nothing to spend")
+	s.druids_in_play[0].aether = 2
+	s.aether_pool = 5
+	_check(abilities.spend_aether(s) and s.druids_in_play[0].aether == 1 and s.aether_pool == 6, "spending Aether puts it back in the bag")
+	s.druids_in_play[0].aether = 0
+	var p: PlayerFactionState = s.players[0]
+	p.items_in_hand.append("Runestones")
+	p.salt = 2
+	p.plunder = 0
+	p.food = 0
+	var fixed: Dictionary = abilities.last_ditch(s, p, ["white"], {"Skull": 2, "Shield": 0, "Bolt": 0}, {"Skull": 3, "Shield": -1, "Bolt": -1}, 1, rng)
+	_check(int(fixed["Skull"]) == 3 and p.salt == 0, "Runestones: 2 resources add the 1 missing Skull")
 
 
 func _hex(state: GameState, coord: Vector2i, card_name: String) -> HexTileState:
