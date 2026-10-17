@@ -741,6 +741,10 @@ static func _flip_druids(state: GameState, count: int, down: bool) -> void:
 static func _flip_hex(ctx: EffectContext, coord: Vector2i, no_nemesis: bool) -> void:
 	var tile: HexTileState = ctx.state.hexes[coord]
 	tile.explored = true
+	var flipper: PlayerFactionState = ctx.state.find_player(ctx.acting_faction)
+	if tile.bonus_salt > 0 and flipper != null:
+		flipper.salt += tile.bonus_salt
+		tile.bonus_salt = 0
 	if not HexEffectPrograms.has_program(tile.hex_card_name):
 		return
 	var sub: EffectContext = _ctx(ctx.state, ctx.card_db, ctx.acting_faction, {"rng": ctx.rng})

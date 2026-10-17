@@ -7,13 +7,10 @@ extends RefCounted
 ## - it enforces the readiness gates (Build/Actions don't advance until
 ## every active player is done) and calls the per-phase step functions.
 ##
-## Scope for this pass, documented: Event card effect TEXT is not
-## resolved (no EventEffectPrograms exist yet - Milestone 3's
-## transcription order was Hexes first; Events/Quests/Feats/Items are
-## follow-up work) - only the mechanical Threat+2 and Activation-Token
-## steps run automatically. Refresh deals 3 new Items/Quests
-## (GameState.item_market/quest_row); Quests that say "do not discard"
-## and Quest immediate effects are not applied yet.
+## Events: Threat +2, then this Chapter's Event card (event_effects.gd),
+## then Activation Tokens. Refresh deals 3 new Items and Quests (Quests'
+## immediate effects resolve; Cleanse the Wastes and Imperial Inquisition
+## stay until solved).
 
 static func advance_phase(state: GameState, card_db: Node) -> Dictionary:
 	match state.phase:
@@ -22,7 +19,7 @@ static func advance_phase(state: GameState, card_db: Node) -> Dictionary:
 			state.phase = GameState.Phase.EVENTS
 			return {"ok": true}
 		GameState.Phase.EVENTS:
-			_events_phase(state)
+			_events_phase(state, card_db)
 			state.phase = GameState.Phase.BUILD
 			_start_build_phase(state)
 			return {"ok": true}
@@ -118,7 +115,7 @@ static func refill_row(row: Array[String], deck: Array[String], discard: Array[S
 		row.append(deck.pop_front())
 
 
-static func _events_phase(state: GameState) -> void:
+static func _events_phase(state: GameState, card_db: Node = null) -> void:
 	var overflow_vp_empire: int = 0
 	var overflow_vp_chaos: int = 0
 	for l: LegionInstance in state.legions:
@@ -140,9 +137,11 @@ static func _events_phase(state: GameState) -> void:
 	state.empire_vp += overflow_vp_empire
 	state.chaos_vp += overflow_vp_chaos
 
-	# TODO (Milestone 4 follow-up): reveal + resolve state.chapter's Event
-	# card here once EventEffectPrograms exist (Milestone 3 transcribed
-	# Hexes only). Event-triggered Legion/Horde spawns are also deferred.
+	# The first player reveals this Chapter's Event and resolves it, top to bottom.
+	var event_name: String = str(state.chapter_events.get(state.chapter, ""))
+	if not event_name.is_empty():
+		var event_effects: GDScript = load("res://scripts/game/event_effects.gd")
+		event_effects.resolve(state, card_db, event_name)
 
 	var tokens_each: int = 2 if state.chapter >= state.max_chapters else 1
 	for l: LegionInstance in state.legions:

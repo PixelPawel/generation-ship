@@ -230,6 +230,9 @@ static func _explore(state: GameState, action: Dictionary, faction: String, card
 		tile.orientable_by = faction
 	p.action_points -= AP_COST
 	p.has_acted_this_turn = true
+	if tile.bonus_salt > 0:  # Aezhers Essence: "If you flip that hex, gain it."
+		p.salt += tile.bonus_salt
+		tile.bonus_salt = 0
 
 	if not tile.hex_card_name.is_empty() and HexEffectPrograms.has_program(tile.hex_card_name):
 		var ctx := EffectContext.new()

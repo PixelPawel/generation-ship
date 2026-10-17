@@ -25,6 +25,8 @@ var rotation: int = 0
 ## Faction that may still re-orient this freshly explored hex - set by
 ## Explore, cleared when that player's turn ends.
 var orientable_by: String = ""
+## Salt lying on this face-down hex (Aezhers Essence) - whoever flips it gains it.
+var bonus_salt: int = 0
 
 ## Impassable (mountain) edges printed on each Core hex's explored art,
 ## clockwise from the flat top edge: 0=N 1=NE 2=SE 3=S 4=SW 5=NW (the art's
@@ -136,7 +138,7 @@ func to_dict() -> Dictionary:
 		"owning_faction": owning_faction, "garrison_level": garrison_level,
 		"curse": curse, "skeleton_count": skeleton_count,
 		"haven_faction": haven_faction, "tower": tower, "wall": wall,
-		"rotation": rotation, "orientable_by": orientable_by,
+		"rotation": rotation, "orientable_by": orientable_by, "bonus_salt": bonus_salt,
 		"units": units.duplicate(true),
 	}
 
@@ -155,6 +157,7 @@ static func from_dict(d: Dictionary) -> HexTileState:
 	s.wall = d.get("wall", false)
 	s.rotation = int(d.get("rotation", 0))
 	s.orientable_by = str(d.get("orientable_by", ""))
+	s.bonus_salt = int(d.get("bonus_salt", 0))
 	var units_in: Dictionary = d.get("units", {})
 	for f: Variant in units_in.keys():
 		var v: Variant = units_in[f]

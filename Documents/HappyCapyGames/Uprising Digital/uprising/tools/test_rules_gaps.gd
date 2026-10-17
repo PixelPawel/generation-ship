@@ -160,6 +160,7 @@ func _run() -> void:
 	_region_and_hero_checks(card_db)
 	_quest_checks(card_db)
 	_nemesis_entry_checks(card_db)
+	_event_checks(card_db)
 
 	# --- Save/load keeps typed Units ---
 	var round_trip: GameState = GameState.from_dict(state.to_dict())
@@ -346,6 +347,64 @@ func _nemesis_entry_checks(card_db: Node) -> void:
 	# A Haven that falls moves its Target to the faction's next Haven, else The Capital.
 	NemesisAI.remove_haven(s, card_db, courtesan.target_coord)
 	_check(courtesan.target_faction == "Capital" and courtesan.target_coord == s.capital_coord, "losing its only Haven sends the Target to The Capital")
+
+
+## Chapter Events: picked at setup, resolved in the Events Phase.
+func _event_checks(card_db: Node) -> void:
+	var event_effects: GDScript = load("res://scripts/game/event_effects.gd")
+	_check(event_effects.PRINTED_THREAT.size() == 28, "all 28 Core Events have a printed Threat")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 33
+	var s: GameState = GameSetup.build_2p_normal_game_state(card_db, rng)
+	_check(s.chapter_events.size() == 2, "a 2-Chapter game gets 2 Events, got %s" % [s.chapter_events])
+	var ch1: EventCard = null
+	for e: EventCard in card_db.events:
+		if e.card_name == str(s.chapter_events.get(1, "")):
+			ch1 = e
+	_check(ch1 != null and ch1.nr == "One", "Chapter 1's Event comes from the Chapter I deck")
+
+	var food0: Array[int] = []
+	for p: PlayerFactionState in s.players:
+		food0.append(p.food)
+	s.horde_deck = ["Lichqueen", "Oda the Fallen", "Bloodwyrm"]  # none of these relocate on entry
+	var deck0: int = s.horde_deck.size()
+	event_effects.resolve(s, card_db, "The Last Harvest")
+	_check(s.players[0].food == food0[0] + 2 and s.players[1].food == food0[1] + 2, "The Last Harvest: every player gains 2 Food")
+	_check(s.horde_deck.size() == deck0 - 2 and s.hordes.size() >= 2, "The Last Harvest: 2 Hordes enter")
+	var regions: Array[String] = []
+	for h: HordeInstance in s.hordes:
+		regions.append(RegionMath.region_for(h.coord, s.capital_coord))
+		_check(s.get_hex(h.coord).role == "outer" and not NemesisAI.near_haven(s, h.coord), "%s stands on a Region space away from Havens" % h.card_name)
+	_check(regions.has("Fog Grave") and regions.has("Screaming Sea"), "one Horde in the Fog Grave, one in the Screaming Sea, got %s" % [regions])
+	_check(s.latest_event == "The Last Harvest" and NemesisAI.event_threat(s, card_db, "Horde") == 4, "the latest Event's printed Threat (4) is the default")
+
+	s.legion_deck = ["The Warlock", "The Spymaster"]  # entry effects that don't move anyone
+	var legions0: int = s.legions.size()
+	event_effects.resolve(s, card_db, "Long live the Emperor")
+	_check(s.legions.size() == legions0 + 2, "Long live the Emperor: 2 Legions enter on The Capital")
+	var targeted: Dictionary = {}
+	for l: LegionInstance in s.legions:
+		if l.has_target:
+			targeted[l.target_faction] = true
+	_check(targeted.size() == 2, "each faction gets a Target from one of them, got %s" % [targeted])
+
+	# Activate all Skeletons: a lone group steps toward The Capital.
+	var t: GameState = GameSetup.build_2p_normal_game_state(card_db, rng)
+	var before: Dictionary = {}
+	for c: Vector2i in t.hexes.keys():
+		if t.hexes[c].skeleton_count > 0:
+			before[c] = t.hexes[c].skeleton_count
+	event_effects.activate_all_skeletons(t, card_db)
+	var moved: int = 0
+	for c2: Vector2i in before.keys():
+		if t.hexes[c2].skeleton_count == 0:
+			moved += 1
+	_check(moved > 0, "Activate all Skeletons moves the Skeleton groups (%d of %d moved)" % [moved, before.size()])
+
+	# Events Phase integration: the Chapter's Event resolves on advancing past EVENTS.
+	t.phase = GameState.Phase.EVENTS
+	ChapterFlow.advance_phase(t, card_db)
+	_check(t.latest_event == str(t.chapter_events[1]), "the Events Phase reveals and resolves Chapter 1's Event")
 
 
 func _hex(state: GameState, coord: Vector2i, card_name: String) -> HexTileState:

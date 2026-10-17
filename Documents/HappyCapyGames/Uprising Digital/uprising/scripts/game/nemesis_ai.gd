@@ -310,19 +310,11 @@ static func add_threat(state: GameState, entry: Variant, amount: int) -> void:
 	entry.threat = maxi(0, wanted)
 
 
-## "Place 1 Legion/Horde at Threat N" from this Chapter's Event card text.
-static func event_threat(state: GameState, card_db: Node, kind: String) -> int:
-	var event_name: String = str(state.chapter_events.get(state.chapter, ""))
-	if card_db == null or event_name.is_empty():
-		return 4
-	var re := RegEx.new()
-	re.compile(kind + "s?\\s+at\\s+Threat\\s+(\\d)")
-	for e: EventCard in card_db.events_all:
-		if e.card_name == event_name and e.lang == "EN":
-			var m: RegExMatch = re.search(e.effect_1 + "\n" + e.effect_2)
-			if m != null:
-				return m.get_string(1).to_int()
-	return 4
+## Default Threat for a Legion/Horde entering without one: the printed
+## Threat of the latest revealed Event (rulebook p16, p45), 4 before any.
+static func event_threat(state: GameState, _card_db: Node, _kind: String) -> int:
+	var event_effects: GDScript = load("res://scripts/game/event_effects.gd")
+	return int(event_effects.PRINTED_THREAT.get(state.latest_event, 4))
 
 
 # --- Garrisons, Skeletons, Curses -----------------------------------------

@@ -50,6 +50,9 @@ var horde_deck_tokens: int = 0
 var coven_held_ap: Dictionary = {}
 var event_decks: Dictionary = {}   # chapter(int) -> Array[String] (deck for that chapter, minus the 1 pre-placed card)
 var chapter_events: Dictionary = {}  # chapter(int) -> String (this chapter's revealed/pending Event card name)
+## The most recently revealed Event - its printed Threat is the default
+## Threat of any Legion/Horde entering without one (rulebook p16, p45).
+var latest_event: String = ""
 
 var empire_vp: int = 0
 var chaos_vp: int = 0
@@ -95,7 +98,7 @@ func to_dict() -> Dictionary:
 		"legion_deck_tokens": legion_deck_tokens, "horde_deck_tokens": horde_deck_tokens,
 		"coven_held_ap": coven_held_ap.duplicate(),
 		"event_decks": _stringify_int_keys(event_decks),
-		"chapter_events": _stringify_int_keys(chapter_events),
+		"chapter_events": _stringify_int_keys(chapter_events), "latest_event": latest_event,
 		"empire_vp": empire_vp, "chaos_vp": chaos_vp,
 		"imperial_graveyard": imperial_graveyard.duplicate(), "chaos_graveyard": chaos_graveyard.duplicate(),
 		"aether_pool": aether_pool,
@@ -150,6 +153,7 @@ static func from_dict(d: Dictionary) -> GameState:
 	s.coven_held_ap = (d.get("coven_held_ap", {}) as Dictionary).duplicate()
 	s.event_decks = _intify_keys(d.get("event_decks", {}))
 	s.chapter_events = _intify_keys(d.get("chapter_events", {}))
+	s.latest_event = str(d.get("latest_event", ""))
 
 	s.empire_vp = d.get("empire_vp", 0)
 	s.chaos_vp = d.get("chaos_vp", 0)
