@@ -37,6 +37,15 @@ func reload() -> void:
 		var link_col: String = CsvParser.field(row, 5)
 		var res_path: String = CsvParser.field(row, 7)
 		var downloaded: bool = CsvParser.field(row, 8).strip_edges() == "True"
+		if lang.is_empty():
+			# Some sheets (Quests, Druids) leave Lang empty or shift it into
+			# the Box column; read it from there or from the image's folder.
+			if box == "EN" or box == "DE":
+				lang = box
+			elif res_path.contains("Final+EN/"):
+				lang = "EN"
+			elif res_path.contains("Final+DE/"):
+				lang = "DE"
 
 		var entry: Dictionary = {
 			"sheet": sheet, "lang": lang, "box": box, "name": name,

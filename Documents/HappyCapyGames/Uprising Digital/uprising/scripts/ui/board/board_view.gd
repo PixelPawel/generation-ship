@@ -35,6 +35,9 @@ const BOARD_WORLD_SIZE: float = 7208.0 / 269.31542306
 const SOLO_BOARD_TEXTURE := "res://assets/art/board/solo_map_4k.jpg"
 const SOLO_BOARD_SIZE := Vector2(8000.0 / 159.25, 4034.0 / 159.25)
 const SOLO_BOARD_CENTER := Vector2((4000.0 - 4029.0) / 159.25, (2017.0 - 1751.0) / 159.25)
+## The printed spaces' slab: art on top where the old board plane sat.
+const SPACE_TOP: float = -0.002
+const SPACE_BOTTOM: float = -0.16
 const TILE_TOP: float = 0.2
 const SQRT3: float = 1.7320508
 
@@ -83,7 +86,7 @@ var _snow: GPUParticles3D
 var _tops: Dictionary = {}           # Vector2i -> float (surface height pieces stand on)
 var _option_rings: Array[MeshInstance3D] = []
 var _board_mesh: MeshInstance3D
-var _board_edge: MeshInstance3D
+var _space_count: int = -1
 var _tundra_mat: ShaderMaterial
 var _solo_board: bool = false
 
@@ -138,8 +141,8 @@ func apply_state(state: GameState) -> void:
 		return
 	var first: bool = not _has_built
 	_has_built = true
-	if state.solo != _solo_board:
-		_use_solo_board(state.solo)
+	if _board_mesh == null or state.solo != _solo_board or state.hexes.size() != _space_count:
+		_build_spaces(state)
 	# GameState.capital_flipped: The Capital turned to "Uprising in the Capital"
 	_capital_flipped = state.get("capital_flipped") == true
 	var present: Dictionary = {}
@@ -662,63 +665,75 @@ func _make_hex_fill(radius: float) -> ArrayMesh:
 # ======================================================================= table
 
 func _build_table() -> void:
-	var board := MeshInstance3D.new()
-	board.name = "PrintedBoard"
-	var pm := PlaneMesh.new()
-	pm.size = Vector2(BOARD_WORLD_SIZE, BOARD_WORLD_SIZE)
-	board.mesh = pm
-	var bm := StandardMaterial3D.new()
-	var btex: Texture2D = null
-	if ResourceLoader.exists(BOARD_TEXTURE):
-		btex = load(BOARD_TEXTURE) as Texture2D
-	if btex != null:
-		bm.albedo_texture = btex
-		# the printed Region spaces are bright; let the tiles and pieces lead
-		bm.albedo_color = Color(0.72, 0.77, 0.8)
-	else:
-		bm.albedo_color = Color(0.03, 0.25, 0.29)
-	bm.roughness = 0.55
-	bm.metallic_specular = 0.4
-	bm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	board.material_override = bm
-	board.position.y = -0.002
-	add_child(board)
-	_board_mesh = board
-
-	var edge := MeshInstance3D.new()
-	edge.name = "BoardEdge"
-	var bx := BoxMesh.new()
-	bx.size = Vector3(BOARD_WORLD_SIZE, 0.09, BOARD_WORLD_SIZE)
-	edge.mesh = bx
-	var em := StandardMaterial3D.new()
-	em.albedo_color = Color(0.02, 0.05, 0.055)
-	em.roughness = 0.8
-	edge.material_override = em
-	edge.position.y = -0.052  # top face sits under the printed board, no z-fighting
-	add_child(edge)
-	_board_edge = edge
-
 	_build_tundra()
 
 
-## True Solo Mode: the wider solo map (sideboards included), off-centre from
-## The Capital; the tundra keeps its flat margin round the new outline.
-func _use_solo_board(solo: bool) -> void:
-	_solo_board = solo
-	var size: Vector2 = SOLO_BOARD_SIZE if solo else Vector2(BOARD_WORLD_SIZE, BOARD_WORLD_SIZE)
-	var center: Vector2 = SOLO_BOARD_CENTER if solo else Vector2.ZERO
-	var path: String = SOLO_BOARD_TEXTURE if solo else BOARD_TEXTURE
+## The map's printed spaces, cut out of the board art hex by hex - no frame,
+## VP track, Druid slots or sideboards (those live in the HUD): a slab of
+## hexes lying in the snow, the printed art on top (Region names, X icons)
+## and dark sides. Tiles stand on it. Rebuilt when the map changes.
+func _build_spaces(state: GameState) -> void:
 	if _board_mesh != null:
-		(_board_mesh.mesh as PlaneMesh).size = size
-		_board_mesh.position = Vector3(center.x, _board_mesh.position.y, center.y)
-		if ResourceLoader.exists(path):
-			(_board_mesh.material_override as StandardMaterial3D).albedo_texture = load(path) as Texture2D
-	if _board_edge != null:
-		(_board_edge.mesh as BoxMesh).size = Vector3(size.x, 0.09, size.y)
-		_board_edge.position = Vector3(center.x, _board_edge.position.y, center.y)
+		_board_mesh.queue_free()
+	_solo_board = state.solo
+	_space_count = state.hexes.size()
+	var size: Vector2 = SOLO_BOARD_SIZE if state.solo else Vector2(BOARD_WORLD_SIZE, BOARD_WORLD_SIZE)
+	var center: Vector2 = SOLO_BOARD_CENTER if state.solo else Vector2.ZERO
+	var path: String = SOLO_BOARD_TEXTURE if state.solo else BOARD_TEXTURE
+	var top := SurfaceTool.new()
+	top.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var sides := SurfaceTool.new()
+	sides.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var r: float = HexMath.TILE_HEX_SIZE
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for coord: Vector2i in state.hexes.keys():
+		var c: Vector3 = HexMath.to_world(coord)
+		var ring: Array[Vector3] = []
+		for i: int in range(6):
+			var a: float = deg_to_rad(60.0 * float(i))
+			ring.append(c + Vector3(cos(a) * r, 0.0, sin(a) * r))
+		for i2: int in range(6):
+			var p0: Vector3 = ring[i2]
+			var p1: Vector3 = ring[(i2 + 1) % 6]
+			for v: Vector3 in [c, p0, p1]:
+				top.set_normal(Vector3.UP)
+				top.set_uv(Vector2((v.x - center.x) / size.x + 0.5, (v.z - center.y) / size.y + 0.5))
+				top.add_vertex(Vector3(v.x, SPACE_TOP, v.z))
+			var outward: Vector3 = ((p0 + p1) * 0.5 - c).normalized()
+			for w: Vector3 in [Vector3(p0.x, SPACE_TOP, p0.z), Vector3(p1.x, SPACE_TOP, p1.z), Vector3(p1.x, SPACE_BOTTOM, p1.z),
+					Vector3(p0.x, SPACE_TOP, p0.z), Vector3(p1.x, SPACE_BOTTOM, p1.z), Vector3(p0.x, SPACE_BOTTOM, p0.z)]:
+				sides.set_normal(outward)
+				sides.add_vertex(w)
+			lo = Vector2(minf(lo.x, p0.x), minf(lo.y, p0.z))
+			hi = Vector2(maxf(hi.x, p0.x), maxf(hi.y, p0.z))
+	var mesh: ArrayMesh = top.commit()
+	sides.commit(mesh)
+	var top_mat := StandardMaterial3D.new()
+	if ResourceLoader.exists(path):
+		top_mat.albedo_texture = load(path) as Texture2D
+		# the printed Region spaces are bright; let the tiles and pieces lead
+		top_mat.albedo_color = Color(0.72, 0.77, 0.8)
+	else:
+		top_mat.albedo_color = Color(0.03, 0.25, 0.29)
+	top_mat.roughness = 0.55
+	top_mat.metallic_specular = 0.4
+	top_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	top_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var side_mat := StandardMaterial3D.new()
+	side_mat.albedo_color = Color(0.02, 0.05, 0.055)
+	side_mat.roughness = 0.8
+	side_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mesh.surface_set_material(0, top_mat)
+	mesh.surface_set_material(1, side_mat)
+	var inst := MeshInstance3D.new()
+	inst.name = "PrintedSpaces"
+	inst.mesh = mesh
+	add_child(inst)
+	_board_mesh = inst
 	if _tundra_mat != null:
-		_tundra_mat.set_shader_parameter("board_half_xy", size * 0.5)
-		_tundra_mat.set_shader_parameter("board_center", center)
+		_tundra_mat.set_shader_parameter("board_half_xy", (hi - lo) * 0.5)
+		_tundra_mat.set_shader_parameter("board_center", (hi + lo) * 0.5)
 
 
 func _hero_faction(hero_name: String) -> String:

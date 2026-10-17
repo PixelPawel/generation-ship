@@ -20,6 +20,16 @@ const Rules := preload("res://scripts/ui/hud/action_rules.gd")
 const PhaseTrack := preload("res://scripts/ui/hud/phase_track.gd")
 const HexArt := preload("res://scripts/ui/lobby/hex_art.gd")
 const FactionCatalog := preload("res://scripts/data/tables/faction_catalog.gd")
+const Drawers := preload("res://scripts/ui/hud/hud_drawers.gd")
+const Reveal := preload("res://scripts/ui/hud/hud_reveal.gd")
+## Terrain in combat (CombatResolver; rulebook p37, p42).
+const TERRAIN_EFFECT: Dictionary = {
+	"Woods": "Woods: reroll up to 2 blank dice in Archery.",
+	"Highlands": "Highlands: each side rolls only 1 Archery die.",
+	"Marshes": "Marshes: red dice become white.",
+	"Badlands": "Badlands: Riders roll in Archery too.",
+	"Ice Waste": "Ice Waste: no effect in combat.",
+}
 const MENU_SCENE := "res://scenes/MainMenu.tscn"
 const PHASE_BANNER := "res://assets/art/ui/phases/phase_%d.png"
 const LOG_SECONDS := 7.0
@@ -56,6 +66,7 @@ var _hex_panel: PanelContainer
 var _hex_title: Label
 var _hex_sub: Label
 var _hex_lines: Label
+var _hex_effects: Label
 var _log_panel: PanelContainer
 var _log_label: Label
 var _log_time: float = -100.0
@@ -83,6 +94,10 @@ var _banner: TextureRect
 var _banner_tween: Tween
 var _last_phase: int = -1
 var _last_log: String = ""
+var _drawers: Control
+var _reveal: Control
+## What the last state showed, to spot cards turning up (reveals).
+var _seen: Dictionary = {}
 
 
 func _ready() -> void:
@@ -96,6 +111,11 @@ func _ready() -> void:
 	_build_bar()
 	_build_tray()
 	_build_banner()
+	_drawers = Drawers.new()
+	add_child(_drawers)
+	_drawers.action_requested.connect(func(a: Dictionary) -> void: action_requested.emit(a))
+	_reveal = Reveal.new()
+	add_child(_reveal)  # on top of everything
 	_show_log(CAMERA_HINT)
 
 
@@ -175,7 +195,12 @@ func _build_top() -> void:
 	var score := _panel()
 	_place(score, Control.PRESET_TOP_RIGHT, -260, 10, -14, 64)
 	score.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	score.tooltip_text = "Beat both The Empire and Chaos on VP at the end of the last Chapter."
+	score.tooltip_text = "Beat both The Empire and Chaos on VP at the end of the last Chapter. Click for the breakdown."
+	score.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	score.gui_input.connect(func(event: InputEvent) -> void:
+		var mb: InputEventMouseButton = event as InputEventMouseButton
+		if mb != null and mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+			_drawers.call("toggle", "score"))
 	var cols := _hbox(10)
 	score.add_child(cols)
 	for spec: Array in [["you", "You", Style.GOLD], ["empire", "Empire", Style.EMPIRE], ["chaos", "Chaos", Style.CHAOS]]:
@@ -210,6 +235,10 @@ func _build_top() -> void:
 	_hex_lines.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hex_lines.custom_minimum_size = Vector2(210, 0)
 	hv.add_child(_hex_lines)
+	_hex_effects = Style.label("", 13, Style.GOLD)
+	_hex_effects.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hex_effects.custom_minimum_size = Vector2(210, 0)
+	hv.add_child(_hex_effects)
 
 	# The latest happening, a toast under the phase plaque.
 	_log_panel = _panel(Style.panel_style(Color(0.016, 0.07, 0.082, 0.86)))
@@ -340,7 +369,7 @@ func _build_bar() -> void:
 	_cards_button.custom_minimum_size = Vector2(0, 32)
 	_cards_button.tooltip_text = "Your Feats and Items."
 	Style.style_button(_cards_button)
-	_cards_button.pressed.connect(func() -> void: _open_popup("cards"))
+	_cards_button.pressed.connect(func() -> void: _drawers.call("toggle", "cards"))
 	row.add_child(_cards_button)
 
 	row.add_child(_spacer())
@@ -402,6 +431,8 @@ func refresh(state: GameState, my_faction: String, selected: Vector2i, has_selec
 	_refresh_rail()
 	_refresh_bar()
 	_refresh_tray()
+	_drawers.call("refresh", state, _me, my_faction, selected, has_selected, ally_acting)
+	_detect_reveals(state)
 	if int(state.phase) != _last_phase:
 		if _last_phase != -1:
 			_show_banner(int(state.phase))
@@ -413,6 +444,49 @@ func refresh(state: GameState, my_faction: String, selected: Vector2i, has_selec
 		_close_popup()
 	if _popup != null:
 		_open_popup(_popup_kind)  # rebuild with the new state
+
+
+## Cards turning up between two states: the Refresh just dealt Quests and
+## Items (and Druids gained Aether), the Chapter's Event came up, Legions or
+## Hordes entered play - each shown big for a moment (hud_reveal.gd).
+func _detect_reveals(state: GameState) -> void:
+	var legion_ids: Array = []
+	for l: LegionInstance in state.legions:
+		legion_ids.append(l.id)
+	var horde_ids: Array = []
+	for h: HordeInstance in state.hordes:
+		horde_ids.append(h.id)
+	var aether: Dictionary = {}
+	for d: DruidInstance in state.druids_in_play:
+		aether[d.card_name] = d.aether
+	if not _seen.is_empty():
+		if int(_seen["phase"]) == int(GameState.Phase.REFRESH) and state.phase != GameState.Phase.REFRESH:
+			var druids: Array = []
+			for d2: DruidInstance in state.druids_in_play:
+				druids.append({"name": d2.card_name, "aether": d2.aether, "gained": d2.aether - int((_seen["aether"] as Dictionary).get(d2.card_name, 0))})
+			_reveal.call("reveal_refresh", state.chapter, state.quest_row, state.item_market, druids)
+		if state.latest_event != str(_seen["event"]) and not state.latest_event.is_empty():
+			_reveal.call("reveal_event", state.chapter, state.latest_event)
+		for l2: LegionInstance in state.legions:
+			if not (_seen["legions"] as Array).has(l2.id):
+				_reveal.call("reveal_nemesis", "legion", l2.card_name, l2.threat, _place_name(state, l2.coord))
+		for h2: HordeInstance in state.hordes:
+			if not (_seen["hordes"] as Array).has(h2.id):
+				_reveal.call("reveal_nemesis", "horde", h2.card_name, h2.threat, _place_name(state, h2.coord))
+	_seen = {"phase": int(state.phase), "event": state.latest_event, "legions": legion_ids, "hordes": horde_ids, "aether": aether}
+
+
+func _place_name(state: GameState, c: Vector2i) -> String:
+	var t: HexTileState = state.get_hex(c)
+	if t == null:
+		return "the map"
+	if t.role == "capital":
+		return "The Capital"
+	if t.role == "outer":
+		return RegionMath.region_at(state, c)
+	if t.explored and not t.hex_card_name.is_empty():
+		return t.hex_card_name
+	return "an unexplored hex"
 
 
 ## A rejected action, in the log toast in crimson.
@@ -494,9 +568,33 @@ func _refresh_hex_card() -> void:
 			lines.append("Hero %s" % p.hero_name)
 		if p.has_ally() and p.ally_coord == _selected:
 			lines.append("Allied Hero %s" % p.ally_hero_name)
+	var effects: Array[String] = []
+	if tile.curse:
+		effects.append("Cursed: only Chaos can use Bolts here.")
+	elif tile.explored:
+		var terrain: String = "Ice Waste" if tile.role == "outer" else _terrain_of(tile.hex_card_name)
+		if TERRAIN_EFFECT.has(terrain):
+			effects.append(str(TERRAIN_EFFECT[terrain]))
+		var ongoing: String = _ongoing_of(tile.hex_card_name)
+		if not ongoing.is_empty():
+			effects.append(ongoing)
+	else:
+		effects.append("Unexplored: no terrain in combat.")
 	_hex_lines.text = "\n".join(lines)
 	_hex_lines.visible = not lines.is_empty()
+	_hex_effects.text = "\n".join(effects)
+	_hex_effects.visible = not effects.is_empty()
 	(_hex_panel.get_theme_stylebox("panel") as StyleBoxFlat).border_color = accent
+
+
+func _ongoing_of(card_name: String) -> String:
+	if _card_db == null or card_name.is_empty():
+		return ""
+	for h: HexCard in _card_db.hexes_all:
+		if h.card_name == card_name and h.lang == "EN":
+			var t: String = h.ongoing_effect.strip_edges()
+			return "" if t.is_empty() or t == "-" else t
+	return ""
 
 
 func _terrain_of(card_name: String) -> String:
@@ -910,18 +1008,9 @@ func _open_popup(kind: String) -> void:
 	close.pressed.connect(_close_popup)
 	head.add_child(close)
 	match kind:
-		"market":
-			title.text = "Market"
-			_fill_market(v)
-		"quest":
-			title.text = "Quests"
-			_fill_quests(v)
 		"exchange":
 			title.text = "Exchange"
 			_fill_exchange(v)
-		"cards":
-			title.text = "Your cards"
-			_fill_cards(v)
 		"result":
 			head.remove_child(close)
 			close.queue_free()
@@ -932,58 +1021,6 @@ func _open_popup(kind: String) -> void:
 	panel.offset_right = 0
 	panel.offset_top = 0
 	panel.offset_bottom = 0
-
-
-func _fill_market(v: VBoxContainer) -> void:
-	var note: Label = Style.label("1 AP plus the Item's Salt. Your Hero must be able to use it. The Market refills at once.", 14, Style.MUTED)
-	v.add_child(note)
-	var row := _hbox(16)
-	v.add_child(row)
-	# Turn, phase, AP or an Action already taken block every Item; otherwise
-	# each Item says for itself what's missing.
-	var gate: String = Rules.main_reason(_state, _card_db, _me, "market", _selected, _has_selected, ally_acting)
-	if gate == "You can't afford or use any Item.":
-		gate = ""
-	for item: String in _state.item_market:
-		var col := _vbox(6)
-		row.add_child(col)
-		col.add_child(_card_image("Items", item, Vector2(150, 220)))
-		var price := _hbox(6)
-		col.add_child(price)
-		var cost: int = Rules.market_cost(_state, _card_db, _me, item) if _me != null else GameActions.item_cost(_card_db, item)
-		price.add_child(Style.cost_row([["salt", str(cost)]], 16))
-		price.add_child(_spacer())
-		var reason: String = gate
-		if reason.is_empty() and _me != null:
-			if ally_acting and _me.has_ally():
-				_me.swap_heroes()
-				reason = Rules.market_reason(_state, _card_db, _me, item)
-				_me.swap_heroes()
-			else:
-				reason = Rules.market_reason(_state, _card_db, _me, item)
-		var buy: Button = _small_button("Buy", reason, true)
-		var it: String = item
-		buy.pressed.connect(func() -> void:
-			_close_popup()
-			action_requested.emit({"type": "market", "item": it}))
-		price.add_child(buy)
-
-
-func _fill_quests(v: VBoxContainer) -> void:
-	v.add_child(Style.label("1 AP. Roll your Hero Dice: solve the Quest for its reward, fail and its fail effect strikes.", 14, Style.MUTED))
-	var row := _hbox(16)
-	v.add_child(row)
-	var reason: String = Rules.main_reason(_state, _card_db, _me, "quest", _selected, _has_selected, ally_acting)
-	for quest: String in _state.quest_row:
-		var col := _vbox(6)
-		row.add_child(col)
-		col.add_child(_card_image("Quests", quest, Vector2(160, 262)))
-		var go: Button = _small_button("Attempt", reason, true)
-		var q: String = quest
-		go.pressed.connect(func() -> void:
-			_close_popup()
-			action_requested.emit({"type": "quest", "quest": q}))
-		col.add_child(go)
 
 
 func _fill_exchange(v: VBoxContainer) -> void:
@@ -1012,45 +1049,6 @@ func _fill_exchange(v: VBoxContainer) -> void:
 			var r: String = get_res
 			b.pressed.connect(func() -> void: action_requested.emit({"type": "exchange", "give": g, "get": r}))
 			grid.add_child(b)
-
-
-func _fill_cards(v: VBoxContainer) -> void:
-	if _me == null:
-		return
-	var groups: Array = [[_me.hero_name, false]]
-	if _me.has_ally():
-		groups.append([_me.ally_hero_name, true])
-	for group: Variant in groups:
-		var g: Array = group
-		var ally: bool = bool(g[1])
-		var flow := HFlowContainer.new()
-		flow.add_theme_constant_override("h_separation", 8)
-		flow.add_theme_constant_override("v_separation", 8)
-		flow.custom_minimum_size = Vector2(620, 0)
-		var count: int = 0
-		for f: String in _me.feats_in_play:
-			if _me.ally_cards.has(f) == ally:
-				flow.add_child(_hand_card("Feats", f, _me.flipped_feats.has(f)))
-				count += 1
-		for it: String in _me.items_in_hand:
-			if _me.ally_cards.has(it) == ally:
-				flow.add_child(_hand_card("Items", it, _me.flipped_items.has(it)))
-				count += 1
-		if _me.has_ally():
-			v.add_child(Style.label("%s, %s" % [str(g[0]), "allied Hero" if ally else "main Hero"], 15, Style.MUTED, Style.FONT_BOLD))
-		if count == 0:
-			v.add_child(Style.label("No cards yet.", 14, Style.MUTED))
-		else:
-			v.add_child(flow)
-
-
-func _hand_card(sheet: String, card: String, flipped: bool) -> Control:
-	var c: Control = _card_image(sheet, card, Vector2(96, 141))
-	c.mouse_filter = Control.MOUSE_FILTER_PASS
-	c.tooltip_text = "%s%s\n%s" % [card, " (flipped until the next Refresh)" if flipped else "", _card_text(sheet, card)]
-	if flipped:
-		c.modulate = Color(0.5, 0.5, 0.55)
-	return c
 
 
 func _fill_result(v: VBoxContainer, title: Label) -> void:
@@ -1120,9 +1118,9 @@ func _is_feat(card: String) -> bool:
 func _on_main_action(action: String) -> void:
 	match action:
 		"market":
-			_open_popup("market")
+			_drawers.call("open", "market")
 		"quest":
-			_open_popup("quest")
+			_drawers.call("open", "quests")
 		"move", "command":
 			action_requested.emit({"type": action, "to": _coord_dict(_selected)})
 		_:
