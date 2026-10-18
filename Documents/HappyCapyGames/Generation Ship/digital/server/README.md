@@ -36,6 +36,10 @@ All votes, scores, translation comments and crash reports are in `data/votes.db`
 | POST | `/v1/crashes` `{"install", "build", "exit_code", "phase", "safe_mode", "os", "gpu", "log"}` | a crash report from the Windows launcher (only when the player ticks "send an error report"; 5/min per IP) |
 | GET | `/v1/crashes/report?days=30&format=json\|csv` | **admin:** crashes grouped by cause (exit code + first error + first crash frame), most players first |
 | GET | `/v1/crashes/{id}` | **admin:** one report with its full log |
+| POST | `/v1/uprising/bugs` `{"card_sheet", "card_name", "card_kind", "category", "severity", "summary", "actual", "expected", "steps", "reporter", "build", "source", "context", "log", "state"}` | an Uprising Digital bug report (Collection / card test / Escape menu; `state` = the game's save JSON, stored gzipped in `data/uprising_bugs/`; 5/min per IP) |
+| GET | `/v1/uprising/bugs/report?since_id=0&status=&format=json\|csv` | **admin:** reports after an id, without logs and snapshots (the "Uprising Bug Reports" sheet's Apps Script polls this) |
+| GET | `/v1/uprising/bugs/{id}` · `/v1/uprising/bugs/{id}/state` | **admin:** one report with its log · its game state snapshot |
+| POST | `/v1/uprising/bugs/{id}/status` `{"status", "fixed_in", "note"}` · DELETE `/v1/uprising/bugs/{id}` | **admin:** triage (new/fixing/fixed/cant_reproduce/not_a_bug/needs_info) · remove |
 
 Admin endpoints need the header `X-Admin-Token: <ADMIN_TOKEN>`. The token is set in
 `/opt/hcg-api/.env` on the server (`ADMIN_TOKEN=...`, not in git); without it they always answer 403.

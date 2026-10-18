@@ -174,3 +174,7 @@ app.include_router(comments_router)
 from .crashes import router as crashes_router  # noqa: E402  (Windows launcher crash reports + admin report)
 
 app.include_router(crashes_router)
+
+from .uprising_bugs import router as uprising_bugs_router  # noqa: E402  (Uprising Digital bug reports)
+
+app.include_router(uprising_bugs_router)
