@@ -11,7 +11,12 @@ The "Uprising Bug Reports" Google Sheet pulls new reports through its Apps Scrip
 (uprising/tools/sheets/uprising_bugs.gs) and keeps the triage; tools/bug_reports.py in the
 Uprising repo fetches the full report and the state snapshot.
 
+Everyone sees what's already reported for a card (and adds to it instead of reporting it again):
+
 Send:   POST /v1/uprising/bugs                                  (open, 5 a minute per IP)
+Card:   GET  /v1/uprising/card-bugs?sheet=Items&name=Jitaka     (open: that card's reports + comments,
+                                                                 no logs, snapshots or context)
+Add:    POST /v1/uprising/bugs/{id}/comments {"text", "reporter", "build"}   (open, 10 a minute per IP)
 Report: GET  /v1/uprising/bugs/report?since_id=0&status=&format=json|csv   (header X-Admin-Token)
 One:    GET  /v1/uprising/bugs/{id}           (admin; with the log)
 State:  GET  /v1/uprising/bugs/{id}/state     (admin; the game state snapshot as JSON)
@@ -35,6 +40,7 @@ from .main import DB_PATH, _client_ip, db
 
 router = APIRouter()
 REPORTS_PER_MINUTE = 5            # per client IP
+COMMENTS_PER_MINUTE = 10          # per client IP
 STATUSES = ("new", "fixing", "fixed", "cant_reproduce", "not_a_bug", "needs_info")
 MAX_CONTEXT = 20000               # characters of JSON
 STATE_DIR = os.path.join(os.path.dirname(DB_PATH) or ".", "uprising_bugs")
@@ -72,19 +78,32 @@ def init_uprising_bugs() -> None:
             )"""
         )
         c.execute("CREATE INDEX IF NOT EXISTS uprising_bugs_status ON uprising_bugs(status, id)")
+        c.execute("CREATE INDEX IF NOT EXISTS uprising_bugs_card ON uprising_bugs(card_sheet, card_name)")
+        c.execute(
+            """CREATE TABLE IF NOT EXISTS uprising_bug_comments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                bug_id INTEGER NOT NULL,
+                text TEXT NOT NULL,
+                reporter TEXT NOT NULL,
+                build TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )"""
+        )
+        c.execute("CREATE INDEX IF NOT EXISTS uprising_bug_comments_bug ON uprising_bug_comments(bug_id, id)")
 
 
 init_uprising_bugs()
 
 _posts: dict[str, deque] = defaultdict(deque)
+_comment_posts: dict[str, deque] = defaultdict(deque)
 
 
-def _bug_rate_limit(request: Request) -> None:
+def _bug_rate_limit(request: Request, posts: dict | None = None, limit: int = REPORTS_PER_MINUTE) -> None:
     now = time.monotonic()
-    q = _posts[_client_ip(request)]
+    q = (_posts if posts is None else posts)[_client_ip(request)]
     while q and now - q[0] > 60:
         q.popleft()
-    if len(q) >= REPORTS_PER_MINUTE:
+    if len(q) >= limit:
         raise HTTPException(429, "Too many reports")
     q.append(now)
 
@@ -105,6 +124,12 @@ class BugIn(BaseModel):
     context: dict = Field(default_factory=dict)
     log: str = Field("", max_length=64000)
     state: str = Field("", max_length=4_000_000)   # the game state, as JSON text
+
+
+class CommentIn(BaseModel):
+    text: str = Field(..., min_length=3, max_length=2000)
+    reporter: str = Field("", max_length=60)
+    build: str = Field("", max_length=64)
 
 
 class StatusIn(BaseModel):
@@ -161,6 +186,49 @@ def _row_dict(row: tuple, keys: tuple) -> dict:
     return d
 
 
+def _comments_for(c, ids: list[int]) -> dict[int, list[dict]]:
+    out: dict[int, list[dict]] = defaultdict(list)
+    if not ids:
+        return out
+    marks = ",".join("?" * len(ids))
+    for cid, bug_id, text, reporter, build, created in c.execute(
+            f"SELECT id, bug_id, text, reporter, build, created_at FROM uprising_bug_comments WHERE bug_id IN ({marks}) ORDER BY id",
+            ids):
+        out[bug_id].append({"id": cid, "text": text, "reporter": reporter, "build": build, "created_at": created})
+    return out
+
+
+@router.get("/v1/uprising/card-bugs")
+def card_bugs(sheet: str = Query(..., max_length=40), name: str = Query(..., min_length=1, max_length=120)) -> dict:
+    """What's already reported for one card, for everyone: newest first, with the comments."""
+    with db() as c:
+        rows = c.execute(
+            """SELECT id, status, summary, actual, expected, steps, reporter, build, fixed_in, note, created_at
+               FROM uprising_bugs WHERE card_sheet = ? AND card_name = ? ORDER BY id DESC LIMIT 50""",
+            (sheet, name)).fetchall()
+        keys = ("id", "status", "summary", "actual", "expected", "steps", "reporter", "build", "fixed_in", "note", "created_at")
+        reports = [dict(zip(keys, r)) for r in rows]
+        comments = _comments_for(c, [r["id"] for r in reports])
+    for r in reports:
+        r["comments"] = comments.get(r["id"], [])
+    return {"reports": reports}
+
+
+@router.post("/v1/uprising/bugs/{bug_id}/comments")
+def post_comment(bug_id: int, body: CommentIn, request: Request) -> dict:
+    with db() as c:
+        if not c.execute("SELECT 1 FROM uprising_bugs WHERE id = ?", (bug_id,)).fetchone():
+            raise HTTPException(404, "No such report")
+    _bug_rate_limit(request, _comment_posts, COMMENTS_PER_MINUTE)
+    now = int(time.time())
+    with db() as c:
+        cur = c.execute(
+            "INSERT INTO uprising_bug_comments (bug_id, text, reporter, build, created_at) VALUES (?, ?, ?, ?, ?)",
+            (bug_id, body.text.strip(), body.reporter.strip(), body.build.strip(), now))
+        c.execute("UPDATE uprising_bugs SET updated_at = ? WHERE id = ?", (now, bug_id))
+    return {"ok": True, "id": cur.lastrowid}
+
+
 @router.get("/v1/uprising/bugs/report")
 def report(since_id: int = Query(0, ge=0), status: str = Query("", pattern="^(|" + "|".join(STATUSES) + ")$"),
            format: str = Query("json", pattern="^(json|csv)$"), x_admin_token: str | None = Header(None)):
@@ -175,13 +243,17 @@ def report(since_id: int = Query(0, ge=0), status: str = Query("", pattern="^(|"
         args.append(status)
     with db() as c:
         rows = c.execute(sql + " ORDER BY id", args).fetchall()
-    out = [_row_dict(r, LIST_KEYS) for r in rows]
+        out = [_row_dict(r, LIST_KEYS) for r in rows]
+        comments = _comments_for(c, [d["id"] for d in out])
+    for d in out:
+        d["comments"] = comments.get(d["id"], [])
     if format == "csv":
         buf = io.StringIO()
         w = csv.writer(buf)
-        w.writerow([k for k in LIST_KEYS if k != "context"])
+        w.writerow([k for k in LIST_KEYS if k != "context"] + ["comments"])
         for d in out:
-            w.writerow([d[k] for k in LIST_KEYS if k != "context"])
+            w.writerow([d[k] for k in LIST_KEYS if k != "context"]
+                       + [" | ".join(f"{x['reporter'] or '?'}: {x['text']}" for x in d["comments"])])
         return PlainTextResponse(buf.getvalue(), media_type="text/csv; charset=utf-8")
     return {"total": len(out), "reports": out}
 
@@ -197,7 +269,10 @@ def one(bug_id: int, x_admin_token: str | None = Header(None)) -> dict:
                FROM uprising_bugs WHERE id = ?""", (bug_id,)).fetchone()
     if not row:
         raise HTTPException(404, "No such report")
-    return _row_dict(row, keys)
+    d = _row_dict(row, keys)
+    with db() as c:
+        d["comments"] = _comments_for(c, [bug_id]).get(bug_id, [])
+    return d
 
 
 @router.get("/v1/uprising/bugs/{bug_id}/state")
@@ -232,6 +307,7 @@ def delete(bug_id: int, x_admin_token: str | None = Header(None)) -> dict:
     _require_admin(x_admin_token)
     with db() as c:
         cur = c.execute("DELETE FROM uprising_bugs WHERE id = ?", (bug_id,))
+        c.execute("DELETE FROM uprising_bug_comments WHERE bug_id = ?", (bug_id,))
     if cur.rowcount == 0:
         raise HTTPException(404, "No such report")
     if os.path.exists(_state_path(bug_id)):

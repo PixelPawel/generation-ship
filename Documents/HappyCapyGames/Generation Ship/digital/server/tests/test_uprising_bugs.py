@@ -80,3 +80,24 @@ def test_delete_removes_snapshot():
     assert client.delete(f"/v1/uprising/bugs/{bug_id}", headers=ADMIN).status_code == 200
     assert not os.path.exists(uprising_bugs._state_path(bug_id))
     assert client.get(f"/v1/uprising/bugs/{bug_id}", headers=ADMIN).status_code == 404
+
+
+def test_card_reports_and_comments_are_shared():
+    uprising_bugs._posts.clear()
+    uprising_bugs._comment_posts.clear()
+    bug_id = client.post("/v1/uprising/bugs", json=body(card_name="Runestrings", state="")).json()["id"]
+    r = client.post(f"/v1/uprising/bugs/{bug_id}/comments", json={"text": "Same here, no Shields at all.", "reporter": "Kate", "build": "dev 1"})
+    assert r.status_code == 200, r.text
+    # anyone can see a card's reports with everyone's comments - no admin token
+    seen = client.get("/v1/uprising/card-bugs", params={"sheet": "Items", "name": "Runestrings"}).json()["reports"]
+    assert [x["id"] for x in seen] == [bug_id]
+    assert seen[0]["comments"][0]["reporter"] == "Kate"
+    assert "log" not in seen[0] and "context" not in seen[0]
+    # the admin report carries them too
+    rep = client.get(f"/v1/uprising/bugs/report?since_id={bug_id - 1}", headers=ADMIN).json()["reports"]
+    assert rep[0]["comments"][0]["text"].startswith("Same here")
+    assert client.get(f"/v1/uprising/bugs/{bug_id}", headers=ADMIN).json()["comments"]
+    assert client.post("/v1/uprising/bugs/99999/comments", json={"text": "hello there"}).status_code == 404
+    assert client.post(f"/v1/uprising/bugs/{bug_id}/comments", json={"text": "x"}).status_code == 422
+    assert client.delete(f"/v1/uprising/bugs/{bug_id}", headers=ADMIN).status_code == 200
+    assert client.get("/v1/uprising/card-bugs", params={"sheet": "Items", "name": "Runestrings"}).json()["reports"] == []
