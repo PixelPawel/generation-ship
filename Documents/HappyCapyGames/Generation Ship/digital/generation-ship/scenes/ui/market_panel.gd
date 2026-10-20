@@ -217,6 +217,24 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 		"vp_lbl": slot["vp_lbl"],
 	}
 
+## Empties this player's row again (the Tutorial's practice crewmate leaves);
+## the row isn't reused.
+func remove_opponent(peer_id: int) -> void:
+	if not _opp_refs.has(peer_id):
+		return
+	var entry: Control = _opp_refs[peer_id].get("entry") as Control
+	var style: StyleBoxFlat = _opp_refs[peer_id].get("style") as StyleBoxFlat
+	_opp_refs.erase(peer_id)
+	for slot: Dictionary in _opp_slot_data:
+		if slot["entry"] == entry:
+			(slot["hbox"] as HBoxContainer).visible = false
+	if entry:
+		entry.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if style:
+		style.bg_color = Color(0.02, 0.03, 0.08, 0.30)
+		style.border_color = Color(0.22, 0.44, 0.70, 0.12)
+		style.set_border_width_all(1)
+
 ## Generation Fleet Shuttle: the teammate whose row is at this info-screen
 ## viewport point (0 = none; bots have negative ids).
 func opponent_at(vp_pos: Vector2) -> int:
@@ -227,6 +245,13 @@ func opponent_at(vp_pos: Vector2) -> int:
 		if entry and entry.is_visible_in_tree() and entry.get_global_rect().has_point(vp_pos):
 			return pid
 	return 0
+
+## Centre of this player's row in the info viewport (-1, -1 if there's none).
+func opponent_center(peer_id: int) -> Vector2:
+	var entry: Control = _opp_refs.get(peer_id, {}).get("entry") as Control
+	if entry == null or not entry.is_visible_in_tree():
+		return Vector2(-1.0, -1.0)
+	return entry.get_global_rect().get_center()
 
 ## Highlights the row a dragged card would be shuttled to (0 = none).
 func set_shuttle_highlight(pid: int) -> void:

@@ -14,7 +14,10 @@ extends Node
 # expedition, which it offers to bid on) → bid on the expedition (DNA Sculpting,
 # whose effect teaches archiving face up) → Always cards (Skyhook, then an
 # Electrix star card it makes cheaper, which fully optimizes Probe Launcher) →
-# research → pass →
+# research → Generation Fleet (Fleet switches on for three steps: the red
+# switch on the right flips the market to the Dangers, the one on the left the
+# control screen to the Destination, then a card is shuttled to a practice
+# crewmate; FleetFlow.start_tutorial / end_tutorial) → pass →
 # scoring (the game ends on the score breakdown; tutorial scores never reach
 # the leaderboard).
 #
@@ -42,7 +45,7 @@ const FILLER_BY_COLOR: Dictionary = {
 const STEPS: Array[String] = [
 	"inspect_market", "buy", "place", "inspect_card", "inspect_screen", "fuse", "optimize", "if_full", "complete", "recycle", "buy2",
 	"if_new", "archive", "store", "stars", "buy3", "probe", "bid", "always",
-	"research", "pass", "score",
+	"research", "fleet_dangers", "fleet_destination", "fleet_send", "pass", "score",
 ]
 # Probe Launcher's optimize group is a single Electrix card: this one
 const PROBE_CARD: String = "Portable Reactor"
@@ -56,6 +59,14 @@ const NUDGE_FIRST_SEC: float = 2.0
 const NUDGE_REPEAT_SEC: float = 5.0
 # DNA Sculpting (the tutorial's expedition) draws these, to archive face up
 const STAR_DRAWS: Array[String] = ["Inflatable Habs", "Cargo Landers", "Solar Power"]
+# Generation Fleet chapter: Titan (shuttle 1 Dust) with Asteroid Belt in play
+# (Always: the shuttle costs 1 Dust more), and a practice crewmate — a bot name
+# (lobby.gd BOT_NAMES), bots have negative ids — to send this card to
+const FLEET_DESTINATION: int = 1
+const FLEET_DANGER: int = 1
+const FLEET_CREW_ID: int = -1
+const FLEET_CREW_NAME: String = "Circuit"
+const FLEET_SEND_CARD: String = "Fish"
 
 var _main: Main = null
 var _board: Node = null
@@ -83,6 +94,10 @@ var _saw_market_inspect: bool = false
 var _saw_screen_enlarged: bool = false
 # the expedition was already won through Probe Launcher's bid offer: the bid chapter is done
 var _expedition_won_early: bool = false
+# Fleet chapter: the switch's screen came up (the step waits for it to go back); a card was sent
+var _saw_fleet_screen: bool = false
+var _shuttled: bool = false
+var _switch_flash: Dictionary = {}   # red switch 1 / 2 -> its flash tween
 
 func start(main: Main) -> void:
 	_main = main
@@ -92,6 +107,7 @@ func start(main: Main) -> void:
 	_board.unplaceable_card_recycled.connect(_on_unplaceable_card_recycled)
 	_board.optimize_triggered.connect(func(_slot: SectorSlot, _level: int) -> void: _optimized = true)
 	main._cs_display.fused.connect(func(_s: int, _t: int) -> void: _fused = true)
+	main.fleet_card_shuttled.connect(func(_target: int) -> void: _shuttled = true)
 	var timer: Timer = Timer.new()
 	timer.wait_time = REFRESH_INTERVAL_SEC
 	timer.autostart = true
@@ -162,6 +178,8 @@ func _next_step() -> void:
 	_saw_card_enlarged = false
 	_saw_market_inspect = false
 	_saw_screen_enlarged = false
+	_saw_fleet_screen = false
+	_shuttled = false
 	_clear_highlights()
 
 func _refresh() -> void:
@@ -201,6 +219,12 @@ func _tick(step: String) -> void:
 		"inspect_card":
 			if _main._sun_elevated_count > 0:
 				_saw_card_enlarged = true
+		"fleet_dangers":
+			if _main._fleet_screen_shown:
+				_saw_fleet_screen = true
+		"fleet_destination":
+			if _main._fleet_dest_shown:
+				_saw_fleet_screen = true
 		"inspect_screen":
 			if _any_screen_enlarged():
 				_saw_screen_enlarged = true
@@ -224,6 +248,8 @@ func _leave(step: String) -> void:
 			CockpitRig.set_screen_enlarged(_main, _main.get_node("UiControl"), false)
 		"probe":
 			_expedition_won_early = _placed_type(CardData.CardType.EXPEDITION)
+		"fleet_send":
+			Main.FleetFlow.end_tutorial(_main, FLEET_CREW_ID)
 
 # Hand-overs before a chapter: the cards it needs, enough supply to play them.
 func _enter(step: String) -> void:
@@ -293,6 +319,11 @@ func _enter(step: String) -> void:
 		"research":
 			_board.set_scripted_deck(_cards(["Fish"]))   # the replacement it draws
 			_give(["Mag-Net"])
+		"fleet_dangers":
+			Main.FleetFlow.start_tutorial(_main, FLEET_DESTINATION, FLEET_DANGER, FLEET_CREW_ID, FLEET_CREW_NAME)
+		"fleet_send":
+			_top_up_supply()
+			_give([FLEET_SEND_CARD])
 		"score":
 			_main._hide_effect_hint()
 			_main._game_over()
@@ -346,6 +377,12 @@ func _is_done(step: String) -> bool:
 			return _placed_name(ALWAYS_STAR_CARD) and _board.count_tech_by_name(ALWAYS_CARD) > 0
 		"research":
 			return _researched
+		"fleet_dangers":
+			return _saw_fleet_screen and not _main._fleet_screen_shown
+		"fleet_destination":
+			return _saw_fleet_screen and not _main._fleet_dest_shown
+		"fleet_send":
+			return _shuttled
 		"pass":
 			return _passed
 	return false   # "score" stays up: the game is over
@@ -424,6 +461,25 @@ func _show(step: String) -> void:
 		"research":
 			_hint(tr("TUT_RESEARCH_TUT"))
 			_main._start_research_btn_3d_flash()
+		"fleet_dangers":
+			if _saw_fleet_screen:
+				_hint(tr("TUT_FLEET_DANGERS_BACK") % Main.FleetData.card_text("danger", FLEET_DANGER, "name"))
+			else:
+				_hint(tr("TUT_FLEET_DANGERS"))
+			_flash_switch(2)
+		"fleet_destination":
+			if _saw_fleet_screen:
+				_hint(tr("TUT_FLEET_DESTINATION_BACK") % Main.FleetData.card_text("destination", FLEET_DESTINATION, "name"))
+			else:
+				_hint(tr("TUT_FLEET_DESTINATION"))
+			_flash_switch(1)
+		"fleet_send":
+			if _main._choice_popup and _main._choice_popup.visible:
+				_show_send_arrow(false)
+				_hint(tr("TUT_FLEET_SEND_PAY") % Main.FleetRules.shuttle_cost())
+			else:
+				_hint(tr("TUT_FLEET_SEND") % [_name(FLEET_SEND_CARD), FLEET_CREW_NAME])
+				_show_send_arrow(not _is_dragging(CardData.CardType.TECH))
 		"pass":
 			_main._stop_research_btn_3d_flash()
 			_hint(tr("TUT_PASS"))
@@ -655,6 +711,8 @@ func _clear_highlights() -> void:
 	_main._stop_research_btn_3d_flash()
 	_main._stop_pass_btn_3d_flash()
 	_show_recycle_arrow(false)
+	_show_send_arrow(false)
+	_flash_switch(0)
 
 func _mark_done() -> void:
 	var cfg: ConfigFile = ConfigFile.new()
@@ -676,11 +734,63 @@ func _show_recycle_arrow(on: bool) -> void:
 	if cam == null or screen_mesh == null:
 		return
 	if _recycle_arrow == null:
-		var canvas: CanvasLayer = CanvasLayer.new()
-		canvas.layer = 10
-		add_child(canvas)
-		_recycle_arrow = DragArrow.new()
-		canvas.add_child(_recycle_arrow)
+		_recycle_arrow = _new_arrow()
 	var from_2d: Vector2 = cam.unproject_position((_main.get_node("Hand") as Node3D).global_position)
 	var to_2d: Vector2 = cam.unproject_position(screen_mesh.to_global(screen_mesh.mesh.get_aabb().get_center()))
 	_recycle_arrow.show_arrow(from_2d, to_2d)
+
+func _new_arrow() -> DragArrow:
+	var canvas: CanvasLayer = CanvasLayer.new()
+	canvas.layer = 10
+	add_child(canvas)
+	var arrow: DragArrow = DragArrow.new()
+	canvas.add_child(arrow)
+	return arrow
+
+# The same kind of arrow from the hand to the practice crewmate's row on the
+# market screen (the row's spot in the info viewport, mapped onto the 3D screen).
+var _send_arrow: DragArrow = null
+
+func _show_send_arrow(on: bool) -> void:
+	if not on:
+		if _send_arrow:
+			_send_arrow.hide_arrow()
+		return
+	var cam: Camera3D = _main.get_viewport().get_camera_3d()
+	var screen_mesh: MeshInstance3D = _main._info_screen_mesh
+	var row: Vector2 = _main._market_panel.opponent_center(FLEET_CREW_ID) if _main._market_panel else Vector2(-1.0, -1.0)
+	if cam == null or screen_mesh == null or row.x < 0.0:
+		return
+	if _send_arrow == null:
+		_send_arrow = _new_arrow()
+	var vp: Vector2 = Vector2(_main._info_viewport.size)
+	var aabb: AABB = screen_mesh.mesh.get_aabb()
+	var local: Vector3 = Vector3(aabb.position.x + row.x / vp.x * aabb.size.x,
+			aabb.position.y + (1.0 - row.y / vp.y) * aabb.size.y, aabb.get_center().z)
+	var from_2d: Vector2 = cam.unproject_position((_main.get_node("Hand") as Node3D).global_position)
+	_send_arrow.show_arrow(from_2d, cam.unproject_position(screen_mesh.to_global(local)))
+
+# The Fleet chapter's red switch pulses like the tutorial's console buttons
+# (Main._start_pass_btn_3d_flash): 1 = left (Destination), 2 = right (Dangers), 0 = neither.
+func _flash_switch(which: int) -> void:
+	for i: int in [1, 2]:
+		if (i == which) == _switch_flash.has(i):
+			continue
+		var mesh: MeshInstance3D = _main.get_node("UiCockpit").find_child("gs_ui_switch_flat%d" % i, true, false) as MeshInstance3D
+		if mesh == null:
+			continue
+		if i != which:
+			(_switch_flash[i] as Tween).kill()
+			_switch_flash.erase(i)
+			mesh.set_surface_override_material(0, null)
+			continue
+		var base: Material = mesh.get_active_material(0)
+		var mat: StandardMaterial3D = (base as StandardMaterial3D).duplicate() as StandardMaterial3D if base is StandardMaterial3D else StandardMaterial3D.new()
+		mat.emission_enabled = true
+		mat.emission = Color(0.2, 0.6, 1.0)
+		mat.emission_energy_multiplier = 0.0
+		mesh.set_surface_override_material(0, mat)
+		var tw: Tween = create_tween().set_loops()
+		tw.tween_property(mat, "emission_energy_multiplier", 2.5, 0.5).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+		tw.tween_property(mat, "emission_energy_multiplier", 0.0, 0.5).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+		_switch_flash[i] = tw

@@ -1424,6 +1424,8 @@ func _rpc_fleet_result(won: bool, mission: Array) -> void:
 func fleet_shuttle_target_at_mouse() -> int:
 	return CardPassing.fleet_shuttle_target_at_mouse(self)
 
+signal fleet_card_shuttled(target: int)   # this player paid and sent a card (the Tutorial waits for it)
+
 func _fleet_on_shuttle_requested(cd: CardData, target: int) -> void:
 	await CardPassing._fleet_on_shuttle_requested(self, cd, target)
 

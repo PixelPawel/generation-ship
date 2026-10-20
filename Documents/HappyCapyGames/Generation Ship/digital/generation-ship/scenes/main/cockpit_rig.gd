@@ -21,9 +21,7 @@ static func setup_control_screen_display(main: Main) -> void:
 	main._cs_display = SupplyUI.new()
 	main.cs_viewport.add_child(main._cs_display)
 	if GameNetwork.fleet_mode:   # red switch 1 flips to the Destination
-		main._fleet_dest_view = load("res://scenes/ui/fleet_destination_view.gd").new()
-		main.cs_viewport.add_child(main._fleet_dest_view)
-		main._fleet_dest_view.visible = false
+		add_fleet_screens(main)
 
 	var panel: Control = main._cs_display.get_child(0) as Control
 	if panel:
@@ -139,6 +137,22 @@ static func animate_button_press(main: Main, btn_mesh: MeshInstance3D) -> void:
 	btn_mesh.set_meta("press_tween", tween)
 	tween.tween_property(btn_mesh, "position", rest_pos + Vector3(0.0, 0.0, -press_depth), 0.07)
 	tween.tween_property(btn_mesh, "position", rest_pos, 0.14)
+
+## Generation Fleet's two screens, hidden until a red switch flips to them: the
+## Destination on the control screen (switch 1) and the Dangers on the info
+## screen (switch 2), each just above the screen's own base layer. Built with the
+## screens in a Fleet game; the Tutorial's Fleet chapter adds them mid-game.
+static func add_fleet_screens(main: Main) -> void:
+	if main._fleet_dest_view == null and main._cs_display:
+		main._fleet_dest_view = load("res://scenes/ui/fleet_destination_view.gd").new()
+		main.cs_viewport.add_child(main._fleet_dest_view)
+		main.cs_viewport.move_child(main._fleet_dest_view, main._cs_display.get_index() + 1)
+		main._fleet_dest_view.visible = false
+	if main._fleet_panel == null and main._market_panel:
+		main._fleet_panel = load("res://scenes/ui/fleet_panel.gd").new()
+		main._info_viewport.add_child(main._fleet_panel)
+		main._info_viewport.move_child(main._fleet_panel, main._market_panel.get_index() + 1)
+		main._fleet_panel.visible = false
 
 static func setup_cockpit_switches(main: Main) -> void:
 	var ui_cockpit: Node3D = main.get_node("UiCockpit")
@@ -623,10 +637,8 @@ static func setup_info_screen_display(main: Main) -> void:
 	main._market_panel = load("res://scenes/ui/market_panel.gd").new()
 	main._info_viewport.add_child(main._market_panel)
 	main._market_panel.scale = Vector2(1.68, 1.68)
-	if GameNetwork.fleet_mode:
-		main._fleet_panel = load("res://scenes/ui/fleet_panel.gd").new()
-		main._info_viewport.add_child(main._fleet_panel)
-		main._fleet_panel.visible = false
+	if GameNetwork.fleet_mode:   # red switch 2 flips to the Dangers
+		add_fleet_screens(main)
 
 	main._market_panel.sector_advanced_pressed.connect(main._on_market_sector_advanced_pressed)
 	main._market_panel.sector_dust_pressed.connect(main._on_market_sector_dust_pressed)

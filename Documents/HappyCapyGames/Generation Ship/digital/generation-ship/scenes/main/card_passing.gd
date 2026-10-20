@@ -231,6 +231,7 @@ static func _fleet_on_shuttle_requested(main: Main, cd: CardData, target: int) -
 	main.get_node("Hand").remove_card_fly_out(node)
 	main.get_node("Board").refresh_hand_discounts()
 	var ref: Dictionary = CardRef.to_ref(cd)
+	main.fleet_card_shuttled.emit(target)
 	if main.multiplayer.is_server():
 		_server_fleet_shuttle(main, main.multiplayer.get_unique_id(), target, ref)
 	else:

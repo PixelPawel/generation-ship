@@ -51,6 +51,7 @@ static func setup(main: Main) -> void:
 		main.get_tree().create_timer(2.5).timeout.connect(main._hide_tooltip))
 	# Solve buttons and mission progress follow the game while the screen shows
 	var timer: Timer = Timer.new()
+	timer.name = "FleetTimer"
 	timer.wait_time = 0.5
 	timer.autostart = true
 	timer.timeout.connect(func() -> void:
@@ -58,24 +59,95 @@ static func setup(main: Main) -> void:
 		if panel.visible or main._fleet_dest_view.visible:
 			refresh_panel(main))
 	main.add_child(timer)
-	# Shuttle (online): drop a hand card on a teammate's row in the Players column
 	if GameNetwork.is_multiplayer:
-		var board: Node = main.get_node("Board")
-		board.shuttle_target_provider = main.fleet_shuttle_target_at_mouse
-		board.shuttle_requested.connect(main._fleet_on_shuttle_requested)
-		var last_hl: Array = [0]
-		var tree: SceneTree = main.get_tree()
-		var highlight: Callable = func() -> void:
-			if main._market_panel == null:
-				return
-			var dragging: bool = board._dragged_card != null and board._drag_origin == board.DragOrigin.HAND
-			var pid: int = main.fleet_shuttle_target_at_mouse() if dragging else 0
-			if pid != int(last_hl[0]):
-				last_hl[0] = pid
-				main._market_panel.set_shuttle_highlight(pid)
-		tree.process_frame.connect(highlight)
-		main.tree_exiting.connect(func() -> void: tree.process_frame.disconnect(highlight))
+		enable_shuttle(main)
 	refresh_panel(main)
+
+## Shuttle: drop a hand card on a teammate's row in the market screen's Players
+## column (online; the Tutorial's practice crewmate). The row lights up under a
+## dragged card.
+static func enable_shuttle(main: Main) -> void:
+	var board: Node = main.get_node("Board")
+	board.shuttle_target_provider = main.fleet_shuttle_target_at_mouse
+	board.shuttle_requested.connect(main._fleet_on_shuttle_requested)
+	var last_hl: Array = [0]
+	var tree: SceneTree = main.get_tree()
+	var highlight: Callable = func() -> void:
+		if main._market_panel == null:
+			return
+		var dragging: bool = board._dragged_card != null and board._drag_origin == board.DragOrigin.HAND \
+				and board.shuttle_target_provider.is_valid()
+		var pid: int = main.fleet_shuttle_target_at_mouse() if dragging else 0
+		if pid != int(last_hl[0]):
+			last_hl[0] = pid
+			main._market_panel.set_shuttle_highlight(pid)
+	tree.process_frame.connect(highlight)
+	main.tree_exiting.connect(func() -> void: tree.process_frame.disconnect(highlight))
+
+## The Tutorial's Fleet chapter switches Fleet on mid-game: both Fleet screens,
+## this Destination, one Danger already in play (an Always one: no Place effect
+## to resolve) and a practice crewmate in the Players column to shuttle a card
+## to. end_tutorial() switches it all off again before the game is scored.
+static func start_tutorial(main: Main, destination_no: int, danger_no: int, crew_id: int, crew_name: String) -> void:
+	# the red switches change jobs now: bring back a screen one of them had put away
+	var anim: AnimationPlayer = main.get_node("UiCockpit").find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if not main._ui_info_shown:
+		main._ui_info_shown = true
+		_switch_pose_off(anim, "gs_ui_switch_flat2_on")
+		_play_intro(main.get_node("UiInfo"))
+	if not main._ui_control_shown:
+		main._ui_control_shown = true
+		_switch_pose_off(anim, "gs_ui_switch_flat1_on")
+		_play_intro(main.get_node("UiControl"))
+		_play_intro(main.get_node("UiLog"))
+	GameNetwork.fleet_mode = true
+	GameNetwork.fleet_destination = destination_no
+	CockpitRig.add_fleet_screens(main)
+	setup(main)
+	main._fleet.deck.erase(danger_no)
+	main._fleet.active.append({"no": danger_no, "electrix": 0, "expedition_bought": false})
+	main._fleet_dest_view.setup(destination_no)
+	GameNetwork.player_names[crew_id] = crew_name
+	main._market_panel.add_opponent(crew_id, crew_name)
+	enable_shuttle(main)
+	refresh_panel(main)
+	main.get_node("Board").refresh_hand_discounts()
+
+static func end_tutorial(main: Main, crew_id: int) -> void:
+	# both red switches back to their normal state (screens and switch pose)
+	var anim: AnimationPlayer = main.get_node("UiCockpit").find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if main._fleet_screen_shown:
+		main.toggle_fleet_screen()
+		_switch_pose_off(anim, "gs_ui_switch_flat2_on")
+	if main._fleet_dest_shown:
+		main.toggle_fleet_destination()
+		_switch_pose_off(anim, "gs_ui_switch_flat1_on")
+	var timer: Node = main.get_node_or_null("FleetTimer")
+	if timer:
+		timer.queue_free()
+	var board: Node = main.get_node("Board")
+	board.shuttle_target_provider = Callable()
+	if board.shuttle_requested.is_connected(main._fleet_on_shuttle_requested):
+		board.shuttle_requested.disconnect(main._fleet_on_shuttle_requested)
+	main._market_panel.set_shuttle_highlight(0)
+	main._market_panel.remove_opponent(crew_id)
+	GameNetwork.player_names.erase(crew_id)
+	GameNetwork.fleet_mode = false
+	FleetRules.current = null
+	main._fleet = null
+	board.refresh_hand_discounts()
+
+static func _play_intro(screen: Node) -> void:
+	var a: AnimationPlayer = screen.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if a:
+		a.play("intro")
+
+static func _switch_pose_off(anim: AnimationPlayer, anim_name: String) -> void:
+	if anim == null or not anim.has_animation(anim_name):
+		return
+	anim.play(anim_name)
+	anim.seek(0.0, true)
+	anim.pause()
 
 # ── Generation start ──────────────────────────────────────────────────────────
 
