@@ -15,7 +15,6 @@
 [ext_resource type="Script" uid="uid://dbo2s5pwckbd" path="res://scripts/starfield.gd" id="20_starfield"]
 [ext_resource type="PackedScene" uid="uid://dxp7nk4qb3mjs" path="res://assets/3d/gs_ui_log.glb" id="21_ui_log"]
 [ext_resource type="Script" uid="uid://be4slp40dsxpf" path="res://scenes/main/sun_video.gd" id="23_sun_video"]
-[ext_resource type="Script" path="res://scenes/main/cockpit_details.gd" id="24_cockpit_details"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 1
@@ -166,9 +165,6 @@ transform = Transform3D(3.799994, 0.006632248, 2.8990477e-10, 0, -1.6610328e-07,
 
 [node name="UiCockpit" parent="." unique_id=938574012 instance=ExtResource("18_ui_cockpit")]
 transform = Transform3D(2.5, 0, 0, 0, 0.88841176, 1.8694555, 0, -2.3368194, 0.7107294, -0.0023359656, 0.9999999, -0.119951665)
-
-[node name="CockpitDetails" type="Node3D" parent="UiCockpit" unique_id=1203948571]
-script = ExtResource("24_cockpit_details")
 
 [node name="UiLog" parent="." unique_id=-2094967295 instance=ExtResource("21_ui_log")]
 transform = Transform3D(-7.86805e-08, -3, -8.742278e-08, 0, -1.3113416e-07, 2, -1.8, 1.3113416e-07, 3.821371e-15, -0.33061832, 0.8986856, -0.36365524)

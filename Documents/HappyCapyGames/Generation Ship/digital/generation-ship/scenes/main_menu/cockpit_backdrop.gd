@@ -12,7 +12,6 @@ const UI_CONTROL: PackedScene = preload("res://assets/3d/gs_ui_control.glb")
 const UI_INFO: PackedScene = preload("res://assets/3d/gs_ui_info.glb")
 const UI_COCKPIT: PackedScene = preload("res://assets/3d/gs_ui_cockpit.glb")
 const UI_LOG: PackedScene = preload("res://assets/3d/gs_ui_log.glb")
-const COCKPIT_DETAILS: GDScript = preload("res://scenes/main/cockpit_details.gd")   # dash consoles on the shell, as in main.tscn
 const STARFIELD: Script = preload("res://scripts/starfield.gd")
 
 # transforms exactly as main.tscn stores them (parsed with str_to_var)
@@ -125,8 +124,6 @@ func _ready() -> void:
 		add_child(model)
 		for mesh: Node in model.find_children("*screen*", "MeshInstance3D", true, false):
 			_screens.append(mesh as MeshInstance3D)
-		if m[0] == UI_COCKPIT:
-			model.add_child(COCKPIT_DETAILS.new() as Node3D)
 
 	_sun = DirectionalLight3D.new()
 	_sun.transform = str_to_var(SUN_XFORM) as Transform3D
