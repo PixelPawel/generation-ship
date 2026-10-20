@@ -1,7 +1,8 @@
 shader_type canvas_item;
 uniform float corner_radius : hint_range(0.0, 0.5) = 0.06;
-uniform float brightness : hint_range(0.0, 1.5) = 0.9;
-// 1.0 = unchanged (the Fleet screens nudge them up a little).
+uniform float brightness : hint_range(0.0, 1.5) = 0.70;
+// 1.0 = unchanged. The cockpit screens' glow washes pale card art out; the
+// Fleet screens push these up to keep card text readable there.
 uniform float contrast : hint_range(0.5, 2.0) = 1.0;
 uniform float saturation : hint_range(0.0, 2.0) = 1.0;
 

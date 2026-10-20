@@ -101,7 +101,7 @@ func _ready() -> void:
 func show_recycle(card_data: CardData, color: CardData.SupplyColor, bonus: int) -> void:
 	if card_data:
 		var url: String = card_data.local_art_path if not card_data.local_art_path.is_empty() else card_data.image_url
-		_card_image.texture = ImageCache.get_screen_texture(url) if not url.is_empty() else null
+		_card_image.texture = ImageCache.get_texture(url) if not url.is_empty() else null
 		_card_name_label.text = CardDatabase.display_name(card_data)
 	else:
 		_card_image.texture = null

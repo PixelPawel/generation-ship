@@ -277,7 +277,7 @@ func _make_tucked_tile(index: int, entry: Dictionary) -> Button:
 	var face_up: bool = entry.get("face_up", false)
 	var url: String = (cd.image_url if cd else "") if face_up else SectorInfoPopup.tech_back_path()
 	var img := TextureRect.new()
-	img.texture = ImageCache.get_screen_texture(url) if not url.is_empty() else null
+	img.texture = ImageCache.get_texture(url) if not url.is_empty() else null
 	img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	img.custom_minimum_size = Vector2(TILE_SIZE.x - 20.0, TILE_SIZE.y - 50.0)
@@ -438,7 +438,7 @@ func _build_card_btn(slot: SectorSlot, on_pick: Callable) -> Button:
 		var url: String = cd.adv_image_url if is_adv else cd.image_url
 		lbl.text = CardDatabase.display_name(cd, is_adv)
 		if not url.is_empty():
-			rect.texture = ImageCache.get_screen_texture(url)
+			rect.texture = ImageCache.get_texture(url)
 
 	var captured: SectorSlot = slot
 	btn.pressed.connect(func() -> void: on_pick.call(captured))

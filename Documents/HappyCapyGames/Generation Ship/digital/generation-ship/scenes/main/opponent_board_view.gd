@@ -486,7 +486,7 @@ static func build_facedown_card(card_size: Vector2) -> Control:
 	outer.add_theme_stylebox_override("panel", style)
 
 	var art: TextureRect = TextureRect.new()
-	art.texture = ImageCache.get_screen_texture(SectorInfoPopup.tech_back_path())
+	art.texture = ImageCache.get_texture(SectorInfoPopup.tech_back_path())
 	art.custom_minimum_size = card_size
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -516,7 +516,7 @@ static func build_detail_card(cd: CardData, is_adv: bool, fallback_name: String,
 	var img_url: String = ""
 	if cd:
 		img_url = cd.adv_image_url if is_adv else cd.image_url
-	var tex: Texture2D = ImageCache.get_screen_texture(img_url) if not img_url.is_empty() else null
+	var tex: Texture2D = ImageCache.get_texture(img_url) if not img_url.is_empty() else null
 
 	if tex:
 		var art: TextureRect = TextureRect.new()

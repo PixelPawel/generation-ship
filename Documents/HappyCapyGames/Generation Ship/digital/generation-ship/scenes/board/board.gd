@@ -163,7 +163,6 @@ func _ready() -> void:
 	_drag_preview_rect.visible = false
 	var preview_mat: ShaderMaterial = ShaderMaterial.new()
 	preview_mat.shader = load("res://shaders/card_rounded.gdshader") as Shader
-	preview_mat.set_shader_parameter("brightness", 0.70)
 	_drag_preview_rect.material = preview_mat
 	arrow_canvas.add_child(_drag_preview_rect)
 

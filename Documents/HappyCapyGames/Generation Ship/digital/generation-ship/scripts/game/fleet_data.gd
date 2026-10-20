@@ -151,20 +151,17 @@ static func screen_texture(path: String, box: Vector2) -> Texture2D:
 	if scale < 1.0:
 		img = img.duplicate() as Image
 		img.resize(maxi(1, roundi(img.get_width() * scale)), maxi(1, roundi(img.get_height() * scale)), Image.INTERPOLATE_LANCZOS)
-	else:
-		img = img.duplicate() as Image
-	img.generate_mipmaps()
 	var out: Texture2D = ImageTexture.create_from_image(img)
 	_screen_tex_cache[key] = out
 	return out
 
-## The card shader settings for card art on the Fleet screens.
+## The card shader settings that keep card text readable under the screen glow.
 static func screen_card_material() -> ShaderMaterial:
 	var mat: ShaderMaterial = ShaderMaterial.new()
 	mat.shader = load("res://shaders/card_rounded.gdshader")
-	mat.set_shader_parameter("brightness", 0.92)
-	mat.set_shader_parameter("contrast", 1.08)
-	mat.set_shader_parameter("saturation", 1.05)
+	mat.set_shader_parameter("brightness", 0.82)
+	mat.set_shader_parameter("contrast", 1.25)
+	mat.set_shader_parameter("saturation", 1.2)
 	return mat
 
 # — Card texts (tooltips) —

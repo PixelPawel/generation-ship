@@ -208,7 +208,7 @@ static func make_card_row(cards: Array, face_up: bool, viewport_size: Vector2) -
 		var tuck: Dictionary = cards[idx]
 		var cd: CardData = tuck.get("data") as CardData
 		var url: String = (cd.image_url if cd else "") if face_up else tech_back_path()
-		var tex: Texture2D = ImageCache.get_screen_texture(url) if not url.is_empty() else null
+		var tex: Texture2D = ImageCache.get_texture(url) if not url.is_empty() else null
 
 		var card_vbox := VBoxContainer.new()
 		card_vbox.add_theme_constant_override("separation", 4)
