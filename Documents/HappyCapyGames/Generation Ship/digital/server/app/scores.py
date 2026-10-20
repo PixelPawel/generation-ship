@@ -11,10 +11,17 @@ has its own board and is left out of "all" (co-op stars don't compare).
 stored as-is so the leaderboard can show how a score was made.
 Same trust model as the old Steam board: clients report their own score.
 """
+import csv
+import hmac
+import io
 import json
+import os
 import time
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Header, HTTPException, Query, Request
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
 from .main import VOTER_RE, _rate_limit, db
@@ -149,3 +156,111 @@ def top_scores(player: str | None = None, limit: int = Query(TOP_LIMIT, ge=1, le
             if r:
                 mine = {"score": r[0], "rank": _rank(c, r[0], r[1], source), "source": r[2]}
     return {"entries": entries, "mine": mine}
+
+
+# ── Daily snapshots (contest standings) ──────────────────────────────────────
+# A systemd timer on the VPS POSTs /v1/scores/snapshot at 23:59 Europe/Berlin
+# (deploy/score-snapshot.*); the top 100 of the board are stored as they stood
+# then. GET serves the latest (or a given day's) snapshot as JSON or as CSV —
+# the contest's Google Sheet pulls the CSV with IMPORTDATA, so it always shows
+# the 23:59 standings however late Google refreshes.
+
+BERLIN = ZoneInfo("Europe/Berlin")
+SNAPSHOT_LIMIT = 100
+
+_SNAP_TABLE = """CREATE TABLE IF NOT EXISTS score_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    day TEXT NOT NULL,
+    taken_at INTEGER NOT NULL,
+    entries TEXT NOT NULL
+)"""
+
+
+def init_snapshots() -> None:
+    with db() as c:
+        c.execute(_SNAP_TABLE)
+        c.execute("CREATE INDEX IF NOT EXISTS score_snapshots_day ON score_snapshots(source, day, taken_at)")
+
+
+init_snapshots()
+
+
+def _berlin(ts: int) -> str:
+    return datetime.fromtimestamp(ts, BERLIN).strftime("%Y-%m-%d %H:%M")
+
+
+def _require_admin(token: str | None) -> None:
+    expected = os.environ.get("ADMIN_TOKEN", "")
+    if not expected or not token or not hmac.compare_digest(token, expected):
+        raise HTTPException(403, "Admin token required")
+
+
+def take_snapshot(source: str, now: int | None = None) -> dict:
+    now = int(time.time()) if now is None else now
+    board = top_scores(player=None, limit=SNAPSHOT_LIMIT, source=source)["entries"]
+    entries = [{"rank": e["rank"], "name": e["name"], "score": e["score"], "platform": e["platform"]}
+               for e in board]
+    # when each best was set, from the board itself (top_scores doesn't return it)
+    w, args = _where(source)
+    with db() as c:
+        rows = c.execute(f"SELECT updated_at FROM scores WHERE {w}1 ORDER BY score DESC, updated_at ASC LIMIT ?",
+                         args + (SNAPSHOT_LIMIT,)).fetchall()
+        for e, (u,) in zip(entries, rows):
+            e["since"] = _berlin(u)
+        day = datetime.fromtimestamp(now, BERLIN).strftime("%Y-%m-%d")
+        c.execute("INSERT INTO score_snapshots (source, day, taken_at, entries) VALUES (?, ?, ?, ?)",
+                  (source, day, now, json.dumps(entries)))
+    return {"source": source, "day": day, "taken_at": now, "taken_at_berlin": _berlin(now), "entries": entries}
+
+
+@router.post("/v1/scores/snapshot")
+def post_snapshot(source: str = "play", x_admin_token: str | None = Header(None)) -> dict:
+    _require_admin(x_admin_token)
+    if source not in SOURCES + ("all",):
+        raise HTTPException(400, "Invalid source")
+    snap = take_snapshot(source)
+    return {"source": snap["source"], "day": snap["day"], "taken_at_berlin": snap["taken_at_berlin"],
+            "count": len(snap["entries"])}
+
+
+def _load_snapshot(source: str, day: str | None) -> dict | None:
+    with db() as c:
+        if day:
+            r = c.execute("SELECT day, taken_at, entries FROM score_snapshots WHERE source = ? AND day = ? "
+                          "ORDER BY taken_at DESC LIMIT 1", (source, day)).fetchone()
+        else:
+            r = c.execute("SELECT day, taken_at, entries FROM score_snapshots WHERE source = ? "
+                          "ORDER BY taken_at DESC LIMIT 1", (source,)).fetchone()
+    if not r:
+        return None
+    return {"source": source, "day": r[0], "taken_at": r[1], "taken_at_berlin": _berlin(r[1]),
+            "entries": json.loads(r[2])}
+
+
+@router.get("/v1/scores/snapshot")
+def get_snapshot(source: str = "play", day: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$")) -> dict:
+    snap = _load_snapshot(source, day)
+    if snap is None:
+        raise HTTPException(404, "No snapshot yet")
+    return snap
+
+
+def _csv_safe(s: str) -> str:
+    # a name like "=HYPERLINK(...)" must stay text in the spreadsheet
+    return "'" + s if s[:1] in ("=", "+", "-", "@") else s
+
+
+@router.get("/v1/scores/snapshot.csv", response_class=PlainTextResponse)
+def get_snapshot_csv(source: str = "play", day: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$")) -> str:
+    snap = _load_snapshot(source, day)
+    out = io.StringIO()
+    w = csv.writer(out, lineterminator="\n")
+    if snap is None:
+        w.writerow(["No standings yet - the first snapshot is taken at 23:59 (Berlin)."])
+        return out.getvalue()
+    w.writerow(["Standings at %s (Berlin)" % snap["taken_at_berlin"]])
+    w.writerow(["Rank", "Player", "Score", "Platform", "Best set (Berlin)"])
+    for e in snap["entries"]:
+        w.writerow([e["rank"], _csv_safe(e["name"]), e["score"], e["platform"], e.get("since", "")])
+    return out.getvalue()

@@ -1,0 +1,7 @@
+[Unit]
+Description=Generation Ship contest: daily leaderboard snapshot (Real Play top 100)
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/hcg-api/deploy/score_snapshot.sh
