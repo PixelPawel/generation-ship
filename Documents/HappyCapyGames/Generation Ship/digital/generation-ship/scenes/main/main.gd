@@ -332,6 +332,8 @@ func _ready() -> void:
 	_info_viewport.add_child(_bid_payment_panel)
 	CockpitRig.register_info_panel(self, _bid_payment_panel)
 	_bid_payment_panel.confirmed.connect(_on_bid_payment_confirmed)
+	# while it's open, hand cards can still be recycled for the supply to pay with
+	_bid_payment_panel.visibility_changed.connect(func() -> void: $Board.set_payment_open(_bid_payment_panel.visible))
 	_bid_payment_panel.forfeited.connect(_on_bid_payment_forfeited)
 
 	_effect_done_btn = Button.new()

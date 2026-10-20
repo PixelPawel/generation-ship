@@ -101,6 +101,12 @@ var _inspecting_slot: Array = ["", -1]   # market slot type + index of _inspecti
 var _reveal_display_card: Node3D = null
 var _pending_card: Node3D = null
 var _pending_recycle_card: Node3D = null
+# Main's payment window is open (set_payment_open): hand cards can still be
+# dragged then, but only to be recycled on the control screen — the supply to
+# pay with. Such a drag leaves the purchase being paid for alone.
+var _payment_open: bool = false
+var _recycle_only_drag: bool = false
+var _payment_arrow: Array[Vector2] = []   # the payment window's arrow, re-shown after such a drag
 var _pending_slot: Node3D = null
 var _pending_is_tech: bool = false
 var _pending_pay_amounts: Dictionary = {}
@@ -166,12 +172,17 @@ func _on_sector_slot_clicked(slot: SectorSlot) -> void:
 	sector_info_requested.emit(slot)
 
 func show_payment_confirm_arrow(from_2d: Vector2, to_2d: Vector2) -> void:
+	_payment_arrow = [from_2d, to_2d]
 	if _drag_arrow:
 		_drag_arrow.show_arrow(from_2d, to_2d)
 
 func hide_payment_confirm_arrow() -> void:
+	_payment_arrow = []
 	if _drag_arrow:
 		_drag_arrow.hide_arrow()
+
+func set_payment_open(open: bool) -> void:
+	_payment_open = open
 
 func add_sector_slot(slot: SectorSlot) -> void:
 	slot.reparent(_sector_row, true)
@@ -882,10 +893,14 @@ func _on_hand_card_drag_started(card: Node3D) -> void:
 	# hand card and clicking during that window would let the hand card
 	# start its OWN drag too, silently stealing _dragged_card out from under
 	# the market card (which is then orphaned, invisible, forever unplaceable).
-	if not GameNetwork.is_my_turn() or _pending_card or _pending_recycle_card or _dragged_card or _effect_active:
+	# While paying, a hand card may still be picked up to recycle it (a free
+	# action, any turn) — even though the payment itself is an active effect.
+	var recycle_only: bool = _payment_open and not _dragged_card and not _pending_recycle_card
+	if not recycle_only and (not GameNetwork.is_my_turn() or _pending_card or _pending_recycle_card or _dragged_card or _effect_active):
 		card.end_drag()
 		_hand.add_card(card, true)
 		return
+	_recycle_only_drag = recycle_only
 	_drag_origin = DragOrigin.HAND
 	_begin_drag(card)
 
@@ -1110,6 +1125,9 @@ func resume_cancelled_auction_drag() -> void:
 func _try_drop() -> void:
 	_end_arrow_drag()
 	_clear_slot_highlights()
+	if _recycle_only_drag:
+		_drop_recycle_only(_mouse_over_control_screen())
+		return
 	if _drag_origin == DragOrigin.HAND and _mouse_over_control_screen():
 		_try_drop_recycle()
 		return
@@ -1902,7 +1920,33 @@ func revalidate_optimize_after_removal(slot: SectorSlot) -> void:
 	for level: int in _update_optimize_state(slot):
 		optimize_triggered.emit(slot, level)
 
+# End of a drag made while paying (see _payment_open): recycled if dropped on
+# the control screen, otherwise back to the hand. Unlike the normal drop paths
+# it leaves the purchase alone (its pending sector slot, the free-gain flag) and
+# puts the payment window's arrow back.
+func _drop_recycle_only(recycle: bool) -> void:
+	_end_arrow_drag()
+	_recycle_only_drag = false
+	var card: Node3D = _dragged_card
+	_dragged_card = null
+	_drag_origin = DragOrigin.NONE
+	card.end_drag()
+	if recycle:
+		card.visible = false   # as in _try_drop_recycle: the Recycle panel shows it
+		request_recycle(card)
+	else:
+		card.visible = true
+		var t: Tween = card.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		t.tween_property(card, "global_position", _drag_start_global_pos, 0.3)
+		t.parallel().tween_property(card, "scale", Vector3.ONE * HAND_CARD_SCALE, 0.3)
+		t.tween_callback(func() -> void: _hand.add_card(card, false))
+	if _payment_arrow.size() == 2 and _drag_arrow:
+		_drag_arrow.show_arrow(_payment_arrow[0], _payment_arrow[1])
+
 func _handle_failed_drop() -> void:
+	if _recycle_only_drag:
+		_drop_recycle_only(false)
+		return
 	_end_arrow_drag()
 	_cleanup_pending_dynamic_slot()
 	var card: Node3D = _dragged_card
