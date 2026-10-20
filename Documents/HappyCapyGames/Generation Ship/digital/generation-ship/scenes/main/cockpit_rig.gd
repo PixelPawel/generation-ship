@@ -15,6 +15,7 @@ static func setup_control_screen_display(main: Main) -> void:
 	main.cs_viewport.size = Vector2i(360, 460)
 	main.cs_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	main.cs_viewport.transparent_bg = true
+	main.cs_viewport.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_LINEAR_WITH_MIPMAPS   # card art drawn small stays clean (ImageCache.get_screen_texture)
 	main.cs_viewport.gui_disable_input = false
 	ui_control.add_child(main.cs_viewport)
 
@@ -44,8 +45,6 @@ static func setup_control_screen_display(main: Main) -> void:
 		mat.set_shader_parameter("aabb_min", aabb.position)
 		mat.set_shader_parameter("aabb_max", aabb.position + aabb.size)
 		mat.set_shader_parameter("emission_strength", 1.3)
-		mat.set_shader_parameter("scanline_count", 120.0)
-		mat.set_shader_parameter("scanline_depth", 0.08)
 		mat.set_shader_parameter("vignette_strength", 0.35)
 		mat.set_shader_parameter("vignette_falloff", 3.0)
 		screen_mesh.set_surface_override_material(0, mat)
@@ -617,6 +616,7 @@ static func setup_info_screen_display(main: Main) -> void:
 	main._info_viewport.size = Vector2i(1200, 572)
 	main._info_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	main._info_viewport.transparent_bg = true
+	main._info_viewport.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	main._info_viewport.gui_disable_input = false
 	main.get_node("UiInfo").add_child(main._info_viewport)
 	# Phones: every button that ever appears on the info screen (panels build some
@@ -664,12 +664,10 @@ static func setup_info_screen_display(main: Main) -> void:
 		mat.set_shader_parameter("aabb_min", aabb.position)
 		mat.set_shader_parameter("aabb_max", aabb.position + aabb.size)
 		mat.set_shader_parameter("emission_strength", 0.45)
-		mat.set_shader_parameter("exposure", 0.6)
-		mat.set_shader_parameter("scanline_count", 60.0)
-		mat.set_shader_parameter("scanline_depth", 0.06)
+		mat.set_shader_parameter("exposure", 0.8)
 		mat.set_shader_parameter("vignette_strength", 0.25)
 		mat.set_shader_parameter("vignette_falloff", 2.5)
-		mat.set_shader_parameter("bloom_threshold", 0.7)
+		mat.set_shader_parameter("bloom_threshold", 0.95)   # no glow over cards and text
 		screen_mesh.set_surface_override_material(0, mat)
 		setup_info_screen_input(main, screen_mesh)
 	# BidPopup deliberately does NOT register here — it stays confined to the
@@ -841,6 +839,7 @@ static func setup_log_screen_display(main: Main) -> void:
 	main.log_viewport.size = Vector2i(686, 408)
 	main.log_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	main.log_viewport.transparent_bg = true
+	main.log_viewport.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	main.log_viewport.gui_disable_input = false
 	main.get_node("UiLog").add_child(main.log_viewport)
 
@@ -902,12 +901,10 @@ static func setup_log_screen_display(main: Main) -> void:
 		mat.set_shader_parameter("aabb_min", aabb.position)
 		mat.set_shader_parameter("aabb_max", aabb.position + aabb.size)
 		mat.set_shader_parameter("emission_strength", 0.45)
-		mat.set_shader_parameter("exposure", 0.6)
-		mat.set_shader_parameter("scanline_count", 80.0)
-		mat.set_shader_parameter("scanline_depth", 0.05)
+		mat.set_shader_parameter("exposure", 0.8)
 		mat.set_shader_parameter("vignette_strength", 0.2)
 		mat.set_shader_parameter("vignette_falloff", 2.5)
-		mat.set_shader_parameter("bloom_threshold", 0.7)
+		mat.set_shader_parameter("bloom_threshold", 0.95)   # no glow over cards and text
 		screen_mesh.set_surface_override_material(0, mat)
 		setup_viewport_input(main, screen_mesh, main.log_viewport)
 

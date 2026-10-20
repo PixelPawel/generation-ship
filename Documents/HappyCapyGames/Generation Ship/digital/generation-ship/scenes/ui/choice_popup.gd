@@ -148,7 +148,7 @@ func _set_card_art(card_data: CardData, is_advanced: bool) -> void:
 		return
 	if card_data:
 		var url: String = card_data.adv_image_url if (is_advanced and not card_data.adv_image_url.is_empty()) else card_data.image_url
-		_card_image_rect.texture = ImageCache.get_texture(url) if not url.is_empty() else null
+		_card_image_rect.texture = ImageCache.get_screen_texture(url) if not url.is_empty() else null
 		_card_image_rect.visible = _card_image_rect.texture != null
 	else:
 		_card_image_rect.visible = false
@@ -357,7 +357,7 @@ func _build_card_rows(cards: Array[CardData], on_click: Callable, advanced_flags
 		# match their landscape art, letterboxing them.
 		var is_landscape: bool = cd.card_type == CardData.CardType.SECTOR
 		var url: String = cd.adv_image_url if (is_adv and not cd.adv_image_url.is_empty()) else cd.image_url
-		var tex: Texture2D = ImageCache.get_texture(url) if not url.is_empty() else null
+		var tex: Texture2D = ImageCache.get_screen_texture(url) if not url.is_empty() else null
 		var display: String = cd.adv_name if is_adv else cd.card_name
 
 		var card_vbox := VBoxContainer.new()

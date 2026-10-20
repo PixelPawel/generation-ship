@@ -8,6 +8,7 @@ const CACHE_DIR := "user://card_cache"
 const META_PATH := "user://card_cache/meta.json"
 
 var _memory: Dictionary = {}
+var _screen_art: Dictionary = {}   # "url@max_side" -> smaller mipmapped copy (get_screen_texture)
 var _meta: Dictionary = {}
 var _queue: Array[String] = []
 var _active: int = 0
@@ -157,6 +158,28 @@ func get_texture(url: String) -> Texture2D:
 		return load(url) as Texture2D
 	return _memory.get(url, null) as Texture2D
 
+## Card art for the cockpit monitors: the full-size art (no mipmaps) aliases badly
+## when a panel draws it a fraction of its size - card text turns to mush. This is
+## a Lanczos-shrunk copy no longer than max_side (the panel's size in viewport
+## pixels is the most a monitor can show), with mipmaps for anything smaller.
+func get_screen_texture(url: String, max_side: int = 512) -> Texture2D:
+	var key: String = "%s@%d" % [url, max_side]
+	if _screen_art.has(key):
+		return _screen_art[key]
+	var tex: Texture2D = get_texture(url)
+	if tex == null:
+		return null
+	var img: Image = tex.get_image()
+	if img == null or img.is_empty() or img.is_compressed():
+		return tex
+	var scale: float = float(max_side) / float(maxi(img.get_width(), img.get_height()))
+	if scale < 1.0:
+		img.resize(maxi(1, roundi(img.get_width() * scale)), maxi(1, roundi(img.get_height() * scale)), Image.INTERPOLATE_LANCZOS)
+	img.generate_mipmaps()
+	var out: Texture2D = ImageTexture.create_from_image(img)
+	_screen_art[key] = out
+	return out
+
 func preload_local_art() -> void:
 	# CardDatabase already resolved each card's current-locale print art into
 	# local_art_path/adv_local_art_path (see card_database.gd) — just load
@@ -183,6 +206,7 @@ func _cache_local_art(cache_key: String, art_path: String) -> void:
 # used after a mid-session language change (see CardDatabase.refresh_locale())
 # where the old locale's texture is already cached under the same key.
 func refresh_local_art() -> void:
+	_screen_art.clear()   # the old language's copies
 	var cards: Array = []
 	cards.append_array(CardDatabase.sectors)
 	cards.append_array(CardDatabase.techs)
