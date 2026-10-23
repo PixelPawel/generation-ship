@@ -2732,7 +2732,11 @@ func _finish_expedition_shuffle() -> void:
 	_process_next_effect()
 
 func _on_major_action_changed(taken: bool) -> void:
-	_set_end_turn_button_disabled(not taken)
+	# Once you've researched this round, every later turn is Research or Pass:
+	# the action counts as taken (no buying/placing), but that mustn't offer
+	# End Turn - in solo it would reset the turn and free up buying again, online
+	# it would skip the turn (cancelling a second Research would leave it open).
+	_set_end_turn_button_disabled(not taken or _has_researched)
 	if taken:
 		call_deferred("_try_auto_end_turn")
 
@@ -2833,6 +2837,8 @@ func _on_end_turn_pressed() -> void:
 	if not GameNetwork.is_my_turn():
 		return
 	if not $Board.is_major_action_taken():
+		return
+	if _has_researched:   # Research or Pass only (see _on_major_action_changed)
 		return
 	if _runner_up_phase:
 		return
