@@ -30,6 +30,10 @@ static func setup_control_screen_display(main: Main) -> void:
 		panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 
 	main._cs_display.supply_changed.connect(main._on_supply_changed)
+	# "Now researching" + Cancel, above everything else on the control screen
+	main._research_prompt = load("res://scenes/ui/research_prompt.gd").new()
+	main.cs_viewport.add_child(main._research_prompt)
+	main._research_prompt.cancelled.connect(main._cancel_research)
 	main._cs_display.fuse_1to1_changed.connect(main._try_auto_end_turn)
 	main._cs_display.icon_hovered.connect(main._on_supply_icon_hovered)
 	main._cs_display.icon_unhovered.connect(main._hide_tooltip)

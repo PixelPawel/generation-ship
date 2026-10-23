@@ -239,6 +239,7 @@ var _pass_btn_mesh: MeshInstance3D = null
 var _pass_btn_flash_tween: Tween = null
 var _pass_btn_flash_mat: StandardMaterial3D = null
 var _research_btn_mesh: MeshInstance3D = null
+var _research_prompt: Control = null   # "Now researching" + Cancel on the control screen (research_prompt.gd)
 const TURN_BUTTON_COOLDOWN_MS: int = 400
 var _turn_action_locked: bool = false
 var _last_turn_button_ms: int = -TURN_BUTTON_COOLDOWN_MS
@@ -802,13 +803,23 @@ func _on_research_pressed() -> void:
 		return
 	_effect_mode = EffectMode.RESEARCH
 	_set_action_buttons_disabled(true)
-	_show_effect_hint(hint("Click a card in your hand to discard it", "Tap a card in your hand to discard it"))
+	var how: String = hint("Click a card in your hand to discard it", "Tap a card in your hand to discard it")
+	_show_effect_hint(how)
 	$Hand.set_discard_mode(true)
-	if GameNetwork.is_multiplayer:
-		if GameNetwork.is_host:
-			_rpc_sync_opp_status.rpc(multiplayer.get_unique_id(), "researching")
-		else:
-			_rpc_request_research_status.rpc_id(1)
+	if _research_prompt:
+		_research_prompt.open(how)
+
+# Cancel on the "Now researching" panel. No card has been discarded and the
+# others haven't been told yet (that happens with the discard), so it's as if
+# Research had never been pressed.
+func _cancel_research() -> void:
+	if _effect_mode != EffectMode.RESEARCH:
+		return
+	_effect_mode = EffectMode.NONE
+	$Hand.set_discard_mode(false)
+	_hide_effect_hint()
+	_research_prompt.close()
+	_set_action_buttons_disabled(false)
 
 func _on_pass_pressed() -> void:
 	if not GameNetwork.is_my_turn():
@@ -1509,6 +1520,7 @@ func _on_card_discarded(card: Node3D) -> void:
 		EffectMode.RESEARCH:
 			_effect_mode = EffectMode.NONE
 			_hide_effect_hint()
+			_research_prompt.close()
 			$Hand.set_discard_mode(false)
 			$Board.discard_and_draw(card)
 			_has_researched = true
@@ -1518,6 +1530,11 @@ func _on_card_discarded(card: Node3D) -> void:
 				_log_action(tr("You: researched"), Color(0.50, 0.78, 1.0))
 			_broadcast_my_state()
 			if GameNetwork.is_multiplayer:
+				# the others hear "researching" only now: until a card was picked it could be cancelled
+				if GameNetwork.is_host:
+					_rpc_sync_opp_status.rpc(multiplayer.get_unique_id(), "researching")
+				else:
+					_rpc_request_research_status.rpc_id(1)
 				_turn_action_locked = true
 				if GameNetwork.is_host:
 					_server_handle_end_turn()
@@ -1720,6 +1737,8 @@ func _reset_effect_state() -> void:
 	_choice_popup.hide()
 	_hide_effect_hint()
 	$Hand.set_discard_mode(false)
+	if _research_prompt:
+		_research_prompt.close()
 	$Board.set_sector_reveal_mode(false)
 	$Board.set_expedition_reveal_mode(false)
 	$Board.set_expedition_shuffle_mode(false)
