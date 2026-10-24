@@ -45,7 +45,7 @@ All votes, scores, translation comments and crash reports are in `data/votes.db`
 | GET | `/v1/mail/status` | **mail token:** configured?, mails sent/failed in the last 24 h, last error |
 
 The mail endpoints need `X-Mail-Token: <MAIL_TOKEN>` and these lines in `/opt/hcg-api/.env`:
-`SMTP_HOST=smtp.hostinger.com`, `SMTP_PORT=465`, `SMTP_USER=info@pixelpawel.de`, `SMTP_PASSWORD=...`,
+`SMTP_HOST=smtp.hostinger.com`, `SMTP_PORT=465`, `SMTP_USER=info@happycapygames.com`, `SMTP_PASSWORD=...`,
 `MAIL_TOKEN=<long random string>` (the same token goes into the hub script's Script Properties as `MAIL_TOKEN`).
 
 Admin endpoints need the header `X-Admin-Token: <ADMIN_TOKEN>`. The token is set in
