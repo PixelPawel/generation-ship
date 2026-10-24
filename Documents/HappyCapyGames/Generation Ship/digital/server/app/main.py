@@ -178,3 +178,7 @@ app.include_router(crashes_router)
 from .uprising_bugs import router as uprising_bugs_router  # noqa: E402  (Uprising Digital bug reports)
 
 app.include_router(uprising_bugs_router)
+
+from .mail import router as mail_router  # noqa: E402  (HCG Hub mail relay through the Hostinger mailbox)
+
+app.include_router(mail_router)
