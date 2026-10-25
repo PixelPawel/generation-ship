@@ -4,26 +4,26 @@ Card type,Tech (card),Tech,Tech,Tech,Tecnología,Tech,
 Card type,Expedition,Expedition,Spedizione,Ekspedycja,Expedición,Expédition,
 Card type,Dust Sector,Staub-Sektor,Settore Polvere,Sektor Pyłu,Sector de Polvo,Secteur Poussière,
 Card type,Destination,Ziel,destinazione,cel,destino,destination,
-Card type,Danger,Gefahr,Pericolo,Niebezpieczeństwo,Peligro,Danger,No standalone UI string yet — translate on first use
+Card type,Danger,Gefahr,Pericolo,Zagrożenie,Peligro,Danger,No standalone UI string yet — translate on first use
 Card type,Advanced Sector,Fortgeschrittener Sektor,Settore Avanzato,Sektor zaawansowany,Sector Avanzado,Secteur Avancé,No standalone UI string yet — translate on first use
-Status,Facedown,verdeckt,coperta,zakryta,boca abajo,face cachée,
-Status,Faceup,aufgedeckt,scoperta,odkryta,boca arriba,face visible,
+Status,Facedown,verdeckt,a faccia in giù,zakryta,boca abajo,face cachée,
+Status,Faceup,aufgedeckt / offen,a faccia in su,odkryta,boca arriba,face visible,
 Supply,Supply (generic),Vorrat / Vorräte,risorsa / risorse,zasób / zasoby,suministro,matériel / matériels,
 Supply,Dust,Staub,Polvere,Pył,Polvo,Poussière,
 Supply,Metals,Metalle,Metalli,Metale,Metales,Métaux,
 Supply,Liquids,Wasser,Liquidi,Płyny,Líquidos,Liquides,Shortened from literal Flüssigkeiten in DE — too long for supply label/icon UI
 Supply,Organix,Organix,Organix,Organix,Organix,Organix,Unchanged in every language
-Supply,Electrix,Electrix,Electrix,Elektrix,Electrix,Electrix,Unchanged in every language
+Supply,Electrix,Electrix,Electrix,Electrix,Electrix,Electrix,Unchanged in every language
 Supply,Thrust,Schub,Spinta,Napęd,Empuje,Poussée,
-Action,Fuse,fusioniere,fondere,połączyć,fusionar,fusionner,
-Action,Recycle,recyceln,riciclare,Odzysk,reciclar,recycler,
-Action,Research,forschen,ricerca,badania,investigación,recherche,
-Action,Pass,passen,passare,pasować,pasar,passer,
-Action,Bid,bieten,offerta,oferta / licytacja,puja,enchère,
-Action,Auction,Auktion,asta,aukcja,subasta,enchère,FR uses the same word for Bid and Auction — translate by context
+Action,Fuse,fusionieren,fondere,połączyć,fusionar,fusionner,
+Action,Recycle,recyceln,riciclare,zrecykluj / recykling / poddać recyklingowi,reciclar,recycler,"PL: cards say zrecykluj (2026-10-25), the rule book Recykling, the game UI poddaj recyklingowi"
+Action,Research,Forschung / forschen,ricerca,badania,investigación,recherche,
+Action,Pass,passen,passare,pasować / pasuj,pasar,passer,
+Action,Bid,Gebot / bieten,offerta,oferta / licytacja,puja,enchère,
+Action,Auction,Auktion,asta,licytacja / aukcja,subasta,enchère,FR uses the same word for Bid and Auction — translate by context; PL cards and rule book say licytacja
 Action,Archive,archivieren,archiviare,zarchiwizować,archivar,archiver,
 UI/meta,Market,Markt,Mercato,Rynek,Mercado,Marché,
-UI/meta,Star,Stern,stella,Gwiazda,estrella,étoile,
+UI/meta,Star,Stern,stella,gwiazdka / gwiazda,estrella,étoile,
 UI/meta,Rulebook,Regelbuch,Regolamento,Instrukcja,Reglamento,Livret de règles,
 UI/meta,Pause Menu,Pausenmenü,Menu di pausa,Menu pauzy,Menú de pausa,Menu pause,
 UI/meta,Settings,Einstellungen,Impostazioni,Ustawienia,Ajustes,Paramètres,

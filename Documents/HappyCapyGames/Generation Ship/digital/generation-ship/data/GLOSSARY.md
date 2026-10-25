@@ -16,10 +16,15 @@ strings.
 | Expedition | Expedition | Spedizione | Ekspedycja | Expedición | Expédition |
 | Dust Sector | Staub-Sektor | Settore Polvere | Sektor Pyłu | Sector de Polvo | Secteur Poussière |
 | Destination | Ziel | destinazione | cel | destino | destination |
+| Danger | Gefahr | Pericolo | Zagrożenie | Peligro | Danger |
+| Advanced Sector | Fortgeschrittener Sektor | Settore Avanzato | Sektor zaawansowany | Sector Avanzado | Secteur Avancé |
 
-Danger and Advanced Sector card types have no standalone UI string yet (no
-tutorial/tooltip text references them by name) — translate on first use,
-matching this table's tone.
+## Card states
+
+| EN | DE | IT | PL | ES | FR |
+|---|---|---|---|---|---|
+| Faceup | aufgedeckt / offen | a faccia in su | odkryta | boca arriba | face visible |
+| Facedown | verdeckt | a faccia in giù | zakryta | boca abajo | face cachée |
 
 ## Supply colors
 
@@ -46,19 +51,25 @@ all were unified to "matériel" on 2026-09-29.
 
 | EN | DE | IT | PL | ES | FR |
 |---|---|---|---|---|---|
-| Fuse | verschmelzen | fondere | połączyć | fusionar | fusionner |
-| Recycle | recyceln | riciclare | poddać recyklingowi | reciclar | recycler |
+| Fuse | fusionieren | fondere | połączyć | fusionar | fusionner |
+| Recycle | recyceln | riciclare | zrecykluj / recykling / poddać recyklingowi | reciclar | recycler |
 | Archive | archivieren | archiviare | zarchiwizować | archivar | archiver |
 | Research | Forschung / forschen | ricerca | badania | investigación | recherche |
-| Pass | passen | passare | pasować | pasar | passer |
+| Pass | passen | passare | pasować / pasuj | pasar | passer |
 | Bid | Gebot / bieten | offerta | oferta / licytacja | puja | enchère |
-| Auction | Auktion | asta | aukcja | subasta | enchère |
+| Auction | Auktion | asta | licytacja / aukcja | subasta | enchère |
 
 Note: "Archive" replaced "Tuck" (2026-10-01): a card placed faceup or facedown under a sector.
 Before, each language used several verbs for it (DE ablegen/verstauen/legen ... unter, ES colocar/guardar,
 FR empiler/ranger, IT mettere (da parte)/ripiegare, PL odłożyć/podłożyć); all now use the one verb above.
 German takes the dative with it: "unter diesem Sektor" (not "diesen"); Polish uses the perfective
 imperative "Zarchiwizuj" on cards.
+
+Note: Polish "Recycle" (2026-10-25): the cards say "zrecykluj" (recyklować, zrecyklowane),
+the rule book "Recykling" and the game UI "poddaj recyklingowi". The cards had said "zutylizuj",
+and this glossary "Odzysk", which nothing used. Polish "Danger" is "Zagrożenie" and "Auction"
+"licytacja" on cards and in the rule book. Italian "faceup / facedown" is "a faccia in su / in giù"
+and an Italian Tech card is a "carta Tech" (not "carta tecnologia").
 
 Note: French uses "enchère" for both Bid and Auction — there's no separate
 term, so translate by context rather than a 1:1 word swap.
@@ -68,7 +79,7 @@ term, so translate by context rather than a 1:1 word swap.
 | EN | DE | IT | PL | ES | FR |
 |---|---|---|---|---|---|
 | Market | Markt | Mercato | Rynek | Mercado | Marché |
-| Star | Stern | stella | gwiazdka | estrella | étoile |
+| Star | Stern | stella | gwiazdka / gwiazda | estrella | étoile |
 | Rulebook | Regelbuch | Regolamento | Instrukcja | Reglamento | Livret de règles |
 | Pause Menu | Pausenmenü | Menu di pausa | Menu pauzy | Menú de pausa | Menu pause |
 | Settings | Einstellungen | Impostazioni | Ustawienia | Ajustes | Paramètres |
