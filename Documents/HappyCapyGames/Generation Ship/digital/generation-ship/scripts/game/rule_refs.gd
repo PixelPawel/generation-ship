@@ -1,19 +1,19 @@
 # Keywords in card text -> the rule book page that explains them, so the game
 # can offer "how does Archive work?" right where the word shows up (the
 # sector info popup, the phones' card inspect view). Every language's rule
-# book has the same 12-page layout, so one page number works for all.
+# book has the same 16-page layout, so one page number works for all.
 #
 # Pages (1-based, as ManualPopup counts them): 5 Actions (Recycle, Fuse),
-# 7 Optimize + Bidding, 12 Terms to remember (New, Complete, Fully optimized,
-# Store supply, Archive cards).
+# 7 Optimize + Bidding, 16 Terms to remember (New, Complete, Fully optimized,
+# Store supply, Archive cards; page 12 before the app/Hyperion/thanks pages).
 
 const TERMS: Array[Array] = [
 	# [label (translated with tr), regex on the English effect text, page]
-	["Archive", "\\barchiv", 12],
-	["Store", "\\bstor(e|ed|es)\\b", 12],
-	["Fully optimized", "fully optimi[sz]ed", 12],
-	["Complete", "\\bcomplete\\b", 12],
-	["New", "\\bnew\\b", 12],
+	["Archive", "\\barchiv", 16],
+	["Store", "\\bstor(e|ed|es)\\b", 16],
+	["Fully optimized", "fully optimi[sz]ed", 16],
+	["Complete", "\\bcomplete\\b", 16],
+	["New", "\\bnew\\b", 16],
 	["Optimize", "\\boptimi[sz]e", 7],
 	["Bid", "\\bbid", 7],
 	["Fuse", "\\bfuse", 5],
