@@ -369,6 +369,14 @@ static func setup_responsive_screen_positions(main: Main) -> void:
 		)
 
 		for b: Dictionary in baselines:
+			var node: Node3D = b["node"]
+			# a rumble or enlarge tween still heading for the old layout's spot
+			for tweens: Dictionary in [main.rumble_tweens, main.screen_enlarge_tweens]:
+				var tw: Tween = tweens.get(node) as Tween
+				if tw and tw.is_valid():
+					tw.kill()
+			if main._rumble_base_rot.has(node):
+				node.rotation = main._rumble_base_rot[node]
 			var depth: float = b["depth"]
 			var ndc_x_ref: float = b["local_x"] / (depth * tan(half_hfov_ref))
 			var target_local_x: float = ndc_x_ref * depth * tan(half_hfov_cur)
@@ -382,17 +390,27 @@ static func setup_responsive_screen_positions(main: Main) -> void:
 				+ Vector3(0.0, lift, 0.0)
 				+ cam.global_transform.basis.z * toward_camera
 			)
-			var node: Node3D = b["node"]
 			node.scale = b["original_scale"] * scale_factor
 			node.global_position = target_mesh_center + b["root_offset0"] * scale_factor
 			# Phones: the control screen rests where a right-click/long-press
 			# enlarge would put it on desktop (same direction and distance as
 			# _enlarge_screen), so it's readable by default — enlarging still
-			# pulls it one step further from there.
-			if node == main.get_node("UiControl") and OS.has_feature("mobile"):
+			# pulls it one step further from there. A wide desktop monitor
+			# (21:9) gets the phone layout too, so the same pull, ramped in by
+			# boost_t: without it the grown control screen cuts into a strut.
+			var pull_t: float = 1.0 if OS.has_feature("mobile") else boost_t
+			if node == main.get_node("UiControl") and pull_t > 0.0:
 				var pull: Vector3 = (cam.global_position - node.global_position).normalized()
 				pull.x *= 0.5
-				node.global_position += pull * SCREEN_ENLARGE_DIST
+				node.global_position += pull * SCREEN_ENLARGE_DIST * pull_t
+			# The rumble and the enlarge toggle move a screen away from this rest
+			# pose and back to it: keep them on the current layout. (They kept the
+			# one from the game's start, so after a resize every rumble threw the
+			# screens back to the old window's places.)
+			main._rumble_base_pos[node] = node.position
+			main.screen_enlarge_base_pos[node] = node.position
+			if main.screen_enlarged.get(node, false):
+				node.position = _enlarged_position(main, node)
 
 	main.get_viewport().size_changed.connect(reposition)
 	reposition.call()
@@ -499,11 +517,8 @@ static func _enlarge_screen(main: Main, node: Node3D, duck: bool = true) -> void
 	var tw: Tween = main.screen_enlarge_tweens.get(node) as Tween
 	if tw and tw.is_valid():
 		tw.kill()
-	var base: Vector3 = main.screen_enlarge_base_pos[node]
-	var dir: Vector3 = (main.get_node("Camera3D").global_position - node.global_position).normalized()
-	dir.x *= 0.5
 	tw = main.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(node, "position", base + dir * SCREEN_ENLARGE_DIST, SCREEN_ENLARGE_IN_SEC)
+	tw.tween_property(node, "position", _enlarged_position(main, node), SCREEN_ENLARGE_IN_SEC)
 	main.screen_enlarge_tweens[node] = tw
 	if not duck:
 		main.screen_ducked_slots[node] = [] as Array[SectorSlot]
@@ -537,6 +552,12 @@ static func _enlarge_screen(main: Main, node: Node3D, duck: bool = true) -> void
 		main.screen_duck_tweens[slot] = dtw
 		ducked.append(slot)
 	main.screen_ducked_slots[node] = ducked
+
+# Where an enlarged screen sits: pulled from its rest pose toward the camera.
+static func _enlarged_position(main: Main, node: Node3D) -> Vector3:
+	var dir: Vector3 = (main.get_node("Camera3D").global_position - node.global_position).normalized()
+	dir.x *= 0.5
+	return main.screen_enlarge_base_pos[node] + dir * SCREEN_ENLARGE_DIST
 
 static func _shrink_screen(main: Main, node: Node3D) -> void:
 	var tw: Tween = main.screen_enlarge_tweens.get(node) as Tween
