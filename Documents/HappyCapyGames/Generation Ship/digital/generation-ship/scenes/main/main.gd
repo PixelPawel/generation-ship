@@ -239,7 +239,8 @@ var _pass_btn_mesh: MeshInstance3D = null
 var _pass_btn_flash_tween: Tween = null
 var _pass_btn_flash_mat: StandardMaterial3D = null
 var _research_btn_mesh: MeshInstance3D = null
-var _research_prompt: Control = null   # "Now researching" + Cancel on the control screen (research_prompt.gd)
+var _research_prompt: Control = null   # "Now researching" + Cancel on the control screen (control_prompt.gd)
+var _pass_prompt: Control = null       # "Pass?" + Pass/Cancel on the control screen (control_prompt.gd)
 const TURN_BUTTON_COOLDOWN_MS: int = 400
 var _turn_action_locked: bool = false
 var _last_turn_button_ms: int = -TURN_BUTTON_COOLDOWN_MS
@@ -801,13 +802,14 @@ func _on_research_pressed() -> void:
 		return
 	if not _accept_turn_button():
 		return
+	_cancel_pass()   # Research instead of an unconfirmed Pass
 	_effect_mode = EffectMode.RESEARCH
 	_set_action_buttons_disabled(true)
 	var how: String = hint("Click a card in your hand to discard it", "Tap a card in your hand to discard it")
 	_show_effect_hint(how)
 	$Hand.set_discard_mode(true)
 	if _research_prompt:
-		_research_prompt.open(how)
+		_research_prompt.open(tr("NOW RESEARCHING"), how)
 
 # Cancel on the "Now researching" panel. No card has been discarded and the
 # others haven't been told yet (that happens with the discard), so it's as if
@@ -821,6 +823,8 @@ func _cancel_research() -> void:
 	_research_prompt.close()
 	_set_action_buttons_disabled(false)
 
+# The Pass button only asks ("Pass?" on the control screen): passing ends the
+# player's Generation, so it happens in _confirm_pass.
 func _on_pass_pressed() -> void:
 	if not GameNetwork.is_my_turn():
 		return
@@ -828,8 +832,24 @@ func _on_pass_pressed() -> void:
 		return
 	if not _accept_turn_button():
 		return
+	if _effect_mode == EffectMode.RESEARCH:   # nothing discarded yet: Pass instead
+		_cancel_research()
+	_pass_prompt.open(tr("PASS?"), tr("You won't take any more actions this Generation."), tr("Pass"))
+
+func _confirm_pass() -> void:
+	if not _pass_prompt.visible:
+		return
+	_pass_prompt.close()
+	if not GameNetwork.is_my_turn() or _has_passed or _turn_action_locked:
+		return
 	_turn_action_locked = true
 	_do_pass()
+
+# Cancel on the "Pass?" panel, and whatever else makes an unconfirmed Pass
+# moot (Research, End Turn, the turn moving on).
+func _cancel_pass() -> void:
+	if _pass_prompt and _pass_prompt.visible:
+		_pass_prompt.close()
 
 # Button/keyboard entry point for End Turn. _on_end_turn_pressed() itself is
 # also called by the auto-end-turn helper, which must not be throttled.
@@ -886,6 +906,7 @@ func _show_round_transition(then: Callable) -> void:
 	banner.play(tr("End of Round %d") % _round, Color(0.75, 0.90, 1.0))
 
 func _end_round() -> void:
+	_cancel_pass()
 	_has_passed = false
 	_has_researched = false
 	_turn_action_locked = false
@@ -1032,6 +1053,8 @@ func _rpc_sync_active_player(peer_id: int) -> void:
 	# turn is already done before they've decided anything on it.
 	if _opp_statuses.get(peer_id, "") == "researching":
 		_opp_statuses[peer_id] = ""
+	if not GameNetwork.is_my_turn():
+		_cancel_pass()
 	var already_passed: bool = GameNetwork.is_my_turn() and _has_passed
 	if GameNetwork.is_my_turn() and not _has_passed:
 		_turn_action_locked = false
@@ -2851,6 +2874,7 @@ func _on_end_turn_pressed() -> void:
 	if $Board.is_card_drag_pending():
 		return
 	_ending_turn = true
+	_cancel_pass()
 	_effect_queue.clear()
 	_effect_slot = null
 	_pending_reveal_gain_supply = false
