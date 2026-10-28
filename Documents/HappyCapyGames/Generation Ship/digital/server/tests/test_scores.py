@@ -34,6 +34,14 @@ def test_best_score_kept_and_ranked():
     assert [e["details"] for e in top["entries"] if e["name"] == "Annie"] == [[123, 456]]
 
 
+def test_full_details_from_the_game():
+    # the game sends all 64 breakdown slots, empty ones as 0: kept without the zeros
+    details = [1003005, 2017002] + [0] * 62
+    assert post("dev:cccccccccccccccccccccccccccccccc", "Cleo", 21, details)["best"]
+    top = client.get("/v1/scores/top").json()
+    assert [e["details"] for e in top["entries"] if e["name"] == "Cleo"] == [[1003005, 2017002]]
+
+
 def test_rejects_bad_input():
     assert client.post("/v1/scores", json={"player": "nope", "name": "x", "score": 1}).status_code == 400
     assert client.post("/v1/scores", json={"player": P1, "name": "x", "score": 5000}).status_code == 422

@@ -28,7 +28,7 @@ from .main import VOTER_RE, _rate_limit, db
 
 router = APIRouter()
 MAX_SCORE = 999
-MAX_DETAILS = 32
+MAX_DETAILS = 64     # the game always sends all 64 slots (ScoringSnapshotCodec), 0 = empty
 TOP_LIMIT = 100
 SOURCES = ("play", "scan", "fleet")
 OWN_BOARD_SOURCES = ("fleet",)    # not part of the "all" board
@@ -110,7 +110,7 @@ def post_score(entry: ScoreIn, request: Request) -> dict:
     _rate_limit(request)
     name = _clean_name(entry.name)
     now = int(time.time())
-    details = json.dumps([int(d) for d in entry.details if -(2**31) <= int(d) < 2**32])
+    details = json.dumps([int(d) for d in entry.details if d != 0 and -(2**31) <= int(d) < 2**32])
     with db() as c:
         row = c.execute("SELECT score FROM scores WHERE player = ? AND source = ?", key).fetchone()
         if row is None or entry.score > row[0]:
