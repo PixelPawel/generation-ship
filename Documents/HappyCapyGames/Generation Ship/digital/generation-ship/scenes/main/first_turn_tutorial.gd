@@ -7,7 +7,9 @@ extends Node
 # edge while the tutorial runs). Before a chapter it hands over exactly the
 # cards and supply that chapter needs, so it never depends on lucky draws.
 #
-# Chapters: enlarge a market card → buy a sector → place a tech → enlarge a card → enlarge a screen → fuse → optimize → "if fully
+# Chapters: the three card types, each shown big and named (a Tech out of the
+# hand, the Sector on the market screen, an Expedition out of the market
+# screen's expedition column) → enlarge a market card → buy a sector → place a tech → enlarge a card → enlarge a screen → fuse → optimize → "if fully
 # optimized" → "if complete" → recycle → win an advanced sector in an auction →
 # "if new" → archive face down → store → printed stars → win a third sector
 # (Probe Launcher) → optimize it with a single card (its reveal brings out the
@@ -43,10 +45,14 @@ const FILLER_BY_COLOR: Dictionary = {
 	CardData.SupplyColor.THRUST: "Markets",
 }
 const STEPS: Array[String] = [
-	"inspect_market", "buy", "place", "inspect_card", "inspect_screen", "fuse", "optimize", "if_full", "complete", "recycle", "buy2",
+	"intro_tech", "intro_sector", "intro_expedition", "inspect_market", "buy", "place", "inspect_card", "inspect_screen", "fuse", "optimize", "if_full", "complete", "recycle", "buy2",
 	"if_new", "archive", "store", "stars", "buy3", "probe", "bid", "always",
 	"research", "fleet_dangers", "fleet_destination", "fleet_send", "pass", "score",
 ]
+# Card-type intro: the Tech shown first (the Sector and the Expedition are the
+# tutorial's own Simulators and DNA Sculpting); it waits for the "Your Turn" banner
+const INTRO_TECH: String = "Hangars"
+const INTRO_DELAY_SEC: float = 1.5
 # Probe Launcher's optimize group is a single Electrix card: this one
 const PROBE_CARD: String = "Portable Reactor"
 # Skyhook (Always: star cards cost 1 less), then this star card, cheaper in the hand —
@@ -216,6 +222,12 @@ func _tick(step: String) -> void:
 		"inspect_market":
 			if _market_inspecting():
 				_saw_market_inspect = true
+		"intro_tech", "intro_sector", "intro_expedition":
+			# (shown from here, not _enter: the last one may still be shrinking away)
+			if _market_inspecting():
+				_saw_market_inspect = true
+			elif not _saw_market_inspect and (step != "intro_tech" or _step_time >= INTRO_DELAY_SEC):
+				_show_intro_card(step)
 		"inspect_card":
 			if _main._sun_elevated_count > 0:
 				_saw_card_enlarged = true
@@ -335,9 +347,9 @@ func _is_done(step: String) -> bool:
 			return _first_sector != null
 		"place":
 			return _placed_type(CardData.CardType.TECH)
-		"inspect_market":
+		"intro_tech", "intro_sector", "intro_expedition", "inspect_market":
 			# (buying it straight away also moves on: the next step is the purchase)
-			return (_saw_market_inspect and not _market_inspecting()) or _first_sector != null
+			return (_saw_market_inspect and not _market_inspecting()) or _first_sector != null or _is_dragging(CardData.CardType.SECTOR)
 		"inspect_card":
 			return _saw_card_enlarged and _main._sun_elevated_count == 0
 		"inspect_screen":
@@ -399,6 +411,11 @@ func _show(step: String) -> void:
 		"place":
 			_hint(_main.hint("TUT_PLACE_TECH", "TUT_PLACE_TECH_MOBILE"))
 			_highlight_tech_slots()
+		"intro_tech", "intro_sector", "intro_expedition":
+			var key: String = {"intro_tech": "TUT_INTRO_TECH", "intro_sector": "TUT_INTRO_SECTOR", "intro_expedition": "TUT_INTRO_EXPEDITION"}[step]
+			_hint(tr(key) + "\n" + _main.hint("TUT_INTRO_NEXT", "TUT_INTRO_NEXT_MOBILE"))
+			if step == "intro_sector":
+				_main._market_panel.set_tutorial_dust_highlight(true)   # where Sectors are bought
 		"inspect_market":
 			if _saw_market_inspect:
 				_main._market_panel.set_tutorial_dust_highlight(false)
@@ -490,6 +507,31 @@ func _show(step: String) -> void:
 
 func _hint(text: String) -> void:
 	_main._show_effect_hint(text)
+
+# A card-type intro card, enlarged like a market card (a click puts it back):
+# the Tech rises out of the hand, the Sector off its market slot, the
+# Expedition out of the expedition column, where they show up later.
+func _show_intro_card(step: String) -> void:
+	var center: Vector3 = CockpitRig.viewport_to_world(_main, Vector2(_main._info_viewport.size) * 0.5)
+	match step:
+		"intro_tech":
+			var tech: CardData = _tech(INTRO_TECH)
+			if tech == null:
+				_saw_market_inspect = true   # (nothing to show: move on)
+				return
+			var hand: Vector3 = (_main.get_node("Hand") as Node3D).global_position
+			_board.inspect_card_data(tech, false, ["", -1], hand, center)
+		"intro_sector":
+			_main._on_market_card_inspect_requested("dust", Main.TUTORIAL_SECTOR_SLOT)
+			if not _market_inspecting():
+				_saw_market_inspect = true
+		"intro_expedition":
+			var expedition: CardData = _tech(Main.TUTORIAL_EXPEDITION)
+			if expedition == null:
+				_saw_market_inspect = true
+				return
+			var slot: Vector3 = CockpitRig.viewport_to_world(_main, _main._market_panel.get_slot_center("expedition", Main.TUTORIAL_SECTOR_SLOT))
+			_board.inspect_card_data(expedition, false, ["", -1], slot, center)
 
 # "Buy a Sector" is 3 sub-phases: pick a market slot, pay, place the card.
 func _show_buy() -> void:
