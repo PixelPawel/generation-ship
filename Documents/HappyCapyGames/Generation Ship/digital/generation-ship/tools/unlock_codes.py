@@ -26,6 +26,7 @@ import urllib.request
 API = os.environ.get("HCG_API", "https://api.happycapygames.com")   # HCG_API: a local test server
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(HERE))), "Unlock Codes")
+MAX_PER_CALL = 5000                                                  # server/app/unlock.py MAX_BATCH
 
 
 def token() -> str:
@@ -54,15 +55,18 @@ def make(count: int, batch: str, uses: int, note: str) -> None:
     path = os.path.join(OUT_DIR, batch + ".csv")
     if os.path.exists(path):
         sys.exit(f"{path} exists already - pick a new batch name")
-    res = api("/v1/unlock/codes", {"count": count, "batch": batch, "max_uses": uses, "note": note})
+    codes: list[str] = []
+    while len(codes) < count:   # the server makes at most MAX_PER_CALL per request
+        n = min(MAX_PER_CALL, count - len(codes))
+        codes += api("/v1/unlock/codes", {"count": n, "batch": batch, "max_uses": uses, "note": note})["codes"]
     os.makedirs(OUT_DIR, exist_ok=True)
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["code", "batch", "players per code", "made"])
         made = datetime.date.today().isoformat()
-        for code in res["codes"]:
+        for code in codes:
             w.writerow([code, batch, uses, made])
-    print(f"{len(res['codes'])} codes -> {path}")
+    print(f"{len(codes)} codes -> {path}")
 
 
 def report() -> None:
