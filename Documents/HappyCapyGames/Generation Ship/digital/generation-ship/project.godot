@@ -27,6 +27,7 @@ driver/mix_rate=48000
 SteamManager="*res://scripts/net/steam_manager.gd"
 LeaderboardManager="*res://scripts/net/leaderboard_manager.gd"
 TranslationVotes="*res://scripts/net/translation_votes.gd"
+FullGame="*res://scripts/net/full_game.gd"
 CardDatabase="*res://scripts/game/card_database.gd"
 ImageCache="*res://scripts/image_cache.gd"
 CursorManager="*res://scripts/cursor_manager.gd"
@@ -48,7 +49,7 @@ window/stretch/aspect="expand"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/gde_gozen/plugin.cfg", "res://addons/godotsteam/plugin.cfg")
+enabled=PackedStringArray("res://addons/GodotGooglePlayBilling/plugin.cfg", "res://addons/gde_gozen/plugin.cfg", "res://addons/godotsteam/plugin.cfg")
 
 [gui]
 

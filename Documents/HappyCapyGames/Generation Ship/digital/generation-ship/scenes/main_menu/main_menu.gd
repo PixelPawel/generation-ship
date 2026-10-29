@@ -4,6 +4,7 @@ const Haptics = preload("res://scripts/haptics.gd")
 const TutorialSession = preload("res://scripts/tutorial_session.gd")
 const MenuIconButton = preload("res://scenes/ui/menu_icon_button.gd")
 const CockpitBackdrop = preload("res://scenes/main_menu/cockpit_backdrop.gd")
+const UnlockPanel = preload("res://scenes/ui/unlock_panel.gd")
 var _backdrop: Node3D = null   # the parked cockpit behind the menu
 var _launching: bool = false
 const GAME_SCENE: String = "res://scenes/main/main.tscn"
@@ -44,6 +45,8 @@ var _collection: Control = null
 var _fleet_picker: Control = null
 var _leaderboard: Control = null
 var _photo_scan: Control = null
+var _unlock_panel: UnlockPanel = null   # Android: made the first time a locked mode is tapped
+var _lock_hint: Label = null
 
 const GAMEFOUND_LOGO: String = "res://assets/ui/gamefound_logo_white.png"
 const GAMEFOUND_URL: String = "https://gamefound.com/en/projects/happy-capy-games/generation-ship#/section/project-story"
@@ -315,9 +318,19 @@ func _build_menu_layout() -> void:
 	start.add_theme_font_size_override("font_size", PLAY_FONT)
 	# Co-op (Generation Fleet): solo for now — pick a Destination, then launch
 	var coop: Button = _menu_button("Co-op", 32, Vector2(440, 64))
-	coop.pressed.connect(func() -> void: _fleet_picker.open())
+	coop.pressed.connect(_on_coop_pressed)
 	vbox.add_child(coop)
 	vbox.move_child(coop, start.get_index() + 1)
+	# Android, until the full game is unlocked (FullGame): a gold line under both
+	_lock_hint = Label.new()
+	_lock_hint.text = "Unlock Versus and Co-op"
+	_lock_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_lock_hint.add_theme_font_size_override("font_size", 18)
+	_lock_hint.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	vbox.add_child(_lock_hint)
+	vbox.move_child(_lock_hint, coop.get_index() + 1)
+	_refresh_lock_hint()
+	FullGame.changed.connect(_refresh_lock_hint)
 	# Quit under them, as before (phones close apps through the system instead)
 	var quit: Button = vbox.get_node_or_null("QuitBtn")
 	if quit:
@@ -530,8 +543,33 @@ func _on_settings_btn_pressed() -> void:
 	$PauseMenu.open_settings()
 
 func _on_multiplayer_pressed() -> void:
+	if _needs_unlock(_on_multiplayer_pressed):
+		return
 	$Panels/LobbyView.set_coop(false, 0)
 	_slide_to_lobby()
+
+func _on_coop_pressed() -> void:
+	if _needs_unlock(_on_coop_pressed):
+		return
+	_fleet_picker.open()
+
+# Android: Versus and Co-op need the full game (FullGame). While it's locked
+# the unlock panel opens instead, and carries on into the tapped mode once
+# it's bought or a code is in.
+func _needs_unlock(then: Callable) -> bool:
+	if not FullGame.is_locked():
+		return false
+	if _unlock_panel == null:
+		_unlock_panel = UnlockPanel.new()
+		add_child(_unlock_panel)
+	for c: Dictionary in _unlock_panel.unlocked.get_connections():
+		_unlock_panel.unlocked.disconnect(c["callable"])
+	_unlock_panel.unlocked.connect(then, CONNECT_ONE_SHOT)
+	_unlock_panel.open()
+	return true
+
+func _refresh_lock_hint() -> void:
+	_lock_hint.visible = FullGame.is_locked()
 
 func _on_quit_pressed() -> void:
 	get_tree().quit()

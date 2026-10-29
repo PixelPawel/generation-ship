@@ -182,3 +182,7 @@ app.include_router(uprising_bugs_router)
 from .mail import router as mail_router  # noqa: E402  (HCG Hub mail relay through the Hostinger mailbox)
 
 app.include_router(mail_router)
+
+from .unlock import router as unlock_router  # noqa: E402  (Android full-game codes)
+
+app.include_router(unlock_router)
