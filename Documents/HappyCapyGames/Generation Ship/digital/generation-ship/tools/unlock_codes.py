@@ -1,12 +1,13 @@
 """Full-game codes for the Android app (Versus + Co-op), made on the API server.
 
-    python tools/unlock_codes.py make <count> <batch> [--uses 3] [--note "..."]
+    python tools/unlock_codes.py make <count> <batch> [--uses 1] [--note "..."]
     python tools/unlock_codes.py report
 
 `make` creates a batch (e.g. "gamefound-backers", "contest-2026-11") and saves
 it as Generation Ship/Unlock Codes/<batch>.csv, outside git: the codes are as
-good as money, keep the file private. A code unlocks up to --uses players (a
-new phone or a reinstall counts as a new one). Players enter it in the app
+good as money, keep the file private. A code unlocks ONE player by default (one
+install: after a reinstall or on a new phone it no longer works); --uses N
+allows N. Players enter it in the app
 (Versus or Co-op -> "Enter a code"), any case, with or without the dashes.
 
 `report` lists every batch: codes made, codes used, players unlocked.
@@ -86,7 +87,7 @@ def main() -> None:
     m = sub.add_parser("make")
     m.add_argument("count", type=int)
     m.add_argument("batch")
-    m.add_argument("--uses", type=int, default=3)
+    m.add_argument("--uses", type=int, default=1)
     m.add_argument("--note", default="")
     sub.add_parser("report")
     a = ap.parse_args()

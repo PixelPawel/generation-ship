@@ -89,7 +89,7 @@ func redeem(code: String) -> void:
 		elif status == 404:
 			redeem_result.emit(false, tr("That code doesn't exist. Please check it and try again."))
 		elif status == 409:
-			redeem_result.emit(false, tr("This code has already been used on too many devices."))
+			redeem_result.emit(false, tr("This code has already been used."))
 		elif status == 429:
 			redeem_result.emit(false, tr("Too many wrong codes. Please try again in an hour."))
 		else:

@@ -5,8 +5,9 @@ Google Play purchase (handled on the phone) or with one of our codes, checked
 here. Codes are made in batches by an admin (tools/unlock_codes.py in the game
 repo writes them to a CSV) and handed out to backers, contests, press...
 
-A code unlocks up to `max_uses` players (default 3): a new phone or a
-reinstall gets a new anonymous player id, so the same person needs a few. The
+A code unlocks up to `max_uses` players (default 1, the user's rule: one code,
+one install; a new phone or a reinstall gets a new anonymous player id and is
+locked again). The
 same player redeeming again is free. Failed attempts are limited per IP, so
 codes can't be guessed (12 characters from a 32-letter alphabet).
 
@@ -111,7 +112,7 @@ def redeem(body: RedeemIn, request: Request) -> dict:
 class CodesIn(BaseModel):
     count: int = Field(ge=1, le=MAX_BATCH)
     batch: str
-    max_uses: int = Field(default=3, ge=1, le=100)
+    max_uses: int = Field(default=1, ge=1, le=100)
     note: str = Field(default="", max_length=200)
 
 
