@@ -9,11 +9,14 @@ signal unlocked
 const TEXT_COLOR: Color = Color(0.8, 0.85, 0.95)
 const GOLD: Color = Color(1.0, 0.85, 0.4)
 const ERROR_COLOR: Color = Color(1.0, 0.55, 0.5)
+const MUTED_COLOR: Color = Color(0.6, 0.65, 0.78)
 
 var _buy_btn: Button = null
 var _code_input: LineEdit = null
 var _redeem_btn: Button = null
 var _status: Label = null
+var _games_note: Label = null
+var _games_btn: Button = null
 
 func _ready() -> void:
 	_build_ui()
@@ -21,12 +24,14 @@ func _ready() -> void:
 	FullGame.changed.connect(_on_changed)
 	FullGame.purchase_result.connect(_on_result)
 	FullGame.redeem_result.connect(_on_result)
+	FullGame.games_changed.connect(_refresh_games)
 
 func open() -> void:
 	_status.text = ""
 	_code_input.text = ""
 	_set_busy(false)
 	_refresh_price()
+	_refresh_games()
 	PopupAnim.open(self)
 
 func _build_ui() -> void:
@@ -96,6 +101,21 @@ func _build_ui() -> void:
 	_redeem_btn.pressed.connect(_redeem)
 	row.add_child(_redeem_btn)
 
+	# Google Play Games: a code then follows the account to other phones
+	var games_row: HBoxContainer = HBoxContainer.new()
+	games_row.add_theme_constant_override("separation", 12)
+	vbox.add_child(games_row)
+	_games_note = Label.new()
+	_games_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_games_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_games_note.add_theme_font_size_override("font_size", 16)
+	_games_note.add_theme_color_override("font_color", MUTED_COLOR)
+	games_row.add_child(_games_note)
+	_games_btn = _make_button(tr("Sign in with Google Play Games"))
+	_games_btn.add_theme_font_size_override("font_size", 16)
+	_games_btn.pressed.connect(func() -> void: FullGame.sign_in_games())
+	games_row.add_child(_games_btn)
+
 	_status = Label.new()
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -120,6 +140,16 @@ func _redeem() -> void:
 
 func _refresh_price() -> void:
 	_buy_btn.text = tr("Unlock for %s") % FullGame.price_text if not FullGame.price_text.is_empty() else tr("Unlock")
+
+func _refresh_games() -> void:
+	var row: Control = _games_note.get_parent() as Control
+	row.visible = FullGame.games_available()
+	if FullGame.games_signed_in():
+		_games_note.text = tr("Your codes are linked to your Google Play Games account %s.") % FullGame.games_name
+		_games_btn.visible = false
+	else:
+		_games_note.text = tr("Sign in to Google Play Games and a code unlocks the game on every phone with that account.")
+		_games_btn.visible = true
 
 func _set_busy(busy: bool) -> void:
 	_buy_btn.disabled = busy

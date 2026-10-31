@@ -6,12 +6,17 @@ here. Codes are made in batches by an admin (tools/unlock_codes.py in the game
 repo writes them to a CSV) and handed out to backers, contests, press...
 
 A code unlocks up to `max_uses` players (default 1, the user's rule: one code,
-one install; a new phone or a reinstall gets a new anonymous player id and is
-locked again). The
-same player redeeming again is free. Failed attempts are limited per IP, so
-codes can't be guessed (12 characters from a 32-letter alphabet).
+one player). A player is the Google Play Games account when the app is signed in
+to it (`games_player`), else the install's anonymous player id. So a new phone
+or a reinstall signed in to the same Play Games account gets the unlock back
+(restore), and can enter the same code again; without Play Games it is locked
+again. The same player redeeming again is free. Failed attempts are limited per
+IP, so codes can't be guessed (12 characters from a 32-letter alphabet).
 
-Redeem: POST /v1/unlock/redeem  {code, player, platform}
+Redeem:  POST /v1/unlock/redeem   {code, player, platform, games_player?}
+Restore: POST /v1/unlock/restore  {player, games_player, platform}: unlocks a new
+         install of a Play Games account that redeemed a code before (and links an
+         install's earlier code to its Play Games account)
 Make:   POST /v1/unlock/codes   {count, batch, max_uses, note}   (header X-Admin-Token)
 Report: GET  /v1/unlock/report  (admin; per batch: codes, used codes, redemptions)
 """
@@ -31,6 +36,9 @@ ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"   # no I, O, 0, 1
 CODE_LEN = 12
 MAX_BATCH = 5000
 FAILS_PER_HOUR = 10                             # wrong codes per client IP
+MISSES_PER_HOUR = 30                            # restores that found nothing, per client IP
+# Google Play Games player ids (digits, or a letter prefix and digits): kept loose
+GAMES_RE = re.compile(r"^[A-Za-z0-9_-]{4,64}$")
 BATCH_RE = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
 
 
@@ -54,22 +62,34 @@ def init_unlock() -> None:
                 PRIMARY KEY (code, player)
             )"""
         )
+        cols = [r[1] for r in c.execute("PRAGMA table_info(unlock_redemptions)").fetchall()]
+        if "games_player" not in cols:
+            c.execute("ALTER TABLE unlock_redemptions ADD COLUMN games_player TEXT NOT NULL DEFAULT ''")
+        c.execute("CREATE INDEX IF NOT EXISTS unlock_redemptions_games ON unlock_redemptions(games_player)")
         c.execute("CREATE INDEX IF NOT EXISTS unlock_codes_batch ON unlock_codes(batch)")
 
 
 init_unlock()
 
 _fails: dict[str, deque] = defaultdict(deque)
+_misses: dict[str, deque] = defaultdict(deque)
 
 
-def _check_fails(request: Request) -> deque:
+def _check_fails(request: Request, store: dict | None = None, limit: int = FAILS_PER_HOUR) -> deque:
     now = time.monotonic()
-    q = _fails[_client_ip(request)]
+    q = (_fails if store is None else store)[_client_ip(request)]
     while q and now - q[0] > 3600:
         q.popleft()
-    if len(q) >= FAILS_PER_HOUR:
+    if len(q) >= limit:
         raise HTTPException(429, "Too many wrong codes, try again later")
     return q
+
+
+def _games_id(value: str) -> str:
+    value = value.strip()
+    if value and not GAMES_RE.match(value):
+        raise HTTPException(400, "Invalid Play Games player id")
+    return value
 
 
 def normalize(code: str) -> str:
@@ -85,12 +105,25 @@ class RedeemIn(BaseModel):
     code: str = Field(min_length=1, max_length=40)
     player: str
     platform: str = Field(default="", max_length=16)
+    games_player: str = Field(default="", max_length=64)
+
+
+def _link(c, code: str, player: str, games: str, platform: str) -> None:
+    """Make sure this install has a row for the code, carrying its Play Games id."""
+    if c.execute("SELECT 1 FROM unlock_redemptions WHERE code = ? AND player = ?", (code, player)).fetchone():
+        if games:
+            c.execute("UPDATE unlock_redemptions SET games_player = ? WHERE code = ? AND player = ? AND games_player = ''",
+                      (games, code, player))
+    else:
+        c.execute("INSERT INTO unlock_redemptions (code, player, platform, redeemed_at, games_player) VALUES (?, ?, ?, ?, ?)",
+                  (code, player, platform[:16], int(time.time()), games))
 
 
 @router.post("/v1/unlock/redeem")
 def redeem(body: RedeemIn, request: Request) -> dict:
     if not VOTER_RE.match(body.player):
         raise HTTPException(400, "Invalid player id")
+    games = _games_id(body.games_player)
     fails = _check_fails(request)
     code = normalize(body.code)
     with db() as c:
@@ -98,15 +131,40 @@ def redeem(body: RedeemIn, request: Request) -> dict:
         if row is None:
             fails.append(time.monotonic())
             raise HTTPException(404, "Unknown code")
-        if c.execute("SELECT 1 FROM unlock_redemptions WHERE code = ? AND player = ?",
-                     (code, body.player)).fetchone():
+        rows = c.execute("SELECT player, games_player FROM unlock_redemptions WHERE code = ?", (code,)).fetchall()
+        if any(p == body.player or (games and g == games) for p, g in rows):
+            _link(c, code, body.player, games, body.platform)
             return {"ok": True, "again": True}
-        used = c.execute("SELECT COUNT(*) FROM unlock_redemptions WHERE code = ?", (code,)).fetchone()[0]
-        if used >= row[0]:
+        # one use = one player: a Play Games account (all its installs) or a single install
+        holders = {("g", g) if g else ("p", p) for p, g in rows}
+        if len(holders) >= row[0]:
             raise HTTPException(409, "Code already used up")
-        c.execute("INSERT INTO unlock_redemptions (code, player, platform, redeemed_at) VALUES (?, ?, ?, ?)",
-                  (code, body.player, body.platform[:16], int(time.time())))
+        _link(c, code, body.player, games, body.platform)
     return {"ok": True, "again": False}
+
+
+class RestoreIn(BaseModel):
+    player: str
+    games_player: str = Field(min_length=1, max_length=64)
+    platform: str = Field(default="", max_length=16)
+
+
+@router.post("/v1/unlock/restore")
+def restore(body: RestoreIn, request: Request) -> dict:
+    if not VOTER_RE.match(body.player):
+        raise HTTPException(400, "Invalid player id")
+    games = _games_id(body.games_player)
+    misses = _check_fails(request, _misses, MISSES_PER_HOUR)
+    with db() as c:
+        found = c.execute("SELECT code FROM unlock_redemptions WHERE games_player = ? LIMIT 1", (games,)).fetchone()
+        if found is None:
+            # an install that redeemed before signing in: link its code to the account
+            found = c.execute("SELECT code FROM unlock_redemptions WHERE player = ? LIMIT 1", (body.player,)).fetchone()
+        if found is None:
+            misses.append(time.monotonic())
+            raise HTTPException(404, "Nothing to restore")
+        _link(c, found[0], body.player, games, body.platform)
+    return {"ok": True}
 
 
 class CodesIn(BaseModel):

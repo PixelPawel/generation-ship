@@ -44,7 +44,7 @@ IP_STORES = {
     "app.main": ("_writes",),
     "app.comments": ("_posts",),
     "app.crashes": ("_posts",),
-    "app.unlock": ("_fails",),
+    "app.unlock": ("_fails", "_misses"),
     "app.uprising_bugs": ("_posts", "_comment_posts"),
 }
 PLAYER_TABLES = (("scores", "player"), ("votes", "voter"), ("comments", "voter"), ("unlock_redemptions", "player"))
@@ -186,8 +186,18 @@ def forget_subject(subject: str, x_admin_token: str | None = Header(None)) -> di
         names: set[str] = set()
         if tables is PLAYER_TABLES and _has_table(c, "scores"):
             names = {n for (n,) in c.execute("SELECT DISTINCT name FROM scores WHERE player = ?", (subject,))}
+        linked = 0
+        if tables is PLAYER_TABLES and _has_table(c, "unlock_redemptions"):
+            # a code linked to a Play Games account: its rows from the player's other installs go too
+            games = [g for (g,) in c.execute("SELECT DISTINCT games_player FROM unlock_redemptions "
+                                             "WHERE player = ? AND games_player != ''", (subject,))]
+            for g in games:
+                linked += c.execute("DELETE FROM unlock_redemptions WHERE games_player = ? AND player != ?",
+                                    (g, subject)).rowcount
         for table, column in tables:
             if _has_table(c, table):
                 deleted[table] = c.execute(f"DELETE FROM {table} WHERE {column} = ?", (subject,)).rowcount
+        if linked:
+            deleted["unlock_redemptions"] = deleted.get("unlock_redemptions", 0) + linked
         deleted["standings_names"] = _blank_names_in_standings(c, names)
     return {"subject": subject, "deleted": deleted}

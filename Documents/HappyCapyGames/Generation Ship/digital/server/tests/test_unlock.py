@@ -30,6 +30,63 @@ def redeem(code, player=P1):
 
 def setup_function():
     unlock._fails.clear()
+    unlock._misses.clear()
+
+
+def redeem_games(code, player, games):
+    return client.post("/v1/unlock/redeem", json={"code": code, "player": player, "platform": "android",
+                                                   "games_player": games})
+
+
+def restore(player, games):
+    return client.post("/v1/unlock/restore", json={"player": player, "games_player": games, "platform": "android"})
+
+
+def test_one_use_is_one_play_games_account():
+    code = make(1, "games", max_uses=1)[0]
+    a1, a2, a3 = "dev:a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1", "dev:a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2", "dev:a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3"
+    assert redeem_games(code, a1, "g_1001").json() == {"ok": True, "again": False}
+    # a new phone signed in to the same account: the same code works again
+    assert redeem_games(code, a2, "g_1001").json() == {"ok": True, "again": True}
+    # anyone else is refused, signed in or not
+    assert redeem(code, a3).status_code == 409
+    assert redeem_games(code, a3, "g_2002").status_code == 409
+    assert redeem_games(code, a3, "bad id!").status_code == 400
+
+
+def test_restore_on_a_new_install():
+    code = make(1, "restore", max_uses=1)[0]
+    b1, b2, b3 = "dev:b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1", "dev:b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2", "dev:b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3"
+    assert redeem_games(code, b1, "g_3003").status_code == 200
+    assert restore(b2, "g_3003").json() == {"ok": True}       # reinstall / new phone, same account
+    assert restore(b3, "g_9999").status_code == 404           # account that never redeemed a code
+    with unlock.db() as c:
+        assert c.execute("SELECT COUNT(*) FROM unlock_redemptions WHERE games_player = 'g_3003'").fetchone()[0] == 2
+
+
+def test_restore_links_a_code_redeemed_before_signing_in():
+    code = make(1, "link", max_uses=1)[0]
+    c1, c2 = "dev:c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1", "dev:c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2"
+    assert redeem(code, c1).status_code == 200                # not signed in to Play Games yet
+    assert restore(c1, "g_4004").status_code == 200           # signs in later: the code moves to the account
+    assert restore(c2, "g_4004").status_code == 200           # so a new phone gets it back
+
+
+def test_restore_misses_are_limited():
+    d1 = "dev:d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1"
+    for _ in range(unlock.MISSES_PER_HOUR):
+        assert restore(d1, "g_5005").status_code == 404
+    assert restore(d1, "g_5005").status_code == 429
+
+
+def test_erasure_removes_the_accounts_other_installs():
+    code = make(1, "erase", max_uses=1)[0]
+    e1, e2 = "dev:e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1", "dev:e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2"
+    assert redeem_games(code, e1, "g_6006").status_code == 200
+    assert restore(e2, "g_6006").status_code == 200
+    r = client.delete(f"/v1/admin/privacy/{e1}", headers=ADMIN).json()["deleted"]
+    assert r["unlock_redemptions"] == 2
+    assert restore(e2, "g_6006").status_code == 404
 
 
 def test_codes_need_admin():

@@ -8,20 +8,25 @@ extends Node
 #
 # The unlock is kept in SAVE_PATH. A Play purchase is checked again at every
 # start (a refund locks it again); a code unlock stays. A new phone or a
-# reinstall gets its Play purchase back on its own; a code has to be entered
-# again (each code is good for a few devices).
+# reinstall gets its Play purchase back on its own. A code is good for one
+# player: with Google Play Games signed in, that's the Play Games account, so
+# any install of that account gets the unlock back at start (server restore);
+# without it, just this install.
 #
-# The plugin's script is loaded only on Android, and reached by name
-# (call/connect): its class_name isn't relied on.
+# The plugins are reached by name only (call/connect), never through their
+# class_names: billing through its script, loaded only on Android; Play Games
+# (addons/GodotPlayGameServices) through its Android singleton.
 
 signal changed                                  # unlocked, or the price became known
 signal purchase_result(ok: bool, message: String)
 signal redeem_result(ok: bool, message: String)
+signal games_changed                            # Play Games sign-in known or changed
 
 const PRODUCT_ID: String = "full_game"
 const SERVER_URL: String = "https://api.happycapygames.com"
 const SAVE_PATH: String = "user://full_game.cfg"
 const BILLING_SCRIPT: String = "res://addons/GodotGooglePlayBilling/BillingClient.gd"
+const GAMES_SINGLETON: String = "GodotPlayGameServices"
 const TIMEOUT_SEC: float = 15.0
 # the plugin's enums (BillingClient.gd), as plain values
 const INAPP: int = 0
@@ -36,6 +41,9 @@ var price_text: String = ""                     # Play's price in the player's c
 var _source: String = ""                        # what unlocked it: "play" or "code"
 var _billing: Node = null
 var _product_ready: bool = false                # Play knows the product: buying can start
+var games_player_id: String = ""                # Google Play Games player, "" while not signed in
+var games_name: String = ""                     # its Play Games name, shown in the unlock panel only
+var _games: Object = null                       # the Play Games Android singleton
 
 func _ready() -> void:
 	if OS.get_name() != "Android":
@@ -45,6 +53,7 @@ func _ready() -> void:
 	if cfg.load(SAVE_PATH) == OK:
 		_source = str(cfg.get_value("unlock", "source", ""))
 		unlocked = not _source.is_empty()
+	_start_games()
 	if not ResourceLoader.exists(BILLING_SCRIPT):
 		return
 	var script: GDScript = load(BILLING_SCRIPT) as GDScript
@@ -75,7 +84,8 @@ func buy() -> void:
 func redeem(code: String) -> void:
 	var votes: Node = get_node_or_null("/root/TranslationVotes")
 	var player: String = str(votes.call("player_id")) if votes else ""
-	var body: String = JSON.stringify({code = code.strip_edges(), player = player, platform = "android"})
+	var body: String = JSON.stringify({code = code.strip_edges(), player = player, platform = "android",
+		games_player = games_player_id})
 	var req: HTTPRequest = HTTPRequest.new()
 	req.timeout = TIMEOUT_SEC
 	add_child(req)
@@ -85,6 +95,11 @@ func redeem(code: String) -> void:
 			redeem_result.emit(false, tr("Can't reach the server. Check your connection and try again."))
 		elif status == 200:
 			_unlock("code")
+			if games_signed_in():
+				var saved: ConfigFile = ConfigFile.new()
+				saved.load(SAVE_PATH)
+				saved.set_value("unlock", "games_player", games_player_id)
+				saved.save(SAVE_PATH)
 			redeem_result.emit(true, "")
 		elif status == 404:
 			redeem_result.emit(false, tr("That code doesn't exist. Please check it and try again."))
@@ -98,6 +113,70 @@ func redeem(code: String) -> void:
 			HTTPClient.METHOD_POST, body) != OK:
 		req.queue_free()
 		redeem_result.emit(false, tr("Can't reach the server. Check your connection and try again."))
+
+# ── Google Play Games ───────────────────────────────────────────────────────
+
+func _start_games() -> void:
+	if not Engine.has_singleton(GAMES_SINGLETON):
+		return
+	_games = Engine.get_singleton(GAMES_SINGLETON)
+	_games.call("initialize")
+	_games.connect("userAuthenticated", _on_games_authenticated)
+	_games.connect("currentPlayerLoaded", _on_games_player)
+	_games.call("isAuthenticated")
+
+func games_available() -> bool:
+	return _games != null
+
+func games_signed_in() -> bool:
+	return not games_player_id.is_empty()
+
+## Play Games' own sign-in sheet (for players it didn't sign in by itself).
+func sign_in_games() -> void:
+	if _games:
+		_games.call("signIn")
+
+func _on_games_authenticated(ok: bool) -> void:
+	if ok:
+		_games.call("loadCurrentPlayer", false)
+	else:
+		games_changed.emit()
+
+func _on_games_player(player_json: String) -> void:
+	var d: Variant = JSON.parse_string(player_json)
+	if typeof(d) != TYPE_DICTIONARY:
+		return
+	games_player_id = str((d as Dictionary).get("playerId", ""))
+	games_name = str((d as Dictionary).get("displayName", ""))
+	games_changed.emit()
+	if games_signed_in() and _source != "play":
+		_restore_from_games()
+
+# A code redeemed on this Play Games account (any install) unlocks this one
+# too; a code redeemed here before signing in gets linked to the account.
+# Asked once per account and install: SAVE_PATH remembers the link.
+func _restore_from_games() -> void:
+	var cfg: ConfigFile = ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	if _source == "code" and str(cfg.get_value("unlock", "games_player", "")) == games_player_id:
+		return
+	var votes: Node = get_node_or_null("/root/TranslationVotes")
+	var player: String = str(votes.call("player_id")) if votes else ""
+	var body: String = JSON.stringify({player = player, games_player = games_player_id, platform = "android"})
+	var req: HTTPRequest = HTTPRequest.new()
+	req.timeout = TIMEOUT_SEC
+	add_child(req)
+	req.request_completed.connect(func(result: int, status: int, _headers: PackedStringArray, _bytes: PackedByteArray) -> void:
+		req.queue_free()
+		if result == HTTPRequest.RESULT_SUCCESS and status == 200:
+			_unlock("code")
+			var saved: ConfigFile = ConfigFile.new()
+			saved.load(SAVE_PATH)
+			saved.set_value("unlock", "games_player", games_player_id)
+			saved.save(SAVE_PATH))
+	if req.request(SERVER_URL + "/v1/unlock/restore", PackedStringArray(["Content-Type: application/json"]),
+			HTTPClient.METHOD_POST, body) != OK:
+		req.queue_free()
 
 func _on_billing_connected() -> void:
 	_billing.call("query_product_details", PackedStringArray([PRODUCT_ID]), INAPP)
