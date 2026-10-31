@@ -15,6 +15,13 @@ api.happycapygames.com {
 		rewrite * /datenschutz_android.html
 		file_server
 	}
+	# Data deletion steps (Google Play's "delete data" URL); /daten-loeschen opens the German half
+	redir /daten-loeschen /delete-data#de
+	handle /delete-data {
+		root * /srv/legal
+		rewrite * /delete_data.html
+		file_server
+	}
 	handle {
 		reverse_proxy api:8000
 	}
