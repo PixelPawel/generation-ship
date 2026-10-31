@@ -23,7 +23,10 @@ enum PlayGamesPluginError {
 var android_plugin: Object
 
 ## A helper JSON marshaller to safely access JSON data from the plugin.
-var json_marshaller := JsonMarshaller.new()
+# HCG patch (keep when updating the plugin): preloaded instead of the class_name
+# JsonMarshaller, which a headless export may not know yet: the autoload then
+# failed to load ("Identifier JsonMarshaller not declared").
+var json_marshaller: RefCounted = preload("res://addons/GodotPlayGameServices/scripts/marshalling/json_marshaller.gd").new()
 
 ## Call this method manually to initialize the plugin.[br]
 ## [br]

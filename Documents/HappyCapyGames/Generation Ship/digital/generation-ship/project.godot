@@ -38,6 +38,7 @@ SceneTransition="*res://scripts/scene_transition.gd"
 UIAudio="*res://scripts/ui_audio.gd"
 KeybindManager="*res://scripts/keybind_manager.gd"
 ThemeBootstrap="*res://scripts/theme_bootstrap.gd"
+GodotPlayGameServices="*res://addons/GodotPlayGameServices/scripts/autoloads/godot_play_game_services.gd"
 
 [display]
 
@@ -49,7 +50,7 @@ window/stretch/aspect="expand"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/GodotGooglePlayBilling/plugin.cfg", "res://addons/gde_gozen/plugin.cfg", "res://addons/godotsteam/plugin.cfg")
+enabled=PackedStringArray("res://addons/GodotGooglePlayBilling/plugin.cfg", "res://addons/GodotPlayGameServices/plugin.cfg", "res://addons/gde_gozen/plugin.cfg", "res://addons/godotsteam/plugin.cfg")
 
 [gui]
 
