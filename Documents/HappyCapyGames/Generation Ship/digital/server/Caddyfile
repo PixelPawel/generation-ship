@@ -1,5 +1,21 @@
 # Caddy gets and renews the HTTPS certificate automatically.
 # The domain must have a DNS A record pointing at this server first.
 api.happycapygames.com {
-	reverse_proxy api:8000
+	# Privacy policies (source: digital/legal/, copied to /opt/hcg-api/legal on the VPS)
+	# /privacy and /privacy-android: the same pages, opened at the English half
+	redir /privacy /datenschutz#en
+	redir /privacy-android /datenschutz-android#en
+	handle /datenschutz {
+		root * /srv/legal
+		rewrite * /datenschutz.html
+		file_server
+	}
+	handle /datenschutz-android {
+		root * /srv/legal
+		rewrite * /datenschutz_android.html
+		file_server
+	}
+	handle {
+		reverse_proxy api:8000
+	}
 }

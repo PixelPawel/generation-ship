@@ -32,6 +32,8 @@ var _input_device_option: OptionButton = null
 var _shake_check: CheckButton = null
 var _vibration_check: CheckButton = null
 var _language_option: OptionButton = null
+var _leaderboard_check: CheckButton = null
+var _player_id_label: Label = null
 var _tr_targets: Dictionary = {}   # Control (Label/Button) -> untranslated key, refreshed on locale change
 
 func _tr_set(ctrl: Control, key: String) -> void:
@@ -52,6 +54,7 @@ func open_settings() -> void:
 		_settings_panel.visible = true
 	visible = true
 	_load_language_setting()
+	_refresh_privacy_rows()
 
 func _build_ui() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -421,6 +424,8 @@ func _build_settings_panel() -> void:
 	_refresh_output_device_items()
 	_refresh_input_device_items()
 
+	_build_privacy_section(vbox)
+
 	var close_btn := _make_button("Close")
 	close_btn.pressed.connect(func() -> void:
 		_settings_panel.visible = false
@@ -445,6 +450,96 @@ func _build_settings_panel() -> void:
 	_load_input_device_setting()
 	_load_shake_setting()
 	_load_language_setting()
+
+# Privacy: posting to the public leaderboard (LeaderboardManager asks once; this
+# switch changes the answer), the player id to quote in a data request, and the
+# privacy policy for this build.
+func _build_privacy_section(vbox: VBoxContainer) -> void:
+	var priv_sep := HSeparator.new()
+	priv_sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
+	vbox.add_child(priv_sep)
+
+	var priv_title := Label.new()
+	_tr_set(priv_title, "PRIVACY")
+	priv_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	priv_title.add_theme_font_size_override("font_size", 18)
+	priv_title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
+	vbox.add_child(priv_title)
+
+	var lb_row := HBoxContainer.new()
+	lb_row.add_theme_constant_override("separation", 10)
+	vbox.add_child(lb_row)
+	var lb_lbl := Label.new()
+	_tr_set(lb_lbl, "Post scores to the leaderboard")
+	lb_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lb_lbl.add_theme_font_size_override("font_size", 16)
+	lb_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lb_row.add_child(lb_lbl)
+	_leaderboard_check = CheckButton.new()
+	_leaderboard_check.toggled.connect(_on_leaderboard_toggled)
+	lb_row.add_child(_leaderboard_check)
+	LeaderboardManager.sharing_changed.connect(_on_sharing_changed)
+
+	var id_row := HBoxContainer.new()
+	id_row.add_theme_constant_override("separation", 10)
+	vbox.add_child(id_row)
+	var id_lbl := Label.new()
+	_tr_set(id_lbl, "Player ID")
+	id_lbl.add_theme_font_size_override("font_size", 16)
+	id_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	id_row.add_child(id_lbl)
+	_player_id_label = Label.new()
+	_player_id_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_player_id_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_player_id_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_player_id_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_player_id_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_player_id_label.add_theme_font_size_override("font_size", 13)
+	_player_id_label.add_theme_color_override("font_color", Color(0.6, 0.65, 0.78))
+	id_row.add_child(_player_id_label)
+	var copy_btn := Button.new()
+	_tr_set(copy_btn, "Copy")
+	copy_btn.add_theme_font_size_override("font_size", 14)
+	copy_btn.pressed.connect(func() -> void:
+		DisplayServer.clipboard_set(_player_id_label.text)
+		copy_btn.text = tr("Copied ✓")
+		get_tree().create_timer(2.0).timeout.connect(func() -> void:
+			if is_instance_valid(copy_btn):
+				copy_btn.text = tr("Copy")))
+	id_row.add_child(copy_btn)
+
+	var id_note := Label.new()
+	_tr_set(id_note, "To see or delete your online data, send us this ID. The Privacy Policy tells you how.")
+	id_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	id_note.add_theme_font_size_override("font_size", 13)
+	id_note.add_theme_color_override("font_color", Color(0.6, 0.65, 0.78))
+	vbox.add_child(id_note)
+
+	var policy_btn := Button.new()
+	_tr_set(policy_btn, "Privacy Policy")
+	policy_btn.add_theme_font_size_override("font_size", 16)
+	policy_btn.custom_minimum_size = Vector2(0, 40)
+	policy_btn.pressed.connect(func() -> void: OS.shell_open(LeaderboardManager.privacy_url()))
+	vbox.add_child(policy_btn)
+	_refresh_privacy_rows()
+
+func _refresh_privacy_rows() -> void:
+	if _leaderboard_check == null:
+		return
+	_leaderboard_check.set_pressed_no_signal(LeaderboardManager.is_sharing())
+	_player_id_label.text = str(TranslationVotes.player_id())
+
+# Turning it on goes through the same question (with the name) as the first
+# time; the switch follows the answer through sharing_changed.
+func _on_leaderboard_toggled(on: bool) -> void:
+	if on:
+		_leaderboard_check.set_pressed_no_signal(false)
+		LeaderboardManager.ask_consent()
+	else:
+		LeaderboardManager.set_sharing(false)
+
+func _on_sharing_changed(on: bool) -> void:
+	_leaderboard_check.set_pressed_no_signal(on)
 
 func _set_bus_volume(bus_name: String, linear: float) -> void:
 	var idx: int = AudioServer.get_bus_index(bus_name)
@@ -674,6 +769,7 @@ func _on_settings_pressed() -> void:
 	_refresh_output_device_items()
 	_refresh_input_device_items()
 	_load_language_setting()
+	_refresh_privacy_rows()
 
 func _on_main_menu_pressed() -> void:
 	visible = false

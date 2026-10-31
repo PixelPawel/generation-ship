@@ -19,15 +19,32 @@ extends Node
 #
 # No direct reference to the Steam class: GodotSteam doesn't exist in the
 # Android build.
+#
+# Nothing is posted before the player says yes (privacy policy, digital/legal/):
+# the first score waits while leaderboard_consent.gd asks once, under which name.
+# After a no, finished games are skipped silently; a scan's "Add to Leaderboard"
+# asks again. Settings (pause_menu.gd) can switch it either way.
+const ConsentPopup = preload("res://scenes/ui/leaderboard_consent.gd")
 
 signal top_scores_ready(entries: Array[Dictionary])
 signal top_scores_failed
 signal score_uploaded(success: bool)
+signal score_not_shared            # the player said no (or posting is off): nothing was uploaded
+signal sharing_changed(on: bool)
 
 const SERVER_URL: String = "https://api.happycapygames.com"
+const PRIVACY_URL: String = SERVER_URL + "/datenschutz"
+const PRIVACY_URL_ANDROID: String = SERVER_URL + "/datenschutz-android"
 const TIMEOUT_SEC: float = 10.0
 const TOP_COUNT: int = 100
 const _SETTINGS_PATH: String = "user://settings.cfg"
+const SHARING_ON: String = "on"
+const SHARING_OFF: String = "off"
+const CONSENT_DELAY_SEC: float = 2.0   # end of a game: the final scores show first
+const CONSENT_LAYER: int = 120         # above the game's UI, below scene transitions (128)
+
+var _pending: Array[Dictionary] = []   # scores waiting for the player's answer
+var _consent: Control = null
 
 # The player's own best, from the last download (null if not on the board).
 var my_best: Dictionary = {}
@@ -39,17 +56,77 @@ const SOURCE_FLEET: String = "fleet"
 
 func submit_score(score: int, details: PackedInt32Array = PackedInt32Array(), source: String = SOURCE_PLAY,
 		destination: int = 0) -> void:
+	var entry: Dictionary = {score = clampi(score, 0, 999), details = Array(details), source = source,
+		destination = destination}
+	var state: String = _sharing_state()
+	if state == SHARING_ON:
+		_upload(entry)
+	elif state == SHARING_OFF and source != SOURCE_SCAN:
+		score_not_shared.emit()
+	else:
+		_pending.append(entry)
+		ask_consent(0.0 if source == SOURCE_SCAN else CONSENT_DELAY_SEC)
+
+func _upload(entry: Dictionary) -> void:
 	var body: String = JSON.stringify({
-		player = _player_id(), name = player_name(), score = clampi(score, 0, 999),
-		details = Array(details), platform = "android" if OS.get_name() == "Android" else "steam",
-		source = source, destination = destination,
+		player = _player_id(), name = player_name(), score = int(entry["score"]), details = entry["details"],
+		platform = "android" if OS.get_name() == "Android" else "steam",
+		source = str(entry["source"]), destination = int(entry["destination"]),
 	})
 	_request(HTTPClient.METHOD_POST, "/v1/scores", body, func(ok: bool, _data: Dictionary) -> void:
 		score_uploaded.emit(ok))
 
+func is_sharing() -> bool:
+	return _sharing_state() == SHARING_ON
+
+func _sharing_state() -> String:
+	var cfg: ConfigFile = ConfigFile.new()
+	cfg.load(_SETTINGS_PATH)
+	return str(cfg.get_value("player", "leaderboard", ""))
+
+## The player's answer (consent popup or Settings). A yes saves the name for the
+## board and posts any scores that were waiting; a no drops them.
+func set_sharing(on: bool, board_name: String = "") -> void:
+	var cfg: ConfigFile = ConfigFile.new()
+	cfg.load(_SETTINGS_PATH)
+	cfg.set_value("player", "leaderboard", SHARING_ON if on else SHARING_OFF)
+	if on and not board_name.strip_edges().is_empty():
+		cfg.set_value("player", "name", board_name.strip_edges())
+	cfg.save(_SETTINGS_PATH)
+	var waiting: Array[Dictionary] = _pending.duplicate()
+	_pending.clear()
+	sharing_changed.emit(on)
+	for entry: Dictionary in waiting:
+		if on:
+			_upload(entry)
+		else:
+			score_not_shared.emit()
+
+## Shows the one-time question (also Settings' switch turning on).
+func ask_consent(delay_sec: float = 0.0) -> void:
+	if delay_sec > 0.0:
+		await get_tree().create_timer(delay_sec).timeout
+	if _consent == null or not is_instance_valid(_consent):
+		var layer: CanvasLayer = CanvasLayer.new()
+		layer.layer = CONSENT_LAYER
+		add_child(layer)
+		_consent = ConsentPopup.new()
+		layer.add_child(_consent)
+		_consent.answered.connect(set_sharing)
+	if not _consent.visible:
+		_consent.open(player_name())
+
+## The privacy policy for this build, at the half in the player's language.
+func privacy_url() -> String:
+	var base: String = PRIVACY_URL_ANDROID if OS.get_name() == "Android" else PRIVACY_URL
+	return base + ("#de" if TranslationServer.get_locale().begins_with("de") else "#en")
+
 ## source: SOURCE_ALL, SOURCE_PLAY, SOURCE_SCAN or SOURCE_FLEET.
 func request_top_scores(source: String = SOURCE_ALL) -> void:
-	var path: String = "/v1/scores/top?limit=%d&player=%s&source=%s" % [TOP_COUNT, _player_id().uri_encode(), source]
+	# the player id (to mark the own row) only goes along if the player posts to the board
+	var path: String = "/v1/scores/top?limit=%d&source=%s" % [TOP_COUNT, source]
+	if is_sharing():
+		path += "&player=" + _player_id().uri_encode()
 	_request(HTTPClient.METHOD_GET, path, "", func(ok: bool, data: Dictionary) -> void:
 		if not ok or typeof(data.get("entries")) != TYPE_ARRAY:
 			top_scores_failed.emit()

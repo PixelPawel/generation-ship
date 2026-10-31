@@ -186,3 +186,7 @@ app.include_router(mail_router)
 from .unlock import router as unlock_router  # noqa: E402  (Android full-game codes)
 
 app.include_router(unlock_router)
+
+from .privacy import router as privacy_router  # noqa: E402  (retention, IP pruning, players' data requests)
+
+app.include_router(privacy_router)

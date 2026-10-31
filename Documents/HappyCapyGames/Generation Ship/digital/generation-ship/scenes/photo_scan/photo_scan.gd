@@ -1383,10 +1383,21 @@ func _on_leaderboard_pressed() -> void:
 	_leaderboard_btn.text = "Adding…"
 	if not LeaderboardManager.score_uploaded.is_connected(_on_score_uploaded):
 		LeaderboardManager.score_uploaded.connect(_on_score_uploaded, CONNECT_ONE_SHOT)
+	# the first time (or with posting switched off) the player is asked first and may say no
+	if not LeaderboardManager.score_not_shared.is_connected(_on_score_not_shared):
+		LeaderboardManager.score_not_shared.connect(_on_score_not_shared, CONNECT_ONE_SHOT)
 	LeaderboardManager.submit_score(BotScoring.board_vp(_sectors), ScoringSnapshotCodec.encode_lines(lines),
 		LeaderboardManager.SOURCE_SCAN)
 
+func _on_score_not_shared() -> void:
+	if LeaderboardManager.score_uploaded.is_connected(_on_score_uploaded):
+		LeaderboardManager.score_uploaded.disconnect(_on_score_uploaded)
+	_leaderboard_btn.text = "Add to Leaderboard"
+	_leaderboard_btn.disabled = false
+
 func _on_score_uploaded(success: bool) -> void:
+	if LeaderboardManager.score_not_shared.is_connected(_on_score_not_shared):
+		LeaderboardManager.score_not_shared.disconnect(_on_score_not_shared)
 	if success:
 		_leaderboard_btn.text = "Added to Leaderboard ✓"
 	else:

@@ -20,6 +20,25 @@ Copy the changed files over, then `docker compose up -d --build`.
 ## Data & backups
 
 All votes, scores, translation comments and crash reports are in `data/votes.db` (SQLite). Back up that one file.
+Copies named `data/votes.db.bak*` are deleted automatically after 30 days (privacy policy), so keep long-term
+backups somewhere else, or not at all.
+
+## Privacy
+
+The privacy policies are in `../legal/` and served by Caddy at `/datenschutz` (Windows/Steam, Pixel Pawel GmbH) and
+`/datenschutz-android` (Android, Happy Capy Games, LLC); `/privacy` and `/privacy-android` open their English half.
+The server keeps what they promise (`app/privacy.py`):
+
+- **Retention**, checked daily: crash reports and daily leaderboard standings 12 months, translation votes and
+  comments 24 months, `votes.db.bak*` 30 days.
+- **IP addresses** only in memory (rate limits), dropped one hour after a client's last request. No access log
+  (`--no-access-log` in the Dockerfile). Container logs go to journald, which keeps 7 days: one time on the VPS,
+  `cp deploy/journald-7days.conf /etc/systemd/journald.conf.d/ && systemctl restart systemd-journald`.
+- **Players' requests** (access, erasure): `python tools/privacy_request.py find|show|forget` in the game repo,
+  with the player id the game shows under Settings → Privacy.
+
+If a new feature stores something about players, add it to `PLAYER_TABLES` (erasure) or `RETENTION_DAYS` in
+`app/privacy.py`, and to both policies.
 
 ## API
 
@@ -40,6 +59,9 @@ All votes, scores, translation comments and crash reports are in `data/votes.db`
 | GET | `/v1/uprising/bugs/report?since_id=0&status=&format=json\|csv` | **admin:** reports after an id, without logs and snapshots (the "Uprising Bug Reports" sheet's Apps Script polls this) |
 | GET | `/v1/uprising/bugs/{id}` · `/v1/uprising/bugs/{id}/state` | **admin:** one report with its log · its game state snapshot |
 | POST | `/v1/uprising/bugs/{id}/status` `{"status", "fixed_in", "note"}` · DELETE `/v1/uprising/bugs/{id}` | **admin:** triage (new/fixing/fixed/cant_reproduce/not_a_bug/needs_info) · remove |
+
+| GET | `/v1/admin/privacy/find?name=...` | **admin:** player ids whose leaderboard name contains the text |
+| GET · DELETE | `/v1/admin/privacy/{player id or crash install id}` | **admin:** everything stored for it · erase it (names in daily standings become "(removed)") |
 
 | POST | `/v1/mail/send` `{"to", "subject", "text", "html"?, "reply_to"?, "from_name"?}` | **mail token:** send a mail through the company mailbox (Hostinger SMTP) for the HCG Hub sheet: opt-in, support and digest mails. Max 10 recipients, 300 mails/hour |
 | GET | `/v1/mail/status` | **mail token:** configured?, mails sent/failed in the last 24 h, last error |

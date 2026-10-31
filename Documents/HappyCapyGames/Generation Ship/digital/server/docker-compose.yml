@@ -1,3 +1,9 @@
+# Both containers log to journald, which keeps 7 days (deploy/journald-7days.conf), as the privacy policy says.
+x-logging: &logging
+  driver: journald
+  options:
+    tag: "{{.Name}}"
+
 services:
   api:
     build: .
@@ -9,6 +15,7 @@ services:
       - ./data:/data          # votes.db lives here — back this folder up
     expose:
       - "8000"
+    logging: *logging
 
   caddy:
     image: caddy:2
@@ -18,10 +25,12 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./legal:/srv/legal:ro   # privacy policy pages (source: digital/legal/)
       - caddy_data:/data      # HTTPS certificates
       - caddy_config:/config
     depends_on:
       - api
+    logging: *logging
 
 volumes:
   caddy_data:
