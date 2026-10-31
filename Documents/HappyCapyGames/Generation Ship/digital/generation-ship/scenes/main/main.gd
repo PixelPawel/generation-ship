@@ -189,6 +189,7 @@ var _auction_active: bool = false
 var _auction_starting: bool = false  # true from bid-confirm until _auction_active (or a same-peer instant win) — closes the auto-end-turn race for the client that requested the auction
 var _is_runner_up_offer: bool = false
 var _runner_up_phase: bool = false
+var _forfeit_discard_active: bool = false   # won an auction nobody else bid in, couldn't pay: picking the card to discard
 # Networked (host → all): true from the moment an auction resolves with a
 # winner until that winner's card is actually placed (or recycled/discarded)
 # — blocks end-turn for the initiator too, even when someone else won,
@@ -800,7 +801,7 @@ func _accept_turn_button() -> bool:
 func _on_research_pressed() -> void:
 	if not GameNetwork.is_my_turn():
 		return
-	if _has_passed or _effect_mode != EffectMode.NONE:
+	if _has_passed or _effect_mode != EffectMode.NONE or _forfeit_discard_active:
 		return
 	if not _accept_turn_button():
 		return
@@ -830,7 +831,7 @@ func _cancel_research() -> void:
 func _on_pass_pressed() -> void:
 	if not GameNetwork.is_my_turn():
 		return
-	if _has_passed:
+	if _has_passed or _forfeit_discard_active:
 		return
 	if not _accept_turn_button():
 		return
@@ -1304,6 +1305,35 @@ func _rpc_notify_auction_forfeit() -> void:
 func _rpc_notify_runner_up_forfeit(card_ref: Dictionary) -> void:
 	AuctionFlow._rpc_notify_runner_up_forfeit(self, card_ref)
 
+# Host → auction winner: nobody else bid and you couldn't pay, discard 1 tech card.
+@rpc("authority", "reliable")
+func _rpc_forfeit_discard() -> void:
+	_start_forfeit_discard()
+
+# The rule book's Bidding rule (2026-10-31): the winner can't pay and there are no other
+# bidders, so the card stays on the market and the winner discards 1 tech card from their
+# hand. The player picks which one (hand discard mode, as in Research); it can't be
+# cancelled, and End Turn waits for it. An empty hand has nothing to discard.
+func _start_forfeit_discard() -> void:
+	if $Hand.get_cards().is_empty() or _forfeit_discard_active:
+		return
+	_forfeit_discard_active = true
+	_set_action_buttons_disabled(true)
+	_show_effect_hint(hint("You couldn't pay: click a card in your hand to discard it",
+			"You couldn't pay: tap a card in your hand to discard it"))
+	$Hand.set_discard_mode(true)
+
+func _finish_forfeit_discard(card: Node3D) -> void:
+	_forfeit_discard_active = false
+	_hide_effect_hint()
+	if card.card_data:
+		$Board.add_to_discard(card.card_data)   # the hand flies the card out and frees it
+	_set_action_buttons_disabled(not GameNetwork.is_my_turn() or _has_passed)
+	_broadcast_my_state()
+	var me: String = GameNetwork.player_names.get(multiplayer.get_unique_id(), "Player")
+	_broadcast_log(tr("%s couldn't pay and discarded a tech card") % me, Color(0.85, 0.62, 0.50))
+	_try_auto_end_turn()   # it waited for the discard
+
 @rpc("authority", "reliable")
 func _rpc_offer_to_runner_up(card_ref: Dictionary, slot_idx: int, is_tech: bool, is_adv: bool, printed_cost: int, cost_color_int: int) -> void:
 	AuctionFlow._rpc_offer_to_runner_up(self, card_ref, slot_idx, is_tech, is_adv, printed_cost, cost_color_int)
@@ -1568,6 +1598,9 @@ func _game_over() -> void:
 # ── Card discarded (all modes) ────────────────────────────────────────────────
 
 func _on_card_discarded(card: Node3D) -> void:
+	if _forfeit_discard_active:
+		_finish_forfeit_discard(card)
+		return
 	match _effect_mode:
 		EffectMode.RESEARCH:
 			_effect_mode = EffectMode.NONE
@@ -2873,6 +2906,8 @@ func _try_auto_end_turn() -> void:
 		return
 	if _auction_placement_pending:
 		return
+	if _forfeit_discard_active:   # _finish_forfeit_discard checks again
+		return
 	if _pending_reveal_gain_supply or _pending_reveal_may_bid or _pending_reveal_may_free_gain:
 		return
 	if $Board.is_card_drag_pending():
@@ -2895,6 +2930,8 @@ func _on_end_turn_pressed() -> void:
 	if _runner_up_phase:
 		return
 	if _auction_placement_pending:
+		return
+	if _forfeit_discard_active:
 		return
 	if _effect_mode == EffectMode.EFFECT_INTERFLEET_PICK:
 		return

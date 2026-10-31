@@ -328,8 +328,17 @@ static func _server_handle_pass_bid(main: Main, peer_id: int) -> void:
 	var leader_name: String = GameNetwork.player_names.get(main._auction_leader_id, "Player")
 	main._rpc_sync_auction_state.rpc(main._auction_current_bid, main._auction_leader_id, active_id, leader_name, main._auction_remaining)
 
-static func _server_offer_to_runner_up(main: Main) -> void:
+# penalize: false when the winner left the game (nobody is left to discard a card).
+static func _server_offer_to_runner_up(main: Main, penalize: bool = true) -> void:
 	if main._auction_second_id == -1:
+		# Nobody else bid: the card stays on the market and the winner discards
+		# 1 tech card (rule book, Bidding; added 2026-10-31). Bots always pay.
+		var winner_id: int = main._auction_leader_id
+		if penalize and not GameNetwork.is_bot(winner_id):
+			if winner_id == main.multiplayer.get_unique_id():
+				main._start_forfeit_discard()
+			else:
+				main._rpc_forfeit_discard.rpc_id(winner_id)
 		main._rpc_sync_auction_placement_pending.rpc(false)
 		return
 	var cd: CardData = CardRef.from_ref(main._auction_card_ref)
@@ -517,4 +526,4 @@ static func _host_force_decline_pending_auction(main: Main, peer_id: int) -> voi
 		main._rpc_sync_runner_up_phase.rpc(false)
 		main._rpc_sync_auction_placement_pending.rpc(false)
 	elif main._auction_placement_pending and main._auction_leader_id == peer_id:
-		_server_offer_to_runner_up(main)
+		_server_offer_to_runner_up(main, false)
