@@ -78,6 +78,8 @@ var _effect_mode: EffectMode = EffectMode.NONE:
 var _effect_queue: Array[Dictionary] = []
 var _hovered_market_slot: Array = ["", -1]   # market card under the mouse (slot type + index), "" = none
 var _turn_banner: TurnBanner = null   # the "Your Turn" pop-up while it plays
+var _notice_queue: Array[Dictionary] = []   # others' "is researching" / "has passed" banners waiting to play
+var _notice_playing: bool = false
 var _card_inspect: CardInspectOverlay = null   # a hand card read big (hold on phones, right-click on desktop)
 const TOUCH_TOOLTIP_TOP: float = 40.0          # phones: below the top-corner buttons
 var _effect_hint_top: bool = false             # the tutorial's banner sits at the top edge, not mid-screen
@@ -1225,10 +1227,37 @@ func _rpc_sync_opp_status(peer_id: int, status: String) -> void:
 	_opp_statuses[peer_id] = status
 	_refresh_opp_status_label(peer_id)
 	var peer_name: String = GameNetwork.player_names.get(peer_id, "Player")
+	var others: bool = peer_id != multiplayer.get_unique_id()   # the player who acted gets no banner
 	if status == "passed":
 		_log_action(tr("%s: passed") % peer_name, Color(0.55, 0.55, 0.70))
+		if others:
+			_show_status_notice(tr("%s has passed") % peer_name, Color(0.80, 0.80, 0.95))
 	elif status == "researching":
 		_log_action(tr("%s: researching…") % peer_name, Color(0.50, 0.78, 1.0))
+		if others:
+			_show_status_notice(tr("%s is researching") % peer_name, Color(0.50, 0.78, 1.0))
+
+# Another player researched or passed: a compact banner above the centre (TurnBanner.compact),
+# one after the other, so a bot's research and pass 0.3 s apart both show. At most 3 wait,
+# so the banners never fall far behind the game.
+func _show_status_notice(text: String, color: Color) -> void:
+	_notice_queue.append({text = text, color = color})
+	if _notice_queue.size() > 3:
+		_notice_queue.pop_front()
+	if not _notice_playing:
+		_play_next_notice()
+
+func _play_next_notice() -> void:
+	if _notice_queue.is_empty():
+		_notice_playing = false
+		return
+	_notice_playing = true
+	var notice: Dictionary = _notice_queue.pop_front()
+	var banner: TurnBanner = TurnBanner.new()
+	banner.compact = true
+	$UILayer.add_child(banner)
+	banner.finished.connect(_play_next_notice)
+	banner.play(str(notice["text"]), notice["color"] as Color)
 
 # Client → Host: I entered research mode.
 @rpc("any_peer", "reliable")

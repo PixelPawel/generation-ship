@@ -32,6 +32,8 @@ LANG_FR,French,Französisch,Francese,Francuski,Francés,Français
 "─── Round %d / %d ───","─── Round %d / %d ───","─── Runde %d / %d ───","─── Turno %d / %d ───","─── Runda %d / %d ───","─── Ronda %d / %d ───","─── Manche %d / %d ───"
 "%s: passed","%s: passed","%s: gepasst","%s: passato","%s: spasowano","%s: pasó","%s : a passé"
 "%s: researching…","%s: researching…","%s: forscht…","%s: sta facendo ricerca…","%s: prowadzi badania…","%s: investigando…","%s : en recherche…"
+"%s is researching","%s is researching","%s forscht","%s sta facendo ricerca","%s prowadzi badania","%s está investigando","%s est en recherche"
+"%s has passed","%s has passed","%s hat gepasst","%s ha passato","%s pasuje","%s ha pasado","%s a passé"
 "%s: auction for %s","%s: auction for %s","%s: Auktion um %s","%s: asta per %s","%s: aukcja o %s","%s: subasta por %s","%s : enchère pour %s"
 "%s: Interfleet Comms — drew %d card(s) to pass around","%s: Interfleet Comms — drew %d card(s) to pass around","%s: Interfleet Comms — %d Karte(n) zum Weiterreichen gezogen","%s: Interfleet Comms — pescate %d carte da far girare","%s: Interfleet Comms — dobrano %d kart(y) do przekazania dalej","%s: Interfleet Comms — robó %d carta(s) para pasar","%s : Interfleet Comms — %d carte(s) piochée(s) à faire circuler"
 "You kept %s (Interfleet Comms)","You kept %s (Interfleet Comms)","Du hast %s behalten (Interfleet Comms)","Hai tenuto %s (Interfleet Comms)","Zatrzymałeś(-aś) %s (Interfleet Comms)","Te quedaste con %s (Interfleet Comms)","Vous avez gardé %s (Interfleet Comms)"

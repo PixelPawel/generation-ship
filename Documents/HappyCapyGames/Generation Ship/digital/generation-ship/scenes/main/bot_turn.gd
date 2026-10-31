@@ -152,8 +152,8 @@ static func run_bot_turn(main: Main, bot_id: int) -> void:
 		"research":
 			bot_do_research(main, bot_id)
 			broadcast_bot_states(main)
-			var _rname: String = GameNetwork.player_names.get(bot_id, main.tr("Bot"))
-			main._broadcast_log(main.tr("%s: researching…") % _rname, Color(0.50, 0.78, 1.0))
+			# like a human's research: everyone logs it and sees the "is researching" banner
+			main._rpc_sync_opp_status.rpc(bot_id, "researching")
 			await main.get_tree().create_timer(0.3).timeout
 			bot_pass(main, bot_id)
 		_:

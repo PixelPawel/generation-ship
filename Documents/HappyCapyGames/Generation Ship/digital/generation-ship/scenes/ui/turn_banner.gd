@@ -9,8 +9,16 @@ const Haptics = preload("res://scripts/haptics.gd")
 # length: how long it stays overall (1.5 = 50 % longer); only the hold grows, the pop-in and
 # fold-away keep their speed.
 # `finished` fires right before it frees itself (not if something frees it earlier).
+# compact (set before play): another player's notice ("Ann has passed"): smaller and narrower,
+# above the centre so it never covers a "Your Turn" / "End of Round" banner, shorter, no haptic.
 
 signal finished
+
+var compact: bool = false
+const COMPACT_SCALE: float = 0.55       # of the full banner's band and font sizes
+const COMPACT_Y: float = 0.27           # band centre, of the window height
+const COMPACT_WIDTH: float = 0.62       # band width, of the window width
+const COMPACT_HOLD: float = 0.9
 
 const BAND_HEIGHT: float = 150.0        # at 1080 px window height
 const FONT_SIZE: float = 76.0
@@ -67,7 +75,7 @@ func _make_label(text: String, font_px: float, color: Color, outline: float, glo
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# shrink to fit the window if the (translated) line is too long
 	var font: Font = l.get_theme_font("font")
-	var max_w: float = get_viewport_rect().size.x * MAX_TEXT_WIDTH
+	var max_w: float = get_viewport_rect().size.x * (COMPACT_WIDTH * 0.9 if compact else MAX_TEXT_WIDTH)
 	var w: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, roundi(font_px)).x
 	if w > max_w:
 		font_px *= max_w / w
@@ -75,22 +83,23 @@ func _make_label(text: String, font_px: float, color: Color, outline: float, glo
 	return l
 
 func play(text: String, color: Color = Color(0.45, 1.0, 0.55), subtitle: String = "", length: float = 1.0) -> void:
-	var hold: float = HOLD + (OPEN * 2.0 + HOLD + CLOSE) * maxf(0.0, length - 1.0)
+	var hold: float = (COMPACT_HOLD if compact else HOLD) + (OPEN * 2.0 + HOLD + CLOSE) * maxf(0.0, length - 1.0)
 	var vp: Vector2 = get_viewport_rect().size
-	var s: float = vp.y / 1080.0
+	var s: float = vp.y / 1080.0 * (COMPACT_SCALE if compact else 1.0)
 	var band_h: float = BAND_HEIGHT * s * (SUBTITLE_BAND if not subtitle.is_empty() else 1.0)
-	var cy: float = vp.y * 0.5
+	var band_w: float = vp.x * (COMPACT_WIDTH if compact else 1.0)
+	var cy: float = vp.y * (COMPACT_Y if compact else 0.5)
 
 	_band = _add_rect(_strip(Color(0.02, 0.05, 0.09), 0.82))
-	_band.size = Vector2(vp.x, band_h)
-	_band.position = Vector2(0.0, cy - band_h / 2.0)
+	_band.size = Vector2(band_w, band_h)
+	_band.position = Vector2((vp.x - band_w) / 2.0, cy - band_h / 2.0)
 	_band.pivot_offset = _band.size / 2.0
 	_band.scale = Vector2(1.0, 0.0)
 
 	for side: float in [-1.0, 1.0]:
 		var line: TextureRect = _add_rect(_strip(color, 0.95))
-		line.size = Vector2(vp.x * 0.8, LINE_HEIGHT * s)
-		line.position = Vector2(vp.x * 0.1, cy + side * band_h / 2.0 - line.size.y / 2.0)
+		line.size = Vector2(band_w * 0.8, LINE_HEIGHT * vp.y / 1080.0)
+		line.position = Vector2((vp.x - line.size.x) / 2.0, cy + side * band_h / 2.0 - line.size.y / 2.0)
 		line.pivot_offset = line.size / 2.0
 		line.scale = Vector2(0.0, 1.0)
 		_lines.append(line)
@@ -125,7 +134,8 @@ func play(text: String, color: Color = Color(0.45, 1.0, 0.55), subtitle: String 
 	_shine.position = Vector2(-_shine.size.x * 2.0, cy - _shine.size.y / 2.0)
 	_shine.modulate.a = 0.0
 
-	Haptics.thump()
+	if not compact:
+		Haptics.thump()
 	var t: Tween = create_tween()
 	t.tween_property(_band, "scale:y", 1.0, OPEN).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	for line: TextureRect in _lines:
