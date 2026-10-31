@@ -21,23 +21,26 @@ def post(player, name, score, details=None, source=None):
     return r.json()
 
 
-def test_best_score_kept_and_ranked():
+def test_every_score_is_a_row():
     assert post(P1, "Ann", 40, [123, 456])["best"]
     assert post(P2, "Bob", 55)["rank"] == 1
-    # lower score: not stored, but the name refreshes
+    # a lower score gets a row of its own; the new name shows on all the player's rows
     r = post(P1, "Annie", 30)
-    assert not r["best"] and r["score"] == 40 and r["rank"] == 2
+    assert not r["best"] and r["score"] == 30 and r["rank"] == 3
     top = client.get("/v1/scores/top", params={"player": P1}).json()
-    names = [(e["name"], e["score"], e["me"]) for e in top["entries"] if e["name"] in ("Annie", "Bob")]
-    assert names == [("Bob", 55, False), ("Annie", 40, True)]
-    assert top["mine"]["score"] == 40
-    assert [e["details"] for e in top["entries"] if e["name"] == "Annie"] == [[123, 456]]
+    rows = [(e["name"], e["score"], e["me"]) for e in top["entries"] if e["name"] in ("Annie", "Bob")]
+    assert rows == [("Bob", 55, False), ("Annie", 40, True), ("Annie", 30, True)]
+    assert top["mine"] == {"score": 40, "rank": 2, "source": "play"}
+    assert [e["details"] for e in top["entries"] if e["name"] == "Annie"] == [[123, 456], []]
+    # the same score again: the earlier one stays ahead
+    r = post(P2, "Bob", 55)
+    assert not r["best"] and r["rank"] == 2
 
 
 def test_full_details_from_the_game():
     # the game sends all 64 breakdown slots, empty ones as 0: kept without the zeros
     details = [1003005, 2017002] + [0] * 62
-    assert post("dev:cccccccccccccccccccccccccccccccc", "Cleo", 21, details)["best"]
+    assert post("dev:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd", "Cleo", 21, details)["best"]
     top = client.get("/v1/scores/top").json()
     assert [e["details"] for e in top["entries"] if e["name"] == "Cleo"] == [[1003005, 2017002]]
 
@@ -108,6 +111,26 @@ def test_adds_destination_column_to_sourced_board():
     assert [(e["name"], e["destination"]) for e in top["entries"]] == [("Gus", 0)]
 
 
+def test_migrates_best_per_player_board():
+    # the live layout until 2026-10-31: one row per player and source
+    from app import main, scores
+    P = "dev:acacacacacacacacacacacacacacacac"
+    with main.db() as c:
+        c.execute("DROP TABLE scores")
+        c.execute("CREATE TABLE scores (player TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'play', "
+                  "name TEXT NOT NULL, score INTEGER NOT NULL, details TEXT NOT NULL, platform TEXT NOT NULL, "
+                  "updated_at INTEGER NOT NULL, destination INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (player, source))")
+        c.execute(f"INSERT INTO scores VALUES ('{P}', 'play', 'Hal', 59, '[7]', 'steam', 1, 0)")
+        c.execute(f"INSERT INTO scores VALUES ('{P}', 'fleet', 'Hal', 12, '[]', 'steam', 2, 4)")
+    scores.init_scores()
+    scores.init_scores()   # runs on every start: a second time changes nothing
+    assert post(P, "Hal", 2)["rank"] == 2
+    top = client.get("/v1/scores/top", params={"player": P, "source": "play"}).json()
+    assert [(e["score"], e["details"], e["me"]) for e in top["entries"]] == [(59, [7], True), (2, [], True)]
+    fleet = client.get("/v1/scores/top", params={"source": "fleet"}).json()
+    assert [(e["score"], e["destination"]) for e in fleet["entries"]] == [(12, 4)]
+
+
 def test_daily_snapshot_for_the_contest():
     from app import main, scores
     os.environ["ADMIN_TOKEN"] = "test-admin-token"
@@ -119,6 +142,7 @@ def test_daily_snapshot_for_the_contest():
     assert "No standings yet" in client.get("/v1/scores/snapshot.csv").text
     post("dev:11111111111111111111111111111111", "Ann", 50)
     post("dev:22222222222222222222222222222222", "=HYPERLINK(1)", 70)
+    post("dev:22222222222222222222222222222222", "=HYPERLINK(1)", 60)       # a player is ranked once, by the best
     post("dev:33333333333333333333333333333333", "Cara", 90, source="scan")      # not a played game
     client.post("/v1/scores", json={"player": "dev:44444444444444444444444444444444", "name": "Fay", "score": 99,
                                     "platform": "test", "source": "fleet", "destination": 3})

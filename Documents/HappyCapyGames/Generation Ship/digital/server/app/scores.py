@@ -1,12 +1,15 @@
 """Global leaderboard — Steam and Android share one board.
 
-One row per player and source (same ids as votes: "steam:<id>" or "dev:<device
-id>"), keeping their best total; a lower score only refreshes the display name.
+One row per posted score (player ids as in votes: "steam:<id>" or "dev:<device
+id>"): every finished game shows up, a player can be on the board many times
+(user, 2026-10-31; before, only a player's best was kept). A new post refreshes
+the display name on all of that player's rows. The contest standings
+(take_snapshot) still rank players, by their best.
 Source "play" is a game played to the end in the app, "scan" a tableau read
 from a photo (Scan Tableau) - anyone can photograph any ship, so the board can
-show either or both, and a scan never replaces a played best. "fleet" is a won
-Generation Fleet (co-op) game, ranked by stars, with the Destination's No.; it
-has its own board and is left out of "all" (co-op stars don't compare).
+show either or both. "fleet" is a won Generation Fleet (co-op) game, ranked by
+stars, with the Destination's No.; it has its own board and is left out of
+"all" (co-op stars don't compare).
 `details` is the game's packed per-line score breakdown (ScoringSnapshotCodec),
 stored as-is so the leaderboard can show how a score was made.
 Same trust model as the old Steam board: clients report their own score.
@@ -35,6 +38,7 @@ OWN_BOARD_SOURCES = ("fleet",)    # not part of the "all" board
 
 
 _TABLE = """CREATE TABLE IF NOT EXISTS {name} (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     player TEXT NOT NULL,
     source TEXT NOT NULL DEFAULT 'play',
     name TEXT NOT NULL,
@@ -42,9 +46,10 @@ _TABLE = """CREATE TABLE IF NOT EXISTS {name} (
     details TEXT NOT NULL,
     platform TEXT NOT NULL,
     updated_at INTEGER NOT NULL,
-    destination INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (player, source)
+    destination INTEGER NOT NULL DEFAULT 0
 )"""
+_COLS = "player, source, name, score, details, platform, updated_at, destination"
+_ORDER = "score DESC, updated_at ASC, id ASC"   # ties: the earlier score ranks first
 
 
 def init_scores() -> None:
@@ -62,7 +67,16 @@ def init_scores() -> None:
         cols = [r[1] for r in c.execute("PRAGMA table_info(scores)").fetchall()]
         if "destination" not in cols:
             c.execute("ALTER TABLE scores ADD COLUMN destination INTEGER NOT NULL DEFAULT 0")
+            cols.append("destination")
+        if "id" not in cols:
+            # best-per-player board (PRIMARY KEY (player, source)) -> one row per posted score
+            c.execute(_TABLE.format(name="scores_new"))
+            c.execute(f"INSERT INTO scores_new ({_COLS}) SELECT {_COLS} FROM scores ORDER BY updated_at")
+            c.execute("DROP INDEX IF EXISTS scores_score")
+            c.execute("DROP TABLE scores")
+            c.execute("ALTER TABLE scores_new RENAME TO scores")
         c.execute("CREATE INDEX IF NOT EXISTS scores_score ON scores(score DESC, updated_at ASC)")
+        c.execute("CREATE INDEX IF NOT EXISTS scores_player ON scores(player, source)")
 
 
 init_scores()
@@ -91,11 +105,12 @@ def _where(source: str) -> tuple[str, tuple]:
     return f"source NOT IN ({marks}) AND ", OWN_BOARD_SOURCES
 
 
-def _rank(c, score: int, updated_at: int, source: str = "all") -> int:
+def _rank(c, score: int, updated_at: int, row_id: int, source: str = "all") -> int:
     w, args = _where(source)
     better = c.execute(
-        f"SELECT COUNT(*) FROM scores WHERE {w}(score > ? OR (score = ? AND updated_at < ?))",
-        args + (score, score, updated_at),
+        f"SELECT COUNT(*) FROM scores WHERE {w}(score > ? OR (score = ? AND "
+        f"(updated_at < ? OR (updated_at = ? AND id < ?))))",
+        args + (score, score, updated_at, updated_at, row_id),
     ).fetchone()[0]
     return better + 1
 
@@ -106,39 +121,32 @@ def post_score(entry: ScoreIn, request: Request) -> dict:
         raise HTTPException(400, "Invalid player id")
     if entry.source not in SOURCES:
         raise HTTPException(400, "Invalid source")
-    key = (entry.player, entry.source)
     _rate_limit(request)
     name = _clean_name(entry.name)
     now = int(time.time())
     details = json.dumps([int(d) for d in entry.details if d != 0 and -(2**31) <= int(d) < 2**32])
     with db() as c:
-        row = c.execute("SELECT score FROM scores WHERE player = ? AND source = ?", key).fetchone()
-        if row is None or entry.score > row[0]:
-            c.execute(
-                """INSERT INTO scores (player, source, name, score, details, platform, updated_at, destination)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                   ON CONFLICT(player, source) DO UPDATE SET name = excluded.name, score = excluded.score,
-                   details = excluded.details, platform = excluded.platform, updated_at = excluded.updated_at,
-                   destination = excluded.destination""",
-                (entry.player, entry.source, name, entry.score, details, entry.platform[:16], now, entry.destination),
-            )
-            best = True
-        else:
-            best = False
+        prev = c.execute("SELECT MAX(score) FROM scores WHERE player = ? AND source = ?",
+                         (entry.player, entry.source)).fetchone()[0]
+        row_id = c.execute(
+            f"INSERT INTO scores ({_COLS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (entry.player, entry.source, name, entry.score, details, entry.platform[:16], now, entry.destination),
+        ).lastrowid
         c.execute("UPDATE scores SET name = ? WHERE player = ?", (name, entry.player))
-        score, updated = c.execute("SELECT score, updated_at FROM scores WHERE player = ? AND source = ?", key).fetchone()
-        return {"best": best, "score": score, "rank": _rank(c, score, updated, entry.source)}
+        # best: the player's new best for this source; rank: where this score landed
+        return {"best": prev is None or entry.score > prev, "score": entry.score,
+                "rank": _rank(c, entry.score, now, row_id, entry.source)}
 
 
 @router.get("/v1/scores/top")
 def top_scores(player: str | None = None, limit: int = Query(TOP_LIMIT, ge=1, le=TOP_LIMIT),
                source: str = "all") -> dict:
-    """The board for one source ("play", "scan", "fleet") or "all" (a player can be on it once per source)."""
+    """The board for one source ("play", "scan", "fleet") or "all": every posted score, so a player can
+    be on it many times (all their rows "me"). "mine" is the player's best, also when it is below the top."""
     w, args = _where(source)
     with db() as c:
         rows = c.execute(
-            f"SELECT player, source, name, score, details, platform, updated_at, destination FROM scores "
-            f"WHERE {w}1 ORDER BY score DESC, updated_at ASC LIMIT ?",
+            f"SELECT {_COLS} FROM scores WHERE {w}1 ORDER BY {_ORDER} LIMIT ?",
             args + (limit,),
         ).fetchall()
         entries = [
@@ -149,21 +157,20 @@ def top_scores(player: str | None = None, limit: int = Query(TOP_LIMIT, ge=1, le
         mine = None
         if player and VOTER_RE.match(player):
             r = c.execute(
-                f"SELECT score, updated_at, source FROM scores WHERE {w}player = ? "
-                f"ORDER BY score DESC, updated_at ASC LIMIT 1",
+                f"SELECT score, updated_at, id, source FROM scores WHERE {w}player = ? ORDER BY {_ORDER} LIMIT 1",
                 args + (player,),
             ).fetchone()
             if r:
-                mine = {"score": r[0], "rank": _rank(c, r[0], r[1], source), "source": r[2]}
+                mine = {"score": r[0], "rank": _rank(c, r[0], r[1], r[2], source), "source": r[3]}
     return {"entries": entries, "mine": mine}
 
 
 # ── Daily snapshots (contest standings) ──────────────────────────────────────
 # A systemd timer on the VPS POSTs /v1/scores/snapshot at 23:59 Europe/Berlin
-# (deploy/score-snapshot.*); the top 100 of the board are stored as they stood
-# then. GET serves the latest (or a given day's) snapshot as JSON or as CSV —
-# the contest's Google Sheet pulls the CSV with IMPORTDATA, so it always shows
-# the 23:59 standings however late Google refreshes.
+# (deploy/score-snapshot.*); the top 100 players, each once with their best, are
+# stored as they stood then. GET serves the latest (or a given day's) snapshot
+# as JSON or as CSV — the contest's Google Sheet pulls the CSV with IMPORTDATA,
+# so it always shows the 23:59 standings however late Google refreshes.
 
 BERLIN = ZoneInfo("Europe/Berlin")
 SNAPSHOT_LIMIT = 100
@@ -196,18 +203,23 @@ def _require_admin(token: str | None) -> None:
         raise HTTPException(403, "Admin token required")
 
 
+def _player_bests(c, source: str, limit: int) -> list[tuple]:
+    """The contest's ranking: each player once, with their best score (name, score, platform, set at)."""
+    w, args = _where(source)
+    return c.execute(
+        f"SELECT name, score, platform, updated_at FROM ("
+        f"SELECT name, score, platform, updated_at, id, "
+        f"ROW_NUMBER() OVER (PARTITION BY player ORDER BY {_ORDER}) AS nth FROM scores WHERE {w}1"
+        f") WHERE nth = 1 ORDER BY {_ORDER} LIMIT ?",
+        args + (limit,),
+    ).fetchall()
+
+
 def take_snapshot(source: str, now: int | None = None) -> dict:
     now = int(time.time()) if now is None else now
-    board = top_scores(player=None, limit=SNAPSHOT_LIMIT, source=source)["entries"]
-    entries = [{"rank": e["rank"], "name": e["name"], "score": e["score"], "platform": e["platform"]}
-               for e in board]
-    # when each best was set, from the board itself (top_scores doesn't return it)
-    w, args = _where(source)
     with db() as c:
-        rows = c.execute(f"SELECT updated_at FROM scores WHERE {w}1 ORDER BY score DESC, updated_at ASC LIMIT ?",
-                         args + (SNAPSHOT_LIMIT,)).fetchall()
-        for e, (u,) in zip(entries, rows):
-            e["since"] = _berlin(u)
+        entries = [{"rank": i + 1, "name": n, "score": s, "platform": p, "since": _berlin(u)}
+                   for i, (n, s, p, u) in enumerate(_player_bests(c, source, SNAPSHOT_LIMIT))]
         day = datetime.fromtimestamp(now, BERLIN).strftime("%Y-%m-%d")
         c.execute("INSERT INTO score_snapshots (source, day, taken_at, entries) VALUES (?, ?, ?, ?)",
                   (source, day, now, json.dumps(entries)))
@@ -228,10 +240,10 @@ def _load_snapshot(source: str, day: str | None) -> dict | None:
     with db() as c:
         if day:
             r = c.execute("SELECT day, taken_at, entries FROM score_snapshots WHERE source = ? AND day = ? "
-                          "ORDER BY taken_at DESC LIMIT 1", (source, day)).fetchone()
+                          "ORDER BY taken_at DESC, id DESC LIMIT 1", (source, day)).fetchone()
         else:
             r = c.execute("SELECT day, taken_at, entries FROM score_snapshots WHERE source = ? "
-                          "ORDER BY taken_at DESC LIMIT 1", (source,)).fetchone()
+                          "ORDER BY taken_at DESC, id DESC LIMIT 1", (source,)).fetchone()
     if not r:
         return None
     return {"source": source, "day": r[0], "taken_at": r[1], "taken_at_berlin": _berlin(r[1]),
