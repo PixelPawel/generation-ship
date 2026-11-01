@@ -114,6 +114,7 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 	private var torchByHand = false        // the player switched it: no more automatic changes
 	private var torchDecided = false
 	private var autoShoot = true
+	private var lastShotAuto = false       // the shot under way was taken by AUTO
 	@Volatile private var busy = false
 	private lateinit var status: TextView
 	private var statusBase = ""             // mode, EV, resolution; the live figures follow it
@@ -183,6 +184,12 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 
 	override fun onResume() {
 		super.onResume()
+		// CameraX drops the torch and the exposure offset when the screen goes off or the player
+		// switches apps: put both back (the torch button keeps showing what was chosen)
+		if (camera != null) {
+			applyTorch()
+			applyExposure()
+		}
 		sensorManager?.let { sm ->
 			sm.getDefaultSensor(Sensor.TYPE_GYROSCOPE)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) }
 			sm.getDefaultSensor(Sensor.TYPE_LIGHT)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
@@ -567,7 +574,8 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 						sx += qx
 						sy += qy
 						minX = min(minX, qx); maxX = max(maxX, qx); minY = min(minY, qy); maxY = max(maxY, qy)
-						if (count > 900) continue
+						// a big violet patch is flooded whole (and dropped below): stopping early left
+						// pieces of it behind that counted as diamonds
 						for (n in intArrayOf(p - 1, p + 1, p - w, p + w)) {
 							if (n < 0 || n >= w * h || seen[n].toInt() != 0) continue
 							if ((n == p - 1 && qx == 0) || (n == p + 1 && qx == w - 1)) continue
@@ -657,7 +665,7 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 		overlay.invalidate()
 		// never straight away: a moment to frame the ship after the screen opens
 		if (autoShoot && held >= READY_MS && now - openedAt > 1800 && torchDecided) {
-			shoot()
+			shoot(auto = true)
 		}
 	}
 
@@ -705,13 +713,14 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 
 	// ── Taking the photo ─────────────────────────────────────────────────────
 
-	private fun shoot() {
+	private fun shoot(auto: Boolean = false) {
 		val capture = imageCapture ?: return
 		if (busy) {
 			return
 		}
 		val path = intent.getStringExtra(EXTRA_OUTPUT_PATH) ?: return finishWith(Activity.RESULT_CANCELED)
 		busy = true
+		lastShotAuto = auto
 		shutter.alpha = 0.4f
 		overlay.progress = 0f
 		overlay.show(FloatArray(0), Pair(4, 3), previewView.width, previewView.height)
@@ -748,21 +757,50 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 		}
 		val shots = (0 until BURST).map { File(out.parentFile, "burst_${it}_" + out.name) }
 		fun next(i: Int) {
-			if (i >= shots.size) {
-				val ranked = shots.filter { it.exists() }.sortedByDescending { sharpness(it) }
-				if (ranked.isEmpty()) {
-					failed()
-					return
-				}
-				ranked[0].copyTo(out, overwrite = true)
-				for ((k, f) in ranked.drop(1).withIndex()) {
-					f.copyTo(File(out.parentFile, out.nameWithoutExtension + "_alt${k + 1}.jpg"), overwrite = true)
-				}
-				shots.forEach { it.delete() }
-				done(out)
+			if (isFinishing) {
+				shots.forEach { it.delete() }      // closed mid-burst: nothing to keep
 				return
 			}
-			takeOne(capture, shots[i]) { next(i + 1) }
+			if (i < shots.size) {
+				takeOne(capture, shots[i]) { next(i + 1) }
+				return
+			}
+			// sharpest first (each score decodes a JPEG: once per shot), then the shots are MOVED into
+			// place — same folder, so no extra space and nothing half-written. This runs in CameraX's
+			// callback on the main thread, where an exception ends the whole game: copying three JPEGs
+			// on a nearly full phone threw (review 2026-11-01), so nothing here may throw.
+			val ranked = try {
+				shots.filter { it.exists() }.map { it to sharpness(it) }.sortedByDescending { it.second }.map { it.first }
+			} catch (e: Exception) {
+				shots.filter { it.exists() }
+			}
+			var ok = false
+			try {
+				if (ranked.isNotEmpty()) {
+					out.delete()
+					ok = ranked[0].renameTo(out)
+					if (!ok) {
+						ranked[0].copyTo(out, overwrite = true)
+						ok = true
+					}
+				}
+			} catch (e: Exception) {
+				ok = false
+				out.delete()
+			}
+			if (ok) {
+				for ((k, f) in ranked.drop(1).withIndex()) {
+					try {
+						val alt = File(out.parentFile, out.nameWithoutExtension + "_alt${k + 1}.jpg")
+						alt.delete()
+						f.renameTo(alt)
+					} catch (e: Exception) {
+						// the other shots are a bonus only
+					}
+				}
+			}
+			shots.forEach { it.delete() }
+			if (ok) done(out) else failed()
 		}
 		next(0)
 	}
@@ -810,6 +848,12 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 		busy = false
 		readySince = 0L
 		shutter.alpha = 1f
+		if (lastShotAuto) {
+			// a failed automatic shot would only fail again and again: AUTO off for now (not saved),
+			// the shutter is still there
+			autoShoot = false
+			applyAutoLook()
+		}
 	}
 
 	private fun finishWith(result: Int) {

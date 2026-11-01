@@ -689,6 +689,20 @@ func _on_scan_ship_pressed() -> void:
 func _on_photo_canceled() -> void:
 	pass  # user backed out of the camera app — stay on the sector list
 
+## The camera's own folder keeps only the scan being read: every earlier photo, its burst shots
+## and anything half-written stayed there for good (5-10 MB a scan), and a nearly full phone is
+## exactly when the camera needs the room. Never touches a photo loaded from anywhere else.
+func _clean_capture_folder(path: String) -> void:
+	if not path.contains("/captured_photos/"):
+		return
+	var dir: DirAccess = DirAccess.open(path.get_base_dir())
+	if dir == null:
+		return
+	var keep: String = path.get_file().get_basename()
+	for f: String in dir.get_files():
+		if not f.begins_with(keep):
+			dir.remove(f)
+
 func _save_to_gallery() -> bool:
 	var cfg: ConfigFile = ConfigFile.new()
 	return cfg.load(SETTINGS_PATH) == OK and bool(cfg.get_value("scan", "save_to_gallery", false))
@@ -700,8 +714,10 @@ func _set_save_to_gallery(on: bool) -> void:
 	cfg.save(SETTINGS_PATH)
 
 func _on_photo_selected(path: String) -> void:
+	_close_supply_editor()           # its counters belong to the ship this photo replaces
 	if _save_to_gallery() and Engine.has_singleton("CameraIntentPlugin"):
 		Engine.get_singleton("CameraIntentPlugin").save_to_gallery(path)
+	_clean_capture_folder(path)
 	var img := Image.new()
 	if img.load(path) != OK:
 		push_warning("Scan Tableau: could not load %s" % path)
@@ -752,10 +768,10 @@ func _on_photo_selected(path: String) -> void:
 		if _save_to_gallery() and Engine.has_singleton("CameraIntentPlugin"):
 			Engine.get_singleton("CameraIntentPlugin").save_to_gallery(alt_path)
 		var alt: Image = Image.new()
-		var loaded: bool = alt.load(alt_path) == OK
+		var loaded: bool = look_more and not dials.is_empty() and alt.load(alt_path) == OK
 		if path.contains("/captured_photos/"):
 			DirAccess.remove_absolute(alt_path)   # the camera's own leftovers only, never a loaded photo's neighbours
-		if not loaded or dials.is_empty() or not look_more:
+		if not loaded:
 			continue
 		var thread_a: Thread = Thread.new()
 		_scan_thread = thread_a
@@ -1371,6 +1387,7 @@ func _open_supply_editor(index: int, anchor: Control) -> void:
 	var catcher: Control = Control.new()
 	catcher.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	catcher.mouse_filter = Control.MOUSE_FILTER_STOP
+	catcher.z_index = 100     # above the ship's card thumbs (z 1-5, 50 while hovered)
 	catcher.gui_input.connect(func(ev: InputEvent) -> void:
 		if _is_tap(ev):
 			_close_supply_editor())
