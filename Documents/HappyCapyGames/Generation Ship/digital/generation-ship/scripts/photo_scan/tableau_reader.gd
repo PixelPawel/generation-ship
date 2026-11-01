@@ -84,6 +84,10 @@ const MATCH_SEARCH_MM: float = 3.0               # search this far around a cand
 const MATCH_MAX_PER_BLOB: int = 4
 const MATCH_SAME_TOKEN: float = 0.7              # matches closer than this x TOKEN_MM are one token
 const MATCH_TYPE_SHARE: float = 0.15            # a token type is tried if this much of a blob is its colour
+# Electrix orange and Thrust yellow sit close together, and in pale print or warm light one reads as
+# the other (realistic mockups 2026-11-01: Thrust 6/21, its blobs counted as Electrix colour, so the
+# octagon was never tried): when neither shape of a blob's own colours fits, its twin's is tried
+const COLOUR_TWINS: Dictionary = {4: 5, 5: 4}
 const MATCH_BLOB_MIN_MM2: float = 29.0           # smaller blobs aren't a token's worth
 const MATCH_MM2_PER_TOKEN: float = 180.0          # roughly a real token's area, to bound the matches per blob
 
@@ -831,9 +835,13 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 			print("    sector %d blob at %s mm, %.0f mm2 (photo %s): %s" % [si, str(bc.round()), area,
 				str((sframe * bc).round()), ", ".join(sc)])
 		var types: Array[int] = []
+		var twins: Array[int] = []    # tried only when no type of the blob's own colours fits
 		for t: int in 6:
 			if float(share[t]) >= MATCH_TYPE_SHARE * float(comp["count"]):
 				types.append(t)
+		for t: int in 6:
+			if not types.has(t) and COLOUR_TWINS.has(t) and types.has(int(COLOUR_TWINS[t])):
+				twins.append(t)
 		if types.is_empty():
 			continue
 		var box: Rect2i = comp["box"]
@@ -858,7 +866,10 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 					continue   # blanked: an earlier match in this blob
 				share_now[cls[k]] += 1
 				cnt_now += 1
-			for alt: int in types:
+			var need: float = MATCH_MIN if _try == 0 else MATCH_MIN_NEXT
+			for alt: int in types + twins:
+				if twins.has(alt) and not hit.is_empty() and float(hit["score"]) >= need:
+					break     # the blob's own colour already fits: no twin needed
 				var r: Dictionary = _match_token(work, ws, hs, ms, ms_sum, alt, region)
 				if r.is_empty():
 					continue
@@ -867,7 +878,7 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 					hit = r
 					hit["token"] = alt
 			# a further token in an already matched blob has to be convincing on its own
-			if hit.is_empty() or float(hit["score"]) < (MATCH_MIN if _try == 0 else MATCH_MIN_NEXT):
+			if hit.is_empty() or float(hit["score"]) < need:
 				break
 			var tp: Dictionary = (_templates[int(hit["token"])] as Array)[int(hit["rot"])]
 			var at: Vector2i = hit["at"]

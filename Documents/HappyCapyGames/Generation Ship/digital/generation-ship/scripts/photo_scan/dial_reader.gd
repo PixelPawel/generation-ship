@@ -21,9 +21,9 @@ extends RefCounted
 # 3. pass 2: every marker of a plausible size is searched only at the radii a
 #    dial can have at that scale, facing within +-21 deg of its nearest
 #    confident dial; markers are independent, so this runs on all cores;
-# 4. both passes try each dial as a circle and as a few ovals (_SHAPES): a
-#    phone held at an angle squashes the dials, and the squash leans
-#    differently in different parts of the photo, so it's chosen per dial;
+# 4. both passes try each dial as a circle and as ovals (pass 1 a few, pass 2
+#    finely graded ones): a phone held at an angle squashes the dials, and the
+#    squash leans differently in different parts of the photo, so it's chosen per dial;
 # 5. a reading counts if its 11 lights split cleanly into bright/dark, the
 #    parity holds, the code is a real card, lit lights are dots (brighter than
 #    the rim between them), unlit ones are holes (darker than the rim — this
@@ -53,9 +53,22 @@ const SCALE_AGREE: float = 0.2         # ...and on px per mm (perspective stays 
 const AGREE_MIN: int = 3
 const PASS1_MAX_TRIED: int = 800       # a clear photo needs ~450 markers for 6 confident dials
 const PASS1_HARD_MAX: int = 1200       # and never more: an unreadable photo searched every cyan speck for minutes
+const PASS1_USUAL_K: float = 3.4       # pass 1 first tries dial radii up to this x the diamond blob
+const PASS1_TYPICAL_OF: int = 40       # a diamond's size: the median of this many biggest marker blobs
+const PASS1_HALF_Z: float = 18.0       # diamonds this big (px; ~12 px/mm) -> pass 1 on the half-size copy
 const OVAL_ASPECTS: Array[float] = [0.9, 0.8]
 const OVAL_STEP_DEG: int = 30
 const COLUMN_FACING_COS: float = 0.94    # cards of one column face within ~20 deg of each other
+const FINE_ASPECTS: Array[float] = [0.95, 0.9, 0.85, 0.8, 0.75, 0.7]   # pass 2's ovals...
+const FINE_STEP_DEG: int = 15                                            # ...squashed every 15 deg
+const FINE_DIR_WINDOW: float = 30.0      # ...within this of the nearest dial read's squash direction
+const RECHECK_GAP: float = 0.75          # round-1 readings below this split get the fine ovals too
+const ROUND2_MIN_CAP: int = 60           # the fine ovals try at most this many unread markers...
+const ROUND2_PER_READ: int = 4           # ...or this many per dial read in round 1, if more
+# second_look(): the shot must line up with the photo on this many diamonds of dials read, the
+# phone having moved at most this far (px) between the two
+const SECOND_MIN_MATCHES: int = 4
+const SECOND_MAX_SHIFT_PX: float = 160.0
 
 # Strip check (2026-11-01): the strip next to a dial (name banner + colour orb on techs and
 # expeditions, the part of a sector below the techs that overlap it) stays visible whenever the
@@ -108,6 +121,8 @@ var _codes: Dictionary = {}          # code -> "tech" / "expedition" / "sector"
 var _cards: Dictionary = {}          # code -> {card: CardData, is_advanced: bool}
 var _shapes: Array[PackedFloat32Array] = []   # circle -> image matrices [a11, a12, a21, a22]
 var _circle_only: Array[PackedFloat32Array] = []
+var _fine_shapes: Array[PackedFloat32Array] = []
+var _fine_meta: Array[Vector2] = []  # per fine shape: (aspect, squash direction in deg)
 var _cos30: PackedFloat32Array = PackedFloat32Array()   # cos/sin of 30*k deg, k = 0..11
 var _sin30: PackedFloat32Array = PackedFloat32Array()
 var _done_mutex: Mutex = Mutex.new()
@@ -126,6 +141,13 @@ var debug_strips: bool = false
 var _strip_arts: Dictionary = {}     # code -> Array[PackedFloat32Array]: per language, planar RGB, each channel centred + unit length
 var _strip_dims: Dictionary = {}     # deck -> Vector2i (strip pixels)
 var _rgb: PackedByteArray = PackedByteArray()   # the photo, full resolution RGB8
+var _anchors: Array[Vector3] = []    # pass 1's agreeing confident dials (x, y, facing), for pass 2 and second_look()
+# while second_look() reads another shot: shot -> photo coordinates, and the shot's turn against the photo
+var _frame_inv: Transform2D = Transform2D.IDENTITY
+var _frame_rot: float = 0.0
+# pass 2's second round: its markers and the shape of the dial read nearest each (_read_markers)
+var _round2_blobs: Array[Vector3] = []
+var _round2_near: Array[PackedFloat32Array] = []
 
 ## Call on the main thread: collects the card codes from CardDatabase (scene
 ## tree nodes can't be touched from a worker thread). Then run() — safe on
@@ -195,6 +217,15 @@ func _init() -> void:
 			var s: float = sin(ph)
 			# R(ph) * diag(1, asp) * R(-ph): squashed by asp across direction ph
 			_shapes.append(PackedFloat32Array([c * c + asp * s * s, c * s - asp * c * s, c * s - asp * c * s, s * s + asp * c * c]))
+	_fine_shapes.append(_shapes[0])
+	_fine_meta.append(Vector2(1.0, 0.0))
+	for asp: float in FINE_ASPECTS:
+		for deg: int in range(0, 180, FINE_STEP_DEG):
+			var ph: float = deg_to_rad(float(deg))
+			var c: float = cos(ph)
+			var s: float = sin(ph)
+			_fine_shapes.append(PackedFloat32Array([c * c + asp * s * s, c * s - asp * c * s, c * s - asp * c * s, s * s + asp * c * c]))
+			_fine_meta.append(Vector2(asp, float(deg)))
 	for k: int in 12:
 		_cos30.append(cos(deg_to_rad(30.0 * k)))
 		_sin30.append(sin(deg_to_rad(30.0 * k)))
@@ -221,22 +252,7 @@ func run(source: Image) -> Array[Dictionary]:
 	_w = img.get_width()
 	_h = img.get_height()
 	_lum_data = img.get_data()
-	# exposure: scale brightness so the brightest 1% of the photo reads ~0.95 (dim photos keep
-	# their lit lights above MIN_LIT; sampled every 7th pixel, plenty for a percentile)
-	var hist: PackedInt32Array = PackedInt32Array()
-	hist.resize(256)
-	var n_s: int = 0
-	for i: int in range(0, _lum_data.size(), 7):
-		hist[_lum_data[i]] += 1
-		n_s += 1
-	var acc: int = 0
-	var p99: int = 255
-	for v: int in range(255, -1, -1):
-		acc += hist[v]
-		if float(acc) >= float(n_s) * 0.01:
-			p99 = v
-			break
-	_lum_gain = 0.95 / maxf(float(p99) / 255.0, 0.3)
+	_lum_gain = _exposure_gain(_lum_data)
 	progress = 0.1
 
 	var t_pass1: int = Time.get_ticks_msec()
@@ -245,6 +261,13 @@ func run(source: Image) -> Array[Dictionary]:
 	var strong_pos: Array[Vector2] = []
 	var strong_raw: Array[float] = []
 	var strong_clean: Array[bool] = []  # clean reading (else a low-contrast one)
+	# pass 1 on a big photo works on the half-size copy (_lum_data etc. point at it meanwhile)
+	var lum_full: PackedByteArray = _lum_data
+	var w_full: int = _w
+	var h_full: int = _h
+	var small_l: Image = small.duplicate() as Image
+	small_l.convert(Image.FORMAT_L8)
+	var lum_half: PackedByteArray = small_l.get_data()
 	# a second try when nothing agrees: the marker search on a white-balanced copy (a warm lamp
 	# the phone didn't correct can turn the violet diamond orange-brown); only failed photos pay for it
 	for try_i: int in 2:
@@ -265,53 +288,83 @@ func run(source: Image) -> Array[Dictionary]:
 		for b: Vector3 in blobs:
 			if b.z >= 2.5 and b.z <= 36.0:
 				pass1.append(b)
+		# biggest first: the diamonds are bigger than the violet specks of noise and busy art (real
+		# photos: 2489 markers, the dials found after 780 tries in photo order, 140 biggest first;
+		# a test sheet 140 -> 20; ordering by nearness to the typical size was worse there). The
+		# median of the 40 biggest blobs is about a diamond's size (for the half-size switch below).
+		var zs: Array[float] = []
+		for b: Vector3 in pass1:
+			zs.append(b.z)
+		zs.sort()
+		zs.reverse()
+		@warning_ignore("integer_division")
+		var z_typ: float = zs[mini(zs.size(), PASS1_TYPICAL_OF) / 2] if not zs.is_empty() else 0.0
+		pass1.sort_custom(func(p: Vector3, q: Vector3) -> bool: return p.z > q.z)
+		# Big diamonds (a close-up photo: the real ones were 12-18 px/mm) are searched on the half-size
+		# copy: pass 1 only needs a few clear dials for scale and facing, their lights are still ~6 px
+		# there, and it takes half the radii (pass 2 reads every dial at full size).
+		var half: bool = z_typ >= PASS1_HALF_Z
+		var hk: float = 0.5 if half else 1.0
+		if half:
+			_lum_data = lum_half
+			_w = small_l.get_width()
+			_h = small_l.get_height()
 		var batch: int = maxi(2, OS.get_processor_count())
 		var next_i: int = 0
-		# a confident misread (a busy bit of art, flash glints) would skew the scale and facing
-		# for every card near it: keep reading until STRONG_WANTED of them agree with each other
-		# (but once AGREE_MIN agree, give up on more after PASS1_MAX_TRIED markers: a bad photo
-		# would otherwise search every marker the slow way)
-		while next_i < pass1.size():
-			# done once enough clean readings agree; low-contrast ones end the search only when
-			# twice as many agree with not a clean one among them (a dim or soft photo)
-			var grp: Array[int] = _agreeing(strong_at, strong_scales, strong_clean)
-			var n_agree: int = 0
-			for q: int in grp:
-				if strong_clean[q]:
-					n_agree += 1
-			if n_agree == 0 and grp.size() >= 2 * STRONG_WANTED:
-				n_agree = STRONG_WANTED
-			if n_agree >= STRONG_WANTED or (n_agree >= AGREE_MIN and next_i >= PASS1_MAX_TRIED) or next_i >= PASS1_HARD_MAX:
-				break
-			var chunk: Array[Vector3] = pass1.slice(next_i, mini(next_i + batch, pass1.size()))
-			var found: Array = []
-			found.resize(chunk.size())
-			if cancelled:
-				break
-			var wide_search: Callable = func(i: int) -> void:
-				var b: Vector3 = chunk[i]
-				var radii: Array[float] = []
-				# from ~1.9 x the marker blob (the bigger diamond since 2026-10-14: dial radius ~2.2-2.5 x its blob) to 5.8 x (a partly detected, blurred diamond)
-				var r: float = maxf(4.0, b.z * 1.9)
-				while r <= minf(160.0, b.z * 5.8):
-					radii.append(r)
-					r += 1.5
-				found[i] = _search(b.x, b.y, radii, _all_angles())
-			WorkerThreadPool.wait_for_group_task_completion(WorkerThreadPool.add_group_task(wide_search, chunk.size()))
-			for i: int in chunk.size():
-				var e: Dictionary = found[i]
-				if e.is_empty():
-					continue
-				var is_clean: bool = bool(e["clean"]) and float(e["gap"]) >= STRONG_GAP
-				if is_clean or (float(e["rel"]) >= LOWC_STRONG_REL and float(e["gap"]) >= LOWC_STRONG_GAP):
-					strong_scales.append(float(e["r"]) / float(DECK_R_MM[_codes[int(e["code"])]]))
-					strong_at.append(Vector3(chunk[i].x, chunk[i].y, float(e["th"])))
-					strong_pos.append(Vector2(chunk[i].x, chunk[i].y))
-					strong_clean.append(is_clean)
-			next_i += chunk.size()
-			progress = 0.1 + 0.3 * float(next_i) / float(pass1.size())
+		# Dial radius vs its diamond blob: ~2.2-2.9 x for most dials, up to 5.8 x for a partly
+		# detected, blurred diamond. The usual range is searched first (2026-11-01: 91 % of the
+		# mockups' dials, a third of the radii), the rest only if too few dials agree after it.
+		for sweep: int in 2:
+			var k_lo: float = 1.9 if sweep == 0 else PASS1_USUAL_K
+			var k_hi: float = PASS1_USUAL_K if sweep == 0 else 5.8
+			if sweep == 1:
+				var n_now: int = _n_agree(strong_at, strong_scales, strong_clean)
+				if n_now >= STRONG_WANTED or (n_now >= AGREE_MIN and next_i >= PASS1_MAX_TRIED) or cancelled:
+					break
+				next_i = 0
+			# a confident misread (a busy bit of art, flash glints) would skew the scale and facing
+			# for every card near it: keep reading until STRONG_WANTED of them agree with each other
+			# (but once AGREE_MIN agree, give up on more after PASS1_MAX_TRIED markers: a bad photo
+			# would otherwise search every marker the slow way)
+			while next_i < pass1.size():
+				var n_agree: int = _n_agree(strong_at, strong_scales, strong_clean)
+				if n_agree >= STRONG_WANTED or (n_agree >= AGREE_MIN and next_i >= PASS1_MAX_TRIED) or next_i >= PASS1_HARD_MAX:
+					break
+				var chunk: Array[Vector3] = pass1.slice(next_i, mini(next_i + batch, pass1.size()))
+				var found: Array = []
+				found.resize(chunk.size())
+				if cancelled:
+					break
+				var wide_search: Callable = func(i: int) -> void:
+					var b: Vector3 = chunk[i]
+					if sweep == 1 and strong_pos.has(Vector2(b.x, b.y)):
+						found[i] = {}      # read confidently in the usual range already
+						return
+					var radii: Array[float] = []
+					var bz: float = b.z * hk
+					var r: float = maxf(4.0, bz * k_lo) if sweep == 0 else bz * k_lo + 1.5
+					while r <= minf(160.0 * hk, bz * k_hi):
+						radii.append(r)
+						r += 1.5
+					found[i] = _search(b.x * hk, b.y * hk, radii, _all_angles()) if not radii.is_empty() else {}
+				WorkerThreadPool.wait_for_group_task_completion(WorkerThreadPool.add_group_task(wide_search, chunk.size()))
+				for i: int in chunk.size():
+					var e: Dictionary = found[i]
+					if e.is_empty():
+						continue
+					var is_clean: bool = bool(e["clean"]) and float(e["gap"]) >= STRONG_GAP
+					if is_clean or (float(e["rel"]) >= LOWC_STRONG_REL and float(e["gap"]) >= LOWC_STRONG_GAP):
+						strong_scales.append(float(e["r"]) / hk / float(DECK_R_MM[_codes[int(e["code"])]]))
+						strong_at.append(Vector3(chunk[i].x, chunk[i].y, float(e["th"])))
+						strong_pos.append(Vector2(chunk[i].x, chunk[i].y))
+						strong_clean.append(is_clean)
+				next_i += chunk.size()
+				progress = 0.1 + (0.25 * float(next_i) / float(pass1.size()) if sweep == 0 else 0.25 + 0.05 * float(next_i) / float(pass1.size()))
+		_lum_data = lum_full
+		_w = w_full
+		_h = h_full
 		if debug:
-			print("  markers %d, pass1 %d tried %d, strong %d" % [blobs.size(), pass1.size(), next_i, strong_scales.size()])
+			print("  markers %d, pass1 %d tried %d, strong %d (diamond ~%.0f px%s)" % [blobs.size(), pass1.size(), next_i, strong_scales.size(), z_typ, ", half size" if half else ""])
 			for q: int in strong_at.size():
 				print("    strong at (%d, %d) facing %d deg, scale %.2f px/mm" % [int(strong_at[q].x), int(strong_at[q].y), roundi(rad_to_deg(strong_at[q].z)), strong_scales[q]])
 		for pr: Vector2 in debug_probes:
@@ -357,14 +410,14 @@ func run(source: Image) -> Array[Dictionary]:
 	@warning_ignore("integer_division")
 	_scale = strong_scales[strong_scales.size() / 2]
 	_fit_scale_plane(strong_pos, strong_raw)
+	_anchors = strong_at.duplicate()
 	progress = 0.4
 
 	# Pass 2: every plausibly sized marker, at the radii a dial has at its spot in the photo
 	# (perspective makes near cards bigger), facing like its nearest confident dial.
 	var pass2: Array[Vector3] = []
 	for b: Vector3 in blobs:
-		var ls: float = _local_scale(b.x, b.y)
-		if (b.z >= MARKER_SMALL_MM * ls and b.z <= MARKER_D_MM.y * ls) or (b.z >= MARKER_SMALL_MM * _scale and b.z <= MARKER_D_MM.y * _scale):
+		if _plausible_marker(b):
 			pass2.append(b)
 	if debug:
 		var n_small: int = 0
@@ -373,58 +426,208 @@ func run(source: Image) -> Array[Dictionary]:
 				n_small += 1
 		print("  pass2 %d markers (%d small)" % [pass2.size(), n_small])
 	var t_pass2: int = Time.get_ticks_msec()
-	var results: Array = []
-	results.resize(pass2.size())
-	_done = 0
 	if cancelled:
 		progress = 1.0
 		return []
+	var out: Array[Dictionary] = _read_markers(pass2, [], 0.4, 0.6)
+	if debug:
+		print("  time: pass1 %.1f s, pass2 %.1f s" % [(t_pass2 - t_pass1) / 1000.0, (Time.get_ticks_msec() - t_pass2) / 1000.0])
+	progress = 1.0
+	return out
+
+# Pass 2 on the markers given, in two rounds: the dial shapes pass 1 tries (a circle, a few ovals),
+# then finely graded ovals (2026-11-01: in a photo taken at an angle the dials nearest the camera —
+# usually the archive below the sectors — are squashed to 0.72-0.8, between the coarse shapes, and
+# their lights were sampled off-centre). The fine ovals go to the markers nothing was read at, and
+# to the readings round 1 wasn't sure of (_unsure); there a different card only replaces the first
+# reading if its strip fits clearly better. Taking whichever reading splits brighter/darker more
+# cleanly was wrong both ways: the fine ovals turned a right Lagrange Complex into Polar Planet on a
+# real photo, the coarse shapes read Earth Support as Osmosis Filter on a mockup — a reading at the
+# wrong size puts its strip off the card too, and the right one's strip fits.
+# `prior`: dials read before (same coordinates), left alone.
+func _read_markers(blobs: Array[Vector3], prior: Array[Dictionary], p0: float, span: float) -> Array[Dictionary]:
+	var out: Array[Dictionary] = _collect(_narrow_all(blobs, p0, span * 0.5, false), prior)
+	var rest: Array[Vector3] = []
+	var recheck_at: Dictionary = {}      # marker position -> its unsure round-1 reading
+	for b: Vector3 in blobs:
+		if b.z < MARKER_D_MM.x * minf(_local_scale(b.x, b.y), _scale):
+			continue      # tiny markers: a circle only, done in the first round
+		var at: Vector2 = Vector2(b.x, b.y)
+		var own: Dictionary = {}
+		var taken: bool = false
+		for d: Dictionary in out:
+			if (d["marker"] as Vector2) == at:
+				own = d
+				break
+		if not own.is_empty():
+			if _unsure(own):
+				recheck_at[at] = own
+				rest.append(b)
+			continue
+		for d: Dictionary in out + prior:
+			if (d["center"] as Vector2).distance_to(at) < float(d["radius"]) * 2.2:
+				taken = true
+				break
+		if not taken:
+			rest.append(b)
+	# a busy photo leaves hundreds of specks unread: the fine ovals go to the most diamond-sized
+	# ones (blob ~1.48 mm at the local scale: dial radius ~2.6 x its blob), the rechecks always
+	var n_cap: int = maxi(ROUND2_MIN_CAP, ROUND2_PER_READ * out.size())
+	if rest.size() > n_cap + recheck_at.size():
+		var odd: Callable = func(b: Vector3) -> float: return absf(b.z / (1.48 * _local_scale(b.x, b.y)) - 1.0)
+		var fresh: Array[Vector3] = []
+		var again: Array[Vector3] = []
+		for b: Vector3 in rest:
+			if recheck_at.has(Vector2(b.x, b.y)):
+				again.append(b)
+			else:
+				fresh.append(b)
+		fresh.sort_custom(func(p: Vector3, q: Vector3) -> bool: return float(odd.call(p)) < float(odd.call(q)))
+		fresh.resize(n_cap)
+		rest = again + fresh
+	if debug:
+		print("  pass2 round 1: %d read (%d unsure), %d markers for the fine ovals" % [out.size(), recheck_at.size(), rest.size()])
+	if rest.is_empty() or cancelled:
+		return out
+	# each marker gets the fine ovals near the squash of the nearest dial read (the squash changes
+	# smoothly across a photo, a bit stronger towards the camera): all 73 everywhere took 20 s on a
+	# busy photo
+	var near_shape: Array[PackedFloat32Array] = []
+	for b: Vector3 in rest:
+		var bestd: float = INF
+		var sh: PackedFloat32Array = _shapes[0]
+		for d: Dictionary in out + prior:
+			var dd: float = (d["center"] as Vector2).distance_squared_to(Vector2(b.x, b.y))
+			if dd < bestd and d.has("shape"):
+				bestd = dd
+				sh = d["shape"]
+		near_shape.append(sh)
+	_round2_near = near_shape
+	_round2_blobs = rest
+	var keep: Array[Dictionary] = []      # what round 2 must not read over: all but the rechecked readings
+	for d: Dictionary in out:
+		if not recheck_at.has(d["marker"]):
+			keep.append(d)
+	var more: Array[Dictionary] = _collect(_narrow_all(rest, p0 + span * 0.5, span * 0.5, true), keep + prior)
+	_round2_near = []
+	_round2_blobs = []
+	var rechecked: Array = recheck_at.values()
+	for m: Dictionary in more:
+		var old: Dictionary = recheck_at.get(m["marker"], {})
+		if old.is_empty():
+			var clash: bool = false
+			for d: Dictionary in rechecked:
+				if (d["center"] as Vector2).distance_to(m["center"] as Vector2) < float(m["radius"]) * 1.5:
+					clash = true
+					break
+			if not clash:
+				out.append(m)
+		elif int(m["code"]) != int(old["code"]) and float(m.get("strip", -1.0)) >= STRIP_SWAP_MIN 				and float(m["strip"]) > float(old.get("strip", -1.0)) + STRIP_SWAP:
+			m["corrected"] = true
+			out[out.find(old)] = m
+	return out
+
+# A round-1 reading worth a second look with the fine ovals: weak, not a clear split, or its strip
+# doesn't really look like that card.
+static func _unsure(d: Dictionary) -> bool:
+	return bool(d.get("weak", false)) or float(d["gap"]) < RECHECK_GAP or float(d.get("strip", 1.0)) < STRIP_SWAP_MIN
+
+# The fine ovals worth trying next to a dial read with shape `near`: aspect from 0.15 more
+# squashed to 0.1 less, squash direction within FINE_DIR_WINDOW deg (any direction next to a
+# round dial).
+func _fine_near(near: PackedFloat32Array) -> Array[PackedFloat32Array]:
+	var a: float = near[0]
+	var b: float = near[1]
+	var d: float = near[3]
+	var tr: float = (a + d) / 2.0
+	var disc: float = sqrt(maxf(0.0, (a - d) * (a - d) / 4.0 + b * b))
+	var asp: float = clampf((tr - disc) / maxf(tr + disc, 1e-6), 0.0, 1.0)
+	var deg: float = 0.0
+	if asp < 0.97:
+		# the unsquashed direction: eigenvector of the larger eigenvalue
+		var lam: float = tr + disc
+		deg = rad_to_deg(atan2(lam - a, b)) if absf(b) > 1e-6 else (0.0 if a >= d else 90.0)
+	var shapes: Array[PackedFloat32Array] = []
+	for i: int in _fine_shapes.size():
+		var m: Vector2 = _fine_meta[i]
+		if m.x < asp - 0.15 - 1e-3 or m.x > asp + 0.1 + 1e-3:
+			continue
+		if asp < 0.97 and m.x < 0.999:
+			var dd: float = absf(fposmod(m.y - deg + 90.0, 180.0) - 90.0)
+			if dd > FINE_DIR_WINDOW + 1e-3:
+				continue
+		shapes.append(_fine_shapes[i])
+	return shapes
+
+# A marker blob of a size a dial's diamond can have at its spot.
+func _plausible_marker(b: Vector3) -> bool:
+	var ls: float = _local_scale(b.x, b.y)
+	return (b.z >= MARKER_SMALL_MM * ls and b.z <= MARKER_D_MM.y * ls) or (b.z >= MARKER_SMALL_MM * _scale and b.z <= MARKER_D_MM.y * _scale)
+
+# Pass 2's search at every marker given (fine: the finely graded ovals), on all cores; progress
+# runs from p0 by span.
+func _narrow_all(blobs: Array[Vector3], p0: float, span: float, fine: bool) -> Array:
+	var results: Array = []
+	results.resize(blobs.size())
+	_done = 0
 	var narrow_search: Callable = func(i: int) -> void:
 		if cancelled:
 			return
-		var b: Vector3 = pass2[i]
-		var near: Vector3 = strong_at[0]
-		for s: Vector3 in strong_at:
-			if Vector2(s.x - b.x, s.y - b.y).length_squared() < Vector2(near.x - b.x, near.y - b.y).length_squared():
-				near = s
-		var tiny: bool = b.z < MARKER_D_MM.x * minf(_local_scale(b.x, b.y), _scale)
-		var window: int = SMALL_FACING_DEG if tiny else FACING_WINDOW_DEG
-		var angles: Array[float] = []
-		for d: int in range(-window, window + 1, 3):
-			angles.append(near.z + deg_to_rad(float(d)))
-		# dial sizes for this spot: the perspective slope's estimate and the photo-wide
-		# median — the slope can misjudge parts of the photo far from the dials it was
-		# fitted on, so both are tried. A decode only counts if its card type's ring is that
-		# size here (the size check, inside the search): a sector ring read at a size where it
-		# decodes to some tech would otherwise win and hide the sector's own reading.
-		var radii2: Array[float] = []
-		var lsc: float = _local_scale(b.x, b.y)
-		for sc: float in [lsc, _scale]:
-			for deck: String in DECK_R_MM:
-				for f: float in [0.92, 0.96, 1.0, 1.04, 1.08]:   # +-8 %: dials near the photo edges stray from the fitted slope
-					var rr: float = roundf(float(DECK_R_MM[deck]) * sc * f * 2.0) / 2.0
-					if not radii2.has(rr):
-						radii2.append(rr)
-		var e: Dictionary = _search(b.x, b.y, radii2, angles, _circle_only if tiny else _shapes, Vector2(lsc, _scale))
-		if not e.is_empty():
-			e["mx"] = b.x
-			e["my"] = b.y
-		results[i] = e
+		results[i] = _narrow(blobs[i], fine)
 		_done_mutex.lock()
 		_done += 1
-		progress = 0.4 + 0.6 * float(_done) / float(pass2.size())
+		progress = p0 + span * float(_done) / float(blobs.size())
 		_done_mutex.unlock()
-	WorkerThreadPool.wait_for_group_task_completion(WorkerThreadPool.add_group_task(narrow_search, pass2.size()))
+	WorkerThreadPool.wait_for_group_task_completion(WorkerThreadPool.add_group_task(narrow_search, blobs.size()))
+	for i: int in results.size():
+		if results[i] == null:
+			results[i] = {}
+	return results
 
-	if debug:
-		print("  time: pass1 %.1f s, pass2 %.1f s" % [(t_pass2 - t_pass1) / 1000.0, (Time.get_ticks_msec() - t_pass2) / 1000.0])
+# The best reading at one marker, facing like its nearest confident dial (pass 1's anchors).
+func _narrow(b: Vector3, fine: bool) -> Dictionary:
+	var pa: Vector2 = _frame_inv * Vector2(b.x, b.y)
+	var near: Vector3 = _anchors[0]
+	for s: Vector3 in _anchors:
+		if Vector2(s.x - pa.x, s.y - pa.y).length_squared() < Vector2(near.x - pa.x, near.y - pa.y).length_squared():
+			near = s
+	var lsc: float = _local_scale(b.x, b.y)
+	var tiny: bool = b.z < MARKER_D_MM.x * minf(lsc, _scale)
+	var window: int = SMALL_FACING_DEG if tiny else FACING_WINDOW_DEG
+	var angles: Array[float] = []
+	for d: int in range(-window, window + 1, 3):
+		angles.append(near.z + _frame_rot + deg_to_rad(float(d)))
+	# dial sizes for this spot: the perspective slope's estimate and the photo-wide
+	# median — the slope can misjudge parts of the photo far from the dials it was
+	# fitted on, so both are tried. A decode only counts if its card type's ring is that
+	# size here (the size check, inside the search): a sector ring read at a size where it
+	# decodes to some tech would otherwise win and hide the sector's own reading.
+	var radii2: Array[float] = []
+	for sc: float in [lsc, _scale]:
+		for deck: String in DECK_R_MM:
+			for f: float in [0.92, 0.96, 1.0, 1.04, 1.08]:   # +-8 %: dials near the photo edges stray from the fitted slope
+				var rr: float = roundf(float(DECK_R_MM[deck]) * sc * f * 2.0) / 2.0
+				if not radii2.has(rr):
+					radii2.append(rr)
+	var shapes: Array[PackedFloat32Array] = _circle_only if tiny else _shapes
+	if fine and not tiny:
+		var k: int = _round2_blobs.find(b)
+		shapes = _fine_near(_round2_near[k]) if k >= 0 else _fine_shapes
+	var e: Dictionary = _search(b.x, b.y, radii2, angles, shapes, Vector2(lsc, _scale))
+	if not e.is_empty():
+		e["mx"] = b.x
+		e["my"] = b.y
+	return e
+
+# Pass 2's raw readings -> entries: clean ones first; weak ones (below the limits, above WEAK_*)
+# only where nothing clean was read, and only if their strip confirms them (_check_strips).
+# Readings at a dial in `prior` (read before, same photo coordinates) are left out.
+func _collect(results: Array, prior: Array[Dictionary]) -> Array[Dictionary]:
 	var cands: Array[Dictionary] = []
 	for e: Dictionary in results:
 		if not e.is_empty():
 			cands.append(e)
 	cands.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return float(p["gap"]) > float(q["gap"]))
-	# clean readings first; weak ones (below the limits, above WEAK_*) only where nothing clean
-	# was read, and only if their strip confirms them (_check_strips)
 	var out: Array[Dictionary] = []
 	var weak: Array[Dictionary] = []
 	for pass_weak: bool in [false, true]:
@@ -441,7 +644,7 @@ func run(source: Image) -> Array[Dictionary]:
 				continue
 			var c: Vector2 = Vector2(float(e["cx"]), float(e["cy"]))
 			var clash: bool = false
-			for d: Dictionary in out + weak:
+			for d: Dictionary in out + weak + prior:
 				if (d["center"] as Vector2).distance_to(c) < r * 1.5:
 					clash = true
 					break
@@ -466,9 +669,172 @@ func run(source: Image) -> Array[Dictionary]:
 				weak.append(entry)
 			else:
 				out.append(entry)
-	out = _check_strips(out, weak)
+	return _check_strips(out, weak)
+
+# ── Second look ──────────────────────────────────────────────────────────────
+
+## A second look at another shot of the same scene — the camera's burst takes three, a moment
+## apart, and keeps the sharpest as the photo: glare, blur and a dim corner can sit elsewhere in
+## the others. Call after run() on its photo, with run()'s readings; reads only what those don't
+## cover, at the scale and facing run() found, and returns the new readings in run()'s photo
+## coordinates (to add to its list). Safe on a thread like run(); [] if the shot doesn't line up
+## with the photo (not the same scene, or the phone moved too much).
+func second_look(frame: Image, read: Array[Dictionary]) -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	progress = 0.0
+	if _anchors.is_empty() or photo == null or read.size() < SECOND_MIN_MATCHES or cancelled:
+		progress = 1.0
+		return found
+	var img: Image = frame.duplicate() as Image
+	if img.is_compressed():
+		img.decompress()
+	img.convert(Image.FORMAT_RGB8)
+	if img.get_size() != photo.get_size():
+		progress = 1.0
+		return found
+	var small: Image = img.duplicate() as Image
+	@warning_ignore("integer_division")
+	small.resize(maxi(1, img.get_width() / 2), maxi(1, img.get_height() / 2), Image.INTERPOLATE_BILINEAR)
+	var blobs: Array[Vector3] = []
+	for b: Vector3 in _find_markers(small.get_data(), small.get_width(), small.get_height()):
+		blobs.append(Vector3(b.x * 2.0 + 0.5, b.y * 2.0 + 0.5, b.z * 2.0))
+	progress = 0.2
+	var t: Transform2D = _align(read, blobs)
+	if t == Transform2D() or cancelled:
+		if debug:
+			print("  second look: shot doesn't line up")
+		progress = 1.0
+		return found
+	# read the shot's pixels instead of the photo's, everything else stays in the photo's frame
+	var keep_lum: PackedByteArray = _lum_data
+	var keep_rgb: PackedByteArray = _rgb
+	var keep_gain: float = _lum_gain
+	_rgb = img.get_data()
+	img.convert(Image.FORMAT_L8)
+	_lum_data = img.get_data()
+	_lum_gain = _exposure_gain(_lum_data)
+	_frame_inv = t.affine_inverse()
+	_frame_rot = t.get_rotation()
+	# markers away from every dial already read (in the shot's coordinates)
+	var prior: Array[Dictionary] = []
+	for d: Dictionary in read:
+		prior.append({center = t * (d["center"] as Vector2), radius = float(d["radius"]), shape = d.get("shape", _shapes[0])})
+	var cands: Array[Vector3] = []
+	for b: Vector3 in blobs:
+		if not _plausible_marker(b):
+			continue
+		var taken: bool = false
+		for d: Dictionary in prior:
+			if (d["center"] as Vector2).distance_to(Vector2(b.x, b.y)) < float(d["radius"]) * 2.2:
+				taken = true
+				break
+		if not taken:
+			cands.append(b)
+	var more: Array[Dictionary] = _read_markers(cands, prior, 0.2, 0.7)
+	# back to the photo's coordinates
+	for d: Dictionary in more:
+		d["center"] = _frame_inv * (d["center"] as Vector2)
+		d["marker"] = _frame_inv * (d["marker"] as Vector2)
+		d["up"] = ((d["marker"] as Vector2) - (d["center"] as Vector2)).normalized()
+		d["th"] = float(d["th"]) - _frame_rot
+		d["radius"] = float(d["radius"]) / t.get_scale().x
+		d["second_look"] = true
+		found.append(d)
+	if debug:
+		print("  second look: %d markers off the dials read, %d new readings" % [cands.size(), found.size()])
+	_lum_data = keep_lum
+	_rgb = keep_rgb
+	_lum_gain = keep_gain
+	_frame_inv = Transform2D.IDENTITY
+	_frame_rot = 0.0
 	progress = 1.0
-	return out
+	return found
+
+# The shot's position relative to the photo (photo -> shot: shift, a little turn and scale) from
+# the diamonds of the dials read, which reappear in the shot a little moved: the most common shift
+# first (a vote, so other diamonds nearby don't mislead it), then a least-squares fit on the pairs
+# that agree with it. Transform2D() (all zero) if too few agree.
+func _align(read: Array[Dictionary], blobs: Array[Vector3]) -> Transform2D:
+	var votes: Dictionary = {}
+	var best_key: Vector2i = Vector2i.ZERO
+	var best_n: int = 0
+	for d: Dictionary in read:
+		var m: Vector2 = d["marker"]
+		for b: Vector3 in blobs:
+			var off: Vector2 = Vector2(b.x, b.y) - m
+			if off.length() > SECOND_MAX_SHIFT_PX:
+				continue
+			var key: Vector2i = Vector2i(roundi(off.x / 6.0), roundi(off.y / 6.0))
+			var n: int = int(votes.get(key, 0)) + 1
+			votes[key] = n
+			if n > best_n:
+				best_n = n
+				best_key = key
+	if best_n < SECOND_MIN_MATCHES:
+		return Transform2D()
+	var t: Transform2D = Transform2D(0.0, Vector2(best_key) * 6.0)
+	for tol: float in [14.0, 5.0]:
+		var src: Array[Vector2] = []
+		var dst: Array[Vector2] = []
+		for d: Dictionary in read:
+			var p: Vector2 = t * (d["marker"] as Vector2)
+			var bestd: float = tol
+			var hit: Vector2 = Vector2.INF
+			for b: Vector3 in blobs:
+				var dd: float = p.distance_to(Vector2(b.x, b.y))
+				if dd < bestd:
+					bestd = dd
+					hit = Vector2(b.x, b.y)
+			if hit != Vector2.INF:
+				src.append(d["marker"])
+				dst.append(hit)
+		if src.size() < SECOND_MIN_MATCHES:
+			return Transform2D()
+		t = _similarity(src, dst)
+	return t
+
+# Least-squares similarity (turn, scale, shift) taking src onto dst.
+static func _similarity(src: Array[Vector2], dst: Array[Vector2]) -> Transform2D:
+	var ms: Vector2 = Vector2.ZERO
+	var md: Vector2 = Vector2.ZERO
+	for i: int in src.size():
+		ms += src[i]
+		md += dst[i]
+	ms /= float(src.size())
+	md /= float(src.size())
+	var a: float = 0.0
+	var b: float = 0.0
+	var n: float = 0.0
+	for i: int in src.size():
+		var p: Vector2 = src[i] - ms
+		var q: Vector2 = dst[i] - md
+		a += p.x * q.x + p.y * q.y
+		b += p.x * q.y - p.y * q.x
+		n += p.x * p.x + p.y * p.y
+	if n <= 0.0:
+		return Transform2D(0.0, md - ms)
+	var sc: float = sqrt(a * a + b * b) / n
+	var rot: float = atan2(b, a)
+	var basis: Transform2D = Transform2D(rot, Vector2(sc, sc), 0.0, Vector2.ZERO)
+	return Transform2D(basis.x, basis.y, md - basis * ms)
+
+# Exposure: scale brightness so the brightest 1% of the photo reads ~0.95 (dim photos keep their
+# lit lights above MIN_LIT; sampled every 7th pixel, plenty for a percentile).
+static func _exposure_gain(lum: PackedByteArray) -> float:
+	var hist: PackedInt32Array = PackedInt32Array()
+	hist.resize(256)
+	var n_s: int = 0
+	for i: int in range(0, lum.size(), 7):
+		hist[lum[i]] += 1
+		n_s += 1
+	var acc: int = 0
+	var p99: int = 255
+	for v: int in range(255, -1, -1):
+		acc += hist[v]
+		if float(acc) >= float(n_s) * 0.01:
+			p99 = v
+			break
+	return 0.95 / maxf(float(p99) / 255.0, 0.3)
 
 # ── Strip check ──────────────────────────────────────────────────────────────
 
@@ -708,6 +1074,18 @@ static func _balance(small: Image) -> bool:
 	small.set_data(small.get_width(), small.get_height(), false, Image.FORMAT_RGB8, data)
 	return true
 
+# How many confident readings agree (clean ones; low-contrast ones count only when twice as many
+# agree with not a clean one among them — a dim or soft photo).
+static func _n_agree(at: Array[Vector3], scales: Array[float], clean: Array[bool]) -> int:
+	var grp: Array[int] = _agreeing(at, scales, clean)
+	var n: int = 0
+	for q: int in grp:
+		if clean[q]:
+			n += 1
+	if n == 0 and grp.size() >= 2 * STRONG_WANTED:
+		n = STRONG_WANTED
+	return n
+
 # The largest group of confident readings that agree with one of them (its anchor) on
 # facing and scale — all cards in a tableau face the same way at about the same size.
 # Low-contrast readings off busy art can agree with each other on a wrong size, so the group
@@ -751,7 +1129,8 @@ func _fit_scale_plane(pos: Array[Vector2], scales: Array[float]) -> void:
 func _local_scale(x: float, y: float) -> float:
 	if not _has_plane:
 		return _scale
-	return clampf(_plane.x + _plane.y * x + _plane.z * y, _scale * 0.8, _scale * 1.25)
+	var p: Vector2 = _frame_inv * Vector2(x, y)   # (a second look's shot -> the photo the plane was fitted on)
+	return clampf(_plane.x + _plane.y * p.x + _plane.z * p.y, _scale * 0.8, _scale * 1.25)
 
 static func _all_angles() -> Array[float]:
 	var a: Array[float] = []

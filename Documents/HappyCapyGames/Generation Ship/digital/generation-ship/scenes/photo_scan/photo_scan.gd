@@ -163,6 +163,7 @@ var _tucked_down_spinbox: SpinBox = null     # count of face-down tucked cards (
 var _card_picker: Control = null
 var _picker_callback: Callable = Callable()   # armed while a row's Edit flow is waiting on a pick
 var _skip_btn: Button = null                  # relabeled "Cancel" while editing an already-confirmed sector
+var _supply_editor: Control = null            # a sector's quick supply counter, while open (_open_supply_editor)
 
 
 # Replaces the photo preview once Calculate Score is pressed — a big ★
@@ -201,6 +202,7 @@ func _ready() -> void:
 	visible = false
 
 func open() -> void:
+	_close_supply_editor()
 	_sectors.clear()
 	_source_image = null
 	_photo_view.texture = null
@@ -677,8 +679,9 @@ func _on_scan_ship_pressed() -> void:
 			plugin.photo_captured.connect(_on_photo_selected)
 		if not plugin.photo_canceled.is_connected(_on_photo_canceled):
 			plugin.photo_canceled.connect(_on_photo_canceled)
-		# shown on our own camera screen
+		# shown on our own camera screen: the hint on top, the live guidance below
 		plugin.set_hint(tr("SCAN_CAMERA_HINT"))
+		plugin.set_guide("\n".join([tr("SCAN_GUIDE_NONE"), tr("SCAN_GUIDE_CLOSER"), tr("SCAN_GUIDE_STEADY"), tr("SCAN_GUIDE_SHOOTING")]))
 		plugin.capture_photo()
 	else:
 		_file_dialog.popup_centered()
@@ -714,6 +717,7 @@ func _on_photo_selected(path: String) -> void:
 	_sector_scroll.visible = true
 	_status_label.visible = true
 	_status_label.text = "Reading cards…"
+	var t_start: int = Time.get_ticks_msec()
 	var reader: DialReader = DialReaderScript.create()
 	_finish_scan_thread()            # a previous photo still being read
 	var thread: Thread = Thread.new()
@@ -737,6 +741,44 @@ func _on_photo_selected(path: String) -> void:
 	var dials: Array[Dictionary] = thread.wait_to_finish()
 	if _source_image != img:
 		return   # another photo was picked meanwhile
+	# The camera's other burst shots (<photo>_alt1.jpg, _alt2.jpg, Android): a second look at the
+	# cards this one couldn't read — a moment later, glare and blur sit elsewhere. The third shot
+	# only if the second added something (each look costs seconds on a phone).
+	var look_more: bool = true
+	for k: int in range(1, 3):
+		var alt_path: String = "%s_alt%d.jpg" % [path.get_basename(), k]
+		if not FileAccess.file_exists(alt_path):
+			continue
+		if _save_to_gallery() and Engine.has_singleton("CameraIntentPlugin"):
+			Engine.get_singleton("CameraIntentPlugin").save_to_gallery(alt_path)
+		var alt: Image = Image.new()
+		var loaded: bool = alt.load(alt_path) == OK
+		if path.contains("/captured_photos/"):
+			DirAccess.remove_absolute(alt_path)   # the camera's own leftovers only, never a loaded photo's neighbours
+		if not loaded or dials.is_empty() or not look_more:
+			continue
+		var thread_a: Thread = Thread.new()
+		_scan_thread = thread_a
+		_scan_job = reader
+		thread_a.start(reader.second_look.bind(alt, dials))
+		_scan_progress.value = 0.0
+		_scan_progress.visible = true
+		while thread_a.is_alive():
+			await get_tree().process_frame
+			if not is_inside_tree():
+				return
+			_scan_progress.value = reader.progress * 100.0
+			_status_label.text = "Second look… %d%%" % roundi(reader.progress * 100.0)
+		_scan_progress.visible = false
+		if _scan_thread != thread_a:
+			return
+		_scan_thread = null
+		_scan_job = null
+		var more: Array[Dictionary] = thread_a.wait_to_finish()
+		if _source_image != img:
+			return
+		dials.append_array(more)
+		look_more = not more.is_empty()
 	# Second step: what belongs to each sector — archived cards (face-up ones by their
 	# dial, face-down ones by their backs) and stored-supply tokens. Card art is
 	# loaded here on the main thread, the counting runs on a thread.
@@ -791,6 +833,8 @@ func _on_photo_selected(path: String) -> void:
 			unsure += (e.get("unsure_techs", []) as Array).size() + (1 if bool(e.get("unsure_sector", false)) else 0)
 		if unsure > 0:
 			_status_label.text += " · %d card%s marked ? — check with Edit" % [unsure, "" if unsure == 1 else "s"]
+		# how long the reading took on this phone (for tuning the reader's speed)
+		_status_label.text += " · %d s" % roundi((Time.get_ticks_msec() - t_start) / 1000.0)
 	_refresh_sector_list()
 
 ## A recognised group ([sector, techs…] from TableauReader, sector {} if none was
@@ -1213,6 +1257,14 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 	for color_int: int in stored:
 		if int(stored[color_int]) > 0:
 			info.add_child(_make_summary_supply_badge(color_int, int(stored[color_int])))
+	# the supply count is the scan's least reliable part: ± fixes it right here
+	var fix_btn: Button = Button.new()
+	fix_btn.text = "±"
+	fix_btn.custom_minimum_size = SUMMARY_SUPPLY_ICON_SIZE
+	fix_btn.add_theme_font_size_override("font_size", SUMMARY_FONT_SIZE)
+	GameTheme.apply_to_button(fix_btn)
+	fix_btn.pressed.connect(_open_supply_editor.bind(index, fix_btn))
+	info.add_child(fix_btn)
 	var up_count: int = 0
 	var up_stars: int = 0
 	var down_count: int = 0
@@ -1308,6 +1360,92 @@ func _make_summary_supply_badge(color_int: int, amount: int) -> Control:
 	var lbl: Label = _make_summary_text_badge(str(amount))
 	box.add_child(lbl)
 	return box
+
+## One sector's stored supply, counted up or down in place: the six colours with − / + right
+## above the sector's ± button. The score follows every tap; a tap anywhere else closes it.
+## (No dimming behind it: the ship stays in view.)
+func _open_supply_editor(index: int, anchor: Control) -> void:
+	_close_supply_editor()
+	if index < 0 or index >= _sectors.size():
+		return
+	var catcher: Control = Control.new()
+	catcher.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	catcher.mouse_filter = Control.MOUSE_FILTER_STOP
+	catcher.gui_input.connect(func(ev: InputEvent) -> void:
+		if _is_tap(ev):
+			_close_supply_editor())
+	add_child(catcher)
+	_supply_editor = catcher
+	var panel: PanelContainer = PanelContainer.new()
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = Color(0.05, 0.07, 0.12, 0.97)
+	style.border_color = Color(GUIDE_BADGE_RIM, 0.8)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(10)
+	style.set_content_margin_all(12)
+	panel.add_theme_stylebox_override("panel", style)
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	catcher.add_child(panel)
+	var grid: GridContainer = GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 22)
+	grid.add_theme_constant_override("v_separation", 8)
+	panel.add_child(grid)
+	var stored: Dictionary = _sectors[index]["stored_supply"]
+	for color: CardData.SupplyColor in _SUPPLY_COLORS:
+		var c: int = int(color)
+		var row: HBoxContainer = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		var icon: TextureRect = TextureRect.new()
+		icon.texture = load(_SUPPLY_ICON_PATHS[c]) as Texture2D
+		icon.custom_minimum_size = SUMMARY_SUPPLY_ICON_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.tooltip_text = CardData.color_name(color)
+		row.add_child(icon)
+		var count: Label = Label.new()
+		count.text = str(int(stored.get(c, 0)))
+		count.custom_minimum_size = Vector2(40, 0)
+		count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		count.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		count.add_theme_font_size_override("font_size", STEPPER_BUTTON_FONT_SIZE)
+		var minus_btn: Button = _make_stepper_button("−")
+		minus_btn.pressed.connect(_step_supply.bind(index, c, -1, count))
+		var plus_btn: Button = _make_stepper_button("+")
+		plus_btn.pressed.connect(_step_supply.bind(index, c, 1, count))
+		row.add_child(minus_btn)
+		row.add_child(count)
+		row.add_child(plus_btn)
+		grid.add_child(row)
+	# above the ± button, kept on screen (after add_child, so layout can't override it)
+	panel.reset_size()
+	var box: Rect2 = get_global_rect()
+	var at: Rect2 = anchor.get_global_rect()
+	var pos: Vector2 = Vector2(at.get_center().x - panel.size.x / 2.0, at.position.y - panel.size.y - 10.0)
+	pos.x = clampf(pos.x, box.position.x + 8.0, box.end.x - panel.size.x - 8.0)
+	pos.y = clampf(pos.y, box.position.y + 8.0, box.end.y - panel.size.y - 8.0)
+	panel.global_position = pos
+
+func _step_supply(index: int, color_int: int, by: int, count: Label) -> void:
+	if index < 0 or index >= _sectors.size():
+		return
+	var stored: Dictionary = _sectors[index]["stored_supply"]
+	var n: int = clampi(int(stored.get(color_int, 0)) + by, 0, 99)
+	if n > 0:
+		stored[color_int] = n
+	else:
+		stored.erase(color_int)
+	count.text = str(n)
+	_update_score()
+
+## Closes the supply counter and shows the new counts under the sectors.
+func _close_supply_editor() -> void:
+	if _supply_editor == null:
+		return
+	if is_instance_valid(_supply_editor):
+		_supply_editor.queue_free()
+	_supply_editor = null
+	_refresh_sector_list()
 
 ## Archived cards: the face-up/face-down arrow inside a little card outline, then the count.
 func _make_summary_archive_badge(arrow: String, text: String) -> Control:

@@ -15,8 +15,9 @@ import org.godotengine.godot.plugin.UsedByGodot
 import java.io.File
 
 // Captures a single photo for the photo-scan feature. Since 2026-10 with our own camera
-// screen (ScanCameraActivity: CameraX, torch on — the camera app's own exposure choices made
-// evening photos unreadable); the device's camera app (ACTION_IMAGE_CAPTURE) is the fallback
+// screen (ScanCameraActivity: CameraX, live guidance, torch where it's dim — the camera app's own
+// exposure choices made evening photos unreadable; the other burst shots are left next to the
+// photo as <name>_alt1.jpg, _alt2.jpg); the device's camera app (ACTION_IMAGE_CAPTURE) is the fallback
 // when that can't run (camera permission refused, no back camera, CameraX failing).
 // For the fallback, the photo goes to a FileProvider-shared path (required
 // since Android 7 — raw file:// URIs handed to another app now throw
@@ -40,6 +41,7 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 
 	private var pendingPhotoPath: String? = null
 	private var hint: String = ""
+	private var guide: String = ""
 
 	override fun getPluginName() = "CameraIntentPlugin"
 
@@ -49,6 +51,13 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 	@UsedByGodot
 	fun set_hint(text: String) {
 		hint = text
+	}
+
+	// The live guidance lines (translated by the game), "\n"-joined: no ship in view / move
+	// closer / hold still / taking the photo.
+	@UsedByGodot
+	fun set_guide(texts: String) {
+		guide = texts
 	}
 
 	@UsedByGodot
@@ -65,6 +74,7 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 			val intent = Intent(activity, ScanCameraActivity::class.java)
 			intent.putExtra(ScanCameraActivity.EXTRA_OUTPUT_PATH, photoFile.absolutePath)
 			intent.putExtra(ScanCameraActivity.EXTRA_HINT, hint)
+			intent.putExtra(ScanCameraActivity.EXTRA_GUIDE, guide)
 			activity.startActivityForResult(intent, REQUEST_SCAN_CAMERA)
 		}
 	}

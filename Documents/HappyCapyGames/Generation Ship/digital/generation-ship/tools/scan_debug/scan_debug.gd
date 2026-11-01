@@ -30,6 +30,18 @@ func _scan(path: String) -> void:
 		var xy: PackedStringArray = pp.split(",")
 		reader.debug_probes.append(Vector2(float(xy[0]), float(xy[1])))
 	var dials: Array[Dictionary] = reader.run(img)
+	# SCAN_ALTS=1: the camera's other burst shots next to the photo (<photo>_alt1.jpg, _alt2.jpg)
+	# get the app's second look
+	if OS.get_environment("SCAN_ALTS") != "":
+		for k: int in range(1, 3):   # as the app: the third shot only if the second added something
+			var alt_path: String = "%s_alt%d.jpg" % [path.get_basename(), k]
+			var alt: Image = Image.new()
+			if FileAccess.file_exists(alt_path) and alt.load(alt_path) == OK and not dials.is_empty():
+				var more: Array[Dictionary] = reader.second_look(alt, dials)
+				print("  second look %s: +%d" % [alt_path.get_file(), more.size()])
+				dials.append_array(more)
+				if more.is_empty():
+					break
 	var t1: int = Time.get_ticks_msec()
 	var tableau: TableauReader = TableauReaderScript.create(dials)
 	tableau.debug = OS.get_environment("SCAN_DEBUG") != ""
