@@ -57,6 +57,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
 import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -771,7 +772,7 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 			// on a nearly full phone threw (review 2026-11-01), so nothing here may throw.
 			val ranked = try {
 				shots.filter { it.exists() }.map { it to sharpness(it) }.sortedByDescending { it.second }.map { it.first }
-			} catch (e: Exception) {
+			} catch (e: Throwable) {      // Throwable: an OutOfMemoryError while decoding ends the game too
 				shots.filter { it.exists() }
 			}
 			var ok = false
@@ -784,7 +785,7 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 						ok = true
 					}
 				}
-			} catch (e: Exception) {
+			} catch (e: Throwable) {
 				ok = false
 				out.delete()
 			}
@@ -848,9 +849,9 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 		busy = false
 		readySince = 0L
 		shutter.alpha = 1f
-		if (lastShotAuto) {
+		if (lastShotAuto && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
 			// a failed automatic shot would only fail again and again: AUTO off for now (not saved),
-			// the shutter is still there
+			// the shutter is still there (not when the shots failed because the player left the app)
 			autoShoot = false
 			applyAutoLook()
 		}

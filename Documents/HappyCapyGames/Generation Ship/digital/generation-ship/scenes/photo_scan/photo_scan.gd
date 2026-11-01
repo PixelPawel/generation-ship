@@ -693,7 +693,7 @@ func _on_photo_canceled() -> void:
 ## and anything half-written stayed there for good (5-10 MB a scan), and a nearly full phone is
 ## exactly when the camera needs the room. Never touches a photo loaded from anywhere else.
 func _clean_capture_folder(path: String) -> void:
-	if not path.contains("/captured_photos/"):
+	if not _is_camera_photo(path):
 		return
 	var dir: DirAccess = DirAccess.open(path.get_base_dir())
 	if dir == null:
@@ -702,6 +702,12 @@ func _clean_capture_folder(path: String) -> void:
 	for f: String in dir.get_files():
 		if not f.begins_with(keep):
 			dir.remove(f)
+
+## A photo our camera screen took (the app's private captured_photos folder, Android only) — the
+## only kind whose folder and burst shots the scan may delete: on a computer, Load Image could
+## pick a photo from any folder, even one that happens to be called captured_photos.
+static func _is_camera_photo(path: String) -> bool:
+	return Engine.has_singleton("CameraIntentPlugin") and path.contains("/captured_photos/")
 
 func _save_to_gallery() -> bool:
 	var cfg: ConfigFile = ConfigFile.new()
@@ -714,7 +720,6 @@ func _set_save_to_gallery(on: bool) -> void:
 	cfg.save(SETTINGS_PATH)
 
 func _on_photo_selected(path: String) -> void:
-	_close_supply_editor()           # its counters belong to the ship this photo replaces
 	if _save_to_gallery() and Engine.has_singleton("CameraIntentPlugin"):
 		Engine.get_singleton("CameraIntentPlugin").save_to_gallery(path)
 	_clean_capture_folder(path)
@@ -769,7 +774,7 @@ func _on_photo_selected(path: String) -> void:
 			Engine.get_singleton("CameraIntentPlugin").save_to_gallery(alt_path)
 		var alt: Image = Image.new()
 		var loaded: bool = look_more and not dials.is_empty() and alt.load(alt_path) == OK
-		if path.contains("/captured_photos/"):
+		if _is_camera_photo(path):
 			DirAccess.remove_absolute(alt_path)   # the camera's own leftovers only, never a loaded photo's neighbours
 		if not loaded:
 			continue
@@ -822,7 +827,13 @@ func _on_photo_selected(path: String) -> void:
 	if _source_image != img:
 		return
 	# Everything recognised goes straight into the ship (a new photo is a new ship);
-	# Edit under a sector corrects it.
+	# Edit under a sector corrects it. A supply counter or an Edit opened on the old ship while
+	# this photo was being read would now change the new one (both go by sector index): closed.
+	_close_supply_editor()
+	if _editing_sector_index >= 0:
+		_editing_sector_index = -1
+		_editing_original_sector = {}
+		_show_list_view()
 	_sectors.clear()
 	var loose: int = 0
 	var placeholders: int = 0
