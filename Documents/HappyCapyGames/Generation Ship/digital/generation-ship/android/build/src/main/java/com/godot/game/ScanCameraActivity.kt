@@ -55,6 +55,7 @@ import androidx.camera.extensions.ExtensionsManager
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
+import androidx.core.content.pm.PackageInfoCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -98,12 +99,14 @@ import kotlin.math.sqrt
 //  - rings only round what really is a diamond (see analyzeFrame), all green; the guidance
 //    counts and sizes those only
 //  - the phone's own night mode where its maker offers it to apps (CameraX Extensions NIGHT;
-//    Google's list of phones with extensions has most recent Samsung, Pixel, Xiaomi, Honor, OPPO,
-//    OnePlus, vivo): several frames merged, aligned and denoised. The camera app's night photo
-//    of a real ship read 14 of 15 dials, this screen's plain photo of the same ship 9. One
-//    capture (no burst), no automatic torch, no EV offset (that night photo was at 0 EV). Where
-//    the phone can't stream the guidance's small copy next to the night mode, the guidance
-//    reads the preview off the screen instead. A failed night shot switches to the plain camera.
+//    with CameraX 1.6 that's the framework's Camera2 Extensions, Android 13+; Google's list of
+//    phones with extensions has most recent Samsung, Pixel, Xiaomi, Honor, OPPO, OnePlus, vivo):
+//    several frames merged, aligned and denoised. The camera app's night photo of a real ship
+//    read 14 of 15 dials, this screen's plain photo of the same ship 9. One capture (no burst),
+//    no automatic torch, no EV offset (that night photo was at 0 EV). CameraX 1.6 never streams
+//    the guidance's small copy next to it: the guidance reads the preview off the screen. A night
+//    picture that doesn't start, a night photo under 3000 px or a failed night shot switch to the
+//    plain camera, and the night mode turns itself off on a phone where it fails (see nightAllowed).
 // Camera permission refused, no back camera or CameraX failing: RESULT_FALLBACK, and the
 // plugin opens the camera app instead.
 class ScanCameraActivity : ComponentActivity(), SensorEventListener {
@@ -173,6 +176,7 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 	private val DIM_EXPOSURE = 8.0f
 	private val DIM_LUX = 60f
 	private val MIN_CAPTURE_LONG = 3000       // px: below this the reader loses the tech lights on a whole ship
+	private val PREVIEW_GUIDE_MS = 250L       // reading the preview off the screen 4 times a second (each read costs the main thread ~10-20 ms)
 
 	private val askPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
 		if (granted) startCamera() else finishWith(RESULT_FALLBACK)
@@ -213,16 +217,23 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 			sm.getDefaultSensor(Sensor.TYPE_GYROSCOPE)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) }
 			sm.getDefaultSensor(Sensor.TYPE_LIGHT)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
 		}
+		if (guideFromPreview) {
+			previewView.removeCallbacks(previewGuide)
+			previewView.postDelayed(previewGuide, 300)
+		}
 	}
 
 	override fun onPause() {
 		super.onPause()
 		sensorManager?.unregisterListener(this)
+		previewView.removeCallbacks(previewGuide)     // reading the screen costs: only while it's shown
 	}
 
 	override fun onDestroy() {
 		super.onDestroy()
 		previewView.removeCallbacks(previewGuide)
+		previewView.removeCallbacks(nightWatch)
+		nightTrying(false)                            // closed normally: the night mode didn't take the game down
 		analysisExecutor.shutdown()
 	}
 
@@ -371,19 +382,79 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 					var nightAnalysis = false
 					try {
 						val ext = extFuture.get()
-						if (ext.isExtensionAvailable(CameraSelector.DEFAULT_BACK_CAMERA, ExtensionMode.NIGHT)) {
+						if (nightAllowed() && ext.isExtensionAvailable(CameraSelector.DEFAULT_BACK_CAMERA, ExtensionMode.NIGHT)) {
 							night = ext.getExtensionEnabledCameraSelector(CameraSelector.DEFAULT_BACK_CAMERA, ExtensionMode.NIGHT)
 							nightAnalysis = ext.isImageAnalysisSupported(CameraSelector.DEFAULT_BACK_CAMERA, ExtensionMode.NIGHT)
 						}
-					} catch (e: Exception) {
+					} catch (e: Throwable) {      // Throwable: the phone maker's code runs here, an Error would end the game
 						night = null
 					}
 					bindCamera(provider, night, nightAnalysis)
 				}, ContextCompat.getMainExecutor(this))
-			} catch (e: Exception) {
+			} catch (e: Throwable) {
 				finishWith(RESULT_FALLBACK)
 			}
 		}, ContextCompat.getMainExecutor(this))
+	}
+
+	// The night mode runs the phone maker's code inside the game. A night attempt that never came
+	// back (the game died while binding, streaming or shooting with it), a night picture that never
+	// started, or two failed night shots turn it off on this phone until the next app version.
+	private val prefs by lazy { getSharedPreferences(PREFS, Context.MODE_PRIVATE) }
+
+	private fun appVersion(): Long = try {
+		PackageInfoCompat.getLongVersionCode(packageManager.getPackageInfo(packageName, 0))
+	} catch (e: Throwable) {
+		0L
+	}
+
+	private fun nightAllowed(): Boolean {
+		val v = appVersion()
+		if (prefs.getBoolean("night_trying", false)) {
+			prefs.edit().putBoolean("night_trying", false).putLong("night_off", v).commit()
+		}
+		return prefs.getLong("night_off", -1L) != v
+	}
+
+	private fun nightTrying(on: Boolean) {
+		try {
+			val e = prefs.edit().putBoolean("night_trying", on)
+			if (on) e.commit() else e.apply()    // commit: a crash may follow at once
+		} catch (e: Throwable) {
+		}
+	}
+
+	// the night mode failed on this phone: the plain camera and the burst from now on (offNow: for
+	// good on this app version; else after the second failed night shot)
+	private fun nightFailed(offNow: Boolean) {
+		try {
+			val v = appVersion()
+			val fails = (if (prefs.getLong("night_fails_v", -1L) == v) prefs.getInt("night_fails", 0) else 0) + 1
+			val e = prefs.edit().putBoolean("night_trying", false).putLong("night_fails_v", v).putInt("night_fails", fails)
+			if (offNow || fails >= 2) e.putLong("night_off", v)
+			e.apply()
+		} catch (e: Throwable) {
+		}
+		val p = provider ?: return
+		if (isFinishing || isDestroyed) return
+		bindCamera(p, null, false)
+	}
+
+	// a night picture that hasn't started streaming a few seconds after binding (the phone's night
+	// session failed to configure: a black screen otherwise)
+	private val nightWatch = object : Runnable {
+		override fun run() {
+			if (isFinishing || isDestroyed || extensionName.isEmpty()) return
+			if (busy || !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+				previewView.postDelayed(this, 1500)
+				return
+			}
+			if (previewView.previewStreamState.value == PreviewView.StreamState.STREAMING) {
+				nightTrying(false)
+			} else {
+				nightFailed(offNow = true)
+			}
+		}
 	}
 
 	// One way of running the camera: which selector (night mode or plain), and whether the
@@ -433,9 +504,9 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 				.setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
 				.build()
 			analysis.setAnalyzer(analysisExecutor) { analyze(it) }
-			// best first: the night mode with the guidance's own small copy (few phones stream it next
-			// to a night mode), the night mode with the guidance reading the preview, then the plain
-			// camera the same two ways
+			// best first: the night mode with the guidance's own small copy (CameraX 1.6.2 never allows
+			// that with the framework's night mode; kept for a later CameraX), the night mode with the
+			// guidance reading the preview, then the plain camera the same two ways
 			val setups = ArrayList<Setup>()
 			if (night != null) {
 				if (nightAnalysis) setups.add(Setup(night, night = true, analysis = true))
@@ -445,27 +516,39 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 			setups.add(Setup(CameraSelector.DEFAULT_BACK_CAMERA, night = false, analysis = false))
 			fun previewOf(s: Setup): Preview = if (s.night) nightPreview else preview
 			fun useCases(s: Setup): List<UseCase> = if (s.analysis) listOf(previewOf(s), capture, analysis) else listOf(previewOf(s), capture)
+			fun longSide(): Int = capture.resolutionInfo?.resolution?.let { max(it.width, it.height) } ?: 0
 			var chosen = setups.last()
+			if (night != null) nightTrying(true)
 			camera = bindFirst(provider, setups.map { Pair(it.selector, useCases(it)) }) { i -> chosen = setups[i] }
 			// the small copy must not cost the photo its resolution (a phone that can't stream three
 			// sizes at once may lower the capture): then the guidance reads the preview instead
-			val longSide = capture.resolutionInfo?.resolution?.let { max(it.width, it.height) } ?: 0
-			if (chosen.analysis && longSide in 1 until MIN_CAPTURE_LONG) {
+			if (chosen.analysis && longSide() in 1 until MIN_CAPTURE_LONG) {
 				val rest = setups.filter { !it.analysis && (chosen.night || !it.night) }
 				camera = bindFirst(provider, rest.map { Pair(it.selector, useCases(it)) }) { i -> chosen = rest[i] }
 			}
+			// a night mode that only takes small photos loses the tech lights: the plain camera then
+			if (chosen.night && longSide() in 1 until MIN_CAPTURE_LONG) {
+				val plain = setups.filter { !it.night }
+				camera = bindFirst(provider, plain.map { Pair(it.selector, useCases(it)) }) { i -> chosen = plain[i] }
+				if (chosen.analysis && longSide() in 1 until MIN_CAPTURE_LONG) {
+					val rest = plain.filter { !it.analysis }
+					camera = bindFirst(provider, rest.map { Pair(it.selector, useCases(it)) }) { i -> chosen = rest[i] }
+				}
+			}
 			extensionName = if (chosen.night) "Night" else ""
+			previewView.removeCallbacks(nightWatch)
+			if (chosen.night) previewView.postDelayed(nightWatch, 4000) else nightTrying(false)
 			previewUseCase = previewOf(chosen)
 			imageCapture = capture
 			capture.resolutionInfo?.resolution?.let { captureLong = max(it.width, it.height) }
 			focalPx = focalLengthPx()
-			if (camera?.cameraInfo?.hasFlashUnit() != true) {
-				torchButton.visibility = View.GONE
-				torchDecided = true
-			}
-			if (chosen.night) {
-				torchDecided = true            // the night mode copes with dim light; the torch's spot only costs (the button still works)
-			}
+			// worked out again on every binding (a night mode may not allow the flash, the plain camera
+			// after it does): the button where there is a torch to switch; the torch decided by itself
+			// on the plain camera only (the night mode copes with dim light, the torch's spot only
+			// costs) and never over a choice made by hand
+			val hasFlash = camera?.cameraInfo?.hasFlashUnit() == true
+			torchButton.visibility = if (hasFlash) View.VISIBLE else View.GONE
+			torchDecided = torchByHand || !hasFlash || chosen.night
 			applyTorch()
 			val ev = applyExposure()
 			statusBase = (if (extensionName.isEmpty()) "Burst $BURST" else extensionName) +
@@ -479,20 +562,20 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 			if (torchDecided) return
 			// decide the torch once the exposure has settled
 			previewView.postDelayed({ decideTorch() }, 1300)
-		} catch (e: Exception) {
+		} catch (e: Throwable) {
 			finishWith(RESULT_FALLBACK)
 		}
 	}
 
 	private fun bindFirst(provider: ProcessCameraProvider, tries: List<Pair<CameraSelector, List<UseCase>>>, chose: (Int) -> Unit): Camera {
-		var last: Exception? = null
+		var last: Throwable? = null
 		for ((i, t) in tries.withIndex()) {
 			try {
 				provider.unbindAll()
 				val cam = provider.bindToLifecycle(this, t.first, *t.second.toTypedArray())
 				chose(i)
 				return cam
-			} catch (e: Exception) {
+			} catch (e: Throwable) {      // a night setup failing with an Error (maker code) still tries the plain camera
 				last = e
 			}
 		}
@@ -506,7 +589,7 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 			val f = info.getCameraCharacteristic(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)?.firstOrNull() ?: return 0f
 			val size = info.getCameraCharacteristic(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE) ?: return 0f
 			f / max(size.width, size.height) * captureLong
-		} catch (e: Exception) {
+		} catch (e: Throwable) {
 			0f
 		}
 	}
@@ -591,9 +674,10 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 	// so the same figures hold.
 	private val previewGuide = object : Runnable {
 		override fun run() {
-			if (isFinishing || isDestroyed || !guideFromPreview) return
+			// stops while the screen is away (onResume starts it again)
+			if (isFinishing || isDestroyed || !guideFromPreview || !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return
 			grabPreview()
-			previewView.postDelayed(this, 160)
+			previewView.postDelayed(this, PREVIEW_GUIDE_MS)
 		}
 	}
 
@@ -827,7 +911,7 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 		overlay.shutterAt = floatArrayOf(shutter.x + shutter.width / 2f, shutter.y + shutter.height / 2f, shutter.width / 2f + dp(6f))
 		overlay.invalidate()
 		// never straight away: a moment to frame the ship after the screen opens
-		if (autoShoot && held >= READY_MS && now - openedAt > 1800 && torchDecided) {
+		if (autoShoot && held >= READY_MS && now - openedAt > 1800 && torchDecided && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
 			shoot(auto = true)
 		}
 	}
@@ -918,15 +1002,23 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 	// photo, the others stay next to it as <name>_alt1.jpg, <name>_alt2.jpg for the game's second look.
 	private fun capture(capture: ImageCapture, out: File) {
 		if (extensionName.isNotEmpty()) {
-			takeOne(capture, out) { ok ->
-				if (ok) {
-					done(out)
-				} else {
-					// the night mode failed on this phone: the plain camera and the burst from now on
-					// (AUTO stays: the next shot is a different kind)
-					out.delete()
-					provider?.let { if (!isFinishing) bindCamera(it, null, false) }
-					failed(keepAuto = true)
+			nightTrying(true)
+			takeOne(capture, out) { error ->
+				nightTrying(false)
+				when {
+					isFinishing -> out.delete()                // closed during the shot: nothing to keep
+					error == null -> done(out)
+					else -> {
+						out.delete()
+						// the night shot itself failed (not the camera taken away by a call or the Home
+						// button): the plain camera and the burst from now on; AUTO stays, the next
+						// shot is a different kind
+						if ((error == ImageCapture.ERROR_CAPTURE_FAILED || error == ImageCapture.ERROR_UNKNOWN) &&
+								lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+							nightFailed(offNow = false)
+						}
+						failed(keepAuto = true)
+					}
 				}
 			}
 			return
@@ -981,11 +1073,12 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 		next(0)
 	}
 
-	private fun takeOne(capture: ImageCapture, file: File, then: (Boolean) -> Unit) {
+	// then(null) when saved, else then(the ImageCapture error code)
+	private fun takeOne(capture: ImageCapture, file: File, then: (Int?) -> Unit) {
 		capture.takePicture(ImageCapture.OutputFileOptions.Builder(file).build(), ContextCompat.getMainExecutor(this),
 			object : ImageCapture.OnImageSavedCallback {
-				override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) = then(true)
-				override fun onError(exception: ImageCaptureException) = then(false)
+				override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) = then(null)
+				override fun onError(exception: ImageCaptureException) = then(exception.imageCaptureError)
 				// a night shot's processing, where the phone reports it: round the shutter
 				override fun onCaptureProcessProgressed(progress: Int) {
 					overlay.shutterAt = floatArrayOf(shutter.x + shutter.width / 2f, shutter.y + shutter.height / 2f, shutter.width / 2f + dp(6f))
