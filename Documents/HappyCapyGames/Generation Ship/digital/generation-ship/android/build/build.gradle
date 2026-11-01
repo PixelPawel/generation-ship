@@ -43,13 +43,15 @@ dependencies {
     implementation "androidx.core:core-splashscreen:$versions.splashscreenVersion"
     implementation "androidx.documentfile:documentfile:$versions.documentfileVersion"
 
-    // Scan Tableau's own camera screen (ScanCameraActivity)
-    def cameraxVersion = "1.4.2"
+    // Scan Tableau's own camera screen (ScanCameraActivity). 1.6+: from 2026-11-01 Google drops the
+    // phones' night modes (Extensions) on some devices for apps on CameraX 1.5 or older, and up to
+    // 1.5.1 binding the camera fails on some Android 17 phones (unknown dynamic range profiles)
+    def cameraxVersion = "1.6.2"
     implementation "androidx.camera:camera-core:$cameraxVersion"
     implementation "androidx.camera:camera-camera2:$cameraxVersion"
     implementation "androidx.camera:camera-lifecycle:$cameraxVersion"
     implementation "androidx.camera:camera-view:$cameraxVersion"
-    implementation "androidx.camera:camera-extensions:$cameraxVersion"   // the phone's HDR / night multi-frame modes
+    implementation "androidx.camera:camera-extensions:$cameraxVersion"   // the phone's night mode
 
     if (rootProject.findProject(":lib")) {
         implementation project(":lib")

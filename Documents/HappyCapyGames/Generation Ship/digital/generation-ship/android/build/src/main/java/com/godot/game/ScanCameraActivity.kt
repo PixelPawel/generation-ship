@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
@@ -59,9 +60,11 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import java.io.File
+import java.nio.ByteBuffer
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -91,6 +94,16 @@ import kotlin.math.sqrt
 //    spot on the cards cost more than it gave; the torch button still switches it by hand
 //  - the other burst shots are kept next to the photo (<name>_alt1.jpg, _alt2.jpg): the game
 //    takes a second look at them for cards it couldn't read in the sharpest one
+// 2026-11-01, after the first real tests with it:
+//  - rings only round what really is a diamond (see analyzeFrame), all green; the guidance
+//    counts and sizes those only
+//  - the phone's own night mode where its maker offers it to apps (CameraX Extensions NIGHT;
+//    Google's list of phones with extensions has most recent Samsung, Pixel, Xiaomi, Honor, OPPO,
+//    OnePlus, vivo): several frames merged, aligned and denoised. The camera app's night photo
+//    of a real ship read 14 of 15 dials, this screen's plain photo of the same ship 9. One
+//    capture (no burst), no automatic torch, no EV offset (that night photo was at 0 EV). Where
+//    the phone can't stream the guidance's small copy next to the night mode, the guidance
+//    reads the preview off the screen instead. A failed night shot switches to the plain camera.
 // Camera permission refused, no back camera or CameraX failing: RESULT_FALLBACK, and the
 // plugin opens the camera app instead.
 class ScanCameraActivity : ComponentActivity(), SensorEventListener {
@@ -111,6 +124,9 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 	private lateinit var guideLabel: TextView
 	private var imageCapture: ImageCapture? = null
 	private var camera: Camera? = null
+	private var provider: ProcessCameraProvider? = null
+	private var previewUseCase: Preview? = null
+	private var guideFromPreview = false     // the guidance reads the preview off the screen (no small copy streamed)
 	private var torchOn = false
 	private var torchByHand = false        // the player switched it: no more automatic changes
 	private var torchDecided = false
@@ -139,6 +155,8 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 	private var analysisBytes = ByteArray(0)
 	private var analysisSeen = ByteArray(0)
 	private var stack = IntArray(4096)
+	private val analysing = AtomicBoolean(false)   // a preview picture is being analysed
+	private var previewBytes = ByteArray(0)
 
 	// Diamonds read as big enough above this many px per mm (the reader reads 3000 px photos of a
 	// whole ship, ~7 px/mm, fine; ~5 px/mm loses the tech lights), and the photo is good to take
@@ -204,6 +222,7 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 
 	override fun onDestroy() {
 		super.onDestroy()
+		previewView.removeCallbacks(previewGuide)
 		analysisExecutor.shutdown()
 	}
 
@@ -343,26 +362,23 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 		future.addListener({
 			try {
 				val provider = future.get()
-				// the phone's own multi-frame modes, if any (several frames merged by the camera's
-				// processing, aligned and denoised) — only where the live guidance can run with them;
-				// otherwise a plain capture + our burst
+				this.provider = provider
+				// the phone's own night mode, if its maker offers it to apps (several frames merged by
+				// the camera's processing, aligned and denoised); otherwise a plain capture + our burst
 				val extFuture = ExtensionsManager.getInstanceAsync(this, provider)
 				extFuture.addListener({
-					var selector = CameraSelector.DEFAULT_BACK_CAMERA
+					var night: CameraSelector? = null
+					var nightAnalysis = false
 					try {
 						val ext = extFuture.get()
-						for ((mode, name) in listOf(ExtensionMode.HDR to "HDR", ExtensionMode.AUTO to "Auto", ExtensionMode.NIGHT to "Night")) {
-							if (ext.isExtensionAvailable(CameraSelector.DEFAULT_BACK_CAMERA, mode) &&
-									ext.isImageAnalysisSupported(CameraSelector.DEFAULT_BACK_CAMERA, mode)) {
-								selector = ext.getExtensionEnabledCameraSelector(CameraSelector.DEFAULT_BACK_CAMERA, mode)
-								extensionName = name
-								break
-							}
+						if (ext.isExtensionAvailable(CameraSelector.DEFAULT_BACK_CAMERA, ExtensionMode.NIGHT)) {
+							night = ext.getExtensionEnabledCameraSelector(CameraSelector.DEFAULT_BACK_CAMERA, ExtensionMode.NIGHT)
+							nightAnalysis = ext.isImageAnalysisSupported(CameraSelector.DEFAULT_BACK_CAMERA, ExtensionMode.NIGHT)
 						}
 					} catch (e: Exception) {
-						extensionName = ""
+						night = null
 					}
-					bindCamera(provider, selector)
+					bindCamera(provider, night, nightAnalysis)
 				}, ContextCompat.getMainExecutor(this))
 			} catch (e: Exception) {
 				finishWith(RESULT_FALLBACK)
@@ -370,8 +386,13 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 		}, ContextCompat.getMainExecutor(this))
 	}
 
+	// One way of running the camera: which selector (night mode or plain), and whether the
+	// guidance gets its own small copy of the picture (else it reads the preview off the screen).
+	private class Setup(val selector: CameraSelector, val night: Boolean, val analysis: Boolean)
+
 	@OptIn(ExperimentalCamera2Interop::class)
-	private fun bindCamera(provider: ProcessCameraProvider, cameraSelector: CameraSelector) {
+	private fun bindCamera(provider: ProcessCameraProvider, night: CameraSelector?, nightAnalysis: Boolean) {
+		if (isFinishing || isDestroyed) return     // closed while CameraX was starting
 		try {
 			val selector = ResolutionSelector.Builder()
 				.setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
@@ -390,6 +411,13 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 			})
 			val preview = previewBuilder.build()
 			preview.setSurfaceProvider(previewView.surfaceProvider)
+			// the night mode runs the phone's own capture session: nothing of ours hooked into it
+			// (without the figures the smear check assumes 1/60 s)
+			val nightPreview = Preview.Builder()
+				.setResolutionSelector(ResolutionSelector.Builder()
+					.setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY).build())
+				.build()
+			nightPreview.setSurfaceProvider(previewView.surfaceProvider)
 			val capture = ImageCapture.Builder()
 				.setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
 				.setFlashMode(ImageCapture.FLASH_MODE_OFF)
@@ -405,27 +433,29 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 				.setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
 				.build()
 			analysis.setAnalyzer(analysisExecutor) { analyze(it) }
-			provider.unbindAll()
-			var withGuide = true
-			camera = bindFirst(provider, listOf(
-				Pair(cameraSelector, listOf(preview, capture, analysis)),
-				Pair(CameraSelector.DEFAULT_BACK_CAMERA, listOf(preview, capture, analysis)),
-				Pair(cameraSelector, listOf(preview, capture)),
-				Pair(CameraSelector.DEFAULT_BACK_CAMERA, listOf(preview, capture)),
-			)) { i ->
-				if (i % 2 == 1) extensionName = ""      // an extension that can't run with these use cases: plain camera + burst
-				withGuide = i < 2
+			// best first: the night mode with the guidance's own small copy (few phones stream it next
+			// to a night mode), the night mode with the guidance reading the preview, then the plain
+			// camera the same two ways
+			val setups = ArrayList<Setup>()
+			if (night != null) {
+				if (nightAnalysis) setups.add(Setup(night, night = true, analysis = true))
+				setups.add(Setup(night, night = true, analysis = false))
 			}
-			// the live picture must not cost the photo its resolution (a phone that can't stream
-			// three sizes at once may lower the capture): then the photo wins, without guidance
+			setups.add(Setup(CameraSelector.DEFAULT_BACK_CAMERA, night = false, analysis = true))
+			setups.add(Setup(CameraSelector.DEFAULT_BACK_CAMERA, night = false, analysis = false))
+			fun previewOf(s: Setup): Preview = if (s.night) nightPreview else preview
+			fun useCases(s: Setup): List<UseCase> = if (s.analysis) listOf(previewOf(s), capture, analysis) else listOf(previewOf(s), capture)
+			var chosen = setups.last()
+			camera = bindFirst(provider, setups.map { Pair(it.selector, useCases(it)) }) { i -> chosen = setups[i] }
+			// the small copy must not cost the photo its resolution (a phone that can't stream three
+			// sizes at once may lower the capture): then the guidance reads the preview instead
 			val longSide = capture.resolutionInfo?.resolution?.let { max(it.width, it.height) } ?: 0
-			if (withGuide && longSide in 1 until MIN_CAPTURE_LONG) {
-				camera = bindFirst(provider, listOf(
-					Pair(cameraSelector, listOf(preview, capture)),
-					Pair(CameraSelector.DEFAULT_BACK_CAMERA, listOf(preview, capture)),
-				)) { i -> if (i == 1) extensionName = "" }
-				withGuide = false
+			if (chosen.analysis && longSide in 1 until MIN_CAPTURE_LONG) {
+				val rest = setups.filter { !it.analysis && (chosen.night || !it.night) }
+				camera = bindFirst(provider, rest.map { Pair(it.selector, useCases(it)) }) { i -> chosen = rest[i] }
 			}
+			extensionName = if (chosen.night) "Night" else ""
+			previewUseCase = previewOf(chosen)
 			imageCapture = capture
 			capture.resolutionInfo?.resolution?.let { captureLong = max(it.width, it.height) }
 			focalPx = focalLengthPx()
@@ -433,17 +463,19 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 				torchButton.visibility = View.GONE
 				torchDecided = true
 			}
-			if (!withGuide) {
-				autoButton.visibility = View.GONE
-				torchOn = true                 // no live picture to judge the light by: the old behaviour
-				torchDecided = true
+			if (chosen.night) {
+				torchDecided = true            // the night mode copes with dim light; the torch's spot only costs (the button still works)
 			}
 			applyTorch()
 			val ev = applyExposure()
 			statusBase = (if (extensionName.isEmpty()) "Burst $BURST" else extensionName) +
 				(if (ev != 0f) " · %+.1f EV".format(ev) else "") +
-				(capture.resolutionInfo?.resolution?.let { " · ${it.width}×${it.height}" } ?: "")
+				(capture.resolutionInfo?.resolution?.let { " · ${it.width}×${it.height}" } ?: "") +
+				(if (chosen.analysis) "" else " · preview guide")
 			status.text = statusBase
+			guideFromPreview = !chosen.analysis
+			previewView.removeCallbacks(previewGuide)
+			if (guideFromPreview) previewView.postDelayed(previewGuide, 300)
 			if (torchDecided) return
 			// decide the torch once the exposure has settled
 			previewView.postDelayed({ decideTorch() }, 1300)
@@ -491,8 +523,10 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 		status.text = statusBase
 	}
 
-	// darker by EXPOSURE_EV where the camera allows exposure compensation; returns what was set
+	// darker by EXPOSURE_EV where the camera allows exposure compensation; returns what was set.
+	// Not in the night mode: it sets its own exposure (the camera app's night photo was at 0 EV)
 	private fun applyExposure(): Float {
+		if (extensionName.isNotEmpty()) return 0f
 		val state = camera?.cameraInfo?.exposureState ?: return 0f
 		if (!state.isExposureCompensationSupported) return 0f
 		val step = state.exposureCompensationStep.toFloat()
@@ -530,6 +564,10 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 	private fun violet(r: Int, g: Int, b: Int): Boolean =
 		b * 100 > g * 118 && r * 100 > g * 103 && b * 100 >= r * 65 && b - g > 10
 
+	// ...and its strict one (DialReader._is_violet)
+	private fun strictViolet(r: Int, g: Int, b: Int): Boolean =
+		b * 100 > g * 127 && r * 100 > g * 108 && b * 100 >= r * 75 && b - g > 14
+
 	private fun analyze(image: ImageProxy) {
 		try {
 			val now = SystemClock.elapsedRealtime()
@@ -537,100 +575,224 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 			lastAnalysis = now
 			val plane = image.planes[0]
 			val buf = plane.buffer
-			val rowStride = plane.rowStride
-			val px = plane.pixelStride
-			val w = image.width
-			val h = image.height
 			buf.rewind()
 			if (analysisBytes.size < buf.remaining()) analysisBytes = ByteArray(buf.remaining())
 			buf.get(analysisBytes, 0, buf.remaining())
-			val data = analysisBytes
-			if (analysisSeen.size < w * h) analysisSeen = ByteArray(w * h) else java.util.Arrays.fill(analysisSeen, 0, w * h, 0)
-			val seen = analysisSeen
-			fun isV(x: Int, y: Int): Boolean {
-				val o = y * rowStride + x * px
-				return violet(data[o].toInt() and 255, data[o + 1].toInt() and 255, data[o + 2].toInt() and 255)
-			}
-			val blobs = ArrayList<FloatArray>()      // x, y (analysis px, upright later), area
-			var y = 0
-			while (y < h) {
-				for (x in 0 until w) {
-					val i = y * w + x
-					if (seen[i].toInt() != 0 || !isV(x, y)) continue
-					var sp = 0
-					stack[sp++] = i
-					seen[i] = 1
-					var count = 0
-					var sx = 0f
-					var sy = 0f
-					var minX = x
-					var maxX = x
-					var minY = y
-					var maxY = y
-					while (sp > 0) {
-						val p = stack[--sp]
-						val qx = p % w
-						val qy = p / w
-						count++
-						sx += qx
-						sy += qy
-						minX = min(minX, qx); maxX = max(maxX, qx); minY = min(minY, qy); maxY = max(maxY, qy)
-						// a big violet patch is flooded whole (and dropped below): stopping early left
-						// pieces of it behind that counted as diamonds
-						for (n in intArrayOf(p - 1, p + 1, p - w, p + w)) {
-							if (n < 0 || n >= w * h || seen[n].toInt() != 0) continue
-							if ((n == p - 1 && qx == 0) || (n == p + 1 && qx == w - 1)) continue
-							if (isV(n % w, n / w)) {
-								seen[n] = 1
-								if (sp >= stack.size) stack = stack.copyOf(stack.size * 2)
-								stack[sp++] = n
-							}
-						}
-					}
-					val bw = maxX - minX + 1
-					val bh = maxY - minY + 1
-					if (count < 2 || count > 900 || max(bw, bh) > 2.5f * min(bw, bh)) continue
-					blobs.add(floatArrayOf(sx / count, sy / count, count.toFloat()))
-				}
-				y += 2
-			}
-			// px per mm in the photo from each diamond's area (the kite is ~2.2 mm^2; blur and the
-			// colour test take a little off, hence 1.8)
-			val f = captureLong.toFloat() / max(w, h)
-			val scales = blobs.map { sqrt(it[2] / 1.8f) * f }
-			// the stray violet speck of a busy card is far smaller than the diamonds: judge by the
-			// bigger half
-			val sorted = scales.sorted()
-			val good = scales.count { it >= GOOD_PX_PER_MM }
-			val typical = if (sorted.isEmpty()) 0f else sorted[(sorted.size * 3) / 4]
-			val rot = image.imageInfo.rotationDegrees
-			val pts = FloatArray(blobs.size * 3)
-			for ((k, b) in blobs.withIndex()) {
-				// upright (as shown) coordinates in 0..1
-				val (ux, uy) = when (rot) {
-					90 -> Pair((h - b[1]) / h, b[0] / w)
-					180 -> Pair((w - b[0]) / w, (h - b[1]) / h)
-					270 -> Pair(b[1] / h, (w - b[0]) / w)
-					else -> Pair(b[0] / w, b[1] / h)
-				}
-				pts[k * 3] = ux
-				pts[k * 3 + 1] = uy
-				pts[k * 3 + 2] = if (scales[k] >= GOOD_PX_PER_MM) 1f else 0f
-			}
-			val upright = if (rot == 90 || rot == 270) Pair(h, w) else Pair(w, h)
-			// how far the picture would smear right now: the fastest turn of the last 0.4 s x
-			// exposure time x focal length in pixels
-			val omega = synchronized(gyro) { gyro.maxOfOrNull { it.second } ?: 0f }
-			val t = if (exposureNs > 0) exposureNs / 1e9f else 1f / 60f
-			val fpx = if (focalPx > 0f) focalPx else captureLong * 0.8f
-			val smear = omega * t * fpx
-			val hasGyro = sensorManager?.getDefaultSensor(Sensor.TYPE_GYROSCOPE) != null
-			runOnUiThread { guide(pts, upright, blobs.size, good, typical, smear, hasGyro) }
+			analyzeFrame(analysisBytes, image.width, image.height, plane.rowStride, plane.pixelStride, image.imageInfo.rotationDegrees)
 		} catch (e: Exception) {
 			// guidance is a help only: never let it break the camera
 		} finally {
 			image.close()
 		}
+	}
+
+	// Without the small copy (the night mode on most phones): the preview as shown on screen, a few
+	// times a second — the 4:3 picture inside the letterboxed view, scaled to the small copy's size
+	// so the same figures hold.
+	private val previewGuide = object : Runnable {
+		override fun run() {
+			if (isFinishing || isDestroyed || !guideFromPreview) return
+			grabPreview()
+			previewView.postDelayed(this, 160)
+		}
+	}
+
+	private fun grabPreview() {
+		if (busy || !analysing.compareAndSet(false, true)) return
+		var handedOver = false
+		try {
+			val info = previewUseCase?.resolutionInfo ?: return
+			val turned = info.rotationDegrees % 180 != 0
+			val uw = if (turned) info.cropRect.height() else info.cropRect.width()
+			val uh = if (turned) info.cropRect.width() else info.cropRect.height()
+			if (uw <= 0 || uh <= 0) return
+			val full = previewView.bitmap ?: return
+			val s = min(full.width.toFloat() / uw, full.height.toFloat() / uh)
+			val dw = (uw * s).toInt().coerceIn(1, full.width)
+			val dh = (uh * s).toInt().coerceIn(1, full.height)
+			val left = (full.width - dw) / 2
+			val top = (full.height - dh) / 2
+			analysisExecutor.execute {
+				try {
+					val tw = if (dw >= dh) 1440 else (1440f * dw / dh).roundToInt()
+					val th = if (dw >= dh) (1440f * dh / dw).roundToInt() else 1440
+					val part = Bitmap.createBitmap(full, left, top, dw, dh)
+					val small = Bitmap.createScaledBitmap(part, tw, th, true)
+					val rowBytes = small.rowBytes
+					if (previewBytes.size < small.byteCount) previewBytes = ByteArray(small.byteCount)
+					small.copyPixelsToBuffer(ByteBuffer.wrap(previewBytes))   // ARGB_8888: R, G, B, A in memory
+					if (small !== part) small.recycle()
+					if (part !== full) part.recycle()
+					full.recycle()
+					analyzeFrame(previewBytes, tw, th, rowBytes, 4, 0)
+				} catch (e: Throwable) {
+					// a help only
+				} finally {
+					analysing.set(false)
+				}
+			}
+			handedOver = true
+		} catch (e: Throwable) {
+			// a help only
+		} finally {
+			if (!handedOver) analysing.set(false)
+		}
+	}
+
+	// The violet diamonds in one small picture of the live view, for the rings and the guidance.
+	// Not every violet speck is a diamond: busy card art (pink text panels, magenta tints) gave
+	// hundreds of rings, and its specks dragged the size estimate down to "Move closer" (first
+	// real tests, 2026-11-01). Labelled by the dials the reader found on 14 real photos of
+	// 2026-10/11, a diamond
+	//  - is truly violet somewhere (2+ pixels pass the reader's strict test),
+	//  - stands alone: at most one other violet speck within 5 of its own mm (the dial's lights
+	//    are cream or dark; the art's specks come in crowds),
+	//  - is set off from its surround: under 45 % of the ring round it magenta-ish, and its middle
+	//    bluer than that ring (b - g) by 15 or more,
+	//  - is not tiny next to the others (at least 0.3 x the typical diamond's area).
+	// That kept 101 of the 121 diamonds and ~6 specks a photo (from ~430).
+	private fun analyzeFrame(data: ByteArray, w: Int, h: Int, rowStride: Int, px: Int, rot: Int) {
+		if (analysisSeen.size < w * h) analysisSeen = ByteArray(w * h) else java.util.Arrays.fill(analysisSeen, 0, w * h, 0)
+		val seen = analysisSeen
+		fun isV(x: Int, y: Int): Boolean {
+			val o = y * rowStride + x * px
+			return violet(data[o].toInt() and 255, data[o + 1].toInt() and 255, data[o + 2].toInt() and 255)
+		}
+		val blobs = ArrayList<FloatArray>()      // x, y (analysis px, upright later), area, strictly violet px
+		var y = 0
+		while (y < h) {
+			for (x in 0 until w) {
+				val i = y * w + x
+				if (seen[i].toInt() != 0 || !isV(x, y)) continue
+				var sp = 0
+				stack[sp++] = i
+				seen[i] = 1
+				var count = 0
+				var strict = 0
+				var sx = 0f
+				var sy = 0f
+				var minX = x
+				var maxX = x
+				var minY = y
+				var maxY = y
+				while (sp > 0) {
+					val p = stack[--sp]
+					val qx = p % w
+					val qy = p / w
+					count++
+					sx += qx
+					sy += qy
+					minX = min(minX, qx); maxX = max(maxX, qx); minY = min(minY, qy); maxY = max(maxY, qy)
+					val o = qy * rowStride + qx * px
+					if (strictViolet(data[o].toInt() and 255, data[o + 1].toInt() and 255, data[o + 2].toInt() and 255)) strict++
+					// a big violet patch is flooded whole (and dropped below): stopping early left
+					// pieces of it behind that counted as diamonds
+					for (n in intArrayOf(p - 1, p + 1, p - w, p + w)) {
+						if (n < 0 || n >= w * h || seen[n].toInt() != 0) continue
+						if ((n == p - 1 && qx == 0) || (n == p + 1 && qx == w - 1)) continue
+						if (isV(n % w, n / w)) {
+							seen[n] = 1
+							if (sp >= stack.size) stack = stack.copyOf(stack.size * 2)
+							stack[sp++] = n
+						}
+					}
+				}
+				val bw = maxX - minX + 1
+				val bh = maxY - minY + 1
+				if (count < 2 || count > 900 || max(bw, bh) > 2.5f * min(bw, bh)) continue
+				blobs.add(floatArrayOf(sx / count, sy / count, count.toFloat(), strict.toFloat()))
+			}
+			y += 2
+		}
+		val found = ArrayList<FloatArray>()
+		for (b in blobs) {
+			if (b[2] < 3f || b[3] < 2f) continue
+			val reach = 5f * max(1f, sqrt(b[2] / 1.8f))     // 5 mm if this is a diamond
+			var crowd = 0
+			for (o in blobs) {
+				if (o === b) continue
+				val dx = o[0] - b[0]
+				val dy = o[1] - b[1]
+				if (dx * dx + dy * dy < reach * reach && ++crowd > 1) break
+			}
+			if (crowd <= 1 && setOff(data, w, h, rowStride, px, b)) found.add(b)
+		}
+		val areas = found.map { it[2] }.sorted()
+		val typicalArea = if (areas.isEmpty()) 0f else areas[min(areas.size - 1, (areas.size * 3) / 4)]
+		val diamonds = found.filter { it[2] >= 0.3f * typicalArea }
+		// px per mm in the photo from each diamond's area (the kite is ~2.2 mm^2; blur and the
+		// colour test take a little off, hence 1.8)
+		val f = captureLong.toFloat() / max(w, h)
+		val scales = diamonds.map { sqrt(it[2] / 1.8f) * f }
+		// a far, blurred diamond reads smaller than it is: judge by the bigger ones
+		val sorted = scales.sorted()
+		val good = scales.count { it >= GOOD_PX_PER_MM }
+		val typical = if (sorted.isEmpty()) 0f else sorted[(sorted.size * 3) / 4]
+		val pts = FloatArray(diamonds.size * 2)
+		for ((k, b) in diamonds.withIndex()) {
+			// upright (as shown) coordinates in 0..1
+			val (ux, uy) = when (rot) {
+				90 -> Pair((h - b[1]) / h, b[0] / w)
+				180 -> Pair((w - b[0]) / w, (h - b[1]) / h)
+				270 -> Pair(b[1] / h, (w - b[0]) / w)
+				else -> Pair(b[0] / w, b[1] / h)
+			}
+			pts[k * 2] = ux
+			pts[k * 2 + 1] = uy
+		}
+		val upright = if (rot == 90 || rot == 270) Pair(h, w) else Pair(w, h)
+		// how far the picture would smear right now: the fastest turn of the last 0.4 s x
+		// exposure time x focal length in pixels
+		val omega = synchronized(gyro) { gyro.maxOfOrNull { it.second } ?: 0f }
+		val t = if (exposureNs > 0) exposureNs / 1e9f else 1f / 60f
+		val fpx = if (focalPx > 0f) focalPx else captureLong * 0.8f
+		val smear = omega * t * fpx
+		val hasGyro = sensorManager?.getDefaultSensor(Sensor.TYPE_GYROSCOPE) != null
+		runOnUiThread { guide(pts, upright, diamonds.size, good, typical, smear, hasGyro) }
+	}
+
+	// A violet blob against its surround (see analyzeFrame): the ring 1.5-3 blob radii out, and
+	// the blob's middle.
+	private fun setOff(data: ByteArray, w: Int, h: Int, rowStride: Int, px: Int, b: FloatArray): Boolean {
+		val rad = sqrt(b[2] / Math.PI.toFloat())
+		val r0 = 1.5f * rad + 1f
+		val r1 = 3f * rad + 2f
+		val rMid = max(1f, 0.8f * rad)
+		val x0 = max(0, (b[0] - r1 - 1f).toInt())
+		val x1 = min(w, (b[0] + r1 + 2f).toInt())
+		val y0 = max(0, (b[1] - r1 - 1f).toInt())
+		val y1 = min(h, (b[1] + r1 + 2f).toInt())
+		var ring = 0
+		var magenta = 0
+		var ringBg = 0
+		var mid = 0
+		var midBg = 0
+		for (y in y0 until y1) {
+			for (x in x0 until x1) {
+				val dx = x - b[0]
+				val dy = y - b[1]
+				val d = sqrt(dx * dx + dy * dy)
+				val inRing = d >= r0 && d <= r1
+				val inMid = d <= rMid
+				if (!inRing && !inMid) continue
+				val o = y * rowStride + x * px
+				val r = data[o].toInt() and 255
+				val g = data[o + 1].toInt() and 255
+				val bl = data[o + 2].toInt() and 255
+				if (inRing) {
+					ring++
+					ringBg += bl - g
+					if (bl * 100 > g * 108 && r > g) magenta++
+				}
+				if (inMid) {
+					mid++
+					midBg += bl - g
+				}
+			}
+		}
+		val ringMean = if (ring > 0) ringBg.toFloat() / ring else 0f
+		val midMean = if (mid > 0) midBg.toFloat() / mid else 0f
+		return (ring == 0 || magenta < 0.45f * ring) && midMean - max(ringMean, 0f) >= 15f
 	}
 
 	private fun guide(pts: FloatArray, upright: Pair<Int, Int>, n: Int, good: Int, typical: Float, smear: Float, hasGyro: Boolean) {
@@ -670,8 +832,8 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 		}
 	}
 
-	// Rings round the diamonds seen (green: big enough to read; yellow: too small) and the auto
-	// shot's countdown round the shutter.
+	// Green rings round the diamonds seen, and round the shutter the auto shot's countdown or a
+	// night shot's progress.
 	private class GuideOverlay(context: Context) : View(context) {
 		private var pts = FloatArray(0)
 		private var rect = RectF()
@@ -698,11 +860,11 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 			super.onDraw(canvas)
 			val d = resources.displayMetrics.density
 			ring.strokeWidth = 2.2f * d
+			ring.color = Color.argb(230, 120, 255, 150)
 			var k = 0
-			while (k + 2 < pts.size) {
-				ring.color = if (pts[k + 2] > 0f) Color.argb(230, 120, 255, 150) else Color.argb(230, 255, 210, 80)
+			while (k + 1 < pts.size) {
 				canvas.drawCircle(rect.left + pts[k] * rect.width(), rect.top + pts[k + 1] * rect.height(), 9f * d, ring)
-				k += 3
+				k += 2
 			}
 			if (progress > 0f && shutterAt.size == 3) {
 				arc.strokeWidth = 4f * d
@@ -725,7 +887,10 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 		shutter.alpha = 0.4f
 		overlay.progress = 0f
 		overlay.show(FloatArray(0), Pair(4, 3), previewView.width, previewView.height)
-		guideLabel.visibility = View.INVISIBLE
+		// hold still until the photo is taken (a night shot takes a few seconds)
+		guideLabel.text = guideTexts[3]
+		guideLabel.setTextColor(Color.rgb(140, 255, 160))
+		guideLabel.visibility = View.VISIBLE
 		val out = File(path)
 		out.parentFile?.mkdirs()
 		// focus and expose on the middle first; shoot when that's done (or after a second at most)
@@ -749,11 +914,21 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 		previewView.postDelayed({ go() }, 1000)
 	}
 
-	// The phone's multi-frame mode: one capture. Otherwise BURST captures: the sharpest one is the
+	// The phone's night mode: one capture. Otherwise BURST captures: the sharpest one is the
 	// photo, the others stay next to it as <name>_alt1.jpg, <name>_alt2.jpg for the game's second look.
 	private fun capture(capture: ImageCapture, out: File) {
 		if (extensionName.isNotEmpty()) {
-			takeOne(capture, out) { ok -> if (ok) done(out) else failed() }
+			takeOne(capture, out) { ok ->
+				if (ok) {
+					done(out)
+				} else {
+					// the night mode failed on this phone: the plain camera and the burst from now on
+					// (AUTO stays: the next shot is a different kind)
+					out.delete()
+					provider?.let { if (!isFinishing) bindCamera(it, null, false) }
+					failed(keepAuto = true)
+				}
+			}
 			return
 		}
 		val shots = (0 until BURST).map { File(out.parentFile, "burst_${it}_" + out.name) }
@@ -811,6 +986,12 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 			object : ImageCapture.OnImageSavedCallback {
 				override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) = then(true)
 				override fun onError(exception: ImageCaptureException) = then(false)
+				// a night shot's processing, where the phone reports it: round the shutter
+				override fun onCaptureProcessProgressed(progress: Int) {
+					overlay.shutterAt = floatArrayOf(shutter.x + shutter.width / 2f, shutter.y + shutter.height / 2f, shutter.width / 2f + dp(6f))
+					overlay.progress = progress.coerceIn(1, 100) / 100f
+					overlay.invalidate()
+				}
 			})
 	}
 
@@ -845,11 +1026,13 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 		finish()
 	}
 
-	private fun failed() {
+	private fun failed(keepAuto: Boolean = false) {
 		busy = false
 		readySince = 0L
 		shutter.alpha = 1f
-		if (lastShotAuto && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+		overlay.progress = 0f
+		overlay.invalidate()
+		if (!keepAuto && lastShotAuto && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
 			// a failed automatic shot would only fail again and again: AUTO off for now (not saved),
 			// the shutter is still there (not when the shots failed because the player left the app)
 			autoShoot = false
