@@ -76,6 +76,8 @@ const STRIP_SWAP_MIN: float = 0.45       # ...if it fits well itself (else it's 
 # strips are near twins, so the true card can trail one by a hair)
 const STRIP_WEAK_MIN: float = 0.4
 const STRIP_WEAK_SLACK: float = 0.01
+const STRIP_WEAK_SWAP_MARGIN: float = 0.02   # a weak misread's stand-in must beat every other card by this
+const STRIP_WEAK_TRY: float = 0.15           # ...and is only looked for if the reading's own strip looks like a card at all
 const STRIP_SURE_GAP: float = 0.7        # readings this clean are never dropped by their strip alone
 # weak readings (below the limits above; kept only if their strip confirms them): the split as
 # a share of the dial's own bright-dark range, an absolute floor, and unlit sockets still holes
@@ -392,15 +394,18 @@ func run(source: Image) -> Array[Dictionary]:
 			angles.append(near.z + deg_to_rad(float(d)))
 		# dial sizes for this spot: the perspective slope's estimate and the photo-wide
 		# median — the slope can misjudge parts of the photo far from the dials it was
-		# fitted on, so both are tried
+		# fitted on, so both are tried. A decode only counts if its card type's ring is that
+		# size here (the size check, inside the search): a sector ring read at a size where it
+		# decodes to some tech would otherwise win and hide the sector's own reading.
 		var radii2: Array[float] = []
-		for sc: float in [_local_scale(b.x, b.y), _scale]:
+		var lsc: float = _local_scale(b.x, b.y)
+		for sc: float in [lsc, _scale]:
 			for deck: String in DECK_R_MM:
 				for f: float in [0.92, 0.96, 1.0, 1.04, 1.08]:   # +-8 %: dials near the photo edges stray from the fitted slope
 					var rr: float = roundf(float(DECK_R_MM[deck]) * sc * f * 2.0) / 2.0
 					if not radii2.has(rr):
 						radii2.append(rr)
-		var e: Dictionary = _search(b.x, b.y, radii2, angles, _circle_only if tiny else _shapes)
+		var e: Dictionary = _search(b.x, b.y, radii2, angles, _circle_only if tiny else _shapes, Vector2(lsc, _scale))
 		if not e.is_empty():
 			e["mx"] = b.x
 			e["my"] = b.y
@@ -507,43 +512,71 @@ func _strip_verdict(d: Dictionary) -> bool:
 		if v > own:
 			own = v
 			at = s
-	if is_weak and own < STRIP_WEAK_MIN and not debug_strips:   # (debug: score them all, for tuning)
-		d["strip"] = own
-		if debug_strips:
-			print("    strip %4d at (%d, %d) gap %.2f weak: own %.3f -> weak rejected" % [code, int((d["center"] as Vector2).x), int((d["center"] as Vector2).y), float(d["gap"]), own])
-		return false
-	var pool: Array[int] = _deck_codes(deck) if is_weak else _neighbours(code, deck)
-	var other: float = -2.0
-	var other_code: int = 0
-	for c2: int in pool:
-		if c2 == code:
-			continue
-		var v2: float = _strip_ncc(ph[at], c2)
-		if v2 > other:
-			other = v2
-			other_code = c2
 	d["strip"] = own
 	var ok: bool = true
 	var why: String = "ok"
+	var other: float = -2.0
+	var other_code: int = 0
 	if is_weak:
-		ok = own >= STRIP_WEAK_MIN and own >= other - STRIP_WEAK_SLACK
+		# a weak reading whose strip doesn't fit may be a misread too: the neighbouring code that
+		# fits clearly better stands in, if it then beats every other card of its type by a margin
+		var cand: int = code
+		var cand_s: float = own
+		if own < STRIP_WEAK_MIN:
+			# (busy art that decoded scores ~0 against every card: no use trying neighbours)
+			if own < STRIP_WEAK_TRY:
+				cand = -1
+			for c2: int in (_neighbours(code, deck) if cand > 0 else []):
+				var v2: float = _strip_ncc(ph[at], c2)
+				if v2 > cand_s:
+					cand = c2
+					cand_s = v2
+			if cand <= 0 or cand == code or cand_s < STRIP_SWAP_MIN or cand_s - own <= STRIP_SWAP:
+				cand = -1
+		if cand > 0:
+			for c3: int in _deck_codes(deck):
+				if c3 == cand:
+					continue
+				var v3: float = _strip_ncc(ph[at], c3)
+				if v3 > other:
+					other = v3
+					other_code = c3
+			if cand == code:
+				ok = own >= STRIP_WEAK_MIN and own >= other - STRIP_WEAK_SLACK
+			else:
+				ok = cand_s >= other + STRIP_WEAK_SWAP_MARGIN
+		else:
+			ok = false
 		why = "weak accepted" if ok else "weak rejected"
-	elif other_code > 0 and other - own > STRIP_SWAP and other >= STRIP_SWAP_MIN:
-		var found_card: Dictionary = _cards[other_code]
-		d["code"] = other_code
-		d["card"] = found_card["card"]
-		d["is_advanced"] = bool(found_card["is_advanced"])
-		d["corrected"] = true
-		d["strip"] = other
-		why = "swapped from %d" % code
-	elif own < STRIP_PHANTOM and float(d["gap"]) < STRIP_SURE_GAP:
-		ok = false
-		why = "dropped"
+		if ok and cand != code:
+			_swap(d, cand, cand_s)
+			why = "weak, swapped from %d" % code
+	else:
+		for c2: int in _neighbours(code, deck):
+			var v2: float = _strip_ncc(ph[at], c2)
+			if v2 > other:
+				other = v2
+				other_code = c2
+		if other_code > 0 and other - own > STRIP_SWAP and other >= STRIP_SWAP_MIN:
+			_swap(d, other_code, other)
+			why = "swapped from %d" % code
+		elif own < STRIP_PHANTOM and float(d["gap"]) < STRIP_SURE_GAP:
+			ok = false
+			why = "dropped"
 	if debug_strips:
 		var c: Vector2 = d["center"]
 		print("    strip %4d at (%d, %d) gap %.2f%s: own %.3f, best other %d %.3f -> %s" % [code, int(c.x), int(c.y), float(d["gap"]),
 			" weak" if is_weak else "", own, other_code, other, why])
 	return ok
+
+# A reading taken over by another code (its strip fits that card).
+func _swap(d: Dictionary, code: int, score: float) -> void:
+	var found_card: Dictionary = _cards[code]
+	d["code"] = code
+	d["card"] = found_card["card"]
+	d["is_advanced"] = bool(found_card["is_advanced"])
+	d["corrected"] = true
+	d["strip"] = score
 
 # The photo under a reading's strip box at the atlas resolution plus a pixel all round (each
 # pixel a box average of STRIP_SUB^2 photo samples), as nine windows shifted by up to a pixel
@@ -826,20 +859,21 @@ func _lum(x: float, y: float) -> float:
 	return minf(float(_lum_data[o] + _lum_data[o + 1] + _lum_data[o + _w] + _lum_data[o + _w + 1]) / 1020.0 * _lum_gain, 1.0)
 
 # Best reading for the marker at (mx, my) over every dial shape, radius and facing given.
-func _search(mx: float, my: float, radii: Array[float], angles: Array[float], shapes: Array[PackedFloat32Array] = []) -> Dictionary:
+## size_at: (local, photo-wide) px per mm to hold decodes to their card type's ring size; zero = any.
+func _search(mx: float, my: float, radii: Array[float], angles: Array[float], shapes: Array[PackedFloat32Array] = [], size_at: Vector2 = Vector2.ZERO) -> Dictionary:
 	var best: Dictionary = {}
 	for shape: PackedFloat32Array in (shapes if not shapes.is_empty() else _shapes):
-		var e: Dictionary = _search_shape(mx, my, radii, angles, shape)
+		var e: Dictionary = _search_shape(mx, my, radii, angles, shape, size_at)
 		if not e.is_empty() and _better(e, best):
 			best = e
 			best["shape"] = shape
 	return best
 
-func _search_shape(mx: float, my: float, radii: Array[float], angles: Array[float], shape: PackedFloat32Array) -> Dictionary:
+func _search_shape(mx: float, my: float, radii: Array[float], angles: Array[float], shape: PackedFloat32Array, size_at: Vector2 = Vector2.ZERO) -> Dictionary:
 	var best: Dictionary = {}
 	for r: float in radii:
 		for th: float in angles:
-			var e: Dictionary = _evaluate(mx, my, r, th, shape)
+			var e: Dictionary = _evaluate(mx, my, r, th, shape, size_at)
 			if not e.is_empty() and _better(e, best):
 				best = e
 	if best.is_empty():
@@ -848,7 +882,7 @@ func _search_shape(mx: float, my: float, radii: Array[float], angles: Array[floa
 	var th0: float = float(best["th"])
 	for dr: float in [-1.0, -0.5, 0.0, 0.5, 1.0]:
 		for dth: int in range(-3, 4):
-			var e: Dictionary = _evaluate(mx, my, r0 + dr, th0 + deg_to_rad(float(dth)), shape)
+			var e: Dictionary = _evaluate(mx, my, r0 + dr, th0 + deg_to_rad(float(dth)), shape, size_at)
 			if not e.is_empty() and _better(e, best):
 				best = e
 	return best
@@ -856,7 +890,7 @@ func _search_shape(mx: float, my: float, radii: Array[float], angles: Array[floa
 # Dial hypothesis: on the undistorted (circle) dial the centre lies at distance r
 # from the marker in direction th; `shape` maps that circle onto the photo.
 # Returns {} unless it decodes to a real card's code.
-func _evaluate(mx: float, my: float, r: float, th: float, shape: PackedFloat32Array) -> Dictionary:
+func _evaluate(mx: float, my: float, r: float, th: float, shape: PackedFloat32Array, size_at: Vector2 = Vector2.ZERO) -> Dictionary:
 	var a11: float = shape[0]
 	var a12: float = shape[1]
 	var a21: float = shape[2]
@@ -902,6 +936,10 @@ func _evaluate(mx: float, my: float, r: float, th: float, shape: PackedFloat32Ar
 	var parity: int = 1 if vals[10] > thr else 0
 	if ones % 2 != parity or not _codes.has(code):
 		return {}
+	if size_at.x > 0.0:
+		var deck_r: float = float(DECK_R_MM[_codes[code]])
+		if absf(r / (deck_r * size_at.x) - 1.0) > SCALE_TOLERANCE and absf(r / (deck_r * size_at.y) - 1.0) > SCALE_TOLERANCE:
+			return {}
 	# rim halfway between neighbouring lights (15 deg either side): lit lights must
 	# stand out above it, unlit sockets must be holes below it
 	var c15: float = cos(deg_to_rad(15.0))
