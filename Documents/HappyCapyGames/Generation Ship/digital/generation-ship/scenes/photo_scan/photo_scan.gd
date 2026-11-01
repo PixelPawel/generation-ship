@@ -786,6 +786,11 @@ func _on_photo_selected(path: String) -> void:
 			_status_label.text += " · %d card%s not next to a sector left out" % [loose, "" if loose == 1 else "s"]
 		if placeholders > 0:
 			_status_label.text += " · %d more with the light ring covered, added as Hibernators — fix with Edit" % placeholders
+		var unsure: int = 0
+		for e: Dictionary in _sectors:
+			unsure += (e.get("unsure_techs", []) as Array).size() + (1 if bool(e.get("unsure_sector", false)) else 0)
+		if unsure > 0:
+			_status_label.text += " · %d card%s marked ? — check with Edit" % [unsure, "" if unsure == 1 else "s"]
 	_refresh_sector_list()
 
 ## A recognised group ([sector, techs…] from TableauReader, sector {} if none was
@@ -795,11 +800,14 @@ func _sector_entry_from_group(g: Array) -> Dictionary:
 	if sd.is_empty():
 		return {}
 	var techs: Array[CardData] = []
+	var unsure: Array[int] = []      # techs the reader wasn't sure of (marked "?" in the overview)
 	for i: int in range(1, g.size()):
 		if techs.size() >= SECTOR_SLOT_COUNT - 1:
 			push_warning("Scan Tableau: more cards than a sector can hold — dropping the extras")
 			break
 		techs.append((g[i] as Dictionary)["card"])
+		if _is_unsure(g[i]):
+			unsure.append(techs.size() - 1)
 	var tucked: Array[Dictionary] = []
 	for d: Dictionary in (sd.get("archived_up", []) as Array):
 		tucked.append({"data": d["card"], "face_up": true})
@@ -816,7 +824,14 @@ func _sector_entry_from_group(g: Array) -> Dictionary:
 		"techs": techs,
 		"tucked_cards": tucked,
 		"stored_supply": stored,
+		"unsure_techs": unsure,
+		"unsure_sector": _is_unsure(sd),
 	}
+
+## A reading DialReader only took on its strip's word (a weak dial) or swapped for a
+## neighbouring code: worth a look before trusting the score.
+static func _is_unsure(d: Dictionary) -> bool:
+	return bool(d.get("weak", false)) or bool(d.get("corrected", false))
 
 ## The edited sector was already taken out of _sectors by Edit, so deleting just
 ## drops it instead of putting it back.
@@ -1167,6 +1182,9 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 	stack.add_child(sector_thumb)
 	sector_thumb.position = Vector2(0.0, stack_h - sector_h)   # after add_child, so layout can't override it
 	sector_thumb.size = Vector2(long_px, sector_h)
+	if bool(entry.get("unsure_sector", false)):
+		_add_unsure_badge(sector_thumb, Vector2(long_px, sector_h), TableauReader.DIAL_MM["sector"] / TableauReader.SIZE_MM["sector"])
+	var unsure: Array = entry.get("unsure_techs", [])
 	var tech_x: float = roundf((long_px - short_px) * 0.3)
 	var y: float = stack_h - sector_h - long_px + SHIP_SECTOR_COVERED * sector_h
 	for k: int in techs.size():
@@ -1175,6 +1193,9 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 		stack.add_child(thumb)
 		thumb.position = Vector2(tech_x, roundf(y))
 		thumb.size = tech_size
+		if unsure.has(k):
+			var deck: String = "expedition" if cd.card_type == CardData.CardType.EXPEDITION else "tech"
+			_add_unsure_badge(thumb, tech_size, TableauReader.DIAL_MM[deck] / TableauReader.SIZE_MM[deck])
 		y -= SHIP_TECH_SHOWN * long_px
 
 	# stored supply, then archived cards on a line of their own, then Edit
@@ -1250,6 +1271,29 @@ func _make_summary_thumb(art_path: String, tooltip: String, thumb_size: Vector2,
 		tw.tween_callback(func(): thumb.z_index = base_z)
 		hover_tween_cell[0] = tw)
 	return thumb
+
+## A yellow "?" over a card's light ring: the scan wasn't sure of this card (check it with Edit).
+func _add_unsure_badge(thumb: TextureRect, thumb_size: Vector2, at: Vector2) -> void:
+	var d: float = maxf(14.0, roundf(minf(thumb_size.x, thumb_size.y) * 0.24))
+	var badge: PanelContainer = PanelContainer.new()
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = Color(1.0, 0.8, 0.2)
+	style.border_color = Color(0.1, 0.08, 0.02)
+	style.set_border_width_all(maxi(1, roundi(d * 0.08)))
+	style.set_corner_radius_all(roundi(d / 2.0))
+	badge.add_theme_stylebox_override("panel", style)
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var lbl: Label = Label.new()
+	lbl.text = "?"
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", roundi(d * 0.72))
+	lbl.add_theme_color_override("font_color", Color(0.1, 0.08, 0.02))
+	badge.add_child(lbl)
+	thumb.add_child(badge)
+	badge.size = Vector2(d, d)                       # after add_child, so layout can't override it
+	badge.position = thumb_size * at - badge.size / 2.0
+	thumb.tooltip_text += "  (?)"
 
 func _make_summary_supply_badge(color_int: int, amount: int) -> Control:
 	var box: HBoxContainer = HBoxContainer.new()

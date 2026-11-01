@@ -24,6 +24,7 @@ func _scan(path: String) -> void:
 	var t0: int = Time.get_ticks_msec()
 	var reader: DialReader = DialReaderScript.create()
 	reader.debug = OS.get_environment("SCAN_DEBUG") != ""
+	reader.debug_strips = OS.get_environment("SCAN_STRIPS") != ""
 	# SCAN_PROBES="x,y;x,y": photo spots near dial markers to search exhaustively
 	for pp: String in OS.get_environment("SCAN_PROBES").split(";", false):
 		var xy: PackedStringArray = pp.split(",")
@@ -38,7 +39,8 @@ func _scan(path: String) -> void:
 	print("=== %s  (%d dials, %.1f s)  cards %.1f s, tokens/archive %.1f s" % [path.get_file(), dials.size(), (Time.get_ticks_msec() - t0) / 1000.0, (t1 - t0) / 1000.0, (Time.get_ticks_msec() - t1) / 1000.0])
 	for d: Dictionary in dials:
 		var c: Vector2 = d["center"]
-		print("  dial %4d %-24s at (%4d, %4d) r %.1f gap %.2f dot %.2f" % [int(d.get("code", 0)), _card_name(d), int(c.x), int(c.y), float(d["radius"]), float(d.get("gap", 0.0)), float(d.get("dot", 0.0))])
+		var a: PackedFloat32Array = d.get("shape", PackedFloat32Array([1.0, 0.0, 0.0, 1.0]))
+		print("  dial %4d %-24s at (%4d, %4d) r %.1f gap %.2f dot %.2f th %.4f shape %.3f,%.3f,%.3f,%.3f" % [int(d.get("code", 0)), _card_name(d), int(c.x), int(c.y), float(d["radius"]), float(d.get("gap", 0.0)), float(d.get("dot", 0.0)), float(d.get("th", 0.0)), a[0], a[1], a[2], a[3]])
 	for g: Array in groups:
 		var sd: Dictionary = g[0]
 		var names: Array[String] = []

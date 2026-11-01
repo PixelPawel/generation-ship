@@ -97,6 +97,10 @@ var placeholder_card: CardData = null
 var _art: Array[Image] = []       # per dial: its card art at ART_PPM (RGB8), or null
 var _backs: Array[Image] = []     # tech back art at ART_PPM (EN + the game language)
 var _art_f: Array[PackedFloat32Array] = []   # _art as blurred floats (empty where no art)
+# the same cards' EN art when the game runs in another language (the printed cards may be EN):
+# a pixel matching either counts as explained
+var _art_en: Array[Image] = []
+var _art_en_f: Array[PackedFloat32Array] = []
 var _art_size: Array[Vector2i] = []
 var _back_f: PackedFloat32Array = PackedFloat32Array()
 var _back_size: Vector2i = Vector2i.ZERO
@@ -105,7 +109,6 @@ var _token_imgs: Array[Image] = []   # the six token arts (RGBA8), TOKEN_FILES o
 var _templates: Array = []
 var _photo: PackedByteArray = PackedByteArray()
 var _pw: int = 0
-var _photo_gain: float = 1.0      # exposure: the photo's brightest 2% -> 245 (for colour tests)
 var _ph: int = 0
 var _done_mutex: Mutex = Mutex.new()
 var _done: int = 0
@@ -119,6 +122,8 @@ static func create(dials: Array[Dictionary]) -> TableauReader:
 		var path: String = cd.adv_local_art_path if bool(d.get("is_advanced", false)) else cd.local_art_path
 		var size_mm: Vector2 = SIZE_MM[deck_of(d)]
 		reader._art.append(_load_art(path, size_mm))
+		var en_path: String = path.replace("/%s/" % TranslationServer.get_locale().substr(0, 2).to_upper(), "/EN/")
+		reader._art_en.append(_load_art(en_path, size_mm) if en_path != path else null)
 	var langs: Array[String] = ["EN"]
 	var lang: String = TranslationServer.get_locale().substr(0, 2).to_upper()
 	if lang != "EN":
@@ -179,30 +184,20 @@ static func card_frame(d: Dictionary) -> Transform2D:
 func analyze(photo: Image, dials: Array[Dictionary], markers: Array[Vector3] = []) -> Array:
 	progress = 0.0
 	_photo = photo.get_data()
-	var hist: PackedInt32Array = PackedInt32Array()
-	hist.resize(256)
-	var n_px: int = 0
-	for o: int in range(0, _photo.size() - 2, 3 * 37):
-		hist[maxi(_photo[o], maxi(_photo[o + 1], _photo[o + 2]))] += 1
-		n_px += 1
-	var acc: int = 0
-	var p98: int = 255
-	for v: int in range(255, -1, -1):
-		acc += hist[v]
-		if float(acc) >= float(n_px) * 0.02:
-			p98 = v
-			break
-	_photo_gain = 245.0 / maxf(float(p98), 60.0)
 	_pw = photo.get_width()
 	_ph = photo.get_height()
 	# card art as blurred float arrays, all cards at once on every core
 	_art_f.clear()
 	_art_f.resize(_art.size())
+	_art_en_f.clear()
+	_art_en_f.resize(_art.size())
 	_art_size.clear()
 	for img: Image in _art:
 		_art_size.append(Vector2i(img.get_width(), img.get_height()) if img else Vector2i.ZERO)
 	var to_floats: Callable = func(i: int) -> void:
 		_art_f[i] = _art_floats(_art[i]) if _art[i] else PackedFloat32Array()
+		var en: Image = _art_en[i] if i < _art_en.size() else null
+		_art_en_f[i] = _art_floats(en) if en and _art[i] and en.get_size() == _art[i].get_size() else PackedFloat32Array()
 	if not _art.is_empty():
 		WorkerThreadPool.wait_for_group_task_completion(WorkerThreadPool.add_group_task(to_floats, _art.size()))
 	_build_token_templates()
@@ -256,6 +251,7 @@ func analyze(photo: Image, dials: Array[Dictionary], markers: Array[Vector3] = [
 				dials.append(candidates[c])
 				_art.append(null)
 				_art_f.append(PackedFloat32Array())
+				_art_en_f.append(PackedFloat32Array())
 				_art_size.append(Vector2i.ZERO)
 				sector_idx.append(dials.size() - 1)
 			archived_of = _archived_face_up(dials, sector_idx)
@@ -271,7 +267,7 @@ func analyze(photo: Image, dials: Array[Dictionary], markers: Array[Vector3] = [
 		# phantom backs now and then); the lettering still places backs whose lamps
 		# don't show, for the token check
 		var backs_at: Array[Vector2] = []    # each back's top-left, sector mm
-		for mid: Vector2 in _find_lamp_pairs(dials[si], markers, dials):
+		for mid: Vector2 in _find_lamp_pairs(dials[si], markers, dials, _is_warm(dials[si], si)):
 			backs_at.append(mid - LAMP_MID_ON_CARD)
 		var n_backs: int = backs_at.size()
 		if backs_at.is_empty():
@@ -501,9 +497,33 @@ func _find_back_labels(sd: Dictionary) -> Array[Vector2]:
 			found.append(Vector2(LABEL_ZONE.position.x + box.position.x / LABEL_PPM, LABEL_ZONE.position.y + box.position.y / LABEL_PPM))
 	return found
 
+# Whether the photo has a clear warm cast at sector sd (dials[si]): its art says what colour the card
+# really is, so the per-channel photo/art ratio over the card's visible lower part is the light's
+# own colour, whatever the table looks like (a placeholder has no art: false).
+func _is_warm(sd: Dictionary, si: int) -> bool:
+	if si >= _art_f.size() or _art_f[si].is_empty():
+		return false
+	var frame: Transform2D = card_frame(sd)
+	var asz: Vector2i = _art_size[si]
+	var ratios: Array[PackedFloat32Array] = [PackedFloat32Array(), PackedFloat32Array()]
+	for v: int in range(22, 43, 2):
+		for u: int in range(3, 65, 3):
+			var p: Vector2 = frame * Vector2(u, v)
+			var c: Vector3 = _sample(p.x, p.y)
+			var e: Vector3 = _arr_at(_art_f[si], asz.x, asz.y, u * ART_PPM, v * ART_PPM)
+			if c.x < 0.0 or e.x < 40.0 or e.z < 40.0:
+				continue
+			ratios[0].append(c.x / e.x)
+			ratios[1].append(c.z / e.z)
+	if ratios[0].size() < 40:
+		return false
+	ratios[0].sort()
+	ratios[1].sort()
+	return ratios[1][ratios[1].size() >> 1] < 0.85 * ratios[0][ratios[0].size() >> 1]
+
 # Midpoints (sector mm) of the cyan lamp pairs below the sector: two lamps level with
 # each other, LAMP_GAP_MM apart — one per face-down tech back.
-func _find_lamp_pairs(sd: Dictionary, markers: Array[Vector3], dials: Array[Dictionary]) -> Array[Vector2]:
+func _find_lamp_pairs(sd: Dictionary, markers: Array[Vector3], dials: Array[Dictionary], warm: bool = false) -> Array[Vector2]:
 	var mids: Array[Vector2] = []
 	var to_mm: Transform2D = card_frame(sd).affine_inverse()
 	var px_mm: float = float(sd["radius"]) / float(DialReader.DECK_R_MM["sector"])
@@ -540,7 +560,10 @@ func _find_lamp_pairs(sd: Dictionary, markers: Array[Vector3], dials: Array[Dict
 			var dy: float = absf(lamps[j].y - lamps[i].y)
 			if dx > 0.0 and absf(dx - LAMP_GAP_MM) <= LAMP_GAP_TOL_MM and dy <= LAMP_DY_MAX_MM:
 				# a real pair has the TECH lettering between its lamps
-				if _cream_between(card_frame(sd), lamps[i], lamps[j]) < LAMP_LOGO_MIN:
+				var cream: Vector2 = _cream_between(card_frame(sd), lamps[i], lamps[j], warm)
+				if debug:
+					print("    lamp pair %s-%s mm: cream %.2f (plain-light test %.2f)" % [str(lamps[i].round()), str(lamps[j].round()), cream.x, cream.y])
+				if cream.x < LAMP_LOGO_MIN:
 					continue
 				cands.append([absf(dx - LAMP_GAP_MM) + dy, i, j])
 	cands.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
@@ -564,10 +587,13 @@ func _find_lamp_pairs(sd: Dictionary, markers: Array[Vector3], dials: Array[Dict
 	return mids
 
 # Share of cream TECH-lettering colour along the line between two lamps (sector mm),
-# sampled on three rows through the logo.
-func _cream_between(frame: Transform2D, a: Vector2, b: Vector2) -> float:
-	var n: int = 0
-	var cream: int = 0
+# sampled on three rows through the logo. Exposure is taken from the line itself (its
+# brightest tenth -> 245: the lettering is the brightest thing there): the photo-wide gain
+# over-brightened a small ship on a lot of dark table until the cream read as white.
+# Returns (share, share by the plain-light test alone) — the second for the debug output.
+func _cream_between(frame: Transform2D, a: Vector2, b: Vector2, warm: bool = false) -> Vector2:
+	var samples: Array[Vector3] = []
+	var bright: PackedFloat32Array = PackedFloat32Array()
 	for step: int in 25:
 		var t: float = 0.2 + 0.6 * float(step) / 24.0
 		for dv: float in [-1.0, 0.0, 1.0]:
@@ -575,11 +601,25 @@ func _cream_between(frame: Transform2D, a: Vector2, b: Vector2) -> float:
 			var c: Vector3 = _sample(p.x, p.y)
 			if c.x < 0.0:
 				continue
-			c *= _photo_gain
-			n += 1
-			if c.x > 215.0 and c.y > 195.0 and c.z > 130.0 and c.z < 225.0 and c.x - c.z > 15.0:
-				cream += 1
-	return float(cream) / float(maxi(n, 1))
+			samples.append(c)
+			bright.append(maxf(c.x, maxf(c.y, c.z)))
+	if samples.is_empty():
+		return Vector2.ZERO
+	bright.sort()
+	var gain: float = clampf(245.0 / maxf(bright[int(bright.size() * 0.9)], 1.0), 0.8, 2.5)
+	var cream: int = 0
+	var normal: int = 0
+	for c0: Vector3 in samples:
+		var c: Vector3 = c0 * gain
+		if c.x > 215.0 and c.y > 195.0 and c.z > 130.0 and c.z < 225.0 and c.x - c.z > 15.0:
+			cream += 1
+			normal += 1
+		# a warm lamp pulls cream's green and blue down: then (only then: in plain light this
+		# lets busy art through) by its proportions — bright, red >= green >= blue, blue clearly
+		# below red but not gone, so white and yellow art stay out
+		elif warm and c.x > 200.0 and c.y >= 0.72 * c.x and c.y <= 1.02 * c.x and c.z >= 0.42 * c.x and c.z <= 0.9 * c.x and c.z <= c.y:
+			cream += 1
+	return Vector2(cream, normal) / float(samples.size())
 
 # ── Stored supply: token-coloured, token-shaped, token-sized blobs ───────────
 
@@ -604,7 +644,7 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 	for i: int in dials.size():
 		if _art_f[i].is_empty() or (dials[i]["center"] as Vector2).distance_to(centre) > reach_px:
 			continue
-		layers.append([card_frame(dials[i]).affine_inverse() * sframe, _art_f[i], _art_size[i], SIZE_MM[deck_of(dials[i])], i == si])
+		layers.append([card_frame(dials[i]).affine_inverse() * sframe, _art_f[i], _art_size[i], SIZE_MM[deck_of(dials[i])], i == si, _art_en_f[i]])
 	if not _back_f.is_empty():
 		for at: Vector2 in backs_at:
 			# settle each back where its art fits best (a label places it only roughly)
@@ -658,6 +698,12 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 							if dx == 0.0 and dy == 0.0:
 								continue
 							d = minf(d, px.distance_to(_arr_at(art, asz.x, asz.y, ax + dx, ay + dy) * gain))
+				# ...and so does the card's EN text (cards printed in English, game in another language)
+				if d >= ART_MATCH and layer.size() > 5 and not (layer[5] as PackedFloat32Array).is_empty():
+					var art_en: PackedFloat32Array = layer[5]
+					for dy: float in [-slack, 0.0, slack]:
+						for dx: float in [-slack, 0.0, slack]:
+							d = minf(d, px.distance_to(_arr_at(art_en, asz.x, asz.y, ax + dx, ay + dy) * gain))
 				covered[k] = 1
 				if d < best[k]:
 					best[k] = d
