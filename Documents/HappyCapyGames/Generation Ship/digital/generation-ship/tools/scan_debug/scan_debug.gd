@@ -32,6 +32,8 @@ func _scan(path: String) -> void:
 	var t1: int = Time.get_ticks_msec()
 	var tableau: TableauReader = TableauReaderScript.create(dials)
 	tableau.debug = OS.get_environment("SCAN_DEBUG") != ""
+	# as in the app: a column whose sector dial is unread gets a placeholder sector (printed "[placeholder]")
+	tableau.placeholder_card = CardDatabase.find_by_scan_code(450).get("card") as CardData
 	var groups: Array = tableau.analyze(reader.photo, dials, reader.markers)
 	print("=== %s  (%d dials, %.1f s)  cards %.1f s, tokens/archive %.1f s" % [path.get_file(), dials.size(), (Time.get_ticks_msec() - t0) / 1000.0, (t1 - t0) / 1000.0, (Time.get_ticks_msec() - t1) / 1000.0])
 	for d: Dictionary in dials:
@@ -59,4 +61,6 @@ static func _card_name(d: Dictionary) -> String:
 	var cd: CardData = d.get("card") as CardData
 	if cd == null:
 		return "?"
+	if d.has("placeholder"):
+		return "[placeholder]"
 	return cd.adv_name if bool(d.get("is_advanced", false)) and cd.adv_name != "" else cd.card_name
