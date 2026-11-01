@@ -9,6 +9,10 @@ func _ready() -> void:
 	# expose it), so init there is a guaranteed, noisy failure. Skip it outright.
 	if OS.get_name() == "Android":
 		return
+	# Headless means a tool run (tools/scan_debug, imports, compile checks), never a player:
+	# without this, Steam showed Generation Ship as running during every offline test.
+	if DisplayServer.get_name() == "headless":
+		return
 	var result: Dictionary = Steam.steamInitEx()
 	if result["status"] == Steam.STEAM_API_INIT_RESULT_OK:
 		is_initialized = true
