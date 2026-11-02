@@ -362,6 +362,13 @@ func _build_list_view() -> Control:
 	scan_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scan_btn.pressed.connect(_on_scan_ship_pressed)
 	btn_row.add_child(scan_btn)
+	# Android: a photo from the gallery — the way to the phone's own Night mode, which many
+	# phones don't offer to apps (the guide's last tip and the camera screen explain it)
+	if Engine.has_singleton("CameraIntentPlugin"):
+		var pick_btn: Button = _make_button("From Gallery")
+		pick_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		pick_btn.pressed.connect(_on_gallery_pressed)
+		btn_row.add_child(pick_btn)
 	# Android: also put each scan photo in the gallery (off by default; for checking a scan
 	# later or sending it in — the photos themselves stay in the app's private files)
 	# (no has_method() on a plugin singleton: Godot's Java bridge object doesn't report its
@@ -506,7 +513,14 @@ func _build_photo_guide() -> Control:
 	tips.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tips.add_theme_constant_override("separation", 22)
 	row.add_child(tips)
-	for i: int in GUIDE_TIPS.size():
+	var tips_text: Array[String] = []
+	tips_text.append_array(GUIDE_TIPS)
+	var marks: Array[String] = []
+	marks.append_array(GUIDE_MARKS)
+	if Engine.has_singleton("CameraIntentPlugin"):
+		tips_text.append("SCAN_TIP_NIGHT")      # dim room: the phone's Night mode + From Gallery
+		marks.append("!")
+	for i: int in tips_text.size():
 		var tip: HBoxContainer = HBoxContainer.new()
 		tip.add_theme_constant_override("separation", 16)
 		var badge: PanelContainer = PanelContainer.new()
@@ -519,13 +533,13 @@ func _build_photo_guide() -> Control:
 		badge.custom_minimum_size = Vector2(GUIDE_BADGE_SIZE, GUIDE_BADGE_SIZE)
 		badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		var num: Label = Label.new()
-		num.text = GUIDE_MARKS[i]
+		num.text = marks[i]
 		num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		num.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		num.add_theme_font_size_override("font_size", HINT_FONT_SIZE)
 		badge.add_child(num)
 		tip.add_child(badge)
-		var text: Label = _make_hint_label(GUIDE_TIPS[i])
+		var text: Label = _make_hint_label(tips_text[i])
 		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		tip.add_child(text)
@@ -674,17 +688,26 @@ func _show_review_view() -> void:
 # stub elsewhere so the rest of the flow stays testable on desktop.
 func _on_scan_ship_pressed() -> void:
 	if Engine.has_singleton("CameraIntentPlugin"):
-		var plugin: Object = Engine.get_singleton("CameraIntentPlugin")
-		if not plugin.photo_captured.is_connected(_on_photo_selected):
-			plugin.photo_captured.connect(_on_photo_selected)
-		if not plugin.photo_canceled.is_connected(_on_photo_canceled):
-			plugin.photo_canceled.connect(_on_photo_canceled)
-		# shown on our own camera screen: the hint on top, the live guidance below
+		var plugin: Object = _camera_plugin()
+		# shown on our own camera screen: the hint on top, the live guidance below, and the tip
+		# that replaces the hint where it's dim
 		plugin.set_hint(tr("SCAN_CAMERA_HINT"))
-		plugin.set_guide("\n".join([tr("SCAN_GUIDE_NONE"), tr("SCAN_GUIDE_CLOSER"), tr("SCAN_GUIDE_STEADY"), tr("SCAN_GUIDE_SHOOTING")]))
+		plugin.set_guide("\n".join([tr("SCAN_GUIDE_NONE"), tr("SCAN_GUIDE_CLOSER"), tr("SCAN_GUIDE_STEADY"), tr("SCAN_GUIDE_SHOOTING"), tr("SCAN_TIP_DIM")]))
 		plugin.capture_photo()
 	else:
 		_file_dialog.popup_centered()
+
+## Android: a photo from the gallery (the system photo picker), read like a camera shot.
+func _on_gallery_pressed() -> void:
+	_camera_plugin().pick_photo()
+
+func _camera_plugin() -> Object:
+	var plugin: Object = Engine.get_singleton("CameraIntentPlugin")
+	if not plugin.photo_captured.is_connected(_on_photo_selected):
+		plugin.photo_captured.connect(_on_photo_selected)
+	if not plugin.photo_canceled.is_connected(_on_photo_canceled):
+		plugin.photo_canceled.connect(_on_photo_canceled)
+	return plugin
 
 func _on_photo_canceled() -> void:
 	pass  # user backed out of the camera app — stay on the sector list
@@ -720,7 +743,8 @@ func _set_save_to_gallery(on: bool) -> void:
 	cfg.save(SETTINGS_PATH)
 
 func _on_photo_selected(path: String) -> void:
-	if _save_to_gallery() and Engine.has_singleton("CameraIntentPlugin"):
+	# (a gallery pick, the plugin's pick_<time>.jpg copy, is in the gallery already)
+	if _save_to_gallery() and Engine.has_singleton("CameraIntentPlugin") and not path.get_file().begins_with("pick_"):
 		Engine.get_singleton("CameraIntentPlugin").save_to_gallery(path)
 	_clean_capture_folder(path)
 	var img := Image.new()

@@ -125,6 +125,7 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 	private lateinit var torchButton: TextView
 	private lateinit var autoButton: TextView
 	private lateinit var guideLabel: TextView
+	private lateinit var hint: TextView            // the line on top (the dim-room tip replaces it)
 	private var imageCapture: ImageCapture? = null
 	private var camera: Camera? = null
 	private var provider: ProcessCameraProvider? = null
@@ -282,15 +283,20 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 		overlay = GuideOverlay(this)
 		root.addView(overlay, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
 
-		val hint = TextView(this)
+		hint = TextView(this)
 		hint.text = intent.getStringExtra(EXTRA_HINT) ?: ""
 		hint.setTextColor(Color.WHITE)
 		hint.textSize = 16f
 		hint.gravity = Gravity.CENTER
 		hint.setShadowLayer(6f, 0f, 0f, Color.BLACK)
 		hint.setPadding(dp(16f), dp(6f), dp(16f), dp(6f))
+		// clear of the close and torch buttons in the corners when it wraps (the dim-room tip is long)
 		root.addView(hint, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
-			Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(12f) })
+			Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
+			topMargin = dp(12f)
+			marginStart = dp(84f)
+			marginEnd = dp(100f)
+		})
 
 		guideLabel = TextView(this)
 		guideLabel.setTextColor(Color.WHITE)
@@ -603,6 +609,9 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 		torchOn = dim
 		applyTorch()
 		if (dim) statusBase += " · torch auto"
+		// dim: the phone's own camera in its Night mode takes a far clearer photo (the game's
+		// From Gallery button reads it) — say so where it matters (5th guide line, if the game sent it)
+		if (dim && guideTexts.size >= 5) hint.text = guideTexts[4]
 		status.text = statusBase
 	}
 

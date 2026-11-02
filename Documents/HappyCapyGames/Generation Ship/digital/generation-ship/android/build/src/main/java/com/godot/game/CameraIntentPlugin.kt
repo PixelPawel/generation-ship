@@ -2,11 +2,14 @@ package com.godot.game
 
 import android.app.Activity
 import android.content.ContentValues
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.Environment
 import android.content.Intent
 import android.net.Uri
 import android.provider.MediaStore
+import kotlin.math.max
 import androidx.core.content.FileProvider
 import org.godotengine.godot.Godot
 import org.godotengine.godot.plugin.GodotPlugin
@@ -30,11 +33,19 @@ import java.io.File
 // manifest-merge error, not just redundant. Godot's own res/xml/godot_
 // provider_paths.xml only maps a <files-path> (Context.getFilesDir()), not
 // a cache path, so the photo goes under filesDir instead of cacheDir.
+//
+// 2026-11-02: pick_photo() — a photo from the gallery (the system photo picker, no permission
+// needed): the way to the phone's own Night mode on every phone, since many makers don't offer
+// it to apps (the camera app's night photo of a real ship read 14 of 15 dials, a plain one 9).
+// The pick is copied into captured_photos as pick_<time>.jpg (.png); HEIC and anything over
+// MAX_PICK_LONG px (50 MP modes) is decoded and saved as a JPEG of at most that size.
 class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 
 	companion object {
 		private const val REQUEST_IMAGE_CAPTURE = 4173
 		private const val REQUEST_SCAN_CAMERA = 4174
+		private const val REQUEST_PICK_PHOTO = 4175
+		private const val MAX_PICK_LONG = 4608
 		private val PHOTO_CAPTURED_SIGNAL = SignalInfo("photo_captured", String::class.java)
 		private val PHOTO_CANCELED_SIGNAL = SignalInfo("photo_canceled")
 	}
@@ -54,7 +65,7 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 	}
 
 	// The live guidance lines (translated by the game), "\n"-joined: no ship in view / move
-	// closer / hold still / taking the photo.
+	// closer / hold still / taking the photo / (optional) the tip shown where it's dim.
 	@UsedByGodot
 	fun set_guide(texts: String) {
 		guide = texts
@@ -77,6 +88,74 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 			intent.putExtra(ScanCameraActivity.EXTRA_GUIDE, guide)
 			activity.startActivityForResult(intent, REQUEST_SCAN_CAMERA)
 		}
+	}
+
+	// A photo from the gallery: photo_captured(copy's path) when one was picked, else photo_canceled.
+	@UsedByGodot
+	fun pick_photo() {
+		runOnUiThread {
+			val activity = activity ?: run {
+				emitSignal(PHOTO_CANCELED_SIGNAL)
+				return@runOnUiThread
+			}
+			try {
+				val intent = if (Build.VERSION.SDK_INT >= 33) {
+					Intent(MediaStore.ACTION_PICK_IMAGES).setType("image/*")
+				} else {
+					Intent(Intent.ACTION_GET_CONTENT).setType("image/*").addCategory(Intent.CATEGORY_OPENABLE)
+				}
+				activity.startActivityForResult(intent, REQUEST_PICK_PHOTO)
+			} catch (e: Throwable) {          // no picker on this phone
+				emitSignal(PHOTO_CANCELED_SIGNAL)
+			}
+		}
+	}
+
+	// The picked photo into captured_photos (off the main thread: a big HEIC takes a moment to
+	// decode); the signal goes out on the UI thread like the camera's.
+	private fun copyPick(activity: Activity, uri: Uri) {
+		val dir = File(activity.filesDir, "captured_photos")
+		val stamp = System.currentTimeMillis()
+		var out = File(dir, "pick_$stamp.jpg")
+		Thread {
+			var ok = false
+			try {
+				dir.mkdirs()
+				val resolver = activity.contentResolver
+				val type = resolver.getType(uri) ?: ""
+				val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+				resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+				val long = max(bounds.outWidth, bounds.outHeight)
+				if ((type == "image/jpeg" || type == "image/png") && long in 1..MAX_PICK_LONG) {
+					// as it is (named by its kind: Godot picks the image loader by the file's extension)
+					if (type == "image/png") out = File(dir, "pick_$stamp.png")
+					resolver.openInputStream(uri)?.use { input -> out.outputStream().use { input.copyTo(it) } }
+					ok = out.length() > 0
+				} else if (long > 0) {
+					var sample = 1
+					while (long / (sample * 2) >= MAX_PICK_LONG * 3 / 4 && long / sample > MAX_PICK_LONG) sample *= 2
+					val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+					var bmp = resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) }
+					if (bmp != null) {
+						val l = max(bmp.width, bmp.height)
+						if (l > MAX_PICK_LONG) {
+							val f = MAX_PICK_LONG.toFloat() / l
+							val scaled = Bitmap.createScaledBitmap(bmp, (bmp.width * f).toInt(), (bmp.height * f).toInt(), true)
+							if (scaled !== bmp) bmp.recycle()
+							bmp = scaled
+						}
+						out.outputStream().use { ok = bmp.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+						bmp.recycle()
+					}
+				}
+			} catch (e: Throwable) {          // unreadable pick, full storage, out of memory
+				ok = false
+			}
+			if (!ok) out.delete()
+			runOnUiThread {
+				if (ok) emitSignal(PHOTO_CAPTURED_SIGNAL, out.absolutePath) else emitSignal(PHOTO_CANCELED_SIGNAL)
+			}
+		}.start()
 	}
 
 	// Copies a scan photo into the public gallery (Pictures/Generation Ship) — the photos
@@ -139,6 +218,16 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 	}
 
 	override fun onMainActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+		if (requestCode == REQUEST_PICK_PHOTO) {
+			val uri = data?.data
+			val activity = activity
+			if (resultCode == Activity.RESULT_OK && uri != null && activity != null) {
+				copyPick(activity, uri)
+			} else {
+				emitSignal(PHOTO_CANCELED_SIGNAL)
+			}
+			return
+		}
 		if (requestCode == REQUEST_SCAN_CAMERA && resultCode == ScanCameraActivity.RESULT_FALLBACK) {
 			pendingPhotoPath = null
 			captureWithCameraApp()
