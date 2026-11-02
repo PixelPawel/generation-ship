@@ -3,7 +3,8 @@ const Haptics = preload("res://scripts/haptics.gd")
 const RuleRefs = preload("res://scripts/game/rule_refs.gd")
 # Phones: press and hold a hand card to read it at full size. The card's art
 # fills most of the screen height; a tap anywhere closes it. No dimming behind
-# it — the game stays visible around the card.
+# it — the game stays visible around the card. Since 2026-11-02 also for market
+# and placed cards on phones (their 3D enlargement stayed the market screen's size).
 
 const FILL_HEIGHT: float = 0.86
 const OPEN_DURATION: float = 0.16
@@ -11,6 +12,7 @@ const TERMS_HEIGHT: float = 0.1    # share of the height kept for the rule book 
 
 var _art: TextureRect = null
 var _terms: Control = null      # rule book buttons for the card's keywords
+var source: String = ""         # what is shown: "hand", "market" or "placed" (the tutorial waits on it)
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -22,14 +24,19 @@ func _ready() -> void:
 	_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_art)
 
-func show_card(cd: CardData, is_advanced: bool) -> void:
+func show_card(cd: CardData, is_advanced: bool, from: String = "hand") -> void:
 	if cd == null:
 		return
 	var url: String = cd.adv_image_url if is_advanced and not cd.adv_image_url.is_empty() else cd.image_url
 	var tex: Texture2D = ImageCache.get_texture(url) if not url.is_empty() else null
 	if tex == null:
+		# art-only cards (the Fleet's Dangers) have just their picture's path
+		var art_path: String = cd.adv_local_art_path if is_advanced and not cd.adv_local_art_path.is_empty() else cd.local_art_path
+		tex = load(art_path) as Texture2D if not art_path.is_empty() and ResourceLoader.exists(art_path) else null
+	if tex == null:
 		return
 	_art.texture = tex
+	source = from
 	if _terms:
 		_terms.queue_free()
 		_terms = null
@@ -52,6 +59,10 @@ func show_card(cd: CardData, is_advanced: bool) -> void:
 	t.tween_property(_art, "scale", Vector2.ONE, OPEN_DURATION)
 	t.parallel().tween_property(_art, "modulate:a", 1.0, OPEN_DURATION * 0.6)
 	Haptics.tick()
+
+## Showing a card that came from `from` ("hand", "market", "placed").
+func showing(from: String) -> bool:
+	return visible and source == from
 
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:

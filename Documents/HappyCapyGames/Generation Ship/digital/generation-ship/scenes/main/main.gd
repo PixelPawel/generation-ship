@@ -314,7 +314,7 @@ func _ready() -> void:
 	_card_inspect = CardInspectOverlay.new()
 	$UILayer.add_child(_card_inspect)
 	$Hand.card_inspect_requested.connect(func(card: Node3D) -> void:
-		_card_inspect.show_card(card.get("card_data") as CardData, bool(card.get("is_advanced"))))
+		_card_inspect.show_card(card.get("card_data") as CardData, bool(card.get("is_advanced")), "hand"))
 	if GameNetwork.is_multiplayer:
 		_chat_panel = load("res://scenes/ui/chat_panel.gd").new()
 		$UILayer.add_child(_chat_panel)
@@ -421,6 +421,12 @@ func _on_node_added_to_tree(node: Node) -> void:
 		node.elevation_ended.connect(_on_card_elevation_ended)
 		node.hovered.connect(_on_any_card_hovered)
 		node.unhovered.connect(_on_any_card_unhovered)
+		node.placed_inspect_requested.connect(func(card: Node3D) -> void:
+			_card_inspect.show_card(card.get("card_data") as CardData, bool(card.get("is_advanced")), "placed"))
+
+## The big card view (phones) is showing a card from `from` ("hand", "market", "placed").
+func card_overlay_showing(from: String) -> bool:
+	return _card_inspect != null and _card_inspect.showing(from)
 
 # Input hints in the player's words: phones have no mouse — "right-click" is
 # a long-press there. Recycling is a drag onto the control screen everywhere.
@@ -2677,22 +2683,32 @@ func _on_market_card_inspect_requested(slot_type: String, slot_idx: int) -> void
 	if slot_type == "danger":   # Fleet Dangers screen
 		FleetFlow.inspect_danger(self, slot_idx)
 		return
+	# phones: as big as a hand card (the 3D enlargement stays the market screen's size)
+	if GameTheme.is_touch():
+		var slot_card: Array = _market_slot_card(slot_type, slot_idx)
+		if slot_card[0] != null:
+			_card_inspect.show_card(slot_card[0] as CardData, bool(slot_card[1]), "market")
+			return
 	var origin: Vector3 = CockpitRig.viewport_to_world(self, _market_panel.get_slot_center(slot_type, slot_idx))
 	var screen_center: Vector3 = CockpitRig.viewport_to_world(self, Vector2(_info_viewport.size) * 0.5)
 	$Board.inspect_market_card(slot_type, slot_idx, origin, screen_center)
 
-func _on_market_card_hover_started(slot_type: String, slot_idx: int) -> void:
-	_hovered_market_slot = [slot_type, slot_idx]
-	var cd: CardData = null
-	var is_adv: bool = false
+## [card data or null, is advanced] of a market slot.
+func _market_slot_card(slot_type: String, slot_idx: int) -> Array:
 	match slot_type:
 		"dust":
-			cd = $Board.get_market().get_dust_card_data(slot_idx)
+			return [$Board.get_market().get_dust_card_data(slot_idx), false]
 		"advanced":
-			cd = $Board.get_market().get_advanced_card_data(slot_idx)
-			is_adv = true
+			return [$Board.get_market().get_advanced_card_data(slot_idx), true]
 		"expedition":
-			cd = $Board.get_expedition_market().get_card_data(slot_idx)
+			return [$Board.get_expedition_market().get_card_data(slot_idx), false]
+	return [null, false]
+
+func _on_market_card_hover_started(slot_type: String, slot_idx: int) -> void:
+	_hovered_market_slot = [slot_type, slot_idx]
+	var slot_card: Array = _market_slot_card(slot_type, slot_idx)
+	var cd: CardData = slot_card[0] as CardData
+	var is_adv: bool = bool(slot_card[1])
 	if not cd:
 		return
 	var card_name: String = CardDatabase.display_name(cd, is_adv)

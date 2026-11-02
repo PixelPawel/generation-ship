@@ -1030,6 +1030,10 @@ static func inspect_danger(main: Main, no: int) -> void:
 	var path: String = FleetData.danger_art(no)
 	if path.is_empty():
 		return
+	# phones: as big as a hand card, like the market's cards
+	if GameTheme.is_touch():
+		main._card_inspect.show_card(_art_card(path, _name(no), false), false, "market")
+		return
 	var origin: Vector3 = CockpitRig.viewport_to_world(main, main._fleet_panel.get_danger_center(no))
 	var center: Vector3 = CockpitRig.viewport_to_world(main, Vector2(main._info_viewport.size) * 0.5)
 	main.get_node("Board").inspect_card_data(_art_card(path, _name(no), false), false, ["danger", no], origin, center)

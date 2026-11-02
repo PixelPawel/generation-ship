@@ -12,6 +12,9 @@ signal elevation_ended(card: Node3D)
 # Press and hold (phones) or right-click (desktop) a hand card to read it big
 # (see CardInspectOverlay). Recycling is a drag onto the control screen.
 signal inspect_requested(card: Node3D)
+# Phones: press and hold a placed card to read it at full size, like a hand card
+# (its 3D lift stayed too small there); desktop keeps right-click = lift.
+signal placed_inspect_requested(card: Node3D)
 
 const HOVER_HEIGHT := 0.15
 const HOVER_DURATION := 0.15
@@ -142,7 +145,7 @@ func _on_input_event(_camera: Node, event: InputEvent, _pos: Vector3, _normal: V
 		var touch_hand: bool = GameTheme.is_touch() and managed_by_hand and not is_placed
 		if GameTheme.is_touch() and (is_placed or _placed_elevated):
 			if event.pressed:
-				_long_press.begin(get_tree(), event.position, _try_toggle_placed_elevation)
+				_long_press.begin(get_tree(), event.position, _on_placed_long_press)
 			else:
 				_long_press.end()
 		elif touch_hand:
@@ -185,6 +188,12 @@ func _on_hand_long_press() -> void:
 	_drag_armed = false
 	_suppress_tap = true
 	inspect_requested.emit(self)
+
+func _on_placed_long_press() -> void:
+	if is_placed and can_elevate and not _any_dragging:
+		placed_inspect_requested.emit(self)
+	elif _placed_elevated:
+		_try_toggle_placed_elevation()
 
 func _try_toggle_placed_elevation() -> void:
 	if is_placed:

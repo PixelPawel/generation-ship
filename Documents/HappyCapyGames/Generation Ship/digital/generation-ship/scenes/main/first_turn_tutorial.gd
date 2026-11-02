@@ -229,7 +229,7 @@ func _tick(step: String) -> void:
 			elif not _saw_market_inspect and (step != "intro_tech" or _step_time >= INTRO_DELAY_SEC):
 				_show_intro_card(step)
 		"inspect_card":
-			if _main._sun_elevated_count > 0:
+			if _main._sun_elevated_count > 0 or _main.card_overlay_showing("placed"):
 				_saw_card_enlarged = true
 		"fleet_dangers":
 			if _main._fleet_screen_shown:
@@ -351,7 +351,7 @@ func _is_done(step: String) -> bool:
 			# (buying it straight away also moves on: the next step is the purchase)
 			return (_saw_market_inspect and not _market_inspecting()) or _first_sector != null or _is_dragging(CardData.CardType.SECTOR)
 		"inspect_card":
-			return _saw_card_enlarged and _main._sun_elevated_count == 0
+			return _saw_card_enlarged and _main._sun_elevated_count == 0 and not _main.card_overlay_showing("placed")
 		"inspect_screen":
 			return _saw_screen_enlarged and not _any_screen_enlarged()
 		"fuse":
@@ -690,7 +690,7 @@ func _any_tech_space() -> bool:
 
 func _market_inspecting() -> bool:
 	var c: Node3D = _board.get("_inspecting_card") as Node3D
-	return c != null and is_instance_valid(c)
+	return (c != null and is_instance_valid(c)) or _main.card_overlay_showing("market")   # phones: the big view
 
 func _any_screen_enlarged() -> bool:
 	for v: Variant in _main.screen_enlarged.values():
