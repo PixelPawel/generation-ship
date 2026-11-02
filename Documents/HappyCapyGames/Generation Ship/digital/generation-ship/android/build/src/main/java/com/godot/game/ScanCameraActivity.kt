@@ -154,7 +154,11 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 	private var sensorManager: SensorManager? = null
 	private val gyro = ArrayDeque<Pair<Long, Float>>()   // (time ms, angular speed rad/s)
 	private var lux = -1f
-	private var readySince = 0L
+	private var readySince = 0L              // steady since (0: not steady)
+	private var sizeOkAt = 0L                // the ship last seen framed close enough
+	private var sizeOkSince = 0L             // ...continuously since (0: not)
+	private var calmest = Float.MAX_VALUE    // the lowest smear since then
+	private var oisFactor = 1f               // OIS_FACTOR where the lens has optical stabilisation
 	private var lastAnalysis = 0L
 	private var analysisBytes = ByteArray(0)
 	private var analysisSeen = ByteArray(0)
@@ -170,8 +174,17 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 	// (those photos were 12-18 px/mm; a 6-sector ship filling the frame is ~7.5-8).
 	private val GOOD_PX_PER_MM = 7.5f
 	private val READY_DIAMONDS = 2
-	private val MAX_SMEAR_PX = 1.2f
+	// 2026-11-02, AUTO never fired for the developer holding the phone as still as humanly possible: the
+	// smear was the FASTEST turn of 0.4 s with no allowance for the lens's stabiliser, against
+	// 1.2 px (= under 0.7 deg/s at a lamp-lit 1/30 s; the screenshots showed 15-19 px, the photos
+	// still read fine). Now: the RMS turn of the last 0.3 s, a third of it where the lens has
+	// optical stabilisation, against 3 px; and once the ship has been framed close enough for
+	// CALM_WAIT_MS, AUTO takes the calmest moment anyway, at twice that whatever the shake (the
+	// burst keeps the sharpest shot).
+	private val MAX_SMEAR_PX = 3.0f
 	private val READY_MS = 700L
+	private val CALM_WAIT_MS = 2500L
+	private val OIS_FACTOR = 3f
 	// the torch comes on where exposure time (s) x ISO is above this (bright room ~1-2, lamp-lit
 	// evening ~10-30) — or, without exposure figures, below DIM_LUX on the light sensor
 	private val DIM_EXPOSURE = 8.0f
@@ -245,7 +258,7 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 				val now = SystemClock.elapsedRealtime()
 				synchronized(gyro) {
 					gyro.addLast(Pair(now, sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])))
-					while (gyro.isNotEmpty() && now - gyro.first().first > 400) gyro.removeFirst()
+					while (gyro.isNotEmpty() && now - gyro.first().first > 300) gyro.removeFirst()
 				}
 			}
 			Sensor.TYPE_LIGHT -> lux = event.values[0]
@@ -351,6 +364,7 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 		autoButton.setOnClickListener {
 			autoShoot = !autoShoot
 			readySince = 0L
+			sizeOkSince = 0L
 			getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("auto", autoShoot).apply()
 			applyAutoLook()
 		}
@@ -548,6 +562,7 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 			imageCapture = capture
 			capture.resolutionInfo?.resolution?.let { captureLong = max(it.width, it.height) }
 			focalPx = focalLengthPx()
+			oisFactor = if (hasOis()) OIS_FACTOR else 1f
 			// worked out again on every binding (a night mode may not allow the flash, the plain camera
 			// after it does): the button where there is a torch to switch; the torch decided by itself
 			// on the plain camera only (the night mode copes with dim light, the torch's spot only
@@ -597,6 +612,17 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 			f / max(size.width, size.height) * captureLong
 		} catch (e: Throwable) {
 			0f
+		}
+	}
+
+	@OptIn(ExperimentalCamera2Interop::class)
+	private fun hasOis(): Boolean {
+		return try {
+			val modes = Camera2CameraInfo.from(camera!!.cameraInfo)
+				.getCameraCharacteristic(CameraCharacteristics.LENS_INFO_AVAILABLE_OPTICAL_STABILIZATION)
+			modes?.contains(CameraCharacteristics.LENS_OPTICAL_STABILIZATION_MODE_ON) == true
+		} catch (e: Throwable) {
+			false
 		}
 	}
 
@@ -834,12 +860,12 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 			pts[k * 2 + 1] = uy
 		}
 		val upright = if (rot == 90 || rot == 270) Pair(h, w) else Pair(w, h)
-		// how far the picture would smear right now: the fastest turn of the last 0.4 s x
-		// exposure time x focal length in pixels
-		val omega = synchronized(gyro) { gyro.maxOfOrNull { it.second } ?: 0f }
+		// how far the picture would smear right now: the turn of the last 0.3 s (RMS) x exposure
+		// time x focal length in pixels, less what the lens's stabiliser takes out
+		val omega = synchronized(gyro) { if (gyro.isEmpty()) 0f else sqrt(gyro.sumOf { (it.second * it.second).toDouble() }.toFloat() / gyro.size) }
 		val t = if (exposureNs > 0) exposureNs / 1e9f else 1f / 60f
 		val fpx = if (focalPx > 0f) focalPx else captureLong * 0.8f
-		val smear = omega * t * fpx
+		val smear = omega * t * fpx / oisFactor
 		val hasGyro = sensorManager?.getDefaultSensor(Sensor.TYPE_GYROSCOPE) != null
 		runOnUiThread { guide(pts, upright, diamonds.size, good, typical, smear, hasGyro) }
 	}
@@ -895,32 +921,45 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 		val steady = !hasGyro || smear < MAX_SMEAR_PX
 		// the live figures, for tuning on real phones: diamonds seen (big enough), px per mm, smear px
 		status.text = "%s · %d (%d) · %.1f px/mm · %.1f px".format(statusBase, n, good, typical, smear)
-		val text: String
-		var ready = false
-		when {
-			n == 0 -> text = guideTexts[0]
-			good < READY_DIAMONDS || typical < GOOD_PX_PER_MM -> text = guideTexts[1]
-			!steady -> text = guideTexts[2]
-			else -> {
-				text = if (autoShoot) guideTexts[3] else guideTexts[2]
-				ready = true
+		// close enough: a little slack once reached, and a frame that misses a diamond doesn't
+		// count for 0.6 s (the estimate flickers around the limit; the preview guide looks 4x a second)
+		val slack = if (sizeOkAt > 0L && now - sizeOkAt < 1500) 0.9f else 1f
+		if (n > 0 && good >= READY_DIAMONDS && typical >= GOOD_PX_PER_MM * slack) sizeOkAt = now
+		val sizeOk = sizeOkAt > 0L && now - sizeOkAt < 600
+		if (sizeOk) {
+			if (sizeOkSince == 0L) {
+				sizeOkSince = now
+				calmest = Float.MAX_VALUE
 			}
+			calmest = min(calmest, smear)
+		} else {
+			sizeOkSince = 0L
 		}
+		if (sizeOk && steady) {
+			if (readySince == 0L) readySince = now
+		} else {
+			readySince = 0L
+		}
+		val held = if (readySince > 0L) now - readySince else 0L
+		val waited = if (sizeOkSince > 0L) now - sizeOkSince else 0L
+		// nobody holds a phone perfectly still: after CALM_WAIT_MS framed, the calmest moment will do
+		val fire = sizeOk && (held >= READY_MS || (waited >= CALM_WAIT_MS && smear <= calmest * 1.25f) || waited >= 2 * CALM_WAIT_MS)
+		val text = when {
+			n == 0 && !sizeOk -> guideTexts[0]
+			!sizeOk -> guideTexts[1]
+			steady || fire -> if (autoShoot) guideTexts[3] else guideTexts[2]
+			else -> guideTexts[2]
+		}
+		val ready = sizeOk && (steady || fire)
 		guideLabel.text = text
 		guideLabel.visibility = if (now - openedAt > 600) View.VISIBLE else View.INVISIBLE
 		guideLabel.setTextColor(if (ready) Color.rgb(140, 255, 160) else Color.WHITE)
-		if (!ready) {
-			readySince = 0L
-			overlay.progress = 0f
-			return
-		}
-		if (readySince == 0L) readySince = now
-		val held = now - readySince
-		overlay.progress = if (autoShoot) min(1f, held.toFloat() / READY_MS) else 0f
+		// the arc round the shutter: the steady hold, or the wait for the calmest moment
+		overlay.progress = if (autoShoot && sizeOk) max(min(1f, held.toFloat() / READY_MS), min(1f, waited.toFloat() / CALM_WAIT_MS)) else 0f
 		overlay.shutterAt = floatArrayOf(shutter.x + shutter.width / 2f, shutter.y + shutter.height / 2f, shutter.width / 2f + dp(6f))
 		overlay.invalidate()
 		// never straight away: a moment to frame the ship after the screen opens
-		if (autoShoot && held >= READY_MS && now - openedAt > 1800 && torchDecided && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+		if (autoShoot && fire && now - openedAt > 1800 && torchDecided && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
 			shoot(auto = true)
 		}
 	}
@@ -1131,6 +1170,7 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 	private fun failed(keepAuto: Boolean = false) {
 		busy = false
 		readySince = 0L
+		sizeOkSince = 0L
 		shutter.alpha = 1f
 		overlay.progress = 0f
 		overlay.invalidate()
