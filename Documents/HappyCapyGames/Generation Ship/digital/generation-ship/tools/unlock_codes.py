@@ -26,7 +26,7 @@ import urllib.request
 
 API = os.environ.get("HCG_API", "https://api.happycapygames.com")   # HCG_API: a local test server
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(HERE))), "Unlock Codes")
+OUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(HERE))), "Docs", "Unlock Codes")
 MAX_PER_CALL = 5000                                                  # server/app/unlock.py MAX_BATCH
 
 
