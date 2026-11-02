@@ -13,6 +13,18 @@ const BOT_NAMES: Array[String] = ["Rusty", "Circuit", "Quantum"]  # Easy, Normal
 # shared by Steam and Android players. Only rooms of the same game version
 # are listed/joinable.
 const ROOMS_URL: String = "https://api.happycapygames.com/v1/rooms"
+# Phones: the lobby was laid out for a monitor (44-52 px buttons, 14-24 px text in a 560 px
+# column, ~15 dp to hit on a phone; 2026-11-02 "make the buttons bigger and easier to hit").
+# There it becomes two columns across the screen with buttons TOUCH_BUTTON_H tall (~48 dp,
+# Android's touch size, on a 1080-px-high canvas) and bigger text; staging one wider column.
+const TOUCH_BUTTON_H: float = 120.0
+const TOUCH_ROW_H: float = 100.0          # text fields, check boxes
+const TOUCH_BUTTON_FONT: int = 36
+const TOUCH_TEXT_FONT: int = 30
+const TOUCH_LOBBY_HALF: Vector2 = Vector2(880.0, 500.0)     # half size of the two-column lobby
+# staging: co-op host with 4 players needs ~1010 px at these sizes (rows 10 px apart)
+const TOUCH_STAGING_HALF: Vector2 = Vector2(460.0, 525.0)
+const TOUCH_LEFT_COLUMN_W: float = 620.0
 
 var _player_name: String = ""
 var _players: Dictionary = {}      # peer_id (int) -> name (String)
@@ -104,6 +116,8 @@ func _ready() -> void:
 	_load_saved_name()
 	_request_lobby_list()
 	_lobby_refresh_timer = LOBBY_REFRESH_INTERVAL
+	if GameTheme.is_touch():
+		_apply_touch_layout()
 
 func _process(delta: float) -> void:
 	if _spinner_active:
@@ -162,6 +176,8 @@ func _show_staging() -> void:
 		_diff_btn.custom_minimum_size = Vector2(100, 44)
 		_diff_btn.add_theme_font_size_override("font_size", 18)
 		bot_row.add_child(_diff_btn)
+		if GameTheme.is_touch():
+			_touch_up($StagingPanel/VBox)
 	staging_requested.emit()
 
 # ── Co-op mode ────────────────────────────────────────────────────────────────
@@ -196,6 +212,8 @@ func _ensure_mode_ui() -> void:
 		_dest_picker.visible = false
 		_coop_destination = no
 		_rpc_sync_mode.rpc(_coop, _coop_destination))
+	if GameTheme.is_touch():
+		_touch_up(vbox)
 
 func _refresh_mode() -> void:
 	if not is_inside_tree():
@@ -705,3 +723,81 @@ func _load_saved_name() -> void:
 		var steam_name: String = Steam.getPersonaName()
 		if not steam_name.is_empty():
 			_name_input.text = steam_name
+
+# ── Phones ────────────────────────────────────────────────────────────────────
+
+## Two columns across the screen (left: who you are + Host + Back; right: the games to join)
+## and every control phone-sized; the staging column wider. The scene stays as it is for PCs.
+func _apply_touch_layout() -> void:
+	var panel: VBoxContainer = _lobby_panel
+	panel.offset_left = -TOUCH_LOBBY_HALF.x
+	panel.offset_right = TOUCH_LOBBY_HALF.x
+	panel.offset_top = -TOUCH_LOBBY_HALF.y
+	panel.offset_bottom = TOUCH_LOBBY_HALF.y
+	var cols: HBoxContainer = HBoxContainer.new()
+	cols.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	cols.add_theme_constant_override("separation", 48)
+	panel.add_child(cols)
+	var left: VBoxContainer = VBoxContainer.new()
+	left.custom_minimum_size = Vector2(TOUCH_LEFT_COLUMN_W, 0.0)
+	left.add_theme_constant_override("separation", 18)
+	cols.add_child(left)
+	var right: VBoxContainer = VBoxContainer.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.add_theme_constant_override("separation", 14)
+	cols.add_child(right)
+	for n: String in ["NameRow", "PasswordRow", "HostBtn", "RuleBookBtn"]:
+		_move_into(panel.get_node_or_null(n), left)
+	var gap: Control = Control.new()
+	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left.add_child(gap)
+	_move_into(panel.get_node_or_null("BackBtn"), left)
+	for n: String in ["GamesRow", "FiltersRow", "GameList", "JoinSelectedBtn", "DirectRow", "StatusLabel"]:
+		_move_into(panel.get_node_or_null(n), right)
+	var sep: Control = panel.get_node_or_null("Separator")
+	if sep:
+		sep.visible = false          # the columns split it now
+	_game_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_game_list.add_theme_constant_override("v_separation", 20)
+	var staging: Control = $StagingPanel/VBox
+	staging.offset_left = -TOUCH_STAGING_HALF.x
+	staging.offset_right = TOUCH_STAGING_HALF.x
+	staging.offset_top = -TOUCH_STAGING_HALF.y
+	staging.offset_bottom = TOUCH_STAGING_HALF.y
+	staging.add_theme_constant_override("separation", 10)
+	_touch_up(panel)
+	_touch_up(staging)
+	if _password_prompt and _password_prompt.get_child_count() > 0:
+		var prompt_panel: Control = _password_prompt.get_child(0) as Control
+		prompt_panel.custom_minimum_size = Vector2(640.0, 0.0)
+		_touch_up(prompt_panel)
+
+func _move_into(node: Node, to: Node) -> void:
+	if node == null:
+		return
+	node.get_parent().remove_child(node)
+	to.add_child(node)
+
+## Phone sizes for every control under root (absolute sizes: running it again changes nothing).
+func _touch_up(root: Node) -> void:
+	for n: Node in root.find_children("*", "Control", true, false):
+		if n is CheckBox or n is CheckButton:
+			var c: Button = n as Button
+			c.custom_minimum_size.y = maxf(c.custom_minimum_size.y, TOUCH_ROW_H)
+			c.add_theme_font_size_override("font_size", TOUCH_TEXT_FONT)
+		elif n is Button:
+			var b: Button = n as Button
+			b.custom_minimum_size.y = maxf(b.custom_minimum_size.y, TOUCH_BUTTON_H)
+			b.add_theme_font_size_override("font_size", TOUCH_BUTTON_FONT)
+			if b is OptionButton:
+				(b as OptionButton).get_popup().add_theme_font_size_override("font_size", TOUCH_BUTTON_FONT)
+		elif n is LineEdit:
+			var e: LineEdit = n as LineEdit
+			e.custom_minimum_size.y = maxf(e.custom_minimum_size.y, TOUCH_ROW_H)
+			e.add_theme_font_size_override("font_size", TOUCH_TEXT_FONT + 2)
+		elif n is ItemList:
+			(n as ItemList).add_theme_font_size_override("font_size", TOUCH_TEXT_FONT)
+		elif n is Label:
+			var l: Label = n as Label
+			var f: int = l.get_theme_font_size("font_size")
+			l.add_theme_font_size_override("font_size", maxi(f, TOUCH_TEXT_FONT))
