@@ -88,7 +88,13 @@ const SCORE_COLOR: Color = Color(0.9, 0.85, 0.7)
 const GUIDE_IMAGE_PATH: String = "res://assets/scan/guide.jpg"
 const GUIDE_BADGE_BG: Color = Color8(18, 26, 46)
 const GUIDE_BADGE_RIM: Color = Color8(236, 200, 104)
-const GUIDE_BADGE_SIZE: float = 52.0
+const GUIDE_BADGE_SIZE: float = 64.0
+# the tips beside the picture (2026-11-02: 22 was too small to read on a phone; 32 overflows
+# a 16:9 phone in French with the Android night tip, 30 fits every language there)
+const GUIDE_TIP_FONT_SIZE: int = 30
+# picture : tips width — the picture is height-bound on a phone (1800x1042), so this costs it
+# nothing there and gives the bigger tips the width it wasn't using (was 2.6)
+const GUIDE_PICTURE_RATIO: float = 1.75
 const GUIDE_TIPS: Array[String] = [
 	"Hold your phone sideways, straight above the table, and fit your whole ship in the photo.",
 	"Keep the ring of lights around each card's orb uncovered.",
@@ -506,7 +512,7 @@ func _build_photo_guide() -> Control:
 	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	pic.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pic.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	pic.size_flags_stretch_ratio = 2.6
+	pic.size_flags_stretch_ratio = GUIDE_PICTURE_RATIO
 	row.add_child(pic)
 	var tips: VBoxContainer = VBoxContainer.new()
 	tips.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -536,10 +542,11 @@ func _build_photo_guide() -> Control:
 		num.text = marks[i]
 		num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		num.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		num.add_theme_font_size_override("font_size", HINT_FONT_SIZE)
+		num.add_theme_font_size_override("font_size", GUIDE_TIP_FONT_SIZE)
 		badge.add_child(num)
 		tip.add_child(badge)
 		var text: Label = _make_hint_label(tips_text[i])
+		text.add_theme_font_size_override("font_size", GUIDE_TIP_FONT_SIZE)
 		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		tip.add_child(text)
