@@ -878,7 +878,7 @@ func _on_photo_selected(path: String) -> void:
 		if loose > 0:
 			_status_label.text += " · %d card%s not next to a sector left out" % [loose, "" if loose == 1 else "s"]
 		if placeholders > 0:
-			_status_label.text += " · %d more with the light ring covered, added as Hibernators — fix with Edit" % placeholders
+			_status_label.text += " · %d more not found, shown as ? — pick %s with Edit" % [placeholders, "it" if placeholders == 1 else "them"]
 		var unsure: int = 0
 		for e: Dictionary in _sectors:
 			unsure += (e.get("unsure_techs", []) as Array).size() + (1 if bool(e.get("unsure_sector", false)) else 0)
@@ -921,6 +921,9 @@ func _sector_entry_from_group(g: Array) -> Dictionary:
 		"stored_supply": stored,
 		"unsure_techs": unsure,
 		"unsure_sector": _is_unsure(sd),
+		# a column whose sector dial wasn't read: drawn as a "?" card (the placeholder card
+		# underneath only keeps the scoring and Edit going until the player picks the real one)
+		"unknown_sector": bool(sd.get("placeholder", false)),
 	}
 
 ## A reading DialReader only took on its strip's word (a weak dial) or swapped for a
@@ -1272,11 +1275,15 @@ func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
 	stack.custom_minimum_size = Vector2(long_px, stack_h)
 	stack.mouse_filter = Control.MOUSE_FILTER_PASS
 	outer.add_child(stack)
-	var sector_art: String = sector_cd.adv_local_art_path if is_advanced else sector_cd.local_art_path
-	var sector_thumb: TextureRect = _make_summary_thumb(sector_art, "%d. %s" % [index + 1, sector_name], Vector2(long_px, sector_h))
+	var unknown: bool = bool(entry.get("unknown_sector", false))
+	var sector_art: String = "" if unknown else (sector_cd.adv_local_art_path if is_advanced else sector_cd.local_art_path)
+	var sector_tip: String = ("%d. ? (not found: pick it with Edit)" % (index + 1)) if unknown else ("%d. %s" % [index + 1, sector_name])
+	var sector_thumb: TextureRect = _make_summary_thumb(sector_art, sector_tip, Vector2(long_px, sector_h))
 	stack.add_child(sector_thumb)
 	sector_thumb.position = Vector2(0.0, stack_h - sector_h)   # after add_child, so layout can't override it
 	sector_thumb.size = Vector2(long_px, sector_h)
+	if unknown:
+		_add_unknown_card(sector_thumb, Vector2(long_px, sector_h))
 	if bool(entry.get("unsure_sector", false)):
 		_add_unsure_badge(sector_thumb, Vector2(long_px, sector_h), TableauReader.DIAL_MM["sector"] / TableauReader.SIZE_MM["sector"])
 	var unsure: Array = entry.get("unsure_techs", [])
@@ -1374,6 +1381,28 @@ func _make_summary_thumb(art_path: String, tooltip: String, thumb_size: Vector2,
 		tw.tween_callback(func(): thumb.z_index = base_z)
 		hover_tween_cell[0] = tw)
 	return thumb
+
+## A card the scan couldn't find (a sector whose light ring wasn't read): a dark card with a
+## giant yellow "?", so it can't be mistaken for a real one.
+func _add_unknown_card(thumb: TextureRect, thumb_size: Vector2) -> void:
+	var card: PanelContainer = PanelContainer.new()
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.12, 0.17)
+	style.border_color = Color(1.0, 0.8, 0.2)
+	style.set_border_width_all(maxi(2, roundi(minf(thumb_size.x, thumb_size.y) * 0.04)))
+	style.set_corner_radius_all(roundi(minf(thumb_size.x, thumb_size.y) * 0.07))
+	card.add_theme_stylebox_override("panel", style)
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var lbl: Label = Label.new()
+	lbl.text = "?"
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", roundi(minf(thumb_size.x, thumb_size.y) * 0.8))
+	lbl.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
+	card.add_child(lbl)
+	thumb.add_child(card)
+	card.position = Vector2.ZERO                     # after add_child, so layout can't override it
+	card.size = thumb_size
 
 ## A yellow "?" over a card's light ring: the scan wasn't sure of this card (check it with Edit).
 func _add_unsure_badge(thumb: TextureRect, thumb_size: Vector2, at: Vector2) -> void:
@@ -1576,6 +1605,8 @@ func _rebuild_pending_from_sector(sector_entry: Dictionary) -> Array[Dictionary]
 	var sector_cd: CardData = sector_entry["sector"]
 	var is_advanced: bool = sector_entry["is_advanced"]
 	var sector_name: String = sector_cd.adv_name if is_advanced else sector_cd.card_name
+	if bool(sector_entry.get("unknown_sector", false)):
+		sector_name = ""          # not found: the player picks it
 	pending.append({"thumbnail": null, "name": sector_name, "is_advanced": is_advanced})
 	for cd: CardData in (sector_entry["techs"] as Array):
 		pending.append({"thumbnail": null, "name": cd.card_name, "is_advanced": false})
