@@ -61,7 +61,6 @@ AUDIENCE = [
     ("steam.followers", "Steam followers", "Steam community"),
     ("steam.wishlists", "Steam wishlists", "manual"),
     ("play.installs", "Google Play installs", "manual"),
-    ("website.visits", "Website visits (week)", "manual"),
 ]
 MANUAL_METRICS = {k for k, _, how in AUDIENCE if how == "manual"}
 GAMEFOUND_KEY_RE = re.compile(r"^gamefound\.[a-z0-9-]{1,60}\.followers$")
