@@ -51,12 +51,10 @@ METRIC_KEY_RE = re.compile(r"^[a-z0-9_.-]{1,80}$")
 # (no API, or the platform hides the count behind a login); the others come from hub_collect.py.
 AUDIENCE = [
     ("gamefound.followers", "Gamefound followers", "manual"),
-    ("newsletter.subscribers", "Newsletter subscribers", "manual"),
     ("discord.members", "Discord members", "Discord invite"),
     ("youtube.subscribers", "YouTube subscribers", "YouTube API"),
     ("instagram.followers", "Instagram followers", "manual"),
     ("tiktok.followers", "TikTok followers", "manual"),
-    ("facebook.followers", "Facebook followers", "manual"),
     ("bgg.fans", "BGG fans", "manual"),
     ("steam.followers", "Steam followers", "Steam community"),
     ("steam.wishlists", "Steam wishlists", "manual"),

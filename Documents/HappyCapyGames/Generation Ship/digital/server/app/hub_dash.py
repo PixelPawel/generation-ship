@@ -353,7 +353,6 @@ def build() -> dict:
             "games_7d": game["games_7d"], "games_prev_7d": game["games_prev_7d"], "players_7d_avg": game["players_7d_avg"],
             "gamefound": sum(a["value"] for a in gf if a["value"] is not None) if any(a["value"] is not None for a in gf) else None,
             "gamefound_7d": sum(gf_changes) if gf_changes else None, "gamefound_campaigns": len(gf),
-            "newsletter": aud["newsletter.subscribers"]["value"],
             "cash": m["cash"], "runway": m["runway"],
             "sales_month": out["sales"]["net_this_month"],
             "followups_due": o["followups_due_count"], "replies_waiting": o["replies_waiting_count"],
