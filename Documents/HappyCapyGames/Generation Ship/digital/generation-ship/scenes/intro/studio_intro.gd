@@ -1,5 +1,5 @@
 extends Control
-## The studio intro right after Godot's boot splash, before the main menu:
+## The studio intro right after Godot's boot splash, before the main menu (flows into its cockpit):
 ## the Happy Capy Games capybara (Art/Logo/CapySnapy.png, redrawn sharp from its vector) sits on
 ## the page while "Happy Capy Games" writes itself in underneath, letter by letter (each fades in
 ## and settles from a little below). A tap, click or key skips it. Calm on purpose (the user,
@@ -27,13 +27,20 @@ const LETTER_IMAGE_H: float = 247.0
 const LOGO_HEIGHT: float = 440.0      # canvas px (the layout is 1080 high)
 const TEXT_HEIGHT: float = 104.0      # the letters' image height on screen
 const TEXT_GAP: float = 34.0          # logo → letters
-const LETTERS_AT: float = 0.35        # s after start
+const LOGO_IN: float = 0.45           # the capybara fades in from the boot splash
+const LETTERS_AT: float = 0.45        # s after start
 const LETTER_STAGGER: float = 0.055
 const LETTER_TIME: float = 0.5
 const LETTER_RISE: float = 22.0       # canvas px each letter settles from
 const LEAVE_AT: float = 2.9
 const SKIP_AFTER: float = 0.3
+# the hand-over (2026-11-04, "flow into the cockpit"): the name and the capybara fade out on the
+# page, the menu loads underneath, then the cream page dissolves onto its cockpit
+const OUT_PAUSE: float = 0.1          # a frame or two: the menu's first frame is drawn
+const OUT_CONTENT: float = 0.4
+const OUT_PAGE: float = 0.9
 
+var _logo: TextureRect = null
 var _letters: Array[TextureRect] = []
 var _letter_rest_y: float = 0.0
 var _started_ms: int = 0
@@ -55,8 +62,10 @@ func _build() -> void:
 	var view: Vector2 = get_viewport_rect().size
 	var logo_size: Vector2 = Vector2(LOGO_HEIGHT * LOGO.get_width() / LOGO.get_height(), LOGO_HEIGHT)
 	var top: float = (view.y - (LOGO_HEIGHT + TEXT_GAP + TEXT_HEIGHT)) / 2.0
-	var logo: TextureRect = _make_picture(LOGO, logo_size)
-	logo.position = Vector2((view.x - logo_size.x) / 2.0, top)
+	_logo = _make_picture(LOGO, logo_size)
+	_logo.position = Vector2((view.x - logo_size.x) / 2.0, top)
+	_logo.pivot_offset = logo_size / 2.0
+	_logo.modulate.a = 0.0
 	var k: float = TEXT_HEIGHT / LETTER_IMAGE_H
 	var line_left: float = (view.x - LINE_W * k) / 2.0
 	_letter_rest_y = top + LOGO_HEIGHT + TEXT_GAP
@@ -79,6 +88,7 @@ func _make_picture(tex: Texture2D, picture_size: Vector2) -> TextureRect:
 	return r
 
 func _play() -> void:
+	create_tween().tween_property(_logo, "modulate:a", 1.0, LOGO_IN).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	for i: int in _letters.size():
 		var letter: TextureRect = _letters[i]
 		var t: Tween = create_tween().set_parallel(true)
@@ -108,6 +118,35 @@ func _leave() -> void:
 	if _leaving:
 		return
 	_leaving = true
-	# a short fade through black into the menu. No background preload of the menu: the preload
-	# left 9 objects leaked at exit (2026-11-04, headless runs: 10 with it, 1 without = as before)
-	SceneTransition.change_scene(NEXT_SCENE)
+	# The intro's pictures move onto a veil above everything, which outlives this scene: the
+	# menu loads underneath (the veil shows meanwhile, no black), then the veil hands over.
+	# (No background preload of the menu: it left 9 objects leaked at exit, 2026-11-04.)
+	var layer: CanvasLayer = CanvasLayer.new()
+	layer.layer = 90                                # under SceneTransition's own layer (128)
+	get_tree().root.add_child(layer)
+	var veil: Control = Control.new()
+	veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(veil)
+	veil.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var page: Array[CanvasItem] = []
+	var content: Array[CanvasItem] = []
+	for child: Node in get_children():
+		var item: CanvasItem = child as CanvasItem
+		if item == null:
+			continue
+		item.reparent(veil)
+		if item is ColorRect:
+			page.append(item)
+		else:
+			content.append(item)
+	var tw: Tween = veil.create_tween()
+	tw.tween_interval(OUT_PAUSE)
+	# first the capybara and the name go, softly shrinking a touch
+	for item: CanvasItem in content:
+		tw.parallel().tween_property(item, "modulate:a", 0.0, OUT_CONTENT).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.parallel().tween_property(_logo, "scale", Vector2(0.97, 0.97), OUT_CONTENT).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	# then the page opens onto the cockpit
+	for item: CanvasItem in page:
+		tw.chain().tween_property(item, "modulate:a", 0.0, OUT_PAGE).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.chain().tween_callback(layer.queue_free)
+	get_tree().change_scene_to_file(NEXT_SCENE)     # this (now empty) intro goes
