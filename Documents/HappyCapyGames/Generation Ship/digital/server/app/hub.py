@@ -402,6 +402,46 @@ def _changed() -> None:
     soon()
 
 
+# ---------------------------------------------------------------- the outreach funnel
+FUNNEL = ["Lead", "To contact", "Contacted", "Replied", "Negotiating", "Copy sent", "App key sent", "Content scheduled",
+          "Published", "Partner"]                      # the board's columns, in order
+FUNNEL_EXITS = ["Declined", "No reply"]
+# the funnel chart's steps: a physical copy and an app key (Steam / Android) are the same step
+FUNNEL_LEVELS = [("Lead", ["Lead"]), ("To contact", ["To contact"]), ("Contacted", ["Contacted"]), ("Replied", ["Replied"]),
+                 ("Negotiating", ["Negotiating"]), ("Copy or app key sent", ["Copy sent", "App key sent"]),
+                 ("Content scheduled", ["Content scheduled"]), ("Published", ["Published"]), ("Partner", ["Partner"])]
+LEVEL_OF = {s: i for i, (_, stages) in enumerate(FUNNEL_LEVELS) for s in stages}
+# the next follow-up when a contact arrives at a stage: days from today ("setting" = Settings > Follow-up days),
+# None = clear it, absent = leave it as it is
+FOLLOW_UP_RULE = {"Contacted": "setting", "Replied": 2, "Negotiating": 5, "Copy sent": 14, "App key sent": 7,
+                  "Published": 7, "Partner": 90, "Declined": None, "No reply": None}
+STAGE_LOG_KIND = {"Contacted": "Email", "Copy sent": "Copy sent", "App key sent": "App key sent", "Published": "Content published"}
+
+
+def _stage_moved(c: sqlite3.Connection, data: dict, old_stage: str, given: dict, user: str) -> None:
+    """A contact arrived at a new stage: follow-up date, last contact, furthest stage, a line in the Outreach Log."""
+    new = data.get("Stage") or ""
+    if not new or new == old_stage:
+        return
+    t = today()
+    rule = FOLLOW_UP_RULE.get(new, "keep")
+    if "Next follow-up" not in given and rule != "keep":
+        days = (_num(setting(c, "Follow-up days")) or 7) if rule == "setting" else rule
+        data["Next follow-up"] = None if days is None else (t + timedelta(days=int(days))).isoformat()
+    if new == "Contacted":
+        data["Last contact"] = t.isoformat()
+    if new in LEVEL_OF:
+        data["_furthest"] = max(int(data.get("_furthest") or 0), LEVEL_OF[new])
+    if old_stage == "" and new in ("Lead", "To contact"):
+        return                                     # a new contact that hasn't been written to: nothing to log yet
+    log_tab = TAB_BY_NAME["Outreach Log"]
+    entry = clean_row(log_tab, {"Date": t.isoformat(), "Contact ID": data.get("ID", ""), "Kind": STAGE_LOG_KIND.get(new, "Other"),
+                                "Game": data.get("Game", ""), "Summary": f"Stage: {old_stage or 'new'} → {new}", "Owner": user})
+    now = int(time.time())
+    c.execute("INSERT INTO rows (tab, data, created_at, updated_at, updated_by) VALUES (?, ?, ?, ?, ?)",
+              (log_tab["slug"], json.dumps(entry, ensure_ascii=False), now, now, user))
+
+
 def _out(tab: dict, rows: list[dict]) -> list[dict]:
     return [{k: v for k, v in r.items()} for r in rows]
 
@@ -472,6 +512,8 @@ def add_row(tab: str, body: dict = Body(...), x_hub_token: str | None = Header(N
     now = int(time.time())
     with hdb() as c:
         _fill_auto(c, t, data, creating=True)
+        if t["name"] == "Contacts" and data.get("Stage"):
+            _stage_moved(c, data, "", body.get("data") or {}, _user(x_hub_user))
         cur = c.execute("INSERT INTO rows (tab, data, created_at, updated_at, updated_by) VALUES (?, ?, ?, ?, ?)",
                         (t["slug"], json.dumps(data, ensure_ascii=False), now, now, _user(x_hub_user)))
         out = {"row": _row_out(c, t, cur.lastrowid)}
@@ -492,8 +534,11 @@ def change_row(tab: str, row_id: int, body: dict = Body(...), x_hub_token: str |
         if base is not None and int(base) != r["updated_at"]:
             raise HTTPException(409, "Someone else changed this row in the meantime. Reload and try again.")
         data = json.loads(r["data"])
+        old_stage = data.get("Stage") or ""
         data.update(clean_row(t, body.get("data") or {}))
         _fill_auto(c, t, data, creating=False)
+        if t["name"] == "Contacts":
+            _stage_moved(c, data, old_stage, body.get("data") or {}, _user(x_hub_user))
         c.execute("UPDATE rows SET data = ?, updated_at = ?, updated_by = ? WHERE id = ?",
                   (json.dumps(data, ensure_ascii=False), max(int(time.time()), r["updated_at"] + 1),
                    _user(x_hub_user), row_id))

@@ -334,3 +334,30 @@ def test_calendar_shows_the_google_calendars_own_appointments(monkeypatch, tmp_p
     hub_gcal._read_cache.clear()
     r = client.get("/v1/hub/events", headers=H).json()
     assert r["google_error"] and not [e for e in r["events"] if e["cat"] == "google"]
+
+
+def test_outreach_funnel_stage_rules():
+    c1 = add("contacts", Name="Tina Tabletop", Stage="To contact", Platform="YouTube")
+    assert not c1.get("Next follow-up")
+    moved = client.put(f"/v1/hub/rows/contacts/{c1['_id']}", json={"data": {"Stage": "Contacted"}}, headers=H).json()["row"]
+    assert moved["Next follow-up"] == (TODAY + timedelta(days=7)).isoformat()       # Settings > Follow-up days
+    assert moved["Last contact"] == TODAY.isoformat()
+    moved = client.put(f"/v1/hub/rows/contacts/{c1['_id']}", json={"data": {"Stage": "Copy sent"}}, headers=H).json()["row"]
+    assert moved["Next follow-up"] == (TODAY + timedelta(days=14)).isoformat()
+    # a date given together with the move wins over the rule
+    moved = client.put(f"/v1/hub/rows/contacts/{c1['_id']}", json={"data": {"Stage": "Published", "Next follow-up": "2030-01-01"}}, headers=H).json()["row"]
+    assert moved["Next follow-up"] == "2030-01-01"
+    log = [r for r in client.get("/v1/hub/rows/outreach-log", headers=H).json()["rows"] if r.get("Contact ID") == c1["ID"]]
+    assert [r["Summary"] for r in log] == ["Stage: To contact → Contacted", "Stage: Contacted → Copy sent", "Stage: Copy sent → Published"]
+    assert [r["Kind"] for r in log] == ["Email", "Copy sent", "Content published"] and all(r["Owner"] == "Pawel" for r in log)
+    c2 = add("contacts", Name="Pixel Plays", Stage="Negotiating")
+    key = client.put(f"/v1/hub/rows/contacts/{c2['_id']}", json={"data": {"Stage": "App key sent"}}, headers=H).json()["row"]
+    assert key["Next follow-up"] == (TODAY + timedelta(days=7)).isoformat()
+    log2 = [r for r in client.get("/v1/hub/rows/outreach-log", headers=H).json()["rows"] if r.get("Contact ID") == c2["ID"]]
+    assert [r["Kind"] for r in log2] == ["Other", "App key sent"]     # added at Negotiating, then the key
+    gone = client.put(f"/v1/hub/rows/contacts/{c1['_id']}", json={"data": {"Stage": "No reply"}}, headers=H).json()["row"]
+    assert not gone.get("Next follow-up")
+    add("contacts", Name="New lead", Stage="Lead")
+    f = dict((s, (reached, now)) for s, reached, now in client.get("/v1/hub/dash", headers=H).json()["outreach"]["funnel"])
+    assert f["Lead"][0] >= 3 and f["Published"][0] >= 1     # Tina reached Published before dropping out
+    assert f["Copy or app key sent"][0] >= 2 and f["Copy or app key sent"][1] >= 1   # Tina (copy) and Pixel Plays (key)

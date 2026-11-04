@@ -1363,6 +1363,7 @@
    "Replied",
    "Negotiating",
    "Copy sent",
+   "App key sent",
    "Content scheduled",
    "Published",
    "Partner",
@@ -1405,6 +1406,7 @@
    "Call",
    "Meeting",
    "Copy sent",
+   "App key sent",
    "Content published",
    "Paid deal",
    "Other"

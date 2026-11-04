@@ -9,7 +9,7 @@ import sqlite3
 from collections import Counter, defaultdict
 from datetime import date, timedelta
 
-from .hub import Context, _d, _f, audience, derived_rows, hdb, kv_get, series, setting, today
+from .hub import FUNNEL_EXITS, FUNNEL_LEVELS, LEVEL_OF, Context, _d, _f, audience, derived_rows, hdb, kv_get, series, setting, today
 
 CLOSED_STAGES = {"Declined", "No reply"}
 OPEN_SUPPORT = {"New", "In progress"}
@@ -133,7 +133,17 @@ def _outreach(ctx, lists) -> dict:
                                                                   or _d(r.get("Last reply")) > _d(r.get("Last contact")))]
     pick = lambda rows: [{k: r.get(k) for k in ("_id", "ID", "Name", "Company / channel", "Stage", "Next follow-up",
                                                   "Owner", "Platform", "Priority")} for r in rows]
+    # the funnel: how many contacts ever reached each stage (furthest stage, kept by the stage rules; contacts from
+    # before the rules count from where they are now), and how many sit there right now
+    def furthest(r):
+        if r.get("_furthest") is not None:
+            return int(r["_furthest"])
+        s = r.get("Stage") or ""
+        return LEVEL_OF.get(s, LEVEL_OF["Contacted"] if s in FUNNEL_EXITS else 0)
+    funnel = [[label, sum(1 for r in contacts if furthest(r) >= i), sum(stages.get(s, 0) for s in members)]
+              for i, (label, members) in enumerate(FUNNEL_LEVELS)]
     return {
+        "funnel": funnel, "exits": [[s, stages.get(s, 0)] for s in FUNNEL_EXITS],
         "stages": [[s, stages.get(s, 0)] for s in lists.get("Stages", [])] + [[k, v] for k, v in stages.items()
                                                                              if k not in lists.get("Stages", [])],
         "contacts": len(contacts),
