@@ -4,15 +4,21 @@ that Google Calendar, Outlook, Apple Calendar or Thunderbird subscribe to (they 
     GET  /v1/hub/events?start=&end=          the entries between two dates (hub token), for the Calendar page
     GET  /v1/hub/calendar                    the feed links (hub token)
     POST /v1/hub/calendar/rotate             new feed links; the old ones stop working (hub token)
+    POST /v1/hub/calendar/show  {key, show}  put an entry into the calendar or take it out (hub token); key
+                                             "conv-12" covers a convention's days and its booth deadline
+
+Conventions only come in when someone adds them (there are many to consider); everything else comes in by itself
+and can be taken out the same way.
     GET  /v1/hub/calendar/{secret}/{feed}.ics   a feed; the secret in the link is its only protection
 
 What becomes an entry: the Calendar table (the team's own dates), conventions (their days and booth deadlines),
 open production milestones, open checklist tasks, open payments and income, planned posts, follow-ups.
 """
+import re
 import secrets
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Body, Header, HTTPException
 from fastapi.responses import Response
 
 from .hub import TZ, Context, _auth, _d, _f, derived_rows, hdb, kv_get, kv_put, setting, today
@@ -93,8 +99,18 @@ def entries(c) -> list[dict]:
             add("outreach", f"follow-{r['_id']}", f"Follow up: {r.get('Name') or 'contact'}", r.get("Next follow-up"), None,
                 None, " · ".join(x for x in (r.get("Company / channel"), r.get("Stage"), r.get("Owner")) if x),
                 "outreach", "contacts", r)
+    choice = kv_get(c, "calendar_choice", {}) or {}
+    out = [e for e in out if choice.get(entry_key(e["uid"]), entry_key(e["uid"]).split("-")[0] not in OPT_IN)]
     out.sort(key=lambda e: (e["start"], e["time"] or "", e["title"]))
     return out
+
+
+OPT_IN = {"conv"}   # kinds that only come into the calendar when someone adds them
+
+
+def entry_key(uid: str) -> str:
+    """The key a choice is stored under: "conv-12" for both "conv-12" and "conv-12-deadline"."""
+    return "-".join(uid.split("-")[:2])
 
 
 def _secret(c) -> str:
@@ -126,7 +142,23 @@ def get_events(start: str = "", end: str = "", x_hub_token: str | None = Header(
 def calendar_links(x_hub_token: str | None = Header(None)) -> dict:
     _auth(x_hub_token)
     with hdb() as c:
-        return {"feeds": _feeds(c)}
+        return {"feeds": _feeds(c), "choice": kv_get(c, "calendar_choice", {}) or {}, "opt_in": sorted(OPT_IN)}
+
+
+@router.post("/calendar/show")
+def calendar_show(body: dict = Body(...), x_hub_token: str | None = Header(None)) -> dict:
+    """Puts one entry (a convention with its deadline) into the calendar, or takes it out."""
+    _auth(x_hub_token)
+    key = str(body.get("key", ""))
+    if not re.fullmatch(r"[a-z]+-\d+", key):
+        raise HTTPException(400, "Unknown calendar entry.")
+    with hdb() as c:
+        choice = kv_get(c, "calendar_choice", {}) or {}
+        choice[key] = bool(body.get("show"))
+        kv_put(c, "calendar_choice", choice)
+    from .hub_gcal import soon
+    soon()
+    return {"choice": choice}
 
 
 @router.post("/calendar/rotate")

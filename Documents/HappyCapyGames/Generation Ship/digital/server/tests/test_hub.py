@@ -210,7 +210,8 @@ def test_gamefound_campaigns_one_row_each():
 def test_calendar_entries_and_ics_feed():
     d = lambda n: (TODAY + timedelta(days=n)).isoformat()
     add("calendar", Date=d(3), Time="14:00-15:30", Title="Team meeting, monthly", Kind="Meeting")
-    add("conventions", Name="Essen", City="Essen", Start=d(10), End=d(13), **{"Booth deadline": d(2)})
+    essen = add("conventions", Name="Essen", City="Essen", Start=d(10), End=d(13), **{"Booth deadline": d(2)})
+    client.post("/v1/hub/calendar/show", json={"key": f"conv-{essen['_id']}", "show": True}, headers=H)
     add("production", Milestone="Files to printer", SKU="GS-PL", Planned=d(5))
     add("production", Milestone="Art final", Planned=d(-9), Actual=d(-9))          # done: no entry
     add("checklist", Task="Book the hotel", Due=d(1), Owner="Pawel")
@@ -284,3 +285,21 @@ def test_google_calendar_sync(monkeypatch, tmp_path):
     client.delete(f"/v1/hub/rows/money/{pay['_id']}", headers=H)
     r = sync()
     assert "1 removed" in r["message"] and calls[-1][0] == "DELETE"
+
+
+def test_calendar_conventions_only_when_added_tasks_by_themselves():
+    d = lambda n: (TODAY + timedelta(days=n)).isoformat()
+    conv = add("conventions", Name="Fair", Start=d(30), End=d(32), **{"Booth deadline": d(5)})
+    task = add("checklist", Task="Print banner", Due=d(3))
+    uids = lambda: {e["uid"] for e in client.get("/v1/hub/events", headers=H).json()["events"]}
+    key = f"conv-{conv['_id']}"
+    assert not {key, key + "-deadline"} & uids() and f"task-{task['_id']}" in uids()
+    show = lambda k, v: client.post("/v1/hub/calendar/show", json={"key": k, "show": v}, headers=H)
+    assert show(key, True).json()["choice"][key] is True
+    assert {key, key + "-deadline"} <= uids()
+    assert client.get("/v1/hub/calendar", headers=H).json()["choice"][key] is True
+    show(key, False)
+    assert not {key, key + "-deadline"} & uids()
+    show(f"task-{task['_id']}", False)                      # automatic ones can be taken out too
+    assert f"task-{task['_id']}" not in uids()
+    assert show("../etc", True).status_code == 400
