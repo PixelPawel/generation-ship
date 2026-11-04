@@ -223,15 +223,20 @@ def collect_bgg(c) -> str:
             raise RuntimeError("BGG refused the token (401): check BGG_TOKEN on the server") from None
         raise
     day, out = today().isoformat(), []
+    names = kv_get(c, "bgg_names", {}) or {}
     for item in xml.findall("item"):
         gid = item.get("id")
+        name = item.find("name[@type='primary']")
+        if name is not None:
+            names[gid] = name.get("value")
         r = item.find("statistics/ratings")
         if r is None:
             continue
         vals = {k: r.find(k).get("value") for k in ("usersrated", "average", "owned", "wishing") if r.find(k) is not None}
         for k, v in vals.items():
             put_metric(c, day, f"bgg.{gid}.{k}", float(v), "bgg")
-        out.append(f"{gid}: {vals.get('owned')} owned, {vals.get('wishing')} wishing")
+        out.append(f"{names.get(gid, gid)}: {vals.get('owned')} owned, {vals.get('wishing')} wishing")
+    kv_put(c, "bgg_names", names)
     return "; ".join(out) or "no items"
 
 

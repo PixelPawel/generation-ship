@@ -101,6 +101,26 @@ def _audience(c) -> list[dict]:
     return out
 
 
+def _bgg(c) -> list[dict]:
+    """Every game in Settings > BGG ids: the newest numbers, and how owned / wishing moved in 28 days."""
+    t = today()
+    names = kv_get(c, "bgg_names", {}) or {}
+    out = []
+    for gid in [x for x in setting(c, "BGG ids").replace(",", " ").split() if x]:
+        stats = ("owned", "wishing", "usersrated", "average")
+        s = series(c, [f"bgg.{gid}.{k}" for k in stats], 400)
+        row = {"id": gid, "name": names.get(gid, f"BGG {gid}")}
+        for k in stats:
+            last = _latest(s[f"bgg.{gid}.{k}"])
+            row[k] = last[1] if last else None
+            if k in ("owned", "wishing"):
+                before = _latest(s[f"bgg.{gid}.{k}"], t - timedelta(days=28))
+                row[k + "_28d"] = last[1] - before[1] if last and before else None
+        row["series"] = s[f"bgg.{gid}.owned"][-180:]
+        out.append(row)
+    return out
+
+
 def _outreach(ctx, lists) -> dict:
     t = today()
     contacts = derived_rows(ctx, "Contacts")
@@ -314,7 +334,7 @@ def build() -> dict:
         audience = _audience(c)
         out = {
             "today": today().isoformat(),
-            "game": game, "audience": audience,
+            "game": game, "audience": audience, "bgg": _bgg(c),
             "outreach": _outreach(ctx, lists), "marketing": _marketing(ctx, lists), "events": _events(ctx),
             "sales": _sales(ctx, lists), "money": _money(ctx), "production": _production(ctx),
             "playtests": _playtests(ctx), "community": _community(ctx),

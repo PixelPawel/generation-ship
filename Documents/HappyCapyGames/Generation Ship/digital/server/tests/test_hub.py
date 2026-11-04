@@ -167,3 +167,24 @@ def test_steam_store_page_reviews():
             'data-tooltip-html="76% of the 453,261 user reviews in your language are positive"')
     assert store_reviews(page) == (453261, round(453261 * 0.76))
     assert store_reviews("<html>nothing</html>") is None
+
+
+def test_bgg_collector_and_dashboard(monkeypatch):
+    from app import hub_collect
+    xml = b"""<items><item type="boardgame" id="451162"><name type="primary" value="Generation Ship"/>
+      <statistics><ratings><usersrated value="12"/><average value="7.4"/><owned value="80"/><wishing value="25"/></ratings></statistics>
+    </item></items>"""
+    seen = {}
+    monkeypatch.setattr(hub_collect, "_get", lambda url, headers=None, timeout=20: seen.update(url=url, headers=headers) or xml)
+    with hub.hdb() as c:
+        s = hub.kv_get(c, "settings")
+        s["BGG ids"] = "451162"
+        hub.kv_put(c, "settings", s)
+    monkeypatch.delenv("BGG_TOKEN", raising=False)
+    assert "BGG_TOKEN" in client.post("/v1/hub/collect?only=bgg", headers=H).json()["results"][0]["message"]
+    monkeypatch.setenv("BGG_TOKEN", "t0k")
+    res = client.post("/v1/hub/collect?only=bgg", headers=H).json()["results"][0]
+    assert res["ok"] and "Generation Ship: 80 owned, 25 wishing" in res["message"]
+    assert seen["headers"] == {"Authorization": "Bearer t0k"} and "boardgamegeek.com/xmlapi2" in seen["url"]
+    row = client.get("/v1/hub/dash", headers=H).json()["bgg"][0]
+    assert row["name"] == "Generation Ship" and row["owned"] == 80 and row["average"] == 7.4 and row["usersrated"] == 12
