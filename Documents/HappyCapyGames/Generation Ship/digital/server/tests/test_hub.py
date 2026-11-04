@@ -158,3 +158,12 @@ def test_dashboard_money_and_attention():
     assert "Overdue task" in kinds and "Late milestone" in kinds and "Overdue payments" in kinds
     assert d["overview"]["tiles"]["overdue_tasks"] == 1
     assert {a["key"] for a in d["audience"]} >= {"gamefound.followers", "steam.followers"}
+
+
+def test_steam_store_page_reviews():
+    from app.hub_collect import store_reviews
+    assert store_reviews('<span data-tooltip-html="No user reviews">No user reviews</span>') == (0, 0)
+    page = ('data-tooltip-html="66% of the 5,600 user reviews in the last 30 days are positive." '
+            'data-tooltip-html="76% of the 453,261 user reviews in your language are positive"')
+    assert store_reviews(page) == (453261, round(453261 * 0.76))
+    assert store_reviews("<html>nothing</html>") is None

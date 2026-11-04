@@ -17,6 +17,7 @@ import os
 import re
 import sqlite3
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -99,6 +100,22 @@ def collect_game(c) -> str:
 
 # ---------------------------------------------------------------- stores and platforms
 
+REVIEW_TIP_RE = re.compile(r'data-tooltip-html="(\d+)% of the ([\d,.]+) user reviews(?! in the last 30 days)')
+
+
+def store_reviews(html: str):
+    """(reviews, positive) from a Steam store page: its review summary tooltip, the biggest count that isn't
+    "last 30 days". The appreviews endpoint redirects to the store's front page from our server, so this is the
+    fallback."""
+    tips = [(int(p), int(re.sub(r"[,.]", "", n))) for p, n in REVIEW_TIP_RE.findall(html)]
+    if tips:
+        pct, total = max(tips, key=lambda x: x[1])
+        return total, round(total * pct / 100)
+    if "No user reviews" in html:
+        return 0, 0
+    return None
+
+
 def collect_steam(c) -> str:
     apps = _ids(setting(c, "Steam app ids"))
     if not apps:
@@ -113,28 +130,43 @@ def collect_steam(c) -> str:
                 names[app] = data["name"]
         except Exception as e:  # noqa: BLE001  (one source failing must not stop the others)
             notes.append(f"{app} details: {e}")
+        reviews = None
         try:
             q = _json(f"https://store.steampowered.com/appreviews/{app}?json=1&language=all&purchase_type=all"
                       f"&num_per_page=0&filter=recent").get("query_summary") or {}
             if "total_reviews" in q:
-                put_metric(c, day, f"steam.{app}.reviews", q["total_reviews"], "steam")
-                put_metric(c, day, f"steam.{app}.positive", q.get("total_positive", 0), "steam")
-                got.append(f"{q['total_reviews']} reviews")
-        except Exception as e:  # noqa: BLE001
-            notes.append(f"{app} reviews: {e}")
+                reviews = (q["total_reviews"], q.get("total_positive", 0))
+        except Exception:  # noqa: BLE001  (redirects to the store's front page from the server: use the store page)
+            try:
+                reviews = store_reviews(_get(f"https://store.steampowered.com/app/{app}/?l=english",
+                                             {"Cookie": "birthtime=470703601; wants_mature_content=1"}).decode("utf-8", "replace"))
+            except Exception as e:  # noqa: BLE001
+                notes.append(f"{app} reviews: {e}")
+        if reviews:
+            put_metric(c, day, f"steam.{app}.reviews", reviews[0], "steam")
+            put_metric(c, day, f"steam.{app}.positive", reviews[1], "steam")
+            got.append(f"{reviews[0]} reviews")
         try:
             n = _json(f"https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid={app}")
-            if (n.get("response") or {}).get("result") == 1:
-                put_metric(c, day, f"steam.{app}.players", n["response"].get("player_count", 0), "steam")
-                got.append(f"{n['response'].get('player_count', 0)} playing")
+            count = n["response"].get("player_count", 0) if (n.get("response") or {}).get("result") == 1 else 0
+        except urllib.error.HTTPError as e:
+            count = 0 if e.code == 404 else None   # 404 / result 42: nobody playing right now
+            if count is None:
+                notes.append(f"{app} players: {e}")
         except Exception as e:  # noqa: BLE001
+            count = None
             notes.append(f"{app} players: {e}")
+        if count is not None:
+            put_metric(c, day, f"steam.{app}.players", count, "steam")
+            got.append(f"{count} playing")
         try:
             xml = ET.fromstring(_get(f"https://steamcommunity.com/games/{app}/memberslistxml/?xml=1"))
             members = xml.findtext("groupDetails/memberCount") or xml.findtext("memberCount")
             if members is not None:
                 put_metric(c, day, f"steam.{app}.followers", int(members), "steam")
                 got.append(f"{members} followers")
+        except ET.ParseError:
+            pass   # no community group (a demo or DLC): Steam answers with an HTML error page
         except Exception as e:  # noqa: BLE001
             notes.append(f"{app} followers: {e}")
         notes.insert(0, f"{names.get(app, app)}: {', '.join(got) or 'nothing'}")
