@@ -450,3 +450,12 @@ def test_gmail_drives_the_outreach_funnel():
     assert boxes[0]["email"] == "kate@gmail.com" and boxes[0]["logged"] == 4 and not boxes[0]["stale"]
     assert client.delete(f"/v1/hub/mailboxes/{box['id']}", headers=H).status_code == 200
     assert client.post("/v1/hub/mail/plan", json={}, headers=MH).status_code == 403
+
+
+def test_funnel_declined_before_any_contact_stays_a_lead():
+    client.post("/v1/hub/import", json={"tab": "contacts", "rows": [
+        {"Name": "Ruled out", "Stage": "Declined"},
+        {"Name": "Said no", "Stage": "Declined", "Last contact": "2026-10-01"},
+        {"Name": "Silent", "Stage": "No reply"}]}, headers=H)
+    f = {s: n for s, n, _ in client.get("/v1/hub/dash", headers=H).json()["outreach"]["funnel"]}
+    assert f["Lead"] == 3 and f["Contacted"] == 2
