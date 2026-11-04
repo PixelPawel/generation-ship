@@ -418,8 +418,10 @@ FOLLOW_UP_RULE = {"Contacted": "setting", "Replied": 2, "Negotiating": 5, "Copy 
 STAGE_LOG_KIND = {"Contacted": "Email", "Copy sent": "Copy sent", "App key sent": "App key sent", "Published": "Content published"}
 
 
-def _stage_moved(c: sqlite3.Connection, data: dict, old_stage: str, given: dict, user: str) -> None:
-    """A contact arrived at a new stage: follow-up date, last contact, furthest stage, a line in the Outreach Log."""
+def _stage_moved(c: sqlite3.Connection, data: dict, old_stage: str, given: dict, user: str, log: bool = True,
+                 note: str = "") -> None:
+    """A contact arrived at a new stage: follow-up date, last contact, furthest stage, a line in the Outreach Log
+    (log=False: the caller writes its own line, as the Gmail sync does for the mail that moved the contact)."""
     new = data.get("Stage") or ""
     if not new or new == old_stage:
         return
@@ -432,11 +434,11 @@ def _stage_moved(c: sqlite3.Connection, data: dict, old_stage: str, given: dict,
         data["Last contact"] = t.isoformat()
     if new in LEVEL_OF:
         data["_furthest"] = max(int(data.get("_furthest") or 0), LEVEL_OF[new])
-    if old_stage == "" and new in ("Lead", "To contact"):
+    if not log or (old_stage == "" and new in ("Lead", "To contact")):
         return                                     # a new contact that hasn't been written to: nothing to log yet
     log_tab = TAB_BY_NAME["Outreach Log"]
     entry = clean_row(log_tab, {"Date": t.isoformat(), "Contact ID": data.get("ID", ""), "Kind": STAGE_LOG_KIND.get(new, "Other"),
-                                "Game": data.get("Game", ""), "Summary": f"Stage: {old_stage or 'new'} → {new}", "Owner": user})
+                                "Game": data.get("Game", ""), "Summary": f"Stage: {old_stage or 'new'} → {new}{note}", "Owner": user})
     now = int(time.time())
     c.execute("INSERT INTO rows (tab, data, created_at, updated_at, updated_by) VALUES (?, ?, ?, ?, ?)",
               (log_tab["slug"], json.dumps(entry, ensure_ascii=False), now, now, user))
@@ -651,5 +653,7 @@ def collect_status(x_hub_token: str | None = Header(None)) -> dict:
 
 
 from .hub_calendar import router as _calendar_router  # noqa: E402  (the company calendar and its .ics feeds)
+from .hub_mail import router as _mail_router  # noqa: E402  (the team's Gmail drives the outreach funnel)
 
 router.include_router(_calendar_router)
+router.include_router(_mail_router)

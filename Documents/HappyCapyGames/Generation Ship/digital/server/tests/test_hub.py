@@ -361,3 +361,92 @@ def test_outreach_funnel_stage_rules():
     f = dict((s, (reached, now)) for s, reached, now in client.get("/v1/hub/dash", headers=H).json()["outreach"]["funnel"])
     assert f["Lead"][0] >= 3 and f["Published"][0] >= 1     # Tina reached Published before dropping out
     assert f["Copy or app key sent"][0] >= 2 and f["Copy or app key sent"][1] >= 1   # Tina (copy) and Pixel Plays (key)
+
+
+def test_gmail_drives_the_outreach_funnel():
+    import re
+    from app import hub_mail
+    with hub.hdb() as c:
+        c.execute("DELETE FROM mail_msgs")
+        c.execute("DELETE FROM mail_threads")
+        c.execute("DELETE FROM kv WHERE key = 'mailboxes'")
+    tina = add("contacts", Name="Tina Tabletop", Email="Tina@Example.com", Stage="To contact", Owner="Kate", Game="Generation Ship")
+    r = client.post("/v1/hub/mailboxes", json={"owner": "Kate"}, headers=H).json()
+    token = re.search(r'const TOKEN = "([^"]+)"', r["script"]).group(1)
+    assert "__HUB__" not in r["script"] and '"https://api.happycapygames.com/v1/hub/mail"' in r["script"]
+    MH, box = {"X-Mailbox-Token": token}, r["mailbox"]
+    assert "Kate" in client.get("/v1/hub/settings", headers=H).json()["lists"]["Team"]
+    assert client.post("/v1/hub/mail/plan", json={}, headers={"X-Mailbox-Token": "nope"}).status_code == 403
+    plan = lambda: client.post("/v1/hub/mail/plan", json={"version": 1, "me": "kate@gmail.com", "aliases": ["info@happycapygames.com"]}, headers=MH).json()
+    report = lambda **b: client.post("/v1/hub/mail/report", json=b, headers=MH).json()
+    contact = lambda rid: next(x for x in client.get("/v1/hub/rows/contacts", headers=H).json()["rows"] if x["_id"] == rid)
+    log_of = lambda c: [x for x in client.get("/v1/hub/rows/outreach-log", headers=H).json()["rows"] if x.get("Contact ID") == c["ID"]]
+    p = plan()
+    assert p["watch"] == ["tina@example.com"] and p["backfill"] == ["tina@example.com"] and p["apply"] == []
+
+    # Kate writes to Tina (from the company address she sends as); private mail doesn't count
+    now = int(time.time())
+    sent = {"id": "m1", "rfc": "<abc@mail.gmail.com>", "thread": "t1", "at": (now - 3600) * 1000, "from": "Kate <info@happycapygames.com>",
+            "to": "Tina <tina@example.com>", "cc": "", "subject": "Generation Ship for your channel?"}
+    private = {"id": "m0", "rfc": "<x@y>", "thread": "t9", "at": now - 7200, "from": "kate@gmail.com", "to": "mum@example.org", "subject": "Sunday"}
+    assert report(messages=[sent, private], labels={}, backfilled=["tina@example.com"])["logged"] == 1
+    day = hub_mail._day(now - 3600)
+    t = contact(tina["_id"])
+    assert t["Stage"] == "Contacted" and t["Last contact"] == day.isoformat()
+    assert t["Next follow-up"] == (day + timedelta(days=7)).isoformat()
+    (line,) = log_of(t)
+    assert line["Kind"] == "Email" and line["Owner"] == "Kate" and line["Summary"] == "Generation Ship for your channel? (stage: To contact → Contacted)"
+    assert line["Mail"] == "https://mail.google.com/mail/u/kate@gmail.com/#all/t1"
+    assert report(messages=[sent], labels={})["logged"] == 0          # the same mail again (or cc'd to a 2nd mailbox): once
+    p = plan()
+    assert p["backfill"] == [] and p["apply"] == [{"thread": "t1", "stage": "Contacted"}]
+
+    # Tina answers: Replied, answer within 2 days, the dashboards show a reply waiting
+    reply = {"id": "m2", "rfc": "<def@example.com>", "thread": "t1", "at": now - 60, "from": "Tina <tina@example.com>",
+             "to": "info@happycapygames.com", "subject": "Re: Generation Ship for your channel?"}
+    assert report(messages=[reply], labels={"t1": ["Contacted"]}, applied=["t1"])["logged"] == 1
+    t = contact(tina["_id"])
+    assert t["Stage"] == "Replied" and t["Next follow-up"] == (hub_mail._day(now - 60) + timedelta(days=2)).isoformat()
+    assert [x["Name"] for x in client.get("/v1/hub/dash", headers=H).json()["outreach"]["replies_waiting"]] == ["Tina Tabletop"]
+    assert plan()["apply"] == [{"thread": "t1", "stage": "Replied"}]
+    assert report(labels={"t1": ["Replied"]}, applied=["t1"])["moved"] == 0
+
+    # Kate moves the thread to Outreach/Negotiating in Gmail: the contact follows
+    assert report(labels={"t1": ["Negotiating"]})["moved"] == 1
+    t = contact(tina["_id"])
+    assert t["Stage"] == "Negotiating" and log_of(t)[-1]["Summary"] == "Stage: Replied → Negotiating (Gmail label)"
+    assert plan()["apply"] == []
+    # moved on the board: the label follows in Gmail
+    client.put(f"/v1/hub/rows/contacts/{tina['_id']}", json={"data": {"Stage": "Copy sent"}}, headers=H)
+    assert plan()["apply"] == [{"thread": "t1", "stage": "Copy sent"}]
+    # the stage label taken off the thread: that thread is left alone from then on
+    report(labels={}, applied=["t1"])
+    assert plan()["apply"] == [] and contact(tina["_id"])["Stage"] == "Copy sent"
+
+    # someone new in a thread labelled Outreach becomes a contact
+    new = {"id": "m3", "rfc": "<new@z>", "thread": "t2", "at": now - 30, "from": "Max Meeple <max@meeple.tv>", "to": "kate@gmail.com", "subject": "Review copy?"}
+    assert report(messages=[new], labels={"t2": [""]})["added"] == 1
+    mx = next(x for x in client.get("/v1/hub/rows/contacts", headers=H).json()["rows"] if x.get("Email") == "max@meeple.tv")
+    assert mx["Name"] == "Max Meeple" and mx["Owner"] == "Kate" and mx["Stage"] == "Replied"
+    # a labelled thread nobody knows yet is asked for in full by the next run
+    report(labels={"t3": ["Negotiating"], "t2": [""]})
+    assert plan()["need"] == ["t3"]
+    report(labels={"t3": ["Negotiating"], "t2": [""]}, needed=["t3"])      # only team members in it
+    assert plan()["need"] == []
+
+    # drafts go into the Owner's Gmail; the mail sent from it marks the draft Sent
+    client.put(f"/v1/hub/rows/contacts/{tina['_id']}", json={"data": {"Draft status": "Ready", "Draft subject": "Our next game", "Draft body": "Hi Tina"}}, headers=H)
+    assert plan()["drafts"] == [{"contact": tina["_id"], "to": "tina@example.com", "subject": "Our next game", "body": "Hi Tina"}]
+    assert plan()["drafts"] == []                                        # not twice while the script is making it
+    report(drafts=[{"contact": tina["_id"], "draft": "r-1"}], labels={})
+    assert contact(tina["_id"])["Draft status"] == "In drafts"
+    out2 = dict(sent, id="m4", rfc="<ghi@mail.gmail.com>", at=int(time.time()) + 5, subject="Our next game")
+    report(messages=[out2], labels={})
+    t = contact(tina["_id"])
+    assert t["Draft status"] == "Sent" and t["Stage"] == "Copy sent"
+    assert t["Next follow-up"] == (hub_mail._day(int(time.time()) + 5) + timedelta(days=14)).isoformat()   # Copy sent's own rule
+
+    boxes = client.get("/v1/hub/mailboxes", headers=H).json()["mailboxes"]
+    assert boxes[0]["email"] == "kate@gmail.com" and boxes[0]["logged"] == 4 and not boxes[0]["stale"]
+    assert client.delete(f"/v1/hub/mailboxes/{box['id']}", headers=H).status_code == 200
+    assert client.post("/v1/hub/mail/plan", json={}, headers=MH).status_code == 403

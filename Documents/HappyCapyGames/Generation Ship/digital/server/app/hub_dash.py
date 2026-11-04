@@ -129,8 +129,13 @@ def _outreach(ctx, lists) -> dict:
     log = derived_rows(ctx, "Outreach Log")
     stages = Counter(r.get("Stage") or "No stage" for r in contacts)
     due = [r for r in contacts if r.get("Follow-up due") == "Due" and r.get("Stage") not in CLOSED_STAGES]
-    waiting = [r for r in contacts if _d(r.get("Last reply")) and (not _d(r.get("Last contact"))
-                                                                  or _d(r.get("Last reply")) > _d(r.get("Last contact")))]
+    def waiting_for_us(r):
+        if r.get("Stage") == "Declined":
+            return False
+        if r.get("_mail_in"):                      # the Gmail sync keeps the exact times
+            return int(r["_mail_in"]) > int(r.get("_mail_out") or 0)
+        return bool(_d(r.get("Last reply"))) and (not _d(r.get("Last contact")) or _d(r.get("Last reply")) > _d(r.get("Last contact")))
+    waiting = [r for r in contacts if waiting_for_us(r)]
     pick = lambda rows: [{k: r.get(k) for k in ("_id", "ID", "Name", "Company / channel", "Stage", "Next follow-up",
                                                   "Owner", "Platform", "Priority")} for r in rows]
     # the funnel: how many contacts ever reached each stage (furthest stage, kept by the stage rules; contacts from
@@ -349,7 +354,10 @@ def build() -> dict:
             "playtests": _playtests(ctx), "community": _community(ctx),
         }
     from .hub_collect import status
+    from .hub_mail import status as mail_status
     out["collect"] = status()["collectors"]
+    with hdb() as c:
+        out["mailboxes"] = mail_status(c)
     aud = {a["key"]: a for a in audience}
     gf = [a for a in audience if a["key"].startswith("gamefound.")]   # every campaign together
     gf_changes = [a["change_7d"] for a in gf if a["change_7d"] is not None]
@@ -398,6 +406,10 @@ def _attention(out: dict) -> list[dict]:
             a.append({"area": "sales", "kind": "Low stock", "text": r.get("Product") or r.get("SKU"), "detail": f"{r.get('Available'):.0f} left at {r.get('Location')}"})
     for r in out["events"]["deadlines"]:
         a.append({"area": "events", "kind": "Booth deadline", "text": r["Name"], "detail": r["Booth deadline"]})
+    for b in out.get("mailboxes") or []:
+        if b["stale"] or b["last_error"]:
+            a.append({"area": "outreach", "kind": "Gmail not syncing" if b["stale"] else "Gmail sync problem",
+                      "text": f"{b['owner']} ({b['email']})", "detail": b["last_error"][:120] or "no run for over an hour", "who": b["owner"]})
     for r in out["collect"]:
         if r.get("ok") is False:
             a.append({"area": "settings", "kind": "Collector failed", "text": r["collector"], "detail": r.get("message", "")[:120]})

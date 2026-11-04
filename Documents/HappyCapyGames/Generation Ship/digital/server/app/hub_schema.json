@@ -78,7 +78,8 @@
     },
     {
      "name": "Email",
-     "type": "email"
+     "type": "email",
+     "note": "Mail to or from this address in a connected Gmail moves the contact by itself. Several addresses: separate them with commas."
     },
     {
      "name": "Country",
@@ -143,13 +144,13 @@
     {
      "name": "Last contact",
      "type": "date",
-     "note": "Last email we sent (from the mailbox, by tools/mail_sync.py).",
+     "note": "The last mail we sent them (from the team's connected Gmail).",
      "auto": true
     },
     {
      "name": "Last reply",
      "type": "date",
-     "note": "Last email they sent us (from the mailbox, by tools/mail_sync.py).",
+     "note": "The last mail they sent us (from the team's connected Gmail).",
      "auto": true
     },
     {
@@ -173,7 +174,7 @@
      "name": "Draft status",
      "type": "list",
      "list": "DraftStatus",
-     "note": "Review = drafted, check it. Ready = tools/mail_sync.py puts it into the mailbox's Drafts folder. In drafts = waiting there for you to send. Sent = it went out."
+     "note": "Review = drafted, check it. Ready = goes into the Owner's Gmail as a draft within 5 minutes. In drafts = waiting there for you to send. Sent = it went out."
     },
     {
      "name": "Source",
@@ -225,6 +226,12 @@
     {
      "name": "Summary",
      "type": "long"
+    },
+    {
+     "name": "Mail",
+     "type": "url",
+     "auto": true,
+     "note": "The mail in Gmail (logged by the Gmail sync)."
     },
     {
      "name": "Copies",
@@ -1402,6 +1409,7 @@
   ],
   "OutreachKinds": [
    "Email",
+   "Email received",
    "DM",
    "Call",
    "Meeting",
