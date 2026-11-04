@@ -188,3 +188,22 @@ def test_bgg_collector_and_dashboard(monkeypatch):
     assert seen["headers"] == {"Authorization": "Bearer t0k"} and "boardgamegeek.com/xmlapi2" in seen["url"]
     row = client.get("/v1/hub/dash", headers=H).json()["bgg"][0]
     assert row["name"] == "Generation Ship" and row["owned"] == 80 and row["average"] == 7.4 and row["usersrated"] == 12
+
+
+def test_gamefound_campaigns_one_row_each():
+    with hub.hdb() as c:
+        s = hub.kv_get(c, "settings")
+        s["Gamefound campaigns"] = ("Generation Ship | https://gamefound.com/en/projects/happy-capy-games/generation-ship#/section/x\n"
+                                    "https://gamefound.com/en/projects/happy-capy-games/rink-rumble\n\nSuccession")
+        hub.kv_put(c, "settings", s)
+    keys = [a["key"] for a in client.get("/v1/hub/schema", headers=H).json()["audience"]]
+    assert keys[:3] == ["gamefound.generation-ship.followers", "gamefound.rink-rumble.followers", "gamefound.succession.followers"]
+    assert "gamefound.followers" not in keys
+    r = client.post("/v1/hub/metrics", json={"values": {"gamefound.generation-ship.followers": 1200, "gamefound.rink-rumble.followers": 300}}, headers=H)
+    assert r.status_code == 200, r.text
+    assert client.post("/v1/hub/metrics", json={"values": {"gamefound.x.y": 1}}, headers=H).status_code == 400
+    d = client.get("/v1/hub/dash", headers=H).json()
+    rows = {a["key"]: a for a in d["audience"]}
+    assert rows["gamefound.generation-ship.followers"]["label"] == "Gamefound: Generation Ship"
+    assert rows["gamefound.rink-rumble.followers"]["label"] == "Gamefound: Rink Rumble"
+    assert d["overview"]["tiles"]["gamefound"] == 1500 and d["overview"]["tiles"]["gamefound_campaigns"] == 3

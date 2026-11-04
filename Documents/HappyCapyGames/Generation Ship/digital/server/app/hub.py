@@ -64,6 +64,40 @@ AUDIENCE = [
     ("website.visits", "Website visits (week)", "manual"),
 ]
 MANUAL_METRICS = {k for k, _, how in AUDIENCE if how == "manual"}
+GAMEFOUND_KEY_RE = re.compile(r"^gamefound\.[a-z0-9-]{1,60}\.followers$")
+
+
+def gamefound_campaigns(c) -> list[dict]:
+    """Settings > Gamefound campaigns: one per line, "Name | link" (or just the link). Gamefound hides its counts
+    behind a bot check, so each campaign's followers are typed in weekly, one row per campaign."""
+    out = []
+    for line in setting(c, "Gamefound campaigns").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        name, _, url = line.partition("|") if "|" in line else ("", "", line)
+        name, url = name.strip(), url.strip()
+        if not url.startswith("http"):
+            name, url = name or url, ""
+        tail = url.split("#")[0].split("?")[0].rstrip("/").split("/")[-1] if url else name
+        slug = re.sub(r"[^a-z0-9]+", "-", tail.lower()).strip("-")[:60]
+        if slug and slug not in {x["slug"] for x in out}:
+            out.append({"slug": slug, "name": name or slug.replace("-", " ").title(), "url": url})
+    return out
+
+
+def audience(c) -> list[dict]:
+    """The Audience channels: the fixed list, with the single Gamefound row replaced by one row per campaign
+    once Settings > Gamefound campaigns has any."""
+    out = []
+    for key, label, how in AUDIENCE:
+        camps = gamefound_campaigns(c) if key == "gamefound.followers" else []
+        if camps:
+            out += [{"key": f"gamefound.{g['slug']}.followers", "label": f"Gamefound: {g['name']}", "how": "manual",
+                     "url": g["url"]} for g in camps]
+        else:
+            out.append({"key": key, "label": label, "how": how, "url": ""})
+    return out
 
 router = APIRouter(prefix="/v1/hub")
 _lock = threading.Lock()
@@ -378,7 +412,8 @@ def _out(tab: dict, rows: list[dict]) -> list[dict]:
 @router.get("/schema")
 def get_schema(x_hub_token: str | None = Header(None)) -> dict:
     _auth(x_hub_token)
-    return {"tabs": SCHEMA["tabs"], "audience": [{"key": k, "label": label, "how": how} for k, label, how in AUDIENCE]}
+    with hdb() as c:
+        return {"tabs": SCHEMA["tabs"], "audience": audience(c)}
 
 
 @router.get("/settings")
@@ -535,7 +570,8 @@ def post_metrics(body: dict = Body(...), x_hub_token: str | None = Header(None))
     values = body.get("values") or {}
     with hdb() as c:
         for k, v in values.items():
-            if not METRIC_KEY_RE.match(str(k)) or not (k in MANUAL_METRICS or str(k).startswith("custom.")):
+            if not METRIC_KEY_RE.match(str(k)) or not (k in MANUAL_METRICS or GAMEFOUND_KEY_RE.match(str(k))
+                                                       or str(k).startswith("custom.")):
                 raise HTTPException(400, f"{k} is collected automatically or unknown.")
             put_metric(c, day, k, _num(v), "manual")
         return {"series": series(c, list(values), 400)}

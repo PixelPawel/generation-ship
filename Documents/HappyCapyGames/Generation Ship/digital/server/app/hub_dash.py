@@ -9,7 +9,7 @@ import sqlite3
 from collections import Counter, defaultdict
 from datetime import date, timedelta
 
-from .hub import AUDIENCE, Context, _d, _f, derived_rows, hdb, kv_get, series, setting, today
+from .hub import Context, _d, _f, audience, derived_rows, hdb, kv_get, series, setting, today
 
 CLOSED_STAGES = {"Declined", "No reply"}
 OPEN_SUPPORT = {"New", "In progress"}
@@ -86,14 +86,16 @@ def _game(c, ctx) -> dict:
 
 def _audience(c) -> list[dict]:
     t = today()
-    s = series(c, [k for k, _, _ in AUDIENCE], 400)
+    chans = audience(c)
+    s = series(c, [a["key"] for a in chans], 400)
     out = []
-    for key, label, how in AUDIENCE:
+    for a in chans:
+        key, label, how = a["key"], a["label"], a["how"]
         pts = s[key]
         last = _latest(pts)
         w = _latest(pts, t - timedelta(days=7))
         m = _latest(pts, t - timedelta(days=28))
-        out.append({"key": key, "label": label, "how": how, "value": last[1] if last else None,
+        out.append({"key": key, "label": label, "how": how, "url": a["url"], "value": last[1] if last else None,
                     "day": last[0] if last else None,
                     "change_7d": (last[1] - w[1]) if last and w else None,
                     "change_28d": (last[1] - m[1]) if last and m else None,
@@ -342,12 +344,15 @@ def build() -> dict:
     from .hub_collect import status
     out["collect"] = status()["collectors"]
     aud = {a["key"]: a for a in audience}
+    gf = [a for a in audience if a["key"].startswith("gamefound.")]   # every campaign together
+    gf_changes = [a["change_7d"] for a in gf if a["change_7d"] is not None]
     p, m, o = out["production"], out["money"], out["outreach"]
     count = lambda pairs, k: dict(pairs).get(k, 0)
     out["overview"] = {
         "tiles": {
             "games_7d": game["games_7d"], "games_prev_7d": game["games_prev_7d"], "players_7d_avg": game["players_7d_avg"],
-            "gamefound": aud["gamefound.followers"]["value"], "gamefound_7d": aud["gamefound.followers"]["change_7d"],
+            "gamefound": sum(a["value"] for a in gf if a["value"] is not None) if any(a["value"] is not None for a in gf) else None,
+            "gamefound_7d": sum(gf_changes) if gf_changes else None, "gamefound_campaigns": len(gf),
             "newsletter": aud["newsletter.subscribers"]["value"],
             "cash": m["cash"], "runway": m["runway"],
             "sales_month": out["sales"]["net_this_month"],
