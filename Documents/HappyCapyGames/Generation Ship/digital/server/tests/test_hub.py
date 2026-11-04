@@ -79,11 +79,9 @@ def test_stock_and_convention_formulas():
     low = add("stock", Location="Office", SKU="GS-DE", **{"On hand": 25, "Reserved": 10})   # default low = 20
     assert low["Available"] == 15 and low["Status"] == "Low" and low["Product"] == "Generation Ship (DE)"
     add("conventions", Name="SPIEL 26", **{"Booth cost EUR": 800, "Travel EUR": 200})
-    add("leads", Email="a@example.com", Source="SPIEL 26")
-    add("leads", Email="b@example.com", Source="SPIEL 26")
     add("sales", Date=TODAY.isoformat(), **{"Event / customer": "SPIEL 26", "Gross EUR": 90, "Fees EUR": 0})
     conv = client.get("/v1/hub/rows/conventions", headers=H).json()["rows"][0]
-    assert conv["Total cost EUR"] == 1000 and conv["Leads"] == 2 and conv["Sales EUR"] == 90 and conv["Cost per lead EUR"] == 500
+    assert conv["Total cost EUR"] == 1000 and conv["Sales EUR"] == 90 and "Leads" not in conv
 
 
 def test_import_keeps_script_columns():

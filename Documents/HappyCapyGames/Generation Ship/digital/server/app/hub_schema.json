@@ -307,17 +307,7 @@
      "calc": true
     },
     {
-     "name": "Leads",
-     "type": "int",
-     "calc": true
-    },
-    {
      "name": "Sales EUR",
-     "type": "eur",
-     "calc": true
-    },
-    {
-     "name": "Cost per lead EUR",
      "type": "eur",
      "calc": true
     },
@@ -1172,74 +1162,6 @@
      "name": "Received",
      "type": "datetime",
      "auto": true
-    }
-   ]
-  },
-  {
-   "name": "Leads",
-   "slug": "leads",
-   "area": "community",
-   "group": "collected",
-   "note": "",
-   "columns": [
-    {
-     "name": "Received",
-     "type": "datetime",
-     "key": true
-    },
-    {
-     "name": "Email",
-     "type": "email"
-    },
-    {
-     "name": "Name",
-     "type": "text"
-    },
-    {
-     "name": "Language",
-     "type": "text"
-    },
-    {
-     "name": "Country",
-     "type": "text"
-    },
-    {
-     "name": "Source",
-     "type": "text",
-     "note": "Box QR, Website, Playtest, or the convention name."
-    },
-    {
-     "name": "Game",
-     "type": "text"
-    },
-    {
-     "name": "Consent",
-     "type": "text",
-     "note": "Version of the consent text the person agreed to."
-    },
-    {
-     "name": "Status",
-     "type": "list",
-     "list": "LeadStatus"
-    },
-    {
-     "name": "Confirmed",
-     "type": "datetime",
-     "auto": true
-    },
-    {
-     "name": "Exported",
-     "type": "check",
-     "note": "Ticked when exported to the newsletter tool."
-    },
-    {
-     "name": "Token",
-     "type": "text",
-     "auto": true
-    },
-    {
-     "name": "Notes",
-     "type": "long"
     }
    ]
   },

@@ -188,7 +188,7 @@ def _events(ctx) -> dict:
     t = today()
     conv = derived_rows(ctx, "Conventions")
     rows = [{k: r.get(k) for k in ("_id", "Name", "City", "Country", "Start", "End", "Booth deadline", "Status",
-                                    "Total cost EUR", "Leads", "Sales EUR", "Cost per lead EUR")} for r in conv]
+                                    "Total cost EUR", "Sales EUR")} for r in conv]
     rows.sort(key=lambda r: r.get("Start") or "9999")
     return {"upcoming": [r for r in rows if (_d(r.get("End") or r.get("Start")) or date.max) >= t],
             "past": [r for r in rows if (_d(r.get("End") or r.get("Start")) or date.max) < t][::-1][:10],
@@ -317,11 +317,8 @@ def _playtests(ctx) -> dict:
 
 
 def _community(ctx) -> dict:
-    leads = derived_rows(ctx, "Leads")
     support = derived_rows(ctx, "Support")
     return {
-        "leads_by_status": Counter(r.get("Status") or "-" for r in leads).most_common(),
-        "leads_by_source": Counter(r.get("Source") or "-" for r in leads).most_common(8),
         "support_by_status": Counter(r.get("Status") or "New" for r in support).most_common(),
         "support_open": [{k: r.get(k) for k in ("_id", "ID", "Received", "Kind", "Name", "Game", "Status", "Owner")}
                          for r in support if (r.get("Status") or "New") in OPEN_SUPPORT][:12],

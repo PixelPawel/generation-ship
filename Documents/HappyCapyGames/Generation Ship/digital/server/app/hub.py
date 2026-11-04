@@ -326,16 +326,12 @@ def derive(tab_name: str, rows: list[dict], ctx: Context) -> list[dict]:
         for r in rows:
             r["Contact"] = names.get(str(r.get("Contact ID", "")), "")
     elif tab_name == "Conventions":
-        leads, sales = ctx.rows("Leads"), ctx.rows("Sales")
+        sales = ctx.rows("Sales")
         for r in rows:
             name = r.get("Name") or ""
-            total = _f(r.get("Booth cost EUR")) + _f(r.get("Travel EUR")) + _f(r.get("Other cost EUR"))
-            n = sum(1 for x in leads if name and x.get("Source") == name)
-            r["Total cost EUR"] = total
-            r["Leads"] = n
+            r["Total cost EUR"] = _f(r.get("Booth cost EUR")) + _f(r.get("Travel EUR")) + _f(r.get("Other cost EUR"))
             r["Sales EUR"] = sum(_f(x.get("Gross EUR")) - _f(x.get("Fees EUR")) for x in sales
                                  if name and x.get("Event / customer") == name)
-            r["Cost per lead EUR"] = total / n if n else None
     elif tab_name == "Comps":
         for r in rows:
             b = _f(r.get("Backers"))
