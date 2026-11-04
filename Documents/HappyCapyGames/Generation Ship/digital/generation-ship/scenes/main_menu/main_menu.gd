@@ -51,7 +51,7 @@ var _lock_hint: Label = null
 const GAMEFOUND_LOGO: String = "res://assets/ui/gamefound_logo_white.png"
 const GAMEFOUND_URL: String = "https://gamefound.com/en/projects/happy-capy-games/generation-ship#/section/project-story"
 const DISCORD_LOGO: String = "res://assets/ui/Discord-Logo-Blurple.png"
-const DISCORD_URL: String = "https://discord.gg/AGJvpkrpFX"
+const DISCORD_URL: String = "https://discord.gg/ewEB2PYTWc"   # never expires (2026-11-04; the old invite had run out)
 const _LINK_MARGIN: float = 28.0
 
 var _link_buttons: Array[TextureButton] = []

@@ -213,8 +213,15 @@ def collect_bgg(c) -> str:
     if not ids:
         return "skipped: no Settings > BGG ids"
     token = os.environ.get("BGG_TOKEN", "")
-    xml = ET.fromstring(_get("https://boardgamegeek.com/xmlapi2/thing?stats=1&id=" + ",".join(ids),
-                             {"Authorization": f"Bearer {token}"} if token else None))
+    if not token:   # since 2025-07 BGG answers 401 without one
+        return "skipped: BGG_TOKEN on the server (register an app at boardgamegeek.com/applications, then make a token)"
+    try:
+        xml = ET.fromstring(_get("https://boardgamegeek.com/xmlapi2/thing?stats=1&id=" + ",".join(ids),
+                                 {"Authorization": f"Bearer {token}"}))
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            raise RuntimeError("BGG refused the token (401): check BGG_TOKEN on the server") from None
+        raise
     day, out = today().isoformat(), []
     for item in xml.findall("item"):
         gid = item.get("id")
