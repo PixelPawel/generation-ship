@@ -1,5 +1,5 @@
 extends Control
-## The studio intro right after Godot's boot splash, before the main menu (loaded meanwhile):
+## The studio intro right after Godot's boot splash, before the main menu:
 ## the Happy Capy Games capybara (Art/Logo/CapySnapy.png, redrawn sharp from its vector) sits on
 ## the page while "Happy Capy Games" writes itself in underneath, letter by letter (each fades in
 ## and settles from a little below). A tap, click or key skips it. Calm on purpose (the user,
@@ -40,7 +40,6 @@ var _started_ms: int = 0
 var _leaving: bool = false
 
 func _ready() -> void:
-	SceneTransition.preload_scene(NEXT_SCENE)
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	var bg: ColorRect = ColorRect.new()
@@ -109,4 +108,6 @@ func _leave() -> void:
 	if _leaving:
 		return
 	_leaving = true
+	# a short fade through black into the menu. No background preload of the menu: the preload
+	# left 9 objects leaked at exit (2026-11-04, headless runs: 10 with it, 1 without = as before)
 	SceneTransition.change_scene(NEXT_SCENE)
