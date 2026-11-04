@@ -8,6 +8,7 @@ extends Control
 ## ink #26303C, Fraunces 600 (only the rendered letters ship, not the font).
 
 const NEXT_SCENE: String = "res://scenes/main_menu/main_menu.tscn"
+const IntroVeil: GDScript = preload("res://scenes/intro/intro_veil.gd")
 const BG: Color = Color8(254, 245, 231)
 const LOGO: Texture2D = preload("res://assets/ui/studio/capy_logo.png")
 const LETTERS: Array[Texture2D] = [
@@ -39,12 +40,14 @@ const SKIP_AFTER: float = 0.3
 const OUT_PAUSE: float = 0.1          # a frame or two: the menu's first frame is drawn
 const OUT_CONTENT: float = 0.4
 const OUT_PAGE: float = 0.9
+const MAX_STEP: float = 1.0 / 30.0    # a long frame (the first one) slows the animation, no jump
 
 var _logo: TextureRect = null
 var _letters: Array[TextureRect] = []
 var _letter_rest_y: float = 0.0
 var _started_ms: int = 0
 var _leaving: bool = false
+var _tweens: Array[Tween] = []        # stepped by _process, see MAX_STEP
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -87,15 +90,27 @@ func _make_picture(tex: Texture2D, picture_size: Vector2) -> TextureRect:
 	r.size = picture_size                       # after add_child, so layout can't override it
 	return r
 
+func _tween() -> Tween:
+	var t: Tween = create_tween()
+	t.pause()
+	_tweens.append(t)
+	return t
+
+func _process(delta: float) -> void:
+	var step: float = minf(delta, MAX_STEP)
+	for t: Tween in _tweens.duplicate():
+		if not t.custom_step(step):
+			_tweens.erase(t)
+
 func _play() -> void:
-	create_tween().tween_property(_logo, "modulate:a", 1.0, LOGO_IN).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_tween().tween_property(_logo, "modulate:a", 1.0, LOGO_IN).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	for i: int in _letters.size():
 		var letter: TextureRect = _letters[i]
-		var t: Tween = create_tween().set_parallel(true)
+		var t: Tween = _tween().set_parallel(true)
 		var at: float = LETTERS_AT + LETTER_STAGGER * i
 		t.tween_property(letter, "modulate:a", 1.0, LETTER_TIME * 0.8).set_delay(at).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 		t.tween_property(letter, "position:y", _letter_rest_y, LETTER_TIME).set_delay(at).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	var leave: Tween = create_tween()
+	var leave: Tween = _tween()
 	leave.tween_interval(LEAVE_AT)
 	leave.tween_callback(_leave)
 
@@ -121,7 +136,7 @@ func _leave() -> void:
 	# The intro's pictures move onto a veil above everything, which outlives this scene: the
 	# menu loads underneath (the veil shows meanwhile, no black), then the veil hands over.
 	# (No background preload of the menu: it left 9 objects leaked at exit, 2026-11-04.)
-	var layer: CanvasLayer = CanvasLayer.new()
+	var layer: CanvasLayer = IntroVeil.new() as CanvasLayer
 	layer.layer = 90                                # under SceneTransition's own layer (128)
 	get_tree().root.add_child(layer)
 	var veil: Control = Control.new()
@@ -139,7 +154,8 @@ func _leave() -> void:
 			page.append(item)
 		else:
 			content.append(item)
-	var tw: Tween = veil.create_tween()
+	var tw: Tween = layer.create_tween()
+	tw.pause()                                      # the veil steps it, with the same MAX_STEP
 	tw.tween_interval(OUT_PAUSE)
 	# first the capybara and the name go, softly shrinking a touch
 	for item: CanvasItem in content:
@@ -148,5 +164,5 @@ func _leave() -> void:
 	# then the page opens onto the cockpit
 	for item: CanvasItem in page:
 		tw.chain().tween_property(item, "modulate:a", 0.0, OUT_PAGE).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tw.chain().tween_callback(layer.queue_free)
+	layer.set("tween", tw)                          # it frees itself once this has run
 	get_tree().change_scene_to_file(NEXT_SCENE)     # this (now empty) intro goes
