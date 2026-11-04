@@ -396,6 +396,12 @@ def _fill_auto(c: sqlite3.Connection, tab: dict, data: dict, creating: bool) -> 
         data["Received"] = now
 
 
+def _changed() -> None:
+    """A table changed: the Google calendar follows a few seconds later (if it is set up)."""
+    from .hub_gcal import soon
+    soon()
+
+
 def _out(tab: dict, rows: list[dict]) -> list[dict]:
     return [{k: v for k, v in r.items()} for r in rows]
 
@@ -468,7 +474,9 @@ def add_row(tab: str, body: dict = Body(...), x_hub_token: str | None = Header(N
         _fill_auto(c, t, data, creating=True)
         cur = c.execute("INSERT INTO rows (tab, data, created_at, updated_at, updated_by) VALUES (?, ?, ?, ?, ?)",
                         (t["slug"], json.dumps(data, ensure_ascii=False), now, now, _user(x_hub_user)))
-        return {"row": _row_out(c, t, cur.lastrowid)}
+        out = {"row": _row_out(c, t, cur.lastrowid)}
+    _changed()
+    return out
 
 
 @router.put("/rows/{tab}/{row_id}")
@@ -489,7 +497,9 @@ def change_row(tab: str, row_id: int, body: dict = Body(...), x_hub_token: str |
         c.execute("UPDATE rows SET data = ?, updated_at = ?, updated_by = ? WHERE id = ?",
                   (json.dumps(data, ensure_ascii=False), max(int(time.time()), r["updated_at"] + 1),
                    _user(x_hub_user), row_id))
-        return {"row": _row_out(c, t, row_id)}
+        out = {"row": _row_out(c, t, row_id)}
+    _changed()
+    return out
 
 
 @router.delete("/rows/{tab}/{row_id}")
@@ -499,6 +509,7 @@ def delete_row(tab: str, row_id: int, x_hub_token: str | None = Header(None)) ->
     with hdb() as c:
         if c.execute("DELETE FROM rows WHERE id = ? AND tab = ?", (row_id, t["slug"])).rowcount == 0:
             raise HTTPException(404, "That row is gone already.")
+    _changed()
     return {"ok": True}
 
 
@@ -521,6 +532,7 @@ def import_rows(body: dict = Body(...), x_hub_token: str | None = Header(None)) 
             c.execute("INSERT INTO rows (tab, data, created_at, updated_at, updated_by) VALUES (?, ?, ?, ?, 'import')",
                       (t["slug"], json.dumps(data, ensure_ascii=False), now, now))
             n += 1
+    _changed()
     return {"imported": n}
 
 
@@ -591,3 +603,8 @@ def collect_status(x_hub_token: str | None = Header(None)) -> dict:
     _auth(x_hub_token)
     from .hub_collect import status
     return status()
+
+
+from .hub_calendar import router as _calendar_router  # noqa: E402  (the company calendar and its .ics feeds)
+
+router.include_router(_calendar_router)

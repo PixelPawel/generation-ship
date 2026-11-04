@@ -205,3 +205,82 @@ def test_gamefound_campaigns_one_row_each():
     assert rows["gamefound.generation-ship.followers"]["label"] == "Gamefound: Generation Ship"
     assert rows["gamefound.rink-rumble.followers"]["label"] == "Gamefound: Rink Rumble"
     assert d["overview"]["tiles"]["gamefound"] == 1500 and d["overview"]["tiles"]["gamefound_campaigns"] == 3
+
+
+def test_calendar_entries_and_ics_feed():
+    d = lambda n: (TODAY + timedelta(days=n)).isoformat()
+    add("calendar", Date=d(3), Time="14:00-15:30", Title="Team meeting, monthly", Kind="Meeting")
+    add("conventions", Name="Essen", City="Essen", Start=d(10), End=d(13), **{"Booth deadline": d(2)})
+    add("production", Milestone="Files to printer", SKU="GS-PL", Planned=d(5))
+    add("production", Milestone="Art final", Planned=d(-9), Actual=d(-9))          # done: no entry
+    add("checklist", Task="Book the hotel", Due=d(1), Owner="Pawel")
+    add("money", Date=d(20), Kind="Payment", Description="Print deposit", **{"Amount EUR": 9600})
+    add("content", Date=d(4), Platform="Instagram", Topic="Unboxing", Status="Drafted")
+    ev = client.get("/v1/hub/events", headers=H).json()["events"]
+    cats = {e["cat"] for e in ev}
+    assert {"team", "conventions", "milestones", "tasks", "money", "content"} <= cats
+    assert not any("Art final" in e["title"] for e in ev)
+    conv = next(e for e in ev if e["title"].startswith("Essen"))
+    assert conv["start"] == d(10) and conv["end"] == d(13)
+    assert any(e["title"] == "To pay: Print deposit (9.600,00 €)" for e in ev)
+
+    feeds = {f["feed"]: f["url"] for f in client.get("/v1/hub/calendar", headers=H).json()["feeds"]}
+    path = feeds["all"].replace("https://api.happycapygames.com", "")
+    r = client.get(path)   # no hub token: the secret in the link is enough
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/calendar")
+    body = r.text
+    assert body.startswith("BEGIN:VCALENDAR\r\n") and body.rstrip().endswith("END:VCALENDAR")
+    assert "SUMMARY:Team meeting\, monthly" in body
+    assert "DTSTART;VALUE=DATE:" + d(10).replace("-", "") in body
+    assert "DTEND;VALUE=DATE:" + (TODAY + timedelta(days=14)).strftime("%Y%m%d") in body   # the day after the last
+    assert all(len(line.encode()) <= 75 for line in body.split("\r\n"))
+    only_money = client.get(feeds["money"].replace("https://api.happycapygames.com", "")).text
+    assert "Print deposit" in only_money and "Team meeting" not in only_money
+    assert client.get(path.replace("/all.ics", "/nope.ics")).status_code == 404
+    assert client.get(path.replace(path.split("/")[-2], "wrong-secret")).status_code == 404
+    new = {f["feed"]: f["url"] for f in client.post("/v1/hub/calendar/rotate", headers=H).json()["feeds"]}
+    assert new["all"] != feeds["all"] and client.get(path).status_code == 404
+
+
+def test_google_calendar_sync(monkeypatch, tmp_path):
+    from app import hub_gcal
+    key = tmp_path / "key.json"
+    key.write_text("{}")
+    monkeypatch.setenv("GOOGLE_CALENDAR_KEY", str(key))
+    monkeypatch.setenv("HUB_GCAL_OFF", "1")          # no background sync during the test
+    calls, n = [], [0]
+
+    def fake_call(method, url, token, body=None):
+        calls.append((method, url, body))
+        if method == "POST":
+            n[0] += 1
+            return {"id": f"ev{n[0]}"}
+        return {}
+    monkeypatch.setattr(hub_gcal, "_token", lambda: "tok")
+    monkeypatch.setattr(hub_gcal, "_call", fake_call)
+    with hub.hdb() as c:
+        s = hub.kv_get(c, "settings")
+        s["Google calendar id"] = "kate@happycapygames.com"
+        hub.kv_put(c, "settings", s)
+    d = lambda k: (TODAY + timedelta(days=k)).isoformat()
+    meet = add("calendar", Date=d(2), Time="14:00-15:30", Title="Team call")
+    pay = add("money", Date=d(9), Kind="Payment", Description="Deposit", **{"Amount EUR": 100})
+    add("contacts", Name="Bob", **{"Next follow-up": d(1)})     # follow-ups stay out unless Settings asks for them
+    sync = lambda: client.post("/v1/hub/collect?only=calendar", headers=H).json()["results"][0]
+    r = sync()
+    assert r["ok"] and "2 added, 0 changed, 0 removed" in r["message"], r
+    posted = [b for m, u, b in calls if m == "POST"]
+    assert all("kate%40happycapygames.com" in u for m, u, b in calls)
+    timed = next(b for b in posted if b["summary"] == "Team call")
+    assert timed["start"] == {"dateTime": d(2) + "T14:00:00", "timeZone": "Europe/Berlin"} and timed["end"]["dateTime"].endswith("T15:30:00")
+    allday = next(b for b in posted if b["summary"].startswith("To pay: Deposit"))
+    assert allday["start"] == {"date": d(9)} and allday["end"] == {"date": d(10)}
+    assert allday["extendedProperties"]["private"]["hcg_uid"] == f"money-{pay['_id']}"
+    calls.clear()
+    assert "0 added, 0 changed, 0 removed" in sync()["message"] and not calls
+    client.put(f"/v1/hub/rows/calendar/{meet['_id']}", json={"data": {"Title": "Team call (moved)"}}, headers=H)
+    assert "0 added, 1 changed" in sync()["message"]
+    assert calls[-1][0] == "PUT" and calls[-1][1].endswith("/ev1") or calls[-1][1].endswith("/ev2")
+    client.delete(f"/v1/hub/rows/money/{pay['_id']}", headers=H)
+    r = sync()
+    assert "1 removed" in r["message"] and calls[-1][0] == "DELETE"

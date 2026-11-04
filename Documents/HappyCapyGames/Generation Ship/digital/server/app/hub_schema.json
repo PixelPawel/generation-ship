@@ -1273,6 +1273,57 @@
      "type": "long"
     }
    ]
+  },
+  {
+   "name": "Calendar",
+   "slug": "calendar",
+   "area": "calendar",
+   "group": "overview",
+   "note": "The company's own dates (meetings, launches, releases, trips). Conventions, milestones, tasks, payments and planned posts come into the calendar by themselves.",
+   "columns": [
+    {
+     "name": "Date",
+     "type": "date",
+     "key": true
+    },
+    {
+     "name": "End",
+     "type": "date",
+     "note": "For dates that last several days."
+    },
+    {
+     "name": "Time",
+     "type": "text",
+     "note": "Optional: 14:00 or 14:00-15:30 (Berlin time). Empty = all day."
+    },
+    {
+     "name": "Title",
+     "type": "text"
+    },
+    {
+     "name": "Kind",
+     "type": "list",
+     "list": "CalendarKinds"
+    },
+    {
+     "name": "Game",
+     "type": "list",
+     "list": "Games"
+    },
+    {
+     "name": "Where",
+     "type": "text"
+    },
+    {
+     "name": "Owner",
+     "type": "list",
+     "list": "Team"
+    },
+    {
+     "name": "Notes",
+     "type": "long"
+    }
+   ]
   }
  ],
  "lists": {
@@ -1521,6 +1572,15 @@
    "Available",
    "Sold out",
    "Discontinued"
+  ],
+  "CalendarKinds": [
+   "Meeting",
+   "Launch",
+   "Release",
+   "Deadline",
+   "Trip",
+   "Holiday",
+   "Other"
   ]
  },
  "settings": {

@@ -10,6 +10,7 @@ setting (Discord invite, YouTube channel id + YOUTUBE_API_KEY, BGG ids) says wha
     discord  Settings > Discord invite: members and members online (Discord's public invite info)
     youtube  Settings > YouTube channel id + YOUTUBE_API_KEY in .env: subscribers, views, videos
     bgg      Settings > BGG ids: owned, wishlisted, ratings, average rating (BGG_TOKEN in .env if BGG asks for one)
+    calendar the company calendar into Google Calendar (hub_gcal.py; also a few seconds after every change)
     backup   a copy of hub.db in hub-backups/ next to it (30 days kept)
 """
 import json
@@ -257,8 +258,13 @@ def backup(c) -> str:
     return f"{os.path.basename(dest)} ({os.path.getsize(dest) // 1024} KB)"
 
 
+def collect_calendar(c) -> str:
+    from .hub_gcal import sync
+    return sync(c)
+
+
 COLLECTORS = [("game", collect_game), ("steam", collect_steam), ("discord", collect_discord),
-              ("youtube", collect_youtube), ("bgg", collect_bgg), ("backup", backup)]
+              ("youtube", collect_youtube), ("bgg", collect_bgg), ("calendar", collect_calendar), ("backup", backup)]
 
 
 def collect_all(only: list[str] | None = None) -> list[dict]:
