@@ -87,3 +87,33 @@ pip install -r requirements.txt httpx pytest
 pytest tests                      # run the tests
 uvicorn app.main:app --reload     # http://127.0.0.1:8000/docs
 ```
+
+## HCG backend (company data and dashboards)
+
+`app/hub.py`, `hub_collect.py`, `hub_dash.py`: what was the HCG Hub Google Sheet (contacts, sales, money, stock,
+checklists...), the numbers collected every day, and the dashboards the team sees in the print-files site on Hostinger
+(`_Shared/PrintFiles`, team password; its `hub.php` adds the token). Tables and columns come from `app/hub_schema.json`,
+written by `_Shared/Claude/hub/export_backend_schema.py`. Its own database: `data/hub.db` (company data, not player
+data), copied to `data/hub-backups/` every morning (30 days kept). Every endpoint needs the header `X-Hub-Token`.
+
+`.env` lines:
+
+```
+HUB_TOKEN=...          # the same as ~/.hcg_hub_token on the PC that builds the Hostinger site (deploy.py)
+YOUTUBE_API_KEY=...    # optional: YouTube channel numbers (Google Cloud, YouTube Data API v3, key restricted to it)
+BGG_TOKEN=...          # optional: only if BoardGameGeek's XML API asks for one
+```
+
+Daily run, one time on the VPS:
+`chmod +x deploy/hub_collect.sh && cp deploy/hub-collect.service deploy/hub-collect.timer /etc/systemd/system/ && systemctl daemon-reload && systemctl enable --now hub-collect.timer`
+
+| Method | Path | What |
+|---|---|---|
+| GET | `/v1/hub/schema` | tables, columns, the Audience channels |
+| GET / PUT | `/v1/hub/settings`, PUT `/v1/hub/lists` | company settings (collector ids live here) and dropdown lists |
+| GET / POST | `/v1/hub/rows/{table}` | every row with its calculated columns / add a row |
+| PUT / DELETE | `/v1/hub/rows/{table}/{id}` `{data, base}` | change a row (409 if someone saved it in between) / delete it |
+| POST | `/v1/hub/import` `{tab, rows, replace}` | bulk load (the move from the sheet: `_Shared/Claude/hub/move_to_backend.py`) |
+| GET / POST | `/v1/hub/metrics` | daily numbers; POST only for the channels typed in by hand |
+| GET | `/v1/hub/dash` | everything the dashboards show |
+| POST / GET | `/v1/hub/collect?only=` | run the collectors (the daily timer) / their last runs |

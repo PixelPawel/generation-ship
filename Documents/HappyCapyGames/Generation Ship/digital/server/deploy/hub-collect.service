@@ -1,0 +1,7 @@
+[Unit]
+Description=HCG backend: collect the daily numbers and back up hub.db
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/hcg-api/deploy/hub_collect.sh

@@ -190,3 +190,7 @@ app.include_router(unlock_router)
 from .privacy import router as privacy_router  # noqa: E402  (retention, IP pruning, players' data requests)
 
 app.include_router(privacy_router)
+
+from .hub import router as hub_router  # noqa: E402  (HCG company data, daily numbers and dashboards; HUB_TOKEN)
+
+app.include_router(hub_router)

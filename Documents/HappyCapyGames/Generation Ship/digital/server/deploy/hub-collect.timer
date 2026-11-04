@@ -1,0 +1,9 @@
+[Unit]
+Description=HCG backend collector every morning at 06:15 Berlin time
+
+[Timer]
+OnCalendar=*-*-* 06:15:00 Europe/Berlin
+Persistent=true
+
+[Install]
+WantedBy=timers.target

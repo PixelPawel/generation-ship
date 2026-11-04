@@ -1,0 +1,1642 @@
+{
+ "tabs": [
+  {
+   "name": "Checklist",
+   "slug": "checklist",
+   "area": "production",
+   "group": "overview",
+   "note": "",
+   "columns": [
+    {
+     "name": "Done",
+     "type": "check"
+    },
+    {
+     "name": "Project",
+     "type": "text",
+     "key": true
+    },
+    {
+     "name": "Area",
+     "type": "list",
+     "list": "Areas"
+    },
+    {
+     "name": "Task",
+     "type": "long"
+    },
+    {
+     "name": "Owner",
+     "type": "list",
+     "list": "Team"
+    },
+    {
+     "name": "Due",
+     "type": "date"
+    },
+    {
+     "name": "State",
+     "type": "text",
+     "calc": true
+    },
+    {
+     "name": "Notes",
+     "type": "long"
+    },
+    {
+     "name": "Link",
+     "type": "url"
+    }
+   ]
+  },
+  {
+   "name": "Contacts",
+   "slug": "contacts",
+   "area": "outreach",
+   "group": "outreach",
+   "note": "",
+   "columns": [
+    {
+     "name": "ID",
+     "type": "text",
+     "note": "Filled in automatically when a Name is entered.",
+     "auto": true
+    },
+    {
+     "name": "Type",
+     "type": "list",
+     "list": "ContactTypes"
+    },
+    {
+     "name": "Name",
+     "type": "text",
+     "key": true
+    },
+    {
+     "name": "Company / channel",
+     "type": "text"
+    },
+    {
+     "name": "Email",
+     "type": "email"
+    },
+    {
+     "name": "Country",
+     "type": "text",
+     "note": "ISO code, e.g. DE, US"
+    },
+    {
+     "name": "Language",
+     "type": "list",
+     "list": "Languages"
+    },
+    {
+     "name": "Platform",
+     "type": "list",
+     "list": "Platforms"
+    },
+    {
+     "name": "URL",
+     "type": "url"
+    },
+    {
+     "name": "Audience",
+     "type": "int",
+     "note": "Subscribers/followers. YouTube channels are updated daily by the script.",
+     "auto": true
+    },
+    {
+     "name": "Avg views",
+     "type": "int",
+     "note": "Average views of the last 10 uploads (YouTube, daily).",
+     "auto": true
+    },
+    {
+     "name": "Fit",
+     "type": "long",
+     "note": "Genres they cover, why they fit, audience language."
+    },
+    {
+     "name": "Rate EUR",
+     "type": "eur"
+    },
+    {
+     "name": "Game",
+     "type": "list",
+     "list": "Games"
+    },
+    {
+     "name": "Stage",
+     "type": "list",
+     "list": "Stages"
+    },
+    {
+     "name": "Priority",
+     "type": "list",
+     "list": "Priority"
+    },
+    {
+     "name": "Owner",
+     "type": "list",
+     "list": "Team"
+    },
+    {
+     "name": "Last contact",
+     "type": "date",
+     "note": "Last email we sent (from the mailbox, by tools/mail_sync.py).",
+     "auto": true
+    },
+    {
+     "name": "Last reply",
+     "type": "date",
+     "note": "Last email they sent us (from the mailbox, by tools/mail_sync.py).",
+     "auto": true
+    },
+    {
+     "name": "Next follow-up",
+     "type": "date"
+    },
+    {
+     "name": "Follow-up due",
+     "type": "text",
+     "calc": true
+    },
+    {
+     "name": "Draft subject",
+     "type": "text"
+    },
+    {
+     "name": "Draft body",
+     "type": "long"
+    },
+    {
+     "name": "Draft status",
+     "type": "list",
+     "list": "DraftStatus",
+     "note": "Review = drafted, check it. Ready = tools/mail_sync.py puts it into the mailbox's Drafts folder. In drafts = waiting there for you to send. Sent = it went out."
+    },
+    {
+     "name": "Source",
+     "type": "text",
+     "note": "Where we found them."
+    },
+    {
+     "name": "Notes",
+     "type": "long"
+    },
+    {
+     "name": "Stats updated",
+     "type": "datetime",
+     "auto": true
+    }
+   ]
+  },
+  {
+   "name": "Outreach Log",
+   "slug": "outreach-log",
+   "area": "outreach",
+   "group": "outreach",
+   "note": "",
+   "columns": [
+    {
+     "name": "Date",
+     "type": "date",
+     "key": true
+    },
+    {
+     "name": "Contact ID",
+     "type": "text"
+    },
+    {
+     "name": "Contact",
+     "type": "text",
+     "calc": true
+    },
+    {
+     "name": "Kind",
+     "type": "list",
+     "list": "OutreachKinds"
+    },
+    {
+     "name": "Game",
+     "type": "list",
+     "list": "Games"
+    },
+    {
+     "name": "Summary",
+     "type": "long"
+    },
+    {
+     "name": "Copies",
+     "type": "int"
+    },
+    {
+     "name": "Cost EUR",
+     "type": "eur"
+    },
+    {
+     "name": "Content URL",
+     "type": "url"
+    },
+    {
+     "name": "Views",
+     "type": "int",
+     "note": "YouTube links are updated daily.",
+     "auto": true
+    },
+    {
+     "name": "Owner",
+     "type": "list",
+     "list": "Team"
+    }
+   ]
+  },
+  {
+   "name": "Conventions",
+   "slug": "conventions",
+   "area": "events",
+   "group": "outreach",
+   "note": "",
+   "columns": [
+    {
+     "name": "Name",
+     "type": "text",
+     "note": "Use the same name as the Source on the convention kiosk, e.g. SPIEL 2026.",
+     "key": true
+    },
+    {
+     "name": "City",
+     "type": "text"
+    },
+    {
+     "name": "Country",
+     "type": "text"
+    },
+    {
+     "name": "Start",
+     "type": "date"
+    },
+    {
+     "name": "End",
+     "type": "date"
+    },
+    {
+     "name": "Booth deadline",
+     "type": "date"
+    },
+    {
+     "name": "Status",
+     "type": "list",
+     "list": "ConventionStatus"
+    },
+    {
+     "name": "Booth cost EUR",
+     "type": "eur"
+    },
+    {
+     "name": "Travel EUR",
+     "type": "eur"
+    },
+    {
+     "name": "Other cost EUR",
+     "type": "eur"
+    },
+    {
+     "name": "Total cost EUR",
+     "type": "eur",
+     "calc": true
+    },
+    {
+     "name": "Leads",
+     "type": "int",
+     "calc": true
+    },
+    {
+     "name": "Sales EUR",
+     "type": "eur",
+     "calc": true
+    },
+    {
+     "name": "Cost per lead EUR",
+     "type": "eur",
+     "calc": true
+    },
+    {
+     "name": "Checklist",
+     "type": "check",
+     "note": "Ticked when the convention checklist was created (menu HCG > New checklist).",
+     "auto": true
+    },
+    {
+     "name": "URL",
+     "type": "url"
+    },
+    {
+     "name": "Notes",
+     "type": "long"
+    }
+   ]
+  },
+  {
+   "name": "Content",
+   "slug": "content",
+   "area": "marketing",
+   "group": "marketing",
+   "note": "",
+   "columns": [
+    {
+     "name": "Date",
+     "type": "date",
+     "key": true
+    },
+    {
+     "name": "Platform",
+     "type": "list",
+     "list": "Platforms"
+    },
+    {
+     "name": "Language",
+     "type": "list",
+     "list": "Languages"
+    },
+    {
+     "name": "Game",
+     "type": "list",
+     "list": "Games"
+    },
+    {
+     "name": "Format",
+     "type": "list",
+     "list": "ContentFormats"
+    },
+    {
+     "name": "Topic",
+     "type": "text"
+    },
+    {
+     "name": "Text",
+     "type": "long"
+    },
+    {
+     "name": "Asset",
+     "type": "text",
+     "note": "Link or file path of the image/video (existing art only, no AI images)."
+    },
+    {
+     "name": "Status",
+     "type": "list",
+     "list": "ContentStatus"
+    },
+    {
+     "name": "Owner",
+     "type": "list",
+     "list": "Team"
+    },
+    {
+     "name": "Post URL",
+     "type": "url"
+    },
+    {
+     "name": "Reach",
+     "type": "int"
+    },
+    {
+     "name": "Engagements",
+     "type": "int"
+    },
+    {
+     "name": "Notes",
+     "type": "long"
+    }
+   ]
+  },
+  {
+   "name": "Comps",
+   "slug": "comps",
+   "area": "marketing",
+   "group": "marketing",
+   "note": "",
+   "columns": [
+    {
+     "name": "Name",
+     "type": "text",
+     "key": true
+    },
+    {
+     "name": "Platform",
+     "type": "list",
+     "list": "CompPlatforms"
+    },
+    {
+     "name": "URL",
+     "type": "url"
+    },
+    {
+     "name": "Publisher",
+     "type": "text"
+    },
+    {
+     "name": "Genre",
+     "type": "text"
+    },
+    {
+     "name": "Launch",
+     "type": "date"
+    },
+    {
+     "name": "Days",
+     "type": "int"
+    },
+    {
+     "name": "Goal EUR",
+     "type": "eur"
+    },
+    {
+     "name": "Funded EUR",
+     "type": "eur"
+    },
+    {
+     "name": "Backers",
+     "type": "int"
+    },
+    {
+     "name": "Avg pledge EUR",
+     "type": "eur",
+     "calc": true
+    },
+    {
+     "name": "Core pledge EUR",
+     "type": "eur"
+    },
+    {
+     "name": "Followers at launch",
+     "type": "int"
+    },
+    {
+     "name": "Stretch goals",
+     "type": "int"
+    },
+    {
+     "name": "Shipping",
+     "type": "text",
+     "note": "How shipping was charged, e.g. in the pledge manager, EU-friendly."
+    },
+    {
+     "name": "Notes",
+     "type": "long"
+    },
+    {
+     "name": "Checked",
+     "type": "date",
+     "note": "When the numbers were read."
+    }
+   ]
+  },
+  {
+   "name": "Ads",
+   "slug": "ads",
+   "area": "marketing",
+   "group": "marketing",
+   "note": "",
+   "columns": [
+    {
+     "name": "Date",
+     "type": "date",
+     "key": true
+    },
+    {
+     "name": "Channel",
+     "type": "list",
+     "list": "AdChannels"
+    },
+    {
+     "name": "Campaign",
+     "type": "text"
+    },
+    {
+     "name": "Game",
+     "type": "list",
+     "list": "Games"
+    },
+    {
+     "name": "Spend EUR",
+     "type": "eur"
+    },
+    {
+     "name": "Impressions",
+     "type": "int"
+    },
+    {
+     "name": "Clicks",
+     "type": "int"
+    },
+    {
+     "name": "Signups",
+     "type": "int"
+    },
+    {
+     "name": "Followers",
+     "type": "int"
+    },
+    {
+     "name": "Backers",
+     "type": "int"
+    },
+    {
+     "name": "Revenue EUR",
+     "type": "eur"
+    },
+    {
+     "name": "CTR",
+     "type": "pct",
+     "calc": true
+    },
+    {
+     "name": "CPC EUR",
+     "type": "eur",
+     "calc": true
+    },
+    {
+     "name": "Per signup EUR",
+     "type": "eur",
+     "calc": true
+    },
+    {
+     "name": "Per follower EUR",
+     "type": "eur",
+     "calc": true
+    },
+    {
+     "name": "ROAS",
+     "type": "num",
+     "calc": true
+    },
+    {
+     "name": "Key",
+     "type": "text",
+     "note": "Set by the Meta import so a day is not imported twice.",
+     "auto": true
+    },
+    {
+     "name": "Notes",
+     "type": "long"
+    }
+   ]
+  },
+  {
+   "name": "Mentions",
+   "slug": "mentions",
+   "area": "marketing",
+   "group": "marketing",
+   "note": "",
+   "columns": [
+    {
+     "name": "Date",
+     "type": "datetime",
+     "key": true
+    },
+    {
+     "name": "Source",
+     "type": "list",
+     "list": "MentionSources"
+    },
+    {
+     "name": "Game",
+     "type": "list",
+     "list": "Games"
+    },
+    {
+     "name": "Author",
+     "type": "text"
+    },
+    {
+     "name": "Rating",
+     "type": "int",
+     "note": "1 to 5. Steam: recommended = 5, not recommended = 1."
+    },
+    {
+     "name": "Language",
+     "type": "text"
+    },
+    {
+     "name": "Title",
+     "type": "text"
+    },
+    {
+     "name": "Text",
+     "type": "long"
+    },
+    {
+     "name": "URL",
+     "type": "url"
+    },
+    {
+     "name": "Flag",
+     "type": "list",
+     "list": "Flags",
+     "note": "Set by keyword rules in the script, refined by the mentions skill."
+    },
+    {
+     "name": "Handled",
+     "type": "check"
+    },
+    {
+     "name": "Notes",
+     "type": "long"
+    },
+    {
+     "name": "Key",
+     "type": "text",
+     "note": "Source id, so nothing is imported twice.",
+     "auto": true
+    }
+   ]
+  },
+  {
+   "name": "Products",
+   "slug": "products",
+   "area": "sales",
+   "group": "product",
+   "note": "",
+   "columns": [
+    {
+     "name": "SKU",
+     "type": "text",
+     "key": true
+    },
+    {
+     "name": "Game",
+     "type": "list",
+     "list": "Games"
+    },
+    {
+     "name": "Product",
+     "type": "text"
+    },
+    {
+     "name": "Edition",
+     "type": "text",
+     "note": "Base game, Expansion, Promo pack..."
+    },
+    {
+     "name": "Language",
+     "type": "list",
+     "list": "Languages"
+    },
+    {
+     "name": "Status",
+     "type": "list",
+     "list": "ProductStatus"
+    },
+    {
+     "name": "GTIN",
+     "type": "text"
+    },
+    {
+     "name": "HS code",
+     "type": "text",
+     "note": "Board games: 9504.90"
+    },
+    {
+     "name": "Origin",
+     "type": "text",
+     "note": "Country of origin (where it was made), ISO code."
+    },
+    {
+     "name": "MSRP EUR",
+     "type": "eur"
+    },
+    {
+     "name": "MSRP USD",
+     "type": "usd"
+    },
+    {
+     "name": "MSRP GBP",
+     "type": "gbp"
+    },
+    {
+     "name": "Wholesale EUR",
+     "type": "eur"
+    },
+    {
+     "name": "Distributor EUR",
+     "type": "eur"
+    },
+    {
+     "name": "Unit cost EUR",
+     "type": "eur",
+     "note": "Landed cost per unit (from Costing)."
+    },
+    {
+     "name": "Players",
+     "type": "text"
+    },
+    {
+     "name": "Age",
+     "type": "text"
+    },
+    {
+     "name": "Play time",
+     "type": "text"
+    },
+    {
+     "name": "Designer",
+     "type": "text"
+    },
+    {
+     "name": "Artist",
+     "type": "text"
+    },
+    {
+     "name": "Box L mm",
+     "type": "int"
+    },
+    {
+     "name": "Box W mm",
+     "type": "int"
+    },
+    {
+     "name": "Box H mm",
+     "type": "int"
+    },
+    {
+     "name": "Weight g",
+     "type": "int"
+    },
+    {
+     "name": "Carton qty",
+     "type": "int"
+    },
+    {
+     "name": "Carton L mm",
+     "type": "int"
+    },
+    {
+     "name": "Carton W mm",
+     "type": "int"
+    },
+    {
+     "name": "Carton H mm",
+     "type": "int"
+    },
+    {
+     "name": "Carton kg",
+     "type": "num"
+    },
+    {
+     "name": "Cartons per pallet",
+     "type": "int"
+    },
+    {
+     "name": "Components",
+     "type": "long"
+    },
+    {
+     "name": "Small parts",
+     "type": "check",
+     "note": "Tick if it contains parts small enough to swallow (adds the choking warning)."
+    },
+    {
+     "name": "Printed by",
+     "type": "text",
+     "note": "Factory. The GPSR manufacturer is us (Settings > Company), because our name is on the box."
+    },
+    {
+     "name": "Image",
+     "type": "url",
+     "note": "Box image: link or local file path."
+    },
+    {
+     "name": "Tagline",
+     "type": "text"
+    },
+    {
+     "name": "Description",
+     "type": "long"
+    },
+    {
+     "name": "Store URL",
+     "type": "url"
+    },
+    {
+     "name": "Notes",
+     "type": "long"
+    }
+   ]
+  },
+  {
+   "name": "Shipping",
+   "slug": "shipping",
+   "area": "sales",
+   "group": "product",
+   "note": "",
+   "columns": [
+    {
+     "name": "Region",
+     "type": "text",
+     "key": true
+    },
+    {
+     "name": "Fulfilled by",
+     "type": "text"
+    },
+    {
+     "name": "Countries",
+     "type": "long",
+     "note": "ISO codes, comma separated. A country not listed anywhere falls into 'Rest of world'."
+    },
+    {
+     "name": "Pick pack EUR",
+     "type": "eur",
+     "note": "Fulfillment fee per order."
+    },
+    {
+     "name": "Postage 1 kg EUR",
+     "type": "eur"
+    },
+    {
+     "name": "Postage 2 kg EUR",
+     "type": "eur"
+    },
+    {
+     "name": "Postage 5 kg EUR",
+     "type": "eur"
+    },
+    {
+     "name": "Duties note",
+     "type": "long"
+    },
+    {
+     "name": "Notes",
+     "type": "long"
+    }
+   ]
+  },
+  {
+   "name": "Production",
+   "slug": "production",
+   "area": "production",
+   "group": "product",
+   "note": "",
+   "columns": [
+    {
+     "name": "Project",
+     "type": "text",
+     "key": true
+    },
+    {
+     "name": "SKU",
+     "type": "text"
+    },
+    {
+     "name": "Language",
+     "type": "list",
+     "list": "Languages"
+    },
+    {
+     "name": "Milestone",
+     "type": "list",
+     "list": "Milestones"
+    },
+    {
+     "name": "Planned",
+     "type": "date"
+    },
+    {
+     "name": "Actual",
+     "type": "date"
+    },
+    {
+     "name": "State",
+     "type": "text",
+     "calc": true
+    },
+    {
+     "name": "Owner",
+     "type": "list",
+     "list": "Team"
+    },
+    {
+     "name": "Notes",
+     "type": "long"
+    }
+   ]
+  },
+  {
+   "name": "Stock",
+   "slug": "stock",
+   "area": "sales",
+   "group": "product",
+   "note": "",
+   "columns": [
+    {
+     "name": "Location",
+     "type": "list",
+     "list": "Locations",
+     "key": true
+    },
+    {
+     "name": "SKU",
+     "type": "text"
+    },
+    {
+     "name": "Product",
+     "type": "text",
+     "calc": true
+    },
+    {
+     "name": "On hand",
+     "type": "int"
+    },
+    {
+     "name": "Reserved",
+     "type": "int"
+    },
+    {
+     "name": "Available",
+     "type": "int",
+     "calc": true
+    },
+    {
+     "name": "Reorder at",
+     "type": "int",
+     "note": "Empty = Settings > Low stock default."
+    },
+    {
+     "name": "Status",
+     "type": "text",
+     "calc": true
+    },
+    {
+     "name": "Updated",
+     "type": "date"
+    },
+    {
+     "name": "Notes",
+     "type": "long"
+    }
+   ]
+  },
+  {
+   "name": "Sales",
+   "slug": "sales",
+   "area": "sales",
+   "group": "money",
+   "note": "",
+   "columns": [
+    {
+     "name": "Date",
+     "type": "date",
+     "key": true
+    },
+    {
+     "name": "Channel",
+     "type": "list",
+     "list": "SalesChannels"
+    },
+    {
+     "name": "Event / customer",
+     "type": "text",
+     "note": "Convention name (same as on the Conventions tab), store or distributor."
+    },
+    {
+     "name": "Country",
+     "type": "text"
+    },
+    {
+     "name": "SKU",
+     "type": "text"
+    },
+    {
+     "name": "Product",
+     "type": "text",
+     "calc": true
+    },
+    {
+     "name": "Units",
+     "type": "int"
+    },
+    {
+     "name": "Gross EUR",
+     "type": "eur"
+    },
+    {
+     "name": "Fees EUR",
+     "type": "eur"
+    },
+    {
+     "name": "Net EUR",
+     "type": "eur",
+     "calc": true
+    },
+    {
+     "name": "Order ref",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "long"
+    }
+   ]
+  },
+  {
+   "name": "Money",
+   "slug": "money",
+   "area": "money",
+   "group": "money",
+   "note": "",
+   "columns": [
+    {
+     "name": "Date",
+     "type": "date",
+     "note": "Balance date, due date or payment date.",
+     "key": true
+    },
+    {
+     "name": "Kind",
+     "type": "list",
+     "list": "MoneyKinds",
+     "note": "Cash balance = bank balance on that date. Payment / Income = money going out / coming in."
+    },
+    {
+     "name": "Description",
+     "type": "text"
+    },
+    {
+     "name": "Project",
+     "type": "text"
+    },
+    {
+     "name": "Category",
+     "type": "list",
+     "list": "MoneyCategories"
+    },
+    {
+     "name": "Amount EUR",
+     "type": "eur",
+     "note": "Always positive. Kind says the direction."
+    },
+    {
+     "name": "Done",
+     "type": "check",
+     "note": "Ticked = paid or received. Open payments and income count towards the runway."
+    },
+    {
+     "name": "Notes",
+     "type": "long"
+    }
+   ]
+  },
+  {
+   "name": "Playtests",
+   "slug": "playtests",
+   "area": "playtests",
+   "group": "collected",
+   "note": "",
+   "columns": [
+    {
+     "name": "Session",
+     "type": "text",
+     "key": true
+    },
+    {
+     "name": "Date",
+     "type": "date"
+    },
+    {
+     "name": "Game",
+     "type": "list",
+     "list": "Games"
+    },
+    {
+     "name": "Version",
+     "type": "text"
+    },
+    {
+     "name": "Place",
+     "type": "text"
+    },
+    {
+     "name": "Players",
+     "type": "int",
+     "note": "Player count of the session."
+    },
+    {
+     "name": "Seat",
+     "type": "int",
+     "note": "1 = started first."
+    },
+    {
+     "name": "Player",
+     "type": "text"
+    },
+    {
+     "name": "Faction / strategy",
+     "type": "text"
+    },
+    {
+     "name": "Score",
+     "type": "num"
+    },
+    {
+     "name": "Won",
+     "type": "check"
+    },
+    {
+     "name": "Minutes",
+     "type": "int"
+    },
+    {
+     "name": "Fun",
+     "type": "int",
+     "note": "1 to 5"
+    },
+    {
+     "name": "Would buy",
+     "type": "list",
+     "list": "YesNoMaybe"
+    },
+    {
+     "name": "Confusing rules",
+     "type": "long"
+    },
+    {
+     "name": "Comments",
+     "type": "long"
+    },
+    {
+     "name": "Facilitator",
+     "type": "text"
+    },
+    {
+     "name": "Received",
+     "type": "datetime",
+     "auto": true
+    }
+   ]
+  },
+  {
+   "name": "Leads",
+   "slug": "leads",
+   "area": "community",
+   "group": "collected",
+   "note": "",
+   "columns": [
+    {
+     "name": "Received",
+     "type": "datetime",
+     "key": true
+    },
+    {
+     "name": "Email",
+     "type": "email"
+    },
+    {
+     "name": "Name",
+     "type": "text"
+    },
+    {
+     "name": "Language",
+     "type": "text"
+    },
+    {
+     "name": "Country",
+     "type": "text"
+    },
+    {
+     "name": "Source",
+     "type": "text",
+     "note": "Box QR, Website, Playtest, or the convention name."
+    },
+    {
+     "name": "Game",
+     "type": "text"
+    },
+    {
+     "name": "Consent",
+     "type": "text",
+     "note": "Version of the consent text the person agreed to."
+    },
+    {
+     "name": "Status",
+     "type": "list",
+     "list": "LeadStatus"
+    },
+    {
+     "name": "Confirmed",
+     "type": "datetime",
+     "auto": true
+    },
+    {
+     "name": "Exported",
+     "type": "check",
+     "note": "Ticked when exported to the newsletter tool."
+    },
+    {
+     "name": "Token",
+     "type": "text",
+     "auto": true
+    },
+    {
+     "name": "Notes",
+     "type": "long"
+    }
+   ]
+  },
+  {
+   "name": "Support",
+   "slug": "support",
+   "area": "community",
+   "group": "collected",
+   "note": "",
+   "columns": [
+    {
+     "name": "ID",
+     "type": "text",
+     "auto": true
+    },
+    {
+     "name": "Received",
+     "type": "datetime",
+     "key": true
+    },
+    {
+     "name": "Kind",
+     "type": "list",
+     "list": "SupportKinds"
+    },
+    {
+     "name": "Name",
+     "type": "text"
+    },
+    {
+     "name": "Email",
+     "type": "email"
+    },
+    {
+     "name": "Language",
+     "type": "text"
+    },
+    {
+     "name": "Country",
+     "type": "text"
+    },
+    {
+     "name": "Game",
+     "type": "text"
+    },
+    {
+     "name": "Details",
+     "type": "long"
+    },
+    {
+     "name": "Address",
+     "type": "long"
+    },
+    {
+     "name": "Order ref",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "list",
+     "list": "SupportStatus"
+    },
+    {
+     "name": "Owner",
+     "type": "list",
+     "list": "Team"
+    },
+    {
+     "name": "Notes",
+     "type": "long"
+    },
+    {
+     "name": "Updated",
+     "type": "datetime",
+     "auto": true
+    }
+   ]
+  },
+  {
+   "name": "Task Template",
+   "slug": "task-template",
+   "area": "production",
+   "group": "setup",
+   "note": "",
+   "columns": [
+    {
+     "name": "Per",
+     "type": "list",
+     "list": "TemplateKinds",
+     "note": "Company = once. Game, Campaign, Convention = copied for each new project.",
+     "key": true
+    },
+    {
+     "name": "Area",
+     "type": "list",
+     "list": "Areas"
+    },
+    {
+     "name": "Task",
+     "type": "long"
+    },
+    {
+     "name": "Weeks",
+     "type": "int",
+     "note": "Due date = anchor date + Weeks x 7 days. Negative = before. Anchor: release date (Game), launch day (Campaign), first day (Convention)."
+    },
+    {
+     "name": "Notes",
+     "type": "long"
+    }
+   ]
+  }
+ ],
+ "lists": {
+  "Games": [
+   "Generation Ship",
+   "Succession"
+  ],
+  "Languages": [
+   "EN",
+   "DE",
+   "FR",
+   "ES",
+   "IT",
+   "PL",
+   "Multi"
+  ],
+  "Team": [
+   "Pawel"
+  ],
+  "ContactTypes": [
+   "Influencer",
+   "Press",
+   "Podcast",
+   "Store",
+   "Distributor",
+   "Publisher",
+   "Convention",
+   "Manufacturer",
+   "Fulfillment",
+   "Freelancer",
+   "Other"
+  ],
+  "Stages": [
+   "Lead",
+   "To contact",
+   "Contacted",
+   "Replied",
+   "Negotiating",
+   "Copy sent",
+   "Content scheduled",
+   "Published",
+   "Partner",
+   "Declined",
+   "No reply"
+  ],
+  "Priority": [
+   "A",
+   "B",
+   "C"
+  ],
+  "DraftStatus": [
+   "Review",
+   "Ready",
+   "In drafts",
+   "Sent"
+  ],
+  "Platforms": [
+   "YouTube",
+   "Instagram",
+   "TikTok",
+   "Facebook",
+   "X",
+   "Bluesky",
+   "Reddit",
+   "BGG",
+   "Twitch",
+   "Blog",
+   "Podcast",
+   "Newsletter",
+   "Discord",
+   "Gamefound",
+   "Kickstarter",
+   "Website",
+   "Other"
+  ],
+  "OutreachKinds": [
+   "Email",
+   "DM",
+   "Call",
+   "Meeting",
+   "Copy sent",
+   "Content published",
+   "Paid deal",
+   "Other"
+  ],
+  "ConventionStatus": [
+   "Considering",
+   "Applied",
+   "Booked",
+   "Done",
+   "Skipped"
+  ],
+  "ContentFormats": [
+   "Post",
+   "Carousel",
+   "Reel",
+   "Short",
+   "Story",
+   "Video",
+   "Live",
+   "Newsletter",
+   "Campaign update",
+   "Blog post"
+  ],
+  "ContentStatus": [
+   "Idea",
+   "Drafted",
+   "Approved",
+   "Scheduled",
+   "Posted"
+  ],
+  "CompPlatforms": [
+   "Gamefound",
+   "Kickstarter",
+   "BackerKit",
+   "Other"
+  ],
+  "AdChannels": [
+   "Meta",
+   "BGG",
+   "Reddit",
+   "Google",
+   "TikTok",
+   "Other"
+  ],
+  "SalesChannels": [
+   "Webshop",
+   "Amazon",
+   "Distributor",
+   "Store",
+   "Convention",
+   "Gamefound",
+   "Late pledge",
+   "Steam",
+   "Google Play",
+   "Other"
+  ],
+  "Locations": [
+   "Office"
+  ],
+  "MoneyKinds": [
+   "Cash balance",
+   "Payment",
+   "Income"
+  ],
+  "MoneyCategories": [
+   "Manufacturing",
+   "Freight",
+   "Fulfillment",
+   "Art",
+   "Design",
+   "Translation",
+   "Marketing",
+   "Ads",
+   "Conventions",
+   "Samples",
+   "Software",
+   "Taxes",
+   "Fees",
+   "Salaries",
+   "Other"
+  ],
+  "MentionSources": [
+   "Steam",
+   "Google Play",
+   "YouTube video",
+   "YouTube comment",
+   "BGG",
+   "Reddit",
+   "Feedback form",
+   "Press",
+   "Other"
+  ],
+  "Flags": [
+   "Bug",
+   "Rules question",
+   "Question",
+   "Praise",
+   "Complaint",
+   "Idea",
+   "Other"
+  ],
+  "SupportKinds": [
+   "Missing part",
+   "Damaged",
+   "Rules question",
+   "Other"
+  ],
+  "SupportStatus": [
+   "New",
+   "In progress",
+   "Shipped",
+   "Answered",
+   "Closed"
+  ],
+  "LeadStatus": [
+   "Pending",
+   "Confirmed",
+   "Unsubscribed",
+   "Bounced"
+  ],
+  "YesNoMaybe": [
+   "Yes",
+   "Maybe",
+   "No"
+  ],
+  "Areas": [
+   "Company and legal",
+   "Money",
+   "Game development",
+   "Art and design",
+   "Production",
+   "Localization",
+   "Crowdfunding",
+   "Marketing",
+   "Outreach",
+   "Sales",
+   "Support",
+   "Digital",
+   "Operations",
+   "Convention"
+  ],
+  "TemplateKinds": [
+   "Company",
+   "Game",
+   "Campaign",
+   "Convention"
+  ],
+  "Milestones": [
+   "Art final",
+   "Files to printer",
+   "Digital proof OK",
+   "Wet proof OK",
+   "Pre-production sample OK",
+   "Mass production start",
+   "Production done",
+   "Inspection OK",
+   "Shipped from factory",
+   "Arrived at warehouse",
+   "Fulfillment start",
+   "Fulfillment done"
+  ],
+  "ProductStatus": [
+   "Planned",
+   "In production",
+   "Available",
+   "Sold out",
+   "Discontinued"
+  ]
+ },
+ "settings": {
+  "Company": "Happy Capy Games, LLC",
+  "Brand": "Happy Capy Games",
+  "Address": "",
+  "Country": "",
+  "Company email": "info@happycapygames.com",
+  "Website": "https://happycapygames.com",
+  "VAT ID": "",
+  "EORI": "",
+  "Register": "",
+  "Managing director": "",
+  "Team emails": "info@happycapygames.com",
+  "Support email": "info@happycapygames.com",
+  "Mail sender name": "Happy Capy Games",
+  "Follow-up days": 7,
+  "Low stock default": 20,
+  "Monthly fixed costs EUR": "",
+  "Newsletter base count": 0,
+  "Steam app ids": "5006020",
+  "Play packages": "com.happycapygames.generationship",
+  "YouTube channel id": "",
+  "YouTube search": "Generation Ship | Generation Ship board game",
+  "Discord invite": "",
+  "BGG ids": "",
+  "Meta ad account": "",
+  "Meta API version": "v23.0",
+  "Forms base URL": "",
+  "Privacy URL": "",
+  "Consent version": "newsletter-v1",
+  "Digest weekday": 1,
+  "Digest hour": 8,
+  "Web app URL": "",
+  "Script status": "",
+  "Mail relay URL": "https://api.happycapygames.com/v1/mail/send",
+  "EU responsible person": "Pixel Pawel GmbH",
+  "EU responsible address": "Alfred-Kowalke-Str. 6, 10315 Berlin, Germany",
+  "EU responsible email": "info@pixelpawel.de"
+ }
+}
