@@ -303,3 +303,34 @@ def test_calendar_conventions_only_when_added_tasks_by_themselves():
     show(f"task-{task['_id']}", False)                      # automatic ones can be taken out too
     assert f"task-{task['_id']}" not in uids()
     assert show("../etc", True).status_code == 400
+
+
+def test_calendar_shows_the_google_calendars_own_appointments(monkeypatch, tmp_path):
+    from app import hub_gcal
+    key = tmp_path / "key.json"
+    key.write_text("{}")
+    monkeypatch.setenv("GOOGLE_CALENDAR_KEY", str(key))
+    monkeypatch.setenv("HUB_GCAL_OFF", "1")
+    hub_gcal._read_cache.clear()
+    with hub.hdb() as c:
+        s = hub.kv_get(c, "settings")
+        s["Google calendar id"] = "kate@happycapygames.com"
+        hub.kv_put(c, "settings", s)
+    d = lambda n: (TODAY + timedelta(days=n)).isoformat()
+    items = [
+        {"id": "a1", "summary": "Dentist", "start": {"dateTime": d(2) + "T09:00:00+01:00"}, "end": {"dateTime": d(2) + "T10:00:00+01:00"}, "htmlLink": "https://calendar.google.com/x"},
+        {"id": "a2", "summary": "Holiday", "start": {"date": d(5)}, "end": {"date": d(8)}},
+        {"id": "a3", "summary": "Ours", "start": {"date": d(3)}, "end": {"date": d(4)}, "extendedProperties": {"private": {"hcg_uid": "cal-1"}}},
+        {"id": "a4", "summary": "Gone", "status": "cancelled", "start": {"date": d(3)}, "end": {"date": d(4)}},
+    ]
+    monkeypatch.setattr(hub_gcal, "_token", lambda: "tok")
+    monkeypatch.setattr(hub_gcal, "_call", lambda method, url, token, body=None: {"items": items} if method == "GET" else {})
+    ev = [e for e in client.get("/v1/hub/events", headers=H).json()["events"] if e["cat"] == "google"]
+    assert [e["title"] for e in ev] == ["Dentist", "Holiday"]          # not ours, not cancelled
+    dentist, holiday = ev
+    assert dentist["time"] == "09:00-10:00" and dentist["url"] == "https://calendar.google.com/x"
+    assert holiday["start"] == d(5) and holiday["end"] == d(7)        # Google's end date is the day after
+    monkeypatch.setattr(hub_gcal, "_call", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("down")))
+    hub_gcal._read_cache.clear()
+    r = client.get("/v1/hub/events", headers=H).json()
+    assert r["google_error"] and not [e for e in r["events"] if e["cat"] == "google"]

@@ -117,6 +117,50 @@ def sync(c) -> str:
     return f"{cal}: {added} added, {changed} changed, {removed} removed ({len(want)} entries)"
 
 
+# ---------------------------------------------------------------- reading the calendar's own appointments
+
+_read_cache: dict = {}
+READ_TTL = 120   # seconds; the Calendar page asks often, the calendar changes rarely
+
+
+def google_entries(c, lo: date, hi: date) -> list[dict]:
+    """The calendar's own appointments (not the ones this sync wrote) between two dates, as calendar entries:
+    category "google", a link to the appointment in Google Calendar. [] when the sync isn't set up."""
+    cal = setting(c, "Google calendar id")
+    if not cal or not os.path.exists(key_file()):
+        return []
+    ck = (cal, lo.isoformat(), hi.isoformat())
+    hit = _read_cache.get(ck)
+    if hit and time.time() - hit[0] < READ_TTL:
+        return hit[1]
+    from .hub import TZ
+    token = _token()
+    base = API.format(cal=urllib.parse.quote(cal, safe=""))
+    q = {"timeMin": f"{lo.isoformat()}T00:00:00Z", "timeMax": f"{(hi + timedelta(days=1)).isoformat()}T00:00:00Z",
+         "singleEvents": "true", "orderBy": "startTime", "maxResults": "2500"}
+    out, page = [], None
+    while True:
+        data = _call("GET", base + "?" + urllib.parse.urlencode({**q, **({"pageToken": page} if page else {})}), token)
+        for ev in data.get("items", []):
+            if ev.get("status") == "cancelled" or (ev.get("extendedProperties", {}).get("private", {}) or {}).get("hcg_uid"):
+                continue
+            s, e = ev.get("start", {}), ev.get("end", {})
+            if "date" in s:          # all day; Google's end is the day after
+                start, end, tm = s["date"], (date.fromisoformat(e.get("date", s["date"])) - timedelta(days=1)).isoformat(), None
+            else:
+                a = datetime.fromisoformat(s["dateTime"]).astimezone(TZ)
+                b = datetime.fromisoformat(e.get("dateTime", s["dateTime"])).astimezone(TZ)
+                start, end, tm = a.date().isoformat(), b.date().isoformat(), f"{a:%H:%M}-{b:%H:%M}"
+            out.append({"uid": f"g-{ev['id']}", "cat": "google", "title": ev.get("summary") or "(no title)",
+                        "start": start, "end": max(end, start), "time": tm, "detail": ev.get("location") or "",
+                        "area": "", "tab": "", "id": None, "url": ev.get("htmlLink", "")})
+        page = data.get("nextPageToken")
+        if not page:
+            break
+    _read_cache[ck] = (time.time(), out)
+    return out
+
+
 # ---------------------------------------------------------------- after a change: sync a few seconds later
 _timer = None
 _timer_lock = threading.Lock()

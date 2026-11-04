@@ -133,9 +133,16 @@ def get_events(start: str = "", end: str = "", x_hub_token: str | None = Header(
     t = today()
     lo = _d(start) or (t - timedelta(days=45))
     hi = _d(end) or (t + timedelta(days=180))
+    google_error = None
     with hdb() as c:
         evs = [e for e in entries(c) if _d(e["end"]) >= lo and _d(e["start"]) <= hi]
-    return {"events": evs, "today": t.isoformat()}
+        try:   # the shared Google calendar's own appointments (Kate's), read with the sync's access
+            from .hub_gcal import google_entries
+            evs += google_entries(c, lo, hi)
+        except Exception as e:  # noqa: BLE001  (the page still shows our own dates)
+            google_error = f"The Google calendar couldn't be read: {type(e).__name__}"
+    evs.sort(key=lambda e: (e["start"], e["time"] or "", e["title"]))
+    return {"events": evs, "today": t.isoformat(), "google_error": google_error}
 
 
 @router.get("/calendar")
