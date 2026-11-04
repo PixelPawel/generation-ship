@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dvyvqeofqhyif"
-path="res://.godot/imported/word_games.png-131169208bfa31313951dc36f320d6b3.ctex"
+uid="uid://dx5s8gamsg061"
+path="res://.godot/imported/letter_11.png-6abda94bcbb7fa74a535d70e29a68b9c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/studio/word_games.png"
-dest_files=["res://.godot/imported/word_games.png-131169208bfa31313951dc36f320d6b3.ctex"]
+source_file="res://assets/ui/studio/letter_11.png"
+dest_files=["res://.godot/imported/letter_11.png-6abda94bcbb7fa74a535d70e29a68b9c.ctex"]
 
 [params]
 

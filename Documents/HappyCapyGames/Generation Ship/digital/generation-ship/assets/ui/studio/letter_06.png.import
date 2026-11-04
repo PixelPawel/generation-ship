@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bkjce5xvb5b4u"
-path="res://.godot/imported/word_happy.png-6ebe91999854489846ba9b11ffd17d45.ctex"
+uid="uid://cocbx3ti0j8t0"
+path="res://.godot/imported/letter_06.png-7f698599a50be8efe738bd99ce6e4d37.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/studio/word_happy.png"
-dest_files=["res://.godot/imported/word_happy.png-6ebe91999854489846ba9b11ffd17d45.ctex"]
+source_file="res://assets/ui/studio/letter_06.png"
+dest_files=["res://.godot/imported/letter_06.png-7f698599a50be8efe738bd99ce6e4d37.ctex"]
 
 [params]
 

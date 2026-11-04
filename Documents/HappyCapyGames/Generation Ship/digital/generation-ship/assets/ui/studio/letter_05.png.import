@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dwll6ilvolinb"
-path="res://.godot/imported/word_capy.png-02ad2880db5c98ee7eb7d544c11e1971.ctex"
+uid="uid://bonvhsmllltnq"
+path="res://.godot/imported/letter_05.png-5a9372cf72bbf9560575945054670a58.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/studio/word_capy.png"
-dest_files=["res://.godot/imported/word_capy.png-02ad2880db5c98ee7eb7d544c11e1971.ctex"]
+source_file="res://assets/ui/studio/letter_05.png"
+dest_files=["res://.godot/imported/letter_05.png-5a9372cf72bbf9560575945054670a58.ctex"]
 
 [params]
 
