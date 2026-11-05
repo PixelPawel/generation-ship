@@ -459,3 +459,48 @@ def test_funnel_declined_before_any_contact_stays_a_lead():
         {"Name": "Silent", "Stage": "No reply"}]}, headers=H)
     f = {s: n for s, n, _ in client.get("/v1/hub/dash", headers=H).json()["outreach"]["funnel"]}
     assert f["Lead"] == 3 and f["Contacted"] == 2
+
+
+def test_gmail_team_domain_merge_delete_and_contacts_outside_the_funnel():
+    import re
+    with hub.hdb() as c:
+        c.execute("DELETE FROM mail_msgs")
+        c.execute("DELETE FROM mail_threads")
+        c.execute("DELETE FROM kv WHERE key = 'mailboxes'")
+    client.put("/v1/hub/settings", json={"Company email": "info@happycapygames.com"}, headers=H)
+    chits = add("contacts", Name="Chits & Cardboard", Email="chitsandcardboard@gmail.com", Stage="Copy sent")
+    r = client.post("/v1/hub/mailboxes", json={"owner": "Pawel"}, headers=H).json()
+    MH = {"X-Mailbox-Token": re.search(r'const TOKEN = "([^"]+)"', r["script"]).group(1)}
+    plan = lambda: client.post("/v1/hub/mail/plan", json={"version": 1, "me": "pawel@x.de"}, headers=MH).json()
+    report = lambda **b: client.post("/v1/hub/mail/report", json=b, headers=MH).json()
+    contacts = lambda: client.get("/v1/hub/rows/contacts", headers=H).json()["rows"]
+    now = int(time.time())
+    plan()
+    # a teammate at the company's domain in a thread labelled Outreach is no contact; John from his own address is
+    msgs = [{"id": "1", "rfc": "<1@x>", "thread": "tk", "at": now - 300, "from": "Kate <kate@happycapygames.com>", "to": "pawel@x.de", "subject": "Influencer list"},
+            {"id": "2", "rfc": "<2@x>", "thread": "tj", "at": now - 200, "from": "John <john@chits.ca>", "to": "pawel@x.de", "subject": "Date?"},
+            {"id": "3", "rfc": "<3@x>", "thread": "tv", "at": now - 100, "from": "Vfi <support@vfi.example>", "to": "pawel@x.de", "subject": "Quote"}]
+    assert report(messages=msgs, labels={"tk": [""], "tj": [""], "tv": [""]})["added"] == 2
+    names = {x["Name"] for x in contacts()}
+    assert "Kate" not in names and {"John", "Vfi"} <= names
+    john = next(x for x in contacts() if x["Name"] == "John")
+    vfi = next(x for x in contacts() if x["Name"] == "Vfi")
+    # Vfi is a supplier: no stage = out of the funnel and off the board's labels
+    client.put(f"/v1/hub/rows/contacts/{vfi['_id']}", json={"data": {"Stage": "", "Type": "Other"}}, headers=H)
+    p = plan()
+    assert {"thread": "tj", "stage": "Replied"} in p["apply"] and not any(a["thread"] == "tv" for a in p["apply"])
+    report(labels={"tj": ["", "Replied"], "tv": [""]}, applied=["tj"])
+    f = {s: n for s, n, _ in client.get("/v1/hub/dash", headers=H).json()["outreach"]["funnel"]}
+    assert f["Lead"] == 2                                       # Chits and John, not Vfi
+    # John is Chits & Cardboard: merge; his mail and thread go along, the label follows Chits' stage (no move)
+    m = client.post("/v1/hub/contacts/merge", json={"from": john["_id"], "into": chits["_id"]}, headers=H).json()
+    assert m["log_lines"] == 1 and m["row"]["Email"] == "chitsandcardboard@gmail.com, john@chits.ca"
+    assert [x["Name"] for x in contacts()].count("John") == 0
+    assert plan()["apply"] == [{"thread": "tj", "stage": "Copy sent"}]
+    report(labels={"tj": ["", "Copy sent"], "tv": [""]}, applied=["tj"])
+    assert next(x for x in contacts() if x["_id"] == chits["_id"])["Stage"] == "Copy sent"
+    # deleting a contact takes the stage label off its threads
+    client.delete(f"/v1/hub/rows/contacts/{chits['_id']}", headers=H)
+    assert plan()["apply"] == [{"thread": "tj", "stage": "-"}]
+    report(labels={"tj": [""], "tv": [""]}, applied=["tj"])
+    assert plan()["apply"] == []

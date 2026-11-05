@@ -147,7 +147,8 @@ def _outreach(ctx, lists) -> dict:
         if s == "Declined" and not r.get("Last contact"):
             return 0                                   # ruled out before anyone wrote to them
         return LEVEL_OF.get(s, LEVEL_OF["Contacted"] if s in FUNNEL_EXITS else 0)
-    funnel = [[label, sum(1 for r in contacts if furthest(r) >= i), sum(stages.get(s, 0) for s in members)]
+    in_funnel = [r for r in contacts if r.get("Stage")]     # no stage: a business contact, not outreach
+    funnel = [[label, sum(1 for r in in_funnel if furthest(r) >= i), sum(stages.get(s, 0) for s in members)]
               for i, (label, members) in enumerate(FUNNEL_LEVELS)]
     return {
         "funnel": funnel, "exits": [[s, stages.get(s, 0)] for s in FUNNEL_EXITS],

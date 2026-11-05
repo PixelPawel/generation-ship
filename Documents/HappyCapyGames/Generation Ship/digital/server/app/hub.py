@@ -556,6 +556,8 @@ def delete_row(tab: str, row_id: int, x_hub_token: str | None = Header(None)) ->
     with hdb() as c:
         if c.execute("DELETE FROM rows WHERE id = ? AND tab = ?", (row_id, t["slug"])).rowcount == 0:
             raise HTTPException(404, "That row is gone already.")
+        if t["name"] == "Contacts":     # its Gmail threads lose their stage labels with the next run
+            c.execute("UPDATE mail_threads SET contact = 0 WHERE contact = ?", (row_id,))
     _changed()
     return {"ok": True}
 

@@ -15,12 +15,15 @@ Labels: every thread with a contact carries the contact's stage as a Gmail label
 the label in Gmail and the contact moves; move the contact on the dashboard and the labels follow. Taking the stage
 label off a thread stops the labelling of that thread (putting one back starts it again). A thread labelled
 "Outreach" (or any Outreach/<stage>) with someone who isn't a contact yet makes them one, Owner = the mailbox's owner.
+A contact without a Stage (a manufacturer, a platform) is not in the funnel: its mail is logged, but it gets no
+stage label and mail doesn't move it. A deleted contact's threads lose their stage labels.
 Drafts: a contact whose Draft status is Ready goes into its Owner's Gmail as a draft (Draft status -> In drafts).
 
     GET    /v1/hub/mailboxes                the connected mailboxes (hub token)
     POST   /v1/hub/mailboxes  {owner}       connect one: its script with a new token in it, shown once (hub token)
     POST   /v1/hub/mailboxes/{id}/script    the script again with a new token; the old one stops (hub token)
     DELETE /v1/hub/mailboxes/{id}           disconnect: its token stops working (hub token)
+    POST   /v1/hub/contacts/merge {from, into}   the same person twice (met under another address): one row (hub token)
     POST   /v1/hub/mail/plan                the script, step 1: what to watch and what to do (X-Mailbox-Token)
     POST   /v1/hub/mail/report              the script, step 2: what it found and did (X-Mailbox-Token)
 """
@@ -55,8 +58,11 @@ NEED_PER_RUN = 30
 MAX_MESSAGES = 2000
 REPLY_WITHIN = 2       # days to answer a mail from a contact
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+'-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,24}")
-CONTACTED_FROM = {"", "Lead", "To contact", "No reply"}
-REPLIED_FROM = {"", "Lead", "To contact", "Contacted", "No reply"}
+CONTACTED_FROM = {"Lead", "To contact", "No reply"}
+REPLIED_FROM = {"Lead", "To contact", "Contacted", "No reply"}
+NO_LABEL = "-"         # label_want: take the stage labels off (the contact is gone or not in the funnel)
+FREEMAIL = {"gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "yahoo.com", "icloud.com", "me.com",
+            "gmx.de", "gmx.net", "web.de", "proton.me", "protonmail.com"}
 
 
 def init_mail() -> None:
@@ -195,7 +201,18 @@ def _people(header) -> list[tuple[str, str]]:
     return out
 
 
-def _team(c, boxes: dict) -> set[str]:
+class _Own(set):
+    """Our own addresses, and anything at the company's own domain (kate@happycapygames.com)."""
+
+    def __init__(self, addrs, domains):
+        super().__init__(addrs)
+        self.domains = domains
+
+    def __contains__(self, addr) -> bool:
+        return set.__contains__(self, addr) or str(addr).rsplit("@", 1)[-1] in self.domains
+
+
+def _team(c, boxes: dict) -> _Own:
     """Our own addresses: a mail from one of them is ours, and they are never taken for contacts."""
     own = set()
     for k in ("Team emails", "Company email", "Support email"):
@@ -203,7 +220,8 @@ def _team(c, boxes: dict) -> set[str]:
     for b in boxes.values():
         own.update(_addrs(b.get("email")))
         own.update(a.lower() for a in b.get("aliases") or [])
-    return own
+    domains = {a.rsplit("@", 1)[1] for a in _addrs(setting(c, "Company email"))} - FREEMAIL
+    return _Own(own, domains)
 
 
 class _Contacts:
@@ -300,6 +318,45 @@ def _stage_order(stages: list[str]) -> dict:
     return {s: i for i, s in enumerate(stages)}
 
 
+@router.post("/contacts/merge")
+def merge_contacts(body: dict = Body(...), x_hub_token: str | None = Header(None), x_hub_user: str | None = Header(None)) -> dict:
+    """{from, into}: row ids. `from` goes into `into`: its addresses, mail dates, Outreach Log lines and Gmail threads
+    (their labels change to `into`'s stage); then `from` is deleted. `into` keeps its own stage and fields."""
+    from .hub import _changed, _row_out, _user, today
+    _auth(x_hub_token)
+    src, dst = int(_num(body.get("from")) or 0), int(_num(body.get("into")) or 0)
+    user = _user(x_hub_user)
+    with hdb() as c:
+        con = _Contacts(c)
+        a, b = con.rows.get(src), con.rows.get(dst)
+        if a is None or b is None or src == dst:
+            raise HTTPException(404, "Give two different contacts that both exist.")
+        b["Email"] = ", ".join(dict.fromkeys(_addrs(b.get("Email")) + _addrs(a.get("Email"))))
+        for k in ("Last contact", "Last reply"):
+            if a.get(k) and a[k] > (b.get(k) or ""):
+                b[k] = a[k]
+        for k in ("_mail_in", "_mail_out"):
+            if int(a.get(k) or 0) > int(b.get(k) or 0):
+                b[k] = a[k]
+        b["Notes"] = ((b.get("Notes") or "") + f"\nMerged in {a.get('Name')} ({a.get('Email') or a.get('ID')}) on {today().isoformat()}.").strip()
+        con.dirty.add(dst)
+        con.save(user)
+        log_slug = TAB_BY_NAME["Outreach Log"]["slug"]
+        moved = 0
+        if a.get("ID"):
+            for r in c.execute("SELECT id, data FROM rows WHERE tab = ?", (log_slug,)).fetchall():
+                d = json.loads(r["data"])
+                if d.get("Contact ID") == a["ID"]:
+                    d["Contact ID"] = b.get("ID", "")
+                    c.execute("UPDATE rows SET data = ? WHERE id = ?", (json.dumps(d, ensure_ascii=False), r["id"]))
+                    moved += 1
+        c.execute("UPDATE mail_threads SET contact = ? WHERE contact = ?", (dst, src))
+        c.execute("DELETE FROM rows WHERE id = ?", (src,))
+        out = {"row": _row_out(c, TAB_BY_NAME["Contacts"], dst), "log_lines": moved}
+    _changed()
+    return out
+
+
 # ---------------------------------------------------------------- the script's two calls
 
 def _ts(v) -> int:
@@ -334,8 +391,8 @@ def mail_plan(body: dict = Body(default={}), x_mailbox_token: str | None = Heade
         apply = []
         for r in c.execute("SELECT thread, contact, label_seen FROM mail_threads WHERE mailbox = ? AND muted = 0", (box["id"],)):
             data = con.rows.get(r["contact"])
-            want = (data or {}).get("Stage") or "Lead"
-            if data is None or want == r["label_seen"] or want not in stages:
+            want = (data or {}).get("Stage") or NO_LABEL
+            if want == r["label_seen"] or (want == NO_LABEL and not r["label_seen"]) or (want != NO_LABEL and want not in stages):
                 continue
             if len(apply) < APPLY_PER_RUN:
                 apply.append({"thread": r["thread"], "stage": want})
@@ -384,11 +441,12 @@ def mail_report(body: dict = Body(...), x_mailbox_token: str | None = Header(Non
         for th, r in threads.items():
             if r["label_want"]:
                 if th in applied:
-                    r["label_seen"] = r["label_want"]
+                    r["label_seen"] = "" if r["label_want"] == NO_LABEL else r["label_want"]
                 r["label_want"] = ""
                 changed.add(th)
 
         # 2. the mail, oldest first
+        remapped = set()       # threads whose contact was deleted or merged, now someone else's: their labels were ours
         msgs = [m for m in body.get("messages") or [] if isinstance(m, dict)]
         msgs.sort(key=lambda m: _ts(m.get("at")))
         for m in msgs[:MAX_MESSAGES]:
@@ -410,7 +468,11 @@ def mail_report(body: dict = Body(...), x_mailbox_token: str | None = Header(Non
                 stats["added"] += 1
             if not matched:
                 continue
-            if th and th not in threads:
+            if th and th in threads and threads[th]["contact"] not in con.rows:
+                threads[th].update(contact=matched[0], muted=0)
+                remapped.add(th)
+                changed.add(th)
+            elif th and th not in threads:
                 threads[th] = {"mailbox": box["id"], "thread": th, "contact": matched[0], "label_seen": "", "label_want": "", "muted": 0}
                 changed.add(th)
             key = str(m.get("rfc") or "").strip().strip("<>").lower()[:300] or f"gm:{str(m.get('id'))[:64]}"
@@ -429,7 +491,7 @@ def mail_report(body: dict = Body(...), x_mailbox_token: str | None = Header(Non
         if labelled is not None:
             for th, r in threads.items():
                 data = con.rows.get(r["contact"])
-                if data is None:
+                if data is None or th in remapped:
                     continue
                 cur = sorted({s for s in labelled.get(th, []) if s in order}, key=order.get)
                 seen = r["label_seen"]
@@ -471,7 +533,7 @@ def mail_report(body: dict = Body(...), x_mailbox_token: str | None = Header(Non
                 con.dirty.add(int(_num(d.get("contact"))))
                 stats["drafts"] += 1
         box["known"] = sorted(set(box.get("known") or []) | {a for x in body.get("backfilled") or [] for a in _addrs(x)})
-        box["backfill_left"] = len(set(con.by_addr) - own - set(box["known"]))
+        box["backfill_left"] = sum(1 for a in con.by_addr if a not in own and a not in set(box["known"]))
 
         con.save(owner)
         for th in changed:
