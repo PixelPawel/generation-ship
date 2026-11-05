@@ -1,5 +1,4 @@
 extends Control
-const FleetData = preload("res://scripts/game/fleet_data.gd")
 
 signal back_requested
 signal staging_requested
@@ -51,12 +50,12 @@ var _password_prompt: Control = null
 var _password_prompt_input: LineEdit = null
 var _password_prompt_error: Label = null
 var _chat_panel: Control = null
-# Generation Fleet (co-op): set by the main menu before the lobby slides in; the
-# host's choice is synced to joiners (_rpc_sync_mode) and sent with the start.
+# Generation Fleet (co-op): set by the main menu before the lobby slides in and synced to
+# joiners (_rpc_sync_mode). The host picks the Destination once everyone is in, after
+# Start Game (the user, 2026-11-05), and it goes out with the start.
 var _coop: bool = false
-var _coop_destination: int = 0
+var _choosing: bool = false          # the host has the Destination picker open
 var _mode_label: Label = null
-var _dest_btn: Button = null
 var _dest_picker: Control = null
 
 const _SPINNER_FRAMES: Array[String] = [
@@ -142,6 +141,7 @@ func _show_staging() -> void:
 	_staging_code_label.text = tr("Room code: %s") % _room_code
 	_preload_done = false
 	_players_ready.clear()
+	_choosing = false
 	_refresh_player_list()
 	_refresh_mode()
 	_start_preload()
@@ -182,9 +182,9 @@ func _show_staging() -> void:
 
 # ── Co-op mode ────────────────────────────────────────────────────────────────
 
-func set_coop(on: bool, destination_no: int) -> void:
+func set_coop(on: bool) -> void:
 	_coop = on
-	_coop_destination = destination_no
+	_choosing = false
 	_refresh_mode()
 
 func _ensure_mode_ui() -> void:
@@ -198,20 +198,12 @@ func _ensure_mode_ui() -> void:
 	_mode_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
 	vbox.add_child(_mode_label)
 	vbox.move_child(_mode_label, 0)
-	_dest_btn = Button.new()
-	_dest_btn.text = tr("Change Destination")
-	_dest_btn.custom_minimum_size = Vector2(0, 44)
-	_dest_btn.add_theme_font_size_override("font_size", 20)
-	_dest_btn.pressed.connect(func() -> void: _dest_picker.open())
-	vbox.add_child(_dest_btn)
-	vbox.move_child(_dest_btn, 1)
 	_dest_picker = load("res://scenes/ui/fleet_destination_picker.gd").new()
 	_staging_panel.add_child(_dest_picker)   # staging sits a screen below the lobby view
-	_dest_picker.set_lobby_mode()
-	_dest_picker.launch_requested.connect(func(no: int) -> void:
-		_dest_picker.visible = false
-		_coop_destination = no
-		_rpc_sync_mode.rpc(_coop, _coop_destination))
+	_dest_picker.launch_requested.connect(_start_coop)
+	_dest_picker.visibility_changed.connect(func() -> void:
+		if not _dest_picker.visible and _choosing and multiplayer.is_server():
+			_rpc_sync_mode.rpc(_coop, false))   # closed without a pick: back to waiting
 	if GameTheme.is_touch():
 		_touch_up(vbox)
 
@@ -220,17 +212,15 @@ func _refresh_mode() -> void:
 		return
 	_ensure_mode_ui()
 	_mode_label.visible = _coop
-	_dest_btn.visible = _coop and multiplayer.multiplayer_peer != null and multiplayer.is_server()
-	if _coop:
-		var d: Dictionary = FleetData.destination(_coop_destination)
-		var diff: int = int(d.get("difficulty", 1))
-		_mode_label.text = tr("Co-op: Generation Fleet — %s (%s, %d generations)") % [
-				d.get("name", "?"), tr(FleetData.DIFFICULTY_NAMES[diff]), FleetData.DIFFICULTY_GENERATIONS[diff]]
+	if _choosing and not multiplayer.is_server():
+		_mode_label.text = tr("The host is choosing the Destination…")
+	else:
+		_mode_label.text = tr("Co-op: Generation Fleet — the host chooses the Destination when the game starts")
 
 @rpc("authority", "reliable", "call_local")
-func _rpc_sync_mode(coop: bool, destination_no: int) -> void:
+func _rpc_sync_mode(coop: bool, choosing: bool) -> void:
 	_coop = coop
-	_coop_destination = destination_no
+	_choosing = choosing
 	_refresh_mode()
 
 func _start_preload() -> void:
@@ -464,12 +454,32 @@ func _on_password_cancel_pressed() -> void:
 # ── Start / Leave / Back ──────────────────────────────────────────────────────
 
 func _on_start_pressed() -> void:
-	if multiplayer.is_server():
-		if _relay:
-			_relay.mark_started()
-		_rpc_load_game.rpc(_coop, _coop_destination, randi())
+	if not multiplayer.is_server():
+		return
+	if _coop:
+		# everyone's in: the host picks the Destination, and picking it starts the game
+		_rpc_sync_mode.rpc(_coop, true)
+		_dest_picker.open()
+		return
+	_launch(false, 0)
+
+func _start_coop(destination_no: int) -> void:
+	_choosing = false                      # before hiding: no "closed without a pick"
+	_dest_picker.visible = false
+	if _staging_start_btn.disabled:
+		_rpc_sync_mode.rpc(_coop, false)   # someone came or went meanwhile: Start again
+		return
+	_launch(true, destination_no)
+
+func _launch(coop: bool, destination_no: int) -> void:
+	if _relay:
+		_relay.mark_started()
+	_rpc_load_game.rpc(coop, destination_no, randi())
 
 func _on_leave_pressed() -> void:
+	_choosing = false
+	if _dest_picker:
+		_dest_picker.visible = false
 	_close_connection()
 	_players.clear()
 	_bot_count = 0
@@ -586,7 +596,7 @@ func _rpc_register(player_name: String) -> void:
 		return
 	_players[multiplayer.get_remote_sender_id()] = player_name
 	_rpc_sync_players.rpc(_players)
-	_rpc_sync_mode.rpc(_coop, _coop_destination)   # joiners play the host's mode
+	_rpc_sync_mode.rpc(_coop, _choosing)   # joiners play the host's mode
 
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_players(players: Dictionary) -> void:

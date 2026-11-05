@@ -42,7 +42,6 @@ var _btn_tweens: Dictionary = {}
 var _music_player: AudioStreamPlayer = null
 var _manual: Control = null
 var _collection: Control = null
-var _fleet_picker: Control = null
 var _leaderboard: Control = null
 var _photo_scan: Control = null
 var _unlock_panel: UnlockPanel = null   # Android: made the first time a locked mode is tapped
@@ -89,13 +88,6 @@ func _ready() -> void:
 	add_child(_manual)
 	_collection = load("res://scenes/ui/collection_popup.gd").new()
 	add_child(_collection)
-	_fleet_picker = load("res://scenes/ui/fleet_destination_picker.gd").new()
-	add_child(_fleet_picker)
-	_fleet_picker.launch_requested.connect(_on_fleet_launch)
-	_fleet_picker.crew_requested.connect(func(no: int) -> void:
-		_fleet_picker.visible = false
-		$Panels/LobbyView.set_coop(true, no)
-		_slide_to_lobby())
 	_leaderboard = load("res://scenes/ui/leaderboard_popup.gd").new()
 	add_child(_leaderboard)
 	_photo_scan = load("res://scenes/photo_scan/photo_scan.gd").new()
@@ -316,7 +308,7 @@ func _build_menu_layout() -> void:
 	start.text = "Versus"
 	start.custom_minimum_size = PLAY_BTN_SIZE
 	start.add_theme_font_size_override("font_size", PLAY_FONT)
-	# Co-op (Generation Fleet): solo for now — pick a Destination, then launch
+	# Co-op (Generation Fleet): the lobby like Versus; the host picks the Destination at Start
 	var coop: Button = _menu_button("Co-op", 32, Vector2(440, 64))
 	coop.pressed.connect(_on_coop_pressed)
 	vbox.add_child(coop)
@@ -513,16 +505,6 @@ func _tutorial_done() -> bool:
 	var cfg: ConfigFile = ConfigFile.new()
 	return cfg.load(SETTINGS_PATH) == OK and bool(cfg.get_value("tutorial", "seen", false))
 
-# Generation Fleet, solo: a regular solo game with the Fleet rules on.
-func _on_fleet_launch(destination_no: int) -> void:
-	GameNetwork.fleet_mode = true
-	GameNetwork.fleet_destination = destination_no
-	GameNetwork.is_multiplayer = false
-	GameNetwork.bot_ids = []
-	GameNetwork.player_names = {}
-	_fleet_picker.visible = false
-	launch_game("res://scenes/main/main.tscn")
-
 func _on_tutorial_pressed() -> void:
 	TutorialSession.active = true
 	GameNetwork.is_multiplayer = false
@@ -545,13 +527,14 @@ func _on_settings_btn_pressed() -> void:
 func _on_multiplayer_pressed() -> void:
 	if _needs_unlock(_on_multiplayer_pressed):
 		return
-	$Panels/LobbyView.set_coop(false, 0)
+	$Panels/LobbyView.set_coop(false)
 	_slide_to_lobby()
 
 func _on_coop_pressed() -> void:
 	if _needs_unlock(_on_coop_pressed):
 		return
-	_fleet_picker.open()
+	$Panels/LobbyView.set_coop(true)
+	_slide_to_lobby()
 
 # Android: Versus and Co-op need the full game (FullGame). While it's locked
 # the unlock panel opens instead, and carries on into the tapped mode once
