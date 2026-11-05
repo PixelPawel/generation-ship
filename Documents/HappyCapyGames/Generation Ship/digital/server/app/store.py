@@ -18,6 +18,8 @@ warehouse has it (Stock: On hand - Reserved).
     POST /v1/hub/store/checkout {country, items: [{sku, qty}]}  -> {url}: the Stripe Checkout page (public)
     GET  /v1/hub/store/order?session=cs_...      the thank-you page's summary of the order (public)
     POST /v1/hub/store/stripe                    Stripe's webhook (signed with STRIPE_WEBHOOK_SECRET)
+    POST /v1/hub/store/event {kind, country}     a page view or an add-to-cart, counted per day and country for the
+                                                 dashboards' Store page (no cookie, nothing about the visitor kept)
 
 Orders' Status: Paid -> Packed -> Shipped (Stock: On hand and Reserved go down) -> Delivered. Cancelled or Refunded
 frees the reservation (if it hadn't shipped) and takes the order's Sales rows out. A refund made in Stripe's dashboard
@@ -52,7 +54,23 @@ KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MK ML MM MN MO MQ MR MS MT
 NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PY QA RE RO RS RU RW SA SB SC SE SG SH SI SJ SK SL SM SN SO SR SS ST SV
 SX SZ TA TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG US UY UZ VA VC VE VG VN VU WF WS XK YE YT ZA ZM ZW""".split()
 _checkouts: list[float] = []      # recent checkout sessions, for a simple brake on abuse
+_events: list[float] = []         # recent counted events, the same
 _lock = threading.Lock()
+PUBLIC_URL = os.environ.get("HUB_PUBLIC_URL", "https://api.happycapygames.com").rstrip("/")
+EVENT_KINDS = ("view", "cart")
+
+
+def _count(c, key: str) -> None:
+    """+1 on today's metric (store.view, store.view.us, store.checkout ...)."""
+    c.execute("""INSERT INTO metrics (day, key, value, source, updated_at) VALUES (?, ?, 1, 'store', ?)
+                 ON CONFLICT(day, key) DO UPDATE SET value = value + 1, updated_at = excluded.updated_at""",
+              (today().isoformat(), key, int(time.time())))
+
+
+def _count_event(c, kind: str, country: str) -> None:
+    _count(c, f"store.{kind}")
+    if re.fullmatch(r"[A-Z]{2}", country or ""):
+        _count(c, f"store.{kind}.{country.lower()}")
 
 
 # ---------------------------------------------------------------- regions, products, stock
@@ -137,6 +155,7 @@ def catalog_for(c, country: str) -> dict:
         })
     return {"country": country, "region": region["name"] if region else "", "mode": mode, "currency": currency,
             "open": bool(os.environ.get("STRIPE_SECRET_KEY")),     # no Stripe yet: a preview, nothing can be bought
+            "events": PUBLIC_URL + "/v1/hub/store/event",
             "shipping": {"rate": region["rate"], "extra": region["extra"]} if region and mode == "sell" else None,
             "products": products, "gamefound": gf}
 
@@ -251,7 +270,30 @@ def checkout(body: dict = Body(...)) -> dict:
     if tax:
         params["automatic_tax"] = {"enabled": True}
     s = _stripe("POST", "/v1/checkout/sessions", params)
+    with hdb() as c:
+        _count_event(c, "checkout", country)
     return {"url": s["url"]}
+
+
+@router.post("/event")
+async def store_event(request: Request) -> dict:
+    """The store page sends this with navigator.sendBeacon (plain text, no cookie): {kind: view|cart, country}."""
+    try:
+        body = json.loads((await request.body())[:500] or b"{}")
+    except ValueError:
+        raise HTTPException(400, "Bad event.")
+    kind = body.get("kind") if isinstance(body, dict) else None
+    if kind not in EVENT_KINDS:
+        raise HTTPException(400, "Bad event.")
+    with _lock:
+        now = time.time()
+        _events[:] = [t for t in _events if now - t < 600]
+        if len(_events) >= 3000:
+            return {"ok": False}
+        _events.append(now)
+    with hdb() as c:
+        _count_event(c, kind, str(body.get("country") or "").upper()[:2])
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------- orders

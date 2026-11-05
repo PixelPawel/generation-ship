@@ -313,6 +313,60 @@ def _production(ctx) -> dict:
     }
 
 
+def _store(c, ctx) -> dict:
+    """The store (happycapygames.com/store): what's set up, and visits -> carts -> checkouts -> orders, per day for
+    the last 30 days (with the 30 before for comparison), per country, and the best-selling editions."""
+    t = today()
+    since = (t - timedelta(days=59)).isoformat()
+    m = defaultdict(float)                                  # (day, key) -> count
+    for r in c.execute("SELECT day, key, value FROM metrics WHERE key LIKE 'store.%' AND day >= ?", (since,)):
+        m[(r["day"], r["key"])] = r["value"] or 0
+    orders = [o for o in derived_rows(ctx, "Orders") if o.get("Status") not in ("Cancelled", "Refunded")]
+    days = [(t - timedelta(days=i)).isoformat() for i in range(29, -1, -1)]
+    prev = [(t - timedelta(days=i)).isoformat() for i in range(59, 29, -1)]
+
+    def total(key, span):
+        return sum(m[(d, key)] for d in span)
+
+    def order_sum(span, field=None):
+        s = set(span)
+        rows = [o for o in orders if o.get("Date") in s]
+        return sum(_f(o.get(field)) for o in rows) if field else len(rows)
+
+    cur = {"views": total("store.view", days), "carts": total("store.cart", days), "checkouts": total("store.checkout", days),
+           "orders": order_sum(days), "revenue": order_sum(days, "Total EUR")}
+    before = {"views": total("store.view", prev), "carts": total("store.cart", prev), "checkouts": total("store.checkout", prev),
+              "orders": order_sum(prev), "revenue": order_sum(prev, "Total EUR")}
+    per_day = [[d, m[(d, "store.view")], m[(d, "store.cart")], m[(d, "store.checkout")], order_sum([d]), order_sum([d], "Total EUR")]
+               for d in days]
+    countries = Counter()
+    for (d, key), v in m.items():
+        if d in days and key.startswith("store.view."):
+            countries[key.rsplit(".", 1)[1].upper()] += v
+    order_countries = Counter((o.get("Country") or "?").upper() for o in orders if o.get("Date") in set(days))
+    # "Generation Ship: From Dust to Thrust (English Edition)" -> "Generation Ship (EN)"
+    names = {p.get("SKU"): (p.get("Product") or p.get("SKU") or "").split(":")[0].split(" – ")[0].strip()
+             + (f" ({p['Language']})" if p.get("Language") else "") for p in ctx.rows("Products")}
+    units = Counter()
+    for o in orders:
+        for ln in o.get("_lines") or []:
+            units[ln.get("sku")] += int(ln.get("qty") or 0)
+    # what's set up: the store opens when all of it is
+    products = [p for p in ctx.rows("Products") if p.get("In store")]
+    regions = [r for r in ctx.rows("Shipping") if (r.get("Store") or "").lower() == "sell"]
+    stocked = {r.get("SKU") for r in derived_rows(ctx, "Stock") if _f(r.get("Available")) > 0}
+    setup = {
+        "open": bool(os.environ.get("STRIPE_SECRET_KEY")), "store_url": setting(ctx.c, "Store URL"),
+        "in_store": len(products), "priced": sum(1 for p in products if _f(p.get("MSRP USD")) > 0),
+        "stocked": sum(1 for p in products if p.get("SKU") in stocked),
+        "regions": len(regions), "rated": sum(1 for r in regions if r.get("Rate") not in (None, "")),
+        "warehouse": sum(1 for r in regions if r.get("Fulfilled by")),
+    }
+    return {"setup": setup, "cur": cur, "before": before, "days": per_day,
+            "countries": countries.most_common(10), "order_countries": order_countries.most_common(10),
+            "editions": [[names.get(k, k), v] for k, v in units.most_common(8)]}
+
+
 def _playtests(ctx) -> dict:
     rows = derived_rows(ctx, "Playtests")
     sessions = defaultdict(list)
@@ -364,6 +418,7 @@ def build() -> dict:
     out["collect"] = status()["collectors"]
     with hdb() as c:
         out["mailboxes"] = mail_status(c)
+        out["store"] = _store(c, Context(c))
     aud = {a["key"]: a for a in audience}
     gf = [a for a in audience if a["key"].startswith("gamefound.")]   # every campaign together
     gf_changes = [a["change_7d"] for a in gf if a["change_7d"] is not None]
@@ -408,7 +463,7 @@ def _attention(out: dict) -> list[dict]:
         a.append({"area": "community", "kind": "Support", "text": f"{r.get('Kind') or 'Request'} from {r.get('Name') or '?'}",
                   "detail": r.get("Status") or "New", "who": r.get("Owner")})
     for r in out["sales"]["orders_to_ship"][:8]:
-        a.append({"area": "sales", "kind": "Order to ship", "text": f"{r['Order']}: {r.get('Name') or ''}",
+        a.append({"area": "store", "kind": "Order to ship", "text": f"{r['Order']}: {r.get('Name') or ''}",
                   "detail": f"{r.get('Status')} since {r.get('Date')}, {r.get('Country') or ''} from {r.get('Fulfilled by') or '?'}"})
     for r in out["sales"]["stock"]:
         if r.get("Status") == "Low":

@@ -121,3 +121,20 @@ def test_webhook_orders_stock_and_refunds(monkeypatch):
     o2 = next(x for x in client.get("/v1/hub/rows/orders", headers=H).json()["rows"] if x["Order"] == "HCG-0002")
     assert o2["Status"] == "Refunded" and stock()["GS-EN"] == (3, 1)
     assert {s["Order ref"] for s in client.get("/v1/hub/rows/sales", headers=H).json()["rows"]} == {"HCG-0001"}
+
+
+def test_store_counts_and_the_dashboards_store_page(monkeypatch):
+    monkeypatch.setattr(store, "_stripe", lambda method, path, params: {"url": "https://checkout.stripe.com/x"})
+    beacon = lambda body: client.post("/v1/hub/store/event", content=body, headers={"Content-Type": "text/plain"})
+    for _ in range(3):
+        assert beacon(b'{"kind": "view", "country": "US"}').json() == {"ok": True}
+    beacon(b'{"kind": "view", "country": "CA"}')
+    beacon(b'{"kind": "cart", "country": "US"}')
+    assert beacon(b'{"kind": "buy"}').status_code == 400 and beacon(b"nonsense").status_code == 400
+    assert cat("US")["events"] == "https://api.happycapygames.com/v1/hub/store/event"
+    client.post("/v1/hub/store/checkout", json={"country": "US", "items": [{"sku": "GS-EN", "qty": 1}]})
+    st = client.get("/v1/hub/dash", headers=H).json()["store"]
+    assert st["cur"]["views"] == 4 and st["cur"]["carts"] == 1 and st["cur"]["checkouts"] == 1 and st["cur"]["orders"] == 0
+    assert st["countries"] == [["US", 3], ["CA", 1]] and st["days"][-1][1:4] == [4, 1, 1]
+    assert st["setup"] == {"open": False, "store_url": "https://happycapygames.com/store/", "in_store": 2, "priced": 2, "stocked": 2,
+                           "regions": 5, "rated": 4, "warehouse": 5}
