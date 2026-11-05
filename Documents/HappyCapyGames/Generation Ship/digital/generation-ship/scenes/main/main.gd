@@ -870,6 +870,7 @@ func _on_end_turn_button_pressed() -> void:
 func _do_pass() -> void:
 	if _tutorial:
 		_tutorial.notify_passed()
+	UIAudio.play_sfx("pass_turn")
 	_has_passed = true
 	_ending_turn = true
 	_cs_display.clear_fuse_1to1()
@@ -912,6 +913,7 @@ func _show_round_transition(then: Callable) -> void:
 	var banner: TurnBanner = TurnBanner.new()
 	$UILayer.add_child(banner)
 	banner.finished.connect(then)
+	UIAudio.play_sfx("round_end")
 	banner.play(tr("End of Round %d") % _round, Color(0.75, 0.90, 1.0))
 
 func _end_round() -> void:
@@ -1570,8 +1572,9 @@ func _game_over() -> void:
 	# "submit on behalf of an opponent" path to worry about here.
 	# a tutorial score isn't a real game; Fleet has its own board, wins only
 	if GameNetwork.fleet_mode:
-		_fleet_game_over(lines, total)
+		_fleet_game_over(lines, total)        # Fleet sounds its own mission result
 		return
+	UIAudio.play_sfx("game_end")
 	if not TutorialSession.active:
 		LeaderboardManager.submit_score(total, ScoringSnapshotCodec.encode_lines(lines))
 	if not GameNetwork.is_multiplayer:
@@ -2498,6 +2501,7 @@ func _rpc_sync_sector_revealed(slot_idx: int) -> void:
 # (bots, Interfleet Comms' auto-delivered final card), unlike sector reveals.
 
 func _on_tech_card_drawn() -> void:
+	UIAudio.play_sfx("tech_draw")
 	if GameNetwork.is_multiplayer:
 		if GameNetwork.is_host:
 			_server_sync_tech_draw(1)
@@ -2738,6 +2742,7 @@ func _execute_expedition_reveal(slot_idx: int) -> void:
 	$Board.set_expedition_reveal_mode(false)
 	_hide_effect_hint()
 	var revealed: CardData = $Board.reveal_expedition_to_slot(slot_idx)
+	UIAudio.play_sfx("expedition_reveal")
 	var exp_reveal_parts: Array[String] = [tr("revealed %s") % (revealed.card_name if revealed else tr("a card"))]
 	if _pending_expedition_reveal_gain_supply and revealed:
 		_cs_display.add_supply(revealed.color, 1)
@@ -2853,6 +2858,8 @@ func _on_action_committed() -> void:
 # instead of unconditionally landing wherever it happened to be appended.
 func _on_optimize_triggered(slot: SectorSlot, _level: int) -> void:
 	slot.celebrate(slot.is_optimized)
+	if slot.is_optimized:
+		UIAudio.play_sfx("fully_optimized")      # the sector's last level
 	_effect_slot = slot
 	_pending_optimize_steps.append_array(SectorEffects.get_optimize_steps(slot))
 

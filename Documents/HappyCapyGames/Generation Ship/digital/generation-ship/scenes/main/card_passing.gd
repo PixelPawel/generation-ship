@@ -229,6 +229,7 @@ static func _fleet_on_shuttle_requested(main: Main, cd: CardData, target: int) -
 	for col: int in pay:
 		main._cs_display.spend_supply(col, int(pay[col]))
 	main.get_node("Hand").remove_card_fly_out(node)
+	UIAudio.play_sfx("shuttle_send")
 	main.get_node("Board").refresh_hand_discounts()
 	var ref: Dictionary = CardRef.to_ref(cd)
 	main.fleet_card_shuttled.emit(target)
@@ -255,6 +256,7 @@ static func _rpc_fleet_shuttle_delivered(main: Main, sender: int, target: int, r
 	var from: String = str(GameNetwork.player_names.get(sender, "Player"))
 	var to: String = str(GameNetwork.player_names.get(target, "Player"))
 	if target == main.multiplayer.get_unique_id():
+		UIAudio.play_sfx("shuttle_send")
 		main.get_node("Board").add_specific_card_to_hand(cd)
 		main.get_node("Board").refresh_hand_discounts()
 		main._log_action(main.tr("%s shuttled you %s.") % [from, CardDatabase.display_name(cd)], Color(0.6, 0.9, 1.0))

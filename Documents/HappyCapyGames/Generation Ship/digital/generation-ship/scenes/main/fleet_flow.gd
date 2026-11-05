@@ -182,6 +182,7 @@ static func _resolve_revealed(main: Main, nos: Array[int]) -> void:
 
 static func _announce(main: Main, no: int) -> void:
 	main._log_action(main.tr("Danger revealed: %s") % _name(no), DANGER_COLOR)
+	UIAudio.play_sfx("danger_reveal")
 	show_card(main, FleetData.danger_art(no), false, CARD_SHOW_SEC)
 	var banner: Node = TurnBanner.new()
 	main.get_node("UILayer").add_child(banner)
@@ -601,7 +602,7 @@ static func _announce_solved(main: Main, no: int, who: String) -> void:
 		main._log_action(main.tr("Danger solved: %s") % _name(no), SOLVED_COLOR)
 	else:
 		main._log_action(main.tr("Danger solved by %s: %s") % [who, _name(no)], SOLVED_COLOR)
-	UIAudio.play_fuse_sfx()
+	UIAudio.play_sfx("danger_solved")
 	show_card(main, FleetData.danger_art(no), false, CARD_SHOW_SEC)
 	var banner: Node = TurnBanner.new()
 	main.get_node("UILayer").add_child(banner)
@@ -1247,6 +1248,7 @@ static func _fleet_show_result(main: Main, won: bool, mission: Array, lines: Arr
 	if won:
 		LeaderboardManager.submit_score(total, ScoringSnapshotCodec.encode_lines(lines),
 				LeaderboardManager.SOURCE_FLEET, GameNetwork.fleet_destination)
+	UIAudio.play_sfx("mission_complete" if won else "mission_failed")
 	var banner: Main.TurnBanner = TurnBanner.new()
 	main.get_node("UILayer").add_child(banner)
 	banner.play(main.tr("MISSION COMPLETE") if won else main.tr("MISSION FAILED"),

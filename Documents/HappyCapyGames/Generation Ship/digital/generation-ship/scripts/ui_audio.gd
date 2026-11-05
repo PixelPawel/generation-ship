@@ -6,6 +6,18 @@ var _recycle_player: AudioStreamPlayer = null
 var _auction_player: AudioStreamPlayer = null
 var _shift_change_player: AudioStreamPlayer = null
 var _supply_players: Dictionary = {}
+var _sfx_players: Dictionary = {}     # cue -> AudioStreamPlayer, see SFX_CUES
+
+# Sound effects made with Stable Audio 3 (2026-11-05; prompts in _Shared/SFX/genship_cues.txt,
+# the files in assets/effects/generated/) for moments that were silent, with their volume
+# against the older effects. play_sfx(cue) plays one.
+const SFX_DIR: String = "res://assets/effects/generated/"
+const SFX_CUES: Dictionary = {
+	"danger_reveal": -4.0, "danger_solved": -4.0, "mission_complete": -3.0, "mission_failed": -3.0,
+	"round_end": -6.0, "game_end": -4.0, "expedition_reveal": -6.0, "tech_draw": -6.0,
+	"pass_turn": -6.0, "fully_optimized": -5.0, "shuttle_send": -5.0, "scan_success": -4.0,
+	"ui_click": -12.0, "intro_chime": -8.0,
+}
 
 func _ready() -> void:
 	var fuse_stream: AudioStream = load("res://assets/effects/fuse.wav") as AudioStream
@@ -68,6 +80,31 @@ func _ready() -> void:
 			player.bus = &"SFX"
 			add_child(player)
 			_supply_players[color] = player
+	_setup_sfx()
+
+func _setup_sfx() -> void:
+	for cue: String in SFX_CUES:
+		var stream: AudioStream = load(SFX_DIR + cue + ".wav") as AudioStream
+		if stream == null:
+			continue
+		var player: AudioStreamPlayer = AudioStreamPlayer.new()
+		player.stream = stream
+		player.bus = &"SFX"
+		player.volume_db = float(SFX_CUES[cue])
+		add_child(player)
+		_sfx_players[cue] = player
+	# every button in the game clicks softly when pressed, wherever it is created
+	get_tree().node_added.connect(func(node: Node) -> void:
+		if node is BaseButton and not (node as BaseButton).pressed.is_connected(_on_button_pressed):
+			(node as BaseButton).pressed.connect(_on_button_pressed))
+
+func _on_button_pressed() -> void:
+	play_sfx("ui_click")
+
+func play_sfx(cue: String) -> void:
+	var player: AudioStreamPlayer = _sfx_players.get(cue) as AudioStreamPlayer
+	if player:
+		player.play()
 
 func play_fuse_sfx() -> void:
 	if not _fuse_player:

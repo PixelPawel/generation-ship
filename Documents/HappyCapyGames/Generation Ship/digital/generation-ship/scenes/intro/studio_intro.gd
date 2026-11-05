@@ -103,6 +103,7 @@ func _process(delta: float) -> void:
 			_tweens.erase(t)
 
 func _play() -> void:
+	UIAudio.play_sfx("intro_chime")
 	_tween().tween_property(_logo, "modulate:a", 1.0, LOGO_IN).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	for i: int in _letters.size():
 		var letter: TextureRect = _letters[i]

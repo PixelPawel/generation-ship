@@ -881,6 +881,7 @@ func _on_photo_selected(path: String) -> void:
 		_status_label.text = "No sectors found — move closer so the ship fills the photo"
 	else:
 		var read: int = _sectors.size() - placeholders
+		UIAudio.play_sfx("scan_success")
 		_status_label.text = "%d sector%s found" % [read, "" if read == 1 else "s"]
 		if loose > 0:
 			_status_label.text += " · %d card%s not next to a sector left out" % [loose, "" if loose == 1 else "s"]
