@@ -234,7 +234,10 @@ def _sales(ctx, lists) -> dict:
         m = (m - timedelta(days=1)).replace(day=1)
     stock = derived_rows(ctx, "Stock")
     this_month = t.isoformat()[:7]
+    to_ship = sorted((r for r in derived_rows(ctx, "Orders") if r.get("Status") in ("Paid", "Packed")), key=lambda r: r.get("Date") or "")
     return {
+        "orders_to_ship": [{k: r.get(k) for k in ("_id", "Order", "Date", "Status", "Name", "Country", "Items", "Total", "Currency", "Fulfilled by")}
+                           for r in to_ship],
         "net_total": sum(by_channel.values()),
         "net_this_month": by_month.get(this_month, 0),
         "by_channel": sorted(([k, v] for k, v in by_channel.items()), key=lambda x: -x[1]),
@@ -404,6 +407,9 @@ def _attention(out: dict) -> list[dict]:
     for r in out["community"]["support_open"][:5]:
         a.append({"area": "community", "kind": "Support", "text": f"{r.get('Kind') or 'Request'} from {r.get('Name') or '?'}",
                   "detail": r.get("Status") or "New", "who": r.get("Owner")})
+    for r in out["sales"]["orders_to_ship"][:8]:
+        a.append({"area": "sales", "kind": "Order to ship", "text": f"{r['Order']}: {r.get('Name') or ''}",
+                  "detail": f"{r.get('Status')} since {r.get('Date')}, {r.get('Country') or ''} from {r.get('Fulfilled by') or '?'}"})
     for r in out["sales"]["stock"]:
         if r.get("Status") == "Low":
             a.append({"area": "sales", "kind": "Low stock", "text": r.get("Product") or r.get("SKU"), "detail": f"{r.get('Available'):.0f} left at {r.get('Location')}"})

@@ -712,6 +712,16 @@
      "type": "gbp"
     },
     {
+     "name": "MSRP CAD",
+     "type": "num",
+     "note": "Store price in Canadian dollars."
+    },
+    {
+     "name": "MSRP AUD",
+     "type": "num",
+     "note": "Store price in Australian dollars."
+    },
+    {
      "name": "Wholesale EUR",
      "type": "eur"
     },
@@ -813,7 +823,18 @@
     },
     {
      "name": "Store URL",
-     "type": "url"
+     "type": "url",
+     "note": "Where to buy it when our store doesn't ship to the buyer. Empty = the game's Gamefound page (Settings > Gamefound campaigns)."
+    },
+    {
+     "name": "In store",
+     "type": "check",
+     "note": "Shown in our store (happycapygames.com/store)."
+    },
+    {
+     "name": "Store image",
+     "type": "text",
+     "note": "The store's picture of Image (written by publish_store.py)."
     },
     {
      "name": "Notes",
@@ -835,12 +856,36 @@
     },
     {
      "name": "Fulfilled by",
-     "type": "text"
+     "type": "list",
+     "list": "Locations",
+     "note": "The warehouse (a Stock location) that ships store orders to this region."
     },
     {
      "name": "Countries",
      "type": "long",
      "note": "ISO codes, comma separated. A country not listed anywhere falls into 'Rest of world'."
+    },
+    {
+     "name": "Store",
+     "type": "list",
+     "list": "StoreModes",
+     "note": "Sell = our store ships here; Gamefound = buyers are sent to Gamefound (the EU and the UK always are: no VAT for us); Off = not available."
+    },
+    {
+     "name": "Currency",
+     "type": "list",
+     "list": "Currencies",
+     "note": "The store's prices and shipping here: MSRP USD / CAD / AUD."
+    },
+    {
+     "name": "Rate",
+     "type": "num",
+     "note": "Shipping for the first game, in Currency."
+    },
+    {
+     "name": "Extra item",
+     "type": "num",
+     "note": "Shipping for each further game in the same order, in Currency."
     },
     {
      "name": "Pick pack EUR",
@@ -1331,6 +1376,112 @@
      "type": "long"
     }
    ]
+  },
+  {
+   "name": "Orders",
+   "slug": "orders",
+   "area": "sales",
+   "group": "sales",
+   "note": "Orders from our store, written when Stripe confirms the payment. Move Status on as the order goes out: Shipped takes it out of Stock; Cancelled or Refunded frees the stock and takes it out of Sales.",
+   "columns": [
+    {
+     "name": "Order",
+     "type": "text",
+     "key": true,
+     "auto": true
+    },
+    {
+     "name": "Date",
+     "type": "date",
+     "auto": true
+    },
+    {
+     "name": "Status",
+     "type": "list",
+     "list": "OrderStatus"
+    },
+    {
+     "name": "Name",
+     "type": "text",
+     "auto": true
+    },
+    {
+     "name": "Email",
+     "type": "email",
+     "auto": true
+    },
+    {
+     "name": "Phone",
+     "type": "text",
+     "auto": true
+    },
+    {
+     "name": "Country",
+     "type": "text",
+     "auto": true
+    },
+    {
+     "name": "Address",
+     "type": "long",
+     "auto": true
+    },
+    {
+     "name": "Items",
+     "type": "long",
+     "auto": true
+    },
+    {
+     "name": "Currency",
+     "type": "text",
+     "auto": true
+    },
+    {
+     "name": "Subtotal",
+     "type": "num",
+     "auto": true
+    },
+    {
+     "name": "Shipping",
+     "type": "num",
+     "auto": true
+    },
+    {
+     "name": "Tax",
+     "type": "num",
+     "auto": true
+    },
+    {
+     "name": "Total",
+     "type": "num",
+     "auto": true
+    },
+    {
+     "name": "Total EUR",
+     "type": "eur",
+     "auto": true,
+     "note": "At the ECB rate of the day."
+    },
+    {
+     "name": "Fulfilled by",
+     "type": "list",
+     "list": "Locations"
+    },
+    {
+     "name": "Tracking",
+     "type": "text",
+     "note": "Carrier and tracking number."
+    },
+    {
+     "name": "Stripe",
+     "type": "url",
+     "auto": true,
+     "note": "The payment in Stripe's dashboard (refunds go there)."
+    },
+    {
+     "name": "Notes",
+     "type": "long"
+    }
+   ]
   }
  ],
  "lists": {
@@ -1591,6 +1742,24 @@
    "Trip",
    "Holiday",
    "Other"
+  ],
+  "OrderStatus": [
+   "Paid",
+   "Packed",
+   "Shipped",
+   "Delivered",
+   "Cancelled",
+   "Refunded"
+  ],
+  "StoreModes": [
+   "Sell",
+   "Gamefound",
+   "Off"
+  ],
+  "Currencies": [
+   "USD",
+   "CAD",
+   "AUD"
   ]
  },
  "settings": {
@@ -1629,6 +1798,8 @@
   "Mail relay URL": "https://api.happycapygames.com/v1/mail/send",
   "EU responsible person": "Pixel Pawel GmbH",
   "EU responsible address": "Alfred-Kowalke-Str. 6, 10315 Berlin, Germany",
-  "EU responsible email": "info@pixelpawel.de"
+  "EU responsible email": "info@pixelpawel.de",
+  "Store URL": "",
+  "Stripe Tax": "off"
  }
 }

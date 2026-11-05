@@ -537,10 +537,14 @@ def change_row(tab: str, row_id: int, body: dict = Body(...), x_hub_token: str |
             raise HTTPException(409, "Someone else changed this row in the meantime. Reload and try again.")
         data = json.loads(r["data"])
         old_stage = data.get("Stage") or ""
+        old_status = data.get("Status") or ""
         data.update(clean_row(t, body.get("data") or {}))
         _fill_auto(c, t, data, creating=False)
         if t["name"] == "Contacts":
             _stage_moved(c, data, old_stage, body.get("data") or {}, _user(x_hub_user))
+        elif t["name"] == "Orders":
+            from .store import order_status_changed
+            order_status_changed(c, data, old_status)
         c.execute("UPDATE rows SET data = ?, updated_at = ?, updated_by = ? WHERE id = ?",
                   (json.dumps(data, ensure_ascii=False), max(int(time.time()), r["updated_at"] + 1),
                    _user(x_hub_user), row_id))
@@ -656,6 +660,8 @@ def collect_status(x_hub_token: str | None = Header(None)) -> dict:
 
 from .hub_calendar import router as _calendar_router  # noqa: E402  (the company calendar and its .ics feeds)
 from .hub_mail import router as _mail_router  # noqa: E402  (the team's Gmail drives the outreach funnel)
+from .store import router as _store_router  # noqa: E402  (the store: Stripe Checkout, orders; public)
 
 router.include_router(_calendar_router)
 router.include_router(_mail_router)
+router.include_router(_store_router)
