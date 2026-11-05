@@ -135,6 +135,7 @@ def catalog_for(c, country: str) -> dict:
             "gamefound": p.get("Store URL") or gf.get(p.get("Game") or "", ""),
         })
     return {"country": country, "region": region["name"] if region else "", "mode": mode, "currency": currency,
+            "open": bool(os.environ.get("STRIPE_SECRET_KEY")),     # no Stripe yet: a preview, nothing can be bought
             "shipping": {"rate": region["rate"], "extra": region["extra"]} if region and mode == "sell" else None,
             "products": products, "gamefound": gf}
 

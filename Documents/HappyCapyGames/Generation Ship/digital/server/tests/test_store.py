@@ -32,8 +32,12 @@ def cat(country):
     return client.get(f"/v1/hub/store/catalog?country={country}").json()
 
 
-def test_catalog_per_country():
+def test_catalog_per_country(monkeypatch):
+    monkeypatch.delenv("STRIPE_SECRET_KEY", raising=False)
+    assert cat("US")["open"] is False                  # no Stripe key: the store is a preview
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_x")
     us = cat("US")
+    assert us["open"] is True
     assert us["mode"] == "sell" and us["currency"] == "USD" and us["shipping"] == {"rate": 12.0, "extra": 4.0}
     p = {x["sku"]: x for x in us["products"]}
     assert set(p) == {"GS-EN", "GF-EN"} and p["GS-EN"]["price"] == 59 and p["GS-EN"]["available"] == 4 and p["GF-EN"]["available"] == 2
