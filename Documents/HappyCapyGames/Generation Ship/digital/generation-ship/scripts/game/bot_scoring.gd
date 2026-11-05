@@ -36,8 +36,34 @@ static func is_slot_complete(slot: Dictionary) -> bool:
 	return (slot.get("techs", []) as Array).size() >= STACK_CAPACITY
 
 static func is_slot_optimized(slot: Dictionary) -> bool:
+	if not slot.has("max_optimizations"):
+		return _optimized_from_cards(slot)
 	var max_opt: int = int(slot.get("max_optimizations", 0))
 	return max_opt > 0 and int(slot.get("optimize_count", 0)) >= max_opt
+
+## For a board that doesn't track optimize state (Scan Tableau's ship, read from a photo; the bots'
+## boards always carry it): the state the game reaches by placing the sector's cards one by one and
+## re-checking after each, as Board._update_optimize_state does.
+static func _optimized_from_cards(slot: Dictionary) -> bool:
+	var sector: CardData = slot.get("sector") as CardData
+	if sector == null:
+		return false
+	var is_adv: bool = bool(slot.get("is_advanced", false))
+	var max_opt: int = OptimizeLogic.max_optimizations(sector, is_adv)
+	if max_opt == 0:
+		return false
+	var placed: Array[int] = []
+	var count: int = 0
+	var levels: Array[bool] = []
+	levels.resize(max_opt)
+	levels.fill(false)
+	for t: Variant in (slot.get("techs", []) as Array):
+		if t is CardData:
+			placed.append(int((t as CardData).color))
+			var result: Dictionary = OptimizeLogic.update_optimize_state(sector, is_adv, placed, count, max_opt, levels)
+			count = int(result["optimize_count"])
+			levels = result["triggered_levels"] as Array[bool]
+	return count >= max_opt
 
 static func slot_total_stored(slot: Dictionary) -> int:
 	var total: int = 0
@@ -80,11 +106,14 @@ static func _all_cards(board: Array) -> Array[CardData]:
 		result.append_array(slot_cards(entry as Dictionary))
 	return result
 
-static func _count_by_color(cards: Array[CardData], color: int) -> int:
+# Cards of a colour as the game counts them (Scoring._card_color): an advanced sector by its
+# advanced colour, not the colour of its Dust side.
+static func _count_color(board: Array, color: int) -> int:
 	var n: int = 0
-	for cd: CardData in cards:
-		if int(cd.color) == color:
-			n += 1
+	for entry: Variant in board:
+		for c: int in slot_effective_placed_colors(entry as Dictionary):
+			if c == color:
+				n += 1
 	return n
 
 # ── Board-wide VP ────────────────────────────────────────────────────────────
@@ -158,11 +187,11 @@ static func _expedition_vp_raw(name: String, fallback_stars: int, board: Array,
 		all_cards: Array[CardData], expeditions: Array[CardData]) -> int:
 	match name:
 		"Exodus Fleets":
-			return 2 * _count_by_color(all_cards, CardData.SupplyColor.THRUST)
+			return 2 * _count_color(board, CardData.SupplyColor.THRUST)
 		"Compatible World":
-			return _count_by_color(all_cards, CardData.SupplyColor.ORGANIX)
+			return _count_color(board, CardData.SupplyColor.ORGANIX)
 		"Hive Mind":
-			return _count_by_color(all_cards, CardData.SupplyColor.ELECTRIX)
+			return _count_color(board, CardData.SupplyColor.ELECTRIX)
 		"Earth 2.0":
 			var count: int = 0
 			for cd: CardData in all_cards:
@@ -184,8 +213,8 @@ static func _expedition_vp_raw(name: String, fallback_stars: int, board: Array,
 		"Waterworld":
 			var count: int = 0
 			for entry: Variant in board:
-				for cd: CardData in slot_cards(entry as Dictionary):
-					if int(cd.color) == CardData.SupplyColor.LIQUIDS:
+				for c: int in slot_effective_placed_colors(entry as Dictionary):
+					if c == CardData.SupplyColor.LIQUIDS:
 						count += 1
 						break
 			return 2 * count
@@ -283,8 +312,8 @@ static func _expedition_vp_raw(name: String, fallback_stars: int, board: Array,
 			var best: int = 0
 			for entry: Variant in board:
 				var count: int = 0
-				for cd: CardData in slot_cards(entry as Dictionary):
-					if int(cd.color) == CardData.SupplyColor.METALS:
+				for c: int in slot_effective_placed_colors(entry as Dictionary):
+					if c == CardData.SupplyColor.METALS:
 						count += 1
 				best = maxi(best, count)
 			return 2 * best
@@ -316,7 +345,7 @@ static func _tech_condition_vp(name: String, board: Array) -> int:
 			return Scoring.CONDITIONAL_TECH_VP if count >= 9 else 0
 
 		"Genesis Device":  # 6+ thrust cards
-			var count: int = _count_by_color(_all_cards(board), CardData.SupplyColor.THRUST)
+			var count: int = _count_color(board, CardData.SupplyColor.THRUST)
 			return Scoring.CONDITIONAL_TECH_VP if count >= 6 else 0
 
 		"Space Elevator":  # 9+ stored supply
