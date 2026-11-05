@@ -271,11 +271,15 @@ static func fleet_pass_hand_left(main: Main) -> void:
 			refs.append(CardRef.to_ref(c.card_data))
 	for c: Node3D in main.get_node("Hand").get_cards():
 		main.get_node("Hand").remove_card_fly_out(c)
+	main._fleet_hand_pass_done = false
 	if main.multiplayer.is_server():
 		_server_fleet_pass_hand(main, main.multiplayer.get_unique_id(), refs)
 	else:
 		main._rpc_fleet_pass_hand.rpc_id(1, refs)
-	await main.fleet_hand_passed
+	# the host whose hand comes in last (always, with only bots as teammates) has the
+	# hands passed out right inside the call above: the signal is already gone then
+	if not main._fleet_hand_pass_done:
+		await main.fleet_hand_passed
 
 static func _rpc_fleet_pass_hand(main: Main, refs: Array) -> void:
 	if main.multiplayer.is_server():
@@ -311,4 +315,5 @@ static func _rpc_fleet_hands_passed(main: Main, passed: Dictionary) -> void:
 		main.get_node("Board").add_specific_card_to_hand(CardRef.from_ref(r as Dictionary))
 	main.get_node("Board").refresh_hand_discounts()
 	main._broadcast_my_state()
+	main._fleet_hand_pass_done = true
 	main.fleet_hand_passed.emit()

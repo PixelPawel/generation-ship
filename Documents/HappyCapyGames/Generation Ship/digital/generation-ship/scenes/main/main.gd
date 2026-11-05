@@ -1545,6 +1545,7 @@ func _rpc_fleet_shuttle_delivered(sender: int, target: int, ref: Dictionary) -> 
 
 signal fleet_hand_passed
 var _fleet_pass_hands: Dictionary = {}   # host: peer -> [card refs]
+var _fleet_hand_pass_done: bool = false  # the passed hands arrived (maybe before anyone awaited the signal)
 
 func fleet_pass_hand_left() -> void:
 	await CardPassing.fleet_pass_hand_left(self)

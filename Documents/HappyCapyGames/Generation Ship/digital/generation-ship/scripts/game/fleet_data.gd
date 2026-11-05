@@ -156,10 +156,13 @@ static func screen_texture(path: String, box: Vector2) -> Texture2D:
 	return out
 
 ## The card shader settings that keep card text readable under the screen glow.
+## Brightness 0.70 like the market cards: the screens (screen_display.gdshader) make
+## everything above 0.7 glow, and at 0.82 the pale Danger frames and art bloomed
+## into a milky haze (user, 2026-11-05: "Dangers are overexposed").
 static func screen_card_material() -> ShaderMaterial:
 	var mat: ShaderMaterial = ShaderMaterial.new()
 	mat.shader = load("res://shaders/card_rounded.gdshader")
-	mat.set_shader_parameter("brightness", 0.82)
+	mat.set_shader_parameter("brightness", 0.70)
 	mat.set_shader_parameter("contrast", 1.25)
 	mat.set_shader_parameter("saturation", 1.2)
 	return mat
