@@ -23,6 +23,7 @@ def setup_function():
     add("shipping", Region="Canada", Countries="CA", Store="Sell", Currency="CAD", Rate=18, **{"Extra item": 6, "Fulfilled by": "CA warehouse"})
     add("shipping", Region="EU", Countries="DE, FR, IT", Store="Gamefound")
     add("shipping", Region="UK", Countries="GB", Store="Sell", Currency="USD", Rate=10, **{"Fulfilled by": "US warehouse"})   # a mistake: still Gamefound
+    add("shipping", Region="Asia", Countries="KR", Store="Sell", Currency="USD", **{"Fulfilled by": "US warehouse"})   # no rate yet
     add("shipping", Region="Rest of world", Store="Sell", Currency="USD", Rate=25, **{"Extra item": 10, "Fulfilled by": "US warehouse"})
     add("stock", Location="US warehouse", SKU="GS-EN", **{"On hand": 5, "Reserved": 1})
     add("stock", Location="US warehouse", SKU="GF-EN", **{"On hand": 2})
@@ -64,6 +65,8 @@ def test_checkout_builds_the_stripe_session(monkeypatch):
     world = client.post("/v1/hub/store/checkout", json={"country": "JP", "items": [{"sku": "GS-EN", "qty": 1}]})
     allowed = seen["shipping_address_collection"]["allowed_countries"]
     assert world.status_code == 200 and "JP" in allowed and not {"US", "CA", "GB", "DE", "FR", "IE"} & set(allowed)
+    assert cat("KR")["shipping"] == {"rate": None, "extra": 0.0}
+    assert client.post("/v1/hub/store/checkout", json={"country": "KR", "items": [{"sku": "GS-EN", "qty": 1}]}).json()["detail"] == "Shipping there isn't set up yet."
     assert client.post("/v1/hub/store/checkout", json={"country": "DE", "items": [{"sku": "GS-EN", "qty": 1}]}).status_code == 409
     assert client.post("/v1/hub/store/checkout", json={"country": "US", "items": [{"sku": "GF-EN", "qty": 3}]}).json()["detail"] == "Only 2 of Generation Fleet (EN) left."
     assert client.post("/v1/hub/store/checkout", json={"country": "CA", "items": [{"sku": "GS-EN", "qty": 1}]}).json()["detail"] == "Generation Ship (EN) is sold out."

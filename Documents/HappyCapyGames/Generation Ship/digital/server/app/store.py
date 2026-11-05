@@ -62,7 +62,8 @@ def _regions(c) -> list[dict]:
     for r in load_rows(c, "Shipping"):
         countries = sorted({x.upper() for x in re.findall(r"\b[A-Za-z]{2}\b", r.get("Countries") or "")})
         out.append({"name": r.get("Region") or "", "countries": countries, "mode": (r.get("Store") or "Off").strip().lower(),
-                    "currency": (r.get("Currency") or "USD").strip().upper(), "rate": _f(r.get("Rate")),
+                    "currency": (r.get("Currency") or "USD").strip().upper(),
+                    "rate": None if r.get("Rate") in (None, "") else _f(r.get("Rate")),     # empty: not set up yet
                     "extra": _f(r.get("Extra item")), "warehouse": (r.get("Fulfilled by") or "").strip()})
     return out
 
@@ -213,6 +214,8 @@ def checkout(body: dict = Body(...)) -> dict:
         raise HTTPException(409, "We don't ship there from this store." + (" Our games are on Gamefound." if cat["mode"] == "gamefound" else ""))
     if not store_url.startswith("https://"):
         raise HTTPException(503, "The store isn't set up yet (Settings > Store URL).")
+    if cat["shipping"]["rate"] is None:
+        raise HTTPException(409, "Shipping there isn't set up yet.")
     by_sku = {p["sku"]: p for p in cat["products"]}
     lines, n = [], 0
     for sku, qty in want.items():
