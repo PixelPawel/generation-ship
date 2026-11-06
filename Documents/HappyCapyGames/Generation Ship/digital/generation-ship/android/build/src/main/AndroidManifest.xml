@@ -65,7 +65,7 @@
             android:name=".ScanCameraActivity"
             android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
             android:exported="false"
-            android:screenOrientation="landscape"
+            android:screenOrientation="fullSensor"
             android:configChanges="orientation|keyboardHidden|screenSize|smallestScreenSize|screenLayout|uiMode"
             tools:ignore="UnusedAttribute" />
         <activity-alias

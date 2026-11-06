@@ -51,6 +51,7 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 	}
 
 	private var pendingPhotoPath: String? = null
+	private var awaitingCameraApp = false      // open_camera_app(): pick the photo once the game is back
 	private var hint: String = ""
 	private var guide: String = ""
 
@@ -108,6 +109,37 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 			} catch (e: Throwable) {          // no picker on this phone
 				emitSignal(PHOTO_CANCELED_SIGNAL)
 			}
+		}
+	}
+
+	// 2026-11-06: the phone's own camera app, the full one (its Night mode: on the real cut cards its
+	// night shots read nearly everything, this game's camera screen ~90 % at best — Honor and others
+	// don't offer their night processing to apps, and the camera app's "take a photo for an app" screen
+	// is a cut-down one without it, whose exposure made evening photos unreadable in 2026-10). The
+	// player takes the photo there and comes back; on the way back the photo picker opens by itself
+	// (newest first), and the pick goes on like From Gallery: photo_captured / photo_canceled. No camera
+	// app to open: the picker straight away.
+	@UsedByGodot
+	fun open_camera_app() {
+		runOnUiThread {
+			val activity = activity ?: run {
+				emitSignal(PHOTO_CANCELED_SIGNAL)
+				return@runOnUiThread
+			}
+			try {
+				activity.startActivity(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA))
+				awaitingCameraApp = true
+			} catch (e: Throwable) {          // no camera app (or none that answers this intent)
+				pick_photo()
+			}
+		}
+	}
+
+	override fun onMainResume() {
+		super.onMainResume()
+		if (awaitingCameraApp) {
+			awaitingCameraApp = false
+			pick_photo()
 		}
 	}
 

@@ -255,6 +255,19 @@ func _build_ui() -> void:
 	title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_row.add_child(title)
+	# Android: also put each scan photo in the gallery (off by default; for checking a scan
+	# later or sending it in — the photos themselves stay in the app's private files). Up here
+	# since 2026-11-06: the bottom row needed the room for Camera App.
+	# (no has_method() on a plugin singleton: Godot's Java bridge object doesn't report its
+	# methods that way; the plugin ships in the same build, so it has them)
+	if Engine.has_singleton("CameraIntentPlugin"):
+		var gallery: CheckButton = CheckButton.new()
+		gallery.text = "Save photos to gallery"
+		gallery.focus_mode = Control.FOCUS_NONE
+		gallery.add_theme_font_size_override("font_size", BUTTON_FONT_SIZE)
+		gallery.button_pressed = _save_to_gallery()
+		gallery.toggled.connect(_set_save_to_gallery)
+		title_row.add_child(gallery)
 	var close_btn: Button = _make_button("✕")
 	close_btn.custom_minimum_size = Vector2(BUTTON_MIN_HEIGHT, BUTTON_MIN_HEIGHT)
 	close_btn.pressed.connect(func() -> void: PopupAnim.close(self))
@@ -368,25 +381,20 @@ func _build_list_view() -> Control:
 	scan_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scan_btn.pressed.connect(_on_scan_ship_pressed)
 	btn_row.add_child(scan_btn)
-	# Android: a photo from the gallery — the way to the phone's own Night mode, which many
-	# phones don't offer to apps (the guide's last tip and the camera screen explain it)
+	# Android: the phone's own camera app, the full one with its Night mode (many phones don't
+	# offer that to apps; on the real cards its night shots read nearly everything, this game's
+	# camera ~90 %): back in the game, the photo picker opens by itself, newest first
+	if Engine.has_singleton("CameraIntentPlugin"):
+		var app_btn: Button = _make_button("Camera App")
+		app_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		app_btn.pressed.connect(_on_camera_app_pressed)
+		btn_row.add_child(app_btn)
+	# Android: a photo from the gallery (one taken earlier, or when the picker was closed)
 	if Engine.has_singleton("CameraIntentPlugin"):
 		var pick_btn: Button = _make_button("From Gallery")
 		pick_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		pick_btn.pressed.connect(_on_gallery_pressed)
 		btn_row.add_child(pick_btn)
-	# Android: also put each scan photo in the gallery (off by default; for checking a scan
-	# later or sending it in — the photos themselves stay in the app's private files)
-	# (no has_method() on a plugin singleton: Godot's Java bridge object doesn't report its
-	# methods that way; the plugin ships in the same build, so it has them)
-	if Engine.has_singleton("CameraIntentPlugin"):
-		var gallery: CheckButton = CheckButton.new()
-		gallery.text = "Save photos to gallery"
-		gallery.focus_mode = Control.FOCUS_NONE
-		gallery.add_theme_font_size_override("font_size", BUTTON_FONT_SIZE)
-		gallery.button_pressed = _save_to_gallery()
-		gallery.toggled.connect(_set_save_to_gallery)
-		btn_row.add_child(gallery)
 	_photo_btn = _make_button("Show Photo")
 	_photo_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_photo_btn.disabled = true
@@ -707,6 +715,11 @@ func _on_scan_ship_pressed() -> void:
 ## Android: a photo from the gallery (the system photo picker), read like a camera shot.
 func _on_gallery_pressed() -> void:
 	_camera_plugin().pick_photo()
+
+## Android: the phone's camera app (its Night mode); the plugin opens the photo picker once the
+## game is back, and the pick arrives like From Gallery's.
+func _on_camera_app_pressed() -> void:
+	_camera_plugin().open_camera_app()
 
 func _camera_plugin() -> Object:
 	var plugin: Object = Engine.get_singleton("CameraIntentPlugin")

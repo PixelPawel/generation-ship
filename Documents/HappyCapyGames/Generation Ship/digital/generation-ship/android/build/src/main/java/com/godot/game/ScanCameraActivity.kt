@@ -16,6 +16,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.hardware.display.DisplayManager
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CaptureRequest
@@ -107,6 +108,13 @@ import kotlin.math.sqrt
 //    the guidance's small copy next to it: the guidance reads the preview off the screen. A night
 //    picture that doesn't start, a night photo under 3000 px or a failed night shot switch to the
 //    plain camera, and the night mode turns itself off on a phone where it fails (see nightAllowed).
+// 2026-11-06, after the real cut cards:
+//  - no automatic torch any more (its bright spot washed out cards: an AUTO photo with the auto torch
+//    read 10 of 15 cards where the camera app's night shot read 15); where it's dim the tip still
+//    points to the camera app's Night mode, and the torch button still switches it by hand
+//  - the screen follows the phone's rotation, so a tall ship can be shot upright (an upright shot
+//    gave 14.4 px/mm against 10.6 for the same ship across): the use cases' target rotation
+//    follows the display (DisplayListener; the activity handles the config change itself)
 // Camera permission refused, no back camera or CameraX failing: RESULT_FALLBACK, and the
 // plugin opens the camera app instead.
 class ScanCameraActivity : ComponentActivity(), SensorEventListener {
@@ -130,6 +138,7 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 	private var camera: Camera? = null
 	private var provider: ProcessCameraProvider? = null
 	private var previewUseCase: Preview? = null
+	private var boundUseCases: List<UseCase> = emptyList()   // turned with the display (updateRotation)
 	private var guideFromPreview = false     // the guidance reads the preview off the screen (no small copy streamed)
 	private var torchOn = false
 	private var torchByHand = false        // the player switched it: no more automatic changes
@@ -208,6 +217,7 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 		autoShoot = getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("auto", true)
 		openedAt = SystemClock.elapsedRealtime()
 		sensorManager = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+		(getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager)?.registerDisplayListener(displayListener, null)
 		setContentView(buildUi())
 		onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
 			override fun handleOnBackPressed() = finishWith(Activity.RESULT_CANCELED)
@@ -245,6 +255,7 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 
 	override fun onDestroy() {
 		super.onDestroy()
+		(getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager)?.unregisterDisplayListener(displayListener)
 		previewView.removeCallbacks(previewGuide)
 		previewView.removeCallbacks(nightWatch)
 		nightTrying(false)                            // closed normally: the night mode didn't take the game down
@@ -560,6 +571,8 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 			if (chosen.night) previewView.postDelayed(nightWatch, 4000) else nightTrying(false)
 			previewUseCase = previewOf(chosen)
 			imageCapture = capture
+			boundUseCases = useCases(chosen)
+			updateRotation()
 			capture.resolutionInfo?.resolution?.let { captureLong = max(it.width, it.height) }
 			focalPx = focalLengthPx()
 			oisFactor = if (hasOis()) OIS_FACTOR else 1f
@@ -626,15 +639,36 @@ class ScanCameraActivity : ComponentActivity(), SensorEventListener {
 		}
 	}
 
+	// The screen turns with the phone (manifest: fullSensor, config changes handled here): the bound
+	// use cases follow, so the preview, the guidance's picture and the photo's orientation stay upright
+	// (a turn by 180 degrees changes no configuration, hence the display listener)
+	private val displayListener = object : DisplayManager.DisplayListener {
+		override fun onDisplayAdded(displayId: Int) {}
+		override fun onDisplayRemoved(displayId: Int) {}
+		override fun onDisplayChanged(displayId: Int) {
+			if (!isFinishing && !isDestroyed) updateRotation()
+		}
+	}
+
+	private fun updateRotation() {
+		val r = previewView.display?.rotation ?: return
+		for (u in boundUseCases) {
+			when (u) {
+				is Preview -> u.targetRotation = r
+				is ImageCapture -> u.targetRotation = r
+				is ImageAnalysis -> u.targetRotation = r
+			}
+		}
+	}
+
 	private fun decideTorch() {
 		if (torchDecided || isFinishing) return
 		torchDecided = true
 		if (torchByHand) return
 		val t = exposureNs / 1e9f
 		val dim = if (t > 0f && iso > 0) t * iso > DIM_EXPOSURE else if (lux >= 0f) lux < DIM_LUX else true
-		torchOn = dim
-		applyTorch()
-		if (dim) statusBase += " · torch auto"
+		// (no automatic torch since 2026-11-06: its spot washed out cards; the button switches it by hand)
+		if (dim) statusBase += " · dim"
 		// dim: the phone's own camera in its Night mode takes a far clearer photo (the game's
 		// From Gallery button reads it) — say so where it matters (5th guide line, if the game sent it)
 		if (dim && guideTexts.size >= 5) hint.text = guideTexts[4]
