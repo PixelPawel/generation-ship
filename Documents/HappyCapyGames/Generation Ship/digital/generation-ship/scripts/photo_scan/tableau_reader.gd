@@ -88,7 +88,7 @@ const MATCH_PPM: float = 1.5                     # art matching resolution
 const MATCH_GRID_W: int = int(int(TOKEN_ZONE.size.x * ART_PPM) * (MATCH_PPM / ART_PPM))
 const MATCH_ROT_STEP: int = 30
 const MATCH_MIN: float = 0.45                    # match score a token needs (real tokens next to each other: ~0.45)
-const MATCH_MIN_NEXT: float = 0.55               # ...and every further token in the same blob
+const MATCH_MIN_NEXT: float = 0.5               # ...and every further token in the same blob
 const MATCH_SHARE_WEIGHT: float = 0.15           # how much a blob's colour share counts when choosing the type
 const MATCH_SHAPE_WEIGHT: float = 0.4            # share of the score from the outline fit
 const MATCH_SEARCH_MM: float = 3.0               # search this far around a candidate
@@ -821,11 +821,14 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 	for k: int in w * h:
 		var o: int = k * 3
 		var tdist: float = Vector3(zone[o] - table.x, zone[o + 1] - table.y, zone[o + 2] - table.z).length()
-		cand[k] = 0 if best[k] < ART_MATCH or tdist < TABLE_MATCH else 1
+		# the table can't show through a card: inside an identified card only the art explains a pixel
+		# (an orange Electrix token on Astrogation was taken for the wooden table, photos 2026-11-06)
+		var table_ok: bool = tdist < TABLE_MATCH and covered[k] == 0
+		cand[k] = 0 if best[k] < ART_MATCH or table_ok else 1
 		# a token on card art of its own colour (grey Dust on sector frames, Electrix on orange
 		# art) looks "explained": keep token-coloured pixels anyway — the template match (icon +
 		# outline) sorts out plain card art
-		if cand[k] == 0 and tdist >= TABLE_MATCH:
+		if cand[k] == 0 and not table_ok:
 			var px0: Vector3 = Vector3(zone[o] / maxf(sector_gain.x, 0.2), zone[o + 1] / maxf(sector_gain.y, 0.2), zone[o + 2] / maxf(sector_gain.z, 0.2))
 			for t0: int in TOKEN_RGB.size():
 				if px0.distance_to(TOKEN_RGB[t0]) < TOKEN_NEAR:
