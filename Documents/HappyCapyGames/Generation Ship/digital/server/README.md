@@ -25,8 +25,8 @@ backups somewhere else, or not at all.
 
 ## Privacy
 
-The privacy policies are in `../legal/` and served by Caddy at `/datenschutz` (Windows/Steam, Pixel Pawel GmbH) and
-`/datenschutz-android` (Android, Happy Capy Games, LLC); `/privacy` and `/privacy-android` open their English half.
+The privacy policies are in `../legal/` and served by Caddy at `/datenschutz` (Windows/Steam) and
+`/datenschutz-android` (Android), both Happy Capy Games, LLC; `/privacy` and `/privacy-android` open their English half.
 `/delete-data` (`../legal/delete_data.html`, German half at `/daten-loeschen`) is the deletion page Google Play asks for.
 The server keeps what they promise (`app/privacy.py`):
 
