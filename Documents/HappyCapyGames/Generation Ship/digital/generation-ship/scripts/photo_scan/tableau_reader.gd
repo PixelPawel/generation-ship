@@ -43,13 +43,24 @@ const BACK_SETTLE_MM: float = 3.0                    # search around that for th
 const LAMP_GAP_MM: float = 31.5
 const LAMP_GAP_TOL_MM: float = 4.5                 # wide: lower cascade cards look bigger on angled shots
 const LAMP_DY_MAX_MM: float = 3.5                    # level with each other (in sector mm)
-const LAMP_LOGO_MIN: float = 0.2                     # share of cream TECH lettering between a real pair
+# Looser pairs, let in only when the photo around them looks like the back's own art (_back_ncc): white
+# lettering (the test sheet's backs printed and photographed neutral, 2026-11-06: no pair passed the cream
+# test) and a back tilted ~10 deg in the cascade (lamps 5.5 mm apart in height). Without the art check
+# both added phantom backs on the mockups (6 of 80 photos: white art and stray pairs on face-up cards).
+const LAMP_DY_TILT_MM: float = 6.0
+const LAMP_BACK_NCC_MIN: float = 0.35          # real backs 0.48-0.85 (photos 2026-11-06, mockups), phantom pairs -0.13-0.21
+const BACK_NCC_BAND: Rect2 = Rect2(1.0, 49.0, 42.0, 13.0)   # back-card mm around the TECH logo
+const LAMP_LOGO_MIN: float = 0.2                     # share of cream (or white) TECH lettering between a real pair
 const LAMP_D_MM: Vector2 = Vector2(0.5, 2.2)          # plausible blob diameter
 const LAMP_MERGE_MM: float = 3.5                     # a lamp's light and bits of its glow
 const LAMP_ZONE: Rect2 = Rect2(-15.0, 40.0, 100.0, 210.0)
 const LAMP_NOT_A_DIAL_MM: float = 2.5                # blobs this close to a read dial's marker are that marker
 const LAMP_PAIR_SPACING_MM: float = 8.0              # cascaded cards are always further apart
 const LAMP_MID_ON_CARD: Vector2 = Vector2(22.15, 55.85)
+# a back is tucked under its sector: its lamps' midpoint within this much of the sector's middle across
+# (real cascades 2026-11-06: 30-43 mm from the sector's left edge; the false pairs at the sector's
+# bottom edge, a violet speck there and one on the next card, sat at 3.5 and 69.5)
+const LAMP_MID_X_MM: float = 24.0
 const BACK_SETTLE_STEP_MM: float = 1.0
 # stored supply
 const TOKEN_ZONE: Rect2 = Rect2(-12.0, 8.0, 91.0, 102.0)
@@ -571,12 +582,20 @@ func _find_lamp_pairs(sd: Dictionary, markers: Array[Vector3], dials: Array[Dict
 		for j: int in lamps.size():
 			var dx: float = lamps[j].x - lamps[i].x
 			var dy: float = absf(lamps[j].y - lamps[i].y)
-			if dx > 0.0 and absf(dx - LAMP_GAP_MM) <= LAMP_GAP_TOL_MM and dy <= LAMP_DY_MAX_MM:
-				# a real pair has the TECH lettering between its lamps
-				var cream: Vector2 = _cream_between(card_frame(sd), lamps[i], lamps[j], warm)
+			var mid_x: float = (lamps[i].x + lamps[j].x) / 2.0
+			if dx > 0.0 and absf(dx - LAMP_GAP_MM) <= LAMP_GAP_TOL_MM and dy <= LAMP_DY_TILT_MM \
+					and absf(mid_x - float(SIZE_MM["sector"].x) / 2.0) <= LAMP_MID_X_MM:
+				# a real pair has the TECH lettering between its lamps (cream, or white with the back's art around it)
+				var cream: Vector3 = _cream_between(card_frame(sd), lamps[i], lamps[j], warm)
+				var ok: bool = cream.x >= LAMP_LOGO_MIN and dy <= LAMP_DY_MAX_MM
+				var ncc: float = -2.0
+				if (not ok and cream.x + cream.z >= LAMP_LOGO_MIN) or debug:
+					ncc = _back_ncc(card_frame(sd), lamps[i], lamps[j])
+					if not ok and cream.x + cream.z >= LAMP_LOGO_MIN:
+						ok = ncc >= LAMP_BACK_NCC_MIN
 				if debug:
-					print("    lamp pair %s-%s mm: cream %.2f (plain-light test %.2f)" % [str(lamps[i].round()), str(lamps[j].round()), cream.x, cream.y])
-				if cream.x < LAMP_LOGO_MIN:
+					print("    lamp pair (sector %d) %s-%s mm: cream %.2f (plain-light %.2f) white %.2f dy %.1f back art %.2f%s" % [int(sd.get("code", 0)), str(lamps[i].round()), str(lamps[j].round()), cream.x, cream.y, cream.z, dy, ncc, " ok" if ok else ""])
+				if not ok:
 					continue
 				cands.append([absf(dx - LAMP_GAP_MM) + dy, i, j])
 	cands.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
@@ -603,8 +622,8 @@ func _find_lamp_pairs(sd: Dictionary, markers: Array[Vector3], dials: Array[Dict
 # sampled on three rows through the logo. Exposure is taken from the line itself (its
 # brightest tenth -> 245: the lettering is the brightest thing there): the photo-wide gain
 # over-brightened a small ship on a lot of dark table until the cream read as white.
-# Returns (share, share by the plain-light test alone) — the second for the debug output.
-func _cream_between(frame: Transform2D, a: Vector2, b: Vector2, warm: bool = false) -> Vector2:
+# Returns (share, share by the plain-light test alone (debug output), share of white lettering).
+func _cream_between(frame: Transform2D, a: Vector2, b: Vector2, warm: bool = false) -> Vector3:
 	var samples: Array[Vector3] = []
 	var bright: PackedFloat32Array = PackedFloat32Array()
 	for step: int in 25:
@@ -617,22 +636,74 @@ func _cream_between(frame: Transform2D, a: Vector2, b: Vector2, warm: bool = fal
 			samples.append(c)
 			bright.append(maxf(c.x, maxf(c.y, c.z)))
 	if samples.is_empty():
-		return Vector2.ZERO
+		return Vector3.ZERO
 	bright.sort()
 	var gain: float = clampf(245.0 / maxf(bright[int(bright.size() * 0.9)], 1.0), 0.8, 2.5)
 	var cream: int = 0
 	var normal: int = 0
+	var white: int = 0
 	for c0: Vector3 in samples:
 		var c: Vector3 = c0 * gain
 		if c.x > 215.0 and c.y > 195.0 and c.z > 130.0 and c.z < 225.0 and c.x - c.z > 15.0:
 			cream += 1
 			normal += 1
+		# ...or printed (and photographed) white: the test sheet's backs (2026-11-06) came out with
+		# neutral letters, red only 2-6 over blue, and every lamp pair was turned away
+		# neutral letters, red only 2-6 over blue, and every lamp pair was turned away (counted apart:
+		# white art is common, so these pairs also need the back's art, _back_ncc)
+		elif c.x > 205.0 and c.y > 200.0 and c.z > 195.0 and maxf(c.x, maxf(c.y, c.z)) - minf(c.x, minf(c.y, c.z)) < 30.0:
+			white += 1
 		# a warm lamp pulls cream's green and blue down: then (only then: in plain light this
 		# lets busy art through) by its proportions — bright, red >= green >= blue, blue clearly
 		# below red but not gone, so white and yellow art stay out
 		elif warm and c.x > 200.0 and c.y >= 0.72 * c.x and c.y <= 1.02 * c.x and c.z >= 0.42 * c.x and c.z <= 0.9 * c.x and c.z <= c.y:
 			cream += 1
-	return Vector2(cream, normal) / float(samples.size())
+	return Vector3(cream, normal, white) / float(samples.size())
+
+# How much the photo around a lamp pair looks like the tech back's own art: normalised cross-correlation
+# of brightness over BACK_NCC_BAND (back-card mm, the band around the TECH logo that a cascade leaves
+# visible), the back placed, turned and scaled by the pair itself. -1 without the back art.
+func _back_ncc(frame: Transform2D, a: Vector2, b: Vector2) -> float:
+	if _back_f.is_empty():
+		return -1.0
+	var mid: Vector2 = (a + b) / 2.0
+	var ang: float = (b - a).angle()
+	var k: float = a.distance_to(b) / LAMP_GAP_MM
+	var ps: PackedFloat32Array = PackedFloat32Array()
+	var bs: PackedFloat32Array = PackedFloat32Array()
+	var y: float = BACK_NCC_BAND.position.y
+	while y <= BACK_NCC_BAND.end.y:
+		var x: float = BACK_NCC_BAND.position.x
+		while x <= BACK_NCC_BAND.end.x:
+			var q: Vector2 = Vector2(x, y)
+			var p: Vector2 = frame * (mid + ((q - LAMP_MID_ON_CARD) * k).rotated(ang))
+			var c: Vector3 = _sample(p.x, p.y)
+			if c.x >= 0.0:
+				var e: Vector3 = _arr_at(_back_f, _back_size.x, _back_size.y, x * ART_PPM, y * ART_PPM)
+				ps.append(c.x + c.y + c.z)
+				bs.append(e.x + e.y + e.z)
+			x += 1.0
+		y += 1.0
+	var n: int = ps.size()
+	if n < 100:
+		return -1.0
+	var mp: float = 0.0
+	var mb: float = 0.0
+	for i: int in n:
+		mp += ps[i]
+		mb += bs[i]
+	mp /= n
+	mb /= n
+	var sxy: float = 0.0
+	var sxx: float = 0.0
+	var syy: float = 0.0
+	for i: int in n:
+		var dp: float = ps[i] - mp
+		var db: float = bs[i] - mb
+		sxy += dp * db
+		sxx += dp * dp
+		syy += db * db
+	return sxy / sqrt(maxf(sxx * syy, 1e-6))
 
 # ── Stored supply: token-coloured, token-shaped, token-sized blobs ───────────
 

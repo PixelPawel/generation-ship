@@ -41,11 +41,16 @@ const MIN_HOLE: float = 0.15         # unlit socket vs the rim halfway to its ne
 const SCALE_TOLERANCE: float = 0.10
 const STRONG_GAP: float = 0.7
 const STRONG_WANTED: int = 6
-const MARKER_D_MM: Vector2 = Vector2(0.45, 2.1)   # plausible marker blob diameter (mm) in pass 2 (bigger diamond since 2026-10-14: ~1.5-1.7 mm)
+const MARKER_D_MM: Vector2 = Vector2(0.45, 3.2)   # plausible marker blob diameter (mm) in pass 2 (bigger diamond since 2026-10-14: ~1.5-1.7 mm;
+# real photos of cut cards 2026-11-06: tech diamonds ~2.1 mm as a blob, the sectors' bigger ones 2.5-2.8 mm — at 2.1 three of four sectors went unread)
 # Smaller blobs get a quick look only (circle, facing within +-SMALL_FACING_DEG): under lamp light
 # a marker's cyan core can shrink to ~0.25 mm (real photos 2026-10-06), and the full search on
 # every speck that size would be far too slow.
 const MARKER_SMALL_MM: float = 0.2
+# violet blobs bigger than a diamond (half-size px: a tech diamond is ~120 in a close photo) get their
+# saturated cores looked for (_is_violet_core); ones past the flood limit are a violet area, not art next to a diamond
+const MARKER_CORE_IN_AREA: int = 160
+const MARKER_CORE_FLOOD_MAX: int = 6000
 const SMALL_FACING_DEG: int = 6
 const FACING_WINDOW_DEG: int = 21
 const FACING_AGREE_DEG: float = 25.0   # pass 1's confident dials must agree on facing...
@@ -1196,21 +1201,36 @@ static func _is_violet(r: int, g: int, b: int) -> bool:
 static func _is_violet_loose(r: int, g: int, b: int) -> bool:
 	return b * 100 > g * 118 and r * 100 > g * 103 and b * 100 >= r * 65 and b - g > 10
 
-# Cyan blobs in an RGB8 pixel buffer: x, y, diameter (all in that buffer's pixels).
+# A diamond's saturated core: on the sectors the diamond touches the pipe frame under the name plate,
+# whose copper-mauve passes _is_violet in shade (real photos 2026-11-06: pipes ~83, 61, 85, blue/green
+# 1.38, blue-green 22; the diamond ~92, 63, 129, 2.1 and 72), and the two became one blob too big for a
+# marker: three of four sectors unread. Looked for only inside such big blobs (MARKER_CORE_IN_AREA):
+# everywhere it doubled the markers and the reading time.
+static func _is_violet_core(r: int, g: int, b: int) -> bool:
+	return _is_violet(r, g, b) and b * 100 > g * 150 and b - g > 35 and b * 100 >= r * 110
+
+# Violet blobs in an RGB8 pixel buffer: x, y, diameter (all in that buffer's pixels).
+# Three passes: violet (blobs up to 400 px), loose violet (specks up to 10 px), and the diamond
+# cores inside the violet blobs bigger than a diamond (merged with violet-ish art next to it).
 static func _find_markers(data: PackedByteArray, w: int, h: int) -> Array[Vector3]:
 	var blobs: Array[Vector3] = []
-	for pass_i: int in 2:
-		var loose: bool = pass_i == 1
-		var max_area: int = 10 if loose else 400
+	var big: PackedByteArray = PackedByteArray()   # pixels of pass 0's oversized blobs
+	big.resize(w * h)
+	var any_big: bool = false
+	for pass_i: int in 3:
+		if pass_i == 2 and not any_big:
+			break
+		var max_area: int = 10 if pass_i == 1 else 400
 		var seen: PackedByteArray = PackedByteArray()
 		seen.resize(w * h)
 		for y: int in range(0, h, 2):
 			for x: int in w:
 				var i: int = y * w + x
-				if seen[i] != 0 or not _cyan_at(data, i, loose):
+				if seen[i] != 0 or (pass_i == 2 and big[i] == 0) or not _cyan_at(data, i, pass_i):
 					continue
 				var stack: PackedInt32Array = PackedInt32Array([i])
 				seen[i] = 1
+				var members: PackedInt32Array = PackedInt32Array()   # pass 0: to mark an oversized blob
 				var count: int = 0
 				var sx: float = 0.0
 				var sy: float = 0.0
@@ -1226,23 +1246,35 @@ static func _find_markers(data: PackedByteArray, w: int, h: int) -> Array[Vector
 					@warning_ignore("integer_division")
 					var py: int = p / w
 					count += 1
+					if pass_i == 0:
+						members.append(p)
 					if count > max_area:
 						overflow = true
-						break
-					sx += px
-					sy += py
-					min_x = mini(min_x, px)
-					max_x = maxi(max_x, px)
-					min_y = mini(min_y, py)
-					max_y = maxi(max_y, py)
+						if pass_i != 0:
+							break
+						if count > MARKER_CORE_FLOOD_MAX:   # a huge violet area: no diamond to find in it
+							break
+					else:
+						sx += px
+						sy += py
+						min_x = mini(min_x, px)
+						max_x = maxi(max_x, px)
+						min_y = mini(min_y, py)
+						max_y = maxi(max_y, py)
 					for n: int in [p - 1, p + 1, p - w, p + w]:
 						if n < 0 or n >= w * h or seen[n] != 0:
 							continue
 						if (n == p - 1 and px == 0) or (n == p + 1 and px == w - 1):
 							continue
-						if _cyan_at(data, n, loose):
+						if pass_i == 2 and big[n] == 0:
+							continue
+						if _cyan_at(data, n, pass_i):
 							seen[n] = 1
 							stack.append(n)
+				if pass_i == 0 and count > MARKER_CORE_IN_AREA and count <= MARKER_CORE_FLOOD_MAX:
+					for m: int in members:
+						big[m] = 1
+					any_big = true
 				if overflow or count < 2:
 					continue
 				var bw: int = max_x - min_x + 1
@@ -1261,12 +1293,14 @@ static func _find_markers(data: PackedByteArray, w: int, h: int) -> Array[Vector
 	return blobs
 
 # A marker's colour: the violet diamond of dial v2 (2026-10).
-static func _cyan_at(data: PackedByteArray, i: int, loose: bool) -> bool:
+static func _cyan_at(data: PackedByteArray, i: int, mode: int) -> bool:
 	var r: int = data[i * 3]
 	var g: int = data[i * 3 + 1]
 	var b: int = data[i * 3 + 2]
-	if loose:
+	if mode == 1:
 		return _is_violet_loose(r, g, b)
+	if mode == 2:
+		return _is_violet_core(r, g, b)
 	return _is_violet(r, g, b)
 
 # ── Dial search ──────────────────────────────────────────────────────────────
@@ -1881,7 +1915,8 @@ static func group_into_sectors(dials: Array[Dictionary]) -> Array:
 					var v: Vector2 = (techs[j]["center"] as Vector2) - (member["center"] as Vector2)
 					var lateral: float = absf(v.dot(Vector2(-up.y, up.x))) / px_per_mm
 					# and facing the same way: a loose card dropped near a column's end lies at an angle
-					if lateral < 12.0 and absf(v.dot(up)) / px_per_mm < 40.0 and (techs[j]["up"] as Vector2).dot(up) > COLUMN_FACING_COS:
+					# (up to 50 mm along it: a loosely laid cascade of real cards stepped 41 mm, photos 2026-11-06)
+					if lateral < 12.0 and absf(v.dot(up)) / px_per_mm < 50.0 and (techs[j]["up"] as Vector2).dot(up) > COLUMN_FACING_COS:
 						col.append(techs[j])
 						used[j] = true
 						grew = true
