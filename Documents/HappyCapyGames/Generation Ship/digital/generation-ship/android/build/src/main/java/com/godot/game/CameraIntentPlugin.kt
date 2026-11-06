@@ -45,6 +45,13 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 		private const val REQUEST_IMAGE_CAPTURE = 4173
 		private const val REQUEST_SCAN_CAMERA = 4174
 		private const val REQUEST_PICK_PHOTO = 4175
+		private const val REQUEST_PICK_VENDOR = 4176
+		// The camera app straight in its night mode, where the maker lets apps ask for it (tried in turn,
+		// then the plain camera app). Honor: StoreShow, exported (MagicOS, checked 2026-11-06 on the Honor 200)
+		private val NIGHT_CAMERAS = listOf(Pair("com.hihonor.camera", "com.hihonor.camera.store.show.NIGHT_SCENE"))
+		// The maker's own gallery as the picker: full screen, the newest photo one tap away (Android's
+		// picker opens as a half sheet: the user had to swipe it up first)
+		private val VENDOR_GALLERIES = listOf("com.hihonor.photos")
 		private const val MAX_PICK_LONG = 4608
 		private val PHOTO_CAPTURED_SIGNAL = SignalInfo("photo_captured", String::class.java)
 		private val PHOTO_CANCELED_SIGNAL = SignalInfo("photo_canceled")
@@ -92,8 +99,28 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 	}
 
 	// A photo from the gallery: photo_captured(copy's path) when one was picked, else photo_canceled.
+	// The maker's own gallery where known (VENDOR_GALLERIES), else Android's photo picker.
 	@UsedByGodot
 	fun pick_photo() {
+		runOnUiThread {
+			val activity = activity ?: run {
+				emitSignal(PHOTO_CANCELED_SIGNAL)
+				return@runOnUiThread
+			}
+			for (pkg in VENDOR_GALLERIES) {
+				try {
+					activity.startActivityForResult(
+						Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI).setPackage(pkg), REQUEST_PICK_VENDOR)
+					return@runOnUiThread
+				} catch (e: Throwable) {      // not on this phone
+				}
+			}
+			pickSystem()
+		}
+	}
+
+	// Android's photo picker (Android 13+), else the document picker.
+	private fun pickSystem() {
 		runOnUiThread {
 			val activity = activity ?: run {
 				emitSignal(PHOTO_CANCELED_SIGNAL)
@@ -126,6 +153,15 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 				emitSignal(PHOTO_CANCELED_SIGNAL)
 				return@runOnUiThread
 			}
+			// its night mode where the maker lets apps ask for it, else the camera app as it opens
+			for ((pkg, action) in NIGHT_CAMERAS) {
+				try {
+					activity.startActivity(Intent(action).setPackage(pkg))
+					awaitingCameraApp = true
+					return@runOnUiThread
+				} catch (e: Throwable) {      // not this maker's camera
+				}
+			}
 			try {
 				activity.startActivity(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA))
 				awaitingCameraApp = true
@@ -145,7 +181,9 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 
 	// The picked photo into captured_photos (off the main thread: a big HEIC takes a moment to
 	// decode); the signal goes out on the UI thread like the camera's.
-	private fun copyPick(activity: Activity, uri: Uri) {
+	// fromVendor: picked in the maker's gallery; if its photo can't be read (no read grant on the
+	// returned address), Android's picker opens instead of the scan just failing
+	private fun copyPick(activity: Activity, uri: Uri, fromVendor: Boolean = false) {
 		val dir = File(activity.filesDir, "captured_photos")
 		val stamp = System.currentTimeMillis()
 		var out = File(dir, "pick_$stamp.jpg")
@@ -185,7 +223,7 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 			}
 			if (!ok) out.delete()
 			runOnUiThread {
-				if (ok) emitSignal(PHOTO_CAPTURED_SIGNAL, out.absolutePath) else emitSignal(PHOTO_CANCELED_SIGNAL)
+				if (ok) emitSignal(PHOTO_CAPTURED_SIGNAL, out.absolutePath) else if (fromVendor) pickSystem() else emitSignal(PHOTO_CANCELED_SIGNAL)
 			}
 		}.start()
 	}
@@ -250,6 +288,16 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 	}
 
 	override fun onMainActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+		if (requestCode == REQUEST_PICK_VENDOR) {
+			val uri = data?.data
+			val activity = activity
+			if (resultCode == Activity.RESULT_OK && uri != null && activity != null) {
+				copyPick(activity, uri, fromVendor = true)
+			} else {
+				emitSignal(PHOTO_CANCELED_SIGNAL)
+			}
+			return
+		}
 		if (requestCode == REQUEST_PICK_PHOTO) {
 			val uri = data?.data
 			val activity = activity
