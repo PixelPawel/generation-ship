@@ -99,6 +99,15 @@ const MATCH_TYPE_SHARE: float = 0.15            # a token type is tried if this 
 # the other (realistic mockups 2026-11-01: Thrust 6/21, its blobs counted as Electrix colour, so the
 # octagon was never tried): when neither shape of a blob's own colours fits, its twin's is tried
 const COLOUR_TWINS: Dictionary = {4: 5, 5: 4}
+# Tokens about the colour of the art under them (a pale Liquids token on a grey-blue text box: within
+# ART_MATCH, photos 2026-11-06) still shift a whole token-sized patch one way, while a slightly
+# misregistered print differs only along thin edges, both ways: the residual of a fitted colour model
+# (sector art -> photo), low-passed over LOWPASS_R and opened by LOWPASS_OPEN, finds them (_occluding_patches)
+const LOWPASS_R_MM: int = 2                       # low-pass radius (1 mm blocks)
+const LOWPASS_THR: float = 20.0                   # residual (RGB distance): the smoothed patch, then each pixel in it
+const LOWPASS_OPEN_MM: int = 2                    # erode / dilate steps (1 mm blocks)
+const LOWPASS_BLOB_MIN_MM2: float = 110.0        # ...and must be most of a token (real ones 132-418 mm2, a patch of
+                                                 # busy art 54-77 mm2 matched Liquids at 0.48; Metals, the smallest, ~177)
 const MATCH_BLOB_MIN_MM2: float = 29.0           # smaller blobs aren't a token's worth
 const MATCH_MM2_PER_TOKEN: float = 180.0          # roughly a real token's area, to bound the matches per blob
 
@@ -740,6 +749,11 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 			var card_at: Vector2 = _settle_back(zone, w, h, at)
 			layers.append([Transform2D(Vector2(1, 0), Vector2(0, 1), -card_at), _back_f, _back_size, SIZE_MM["tech"], false, PackedFloat32Array(), true])
 	var slack: float = ART_SLACK_MM * ART_PPM
+	var sec_art: PackedFloat32Array = PackedFloat32Array()   # the sector's own art (ungained) and its distance
+	sec_art.resize(w * h * 3)
+	var sec_d: PackedFloat32Array = PackedFloat32Array()
+	sec_d.resize(w * h)
+	sec_d.fill(1e9)
 	for layer: Array in layers:
 		var to_card: Transform2D = layer[0]
 		var art: PackedFloat32Array = layer[1]
@@ -804,6 +818,12 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 				covered[k] = 1
 				if d < best[k]:
 					best[k] = d
+				if bool(layer[4]):
+					sec_d[k] = d
+					var a0: Vector3 = _arr_at(art, asz.x, asz.y, ax, ay)
+					sec_art[o] = a0.x
+					sec_art[o + 1] = a0.y
+					sec_art[o + 2] = a0.z
 	# table colour: median of what no card covers
 	var uncovered: Array[PackedFloat32Array] = [PackedFloat32Array(), PackedFloat32Array(), PackedFloat32Array()]
 	for k: int in range(0, w * h, 2):
@@ -835,6 +855,8 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 					cand[k] = 1
 					break
 	cand = _dilate(_dilate(_erode(_erode(cand, w, h), w, h), w, h), w, h)
+	# tokens about the colour of the art under them: a second matching pass (below)
+	var lowpass: PackedByteArray = _occluding_patches(zone, w, h, sec_art, sec_d, best)
 	if bool(dials[si].get("placeholder", false)):
 		# a placeholder's real art is unknown: leave its own card area out
 		for j: int in h:
@@ -845,8 +867,11 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 	var cls: PackedByteArray = PackedByteArray()
 	cls.resize(w * h)
 	cls.fill(255)
+	var cls_lp: PackedByteArray = PackedByteArray()   # a patch pixel's nearest token colour, however far
+	cls_lp.resize(w * h)
+	cls_lp.fill(255)
 	for k: int in w * h:
-		if cand[k] == 0:
+		if cand[k] == 0 and lowpass[k] == 0:
 			continue
 		var o: int = k * 3
 		var px: Vector3 = Vector3(zone[o] / maxf(sector_gain.x, 0.2), zone[o + 1] / maxf(sector_gain.y, 0.2), zone[o + 2] / maxf(sector_gain.z, 0.2))
@@ -857,7 +882,10 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 			if dd < bd:
 				bd = dd
 				bi = t
-		cls[k] = bi if bd < TOKEN_COLOUR_MAX else 254
+		if cand[k] != 0:
+			cls[k] = bi if bd < TOKEN_COLOUR_MAX else 254
+		if lowpass[k] != 0:
+			cls_lp[k] = bi
 	if debug:
 		var counts: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0, 0, 0])
 		var n_cand: int = 0
@@ -879,6 +907,8 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 				var col: Color = Color.BLACK
 				if cand[k] != 0:
 					col = pal[cls[k]] if cls[k] < 6 else Color8(110, 110, 110)
+				elif lowpass[k] != 0:
+					col = (pal[cls_lp[k]] as Color).darkened(0.45)
 				dump.set_pixel(w + i, j, col)
 		dump.save_png(debug_dump + "_sector%d_%d.png" % [si, int(dials[si].get("code", 0))])
 	# Candidates: blobs of any token colour, icon holes filled (an icon can split a token's
@@ -895,14 +925,6 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 	var hs: int = int(h * k_m)
 	var zs: PackedFloat32Array = PackedFloat32Array()
 	zs.resize(ws * hs * 3)
-	var tokmask: PackedByteArray = PackedByteArray()
-	tokmask.resize(w * h)
-	for k: int in w * h:
-		if cls[k] < 6:
-			tokmask[k] = 1
-	tokmask = _fill_holes(_erode(_erode(_erode(_dilate(_dilate(_dilate(tokmask, w, h), w, h), w, h), w, h), w, h), w, h), w, h)
-	var ms: PackedByteArray = PackedByteArray()
-	ms.resize(ws * hs)
 	for j: int in hs:
 		for i: int in ws:
 			var sx: int = mini(int(i / k_m), w - 1)
@@ -912,108 +934,305 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 			zs[oo] = zone[o] / maxf(sector_gain.x, 0.2)
 			zs[oo + 1] = zone[o + 1] / maxf(sector_gain.y, 0.2)
 			zs[oo + 2] = zone[o + 2] / maxf(sector_gain.z, 0.2)
-			ms[j * ws + i] = tokmask[sy * w + sx]
 	zs = _box_blur(zs, ws, hs, 1)
-	var ms_sum: PackedInt32Array = _integral(ms, ws, hs)
 	var centres: Array[Vector2] = []
 	var same_px: float = MATCH_SAME_TOKEN * TOKEN_MM * MATCH_PPM
 	var pad: int = int(MATCH_SEARCH_MM * MATCH_PPM)
-	var comps: Array[Dictionary] = _components(tokmask, w, h)
-	for comp: Dictionary in comps:
-		if cancelled:
-			break
-		var area: float = float(comp["count"]) * mm2
-		if area < MATCH_BLOB_MIN_MM2:
-			continue
-		# token types with enough of their colour in this blob
-		var share: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0, 0])
-		for k: int in (comp["pixels"] as PackedInt32Array):
-			if cls[k] < 6:
-				share[cls[k]] += 1
-		if debug:
-			var bc: Vector2 = TOKEN_ZONE.position + Vector2((comp["box"] as Rect2i).get_center()) / ART_PPM
-			var sc: Array[String] = []
-			for t: int in 6:
-				if share[t] > 0:
-					sc.append("%s %d%%" % [TOKEN_FILES[t], roundi(100.0 * share[t] / float(comp["count"]))])
-				if share[t] > 0 and not _templates.is_empty():
-					var r0: Dictionary = _match_token(zs, ws, hs, ms, ms_sum, t,
-						Rect2i(int((comp["box"] as Rect2i).position.x * k_m) - pad, int((comp["box"] as Rect2i).position.y * k_m) - pad,
-						int((comp["box"] as Rect2i).size.x * k_m) + pad * 2, int((comp["box"] as Rect2i).size.y * k_m) + pad * 2))
-					if not r0.is_empty():
-						sc.append("  -> %s score %.2f" % [TOKEN_FILES[t], float(r0["score"])])
-			print("    sector %d blob at %s mm, %.0f mm2 (photo %s): %s" % [si, str(bc.round()), area,
-				str((sframe * bc).round()), ", ".join(sc)])
-		var types: Array[int] = []
-		var twins: Array[int] = []    # tried only when no type of the blob's own colours fits
-		for t: int in 6:
-			if float(share[t]) >= MATCH_TYPE_SHARE * float(comp["count"]):
-				types.append(t)
-		for t: int in 6:
-			if not types.has(t) and COLOUR_TWINS.has(t) and types.has(int(COLOUR_TWINS[t])):
-				twins.append(t)
-		if types.is_empty():
-			continue
-		var box: Rect2i = comp["box"]
-		var region: Rect2i = Rect2i(int(box.position.x * k_m) - pad, int(box.position.y * k_m) - pad,
-			int(box.size.x * k_m) + pad * 2, int(box.size.y * k_m) + pad * 2)
-		var n_max: int = mini(MATCH_MAX_PER_BLOB, maxi(1, roundi(area / MATCH_MM2_PER_TOKEN)) + 1)
-		var work: PackedFloat32Array = zs.duplicate()
-		for _try: int in n_max:
-			var hit: Dictionary = {}
-			# the type also needs its colour: a square Metals template fits almost any blob
-			# about as well as the right one, so a blob's colour share tips the choice — counted
-			# on what's left of the blob (two touching tokens: once one is matched, the other's
-			# colour must decide the next)
-			var share_now: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0, 0])
-			var cnt_now: int = 0
-			for k: int in (comp["pixels"] as PackedInt32Array):
-				if cls[k] >= 6:
+	# pass 0: the token-coloured candidates; pass 1: the occluding patches away from what pass 0 found
+	# (joined, a patch's rim bridged an Electrix token to the Metals one beside it: 0.50 -> 0.41)
+	for lp_pass: int in 2:
+		var cl: PackedByteArray = cls if lp_pass == 0 else cls_lp
+		var tokmask: PackedByteArray = PackedByteArray()
+		tokmask.resize(w * h)
+		for k: int in w * h:
+			if cl[k] < 6:
+				tokmask[k] = 1
+		if lp_pass == 1:
+			if lowpass.count(1) == 0:
+				break
+			for k: int in w * h:
+				if tokmask[k] == 0:
 					continue
 				@warning_ignore("integer_division")
-				var oo: int = (mini(int((k / w) * k_m), hs - 1) * ws + mini(int((k % w) * k_m), ws - 1)) * 3
-				if work[oo] == 0.0 and work[oo + 1] == 0.0 and work[oo + 2] == 0.0:
-					continue   # blanked: an earlier match in this blob
-				share_now[cls[k]] += 1
-				cnt_now += 1
-			var need: float = MATCH_MIN if _try == 0 else MATCH_MIN_NEXT
-			for alt: int in types + twins:
-				if twins.has(alt) and not hit.is_empty() and float(hit["score"]) >= need:
-					break     # the blob's own colour already fits: no twin needed
-				var r: Dictionary = _match_token(work, ws, hs, ms, ms_sum, alt, region)
-				if r.is_empty():
-					continue
-				r["rank"] = float(r["score"]) + MATCH_SHARE_WEIGHT * float(share_now[alt]) / float(maxi(cnt_now, 1))
-				if hit.is_empty() or float(r["rank"]) > float(hit["rank"]):
-					hit = r
-					hit["token"] = alt
-			# a further token in an already matched blob has to be convincing on its own
-			if hit.is_empty() or float(hit["score"]) < need:
+				var at_s: Vector2 = Vector2(k % w, k / w) * k_m
+				for prev: Vector2 in centres:
+					if prev.distance_to(at_s) < same_px:
+						tokmask[k] = 0
+						break
+		tokmask = _fill_holes(_erode(_erode(_erode(_dilate(_dilate(_dilate(tokmask, w, h), w, h), w, h), w, h), w, h), w, h), w, h)
+		var ms: PackedByteArray = PackedByteArray()
+		ms.resize(ws * hs)
+		for j: int in hs:
+			for i: int in ws:
+				ms[j * ws + i] = tokmask[mini(int(j / k_m), h - 1) * w + mini(int(i / k_m), w - 1)]
+		var ms_sum: PackedInt32Array = _integral(ms, ws, hs)
+		var comps: Array[Dictionary] = _components(tokmask, w, h)
+		for comp: Dictionary in comps:
+			if cancelled:
 				break
-			var tp: Dictionary = (_templates[int(hit["token"])] as Array)[int(hit["rot"])]
-			var at: Vector2i = hit["at"]
-			# blank the matched token so the next search finds the next one
-			var tmask: PackedByteArray = tp["mask"]
-			var tw: int = tp["w"]
-			for ty: int in int(tp["h"]):
-				for tx: int in tw:
-					if tmask[ty * tw + tx] != 0:
-						var o: int = ((at.y + ty) * ws + at.x + tx) * 3
-						work[o] = 0.0
-						work[o + 1] = 0.0
-						work[o + 2] = 0.0
-			var c: Vector2 = Vector2(at) + Vector2(tw, int(tp["h"])) / 2.0
-			var seen: bool = false
-			for prev: Vector2 in centres:
-				if prev.distance_to(c) < same_px:
-					seen = true
-					break
-			if seen:
+			var area: float = float(comp["count"]) * mm2
+			if area < (MATCH_BLOB_MIN_MM2 if lp_pass == 0 else LOWPASS_BLOB_MIN_MM2):
 				continue
-			centres.append(c)
-			var at_mm: Vector2 = TOKEN_ZONE.position + c / MATCH_PPM
-			found.append([TOKEN_ORDER[int(hit["token"])], sframe * at_mm, at_mm.x])
+			# token types with enough of their colour in this blob
+			var share: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0, 0])
+			for k: int in (comp["pixels"] as PackedInt32Array):
+				if cl[k] < 6:
+					share[cl[k]] += 1
+			if debug:
+				var bc: Vector2 = TOKEN_ZONE.position + Vector2((comp["box"] as Rect2i).get_center()) / ART_PPM
+				var sc: Array[String] = []
+				for t: int in 6:
+					if share[t] > 0:
+						sc.append("%s %d%%" % [TOKEN_FILES[t], roundi(100.0 * share[t] / float(comp["count"]))])
+					if share[t] > 0 and not _templates.is_empty():
+						var r0: Dictionary = _match_token(zs, ws, hs, ms, ms_sum, t,
+							Rect2i(int((comp["box"] as Rect2i).position.x * k_m) - pad, int((comp["box"] as Rect2i).position.y * k_m) - pad,
+							int((comp["box"] as Rect2i).size.x * k_m) + pad * 2, int((comp["box"] as Rect2i).size.y * k_m) + pad * 2))
+						if not r0.is_empty():
+							sc.append("  -> %s score %.2f" % [TOKEN_FILES[t], float(r0["score"])])
+				print("    sector %d pass %d blob at %s mm, %.0f mm2 (photo %s): %s" % [si, lp_pass, str(bc.round()), area,
+					str((sframe * bc).round()), ", ".join(sc)])
+			var types: Array[int] = []
+			var twins: Array[int] = []    # tried only when no type of the blob's own colours fits
+			for t: int in 6:
+				# a patch's colour is skewed by what made the first pass miss it (shade, a cast): there every
+				# type is tried (a shaded Electrix came out Organix), its colour share still tipping the rank
+				# (by icon and outline alone a real Organix token went to Metals)
+				if lp_pass == 1 or float(share[t]) >= MATCH_TYPE_SHARE * float(comp["count"]):
+					types.append(t)
+			for t: int in 6:
+				if not types.has(t) and COLOUR_TWINS.has(t) and types.has(int(COLOUR_TWINS[t])):
+					twins.append(t)
+			if types.is_empty():
+				continue
+			var box: Rect2i = comp["box"]
+			var region: Rect2i = Rect2i(int(box.position.x * k_m) - pad, int(box.position.y * k_m) - pad,
+				int(box.size.x * k_m) + pad * 2, int(box.size.y * k_m) + pad * 2)
+			var n_max: int = mini(MATCH_MAX_PER_BLOB, maxi(1, roundi(area / MATCH_MM2_PER_TOKEN)) + 1)
+			var work: PackedFloat32Array = zs.duplicate()
+			for _try: int in n_max:
+				var hit: Dictionary = {}
+				# the type also needs its colour: a square Metals template fits almost any blob
+				# about as well as the right one, so a blob's colour share tips the choice — counted
+				# on what's left of the blob (two touching tokens: once one is matched, the other's
+				# colour must decide the next)
+				var share_now: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0, 0])
+				var cnt_now: int = 0
+				for k: int in (comp["pixels"] as PackedInt32Array):
+					if cl[k] >= 6:
+						continue
+					@warning_ignore("integer_division")
+					var oo: int = (mini(int((k / w) * k_m), hs - 1) * ws + mini(int((k % w) * k_m), ws - 1)) * 3
+					if work[oo] == 0.0 and work[oo + 1] == 0.0 and work[oo + 2] == 0.0:
+						continue   # blanked: an earlier match in this blob
+					share_now[cl[k]] += 1
+					cnt_now += 1
+				var need: float = MATCH_MIN if _try == 0 else MATCH_MIN_NEXT
+				for alt: int in types + twins:
+					if twins.has(alt) and not hit.is_empty() and float(hit["score"]) >= need:
+						break     # the blob's own colour already fits: no twin needed
+					var r: Dictionary = _match_token(work, ws, hs, ms, ms_sum, alt, region)
+					if r.is_empty():
+						continue
+					r["rank"] = float(r["score"]) + MATCH_SHARE_WEIGHT * float(share_now[alt]) / float(maxi(cnt_now, 1))
+					if hit.is_empty() or float(r["rank"]) > float(hit["rank"]):
+						hit = r
+						hit["token"] = alt
+				# a further token in an already matched blob has to be convincing on its own
+				if hit.is_empty() or float(hit["score"]) < need:
+					break
+				var tp: Dictionary = (_templates[int(hit["token"])] as Array)[int(hit["rot"])]
+				var at: Vector2i = hit["at"]
+				# blank the matched token so the next search finds the next one: its colours, and its part
+				# of the blob's outline (else the next token's outline fit is taken against both, photos
+				# 2026-11-06: Electrix next to Metals 0.41)
+				var tmask: PackedByteArray = tp["mask"]
+				var tw: int = tp["w"]
+				for ty: int in int(tp["h"]):
+					for tx: int in tw:
+						if tmask[ty * tw + tx] != 0:
+							var o: int = ((at.y + ty) * ws + at.x + tx) * 3
+							work[o] = 0.0
+							work[o + 1] = 0.0
+							work[o + 2] = 0.0
+							ms[(at.y + ty) * ws + at.x + tx] = 0
+				ms_sum = _integral(ms, ws, hs)
+				var c: Vector2 = Vector2(at) + Vector2(tw, int(tp["h"])) / 2.0
+				var seen: bool = false
+				for prev: Vector2 in centres:
+					if prev.distance_to(c) < same_px:
+						seen = true
+						break
+				if seen:
+					continue
+				centres.append(c)
+				var at_mm: Vector2 = TOKEN_ZONE.position + c / MATCH_PPM
+				found.append([TOKEN_ORDER[int(hit["token"])], sframe * at_mm, at_mm.x])
 	return found
+
+# Token-sized patches inside the sector where the photo departs from the sector's own art in one consistent
+# direction (LOWPASS_* above), on a 1 mm grid of 3x3-pixel blocks. Only pixels the sector's art explains best,
+# inside its outline. The colour model maps art to photo per channel from all three (affine, least squares),
+# refitted twice without the worst-fitting fifth (the tokens themselves, misregistered edges). A patch keeps
+# the pixels that differ from the model themselves, so it hugs the token (a whole patch made touching tokens
+# one blob their outlines didn't fit).
+func _occluding_patches(zone: PackedFloat32Array, w: int, h: int, sec_art: PackedFloat32Array, sec_d: PackedFloat32Array,
+		best: PackedFloat32Array) -> PackedByteArray:
+	var out: PackedByteArray = PackedByteArray()
+	out.resize(w * h)
+	var sec_size: Vector2 = SIZE_MM["sector"]
+	var is_sec: PackedByteArray = PackedByteArray()
+	is_sec.resize(w * h)
+	for k: int in w * h:
+		if sec_d[k] > 1e8 or sec_d[k] > best[k] + 0.001:
+			continue
+		@warning_ignore("integer_division")
+		var p_mm: Vector2 = TOKEN_ZONE.position + Vector2(k % w, k / w) / ART_PPM
+		if p_mm.x > 1.0 and p_mm.y > 1.0 and p_mm.x < sec_size.x - 1.0 and p_mm.y < sec_size.y - 1.0:
+			is_sec[k] = 1
+	# 1 mm blocks: mean art and photo over a block's sector pixels (a block counts with 5 of its 9)
+	var b: int = int(ART_PPM)
+	@warning_ignore("integer_division")
+	var bw: int = w / b
+	@warning_ignore("integer_division")
+	var bh: int = h / b
+	var ba: PackedFloat32Array = PackedFloat32Array()
+	ba.resize(bw * bh * 3)
+	var bz: PackedFloat32Array = PackedFloat32Array()
+	bz.resize(bw * bh * 3)
+	var blocks: PackedInt32Array = PackedInt32Array()
+	for bj: int in bh:
+		for bi: int in bw:
+			var sa: Vector3 = Vector3.ZERO
+			var sz: Vector3 = Vector3.ZERO
+			var n: int = 0
+			for dj: int in b:
+				for di: int in b:
+					var k: int = (bj * b + dj) * w + bi * b + di
+					if is_sec[k] == 0:
+						continue
+					sa += Vector3(sec_art[k * 3], sec_art[k * 3 + 1], sec_art[k * 3 + 2])
+					sz += Vector3(zone[k * 3], zone[k * 3 + 1], zone[k * 3 + 2])
+					n += 1
+			if n < 5:
+				continue
+			var q: int = bj * bw + bi
+			sa /= n
+			sz /= n
+			for c: int in 3:
+				ba[q * 3 + c] = sa[c]
+				bz[q * 3 + c] = sz[c]
+			blocks.append(q)
+	if blocks.size() < 60:
+		return out
+	var keep: PackedByteArray = PackedByteArray()
+	keep.resize(blocks.size())
+	keep.fill(1)
+	var model: Array[Vector3] = []
+	var res: PackedFloat32Array = PackedFloat32Array()
+	res.resize(blocks.size())
+	for it: int in 3:
+		var ata: PackedFloat64Array = PackedFloat64Array()
+		ata.resize(16)
+		var aty: PackedFloat64Array = PackedFloat64Array()
+		aty.resize(12)
+		for n: int in blocks.size():
+			if keep[n] == 0:
+				continue
+			var o: int = blocks[n] * 3
+			var x: PackedFloat64Array = PackedFloat64Array([ba[o], ba[o + 1], ba[o + 2], 1.0])
+			for r: int in 4:
+				for c: int in 4:
+					ata[r * 4 + c] += x[r] * x[c]
+				for c: int in 3:
+					aty[r * 3 + c] += x[r] * bz[o + c]
+		model = _solve4(ata, aty)
+		if model.is_empty():
+			return out
+		for n: int in blocks.size():
+			var o: int = blocks[n] * 3
+			var pred: Vector3 = model[0] * ba[o] + model[1] * ba[o + 1] + model[2] * ba[o + 2] + model[3]
+			res[n] = pred.distance_to(Vector3(bz[o], bz[o + 1], bz[o + 2]))
+		if it < 2:
+			var sorted: PackedFloat32Array = res.duplicate()
+			sorted.sort()
+			var cut: float = sorted[int(sorted.size() * 0.8)]
+			for n: int in blocks.size():
+				keep[n] = 1 if res[n] < cut else 0
+	# signed block residual and its weight, low-passed over LOWPASS_R_MM
+	var rv: PackedFloat32Array = PackedFloat32Array()
+	rv.resize(bw * bh * 3)
+	var wt: PackedFloat32Array = PackedFloat32Array()
+	wt.resize(bw * bh * 3)
+	for n: int in blocks.size():
+		var o: int = blocks[n] * 3
+		var pred: Vector3 = model[0] * ba[o] + model[1] * ba[o + 1] + model[2] * ba[o + 2] + model[3]
+		rv[o] = bz[o] - pred.x
+		rv[o + 1] = bz[o + 1] - pred.y
+		rv[o + 2] = bz[o + 2] - pred.z
+		wt[o] = 1.0
+	var rb: PackedFloat32Array = _box_blur(rv, bw, bh, LOWPASS_R_MM)
+	var wb: PackedFloat32Array = _box_blur(wt, bw, bh, LOWPASS_R_MM)
+	var bhit: PackedByteArray = PackedByteArray()
+	bhit.resize(bw * bh)
+	for n: int in blocks.size():
+		var o: int = blocks[n] * 3
+		if wb[o] >= 0.5 and Vector3(rb[o], rb[o + 1], rb[o + 2]).length() / wb[o] > LOWPASS_THR:
+			bhit[blocks[n]] = 1
+	for _i: int in LOWPASS_OPEN_MM:
+		bhit = _erode(bhit, bw, bh)
+	for _i: int in LOWPASS_OPEN_MM:
+		bhit = _dilate(bhit, bw, bh)
+	# back to pixels: inside a patch, the pixels that differ from the model themselves
+	for k: int in w * h:
+		if is_sec[k] == 0:
+			continue
+		@warning_ignore("integer_division")
+		var bi: int = (k % w) / b
+		@warning_ignore("integer_division")
+		var bj: int = (k / w) / b
+		if bi >= bw or bj >= bh or bhit[bj * bw + bi] == 0:
+			continue
+		var o: int = k * 3
+		var pred: Vector3 = model[0] * sec_art[o] + model[1] * sec_art[o + 1] + model[2] * sec_art[o + 2] + model[3]
+		if pred.distance_to(Vector3(zone[o], zone[o + 1], zone[o + 2])) > LOWPASS_THR:
+			out[k] = 1
+	return out
+
+# Solves the 4x4 normal equations a * m = b (b: 4 rows x 3 columns) by Gaussian elimination with partial
+# pivoting: the 4 rows of m as Vector3 (red, green, blue weights and the offset). [] if singular.
+static func _solve4(a_in: PackedFloat64Array, b_in: PackedFloat64Array) -> Array[Vector3]:
+	var a: PackedFloat64Array = a_in.duplicate()
+	var b: PackedFloat64Array = b_in.duplicate()
+	for col: int in 4:
+		var piv: int = col
+		for r: int in range(col + 1, 4):
+			if absf(a[r * 4 + col]) > absf(a[piv * 4 + col]):
+				piv = r
+		if absf(a[piv * 4 + col]) < 1e-9:
+			return []
+		if piv != col:
+			for c: int in 4:
+				var t: float = a[col * 4 + c]
+				a[col * 4 + c] = a[piv * 4 + c]
+				a[piv * 4 + c] = t
+			for c: int in 3:
+				var t: float = b[col * 3 + c]
+				b[col * 3 + c] = b[piv * 3 + c]
+				b[piv * 3 + c] = t
+		for r: int in 4:
+			if r == col:
+				continue
+			var f: float = a[r * 4 + col] / a[col * 4 + col]
+			for c: int in 4:
+				a[r * 4 + c] -= f * a[col * 4 + c]
+			for c: int in 3:
+				b[r * 3 + c] -= f * b[col * 3 + c]
+	var m: Array[Vector3] = []
+	for r: int in 4:
+		var d: float = a[r * 4 + r]
+		m.append(Vector3(b[r * 3] / d, b[r * 3 + 1] / d, b[r * 3 + 2] / d))
+	return m
 
 # Best position (sector mm, card's top-left) for a face-down back near `guess`, within
 # +-BACK_SETTLE_MM: the shift whose back art differs least from the photo (sampled sparsely,
