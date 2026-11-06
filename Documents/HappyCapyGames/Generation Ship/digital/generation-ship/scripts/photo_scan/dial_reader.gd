@@ -103,6 +103,36 @@ const WEAK_HOLE_REL: float = 0.25
 const LOWC_STRONG_REL: float = 0.85
 const LOWC_STRONG_GAP: float = 0.3
 
+# Lights pass (2026-11-06): dials without a violet diamond (the marker test sheet's variants 3 =
+# light 0 an ordinary lit light and 4 = light 0 a cream diamond, Layout/InDesign/_automation/
+# scan_code/testsheet_marker.py) are found by their ring of lights. Light spots: on a 2x2-average
+# pyramid of the half-size copy, a pixel clearly brighter (lit light) or darker (unlit socket) than
+# its blurred surroundings, at the level that matches a light's size at the scale tried. Every
+# spot with two neighbours one light-spacing away at 150 deg (like the lights next to it on a
+# 12-light ring) votes for the ring's centre; vote peaks whose 12 light positions hold spots are
+# rings. A ring is read in all 12 rotations (light 0 lit); where several give a real card, the
+# name box (strip check) says which way the card faces. The scale isn't known beforehand: the
+# likely ones are tried until one gives dials whose name box confirms them, then their sizes set it.
+# (Prototyped on the variant mockups in Python first: scratchpad lp3.py, 2026-11-06.)
+const LP_THR: float = 0.1                # spot: this much brighter than its surroundings (lit light; 0..1)...
+const LP_THR_DARK: float = 0.06          # ...or this much darker (unlit socket)
+const LP_SPACING_MM: Vector2 = Vector2(1.899, 2.189)   # between neighbouring lights' centres (tech .. sector)
+const LP_SCALES: Array[float] = [13.4, 11.3, 16.0, 9.5, 19.0, 8.0]   # px/mm tried, likeliest first
+const LP_SWEEP_RINGS: int = 60           # best rings read per scale tried
+const LP_SWEEP_ENOUGH: int = 8           # dials confirmed at a scale: no need to try the others
+const LP_STEP_TOL_DEG: float = 12.0      # the 150 deg between neighbouring lights' chords, give or take
+const LP_CHORD_TOL: float = 0.25         # the two chords' lengths may differ by this share
+const LP_TOL: float = 0.12               # a spot within this x the ring radius of a light position fills it
+# (2026-11-06: looser steps 18 deg / 0.35 and positions by angle +-8 deg for oval dials let in so much
+# noise that the clean variant mockups dropped from 15/17 to 9/17, and the slanted ones gained nothing)
+const LP_OCC_MIN: int = 8                # light positions (of 12) that must hold a spot
+const LP_MAX_PEAKS: int = 1500           # vote peaks checked for occupancy (most votes first)
+const LP_MAX_RINGS: int = 400
+const LP_STRIP_MIN: float = 0.38         # a ring reading's name box must look like its card this much...
+const LP_STRIP_WEAK: float = 0.45        # ...a weak (low-contrast) one this much...
+const LP_STRIP_MARGIN: float = 0.05      # ...and beat the other rotations' cards by this
+const LP_FACING_DEG: float = 40.0        # unclear rotation: the one within this of the photo's facing
+
 # Read from the main thread while run() works (plain floats/ints, so safe to poll):
 # progress 0..1. attempt stays 1 (kept for the UI's label).
 var progress: float = 0.0
@@ -138,6 +168,17 @@ var photo: Image = null
 var markers: Array[Vector3] = []
 ## Prints every reading's strip check (tools/scan_debug).
 var debug_strips: bool = false
+## Lights pass: when no violet diamond gives a dial, look for dials by their ring of lights. Off in
+## the app until a diamond-less design is chosen (it costs ~10 s on a photo where nothing reads);
+## tools/scan_debug turns it on (SCAN_LIGHTS_ONLY / SCAN_NO_VIOLET).
+var lights_pass: bool = false
+## Light 0 must be lit for a ring reading (the diamond-less variants). Off to test the lights pass on
+## photos of the violet cards (tools/scan_debug SCAN_NO_VIOLET=1), whose light 0 is the diamond.
+var light0_lit: bool = true
+## Debug: never look for violet diamonds (test the lights pass on photos of the violet cards).
+var ignore_violet: bool = false
+## Debug: the lights pass writes its spots and rings here as JSON (full-resolution pixels).
+var debug_spots_path: String = ""
 var _strip_arts: Dictionary = {}     # code -> Array[PackedFloat32Array]: per language, planar RGB, each channel centred + unit length
 var _strip_dims: Dictionary = {}     # deck -> Vector2i (strip pixels)
 var _rgb: PackedByteArray = PackedByteArray()   # the photo, full resolution RGB8
@@ -245,7 +286,7 @@ func run(source: Image) -> Array[Dictionary]:
 	@warning_ignore("integer_division")
 	small.resize(maxi(1, img.get_width() / 2), maxi(1, img.get_height() / 2), Image.INTERPOLATE_BILINEAR)
 	var blobs: Array[Vector3] = []   # full-resolution x, y, diameter
-	for b: Vector3 in _find_markers(small.get_data(), small.get_width(), small.get_height()):
+	for b: Vector3 in ([] if ignore_violet else _find_markers(small.get_data(), small.get_width(), small.get_height())):
 		blobs.append(Vector3(b.x * 2.0 + 0.5, b.y * 2.0 + 0.5, b.z * 2.0))
 	markers = blobs.duplicate()
 	img.convert(Image.FORMAT_L8)
@@ -272,7 +313,7 @@ func run(source: Image) -> Array[Dictionary]:
 	# the phone didn't correct can turn the violet diamond orange-brown); only failed photos pay for it
 	for try_i: int in 2:
 		if try_i == 1:
-			if not strong_scales.is_empty() or cancelled or not _balance(small):
+			if not strong_scales.is_empty() or cancelled or ignore_violet or not _balance(small):
 				break
 			attempt = 2
 			blobs.clear()
@@ -403,8 +444,10 @@ func run(source: Image) -> Array[Dictionary]:
 		strong_at = kept_at
 		strong_pos = kept_pos
 	if strong_scales.is_empty():
+		# no diamond gave a dial: the diamond-less cards, found by their ring of lights
+		var by_lights: Array[Dictionary] = _lights_pass(small) if lights_pass and not cancelled else []
 		progress = 1.0
-		return []
+		return by_lights
 	strong_raw = strong_scales.duplicate()
 	strong_scales.sort()
 	@warning_ignore("integer_division")
@@ -1348,7 +1391,7 @@ func _evaluate(mx: float, my: float, r: float, th: float, shape: PackedFloat32Ar
 		if hole < WEAK_HOLE_MIN or hole < WEAK_HOLE_REL * (sv[10] - sv[0]) or gap < WEAK_GAP or rel < WEAK_REL:
 			return {}
 	return {gap = gap, code = code, cx = cx, cy = cy, r = r, th = th, dot = dot_sum / maxf(1.0, dot_n), lo = sv[0], hi = sv[10],
-		rel = rel, clean = clean}
+		rel = rel, clean = clean, thr = thr}
 
 # Search order: clean readings before weak ones, then the clearer split.
 static func _better(e: Dictionary, best: Dictionary) -> bool:
@@ -1357,6 +1400,439 @@ static func _better(e: Dictionary, best: Dictionary) -> bool:
 	if bool(e["clean"]) != bool(best["clean"]):
 		return bool(e["clean"])
 	return float(e["gap"]) > float(best["gap"])
+
+# ── Lights pass ──────────────────────────────────────────────────────────────
+
+var _lp_levels: Array[Image] = []      # L8 pyramid of the half-size copy, each level shrink_x2 of the one before
+var _lp_spot_cache: Dictionary = {}    # level -> Array[Vector3]: full-resolution x, y, response
+
+## Dials found by their ring of lights (LP_* above), for a photo where no violet diamond gave one.
+## Sets the scale, the perspective plane and the anchors from what it reads, as pass 1 does.
+func _lights_pass(small: Image) -> Array[Dictionary]:
+	var t0: int = Time.get_ticks_msec()
+	_lp_build(small)
+	# the photo's scale: the likely ones in turn, each by the dials its best rings confirm
+	var best_n: int = 0
+	var best_cands: Array = []
+	var tried: Array[String] = []
+	for s: float in LP_SCALES:
+		if cancelled:
+			return []
+		var cands: Array = _lp_read_all(_lp_rings_at(s, LP_SWEEP_RINGS))
+		var n: int = 0
+		for rs: Array in cands:
+			if _lp_clear(rs):
+				n += 1
+		tried.append("%.1f:%d" % [s, n])
+		if n > best_n:
+			best_n = n
+			best_cands = cands
+		if best_n >= LP_SWEEP_ENOUGH:
+			break
+	progress = 0.5
+	if best_n == 0:
+		if debug_spots_path != "":
+			_lp_dump(_lp_rings_at(LP_SCALES[LP_SCALES.size() - 1], LP_MAX_RINGS), LP_SCALES[LP_SCALES.size() - 1])
+		if debug:
+			print("  lights pass: no scale gives a confirmed dial (%s), %.1f s" % [", ".join(tried), (Time.get_ticks_msec() - t0) / 1000.0])
+		return []
+	# the exact scale from the confirmed dials (their card type gives their ring's size), then every ring
+	var sizes: Array[float] = []
+	for rs: Array in best_cands:
+		if _lp_clear(rs):
+			sizes.append(float(rs[0]["radius"]) / float(DECK_R_MM[_codes[int(rs[0]["code"])]]))
+	sizes.sort()
+	@warning_ignore("integer_division")
+	var scale: float = sizes[sizes.size() / 2]
+	var t1: int = Time.get_ticks_msec()
+	var rings: Array = _lp_rings_at(scale, LP_MAX_RINGS)
+	progress = 0.6
+	var all_cands: Array = _lp_read_all(rings)
+	progress = 0.95
+	var out: Array[Dictionary] = _lp_pick(all_cands)
+	# scale and perspective from the readings; a reading far off its card type's size there goes
+	var pos: Array[Vector2] = []
+	var scales: Array[float] = []
+	for d: Dictionary in out:
+		pos.append(d["center"])
+		scales.append(float(d["radius"]) / float(DECK_R_MM[_codes[int(d["code"])]]))
+	if not scales.is_empty():
+		var sorted: Array[float] = scales.duplicate()
+		sorted.sort()
+		@warning_ignore("integer_division")
+		_scale = sorted[sorted.size() / 2]
+		_fit_scale_plane(pos, scales)
+	var kept: Array[Dictionary] = []
+	_anchors.clear()
+	for i: int in out.size():
+		var c: Vector2 = out[i]["center"]
+		if absf(scales[i] / _local_scale(c.x, c.y) - 1.0) > 0.15 and absf(scales[i] / _scale - 1.0) > 0.15:
+			continue
+		kept.append(out[i])
+		_anchors.append(Vector3(c.x, c.y, float(out[i]["th"])))
+	if debug:
+		print("  lights pass: scales %s -> %.2f px/mm (level %d, %d spots), %d rings, %d read, %d kept; sweep %.1f s, final %.1f s" % [
+			", ".join(tried), scale, _lp_level_for(scale), _lp_spots(_lp_level_for(scale)).size(), rings.size(), out.size(), kept.size(),
+			(t1 - t0) / 1000.0, (Time.get_ticks_msec() - t1) / 1000.0])
+	if debug_spots_path != "":
+		_lp_dump(rings, scale)
+	_lp_levels.clear()
+	_lp_spot_cache.clear()
+	return kept
+
+# Debug: the spots and rings at a scale, to debug_spots_path (tools/scan_debug SCAN_SPOTS).
+func _lp_dump(rings: Array, scale: float) -> void:
+	var dump_s: Array = []
+	for s: Vector3 in _lp_spots(_lp_level_for(scale)):
+		dump_s.append([s.x, s.y, s.z])
+	var dump_r: Array = []
+	for rg: Array in rings:
+		var reads: Array = []
+		for e: Dictionary in _read_ring(rg):
+			reads.append([int(e["code"]), float(e["strip"]), float(e["gap"]), bool(e.get("weak", false)), float(e["th"])])
+		dump_r.append([(rg[0] as Vector2).x, (rg[0] as Vector2).y, rg[1], rg[2], rg[3], rg[4], reads])
+	var f: FileAccess = FileAccess.open(debug_spots_path, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify({spots = dump_s, rings = dump_r, scale = scale}))
+		f.close()
+
+# Each ring read in all rotations, on all cores: per ring its readings, best name box first (rings
+# that read as nothing left out).
+func _lp_read_all(rings: Array) -> Array:
+	var found: Array = []
+	found.resize(rings.size())
+	var job: Callable = func(i: int) -> void:
+		if not cancelled:
+			found[i] = _read_ring(rings[i])
+	WorkerThreadPool.wait_for_group_task_completion(WorkerThreadPool.add_group_task(job, rings.size()))
+	var cands: Array = []
+	for i: int in rings.size():
+		var rs: Array = found[i] if found[i] != null else []
+		if rs.is_empty():
+			continue
+		rs.sort_custom(func(p: Dictionary, q: Dictionary) -> bool: return float(p["strip"]) > float(q["strip"]))
+		cands.append(rs)
+	return cands
+
+# One reading per ring: its best rotation when the name box makes that clear, else the rotation that
+# faces like the photo's clear ones (a tableau's cards all face about the same way); no two on one dial.
+func _lp_pick(cands: Array) -> Array[Dictionary]:
+	var fx: float = 0.0
+	var fy: float = 0.0
+	for rs: Array in cands:
+		if _lp_clear(rs):
+			fx += cos(float(rs[0]["th"]))
+			fy += sin(float(rs[0]["th"]))
+	var has_facing: bool = Vector2(fx, fy).length() > 0.5
+	var facing: float = atan2(fy, fx)
+	var out: Array[Dictionary] = []
+	for rs: Array in cands:
+		var pick: Dictionary = {}
+		if _lp_clear(rs):
+			pick = rs[0]
+		elif has_facing:
+			for e: Dictionary in rs:
+				if _lp_ok(e) and absf(angle_difference(float(e["th"]), facing)) <= deg_to_rad(LP_FACING_DEG):
+					pick = e
+					break
+		if pick.is_empty():
+			continue
+		var clash: int = -1
+		for j: int in out.size():
+			if (out[j]["center"] as Vector2).distance_to(pick["center"] as Vector2) < float(pick["radius"]) * 1.5:
+				clash = j
+				break
+		if clash < 0:
+			out.append(pick)
+		elif float(pick["strip"]) > float(out[clash]["strip"]):
+			out[clash] = pick
+	return out
+
+# A ring reading good enough to keep: its name box looks like its card.
+static func _lp_ok(e: Dictionary) -> bool:
+	return float(e["strip"]) >= (LP_STRIP_WEAK if bool(e.get("weak", false)) else LP_STRIP_MIN)
+
+# A ring whose best rotation is clear: good enough, and its card's name box beats every other
+# rotation's.
+static func _lp_clear(rs: Array) -> bool:
+	if not _lp_ok(rs[0]):
+		return false
+	return rs.size() == 1 or float(rs[0]["strip"]) - float(rs[1]["strip"]) >= LP_STRIP_MARGIN
+
+# The pyramid of the half-size copy (greyscale).
+func _lp_build(small: Image) -> void:
+	var l: Image = small.duplicate() as Image
+	l.convert(Image.FORMAT_L8)
+	_lp_levels = [l]
+	for i: int in 6:
+		var prev: Image = _lp_levels[_lp_levels.size() - 1]
+		if prev.get_width() < 8 or prev.get_height() < 8:
+			break
+		var n: Image = prev.duplicate() as Image
+		n.shrink_x2()
+		_lp_levels.append(n)
+	_lp_spot_cache = {}
+
+# The pyramid level whose pixel (2^(level+1) full-resolution px) matches a light's lit core at s px/mm.
+static func _lp_level_for(s: float) -> int:
+	return clampi(roundi(log(0.55 * s) / log(2.0) - 1.0), 0, 3)
+
+# Light spots at a pyramid level: the level minus the level two below it (blown up), local extrema
+# (3x3) clearly above / below zero, placed to a fraction of a pixel (a parabola through the peak and its
+# neighbours). Full-resolution x, y and the response (negative: a dark spot).
+func _lp_spots(j: int) -> Array[Vector3]:
+	if _lp_spot_cache.has(j):
+		return _lp_spot_cache[j]
+	var out: Array[Vector3] = []
+	if j + 2 >= _lp_levels.size():
+		return out
+	var c_img: Image = _lp_levels[j]
+	var w: int = c_img.get_width()
+	var h: int = c_img.get_height()
+	var s_img: Image = _lp_levels[j + 2].duplicate() as Image
+	s_img.resize(w, h, Image.INTERPOLATE_BILINEAR)
+	var c: PackedByteArray = c_img.get_data()
+	var s: PackedByteArray = s_img.get_data()
+	var g: float = _lum_gain / 255.0
+	var r: PackedFloat32Array = PackedFloat32Array()
+	r.resize(w * h)
+	for i: int in w * h:
+		r[i] = (float(c[i]) - float(s[i])) * g
+	var f: float = pow(2.0, j + 1)
+	for y: int in range(1, h - 1):
+		for x: int in range(1, w - 1):
+			var i: int = y * w + x
+			var v: float = r[i]
+			var bright: bool = v > LP_THR
+			if not bright and v >= -LP_THR_DARK:
+				continue
+			var is_ext: bool = true
+			for o: int in [i - w - 1, i - w, i - w + 1, i - 1, i + 1, i + w - 1, i + w, i + w + 1]:
+				if (bright and r[o] > v) or (not bright and r[o] < v):
+					is_ext = false
+					break
+			if not is_ext:
+				continue
+			var ax: float = 2.0 * v - r[i - 1] - r[i + 1]
+			var ay: float = 2.0 * v - r[i - w] - r[i + w]
+			var dx: float = clampf((r[i + 1] - r[i - 1]) / (2.0 * ax), -0.5, 0.5) if absf(ax) > 1e-6 else 0.0
+			var dy: float = clampf((r[i + w] - r[i - w]) / (2.0 * ay), -0.5, 0.5) if absf(ay) > 1e-6 else 0.0
+			out.append(Vector3((x + 0.5 + dx) * f, (y + 0.5 + dy) * f, v))
+	_lp_spot_cache[j] = out
+	return out
+
+# Rings of lights at s px/mm (full-resolution): every spot with two neighbours one light-spacing away,
+# 150 +- 12 deg apart and at equal distance, votes for the centre (on the bisector, one ring radius in);
+# vote peaks whose 12 light positions (the best phase) mostly hold a spot, the band round the ring
+# mostly spots on those positions, are rings. Best first (positions held + 10 x share on them), at
+# most `cap`. Each: [centre: Vector2, radius, phase (rad; lights at phase + k * 30 deg), held, share].
+func _lp_rings_at(s: float, cap: int) -> Array:
+	var spots: Array[Vector3] = _lp_spots(_lp_level_for(s))
+	var lo: float = 0.75 * LP_SPACING_MM.x * s
+	var hi: float = 1.3 * LP_SPACING_MM.y * s
+	var r_lo: float = 0.7 * float(DECK_R_MM["tech"]) * s
+	var r_hi: float = 1.35 * float(DECK_R_MM["sector"]) * s
+	var c_lo: float = cos(deg_to_rad(150.0 + LP_STEP_TOL_DEG))
+	var c_hi: float = cos(deg_to_rad(150.0 - LP_STEP_TOL_DEG))
+	var cell: float = hi
+	var grid: Dictionary = {}
+	for i: int in spots.size():
+		var key: Vector2i = Vector2i(floori(spots[i].x / cell), floori(spots[i].y / cell))
+		if not grid.has(key):
+			grid[key] = []
+		(grid[key] as Array).append(i)
+	var cs: float = maxf(2.0, 0.15 * float(DECK_R_MM["tech"]) * s)   # one vote grid per scale
+	var votes: Dictionary = {}       # Vector2i -> [n, sum x, sum y, sum r]
+	for bi: int in spots.size():
+		if cancelled:
+			return []
+		var b: Vector2 = Vector2(spots[bi].x, spots[bi].y)
+		var nb: Array[Vector2] = []
+		var gk: Vector2i = Vector2i(floori(b.x / cell), floori(b.y / cell))
+		for gy: int in range(gk.y - 1, gk.y + 2):
+			for gx: int in range(gk.x - 1, gk.x + 2):
+				for j: Variant in (grid.get(Vector2i(gx, gy), []) as Array):
+					if int(j) == bi:
+						continue
+					var dv: Vector2 = Vector2(spots[int(j)].x, spots[int(j)].y) - b
+					var dl: float = dv.length()
+					if dl >= lo and dl <= hi:
+						nb.append(dv)
+		for p: int in nb.size():
+			var u: Vector2 = nb[p]
+			var lu: float = u.length()
+			for q: int in range(p + 1, nb.size()):
+				var v: Vector2 = nb[q]
+				var lv: float = v.length()
+				var ca: float = u.dot(v) / (lu * lv)
+				if ca < c_lo or ca > c_hi or absf(lu - lv) > LP_CHORD_TOL * maxf(lu, lv):
+					continue
+				var rr: float = (lu + lv) * 0.5 / 0.5176
+				if rr < r_lo or rr > r_hi:
+					continue
+				var bis: Vector2 = u / lu + v / lv
+				if bis.length() < 1e-3:
+					continue
+				var ctr: Vector2 = b + bis.normalized() * rr
+				var key: Vector2i = Vector2i(floori(ctr.x / cs), floori(ctr.y / cs))
+				var acc: Array = votes.get(key, [0, 0.0, 0.0, 0.0])
+				votes[key] = [int(acc[0]) + 1, float(acc[1]) + ctr.x, float(acc[2]) + ctr.y, float(acc[3]) + rr]
+	# vote peaks (3x3 bin sums)
+	var peaks: Array = []
+	for key: Vector2i in votes:
+		var own: int = int((votes[key] as Array)[0])
+		var n: int = 0
+		var sx: float = 0.0
+		var sy: float = 0.0
+		var sr: float = 0.0
+		var is_max: bool = true
+		for dy: int in range(-1, 2):
+			for dx: int in range(-1, 2):
+				var k2: Vector2i = key + Vector2i(dx, dy)
+				if not votes.has(k2):
+					continue
+				var a: Array = votes[k2]
+				if int(a[0]) > own or (int(a[0]) == own and (k2.y < key.y or (k2.y == key.y and k2.x < key.x))):
+					is_max = false
+				n += int(a[0])
+				sx += float(a[1])
+				sy += float(a[2])
+				sr += float(a[3])
+		if is_max and n >= 3:
+			peaks.append([n, Vector2(sx / n, sy / n), sr / n])
+	peaks.sort_custom(func(p: Array, q: Array) -> bool: return int(p[0]) > int(q[0]))
+	if peaks.size() > LP_MAX_PEAKS:
+		peaks.resize(LP_MAX_PEAKS)
+	# rings: the spots in the band round each peak, on its 12 light positions
+	var rings: Array = []
+	for pk: Array in peaks:
+		var ctr: Vector2 = pk[1]
+		var rr: float = pk[2]
+		var band: Array[Vector2] = []
+		var dists: Array[float] = []
+		var gk: Vector2i = Vector2i(floori(ctr.x / cell), floori(ctr.y / cell))
+		var reach: int = int(ceil(rr * 1.25 / cell))
+		for gy: int in range(gk.y - reach, gk.y + reach + 1):
+			for gx: int in range(gk.x - reach, gk.x + reach + 1):
+				for j: Variant in (grid.get(Vector2i(gx, gy), []) as Array):
+					var dv: Vector2 = Vector2(spots[int(j)].x, spots[int(j)].y) - ctr
+					var dl: float = dv.length()
+					if absf(dl - rr) <= 0.2 * rr:
+						band.append(dv)
+						dists.append(dl)
+		if band.size() < 4:
+			continue
+		# the phase: where most band spots sit modulo 30 deg (2-deg bins, neighbours summed)
+		var hist: PackedInt32Array = PackedInt32Array()
+		hist.resize(15)
+		for dv: Vector2 in band:
+			hist[int(fposmod(rad_to_deg(dv.angle()), 30.0) / 2.0) % 15] += 1
+		var hb: int = 0
+		var hv: int = -1
+		for k: int in 15:
+			var sum3: int = hist[(k + 14) % 15] + hist[k] + hist[(k + 1) % 15]
+			if sum3 > hv:
+				hv = sum3
+				hb = k
+		var phase: float = deg_to_rad(hb * 2.0 + 1.0)
+		var held: int = 0
+		var on: int = 0
+		var taken: PackedByteArray = PackedByteArray()
+		taken.resize(band.size())
+		var on_dists: Array[float] = []    # the radius from the spots on light positions only (the band holds art too)
+		for k: int in 12:
+			var a: float = phase + k * PI / 6.0
+			var pos: Vector2 = Vector2(cos(a), sin(a)) * rr
+			var any: bool = false
+			for bi2: int in band.size():
+				if band[bi2].distance_to(pos) < LP_TOL * rr:
+					any = true
+					if taken[bi2] == 0:
+						taken[bi2] = 1
+						on += 1
+						on_dists.append(dists[bi2])
+			if any:
+				held += 1
+		if held < LP_OCC_MIN:
+			continue
+		on_dists.sort()
+		@warning_ignore("integer_division")
+		rings.append([ctr, on_dists[on_dists.size() / 2], phase, held, float(on) / band.size()])
+	rings.sort_custom(func(p: Array, q: Array) -> bool: return int(p[3]) + 10.0 * float(p[4]) > int(q[3]) + 10.0 * float(q[4]))
+	var kept: Array = []
+	for rg: Array in rings:
+		var dup: bool = false
+		for k2: Array in kept:
+			if (rg[0] as Vector2).distance_to(k2[0] as Vector2) < 0.25 * float(k2[1]):
+				dup = true
+				break
+		if not dup:
+			kept.append(rg)
+			if kept.size() >= cap:
+				break
+	return kept
+
+# A ring read in each of its 12 rotations (light 0 at phase + k * 30 deg; lit, unless light0_lit is
+# off): circle first, the ovals only if the circle reads nothing. Every real card it decodes to,
+# as an entry with its name box checked ("strip").
+func _read_ring(ring: Array) -> Array[Dictionary]:
+	var c: Vector2 = ring[0]
+	var r: float = ring[1]
+	var phase: float = ring[2]
+	var res: Array[Dictionary] = []
+	for round_i: int in 2:
+		var shapes: Array[PackedFloat32Array] = _circle_only if round_i == 0 else _shapes.slice(1)
+		for k: int in 12:
+			var a: float = phase + k * PI / 6.0
+			var u: Vector2 = Vector2(cos(a), sin(a)) * r
+			var best: Dictionary = {}
+			for shape: PackedFloat32Array in shapes:
+				var m: Vector2 = c + Vector2(shape[0] * u.x + shape[1] * u.y, shape[2] * u.x + shape[3] * u.y)
+				var radii: Array[float] = [r * 0.9, r * 0.95, r, r * 1.05, r * 1.1]
+				var angles: Array[float] = [a + PI - deg_to_rad(4.0), a + PI, a + PI + deg_to_rad(4.0)]
+				var e: Dictionary = _search_shape(m.x, m.y, radii, angles, shape)
+				if e.is_empty():
+					continue
+				if light0_lit and _lum(m.x, m.y) <= float(e["thr"]):
+					continue
+				e["shape"] = shape
+				e["mx"] = m.x
+				e["my"] = m.y
+				if best.is_empty() or _better(e, best):
+					best = e
+			if not best.is_empty():
+				res.append(_lp_entry(best))
+		if not res.is_empty():
+			break
+	return res
+
+# A ring reading as an entry (as _collect makes them), with its name box checked.
+func _lp_entry(e: Dictionary) -> Dictionary:
+	var code: int = int(e["code"])
+	var found_card: Dictionary = _cards[code]
+	var c: Vector2 = Vector2(float(e["cx"]), float(e["cy"]))
+	var mk: Vector2 = Vector2(float(e["mx"]), float(e["my"]))
+	var d: Dictionary = {
+		code = code,
+		card = found_card["card"],
+		is_advanced = bool(found_card["is_advanced"]),
+		center = c,
+		radius = float(e["r"]),
+		up = (mk - c).normalized(),
+		gap = float(e["gap"]),
+		dot = float(e["dot"]),
+		th = float(e["th"]),
+		shape = e["shape"],
+		marker = mk,
+		lights = true,
+	}
+	if not bool(e["clean"]) or float(e["gap"]) < MIN_GAP or float(e["dot"]) < MIN_DOT:
+		d["weak"] = true
+	var own: float = -1.0
+	for s: PackedFloat32Array in _photo_strips(d, _codes[code]):
+		own = maxf(own, _strip_ncc(s, code))
+	d["strip"] = own
+	return d
 
 # ── Grouping into sectors ────────────────────────────────────────────────────
 

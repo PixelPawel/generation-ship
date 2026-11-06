@@ -262,6 +262,13 @@ func analyze(photo: Image, dials: Array[Dictionary], markers: Array[Vector3] = [
 	var results: Array = []
 	results.resize(sector_idx.size())
 	_done = 0
+	# a photo read by its lights (DialReader's lights pass: the diamond-less test cards) has no violet
+	# lamps on its backs either: there the TECH lettering counts them
+	var by_lights: bool = not dials.is_empty()
+	for d: Dictionary in dials:
+		if not bool(d.get("lights", false)):
+			by_lights = false
+			break
 	var per_sector: Callable = func(k: int) -> void:
 		if cancelled:
 			return
@@ -277,6 +284,8 @@ func analyze(photo: Image, dials: Array[Dictionary], markers: Array[Vector3] = [
 		if backs_at.is_empty():
 			for lab: Vector2 in _find_back_labels(dials[si]):
 				backs_at.append(lab - LABEL_TO_CARD)
+			if by_lights:
+				n_backs = backs_at.size()
 		results[k] = {backs = n_backs, tokens = _find_tokens(dials, si, backs_at), supply = {}}
 		_done_mutex.lock()
 		_done += 1

@@ -25,6 +25,19 @@ func _scan(path: String) -> void:
 	var reader: DialReader = DialReaderScript.create()
 	reader.debug = OS.get_environment("SCAN_DEBUG") != ""
 	reader.debug_strips = OS.get_environment("SCAN_STRIPS") != ""
+	# SCAN_NO_VIOLET=1: read photos of the violet cards by their lights only (the lights pass), light 0
+	# (their diamond) not required to be lit
+	if OS.get_environment("SCAN_NO_VIOLET") != "":
+		reader.ignore_violet = true
+		reader.light0_lit = false
+		reader.lights_pass = true
+	# SCAN_LIGHTS_ONLY=1: photos of the diamond-less test cards (light 0 lit): the lights pass only
+	if OS.get_environment("SCAN_LIGHTS_ONLY") != "":
+		reader.ignore_violet = true
+		reader.lights_pass = true
+	# SCAN_SPOTS=<folder>: the lights pass's spots and rings per photo as <photo>.spots.json there
+	if OS.get_environment("SCAN_SPOTS") != "":
+		reader.debug_spots_path = OS.get_environment("SCAN_SPOTS").path_join(path.get_file().get_basename() + ".spots.json")
 	# SCAN_PROBES="x,y;x,y": photo spots near dial markers to search exhaustively
 	for pp: String in OS.get_environment("SCAN_PROBES").split(";", false):
 		var xy: PackedStringArray = pp.split(",")
