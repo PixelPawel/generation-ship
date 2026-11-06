@@ -105,6 +105,7 @@ const COLOUR_TWINS: Dictionary = {4: 5, 5: 4}
 # (sector art -> photo), low-passed over LOWPASS_R and opened by LOWPASS_OPEN, finds them (_occluding_patches)
 const LOWPASS_R_MM: int = 2                       # low-pass radius (1 mm blocks)
 const LOWPASS_THR: float = 20.0                   # residual (RGB distance): the smoothed patch, then each pixel in it
+const LOWPASS_CLAIM_PX: int = 4                   # pass 0's tokens widened by this (px at MATCH_PPM, 2.7 mm) are no patch
 const LOWPASS_OPEN_MM: int = 2                    # erode / dilate steps (1 mm blocks)
 const LOWPASS_BLOB_MIN_MM2: float = 110.0        # ...and must be most of a token (real ones 132-418 mm2, a patch of
                                                  # busy art 54-77 mm2 matched Liquids at 0.48; Metals, the smallest, ~177)
@@ -936,25 +937,38 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 			zs[oo + 2] = zone[o + 2] / maxf(sector_gain.z, 0.2)
 	zs = _box_blur(zs, ws, hs, 1)
 	var centres: Array[Vector2] = []
+	var claimed: PackedByteArray = PackedByteArray()   # matched tokens' footprints (matching grid)
+	claimed.resize(ws * hs)
 	var same_px: float = MATCH_SAME_TOKEN * TOKEN_MM * MATCH_PPM
 	var pad: int = int(MATCH_SEARCH_MM * MATCH_PPM)
-	# pass 0: the token-coloured candidates; pass 1: the occluding patches away from what pass 0 found
-	# (joined, a patch's rim bridged an Electrix token to the Metals one beside it: 0.50 -> 0.41)
-	for lp_pass: int in 2:
+	# pass 0: the token-coloured candidates; passes 1-6: the occluding patches away from what was found, one
+	# token colour each (joined, a patch's rim bridged an Electrix token to the Metals one beside it, 0.50 ->
+	# 0.41; and an Organix patch ran on into the grey card frame beside it, one blob of 500 mm2 at 0.41)
+	for lp_pass: int in 7:
 		var cl: PackedByteArray = cls if lp_pass == 0 else cls_lp
 		var tokmask: PackedByteArray = PackedByteArray()
 		tokmask.resize(w * h)
 		for k: int in w * h:
-			if cl[k] < 6:
+			if cl[k] < 6 and (lp_pass == 0 or int(cl[k]) == lp_pass - 1):
 				tokmask[k] = 1
-		if lp_pass == 1:
+		if lp_pass >= 1:
 			if lowpass.count(1) == 0:
 				break
+			if tokmask.count(1) == 0:
+				continue
+			# away from what pass 0 found: its tokens' outlines widened by LOWPASS_CLAIM_PX (a found token's
+			# halo reached past the old radius test and bridged into the next token's patch), and the radius test
+			var claim_w: PackedByteArray = claimed
+			for _i: int in LOWPASS_CLAIM_PX:
+				claim_w = _dilate(claim_w, ws, hs)
 			for k: int in w * h:
 				if tokmask[k] == 0:
 					continue
 				@warning_ignore("integer_division")
 				var at_s: Vector2 = Vector2(k % w, k / w) * k_m
+				if claim_w[mini(int(at_s.y), hs - 1) * ws + mini(int(at_s.x), ws - 1)] != 0:
+					tokmask[k] = 0
+					continue
 				for prev: Vector2 in centres:
 					if prev.distance_to(at_s) < same_px:
 						tokmask[k] = 0
@@ -998,7 +1012,7 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 				# a patch's colour is skewed by what made the first pass miss it (shade, a cast): there every
 				# type is tried (a shaded Electrix came out Organix), its colour share still tipping the rank
 				# (by icon and outline alone a real Organix token went to Metals)
-				if lp_pass == 1 or float(share[t]) >= MATCH_TYPE_SHARE * float(comp["count"]):
+				if lp_pass >= 1 or float(share[t]) >= MATCH_TYPE_SHARE * float(comp["count"]):
 					types.append(t)
 			for t: int in 6:
 				if not types.has(t) and COLOUR_TWINS.has(t) and types.has(int(COLOUR_TWINS[t])):
@@ -1056,6 +1070,7 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 							work[o + 1] = 0.0
 							work[o + 2] = 0.0
 							ms[(at.y + ty) * ws + at.x + tx] = 0
+							claimed[(at.y + ty) * ws + at.x + tx] = 1
 				ms_sum = _integral(ms, ws, hs)
 				var c: Vector2 = Vector2(at) + Vector2(tw, int(tp["h"])) / 2.0
 				var seen: bool = false
