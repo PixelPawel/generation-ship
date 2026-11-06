@@ -107,6 +107,8 @@ var progress: float = 0.0
 var cancelled: bool = false
 ## Prints every token candidate blob and its match scores (tools/scan_debug).
 var debug: bool = false
+## tools/scan_debug: path prefix for PNGs of each sector's token zone and its pixel classes ("" = none).
+var debug_dump: String = ""
 ## Card used as the placeholder sector (set by the caller; null = no placeholders).
 var placeholder_card: CardData = null
 var _art: Array[Image] = []       # per dial: its card art at ART_PPM (RGB8), or null
@@ -728,12 +730,15 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 	for i: int in dials.size():
 		if _art_f[i].is_empty() or (dials[i]["center"] as Vector2).distance_to(centre) > reach_px:
 			continue
-		layers.append([card_frame(dials[i]).affine_inverse() * sframe, _art_f[i], _art_size[i], SIZE_MM[deck_of(dials[i])], i == si, _art_en_f[i]])
+		# a card whose dial lies below the sector's bottom edge is its archive, under the sector
+		var d_mm: Vector2 = sframe.affine_inverse() * (dials[i]["center"] as Vector2)
+		var under: bool = i != si and deck_of(dials[i]) != "sector" and d_mm.y > float((SIZE_MM["sector"] as Vector2).y) - 4.0
+		layers.append([card_frame(dials[i]).affine_inverse() * sframe, _art_f[i], _art_size[i], SIZE_MM[deck_of(dials[i])], i == si, _art_en_f[i], under])
 	if not _back_f.is_empty():
 		for at: Vector2 in backs_at:
 			# settle each back where its art fits best (a label places it only roughly)
 			var card_at: Vector2 = _settle_back(zone, w, h, at)
-			layers.append([Transform2D(Vector2(1, 0), Vector2(0, 1), -card_at), _back_f, _back_size, SIZE_MM["tech"], false])
+			layers.append([Transform2D(Vector2(1, 0), Vector2(0, 1), -card_at), _back_f, _back_size, SIZE_MM["tech"], false, PackedFloat32Array(), true])
 	var slack: float = ART_SLACK_MM * ART_PPM
 	for layer: Array in layers:
 		var to_card: Transform2D = layer[0]
@@ -764,11 +769,19 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 				gain[c] = ratios[c][ratios[c].size() >> 1]
 		if bool(layer[4]):
 			sector_gain = gain
+		# cards under the sector (archive, backs) show only outside its outline: inside it they can't
+		# explain anything (a back's green planet art hid an Organix token on the sector, 2026-11-06)
+		var under_sector: bool = layer.size() > 6 and bool(layer[6])
+		var sec_size: Vector2 = SIZE_MM["sector"]
 		for j: int in range(span.position.y, span.end.y):
 			for i: int in range(span.position.x, span.end.x):
 				var uv: Vector2 = to_card * Vector2(TOKEN_ZONE.position.x + i / ART_PPM, TOKEN_ZONE.position.y + j / ART_PPM)
 				if uv.x < 0.5 or uv.y < 0.5 or uv.x > card_mm.x - 0.5 or uv.y > card_mm.y - 0.5:
 					continue
+				if under_sector:
+					var p_mm: Vector2 = TOKEN_ZONE.position + Vector2(i, j) / ART_PPM
+					if p_mm.x > 0.5 and p_mm.y > 0.5 and p_mm.x < sec_size.x - 0.5 and p_mm.y < sec_size.y - 0.5:
+						continue
 				var k: int = j * w + i
 				var o: int = k * 3
 				var px: Vector3 = Vector3(zone[o], zone[o + 1], zone[o + 2])
@@ -851,6 +864,20 @@ func _find_tokens(dials: Array[Dictionary], si: int, backs_at: Array[Vector2]) -
 				counts[mini(int(cls[k]), 6) if cls[k] < 6 else 6] += 1
 		print("    sector %d: gain %s, table %s, unexplained px %d, by colour D/M/L/O/E/T/none %s" % [
 			si, str(sector_gain), str(table.round()), n_cand, str(counts)])
+	if debug_dump != "":
+		# the token zone (sector mm, ART_PPM) next to its classes: black = explained (art, back or
+		# table), grey = unexplained but no token colour, else the token colour it was taken for
+		var pal: Array[Color] = [Color8(220, 220, 220), Color8(200, 30, 40), Color8(40, 110, 220), Color8(60, 170, 50), Color8(240, 120, 30), Color8(250, 200, 0)]
+		var dump: Image = Image.create(w * 2, h, false, Image.FORMAT_RGB8)
+		for j: int in h:
+			for i: int in w:
+				var k: int = j * w + i
+				dump.set_pixel(i, j, Color8(clampi(int(zone[k * 3]), 0, 255), clampi(int(zone[k * 3 + 1]), 0, 255), clampi(int(zone[k * 3 + 2]), 0, 255)))
+				var col: Color = Color.BLACK
+				if cand[k] != 0:
+					col = pal[cls[k]] if cls[k] < 6 else Color8(110, 110, 110)
+				dump.set_pixel(w + i, j, col)
+		dump.save_png(debug_dump + "_sector%d_%d.png" % [si, int(dials[si].get("code", 0))])
 	# Candidates: blobs of any token colour, icon holes filled (an icon can split a token's
 	# base colour into slivers), each matched against the real art of every token type
 	# with enough colour in it: score = art inside the token + how well the blob fits its

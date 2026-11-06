@@ -1217,6 +1217,7 @@ static func _find_markers(data: PackedByteArray, w: int, h: int) -> Array[Vector
 	var big: PackedByteArray = PackedByteArray()   # pixels of pass 0's oversized blobs
 	big.resize(w * h)
 	var any_big: bool = false
+	var core_in_d: float = sqrt(MARKER_CORE_IN_AREA * 4.0 / PI)   # a blob's diameter at that area
 	for pass_i: int in 3:
 		if pass_i == 2 and not any_big:
 			break
@@ -1285,6 +1286,9 @@ static func _find_markers(data: PackedByteArray, w: int, h: int) -> Array[Vector
 				var by: float = sy / count
 				var near: bool = false
 				for q: Vector3 in blobs:
+					# a core replaces the oversized blob it sits in (too big to be read as a marker)
+					if pass_i == 2 and q.z > core_in_d:
+						continue
 					if absf(bx - q.x) < 3.0 and absf(by - q.y) < 3.0:
 						near = true
 						break

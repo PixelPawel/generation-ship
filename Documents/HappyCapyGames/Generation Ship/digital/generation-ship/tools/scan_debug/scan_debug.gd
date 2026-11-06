@@ -58,6 +58,9 @@ func _scan(path: String) -> void:
 	var t1: int = Time.get_ticks_msec()
 	var tableau: TableauReader = TableauReaderScript.create(dials)
 	tableau.debug = OS.get_environment("SCAN_DEBUG") != ""
+	# SCAN_TOKENS=<folder>: each sector's token zone and pixel classes as <photo>_sector<i>_<code>.png there
+	if OS.get_environment("SCAN_TOKENS") != "":
+		tableau.debug_dump = OS.get_environment("SCAN_TOKENS").path_join(path.get_file().get_basename())
 	# as in the app: a column whose sector dial is unread gets a placeholder sector (printed "[placeholder]")
 	tableau.placeholder_card = CardDatabase.find_by_scan_code(450).get("card") as CardData
 	var groups: Array = tableau.analyze(reader.photo, dials, reader.markers)
