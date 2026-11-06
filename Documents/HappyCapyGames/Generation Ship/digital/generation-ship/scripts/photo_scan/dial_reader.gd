@@ -1449,7 +1449,8 @@ func _lights_pass(small: Image) -> Array[Dictionary]:
 	progress = 0.6
 	var all_cands: Array = _lp_read_all(rings)
 	progress = 0.95
-	var out: Array[Dictionary] = _lp_pick(all_cands)
+	# with the sweep's readings too: the final scale can lose dials the sweep's scale confirmed
+	var out: Array[Dictionary] = _lp_pick(best_cands + all_cands)
 	# scale and perspective from the readings; a reading far off its card type's size there goes
 	var pos: Array[Vector2] = []
 	var scales: Array[float] = []
@@ -1575,7 +1576,9 @@ func _lp_build(small: Image) -> void:
 
 # The pyramid level whose pixel (2^(level+1) full-resolution px) matches a light's lit core at s px/mm.
 static func _lp_level_for(s: float) -> int:
-	return clampi(roundi(log(0.55 * s) / log(2.0) - 1.0), 0, 3)
+	# 0.4 mm, not the core's ~0.55: at 11-12 px/mm (real test-sheet photos) the coarser level made a
+	# light about one pixel and lost two thirds of the dials the finer one confirmed (2026-11-06)
+	return clampi(roundi(log(0.4 * s) / log(2.0) - 1.0), 0, 3)
 
 # Light spots at a pyramid level: the level minus the level two below it (blown up), local extrema
 # (3x3) clearly above / below zero, placed to a fraction of a pixel (a parabola through the peak and its
