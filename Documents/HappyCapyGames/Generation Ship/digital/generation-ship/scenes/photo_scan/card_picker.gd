@@ -32,6 +32,10 @@ const TAB_MIN_HEIGHT: float = 72.0
 var _active_tab: int = 0
 var _tab_buttons: Array[Button] = []
 var _grid: GridContainer = null
+# what the card being changed looks like in the scanned photo (2026-11-06): the cut-out and a line
+var _context_row: HBoxContainer = null
+var _context_pic: TextureRect = null
+var _context_lbl: Label = null
 
 func _ready() -> void:
 	_build_ui()
@@ -41,7 +45,9 @@ func _ready() -> void:
 ## slot that must be a sector only ever shows the 2 Sector tabs) so a wrong
 ## pick — a card of a type that slot can't legally hold — isn't reachable
 ## through the picker in the first place. Empty means "no restriction."
-func open(start_tab: int = TAB_SECTOR_DUST, allowed_tabs: Array[int] = []) -> void:
+## context / context_text: the card being changed, as the photo shows it, and a line about it
+## (shown above the tabs; nothing when null / empty).
+func open(start_tab: int = TAB_SECTOR_DUST, allowed_tabs: Array[int] = [], context: Texture2D = null, context_text: String = "") -> void:
 	# A ternary between allowed_tabs (Array[int]) and an untyped array
 	# literal infers a plain Array, which then fails to assign into the
 	# Array[int]-typed local below — reassigning after the fact instead
@@ -51,6 +57,10 @@ func open(start_tab: int = TAB_SECTOR_DUST, allowed_tabs: Array[int] = []) -> vo
 		allowed = [TAB_SECTOR_DUST, TAB_SECTOR_ADVANCED, TAB_TECH, TAB_EXPEDITION]
 	for i: int in _tab_buttons.size():
 		_tab_buttons[i].visible = allowed.has(i)
+	_context_pic.texture = context
+	(_context_pic.get_parent() as Control).visible = context != null   # the frame too (a card added by hand has no cut-out)
+	_context_lbl.text = context_text
+	_context_row.visible = context != null or not context_text.is_empty()
 	_select_tab(start_tab)
 	visible = true
 
@@ -82,6 +92,38 @@ func _build_ui() -> void:
 	title_row.add_child(close_btn)
 
 	vbox.add_child(HSeparator.new())
+
+	_context_row = HBoxContainer.new()
+	_context_row.add_theme_constant_override("separation", 18)
+	_context_row.visible = false
+	vbox.add_child(_context_row)
+	var frame: PanelContainer = PanelContainer.new()
+	var fs: StyleBoxFlat = StyleBoxFlat.new()
+	fs.bg_color = Color(0, 0, 0, 0.3)
+	fs.border_color = Color8(150, 80, 175)          # violet: the scan's own colour
+	fs.set_border_width_all(3)
+	fs.set_corner_radius_all(8)
+	fs.set_content_margin_all(3)
+	frame.add_theme_stylebox_override("panel", fs)
+	_context_row.add_child(frame)
+	_context_pic = TextureRect.new()
+	_context_pic.custom_minimum_size = Vector2(170, 100)
+	_context_pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_context_pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	frame.add_child(_context_pic)
+	_context_lbl = Label.new()
+	var myriad: FontFile = load("res://assets/fonts/Myriad Variable Concept.ttf") as FontFile
+	if myriad and not TranslationServer.get_locale().begins_with("pl"):   # (no Polish letters in it)
+		var fv: FontVariation = FontVariation.new()
+		fv.base_font = myriad
+		fv.variation_opentype = {"wght": 600, "wdth": 100}
+		_context_lbl.add_theme_font_override("font", fv)
+	_context_lbl.add_theme_font_size_override("font_size", 26)
+	_context_lbl.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
+	_context_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_context_lbl.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_context_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_context_row.add_child(_context_lbl)
 
 	var tab_row: HBoxContainer = HBoxContainer.new()
 	tab_row.add_theme_constant_override("separation", 10)

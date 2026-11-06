@@ -6,106 +6,105 @@ const PopupAnim = preload("res://scripts/popup_anim.gd")
 # that stays visible in a real tableau), TableauReader works out each sector's
 # archive and stored supply, and the result goes straight into the ship overview
 # with its VP total — sectors in table order, each anchored at the bottom with its
-# tech stack above it like the in-game ship, an Edit button under each to correct
-# it in the review screen. Capture uses the real CameraIntentPlugin (our own CameraX camera screen, torch on)
-# on Android (falls back to a plain file picker elsewhere, since the plugin
-# only exists in Android builds). Follows the same code-built-UI convention
-# as collection_popup.gd / manual_popup.gd (no companion .tscn).
+# tech stack above it like the in-game ship.
+#
+# 2026-11-06 redesign (mockups in Docs/Scan Tableau/ui_mockup): one screen, no separate editing
+# screen. The ship is edited by touching it: a tapped card lifts with a gold edge and the strip at
+# the bottom offers Change / Remove; "+" slots on top of every stack and at the end of the row add
+# cards and sectors; a sector's tokens and its archive open small trays right there (tap a token to
+# add one; face-up archived cards are picked as the real cards, so their stars count by themselves).
+# The rail on the left holds the score (tap: the breakdown), the photo (tap: compare) and the
+# capture buttons. Names, captions and the status line are set in Myriad (the theme's Ethnocentric
+# stays for the title, score and buttons: it reads badly at small sizes).
+# Capture uses the real CameraIntentPlugin on Android (our camera screen, the phone's camera app,
+# the gallery); elsewhere a plain file picker. Code-built UI like collection_popup.gd (no .tscn).
 
 const DialReaderScript := preload("res://scripts/photo_scan/dial_reader.gd")
 const SETTINGS_PATH: String = "user://settings.cfg"
 const CardPickerScript := preload("res://scenes/photo_scan/card_picker.gd")
 
-# A sector always shows exactly 6 slots: 1 sector card + 5 tech/expedition
-# (its physical maximum), never fewer or more — unused slots just stay
-# blank rather than being added/removed. Review columns are sized to fit
-# all 6 across one phone-width screen without horizontal scrolling.
-const SECTOR_SLOT_COUNT: int = 6
+const MAX_TECHS: int = 5                  # a sector holds its sector card + 5 tech/expedition cards
+const MAX_SECTORS: int = 6                # a ship never has more
 # Hibernators (a dust sector) stands in for a sector whose dial couldn't be read
 const PLACEHOLDER_SECTOR_CODE: int = 450
-const REVIEW_COL_WIDTH: float = 210.0
-const REVIEW_THUMB_SIZE: Vector2 = Vector2(180, 252)
 
-# Sized for touch on a phone screen, not desktop-popup scale — this whole
-# popup is Android-only in practice (see main_menu.gd), unlike the other
-# code-built popups it otherwise mirrors the style of.
+# Sized for touch on a phone (this popup is Android-first, see main_menu.gd); the canvas is 1920x1080.
 const TITLE_FONT_SIZE: int = 32
-const HINT_FONT_SIZE: int = 22
-const LABEL_FONT_SIZE: int = 22
-const BUTTON_FONT_SIZE: int = 26
-const BUTTON_MIN_HEIGHT: float = 88.0
-const CONTROL_FONT_SIZE: int = 22
-const CONTROL_MIN_HEIGHT: float = 72.0
-
-# A SpinBox's own built-in up/down arrows are tiny and don't scale with its
-# height — nowhere near big enough to hit reliably on a phone — so every
-# counter here pairs one with big dedicated -/+ buttons instead
-# (_make_stepper_row) and only relies on the SpinBox itself to hold/display
-# the value. The whole row scrolls horizontally (see _build_review_view)
-# since 6 supply counters plus 3 tucked ones, each now with 2 extra big
-# buttons, no longer fit one phone-width screen at a readable size.
-const _SUPPLY_ICON_SIZE: Vector2 = Vector2(36, 36)
-const SUPPLY_CONTROL_HEIGHT: float = 72.0
-const SUPPLY_FONT_SIZE: int = 22
-const SUPPLY_SPIN_WIDTH: float = 56.0
-# Half of SUPPLY_SPIN_WIDTH — the tucked counters sit beside the 6 cards in
-# their own scrollable row now, and were juuust wide enough to force a
-# scrollbar there; the number field itself doesn't need to be as wide as
-# the supply row's (it's flanked by big +/- buttons either way).
-const TUCKED_SPIN_WIDTH: float = 28.0
+const BUTTON_FONT_SIZE: int = 22
+const BUTTON_MIN_HEIGHT: float = 84.0
+const BODY_FONT_SIZE: int = 26            # Myriad: status line, names
+const SMALL_FONT_SIZE: int = 22
+const NAME_FONT_SIZE: int = 32
+const SCORE_FONT_SIZE: int = 88
 const STEPPER_BUTTON_SIZE: float = 72.0
 const STEPPER_BUTTON_FONT_SIZE: int = 30
-# The archive counters' little card outline ([▲] Archived / [▲] Stars ★ / [▼] Archived).
-const TUCKED_ARCHIVE_CARD_SIZE: Vector2 = Vector2(28, 40)
-const TUCKED_ARCHIVE_ARROW_SIZE: int = 20
+const RAIL_WIDTH: float = 352.0
+const PHOTO_THUMB_HEIGHT: float = 300.0
+const CAPTURE_BUTTON_HEIGHT: float = 118.0
+const CAPTURE_GLYPH: float = 50.0
+const BAR_HEIGHT: float = 104.0           # the strip under the ship (edit actions / hint)
 
-# The ship overview's cards are sized to fit the space there is (all sectors side
-# by side, the tallest stack without scrolling), within these limits; SHIP_CARD_*
-# is a card's long edge in px. Sector 67x44 mm landscape, tech 44x67 mm portrait.
-const SHIP_CARD_MAX: float = 220.0
-const SHIP_FIT_SHARE: float = 0.85        # of what would just fit: room to spare, so no scrollbar
+# The ship's cards are sized to fit the space there is (all sectors side by side, the tallest
+# stack without scrolling), within these limits; SHIP_CARD_* is a card's long edge in px.
+# Sector 67x44 mm landscape, tech 44x67 mm portrait.
+const SHIP_CARD_MAX: float = 236.0
+const SHIP_FIT_SHARE: float = 0.94        # of what would just fit: room to spare, so no scrollbar
 const SHIP_CARD_MIN: float = 96.0
-# Like a real tableau: each tech covers the top of the one below it, which keeps its
-# name strip and orb in view (TECH_SHOWN of its height), and the tech nearest the
-# sector covers the sector's top (SECTOR_COVERED of the sector's height).
+const SHIP_GAP: float = 40.0              # between sector columns
+const SHIP_ADD_WIDTH: float = 0.8         # the "+ Sector" slot, x the card's long edge
+# Like a real tableau: each tech covers the top of the one below it, which keeps its name strip
+# and orb in view (TECH_SHOWN of its height), and the tech nearest the sector covers the sector's
+# top (SECTOR_COVERED of the sector's height).
 const SHIP_TECH_SHOWN: float = 0.36
 const SHIP_SECTOR_COVERED: float = 0.4
-const SHIP_INFO_HEIGHT: float = 136.0     # supply/archive line + Edit button under a sector
-const SHIP_ADD_COLUMN: float = 150.0      # the "+ Sector" column
-const MAX_SECTORS: int = 6                # a ship never has more
-const SHIP_EDIT_HEIGHT: float = 64.0
-const SCORE_COMPACT_FONT_SIZE: int = 56
-const SUMMARY_SUPPLY_ICON_SIZE: Vector2 = Vector2(44, 44)
-const SUMMARY_FONT_SIZE: int = 24
-const SUMMARY_ARCHIVE_CARD_SIZE: Vector2 = Vector2(24, 34)   # a little portrait card round the ▲/▼
-const SUMMARY_ARCHIVE_ARROW_SIZE: int = 16
-const SUMMARY_HOVER_SCALE: Vector2 = Vector2(1.08, 1.08)
+const GHOST_SLOT_H: float = 0.24          # the "+" slot on top of a stack, x the long edge
+const GHOST_GAP: float = 0.04
+const SELECT_LIFT: float = 12.0           # a tapped card rises this far
+const SHIP_INFO_HEIGHT: float = 150.0     # tokens + archive under a sector (measured later)
+const TOKEN_ICON: float = 50.0
+const ARCHIVE_CARD: Vector2 = Vector2(44, 67)
+const TRAY_TOKEN: float = 76.0
+const TRAY_CARD: Vector2 = Vector2(64, 97)
+# a card as the photo shows it: the part a stack leaves in view (a tech's lower CROP_TECH_SHOWN with its
+# name strip and orb, a sector's lower part under the techs), upright, at CROP_PPM px per mm
+const CROP_PPM: float = 6.0
+const CROP_TECH_SHOWN: float = 0.4
+const CROP_SECTOR_SHOWN: float = 0.62
+const TAP_SLOP: float = 20.0              # a press that moves further is a scroll, not a tap
+const SUMMARY_HOVER_SCALE: Vector2 = Vector2(1.06, 1.06)
 const SUMMARY_HOVER_IN_SEC: float = 0.12
 const SUMMARY_HOVER_OUT_SEC: float = 0.18
-const SCORE_STAR_COLOR: Color = Color(1.0, 0.85, 0.2)
-const SCORE_COLOR: Color = Color(0.9, 0.85, 0.7)
+
+# Colours: the game's navy and steel; gold = needs you (a tapped card, a card to check); violet =
+# the scan's own (the dial diamond's colour), on the photo.
+const CREAM: Color = Color(0.9, 0.85, 0.7)
+const MUTED: Color = Color(0.56, 0.6, 0.69)
+const GOLD: Color = Color8(236, 200, 104)
+const STAR_COLOR: Color = Color(1.0, 0.85, 0.2)
+const VIOLET: Color = Color8(150, 80, 175)
+const STEEL: Color = Color(0.22, 0.40, 0.65, 0.75)
+const STEEL_DIM: Color = Color(0.22, 0.35, 0.55, 0.45)
+const GHOST: Color = Color(0.45, 0.55, 0.75, 0.65)
+const PANEL_BG: Color = Color(0.055, 0.08, 0.15, 0.97)
+const BADGE_DARK: Color = Color(0.1, 0.08, 0.02)
+
 # The photo guide shown before the first scan — badge colours as drawn on the picture.
 const GUIDE_IMAGE_PATH: String = "res://assets/scan/guide.jpg"
 const GUIDE_BADGE_BG: Color = Color8(18, 26, 46)
 const GUIDE_BADGE_RIM: Color = Color8(236, 200, 104)
 const GUIDE_BADGE_SIZE: float = 64.0
-# the tips beside the picture (2026-11-02: 22 was too small to read on a phone; 32 overflows
-# a 16:9 phone in French with the Android night tip, 30 fits every language there)
 const GUIDE_TIP_FONT_SIZE: int = 30
-# picture : tips width — the picture is height-bound on a phone (1800x1042), so this costs it
-# nothing there and gives the bigger tips the width it wasn't using (was 2.6)
-const GUIDE_PICTURE_RATIO: float = 1.75
+const GUIDE_PICTURE_RATIO: float = 1.4
 const GUIDE_TIPS: Array[String] = [
 	"Hold your phone sideways, straight above the table, and fit your whole ship in the photo.",
 	"Keep the ring of lights around each card's orb uncovered.",
 	"Give supply tokens a little room and keep them fully visible.",
 	"Archived cards go below their sector, face up or face down.",
-	"The scan can make mistakes: compare it with Show Photo and fix any sector with Edit.",
+	"SCAN_TIP_FIX",
 ]
 # badge per tip: the numbers on the picture; the last tip isn't about the picture
 const GUIDE_MARKS: Array[String] = ["1", "2", "3", "4", "!"]
-# Same res://assets/ui/supply/<Name>.png set supply_ui.gd uses elsewhere —
-# the real resource-token graphics, not the card-frame icon set.
+# Same res://assets/ui/supply/<Name>.png set supply_ui.gd uses elsewhere — the real token art.
 const _SUPPLY_ICON_PATHS: Dictionary = {
 	CardData.SupplyColor.DUST:     "res://assets/ui/supply/Dust.png",
 	CardData.SupplyColor.METALS:   "res://assets/ui/supply/Metals.png",
@@ -114,78 +113,61 @@ const _SUPPLY_ICON_PATHS: Dictionary = {
 	CardData.SupplyColor.ELECTRIX: "res://assets/ui/supply/Electrix.png",
 	CardData.SupplyColor.THRUST:   "res://assets/ui/supply/Thrust.png",
 }
-
 const _SUPPLY_COLORS: Array[CardData.SupplyColor] = [
 	CardData.SupplyColor.DUST, CardData.SupplyColor.METALS, CardData.SupplyColor.LIQUIDS,
 	CardData.SupplyColor.ORGANIX, CardData.SupplyColor.ELECTRIX, CardData.SupplyColor.THRUST,
 ]
-
-# Every picked card's identity is known (CardPicker only ever hands back a
-# real name), so there's no more "sector/tech/tucked" role dropdown per card
-# — the first reviewed card is always the sector, the rest are always its
-# exposed tech stack. Tucked cards (which don't get their own slot/art
-# anymore) are tracked as plain counts instead: face-down ones score as pure
-# counts anyway (BotScoring never needs their identity), and face-up ones
-# split into a card count plus a separately entered total-stars value (the
-# printed star icons are visible on a face-up tucked card even without
-# identifying exactly which card it is), rather than guessing at an assumed
-# average.
+const TECH_BACK_PATH: String = "res://assets/cards/Tech/%s/GS Techs Back 44x67mm.png"
+const MYRIAD_PATH: String = "res://assets/fonts/Myriad Variable Concept.ttf"
 
 var _scan_thread: Thread = null           # DialReader running on the current photo
 var _scan_job: Object = null              # the reader on that thread (DialReader / TableauReader), to cancel it
 var _scan_progress: ProgressBar = null      # shown while the photo is being read
-var _sectors: Array[Dictionary] = []          # board entries confirmed so far, BotScoring-shaped
-var _pending: Array[Dictionary] = []          # current in-review cluster's candidates
-var _source_image: Image = null               # the one whole-ship photo, kept for supply detection per cluster
+var _sectors: Array[Dictionary] = []          # the ship, BotScoring-shaped (+ unsure/unknown flags)
+var _source_image: Image = null               # the one whole-ship photo
 
+var _body_font: FontVariation = null          # Myriad semibold, normal width
 var _file_dialog: FileDialog = null
-var _list_view: Control = null
-var _review_view: Control = null
-var _sector_list_box: HBoxContainer = null    # sector columns side by side (see _build_list_view)
+var _card_picker: Control = null
+var _picker_callback: Callable = Callable()   # armed while a pick is awaited
+
+# the stage: the guide, the ship, the photo or the breakdown, one at a time
+var _view: String = "ship"
+var _guide_box: Control = null
 var _sector_scroll: ScrollContainer = null
-var _results_box: VBoxContainer = null        # VP breakdown, shown in the ship's place
-var _guide_box: Control = null                # how to take the photo, until the first scan
-var _status_label: Label = null               # scan progress / outcome
-# Alliance scores the expeditions of an ally the photo can't show: when the ship
-# has it, the player enters that ally's expedition count here.
+var _sector_list_box: HBoxContainer = null    # sector columns side by side
+var _photo_view: TextureRect = null
+var _results_box: VBoxContainer = null
+var _status_badge: Control = null             # the gold "?" before "N cards to check"
+var _status_label: Label = null
+var _scan_summary: String = ""                # what the last scan found (shown when nothing needs checking)
+var _bar: PanelContainer = null               # the strip under the stage
+var _bar_style: StyleBoxFlat = null
+# the rail
+var _score_box: Control = null
+var _score_total_label: Label = null
+var _photo_box: Control = null
+var _photo_thumb: TextureRect = null
+var _photo_caption: Label = null
+var _leaderboard_btn: Button = null
+# Alliance scores the expeditions of an ally the photo can't show: entered here when the ship has it
 var _alliance_row: HBoxContainer = null
 var _alliance_count_lbl: Label = null
 var _alliance_ally_exp: int = 0
 const ALLIANCE_MAX_EXPEDITIONS: int = 9
-var _leaderboard_btn: Button = null
-var _photo_view: TextureRect = null           # the scanned photo, shown in the ship's place to compare
-var _photo_btn: Button = null                 # "Show Photo" / "Show Ship"
-var _rotate_btn: Button = null                # turns the shown photo, only while it's shown
-var _ship_card: float = SHIP_CARD_MAX         # long edge of the overview's cards, see _fit_ship_card()
-var _ship_info_boxes: Array[Control] = []     # each sector's supply line, evened out in height
+
+var _ship_card: float = SHIP_CARD_MAX         # long edge of the ship's cards, see _fit_ship_card()
+var _ship_info_boxes: Array[Control] = []     # each sector's token line, evened out in height
 var _ship_archive_boxes: Array[Control] = []  # each sector's archive line, likewise
-var _ship_info_height: float = SHIP_INFO_HEIGHT   # what sits under a sector card, as last measured
-var _review_cards_box: HBoxContainer = null
-var _confirm_btn: Button = null
-var _supply_spinboxes: Dictionary = {}        # SupplyColor(int) -> SpinBox
-var _tucked_up_spinbox: SpinBox = null       # count of face-up tucked cards
-var _tucked_up_stars_spinbox: SpinBox = null # total printed stars across those cards
-var _tucked_down_spinbox: SpinBox = null     # count of face-down tucked cards (identity/stars n/a)
-var _card_picker: Control = null
-var _picker_callback: Callable = Callable()   # armed while a row's Edit flow is waiting on a pick
-var _skip_btn: Button = null                  # relabeled "Cancel" while editing an already-confirmed sector
-var _supply_editor: Control = null            # a sector's quick supply counter, while open (_open_supply_editor)
-
-
-# Replaces the photo preview once Calculate Score is pressed — a big ★
-# and the total VP, in the same spot the photo occupied. Reverts back to
-# the photo (see _refresh_sector_list) as soon as the board changes, so it
-# never sits there showing a stale number after an edit.
-var _score_display: Control = null
-var _score_total_label: Label = null
-
-# Set while re-opening an already-confirmed sector for editing (via the
-# list view's "Edit Sector" button) — the sector is pulled back out of
-# _sectors into _pending for the same review screen a fresh scan uses.
-# _editing_original_sector is kept aside so Cancel can restore it unchanged.
-var _editing_sector_index: int = -1
-var _editing_original_sector: Dictionary = {}
-var _delete_btn: Button
+var _ship_info_height: float = SHIP_INFO_HEIGHT
+# the tapped card: sector index, and -1 for the sector card itself or the tech's index in its stack
+var _sel_sector: int = -1
+var _sel_tech: int = -1
+var _tray: Control = null                     # a sector's token or archive tray while open
+var _tray_kind: String = ""
+var _tray_sector: int = -1
+var _tray_anchor: Rect2 = Rect2()
+var _crops: Dictionary = {}                  # photo cut-outs by card position (cleared with each photo)
 
 
 # The reading thread must always be joined, also when the screen is freed mid-scan.
@@ -204,32 +186,53 @@ func _finish_scan_thread() -> void:
 	_scan_job = null
 
 func _ready() -> void:
+	var myriad: FontFile = load(MYRIAD_PATH) as FontFile
+	# Myriad Variable Concept has no Polish ą ć ę ń ś ź ż (nor · … ★): in Polish the theme's
+	# Ethnocentric stays, rather than letters patched in from a system font
+	if myriad and not TranslationServer.get_locale().begins_with("pl"):
+		_body_font = FontVariation.new()
+		_body_font.base_font = myriad
+		_body_font.variation_opentype = {"wght": 600, "wdth": 100}
 	_build_ui()
 	visible = false
 
 func open() -> void:
-	_close_supply_editor()
+	_close_tray()
+	_sel_sector = -1
+	_sel_tech = -1
 	_sectors.clear()
 	_source_image = null
+	_scan_summary = ""
 	_photo_view.texture = null
-	_photo_btn.disabled = true
-	_set_view("ship")
+	_photo_thumb.texture = null
+	_photo_box.visible = false
 	_guide_box.visible = true
-	_sector_scroll.visible = false   # the guide takes the ship's place until a photo is in
-	_status_label.visible = false
 	_alliance_ally_exp = 0
-	_editing_sector_index = -1
-	_editing_original_sector = {}
+	_set_view("ship")
 	_refresh_sector_list()
-	_show_list_view()
 	PopupAnim.open(self)
 
 func _input(event: InputEvent) -> void:
-	if not visible:
+	if not visible or _card_picker.visible:
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		PopupAnim.close(self)
+		if _tray:
+			_close_tray()
+		elif _sel_sector >= 0:
+			_select(-1, -1)
+		else:
+			PopupAnim.close(self)
 		get_viewport().set_input_as_handled()
+		return
+	# a press outside an open tray closes it and still does what it was meant for (nothing is
+	# rebuilt under it); a press on the tray's own line only closes it
+	if _tray and event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+		var at: Vector2 = get_global_mouse_position()
+		if not _tray.get_global_rect().has_point(at):
+			var own_line: bool = _tray_line_rect().has_point(at)
+			_close_tray()
+			if own_line:
+				get_viewport().set_input_as_handled()
 
 # ── UI construction ────────────────────────────────────────────────────────
 
@@ -243,28 +246,30 @@ func _build_ui() -> void:
 	add_child(panel)
 
 	var vbox: VBoxContainer = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 16)
+	vbox.add_theme_constant_override("separation", 14)
 	vbox.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	panel.add_child(vbox)
 
 	var title_row: HBoxContainer = HBoxContainer.new()
+	title_row.add_theme_constant_override("separation", 18)
 	vbox.add_child(title_row)
 	var title: Label = Label.new()
-	title.text = "SCAN TABLEAU"
+	title.text = tr("Scan Tableau").to_upper()
 	title.add_theme_font_size_override("font_size", TITLE_FONT_SIZE)
-	title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
+	title.add_theme_color_override("font_color", CREAM)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	title_row.add_child(title)
-	# Android: also put each scan photo in the gallery (off by default; for checking a scan
-	# later or sending it in — the photos themselves stay in the app's private files). Up here
-	# since 2026-11-06: the bottom row needed the room for Camera App.
+	# Android: also put each scan photo in the gallery (off by default; for checking a scan later or
+	# sending it in — the photos themselves stay in the app's private files)
 	# (no has_method() on a plugin singleton: Godot's Java bridge object doesn't report its
 	# methods that way; the plugin ships in the same build, so it has them)
 	if Engine.has_singleton("CameraIntentPlugin"):
 		var gallery: CheckButton = CheckButton.new()
 		gallery.text = "Save photos to gallery"
 		gallery.focus_mode = Control.FOCUS_NONE
-		gallery.add_theme_font_size_override("font_size", BUTTON_FONT_SIZE)
+		_body(gallery, SMALL_FONT_SIZE)
+		gallery.add_theme_color_override("font_color", MUTED)
 		gallery.button_pressed = _save_to_gallery()
 		gallery.toggled.connect(_set_save_to_gallery)
 		title_row.add_child(gallery)
@@ -275,10 +280,12 @@ func _build_ui() -> void:
 
 	vbox.add_child(HSeparator.new())
 
-	_list_view = _build_list_view()
-	vbox.add_child(_list_view)
-	_review_view = _build_review_view()
-	vbox.add_child(_review_view)
+	var main_row: HBoxContainer = HBoxContainer.new()
+	main_row.add_theme_constant_override("separation", 32)
+	main_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(main_row)
+	main_row.add_child(_build_rail())
+	main_row.add_child(_build_stage())
 
 	_file_dialog = FileDialog.new()
 	_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
@@ -290,214 +297,161 @@ func _build_ui() -> void:
 	add_child(_file_dialog)
 
 	_card_picker = CardPickerScript.new()
+	_card_picker.z_index = 200        # above an open tray
 	add_child(_card_picker)
 
-func _build_list_view() -> Control:
-	var box: VBoxContainer = VBoxContainer.new()
-	box.add_theme_constant_override("separation", 14)
-	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+## The rail: the score (tap: the breakdown), the photo (tap: compare), the capture buttons and
+## Add to leaderboard at its foot.
+func _build_rail() -> Control:
+	var rail: VBoxContainer = VBoxContainer.new()
+	rail.custom_minimum_size = Vector2(RAIL_WIDTH, 0)
+	rail.add_theme_constant_override("separation", 18)
 
-	_guide_box = _build_photo_guide()
-	box.add_child(_guide_box)
-	_status_label = Label.new()
-	_status_label.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
-	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# score: a big ★ and the total
+	var score: VBoxContainer = VBoxContainer.new()
+	score.add_theme_constant_override("separation", 0)
+	score.mouse_filter = Control.MOUSE_FILTER_STOP
+	score.tooltip_text = "Tap for the breakdown"
+	score.gui_input.connect(_tap_handler(func() -> void: _set_view("ship" if _view == "breakdown" else "breakdown")))
+	var score_row: HBoxContainer = HBoxContainer.new()
+	score_row.add_theme_constant_override("separation", 12)
+	score_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	score.add_child(score_row)
+	var star_lbl: Label = Label.new()
+	star_lbl.text = "★"
+	star_lbl.add_theme_font_size_override("font_size", SCORE_FONT_SIZE)
+	star_lbl.add_theme_color_override("font_color", STAR_COLOR)
+	star_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	star_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	score_row.add_child(star_lbl)
+	_score_total_label = Label.new()
+	_score_total_label.add_theme_font_size_override("font_size", SCORE_FONT_SIZE)
+	_score_total_label.add_theme_color_override("font_color", CREAM)
+	_score_total_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_score_total_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	score_row.add_child(_score_total_label)
+	var score_hint: Label = _make_label("Tap for the breakdown", SMALL_FONT_SIZE, MUTED)
+	score_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	score.add_child(score_hint)
+	_score_box = score
+	rail.add_child(score)
+
+	# the photo, small: tap to compare it with the ship
+	var frame: PanelContainer = PanelContainer.new()
+	frame.custom_minimum_size = Vector2(0, PHOTO_THUMB_HEIGHT)
+	frame.add_theme_stylebox_override("panel", _rounded(Color(0, 0, 0, 0.3), VIOLET, 3, 12, 3))
+	frame.clip_contents = true
+	frame.mouse_filter = Control.MOUSE_FILTER_STOP
+	frame.gui_input.connect(_tap_handler(func() -> void: _set_view("ship" if _view == "photo" else "photo")))
+	_photo_thumb = TextureRect.new()
+	_photo_thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_photo_thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_photo_thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_child(_photo_thumb)
+	var caption_wrap: MarginContainer = MarginContainer.new()
+	caption_wrap.add_theme_constant_override("margin_left", 10)
+	caption_wrap.add_theme_constant_override("margin_bottom", 10)
+	caption_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_child(caption_wrap)
+	var pill: PanelContainer = PanelContainer.new()
+	pill.add_theme_stylebox_override("panel", _rounded(Color(0.04, 0.05, 0.1, 0.86), Color(0, 0, 0, 0), 0, 16, 12))
+	pill.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	pill.size_flags_vertical = Control.SIZE_SHRINK_END
+	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	caption_wrap.add_child(pill)
+	_photo_caption = _make_label("SCAN_PHOTO_CAPTION", SMALL_FONT_SIZE, CREAM)
+	_photo_caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pill.add_child(_photo_caption)
+	_photo_box = frame
+	rail.add_child(frame)
+
+	var spacer: Control = Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	rail.add_child(spacer)
+
+	# capture: picture buttons (Android: our camera, the camera app's Night mode, the gallery)
+	var capture: HBoxContainer = HBoxContainer.new()
+	capture.add_theme_constant_override("separation", 12)
+	rail.add_child(capture)
+	if Engine.has_singleton("CameraIntentPlugin"):
+		capture.add_child(_make_capture_button("camera", "Camera", _on_scan_ship_pressed))
+		capture.add_child(_make_capture_button("night", "Night shot", _on_camera_app_pressed))
+		capture.add_child(_make_capture_button("gallery", "Gallery", _on_gallery_pressed))
+	else:
+		capture.add_child(_make_capture_button("gallery", "Load Image", _on_scan_ship_pressed))
+
+	_leaderboard_btn = _make_button("Add to Leaderboard")
+	_style_gold(_leaderboard_btn)
+	_leaderboard_btn.pressed.connect(_on_leaderboard_pressed)
+	rail.add_child(_leaderboard_btn)
+	return rail
+
+## The stage: the status line, the ship (or the guide, the photo, the breakdown) and the strip.
+func _build_stage() -> Control:
+	var col: VBoxContainer = VBoxContainer.new()
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.add_theme_constant_override("separation", 12)
+
+	var status_row: HBoxContainer = HBoxContainer.new()
+	status_row.add_theme_constant_override("separation", 12)
+	col.add_child(status_row)
+	_status_badge = _make_round_badge("?", 36.0, GOLD, BADGE_DARK)
+	_status_badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_status_badge.visible = false
+	status_row.add_child(_status_badge)
+	_status_label = _make_label("", BODY_FONT_SIZE, CREAM)
+	_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_status_label.visible = false
-	box.add_child(_status_label)
-	_build_alliance_row(box)
+	status_row.add_child(_status_label)
+	_build_alliance_row(status_row)
 	_scan_progress = ProgressBar.new()
-	_scan_progress.custom_minimum_size = Vector2(0, BUTTON_MIN_HEIGHT * 0.5)
+	_scan_progress.custom_minimum_size = Vector2(0, 18)
 	_scan_progress.min_value = 0.0
 	_scan_progress.max_value = 100.0
 	_scan_progress.show_percentage = false
 	_scan_progress.visible = false
-	box.add_child(_scan_progress)
+	col.add_child(_scan_progress)
 
-	# The ship: sectors side by side in table order, anchored at the bottom like
-	# the in-game ship — every sector card on one baseline with its tech stack
-	# growing upward, and the view resting at the bottom when the stacks are
-	# taller than the screen. The holder fills the scroll area and pushes the row
-	# to its bottom while everything fits.
+	_guide_box = _build_photo_guide()
+	col.add_child(_guide_box)
+	# The ship: sectors side by side in table order, anchored at the bottom like the in-game ship —
+	# every sector card on one baseline with its tech stack growing upward. The holder fills the
+	# scroll area and pushes the row to its bottom while everything fits.
 	_sector_scroll = ScrollContainer.new()
 	_sector_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_sector_scroll.resized.connect(_on_ship_area_resized)
-	box.add_child(_sector_scroll)
-	# The scanned photo takes the ship's place while comparing (Show Photo), whole
-	# and scaled to fit — screen space is too tight to show both.
-	_photo_view = TextureRect.new()
-	_photo_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_photo_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_photo_view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_photo_view.visible = false
-	box.add_child(_photo_view)
-	# The VP breakdown, also in the ship's place (tap the score) — so opening it never
-	# squeezes the ship.
-	_results_box = VBoxContainer.new()
-	_results_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_results_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	_results_box.add_theme_constant_override("separation", 6)
-	_results_box.visible = false
-	box.add_child(_results_box)
+	col.add_child(_sector_scroll)
 	var holder: VBoxContainer = VBoxContainer.new()
 	holder.alignment = BoxContainer.ALIGNMENT_END
 	holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_sector_scroll.add_child(holder)
 	_sector_list_box = HBoxContainer.new()
-	_sector_list_box.add_theme_constant_override("separation", 14)
+	_sector_list_box.add_theme_constant_override("separation", int(SHIP_GAP))
 	_sector_list_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	holder.add_child(_sector_list_box)
+	# the photo, whole, in the ship's place while comparing
+	_photo_view = TextureRect.new()
+	_photo_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_photo_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_photo_view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_photo_view.visible = false
+	col.add_child(_photo_view)
+	# the VP breakdown, also in the ship's place (tap the score)
+	_results_box = VBoxContainer.new()
+	_results_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_results_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	_results_box.add_theme_constant_override("separation", 6)
+	_results_box.visible = false
+	col.add_child(_results_box)
 
-	var btn_row: HBoxContainer = HBoxContainer.new()
-	btn_row.add_theme_constant_override("separation", 16)
-	box.add_child(btn_row)
-	# The ship's VP total ("★ 87"), recalculated whenever the ship changes; tap it
-	# for the breakdown.
-	_score_display = HBoxContainer.new()
-	_score_display.add_theme_constant_override("separation", 8)
-	_score_display.mouse_filter = Control.MOUSE_FILTER_STOP
-	_score_display.tooltip_text = "Tap for the breakdown"
-	_score_display.visible = false
-	_score_display.gui_input.connect(func(event: InputEvent) -> void:
-		if _is_tap(event):
-			_set_view("ship" if _results_box.visible else "breakdown"))
-	var star_lbl: Label = Label.new()
-	star_lbl.text = "★"
-	star_lbl.add_theme_font_size_override("font_size", SCORE_COMPACT_FONT_SIZE)
-	star_lbl.add_theme_color_override("font_color", SCORE_STAR_COLOR)
-	star_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	star_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_score_display.add_child(star_lbl)
-	_score_total_label = Label.new()
-	_score_total_label.add_theme_font_size_override("font_size", SCORE_COMPACT_FONT_SIZE)
-	_score_total_label.add_theme_color_override("font_color", SCORE_COLOR)
-	_score_total_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_score_total_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_score_display.add_child(_score_total_label)
-	btn_row.add_child(_score_display)
-	# The camera plugin only exists in Android builds; elsewhere it's a file picker.
-	var scan_btn: Button = _make_button("Take Image" if Engine.has_singleton("CameraIntentPlugin") else "Load Image")
-	scan_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scan_btn.pressed.connect(_on_scan_ship_pressed)
-	btn_row.add_child(scan_btn)
-	# Android: the phone's own camera app, the full one with its Night mode (many phones don't
-	# offer that to apps; on the real cards its night shots read nearly everything, this game's
-	# camera ~90 %): back in the game, the photo picker opens by itself, newest first
-	if Engine.has_singleton("CameraIntentPlugin"):
-		var app_btn: Button = _make_button("Camera App")
-		app_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		app_btn.pressed.connect(_on_camera_app_pressed)
-		btn_row.add_child(app_btn)
-	# Android: a photo from the gallery (one taken earlier, or when the picker was closed)
-	if Engine.has_singleton("CameraIntentPlugin"):
-		var pick_btn: Button = _make_button("From Gallery")
-		pick_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		pick_btn.pressed.connect(_on_gallery_pressed)
-		btn_row.add_child(pick_btn)
-	_photo_btn = _make_button("Show Photo")
-	_photo_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_photo_btn.disabled = true
-	_photo_btn.pressed.connect(func() -> void: _set_view("ship" if _photo_view.visible else "photo"))
-	btn_row.add_child(_photo_btn)
-	# Godot ignores the orientation phones store in a JPEG, so a photo can show up
-	# sideways; reading it doesn't care, this only turns what's shown.
-	_rotate_btn = _make_button("⟳ Rotate")
-	_rotate_btn.visible = false
-	_rotate_btn.pressed.connect(_rotate_photo)
-	btn_row.add_child(_rotate_btn)
-	_leaderboard_btn = _make_button("Add to Leaderboard")
-	_leaderboard_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_leaderboard_btn.pressed.connect(_on_leaderboard_pressed)
-	btn_row.add_child(_leaderboard_btn)
-
-	return box
-
-func _build_review_view() -> Control:
-	var box: VBoxContainer = VBoxContainer.new()
-	box.add_theme_constant_override("separation", 14)
-	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
-
-	var hint: Label = _make_hint_label("Every sector always shows 6 slots: the first is the sector, the other 5 are its tech/expedition stack (leave any unused ones blank). Tap Edit to pick a card's real identity from the collection (auto-detected as a starting guess where possible). Stored supply and archived-card counts below are also auto-detected and much less reliable than card identity — check them carefully.")
-	box.add_child(hint)
-
-	# The 6 cards never fill the whole screen width, so the tucked-card
-	# counters live in that leftover space instead of crowding the supply
-	# row below into needing a scrollbar — see _make_tucked_counter.
-	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	box.add_child(scroll)
-	var cards_row: HBoxContainer = HBoxContainer.new()
-	cards_row.add_theme_constant_override("separation", 20)
-	scroll.add_child(cards_row)
-	_review_cards_box = HBoxContainer.new()
-	_review_cards_box.add_theme_constant_override("separation", 14)
-	cards_row.add_child(_review_cards_box)
-	cards_row.add_child(VSeparator.new())
-	# label | stepper grid: the label column is as wide as its longest label, so the
-	# steppers line up and the block sits right by the separator
-	var tucked_col: GridContainer = GridContainer.new()
-	tucked_col.columns = 2
-	tucked_col.add_theme_constant_override("h_separation", 8)
-	tucked_col.add_theme_constant_override("v_separation", 12)
-	tucked_col.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	cards_row.add_child(tucked_col)
-	_tucked_up_spinbox = _make_tucked_counter(tucked_col, "▲", "Archived")
-	_tucked_up_stars_spinbox = _make_tucked_counter(tucked_col, "▲", "Stars ★")
-	_tucked_down_spinbox = _make_tucked_counter(tucked_col, "▼", "Archived")
-
-	box.add_child(HSeparator.new())
-
-	var supply_label: Label = _make_hint_label("Stored supply on this sector (auto-detected and much less reliable than card identity — check it carefully):")
-	box.add_child(supply_label)
-	var supply_row: HBoxContainer = HBoxContainer.new()
-	supply_row.add_theme_constant_override("separation", 12)
-	box.add_child(supply_row)
-	_supply_spinboxes.clear()
-	for color: CardData.SupplyColor in _SUPPLY_COLORS:
-		var col_box: VBoxContainer = VBoxContainer.new()
-		col_box.add_theme_constant_override("separation", 4)
-		col_box.alignment = BoxContainer.ALIGNMENT_CENTER
-		col_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		var icon: TextureRect = TextureRect.new()
-		icon.texture = load(_SUPPLY_ICON_PATHS[color]) as Texture2D
-		icon.custom_minimum_size = _SUPPLY_ICON_SIZE
-		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		# custom_minimum_size alone doesn't shrink a TextureRect below its
-		# texture's own native pixel size — EXPAND_IGNORE_SIZE is needed too
-		# (same fix as supply_ui.gd/collection_popup.gd/market_panel.gd).
-		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon.tooltip_text = CardData.color_name(color)
-		col_box.add_child(icon)
-		var spin: SpinBox = SpinBox.new()
-		spin.min_value = 0
-		spin.max_value = 99
-		spin.custom_minimum_size = Vector2(SUPPLY_SPIN_WIDTH, SUPPLY_CONTROL_HEIGHT)
-		spin.get_line_edit().add_theme_font_size_override("font_size", SUPPLY_FONT_SIZE)
-		spin.alignment = HORIZONTAL_ALIGNMENT_CENTER
-		col_box.add_child(_make_stepper_row(spin))
-		supply_row.add_child(col_box)
-		_supply_spinboxes[int(color)] = spin
-
-	var btn_row: HBoxContainer = HBoxContainer.new()
-	btn_row.add_theme_constant_override("separation", 16)
-	box.add_child(btn_row)
-	_skip_btn = _make_button("Cancel")
-	_skip_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_skip_btn.pressed.connect(_on_skip_sector_pressed)
-	btn_row.add_child(_skip_btn)
-	# only while editing a sector that's already in the ship (e.g. a misread extra one)
-	_delete_btn = _make_button("Delete Sector")
-	_delete_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_delete_btn.visible = false
-	_delete_btn.pressed.connect(_on_delete_sector_pressed)
-	btn_row.add_child(_delete_btn)
-	_confirm_btn = _make_button("Add Sector")
-	_confirm_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_confirm_btn.pressed.connect(_on_confirm_sector_pressed)
-	btn_row.add_child(_confirm_btn)
-
-	return box
+	# the strip: what can be done with the tapped card, or a hint
+	_bar = PanelContainer.new()
+	_bar.custom_minimum_size = Vector2(0, BAR_HEIGHT)
+	_bar_style = _rounded(Color(0.06, 0.09, 0.16, 0.92), STEEL_DIM, 2, 14, 14)
+	_bar.add_theme_stylebox_override("panel", _bar_style)
+	col.add_child(_bar)
+	return col
 
 func _make_button(label: String) -> Button:
 	var btn: Button = Button.new()
@@ -506,6 +460,99 @@ func _make_button(label: String) -> Button:
 	btn.add_theme_font_size_override("font_size", BUTTON_FONT_SIZE)
 	GameTheme.apply_to_button(btn)
 	return btn
+
+## A label in Myriad (the body face): names, captions, the status line.
+func _make_label(text: String, font_size: int, color: Color) -> Label:
+	var lbl: Label = Label.new()
+	lbl.text = text
+	_body(lbl, font_size)
+	lbl.add_theme_color_override("font_color", color)
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	return lbl
+
+func _body(c: Control, font_size: int) -> void:
+	if _body_font:
+		c.add_theme_font_override("font", _body_font)
+	c.add_theme_font_size_override("font_size", font_size)
+
+static func _rounded(bg: Color, border: Color, border_w: int, radius: int, margin: int = 0) -> StyleBoxFlat:
+	var s: StyleBoxFlat = StyleBoxFlat.new()
+	s.bg_color = bg
+	s.border_color = border
+	s.set_border_width_all(border_w)
+	s.set_corner_radius_all(radius)
+	s.set_content_margin_all(margin)
+	return s
+
+## A gold-edged button (the screen's one call to action).
+func _style_gold(btn: Button) -> void:
+	btn.add_theme_stylebox_override("normal", _rounded(Color(0.06, 0.09, 0.15, 0.9), Color(GOLD, 0.75), 2, 10))
+	btn.add_theme_stylebox_override("hover", _rounded(Color(0.12, 0.11, 0.06, 0.95), GOLD, 3, 10))
+	btn.add_theme_stylebox_override("pressed", _rounded(Color(0.04, 0.04, 0.03, 1.0), Color(GOLD, 0.8), 2, 10))
+	btn.add_theme_stylebox_override("disabled", _rounded(Color(0.04, 0.05, 0.08, 0.5), Color(GOLD, 0.25), 1, 10))
+	btn.add_theme_color_override("font_color", GOLD)
+	btn.add_theme_color_override("font_hover_color", Color(1.0, 0.92, 0.7))
+	btn.add_theme_color_override("font_pressed_color", GOLD.darkened(0.15))
+	btn.add_theme_color_override("font_disabled_color", Color(GOLD, 0.35))
+
+## A round badge with a glyph ("?" on a card the scan wasn't sure of, the status line's marker).
+func _make_round_badge(glyph: String, d: float, bg: Color, fg: Color) -> PanelContainer:
+	var badge: PanelContainer = PanelContainer.new()
+	badge.add_theme_stylebox_override("panel", _rounded(bg, BADGE_DARK, maxi(1, roundi(d * 0.06)), roundi(d / 2.0)))
+	badge.custom_minimum_size = Vector2(d, d)
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var lbl: Label = _make_label(glyph, roundi(d * 0.72), fg)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	badge.add_child(lbl)
+	return badge
+
+## A capture button: a drawn glyph over a short caption.
+func _make_capture_button(kind: String, caption: String, on_press: Callable) -> Button:
+	var btn: Button = Button.new()
+	btn.custom_minimum_size = Vector2(0, CAPTURE_BUTTON_HEIGHT)
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	GameTheme.apply_to_button(btn)
+	btn.pressed.connect(on_press)
+	var box: VBoxContainer = VBoxContainer.new()
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 6)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(box)
+	var glyph: Glyph = Glyph.new()
+	glyph.kind = kind
+	glyph.custom_minimum_size = Vector2(CAPTURE_GLYPH, CAPTURE_GLYPH)
+	glyph.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(glyph)
+	var lbl: Label = _make_label(caption, 20, Color(0.78, 0.88, 1.0))
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(lbl)
+	return btn
+
+## The capture buttons' pictures, drawn (no icon files): a camera, a moon for the Night shot,
+## a picture for the gallery.
+class Glyph extends Control:
+	var kind: String = ""
+
+	func _draw() -> void:
+		var c: Color = Color(0.78, 0.88, 1.0)
+		var s: Vector2 = size
+		var m: Vector2 = s / 2.0
+		var u: float = minf(s.x, s.y) / 50.0
+		match kind:
+			"camera":
+				draw_rect(Rect2(m.x - 22 * u, m.y - 13 * u, 44 * u, 31 * u), c, false, 3.0 * u)
+				draw_rect(Rect2(m.x - 9 * u, m.y - 19 * u, 18 * u, 6 * u), c, true)
+				draw_arc(m + Vector2(0, 2.5 * u), 9 * u, 0.0, TAU, 32, c, 3.0 * u)
+			"night":
+				draw_circle(m, 19 * u, c)
+				draw_circle(m + Vector2(9 * u, -8 * u), 17 * u, Color(0.06, 0.09, 0.15))
+			_:
+				draw_rect(Rect2(m.x - 22 * u, m.y - 17 * u, 44 * u, 34 * u), c, false, 3.0 * u)
+				draw_colored_polygon(PackedVector2Array([m + Vector2(-17, 12) * u, m + Vector2(-4, -4) * u,
+					m + Vector2(5, 5) * u, m + Vector2(10, 0) * u, m + Vector2(17, 12) * u]), c)
 
 ## Before the first photo: an example shot (assets/scan/guide.jpg, made by
 ## InDesign_Shop/_automation/scan_code/guide.py) with numbered badges, and the
@@ -525,14 +572,14 @@ func _build_photo_guide() -> Control:
 	var tips: VBoxContainer = VBoxContainer.new()
 	tips.alignment = BoxContainer.ALIGNMENT_CENTER
 	tips.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tips.add_theme_constant_override("separation", 22)
+	tips.add_theme_constant_override("separation", 20)
 	row.add_child(tips)
 	var tips_text: Array[String] = []
 	tips_text.append_array(GUIDE_TIPS)
 	var marks: Array[String] = []
 	marks.append_array(GUIDE_MARKS)
 	if Engine.has_singleton("CameraIntentPlugin"):
-		tips_text.append("SCAN_TIP_NIGHT")      # dim room: the phone's Night mode + From Gallery
+		tips_text.append("SCAN_TIP_NIGHT")      # dim room: the phone's Night mode
 		marks.append("!")
 	for i: int in tips_text.size():
 		var tip: HBoxContainer = HBoxContainer.new()
@@ -553,91 +600,55 @@ func _build_photo_guide() -> Control:
 		num.add_theme_font_size_override("font_size", GUIDE_TIP_FONT_SIZE)
 		badge.add_child(num)
 		tip.add_child(badge)
-		var text: Label = _make_hint_label(tips_text[i])
-		text.add_theme_font_size_override("font_size", GUIDE_TIP_FONT_SIZE)
+		var text: Label = _make_label(tips_text[i], GUIDE_TIP_FONT_SIZE, CREAM)
+		text.autowrap_mode = TextServer.AUTOWRAP_WORD
 		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		tip.add_child(text)
 		tips.add_child(tip)
 	return row
 
-func _make_hint_label(text: String) -> Label:
-	var lbl: Label = Label.new()
-	lbl.text = text
-	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
-	lbl.add_theme_font_size_override("font_size", HINT_FONT_SIZE)
-	return lbl
-
-## True for an actual click/tap (left or right press) — NOT for a mouse
-## wheel scroll, which Godot also delivers as an InputEventMouseButton with
-## pressed=true (button_index MOUSE_BUTTON_WHEEL_UP/DOWN), so a plain
-## "is InputEventMouseButton and pressed" check would wrongly fire on
-## scrolling over the control too (this is exactly how the photo preview's
-## tap-to-enlarge used to trigger just from scrolling past it).
+## True for an actual click/tap (left or right press) — NOT for a mouse wheel scroll, which
+## Godot also delivers as an InputEventMouseButton with pressed=true.
 func _is_tap(event: InputEvent) -> bool:
 	if not (event is InputEventMouseButton):
 		return false
 	var mb: InputEventMouseButton = event as InputEventMouseButton
 	return mb.pressed and (mb.button_index == MOUSE_BUTTON_LEFT or mb.button_index == MOUSE_BUTTON_RIGHT)
 
-## Built as label-then-stepper, stacked vertically 3-high in the leftover
-## space beside the 6 review cards (rather than side by side in the supply
-## row, which would need the full extra width all over again).
-func _make_tucked_counter(parent: GridContainer, arrow: String, label_text: String) -> SpinBox:
-	var head: HBoxContainer = HBoxContainer.new()
-	head.add_theme_constant_override("separation", 8)
-	head.add_child(_make_archive_card(arrow, TUCKED_ARCHIVE_CARD_SIZE, TUCKED_ARCHIVE_ARROW_SIZE))
-	var lbl: Label = Label.new()
-	lbl.text = label_text
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", SUPPLY_FONT_SIZE)
-	head.add_child(lbl)
-	parent.add_child(head)
-	var spin: SpinBox = SpinBox.new()
-	spin.min_value = 0
-	spin.max_value = 99
-	spin.custom_minimum_size = Vector2(TUCKED_SPIN_WIDTH, SUPPLY_CONTROL_HEIGHT)
-	spin.get_line_edit().add_theme_font_size_override("font_size", SUPPLY_FONT_SIZE)
-	spin.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	parent.add_child(_make_stepper_row(spin))
-	return spin
+## A gui_input handler that calls on_tap for a tap: a left press and release that didn't move
+## (a drag that scrolls the ship isn't a tap).
+func _tap_handler(on_tap: Callable) -> Callable:
+	var down: Array = [Vector2.INF]      # (closures copy plain values: a one-element array as a cell)
+	return func(event: InputEvent) -> void:
+		if not (event is InputEventMouseButton):
+			return
+		var mb: InputEventMouseButton = event as InputEventMouseButton
+		if mb.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if mb.pressed:
+			down[0] = mb.global_position
+			return
+		var start: Vector2 = down[0]
+		down[0] = Vector2.INF
+		if start != Vector2.INF and mb.global_position.distance_to(start) <= TAP_SLOP:
+			on_tap.call()
 
-## A SpinBox's own up/down arrows are too small to hit reliably on a phone
-## (see the const block above), so every counter on this screen pairs one
-## with a big dedicated -/+ button instead — the SpinBox itself just holds
-## and displays the value, clamped the same way tapping its own arrows would.
-func _make_stepper_row(spin: SpinBox) -> HBoxContainer:
-	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 4)
-	var minus_btn: Button = _make_stepper_button("−")
-	minus_btn.pressed.connect(func(): spin.value = maxf(spin.min_value, spin.value - 1.0))
-	row.add_child(minus_btn)
-	row.add_child(spin)
-	var plus_btn: Button = _make_stepper_button("+")
-	plus_btn.pressed.connect(func(): spin.value = minf(spin.max_value, spin.value + 1.0))
-	row.add_child(plus_btn)
-	return row
-
-func _build_alliance_row(box: VBoxContainer) -> void:
+func _build_alliance_row(parent: HBoxContainer) -> void:
 	_alliance_row = HBoxContainer.new()
-	_alliance_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_alliance_row.add_theme_constant_override("separation", 12)
+	_alliance_row.add_theme_constant_override("separation", 10)
 	_alliance_row.visible = false
-	box.add_child(_alliance_row)
-	var lbl: Label = Label.new()
-	lbl.text = tr("Alliance detected! Choose an ally — how many expeditions do they have?")
-	lbl.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
-	lbl.add_theme_color_override("font_color", SCORE_STAR_COLOR)
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	parent.add_child(_alliance_row)
+	var lbl: Label = _make_label(tr("Alliance detected! Choose an ally — how many expeditions do they have?"), SMALL_FONT_SIZE, STAR_COLOR)
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lbl.custom_minimum_size = Vector2(360, 0)
 	_alliance_row.add_child(lbl)
 	var dec: Button = _make_stepper_button("−")
 	dec.pressed.connect(func() -> void: _set_alliance_ally(_alliance_ally_exp - 1))
 	_alliance_row.add_child(dec)
-	_alliance_count_lbl = Label.new()
-	_alliance_count_lbl.custom_minimum_size = Vector2(STEPPER_BUTTON_SIZE, 0)
+	_alliance_count_lbl = _make_label("0", STEPPER_BUTTON_FONT_SIZE, CREAM)
+	_alliance_count_lbl.custom_minimum_size = Vector2(48, 0)
 	_alliance_count_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_alliance_count_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_alliance_count_lbl.add_theme_font_size_override("font_size", STEPPER_BUTTON_FONT_SIZE)
 	_alliance_row.add_child(_alliance_count_lbl)
 	var inc: Button = _make_stepper_button("+")
 	inc.pressed.connect(func() -> void: _set_alliance_ally(_alliance_ally_exp + 1))
@@ -667,35 +678,7 @@ func _make_stepper_button(label: String) -> Button:
 	GameTheme.apply_to_button(btn)
 	return btn
 
-## Looks up the official art for a card name the same way the review row's
-## thumbnail and CardPicker's own tiles do, so a picked (or auto-detected,
-## once its guessed name happens to resolve) card shows its real art instead
-## of the raw photo crop. Empty string if the name doesn't resolve to
-## anything (blank guess, or a still-uncorrected bad detection).
-func _resolve_art_path(card_name: String, is_advanced: bool) -> String:
-	if card_name.is_empty():
-		return ""
-	var sector_cd: CardData = CardDatabase.find_sector_by_name(card_name, is_advanced)
-	if sector_cd:
-		return sector_cd.adv_local_art_path if is_advanced else sector_cd.local_art_path
-	var cd: CardData = CardDatabase.find_any_by_name(card_name)
-	if cd:
-		return cd.local_art_path
-	return ""
-
-# ── Calibration logging ──────────────────────────────────────────────────────
-
-# ── View switching ───────────────────────────────────────────────────────────
-
-func _show_list_view() -> void:
-	_list_view.visible = true
-	_review_view.visible = false
-
-func _show_review_view() -> void:
-	_list_view.visible = false
-	_review_view.visible = true
-
-# ── Capture -> detect -> review ─────────────────────────────────────────────
+# ── Capture -> detect ───────────────────────────────────────────────────────
 
 # The real camera-intent plugin only exists in Android builds (it's Kotlin
 # source added directly to android/build/, not a GDExtension, so there's
@@ -712,11 +695,11 @@ func _on_scan_ship_pressed() -> void:
 	else:
 		_file_dialog.popup_centered()
 
-## Android: a photo from the gallery (the system photo picker), read like a camera shot.
+## Android: a photo from the gallery (the maker's gallery or the system photo picker), read like a camera shot.
 func _on_gallery_pressed() -> void:
 	_camera_plugin().pick_photo()
 
-## Android: the phone's camera app (its Night mode); the plugin opens the photo picker once the
+## Android: the phone's camera app (its Night mode); the plugin opens the picker once the
 ## game is back, and the pick arrives like From Gallery's.
 func _on_camera_app_pressed() -> void:
 	_camera_plugin().open_camera_app()
@@ -730,7 +713,7 @@ func _camera_plugin() -> Object:
 	return plugin
 
 func _on_photo_canceled() -> void:
-	pass  # user backed out of the camera app — stay on the sector list
+	pass  # user backed out of the camera — the ship stays as it was
 
 ## The camera's own folder keeps only the scan being read: every earlier photo, its burst shots
 ## and anything half-written stayed there for good (5-10 MB a scan), and a nearly full phone is
@@ -772,16 +755,21 @@ func _on_photo_selected(path: String) -> void:
 		push_warning("Scan Tableau: could not load %s" % path)
 		return
 	_source_image = img
-	_photo_view.texture = ImageTexture.create_from_image(img)
-	_photo_btn.disabled = false
-	_set_view("ship")
+	_crops.clear()
+	var tex: ImageTexture = ImageTexture.create_from_image(img)
+	_photo_view.texture = tex
+	_photo_thumb.texture = tex
+	_photo_box.visible = true
+	_close_tray()
+	_sel_sector = -1
+	_sel_tech = -1
 	# Cards are identified by the scan-code dial printed around each card's
 	# colour orb (DialReader) — the only part of a card that stays visible in
 	# a real tableau. Read on a thread: a full photo takes a few seconds.
 	_guide_box.visible = false
-	_sector_scroll.visible = true
-	_status_label.visible = true
-	_status_label.text = "Reading cards…"
+	_set_view("ship")
+	_status_badge.visible = false
+	_status_label.text = tr("SCAN_READING") % 0
 	var t_start: int = Time.get_ticks_msec()
 	var reader: DialReader = DialReaderScript.create()
 	_finish_scan_thread()            # a previous photo still being read
@@ -797,7 +785,7 @@ func _on_photo_selected(path: String) -> void:
 			return                       # _exit_tree() joined the thread
 		_scan_progress.value = reader.progress * 100.0
 		var pct: int = roundi(reader.progress * 100.0)
-		_status_label.text = ("Reading cards… %d%%" % pct) if reader.attempt == 1 else ("Looking closer… %d%%" % pct)
+		_status_label.text = (tr("SCAN_READING") % pct) if reader.attempt == 1 else (tr("SCAN_LOOKING") % pct)
 	_scan_progress.visible = false
 	if _scan_thread != thread:
 		return
@@ -833,7 +821,7 @@ func _on_photo_selected(path: String) -> void:
 			if not is_inside_tree():
 				return
 			_scan_progress.value = reader.progress * 100.0
-			_status_label.text = "Second look… %d%%" % roundi(reader.progress * 100.0)
+			_status_label.text = tr("SCAN_SECOND_LOOK") % roundi(reader.progress * 100.0)
 		_scan_progress.visible = false
 		if _scan_thread != thread_a:
 			return
@@ -848,7 +836,7 @@ func _on_photo_selected(path: String) -> void:
 	# dial, face-down ones by their backs) and stored-supply tokens. Card art is
 	# loaded here on the main thread, the counting runs on a thread.
 	var tableau: TableauReader = TableauReader.create(dials)
-	# a column whose sector dial is covered gets this placeholder sector (fix it with Edit)
+	# a column whose sector dial is covered gets this placeholder sector (shown as "?")
 	tableau.placeholder_card = CardDatabase.find_by_scan_code(PLACEHOLDER_SECTOR_CODE).get("card") as CardData
 	var thread2: Thread = Thread.new()
 	_scan_thread = thread2
@@ -861,7 +849,7 @@ func _on_photo_selected(path: String) -> void:
 		if not is_inside_tree():
 			return                       # _exit_tree() joined the thread
 		_scan_progress.value = tableau.progress * 100.0
-		_status_label.text = "Counting archive & supply… %d%%" % roundi(tableau.progress * 100.0)
+		_status_label.text = tr("SCAN_COUNTING") % roundi(tableau.progress * 100.0)
 	_scan_progress.visible = false
 	if _scan_thread != thread2:
 		return
@@ -870,43 +858,30 @@ func _on_photo_selected(path: String) -> void:
 	var groups: Array = thread2.wait_to_finish()
 	if _source_image != img:
 		return
-	# Everything recognised goes straight into the ship (a new photo is a new ship);
-	# Edit under a sector corrects it. A supply counter or an Edit opened on the old ship while
-	# this photo was being read would now change the new one (both go by sector index): closed.
-	_close_supply_editor()
-	if _editing_sector_index >= 0:
-		_editing_sector_index = -1
-		_editing_original_sector = {}
-		_show_list_view()
+	# Everything recognised goes straight into the ship (a new photo is a new ship). A tray or a
+	# tapped card from the old ship would now point into the new one (both go by sector index): gone.
+	_close_tray()
+	_sel_sector = -1
+	_sel_tech = -1
 	_sectors.clear()
 	var loose: int = 0
-	var placeholders: int = 0
 	for g: Array in groups:
-		if not (g[0] as Dictionary).is_empty() and bool((g[0] as Dictionary).get("placeholder", false)):
-			placeholders += 1
 		var entry: Dictionary = _sector_entry_from_group(g)
 		if entry.is_empty():
 			loose += g.size() - 1
 		else:
 			_sectors.append(entry)
+	var secs: int = roundi((Time.get_ticks_msec() - t_start) / 1000.0)
 	if _sectors.is_empty():
 		push_warning("Scan Tableau: no sector cards found in that photo")
-		_status_label.text = "No sectors found — move closer so the ship fills the photo"
+		_scan_summary = tr("SCAN_NONE_FOUND")
 	else:
-		var read: int = _sectors.size() - placeholders
 		UIAudio.play_sfx("scan_success")
-		_status_label.text = "%d sector%s found" % [read, "" if read == 1 else "s"]
+		_scan_summary = (tr("SCAN_FOUND_ONE") if _sectors.size() == 1 else tr("SCAN_FOUND_MANY") % _sectors.size())
 		if loose > 0:
-			_status_label.text += " · %d card%s not next to a sector left out" % [loose, "" if loose == 1 else "s"]
-		if placeholders > 0:
-			_status_label.text += " · %d more not found, shown as ? — pick %s with Edit" % [placeholders, "it" if placeholders == 1 else "them"]
-		var unsure: int = 0
-		for e: Dictionary in _sectors:
-			unsure += (e.get("unsure_techs", []) as Array).size() + (1 if bool(e.get("unsure_sector", false)) else 0)
-		if unsure > 0:
-			_status_label.text += " · %d card%s marked ? — check with Edit" % [unsure, "" if unsure == 1 else "s"]
+			_scan_summary += ", " + (tr("SCAN_LOOSE_ONE") if loose == 1 else tr("SCAN_LOOSE_MANY") % loose)
 		# how long the reading took on this phone (for tuning the reader's speed)
-		_status_label.text += " · %d s" % roundi((Time.get_ticks_msec() - t_start) / 1000.0)
+		_scan_summary += " (%d s)" % secs
 	_refresh_sector_list()
 
 ## A recognised group ([sector, techs…] from TableauReader, sector {} if none was
@@ -916,12 +891,14 @@ func _sector_entry_from_group(g: Array) -> Dictionary:
 	if sd.is_empty():
 		return {}
 	var techs: Array[CardData] = []
-	var unsure: Array[int] = []      # techs the reader wasn't sure of (marked "?" in the overview)
+	var tech_dials: Array[Dictionary] = []   # where each lies in the photo (for its cut-out)
+	var unsure: Array[int] = []      # techs the reader wasn't sure of (marked "?")
 	for i: int in range(1, g.size()):
-		if techs.size() >= SECTOR_SLOT_COUNT - 1:
+		if techs.size() >= MAX_TECHS:
 			push_warning("Scan Tableau: more cards than a sector can hold — dropping the extras")
 			break
 		techs.append((g[i] as Dictionary)["card"])
+		tech_dials.append(g[i])
 		if _is_unsure(g[i]):
 			unsure.append(techs.size() - 1)
 	var tucked: Array[Dictionary] = []
@@ -943,8 +920,10 @@ func _sector_entry_from_group(g: Array) -> Dictionary:
 		"unsure_techs": unsure,
 		"unsure_sector": _is_unsure(sd),
 		# a column whose sector dial wasn't read: drawn as a "?" card (the placeholder card
-		# underneath only keeps the scoring and Edit going until the player picks the real one)
+		# underneath only keeps the scoring going until the player picks the real one)
 		"unknown_sector": bool(sd.get("placeholder", false)),
+		"sector_dial": sd,
+		"tech_dials": tech_dials,
 	}
 
 ## A reading DialReader only took on its strip's word (a weak dial) or swapped for a
@@ -952,203 +931,156 @@ func _sector_entry_from_group(g: Array) -> Dictionary:
 static func _is_unsure(d: Dictionary) -> bool:
 	return bool(d.get("weak", false)) or bool(d.get("corrected", false))
 
-## The edited sector was already taken out of _sectors by Edit, so deleting just
-## drops it instead of putting it back.
-func _on_delete_sector_pressed() -> void:
-	_editing_sector_index = -1
-	_editing_original_sector = {}
-	_confirm_btn.text = "Add Sector"
-	_delete_btn.visible = false
-	_refresh_sector_list()
-	_show_list_view()
-
-func _on_skip_sector_pressed() -> void:
-	if _editing_sector_index >= 0:
-		_sectors.insert(_editing_sector_index, _editing_original_sector)
-		_editing_sector_index = -1
-		_editing_original_sector = {}
-		_confirm_btn.text = "Add Sector"
-		_delete_btn.visible = false
-		_skip_btn.text = "Cancel"
-		_refresh_sector_list()
-		_show_list_view()
-		return
-	_show_list_view()
-
-## Lets the user build a sector entirely by hand ("+ Sector") — always the full
-## 6 blank slots (1 sector + 5 tech/expedition).
-func _on_add_sector_pressed() -> void:
-	_pending = []
-	for i: int in range(SECTOR_SLOT_COUNT):
-		_pending.append(_blank_entry())
-	for color_int: int in _supply_spinboxes:
-		(_supply_spinboxes[color_int] as SpinBox).value = 0
-	_tucked_up_spinbox.value = 0
-	_tucked_up_stars_spinbox.value = 0
-	_tucked_down_spinbox.value = 0
-	_delete_btn.visible = false
-	_populate_review_cards()
-	_show_review_view()
-
-func _blank_entry() -> Dictionary:
-	return {"thumbnail": null, "name": "", "is_advanced": false}
-
-func _populate_review_cards() -> void:
-	for child: Node in _review_cards_box.get_children():
-		child.queue_free()
-	for i: int in range(_pending.size()):
-		_review_cards_box.add_child(_build_card_review_row(_pending[i], i))
-
-## index 0 is always the sector; every other reviewed card is always its
-## exposed tech stack — there's no longer a per-card role to choose (tucked
-## cards are tracked as counts in the supply panel instead, see there).
-func _build_card_review_row(entry: Dictionary, index: int) -> Control:
-	var is_sector: bool = index == 0
-	var col: VBoxContainer = VBoxContainer.new()
-	col.custom_minimum_size = Vector2(REVIEW_COL_WIDTH, 0)
-	col.add_theme_constant_override("separation", 8)
-
-	# The real card art (once the name resolves to one) always takes priority
-	# over the raw detection crop — it's the clean reference image, not a
-	# skewed/blurry photo of the physical card.
-	var thumb: TextureRect = TextureRect.new()
-	var art_path: String = _resolve_art_path(entry["name"], entry["is_advanced"])
-	var thumbnail: Image = entry.get("thumbnail")
-	if not art_path.is_empty():
-		thumb.texture = load(art_path) as Texture2D
-	elif thumbnail != null:
-		thumb.texture = ImageTexture.create_from_image(thumbnail)
-	thumb.custom_minimum_size = REVIEW_THUMB_SIZE
-	thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	col.add_child(thumb)
-
-	# Just "Sector" / "Tech / Exp." — no Dust/Advanced suffix. That distinction
-	# is still fully tracked (via entry["is_advanced"], set by which CardPicker
-	# tab the sector was picked from) and visible in the card art itself; the
-	# longer "Sector (Advanced)" text used to widen this one column past
-	# REVIEW_COL_WIDTH whenever an advanced sector was picked, which pushed
-	# the whole row wide enough to need a horizontal scrollbar.
-	var role_label: Label = Label.new()
-	role_label.text = "Sector" if is_sector else "Tech / Exp."
-	role_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	role_label.add_theme_font_size_override("font_size", CONTROL_FONT_SIZE)
-	col.add_child(role_label)
-
-	# Read-only display of the picked name — typing a name by hand used to
-	# silently fail the CardDatabase lookup on any typo, so the only way to
-	# set it now is through the "Edit" -> CardPicker flow below, which can
-	# only ever hand back a real card name.
-	var name_edit: LineEdit = LineEdit.new()
-	name_edit.text = entry["name"]
-	name_edit.editable = false
-	name_edit.custom_minimum_size = Vector2(0, CONTROL_MIN_HEIGHT)
-	name_edit.add_theme_font_size_override("font_size", CONTROL_FONT_SIZE)
-	col.add_child(name_edit)
-
-	var edit_btn: Button = _make_button("Edit")
-	col.add_child(edit_btn)
-
-	# Slot 0 MUST be a sector and 1-5 MUST be a tech/expedition — never the
-	# other way round — so the picker only ever shows the tabs that slot can
-	# legally hold, not just defaults to one. That makes a wrong-type pick
-	# structurally impossible rather than just discouraged.
-	var default_tab: int
-	var allowed_tabs: Array[int]
-	if is_sector:
-		default_tab = CardPickerScript.TAB_SECTOR_ADVANCED if entry["is_advanced"] else CardPickerScript.TAB_SECTOR_DUST
-		allowed_tabs = [CardPickerScript.TAB_SECTOR_DUST, CardPickerScript.TAB_SECTOR_ADVANCED]
-	else:
-		default_tab = CardPickerScript.TAB_TECH
-		allowed_tabs = [CardPickerScript.TAB_TECH, CardPickerScript.TAB_EXPEDITION]
-	edit_btn.pressed.connect(func() -> void:
-		if _picker_callback.is_valid() and _card_picker.picked.is_connected(_picker_callback):
-			_card_picker.picked.disconnect(_picker_callback)
-		_picker_callback = _on_card_picked.bind(entry)
-		_card_picker.picked.connect(_picker_callback, CONNECT_ONE_SHOT)
-		_card_picker.open(default_tab, allowed_tabs))
-
-	return col
-
-func _on_card_picked(card_name: String, is_advanced: bool, entry: Dictionary) -> void:
-	entry["name"] = card_name
-	entry["is_advanced"] = is_advanced
-	_populate_review_cards()
-
-# ── Confirm sector / calculate ──────────────────────────────────────────────
-
-func _on_confirm_sector_pressed() -> void:
-	if _pending.is_empty():
-		push_warning("Scan Tableau: no cards to confirm")
-		return
-
-	var sector_entry: Dictionary = _pending[0]
-	var is_advanced: bool = sector_entry["is_advanced"]
-	var sector_name: String = (sector_entry["name"] as String).strip_edges()
-	var sector_cd: CardData = CardDatabase.find_sector_by_name(sector_name, is_advanced)
-	if sector_cd == null:
-		push_warning("Scan Tableau: no valid sector card picked — not adding a sector")
-		return
-
+## A sector made by hand ("+ Sector"): nothing on it yet.
+static func _new_entry(sector_cd: CardData, is_advanced: bool) -> Dictionary:
 	var techs: Array[CardData] = []
-	for i: int in range(1, _pending.size()):
-		var card_name: String = (_pending[i]["name"] as String).strip_edges()
-		if card_name.is_empty():
-			continue
-		var cd: CardData = CardDatabase.find_any_by_name(card_name)
-		if cd:
-			techs.append(cd)
-		else:
-			push_warning("Scan Tableau: unknown card name '%s', skipped" % card_name)
-
-	# Tucked cards no longer carry their own identity — face-down ones score
-	# as pure counts either way, and face-up ones are entered as a card
-	# count plus the total stars printed across them (visible without
-	# knowing exactly which cards they are). BotScoring's "Faceup tucked"
-	# line just sums every entry's .stars, and other formulas only care
-	# about tucked_cards.size(), so it doesn't matter which placeholder
-	# entry carries the total as long as the count and the sum are both
-	# right — dump it all on the first one.
 	var tucked: Array[Dictionary] = []
-	var tucked_up_count: int = int(_tucked_up_spinbox.value)
-	var tucked_up_stars: int = int(_tucked_up_stars_spinbox.value)
-	for i: int in range(tucked_up_count):
-		var placeholder := CardData.new()
-		placeholder.stars = tucked_up_stars if i == 0 else 0
-		tucked.append({"data": placeholder, "face_up": true})
-	for i: int in range(int(_tucked_down_spinbox.value)):
-		tucked.append({"data": null, "face_up": false})
-
-	var stored: Dictionary = {}
-	for color_int: int in _supply_spinboxes:
-		var amount: int = int((_supply_spinboxes[color_int] as SpinBox).value)
-		if amount > 0:
-			stored[color_int] = amount
-
-	var new_sector: Dictionary = {
-		"sector": sector_cd,
-		"is_advanced": is_advanced,
-		"techs": techs,
-		"tucked_cards": tucked,
-		"stored_supply": stored,
+	var unsure: Array[int] = []
+	var tech_dials: Array[Dictionary] = []
+	return {
+		"sector": sector_cd, "is_advanced": is_advanced, "techs": techs, "tucked_cards": tucked,
+		"stored_supply": {}, "unsure_techs": unsure, "unsure_sector": false, "unknown_sector": false,
+		"sector_dial": {}, "tech_dials": tech_dials,
 	}
-	if _editing_sector_index >= 0:
-		_sectors.insert(_editing_sector_index, new_sector)
-		_editing_sector_index = -1
-		_editing_original_sector = {}
-		_confirm_btn.text = "Add Sector"
-		_delete_btn.visible = false
-		_skip_btn.text = "Cancel"
+
+# ── The stage ──────────────────────────────────────────────────────────────
+
+# What fills the stage: "ship" (the guide before the first photo), "photo" (the scanned photo, to
+# compare) or "breakdown" (the VP lines). One at a time, so none squeezes another.
+func _set_view(view: String) -> void:
+	if view != "ship":
+		_close_tray()
+		_sel_sector = -1
+		_sel_tech = -1
+	_view = view
+	_sector_scroll.visible = view == "ship" and _source_image != null
+	_guide_box.visible = view == "ship" and _source_image == null
+	_photo_view.visible = view == "photo"
+	_results_box.visible = view == "breakdown"
+	_photo_caption.text = "SCAN_PHOTO_BACK" if view == "photo" else "SCAN_PHOTO_CAPTION"
+	if view == "ship":
 		_refresh_sector_list()
-		# Never auto-chain into a pending cluster queue after finishing an
-		# edit — editing an already-confirmed sector is a separate action
-		# from scanning, and should always land back on the list view
-		# regardless of what's still queued there.
-		_show_list_view()
+	else:
+		_refresh_bar()
+
+# Turns the shown photo 90 degrees clockwise (display only: the reading doesn't care).
+func _rotate_photo() -> void:
+	var tex: Texture2D = _photo_view.texture
+	if tex == null:
 		return
-	_sectors.append(new_sector)
-	_refresh_sector_list()
-	_show_list_view()
+	var img: Image = tex.get_image()
+	img.rotate_90(CLOCKWISE)
+	var turned: ImageTexture = ImageTexture.create_from_image(img)
+	_photo_view.texture = turned
+	_photo_thumb.texture = turned
+
+## The status line: the cards the scan wasn't sure of (gold "?"), else what the scan found.
+func _update_status() -> void:
+	var check: int = 0
+	for e: Dictionary in _sectors:
+		check += (e.get("unsure_techs", []) as Array).size()
+		if bool(e.get("unsure_sector", false)) or bool(e.get("unknown_sector", false)):
+			check += 1
+	_status_badge.visible = check > 0
+	if check > 0:
+		_status_label.text = tr("SCAN_CHECK_ONE") if check == 1 else tr("SCAN_CHECK_MANY") % check
+	else:
+		_status_label.text = _scan_summary
+
+## The strip under the stage: the tapped card and what can be done with it; else a hint.
+func _refresh_bar() -> void:
+	for child: Node in _bar.get_children():
+		_bar.remove_child(child)
+		child.queue_free()
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+	_bar.add_child(row)
+	_bar_style.border_color = STEEL_DIM
+	if _view == "photo":
+		row.add_child(_make_bar_hint("SCAN_PHOTO_HINT"))
+		var rot: Button = _make_button("⟳ " + tr("Rotate"))
+		rot.custom_minimum_size = Vector2(220, 0)
+		rot.pressed.connect(_rotate_photo)
+		row.add_child(rot)
+		row.add_child(_make_back_button())
+		return
+	if _view == "breakdown":
+		row.add_child(_make_bar_hint("SCAN_BREAKDOWN_HINT"))
+		row.add_child(_make_back_button())
+		return
+	var entry: Dictionary = _sectors[_sel_sector] if _sel_sector >= 0 and _sel_sector < _sectors.size() else {}
+	if entry.is_empty():
+		if not _sectors.is_empty():
+			row.add_child(_make_bar_hint("SCAN_IDLE_HINT"))
+		return
+	_bar_style.border_color = GOLD
+	var is_sector: bool = _sel_tech < 0
+	var cd: CardData = entry["sector"] if is_sector else (entry["techs"] as Array)[_sel_tech]
+	var unknown: bool = is_sector and bool(entry.get("unknown_sector", false))
+	var crop: Texture2D = _selected_crop()
+	if crop:
+		var frame: PanelContainer = PanelContainer.new()
+		frame.add_theme_stylebox_override("panel", _rounded(Color(0, 0, 0, 0.3), VIOLET, 3, 8, 3))
+		frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		frame.tooltip_text = tr("SCAN_PHOTO_CAPTION")
+		var pic: TextureRect = TextureRect.new()
+		pic.texture = crop
+		pic.custom_minimum_size = Vector2(150, 72)
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		frame.add_child(pic)
+		row.add_child(frame)
+	var mini_size: Vector2 = Vector2(98, 64) if is_sector else Vector2(54, 82)
+	var mini: TextureRect = TextureRect.new()
+	mini.custom_minimum_size = mini_size
+	mini.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	mini.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	mini.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	if not unknown:
+		mini.texture = load(_art_path(cd, is_sector and bool(entry["is_advanced"]))) as Texture2D
+	row.add_child(mini)
+	var names: VBoxContainer = VBoxContainer.new()
+	names.alignment = BoxContainer.ALIGNMENT_CENTER
+	names.add_theme_constant_override("separation", 0)
+	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(names)
+	var title: String = _bar_title()
+	var name_lbl: Label = _make_label(title, NAME_FONT_SIZE, CREAM)
+	name_lbl.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	name_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	names.add_child(name_lbl)
+	var place: String = _bar_place()
+	var place_lbl: Label = _make_label(place, SMALL_FONT_SIZE, MUTED)
+	place_lbl.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	place_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	names.add_child(place_lbl)
+	var change: Button = _make_button("Change sector" if is_sector else "Change card")
+	change.custom_minimum_size = Vector2(260, 0)
+	change.pressed.connect(_on_change_pressed)
+	row.add_child(change)
+	var remove: Button = _make_button("Delete sector" if is_sector else "Remove")
+	remove.custom_minimum_size = Vector2(220, 0)
+	GameTheme.style_negative(remove)
+	remove.pressed.connect(_on_remove_pressed)
+	row.add_child(remove)
+	var done: Button = _make_button("Done")
+	done.custom_minimum_size = Vector2(180, 0)
+	done.pressed.connect(func() -> void: _select(-1, -1))
+	row.add_child(done)
+
+func _make_bar_hint(key: String) -> Label:
+	var lbl: Label = _make_label(key, BODY_FONT_SIZE, MUTED)
+	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	return lbl
+
+func _make_back_button() -> Button:
+	var back: Button = _make_button("Show Ship")
+	back.custom_minimum_size = Vector2(240, 0)
+	back.pressed.connect(func() -> void: _set_view("ship"))
+	return back
+
+# ── The ship ───────────────────────────────────────────────────────────────
 
 func _refresh_sector_list() -> void:
 	_fit_ship_card()
@@ -1157,51 +1089,48 @@ func _refresh_sector_list() -> void:
 		child.queue_free()
 	_ship_info_boxes.clear()
 	_ship_archive_boxes.clear()
+	if _sel_sector >= _sectors.size():
+		_sel_sector = -1
+		_sel_tech = -1
 	for i: int in _sectors.size():
-		_sector_list_box.add_child(_build_sector_summary_row(_sectors[i], i))
-	# a sector the scan missed (dial covered, say) can still be added by hand — until
-	# the ship is full
-	if _sectors.size() < MAX_SECTORS:
-		_add_sector_column()
+		_sector_list_box.add_child(_build_sector_column(_sectors[i], i))
+	# a sector the scan missed (dial covered, say) can still be added by hand — until the ship is full
+	if _sectors.size() < MAX_SECTORS and _source_image != null:
+		_sector_list_box.add_child(_make_add_sector_slot())
 	_update_score()
+	_update_status()
+	_refresh_bar()
 	_even_out_info_lines()
 	_scroll_ship_to_bottom()
 
-func _add_sector_column() -> void:
-	var add_col: VBoxContainer = VBoxContainer.new()
-	add_col.size_flags_vertical = Control.SIZE_SHRINK_END
-	add_col.custom_minimum_size = Vector2(SHIP_ADD_COLUMN - 14.0, 0)
-	var add_btn: Button = _make_button("+ Sector")
-	add_btn.custom_minimum_size = Vector2(0, SHIP_EDIT_HEIGHT)   # in line with the Edit buttons
-	add_btn.pressed.connect(_on_add_sector_pressed)
-	add_col.add_child(add_btn)
-	_sector_list_box.add_child(add_col)
-
-# Card size for the overview: as big as fits — every sector side by side across the
-# width, the tallest stack (plus its info + Edit) within the height.
+# Card size: as big as fits — every sector side by side across the width (plus the "+ Sector"
+# slot), the tallest stack (plus its "+" slot, tokens and archive) within the height.
 func _fit_ship_card() -> void:
 	var area: Vector2 = _sector_scroll.size if is_instance_valid(_sector_scroll) else Vector2.ZERO
 	if area.x <= 0.0 or area.y <= 0.0:
 		_ship_card = SHIP_CARD_MAX
 		return
 	var n: int = maxi(1, _sectors.size())
-	var add_w: float = SHIP_ADD_COLUMN if _sectors.size() < MAX_SECTORS else 0.0
-	var by_width: float = (area.x - add_w - 14.0 * n - 8.0) / n
+	var add: float = 1.0 if _sectors.size() < MAX_SECTORS else 0.0
+	var by_width: float = (area.x - 8.0 - SHIP_GAP * (n - 1 + add)) / (n + SHIP_ADD_WIDTH * add)
 	var most_techs: int = 0
 	for e: Dictionary in _sectors:
 		most_techs = maxi(most_techs, (e["techs"] as Array).size())
-	var by_height: float = (area.y - _ship_info_height - 8.0) / _ship_stack_factor(most_techs)
+	var by_height: float = (area.y - _ship_info_height - SELECT_LIFT - 8.0) / _ship_stack_factor(most_techs)
 	_ship_card = clampf(minf(by_width, by_height) * SHIP_FIT_SHARE, SHIP_CARD_MIN, SHIP_CARD_MAX)
 
-# Height of a sector with `techs` cards stacked on it, per px of card long edge.
+# Height of a sector with `techs` cards stacked on it (and the "+" slot while there's room),
+# per px of card long edge.
 static func _ship_stack_factor(techs: int) -> float:
 	var sector_h: float = 44.0 / 67.0
-	if techs == 0:
-		return sector_h
-	return sector_h + (1.0 - SHIP_SECTOR_COVERED * sector_h) + (techs - 1) * SHIP_TECH_SHOWN
+	var f: float = sector_h
+	if techs > 0:
+		f += (1.0 - SHIP_SECTOR_COVERED * sector_h) + (techs - 1) * SHIP_TECH_SHOWN
+	if techs < MAX_TECHS:
+		f += GHOST_SLOT_H + GHOST_GAP
+	return f
 
-# Re-fit when the space changes (window resized, rotation) — only on a real width
-# or height change, since rebuilding the columns resizes nothing outside them.
+# Re-fit when the space changes (window resized, rotation) — only on a real change.
 func _on_ship_area_resized() -> void:
 	if _sectors.is_empty() or not visible or not _sector_scroll.visible:
 		return
@@ -1210,9 +1139,8 @@ func _on_ship_area_resized() -> void:
 	if absf(_ship_card - old) > 4.0:
 		_refresh_sector_list()
 
-# Every sector's supply/archive line gets the height of the tallest one, so the
-# sector cards above them all sit on one line (more badges would otherwise lift
-# a sector). Needs a layout pass first: a wrapping line's height depends on width.
+# Every sector's token/archive line gets the height of the tallest one, so the sector cards above
+# them all sit on one line. Needs a layout pass first: a wrapping line's height depends on width.
 func _even_out_info_lines() -> void:
 	var lines: Array = [_ship_info_boxes, _ship_archive_boxes]
 	for group: Array in lines:
@@ -1229,144 +1157,112 @@ func _even_out_info_lines() -> void:
 			if is_instance_valid(box):
 				box.custom_minimum_size.y = tallest
 		total += tallest
-	# Fit with what's really under a sector (supply + archive lines, Edit, gaps) rather
-	# than the estimate, so the ship never needs a scrollbar: refit once if it's off.
-	var measured: float = total + SHIP_EDIT_HEIGHT + 12.0   # + the gaps between them
+	# fit with what's really under a sector, so the ship never needs a scrollbar: refit once if off
+	var measured: float = total + 24.0
 	if not _sectors.is_empty() and measured > _ship_info_height + 4.0:
 		_ship_info_height = measured
 		_refresh_sector_list()
 
-# What fills the main area: "ship" (the overview), "photo" (the scanned photo, to
-# compare) or "breakdown" (the VP lines). One at a time, so none squeezes another.
-func _set_view(view: String) -> void:
-	_sector_scroll.visible = view == "ship"
-	_photo_view.visible = view == "photo"
-	_results_box.visible = view == "breakdown"
-	_rotate_btn.visible = view == "photo"
-	_photo_btn.text = "Show Ship" if view == "photo" else "Show Photo"
-
-# Turns the shown photo 90 degrees clockwise (display only).
-func _rotate_photo() -> void:
-	var tex: Texture2D = _photo_view.texture
-	if tex == null:
-		return
-	var img: Image = tex.get_image()
-	img.rotate_90(CLOCKWISE)
-	_photo_view.texture = ImageTexture.create_from_image(img)
-
-# Rests the ship view at the bottom (the sectors' baseline), like the in-game
-# ship — once the new columns have been laid out.
+# Rests the ship view at the bottom (the sectors' baseline), like the in-game ship.
 func _scroll_ship_to_bottom() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	if is_instance_valid(_sector_scroll):
 		_sector_scroll.scroll_vertical = int(_sector_scroll.get_v_scroll_bar().max_value)
 
-## A confirmed sector's column on the list view — sectors run left to right
-## (up to 6, a ship's physical max), each one's own card stack running
-## vertically underneath it (sector card, then its tech/expedition stack),
-## matching the real board's layout instead of a flat text summary. Real
-## art throughout (same source images the review screen and CardPicker
-## use), plus supply icons and tuck counts, with an Edit button to reopen
-## it in the review screen.
-func _build_sector_summary_row(entry: Dictionary, index: int) -> Control:
+## One sector's column, laid out like the real tableau: the sector at the bottom, the tech nearest
+## it covering its top, each further tech covering the top of the one below it (name strip and orb
+## in view), a "+" slot above; under the sector its tokens, then its archive. Every card is tapped
+## to change it; the token and archive lines open their trays.
+func _build_sector_column(entry: Dictionary, index: int) -> Control:
 	var long_px: float = _ship_card
 	var short_px: float = roundf(long_px * 44.0 / 67.0)
 	var outer: VBoxContainer = VBoxContainer.new()
-	outer.add_theme_constant_override("separation", 4)
+	outer.add_theme_constant_override("separation", 10)
 	outer.custom_minimum_size = Vector2(long_px, 0)
 	outer.size_flags_vertical = Control.SIZE_SHRINK_END   # sector cards on one baseline
 
-	var sector_cd: CardData = entry["sector"]
-	var is_advanced: bool = entry["is_advanced"]
-	# No header label (wrapping names broke the row alignment); the name is the
-	# sector card's tooltip.
-	var sector_name: String = sector_cd.adv_name if (is_advanced and not sector_cd.adv_name.is_empty()) else sector_cd.card_name
-
-	# Laid out like the real tableau: the sector at the bottom, the tech nearest it
-	# covering its top, each further tech covering the top of the one below it, so
-	# every tech keeps its name strip and orb in view and the outermost one is
-	# whole. Placed by hand (a box container can't overlap by different amounts);
-	# z_index puts further techs on top.
 	var techs: Array = entry["techs"]
 	var sector_h: float = short_px
 	var tech_size: Vector2 = Vector2(short_px, long_px)
-	var stack_h: float = roundf(long_px * _ship_stack_factor(techs.size()))
+	var stack_h: float = roundf(long_px * _ship_stack_factor(techs.size()) + SELECT_LIFT)
 	var stack: Control = Control.new()
 	stack.custom_minimum_size = Vector2(long_px, stack_h)
 	stack.mouse_filter = Control.MOUSE_FILTER_PASS
 	outer.add_child(stack)
+
+	var sector_cd: CardData = entry["sector"]
+	var is_advanced: bool = entry["is_advanced"]
 	var unknown: bool = bool(entry.get("unknown_sector", false))
-	var sector_art: String = "" if unknown else (sector_cd.adv_local_art_path if is_advanced else sector_cd.local_art_path)
-	var sector_tip: String = ("%d. ? (not found: pick it with Edit)" % (index + 1)) if unknown else ("%d. %s" % [index + 1, sector_name])
-	var sector_thumb: TextureRect = _make_summary_thumb(sector_art, sector_tip, Vector2(long_px, sector_h))
+	var sector_art: String = "" if unknown else _art_path(sector_cd, is_advanced)
+	var sector_tip: String = tr("SCAN_NOT_FOUND") if unknown else _card_name(sector_cd, is_advanced)
+	var sector_sel: bool = _sel_sector == index and _sel_tech < 0
+	var sector_thumb: TextureRect = _make_ship_thumb(sector_art, sector_tip, Vector2(long_px, sector_h), 0, _select.bind(index, -1))
 	stack.add_child(sector_thumb)
-	sector_thumb.position = Vector2(0.0, stack_h - sector_h)   # after add_child, so layout can't override it
+	sector_thumb.position = Vector2(0.0, stack_h - sector_h - (SELECT_LIFT if sector_sel else 0.0))   # after add_child
 	sector_thumb.size = Vector2(long_px, sector_h)
 	if unknown:
 		_add_unknown_card(sector_thumb, Vector2(long_px, sector_h))
-	if bool(entry.get("unsure_sector", false)):
+	elif bool(entry.get("unsure_sector", false)):
 		_add_unsure_badge(sector_thumb, Vector2(long_px, sector_h), TableauReader.DIAL_MM["sector"] / TableauReader.SIZE_MM["sector"])
+	var lifted: Control = null
+	if sector_sel:
+		_mark_selected(sector_thumb, Vector2(long_px, sector_h))
+		lifted = sector_thumb
+
 	var unsure: Array = entry.get("unsure_techs", [])
 	var tech_x: float = roundf((long_px - short_px) * 0.3)
 	var y: float = stack_h - sector_h - long_px + SHIP_SECTOR_COVERED * sector_h
+	var top_y: float = stack_h - sector_h
 	for k: int in techs.size():
 		var cd: CardData = techs[k]
-		var thumb: TextureRect = _make_summary_thumb(cd.local_art_path, cd.card_name, tech_size, k + 1)
+		var sel: bool = _sel_sector == index and _sel_tech == k
+		var thumb: TextureRect = _make_ship_thumb(cd.local_art_path, cd.card_name, tech_size, k + 1, _select.bind(index, k))
 		stack.add_child(thumb)
-		thumb.position = Vector2(tech_x, roundf(y))
+		thumb.position = Vector2(tech_x, roundf(y) - (SELECT_LIFT if sel else 0.0))
 		thumb.size = tech_size
 		if unsure.has(k):
 			var deck: String = "expedition" if cd.card_type == CardData.CardType.EXPEDITION else "tech"
 			_add_unsure_badge(thumb, tech_size, TableauReader.DIAL_MM[deck] / TableauReader.SIZE_MM[deck])
+		if sel:
+			_mark_selected(thumb, tech_size)
+			lifted = thumb
+		top_y = y
 		y -= SHIP_TECH_SHOWN * long_px
+	if lifted:
+		stack.move_child(lifted, -1)     # (it is drawn in front, so it takes the taps there too)
+	# room for another card: a "+" slot on top of the stack
+	if techs.size() < MAX_TECHS:
+		var ghost_h: float = roundf(GHOST_SLOT_H * long_px)
+		var ghost: Control = _make_ghost_slot(Vector2(short_px, ghost_h), "+", _on_add_tech.bind(index))
+		stack.add_child(ghost)
+		ghost.position = Vector2(tech_x, roundf(top_y - GHOST_GAP * long_px - ghost_h))
+		ghost.size = Vector2(short_px, ghost_h)
 
-	# stored supply, then archived cards on a line of their own, then Edit
-	var info: HFlowContainer = HFlowContainer.new()
-	info.alignment = FlowContainer.ALIGNMENT_CENTER
-	info.add_theme_constant_override("h_separation", 10)
-	outer.add_child(info)
-	_ship_info_boxes.append(info)
-	var archive: HFlowContainer = HFlowContainer.new()
-	archive.alignment = FlowContainer.ALIGNMENT_CENTER
-	archive.add_theme_constant_override("h_separation", 10)
+	# under the sector: its tokens, then its archive (each line opens its tray)
+	var tokens: PanelContainer = _make_tap_area(_open_tray.bind("supply", index))
+	outer.add_child(tokens)
+	var token_flow: HFlowContainer = HFlowContainer.new()
+	token_flow.add_theme_constant_override("h_separation", 8)
+	token_flow.add_theme_constant_override("v_separation", 6)
+	token_flow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tokens.add_child(token_flow)
+	_ship_info_boxes.append(tokens)
+	var stored: Dictionary = entry["stored_supply"]
+	for color: CardData.SupplyColor in _SUPPLY_COLORS:
+		var n: int = int(stored.get(int(color), 0))
+		if n > 0:
+			token_flow.add_child(_make_token(int(color), n, TOKEN_ICON))
+	token_flow.add_child(_make_round_badge("+", 40.0, Color(0.08, 0.11, 0.19, 0.9), GHOST))
+
+	var archive: PanelContainer = _make_tap_area(_open_tray.bind("archive", index))
 	outer.add_child(archive)
 	_ship_archive_boxes.append(archive)
-	var stored: Dictionary = entry["stored_supply"]
-	for color_int: int in stored:
-		if int(stored[color_int]) > 0:
-			info.add_child(_make_summary_supply_badge(color_int, int(stored[color_int])))
-	# the supply count is the scan's least reliable part: ± fixes it right here
-	var fix_btn: Button = Button.new()
-	fix_btn.text = "±"
-	fix_btn.custom_minimum_size = SUMMARY_SUPPLY_ICON_SIZE
-	fix_btn.add_theme_font_size_override("font_size", SUMMARY_FONT_SIZE)
-	GameTheme.apply_to_button(fix_btn)
-	fix_btn.pressed.connect(_open_supply_editor.bind(index, fix_btn))
-	info.add_child(fix_btn)
-	var up_count: int = 0
-	var up_stars: int = 0
-	var down_count: int = 0
-	for t: Dictionary in (entry["tucked_cards"] as Array):
-		if t["face_up"]:
-			up_count += 1
-			var tcd: CardData = t.get("data")
-			if tcd:
-				up_stars += tcd.stars
-		else:
-			down_count += 1
-	if up_count > 0:
-		archive.add_child(_make_summary_archive_badge("▲", "%d ★%d" % [up_count, up_stars]))
-	if down_count > 0:
-		archive.add_child(_make_summary_archive_badge("▼", str(down_count)))
-
-	var edit_btn: Button = _make_button("Edit")
-	edit_btn.custom_minimum_size = Vector2(0, SHIP_EDIT_HEIGHT)
-	edit_btn.pressed.connect(_on_edit_sector_pressed.bind(index))
-	outer.add_child(edit_btn)
+	archive.add_child(_make_archive_line(entry))
 	return outer
 
-func _make_summary_thumb(art_path: String, tooltip: String, thumb_size: Vector2, base_z: int = 0) -> TextureRect:
+## A card in the ship: its art (or nothing, for a sector the scan didn't find), a tap selects it.
+func _make_ship_thumb(art_path: String, tooltip: String, thumb_size: Vector2, base_z: int, on_tap: Callable) -> TextureRect:
 	var thumb: TextureRect = TextureRect.new()
 	if not art_path.is_empty():
 		thumb.texture = load(art_path) as Texture2D
@@ -1374,21 +1270,15 @@ func _make_summary_thumb(art_path: String, tooltip: String, thumb_size: Vector2,
 	thumb.z_index = base_z
 	thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	# PASS: the tap reaches the card and a drag still scrolls the ship
 	thumb.mouse_filter = Control.MOUSE_FILTER_PASS
 	thumb.tooltip_text = tooltip
 	thumb.pivot_offset = thumb_size / 2.0
-
-	# Cards overlap in their stack (see _build_sector_summary_row), so whichever one
-	# was added last always draws on top regardless of which one you're
-	# actually looking at — z_index (not just sibling order) is what
-	# actually controls draw order, so hovering bumps it above every
-	# neighbor, plus a small scale-up so it's obvious which card responded.
-	# Stays elevated through the shrink-back tween on exit (reset via
-	# tween_callback once it's actually done) so it doesn't visually duck
-	# back behind a neighbor mid-animation.
+	thumb.gui_input.connect(_tap_handler(on_tap))
+	# (mouse only) the card under the pointer comes to the front, a little bigger
 	var hover_tween_cell: Array = [null]
 	thumb.mouse_entered.connect(func() -> void:
-		thumb.z_index = 50
+		thumb.z_index = maxi(base_z, 40)
 		if hover_tween_cell[0] and (hover_tween_cell[0] as Tween).is_valid():
 			(hover_tween_cell[0] as Tween).kill()
 		var tw: Tween = thumb.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
@@ -1399,251 +1289,572 @@ func _make_summary_thumb(art_path: String, tooltip: String, thumb_size: Vector2,
 			(hover_tween_cell[0] as Tween).kill()
 		var tw: Tween = thumb.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		tw.tween_property(thumb, "scale", Vector2.ONE, SUMMARY_HOVER_OUT_SEC)
-		tw.tween_callback(func(): thumb.z_index = base_z)
+		tw.tween_callback(func() -> void: thumb.z_index = base_z if thumb.get_meta("selected", false) == false else 60)
 		hover_tween_cell[0] = tw)
 	return thumb
+
+## The tapped card: in front, a gold edge round it (it's also lifted, see _build_sector_column).
+func _mark_selected(thumb: TextureRect, thumb_size: Vector2) -> void:
+	thumb.z_index = 60
+	thumb.set_meta("selected", true)
+	var rim: Panel = Panel.new()
+	var w: int = maxi(3, roundi(minf(thumb_size.x, thumb_size.y) * 0.035))
+	var style: StyleBoxFlat = _rounded(Color(0, 0, 0, 0), GOLD, w, roundi(minf(thumb_size.x, thumb_size.y) * 0.08))
+	style.expand_margin_left = w
+	style.expand_margin_right = w
+	style.expand_margin_top = w
+	style.expand_margin_bottom = w
+	rim.add_theme_stylebox_override("panel", style)
+	rim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	thumb.add_child(rim)
+	rim.position = Vector2.ZERO                     # after add_child, so layout can't override it
+	rim.size = thumb_size
+
+## A dashed-looking empty slot with a "+" (a card or a sector to add).
+func _make_ghost_slot(slot_size: Vector2, text: String, on_tap: Callable) -> Control:
+	var slot: PanelContainer = PanelContainer.new()
+	slot.add_theme_stylebox_override("panel", _rounded(Color(0.06, 0.09, 0.16, 0.55), GHOST, 2, 10))
+	slot.custom_minimum_size = slot_size
+	slot.mouse_filter = Control.MOUSE_FILTER_PASS
+	slot.gui_input.connect(_tap_handler(on_tap))
+	var lbl: Label = _make_label(text, roundi(clampf(slot_size.y * 0.55, 24.0, 40.0)), GHOST)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.add_child(lbl)
+	return slot
+
+func _make_add_sector_slot() -> Control:
+	var col: VBoxContainer = VBoxContainer.new()
+	col.size_flags_vertical = Control.SIZE_SHRINK_END
+	var w: float = roundf(_ship_card * SHIP_ADD_WIDTH)
+	var slot: Control = _make_ghost_slot(Vector2(w, roundf(_ship_card * 44.0 / 67.0)), "+ Sector", _on_add_sector)
+	(slot.get_child(0) as Label).add_theme_font_size_override("font_size", 26)
+	col.add_child(slot)
+	# in line with the sector cards (their token and archive lines below)
+	var under: Control = Control.new()
+	under.custom_minimum_size = Vector2(w, _ship_info_height)
+	under.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(under)
+	return col
+
+## A line under a sector that opens its tray when tapped (no frame until it's open).
+func _make_tap_area(on_tap: Callable) -> PanelContainer:
+	var area: PanelContainer = PanelContainer.new()
+	area.add_theme_stylebox_override("panel", _rounded(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 10, 4))
+	area.mouse_filter = Control.MOUSE_FILTER_PASS
+	area.gui_input.connect(_tap_handler(on_tap))
+	return area
+
+## A supply token with its count (×2 and up).
+func _make_token(color_int: int, n: int, icon_size: float) -> Control:
+	var box: HBoxContainer = HBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var icon: TextureRect = TextureRect.new()
+	icon.texture = load(_SUPPLY_ICON_PATHS[color_int]) as Texture2D
+	icon.custom_minimum_size = Vector2(icon_size, icon_size)
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(icon)
+	if n > 1:
+		var lbl: Label = _make_label("×%d" % n, SMALL_FONT_SIZE, CREAM)
+		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_child(lbl)
+	return box
+
+## The archive under a sector: face-up cards as small cards, face-down ones as backs with their count;
+## an empty outline when there's nothing.
+func _make_archive_line(entry: Dictionary) -> Control:
+	var line: HBoxContainer = HBoxContainer.new()
+	line.add_theme_constant_override("separation", 14)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var up: Array[CardData] = []
+	var down: int = 0
+	for t: Dictionary in (entry["tucked_cards"] as Array):
+		if bool(t["face_up"]):
+			var tcd: CardData = t.get("data")
+			if tcd:
+				up.append(tcd)
+		else:
+			down += 1
+	if not up.is_empty():
+		var fan: HBoxContainer = HBoxContainer.new()
+		fan.add_theme_constant_override("separation", -14)
+		fan.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		for tcd: CardData in up:
+			fan.add_child(_make_mini_card(tcd.local_art_path, ARCHIVE_CARD))
+		line.add_child(fan)
+	if down > 0:
+		var backs: HBoxContainer = HBoxContainer.new()
+		backs.add_theme_constant_override("separation", 4)
+		backs.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		backs.add_child(_make_mini_card(_back_path(), ARCHIVE_CARD))
+		var lbl: Label = _make_label("×%d" % down, SMALL_FONT_SIZE, CREAM)
+		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		backs.add_child(lbl)
+		line.add_child(backs)
+	if up.is_empty() and down == 0:
+		var empty: Panel = Panel.new()
+		empty.add_theme_stylebox_override("panel", _rounded(Color(0, 0, 0, 0), Color(GHOST, 0.5), 2, 5))
+		empty.custom_minimum_size = ARCHIVE_CARD
+		empty.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		line.add_child(empty)
+	return line
+
+func _make_mini_card(art_path: String, card_size: Vector2) -> TextureRect:
+	var r: TextureRect = TextureRect.new()
+	if not art_path.is_empty():
+		r.texture = load(art_path) as Texture2D
+	r.custom_minimum_size = card_size
+	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return r
+
+## The tech back of the game's language (EN where there's none).
+static func _back_path() -> String:
+	var lang: String = TranslationServer.get_locale().substr(0, 2).to_upper()
+	var p: String = TECH_BACK_PATH % lang
+	return p if ResourceLoader.exists(p) else TECH_BACK_PATH % "EN"
 
 ## A card the scan couldn't find (a sector whose light ring wasn't read): a dark card with a
 ## giant yellow "?", so it can't be mistaken for a real one.
 func _add_unknown_card(thumb: TextureRect, thumb_size: Vector2) -> void:
 	var card: PanelContainer = PanelContainer.new()
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.12, 0.17)
-	style.border_color = Color(1.0, 0.8, 0.2)
-	style.set_border_width_all(maxi(2, roundi(minf(thumb_size.x, thumb_size.y) * 0.04)))
-	style.set_corner_radius_all(roundi(minf(thumb_size.x, thumb_size.y) * 0.07))
-	card.add_theme_stylebox_override("panel", style)
+	card.add_theme_stylebox_override("panel", _rounded(Color(0.1, 0.12, 0.17), STAR_COLOR,
+		maxi(2, roundi(minf(thumb_size.x, thumb_size.y) * 0.04)), roundi(minf(thumb_size.x, thumb_size.y) * 0.07)))
 	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var lbl: Label = Label.new()
-	lbl.text = "?"
+	var lbl: Label = _make_label("?", roundi(minf(thumb_size.x, thumb_size.y) * 0.8), STAR_COLOR)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", roundi(minf(thumb_size.x, thumb_size.y) * 0.8))
-	lbl.add_theme_color_override("font_color", Color(1.0, 0.8, 0.2))
 	card.add_child(lbl)
 	thumb.add_child(card)
 	card.position = Vector2.ZERO                     # after add_child, so layout can't override it
 	card.size = thumb_size
 
-## A yellow "?" over a card's light ring: the scan wasn't sure of this card (check it with Edit).
+## A gold "?" over a card's light ring: the scan wasn't sure of this card (tap it to check).
 func _add_unsure_badge(thumb: TextureRect, thumb_size: Vector2, at: Vector2) -> void:
-	var d: float = maxf(14.0, roundf(minf(thumb_size.x, thumb_size.y) * 0.24))
-	var badge: PanelContainer = PanelContainer.new()
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Color(1.0, 0.8, 0.2)
-	style.border_color = Color(0.1, 0.08, 0.02)
-	style.set_border_width_all(maxi(1, roundi(d * 0.08)))
-	style.set_corner_radius_all(roundi(d / 2.0))
-	badge.add_theme_stylebox_override("panel", style)
-	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var lbl: Label = Label.new()
-	lbl.text = "?"
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", roundi(d * 0.72))
-	lbl.add_theme_color_override("font_color", Color(0.1, 0.08, 0.02))
-	badge.add_child(lbl)
+	var d: float = maxf(16.0, roundf(minf(thumb_size.x, thumb_size.y) * 0.24))
+	var badge: PanelContainer = _make_round_badge("?", d, GOLD, BADGE_DARK)
 	thumb.add_child(badge)
 	badge.size = Vector2(d, d)                       # after add_child, so layout can't override it
 	badge.position = thumb_size * at - badge.size / 2.0
 	thumb.tooltip_text += "  (?)"
 
-func _make_summary_supply_badge(color_int: int, amount: int) -> Control:
-	var box: HBoxContainer = HBoxContainer.new()
-	box.add_theme_constant_override("separation", 4)
-	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	var icon: TextureRect = TextureRect.new()
-	icon.texture = load(_SUPPLY_ICON_PATHS[color_int]) as Texture2D
-	icon.custom_minimum_size = SUMMARY_SUPPLY_ICON_SIZE
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	box.add_child(icon)
-	var lbl: Label = _make_summary_text_badge(str(amount))
-	box.add_child(lbl)
-	return box
+static func _art_path(cd: CardData, is_advanced: bool) -> String:
+	return cd.adv_local_art_path if is_advanced and not cd.adv_local_art_path.is_empty() else cd.local_art_path
 
-## One sector's stored supply, counted up or down in place: the six colours with − / + right
-## above the sector's ± button. The score follows every tap; a tap anywhere else closes it.
-## (No dimming behind it: the ship stays in view.)
-func _open_supply_editor(index: int, anchor: Control) -> void:
-	_close_supply_editor()
-	if index < 0 or index >= _sectors.size():
+static func _card_name(cd: CardData, is_advanced: bool) -> String:
+	return cd.adv_name if is_advanced and not cd.adv_name.is_empty() else cd.card_name
+
+func _sector_label(entry: Dictionary) -> String:
+	if bool(entry.get("unknown_sector", false)):
+		return tr("SCAN_NOT_FOUND")
+	return _card_name(entry["sector"], bool(entry["is_advanced"]))
+
+## The tapped card's name ("Sector not found" for a "?" sector) and where it sits.
+func _bar_title() -> String:
+	if _sel_sector < 0 or _sel_sector >= _sectors.size():
+		return ""
+	var entry: Dictionary = _sectors[_sel_sector]
+	if _sel_tech < 0:
+		return _sector_label(entry)
+	return _card_name((entry["techs"] as Array)[_sel_tech], false)
+
+func _bar_place() -> String:
+	if _sel_sector < 0 or _sel_sector >= _sectors.size():
+		return ""
+	if _sel_tech < 0:
+		return tr("SCAN_PLACE_SECTOR") % (_sel_sector + 1)
+	return tr("SCAN_PLACE_CARD") % [_sector_label(_sectors[_sel_sector]), _sel_tech + 1]
+
+## The tapped card as the photo shows it (null for a card added by hand, or without a photo).
+func _selected_crop() -> Texture2D:
+	if _sel_sector < 0 or _sel_sector >= _sectors.size():
+		return null
+	var entry: Dictionary = _sectors[_sel_sector]
+	var d: Dictionary = {}
+	if _sel_tech < 0:
+		d = entry.get("sector_dial", {})
+	else:
+		var dials: Array = entry.get("tech_dials", [])
+		if _sel_tech < dials.size():
+			d = dials[_sel_tech]
+	return _photo_crop(d)
+
+## The part of the photo where a read card lies, turned upright and squared up (the reader knows
+## each card's frame: TableauReader.card_frame). A tech: its lower part with the name strip and orb
+## (what a stack leaves in view); a sector: its lower part under the techs; a "?" sector: where it
+## must be. Cached per position.
+func _photo_crop(d: Dictionary) -> Texture2D:
+	if d.is_empty() or _source_image == null or not d.has("shape") or not d.has("card"):
+		return null
+	var key: String = "%s|%s" % [str(d["center"]), str(d["radius"])]
+	if _crops.has(key):
+		return _crops[key]
+	var deck: String = TableauReader.deck_of(d)
+	var size_mm: Vector2 = TableauReader.SIZE_MM[deck]
+	var shown: float = CROP_SECTOR_SHOWN if deck == "sector" else CROP_TECH_SHOWN
+	var from_v: float = size_mm.y * (1.0 - shown)
+	var frame: Transform2D = TableauReader.card_frame(d)
+	var w: int = int(size_mm.x * CROP_PPM)
+	var h: int = int(size_mm.y * shown * CROP_PPM)
+	var iw: int = _source_image.get_width()
+	var ih: int = _source_image.get_height()
+	var out: Image = Image.create(w, h, false, Image.FORMAT_RGB8)
+	for j: int in h:
+		for i: int in w:
+			var at: Vector2 = frame * Vector2((i + 0.5) / CROP_PPM, from_v + (j + 0.5) / CROP_PPM)
+			out.set_pixel(i, j, _source_image.get_pixel(clampi(int(at.x), 0, iw - 1), clampi(int(at.y), 0, ih - 1)))
+	var tex: ImageTexture = ImageTexture.create_from_image(out)
+	_crops[key] = tex
+	return tex
+
+# ── Editing: a tapped card ─────────────────────────────────────────────────
+
+## Taps a card (tech -1: the sector card); the same card again, or (-1, -1), lets go.
+func _select(sector: int, tech: int) -> void:
+	_close_tray()
+	if sector == _sel_sector and tech == _sel_tech:
+		sector = -1
+		tech = -1
+	_sel_sector = sector
+	_sel_tech = tech
+	_refresh_sector_list()
+
+func _on_change_pressed() -> void:
+	if _sel_sector < 0 or _sel_sector >= _sectors.size():
 		return
-	var catcher: Control = Control.new()
-	catcher.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	catcher.mouse_filter = Control.MOUSE_FILTER_STOP
-	catcher.z_index = 100     # above the ship's card thumbs (z 1-5, 50 while hovered)
-	catcher.gui_input.connect(func(ev: InputEvent) -> void:
-		if _is_tap(ev):
-			_close_supply_editor())
-	add_child(catcher)
-	_supply_editor = catcher
-	var panel: PanelContainer = PanelContainer.new()
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.07, 0.12, 0.97)
-	style.border_color = Color(GUIDE_BADGE_RIM, 0.8)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(10)
-	style.set_content_margin_all(12)
-	panel.add_theme_stylebox_override("panel", style)
-	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	catcher.add_child(panel)
-	var grid: GridContainer = GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 22)
-	grid.add_theme_constant_override("v_separation", 8)
-	panel.add_child(grid)
-	var stored: Dictionary = _sectors[index]["stored_supply"]
+	var index: int = _sel_sector
+	var crop: Texture2D = _selected_crop()
+	var line: String = "%s (%s)" % [_bar_title(), _bar_place()]
+	if _sel_tech < 0:
+		var entry: Dictionary = _sectors[index]
+		var tab: int = CardPickerScript.TAB_SECTOR_ADVANCED if bool(entry["is_advanced"]) else CardPickerScript.TAB_SECTOR_DUST
+		_pick(tab, [CardPickerScript.TAB_SECTOR_DUST, CardPickerScript.TAB_SECTOR_ADVANCED], func(card_name: String, adv: bool) -> void:
+			var cd: CardData = CardDatabase.find_sector_by_name(card_name, adv)
+			if cd == null or index >= _sectors.size():
+				return
+			var e: Dictionary = _sectors[index]
+			e["sector"] = cd
+			e["is_advanced"] = adv
+			e["unsure_sector"] = false
+			e["unknown_sector"] = false
+			_refresh_sector_list(), crop, line)
+	else:
+		var k: int = _sel_tech
+		_pick(CardPickerScript.TAB_TECH, [CardPickerScript.TAB_TECH, CardPickerScript.TAB_EXPEDITION], func(card_name: String, _adv: bool) -> void:
+			var cd: CardData = CardDatabase.find_any_by_name(card_name)
+			if cd == null or index >= _sectors.size():
+				return
+			var techs: Array = _sectors[index]["techs"]
+			if k >= techs.size():
+				return
+			techs[k] = cd
+			(_sectors[index]["unsure_techs"] as Array).erase(k)
+			_refresh_sector_list(), crop, line)
+
+func _on_remove_pressed() -> void:
+	if _sel_sector < 0 or _sel_sector >= _sectors.size():
+		return
+	if _sel_tech < 0:
+		_sectors.remove_at(_sel_sector)
+	else:
+		var e: Dictionary = _sectors[_sel_sector]
+		(e["techs"] as Array).remove_at(_sel_tech)
+		var dials: Array = e.get("tech_dials", [])
+		if _sel_tech < dials.size():
+			dials.remove_at(_sel_tech)
+		# the "?" marks follow their cards
+		var marks: Array[int] = []
+		for m: int in (e.get("unsure_techs", []) as Array):
+			if m < _sel_tech:
+				marks.append(m)
+			elif m > _sel_tech:
+				marks.append(m - 1)
+		e["unsure_techs"] = marks
+	_sel_sector = -1
+	_sel_tech = -1
+	_refresh_sector_list()
+
+## The "+" on top of a stack: a tech or expedition picked from the collection goes on top.
+func _on_add_tech(index: int) -> void:
+	_close_tray()
+	_pick(CardPickerScript.TAB_TECH, [CardPickerScript.TAB_TECH, CardPickerScript.TAB_EXPEDITION], func(card_name: String, _adv: bool) -> void:
+		var cd: CardData = CardDatabase.find_any_by_name(card_name)
+		if cd == null or index >= _sectors.size():
+			return
+		var techs: Array = _sectors[index]["techs"]
+		if techs.size() < MAX_TECHS:
+			techs.append(cd)
+			var dials: Array = _sectors[index].get("tech_dials", [])
+			dials.append({})          # added by hand: no place in the photo
+		_refresh_sector_list())
+
+## "+ Sector": a sector the scan missed, picked from the collection, at the end of the row.
+func _on_add_sector() -> void:
+	_close_tray()
+	_pick(CardPickerScript.TAB_SECTOR_DUST, [CardPickerScript.TAB_SECTOR_DUST, CardPickerScript.TAB_SECTOR_ADVANCED], func(card_name: String, adv: bool) -> void:
+		var cd: CardData = CardDatabase.find_sector_by_name(card_name, adv)
+		if cd == null or _sectors.size() >= MAX_SECTORS:
+			return
+		_sectors.append(_new_entry(cd, adv))
+		_refresh_sector_list())
+
+## Opens the card picker on the tabs a slot can hold (a sector slot only ever shows sectors).
+func _pick(default_tab: int, allowed: Array[int], on_pick: Callable, context: Texture2D = null, context_text: String = "") -> void:
+	if _picker_callback.is_valid() and _card_picker.picked.is_connected(_picker_callback):
+		_card_picker.picked.disconnect(_picker_callback)
+	_picker_callback = on_pick
+	_card_picker.picked.connect(_picker_callback, CONNECT_ONE_SHOT)
+	if _tray:
+		_tray.visible = false
+		if not _card_picker.visibility_changed.is_connected(_on_picker_visibility):
+			_card_picker.visibility_changed.connect(_on_picker_visibility)
+	_card_picker.open(default_tab, allowed, context, context_text)
+
+func _on_picker_visibility() -> void:
+	if not _card_picker.visible and _tray and is_instance_valid(_tray):
+		_tray.visible = true
+		_place_tray()
+
+# ── Editing: a sector's trays ──────────────────────────────────────────────
+
+## A sector's token tray ("supply") or archive tray ("archive"), floating over its line (no dimming:
+## the ship stays in view). A tap anywhere else closes it and shows the new counts.
+func _open_tray(kind: String, index: int) -> void:
+	var same: bool = _tray != null and _tray_kind == kind and _tray_sector == index
+	var boxes: Array[Control] = _ship_info_boxes if kind == "supply" else _ship_archive_boxes
+	var anchor: Rect2 = boxes[index].get_global_rect() if index >= 0 and index < boxes.size() and is_instance_valid(boxes[index]) else Rect2()
+	_close_tray()
+	_sel_sector = -1
+	_sel_tech = -1
+	_refresh_sector_list()                  # the new counts, no card lifted
+	if same or index < 0 or index >= _sectors.size() or anchor.size == Vector2.ZERO:
+		return
+	_tray_kind = kind
+	_tray_sector = index
+	_tray_anchor = anchor
+	var tray: PanelContainer = PanelContainer.new()
+	tray.add_theme_stylebox_override("panel", _tray_style())
+	tray.mouse_filter = Control.MOUSE_FILTER_STOP
+	tray.z_index = 100
+	add_child(tray)
+	_tray = tray
+	_fill_tray()
+
+func _tray_style() -> StyleBoxFlat:
+	var s: StyleBoxFlat = _rounded(PANEL_BG, GOLD, 2, 16, 18)
+	s.shadow_color = Color(0, 0, 0, 0.6)
+	s.shadow_size = 18
+	s.shadow_offset = Vector2(0, 10)
+	return s
+
+## (Re)builds the open tray's content and keeps it by its line, on screen.
+func _fill_tray() -> void:
+	if _tray == null or _tray_sector >= _sectors.size():
+		return
+	for child: Node in _tray.get_children():
+		_tray.remove_child(child)
+		child.queue_free()
+	var entry: Dictionary = _sectors[_tray_sector]
+	var box: VBoxContainer = VBoxContainer.new()
+	box.add_theme_constant_override("separation", 12)
+	_tray.add_child(box)
+	var head: HBoxContainer = HBoxContainer.new()
+	head.add_theme_constant_override("separation", 24)
+	box.add_child(head)
+	var title_key: String = "SCAN_SUPPLY_ON" if _tray_kind == "supply" else "SCAN_ARCHIVE_UNDER"
+	var title: Label = _make_label(tr(title_key) % _sector_label(entry), BODY_FONT_SIZE, CREAM)
+	title.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(title)
+	if _tray_kind == "supply":
+		head.add_child(_make_label("SCAN_TOKEN_HINT", SMALL_FONT_SIZE, MUTED))
+		box.add_child(_build_supply_tray(entry))
+	else:
+		box.add_child(_build_archive_tray(entry))
+	_place_tray()
+
+## Where the open tray's line is now (the ship may have been redrawn since it opened).
+func _tray_line_rect() -> Rect2:
+	var boxes: Array[Control] = _ship_info_boxes if _tray_kind == "supply" else _ship_archive_boxes
+	if _tray_sector >= 0 and _tray_sector < boxes.size() and is_instance_valid(boxes[_tray_sector]):
+		return boxes[_tray_sector].get_global_rect()
+	return _tray_anchor
+
+func _place_tray() -> void:
+	if _tray == null:
+		return
+	_tray.reset_size()
+	var screen: Rect2 = get_global_rect()
+	var sz: Vector2 = _tray.get_combined_minimum_size()
+	var pos: Vector2 = Vector2(_tray_anchor.get_center().x - sz.x / 2.0, _tray_anchor.position.y - sz.y - 14.0)
+	if pos.y < screen.position.y + 8.0:
+		pos.y = _tray_anchor.end.y + 14.0           # no room above: below the line
+	pos.x = clampf(pos.x, screen.position.x + 8.0, screen.end.x - sz.x - 8.0)
+	pos.y = clampf(pos.y, screen.position.y + 8.0, screen.end.y - sz.y - 8.0)
+	_tray.global_position = pos
+
+## The six tokens: tap one to add it, its "−" takes one off; the score follows every tap.
+func _build_supply_tray(entry: Dictionary) -> Control:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	var stored: Dictionary = entry["stored_supply"]
 	for color: CardData.SupplyColor in _SUPPLY_COLORS:
 		var c: int = int(color)
-		var row: HBoxContainer = HBoxContainer.new()
-		row.add_theme_constant_override("separation", 6)
+		var n: int = int(stored.get(c, 0))
+		var col: VBoxContainer = VBoxContainer.new()
+		col.add_theme_constant_override("separation", 6)
+		col.alignment = BoxContainer.ALIGNMENT_CENTER
+		row.add_child(col)
 		var icon: TextureRect = TextureRect.new()
 		icon.texture = load(_SUPPLY_ICON_PATHS[c]) as Texture2D
-		icon.custom_minimum_size = SUMMARY_SUPPLY_ICON_SIZE
+		icon.custom_minimum_size = Vector2(TRAY_TOKEN, TRAY_TOKEN)
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.tooltip_text = CardData.color_name(color)
-		row.add_child(icon)
-		var count: Label = Label.new()
-		count.text = str(int(stored.get(c, 0)))
-		count.custom_minimum_size = Vector2(40, 0)
+		icon.modulate = Color(1, 1, 1, 1.0 if n > 0 else 0.45)
+		icon.mouse_filter = Control.MOUSE_FILTER_STOP
+		icon.gui_input.connect(_tap_handler(_step_supply.bind(c, 1)))
+		col.add_child(icon)
+		var count: Label = _make_label(str(n), STEPPER_BUTTON_FONT_SIZE, CREAM if n > 0 else MUTED)
 		count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		count.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		count.add_theme_font_size_override("font_size", STEPPER_BUTTON_FONT_SIZE)
-		var minus_btn: Button = _make_stepper_button("−")
-		minus_btn.pressed.connect(_step_supply.bind(index, c, -1, count))
-		var plus_btn: Button = _make_stepper_button("+")
-		plus_btn.pressed.connect(_step_supply.bind(index, c, 1, count))
-		row.add_child(minus_btn)
-		row.add_child(count)
-		row.add_child(plus_btn)
-		grid.add_child(row)
-	# above the ± button, kept on screen (after add_child, so layout can't override it)
-	panel.reset_size()
-	var box: Rect2 = get_global_rect()
-	var at: Rect2 = anchor.get_global_rect()
-	var pos: Vector2 = Vector2(at.get_center().x - panel.size.x / 2.0, at.position.y - panel.size.y - 10.0)
-	pos.x = clampf(pos.x, box.position.x + 8.0, box.end.x - panel.size.x - 8.0)
-	pos.y = clampf(pos.y, box.position.y + 8.0, box.end.y - panel.size.y - 8.0)
-	panel.global_position = pos
+		col.add_child(count)
+		var minus: Button = _make_stepper_button("−")
+		minus.custom_minimum_size = Vector2(TRAY_TOKEN, 56)
+		minus.disabled = n == 0
+		minus.pressed.connect(_step_supply.bind(c, -1))
+		col.add_child(minus)
+	return row
 
-func _step_supply(index: int, color_int: int, by: int, count: Label) -> void:
-	if index < 0 or index >= _sectors.size():
+func _step_supply(color_int: int, by: int) -> void:
+	if _tray_sector < 0 or _tray_sector >= _sectors.size():
 		return
-	var stored: Dictionary = _sectors[index]["stored_supply"]
+	var stored: Dictionary = _sectors[_tray_sector]["stored_supply"]
 	var n: int = clampi(int(stored.get(color_int, 0)) + by, 0, 99)
 	if n > 0:
 		stored[color_int] = n
 	else:
 		stored.erase(color_int)
-	count.text = str(n)
-	_update_score()
-
-## Closes the supply counter and shows the new counts under the sectors.
-func _close_supply_editor() -> void:
-	if _supply_editor == null:
-		return
-	if is_instance_valid(_supply_editor):
-		_supply_editor.queue_free()
-	_supply_editor = null
 	_refresh_sector_list()
+	_fill_tray()
 
-## Archived cards: the face-up/face-down arrow inside a little card outline, then the count.
-func _make_summary_archive_badge(arrow: String, text: String) -> Control:
-	var box: HBoxContainer = HBoxContainer.new()
-	box.add_theme_constant_override("separation", 5)
-	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_child(_make_archive_card(arrow, SUMMARY_ARCHIVE_CARD_SIZE, SUMMARY_ARCHIVE_ARROW_SIZE))
-	box.add_child(_make_summary_text_badge(text))
-	return box
+## Face-up archived cards (the real cards: tap "+" to pick one, ✕ takes one off) and the
+## face-down count (− n +).
+func _build_archive_tray(entry: Dictionary) -> Control:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 26)
+	var tucked: Array = entry["tucked_cards"]
+	# face up
+	var up_col: VBoxContainer = VBoxContainer.new()
+	up_col.add_theme_constant_override("separation", 8)
+	row.add_child(up_col)
+	up_col.add_child(_make_label("Face up", SMALL_FONT_SIZE, MUTED))
+	var up_row: HBoxContainer = HBoxContainer.new()
+	up_row.add_theme_constant_override("separation", 10)
+	up_col.add_child(up_row)
+	for i: int in tucked.size():
+		var t: Dictionary = tucked[i]
+		if not bool(t["face_up"]) or t.get("data") == null:
+			continue
+		var tcd: CardData = t["data"]
+		var card_col: VBoxContainer = VBoxContainer.new()
+		card_col.add_theme_constant_override("separation", 4)
+		up_row.add_child(card_col)
+		var mini: TextureRect = _make_mini_card(tcd.local_art_path, TRAY_CARD)
+		mini.tooltip_text = tcd.card_name
+		mini.mouse_filter = Control.MOUSE_FILTER_PASS
+		card_col.add_child(mini)
+		var off: Button = _make_stepper_button("✕")
+		off.custom_minimum_size = Vector2(TRAY_CARD.x, 48)
+		off.add_theme_font_size_override("font_size", 22)
+		off.pressed.connect(_remove_tucked.bind(i))
+		card_col.add_child(off)
+	var add_up: Control = _make_ghost_slot(TRAY_CARD, "+", _add_face_up)
+	add_up.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	up_row.add_child(add_up)
+	row.add_child(VSeparator.new())
+	# face down
+	var down: int = 0
+	for t: Dictionary in tucked:
+		if not bool(t["face_up"]):
+			down += 1
+	var down_col: VBoxContainer = VBoxContainer.new()
+	down_col.add_theme_constant_override("separation", 8)
+	row.add_child(down_col)
+	down_col.add_child(_make_label("Face down", SMALL_FONT_SIZE, MUTED))
+	var down_row: HBoxContainer = HBoxContainer.new()
+	down_row.add_theme_constant_override("separation", 12)
+	down_col.add_child(down_row)
+	down_row.add_child(_make_mini_card(_back_path(), TRAY_CARD))
+	var minus: Button = _make_stepper_button("−")
+	minus.disabled = down == 0
+	minus.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	minus.pressed.connect(_step_face_down.bind(-1))
+	down_row.add_child(minus)
+	var count: Label = _make_label(str(down), STEPPER_BUTTON_FONT_SIZE + 6, CREAM)
+	count.custom_minimum_size = Vector2(44, 0)
+	count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	down_row.add_child(count)
+	var plus: Button = _make_stepper_button("+")
+	plus.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	plus.pressed.connect(_step_face_down.bind(1))
+	down_row.add_child(plus)
+	return row
 
-## A little portrait card outline with ▲ (face up) or ▼ (face down) in it.
-func _make_archive_card(arrow: String, card_size: Vector2, arrow_size: int) -> Control:
-	var card: PanelContainer = PanelContainer.new()
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.draw_center = false
-	style.border_color = Color(1, 1, 1, 0.85)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(3)
-	card.add_theme_stylebox_override("panel", style)
-	card.custom_minimum_size = card_size
-	card.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var lbl: Label = Label.new()
-	lbl.text = arrow
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", arrow_size)
-	card.add_child(lbl)
-	return card
+func _add_face_up() -> void:
+	var index: int = _tray_sector
+	_pick(CardPickerScript.TAB_TECH, [CardPickerScript.TAB_TECH, CardPickerScript.TAB_EXPEDITION], func(card_name: String, _adv: bool) -> void:
+		var cd: CardData = CardDatabase.find_any_by_name(card_name)
+		if cd == null or index >= _sectors.size():
+			return
+		(_sectors[index]["tucked_cards"] as Array).append({"data": cd, "face_up": true})
+		_refresh_sector_list()
+		_fill_tray())
 
-func _make_summary_text_badge(text: String) -> Label:
-	var lbl: Label = Label.new()
-	lbl.text = text
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", SUMMARY_FONT_SIZE)
-	return lbl
+func _remove_tucked(i: int) -> void:
+	if _tray_sector < 0 or _tray_sector >= _sectors.size():
+		return
+	var tucked: Array = _sectors[_tray_sector]["tucked_cards"]
+	if i < tucked.size():
+		tucked.remove_at(i)
+	_refresh_sector_list()
+	_fill_tray()
 
-## Pulls a confirmed sector back out for editing: removed from _sectors (so
-## the list doesn't show it twice while it's being edited) and reconstructed
-## into the same 6-slot _pending shape a fresh scan/add would build, with
-## supply/tucked fields pre-filled from what it was confirmed as. Cancel
-## restores _editing_original_sector unchanged; Confirm re-inserts whatever
-## it's edited to at the same index.
-func _on_edit_sector_pressed(index: int) -> void:
-	_set_view("ship")
-	_editing_sector_index = index
-	_editing_original_sector = _sectors[index]
-	_sectors.remove_at(index)
-	_pending = _rebuild_pending_from_sector(_editing_original_sector)
+func _step_face_down(by: int) -> void:
+	if _tray_sector < 0 or _tray_sector >= _sectors.size():
+		return
+	var tucked: Array = _sectors[_tray_sector]["tucked_cards"]
+	if by > 0:
+		tucked.append({"data": null, "face_up": false})
+	else:
+		for i: int in range(tucked.size() - 1, -1, -1):
+			if not bool((tucked[i] as Dictionary)["face_up"]):
+				tucked.remove_at(i)
+				break
+	_refresh_sector_list()
+	_fill_tray()
 
-	var stored: Dictionary = _editing_original_sector.get("stored_supply", {})
-	for color_int: int in _supply_spinboxes:
-		(_supply_spinboxes[color_int] as SpinBox).value = int(stored.get(color_int, 0))
-	var up_count: int = 0
-	var up_stars: int = 0
-	var down_count: int = 0
-	for t: Dictionary in (_editing_original_sector.get("tucked_cards", []) as Array):
-		if t["face_up"]:
-			up_count += 1
-			var tcd: CardData = t.get("data")
-			if tcd:
-				up_stars += tcd.stars
-		else:
-			down_count += 1
-	_tucked_up_spinbox.value = up_count
-	_tucked_up_stars_spinbox.value = up_stars
-	_tucked_down_spinbox.value = down_count
+## Closes the open tray (the ship under it already shows its counts: every tray tap redraws it).
+func _close_tray() -> void:
+	if _tray == null:
+		return
+	if is_instance_valid(_tray):
+		_tray.queue_free()
+	_tray = null
+	_tray_kind = ""
+	_tray_sector = -1
 
-	_confirm_btn.text = "Save Changes"
-	_skip_btn.text = "Cancel"
-	_delete_btn.visible = true
-	_populate_review_cards()
-	_show_review_view()
+# ── Score ──────────────────────────────────────────────────────────────────
 
-func _rebuild_pending_from_sector(sector_entry: Dictionary) -> Array[Dictionary]:
-	var pending: Array[Dictionary] = []
-	var sector_cd: CardData = sector_entry["sector"]
-	var is_advanced: bool = sector_entry["is_advanced"]
-	var sector_name: String = sector_cd.adv_name if is_advanced else sector_cd.card_name
-	if bool(sector_entry.get("unknown_sector", false)):
-		sector_name = ""          # not found: the player picks it
-	pending.append({"thumbnail": null, "name": sector_name, "is_advanced": is_advanced})
-	for cd: CardData in (sector_entry["techs"] as Array):
-		pending.append({"thumbnail": null, "name": cd.card_name, "is_advanced": false})
-	while pending.size() < SECTOR_SLOT_COUNT:
-		pending.append(_blank_entry())
-	return pending
-
-# The ship's VP total and breakdown, shown whenever there's a ship; any change
-# to the ship makes it submittable again.
+# The ship's VP total and breakdown, shown whenever there's a ship; any change makes it
+# submittable again.
 func _update_score() -> void:
 	for child: Node in _results_box.get_children():
 		_results_box.remove_child(child)
 		child.queue_free()
-	_score_display.visible = not _sectors.is_empty()
-	if _sectors.is_empty() and _results_box.visible:
-		_set_view("ship")
+	_score_box.visible = not _sectors.is_empty()
 	_leaderboard_btn.disabled = _sectors.is_empty()
 	_leaderboard_btn.text = "Add to Leaderboard"
 	if _sectors.is_empty():
@@ -1651,9 +1862,7 @@ func _update_score() -> void:
 		return
 	_apply_alliance()
 	for line: Dictionary in BotScoring.board_vp_lines(_sectors):
-		var lbl: Label = Label.new()
-		lbl.text = "%s: %d" % [line["label"], line["vp"]]
-		lbl.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
+		var lbl: Label = _make_label("%s: %d" % [line["label"], line["vp"]], BODY_FONT_SIZE, CREAM)
 		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_results_box.add_child(lbl)
 	_score_total_label.text = str(BotScoring.board_vp(_sectors))
