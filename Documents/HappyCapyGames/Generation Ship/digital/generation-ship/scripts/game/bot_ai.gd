@@ -295,7 +295,7 @@ static func _would_trigger_optimize(slot: Dictionary, new_card: CardData) -> boo
 	var cur_count: int = int(slot.get("optimize_count", 0))
 	if max_opt <= 0 or cur_count >= max_opt:
 		return false
-	var effective_colors: Array[int] = BotScoring.slot_effective_placed_colors(slot)
+	var effective_colors: Array[int] = BotScoring.slot_tech_colors(slot)   # tanks: placed cards only
 	effective_colors.append(int(new_card.color))
 	var triggered_copy: Array[bool] = (slot.get("triggered_levels", []) as Array[bool]).duplicate()
 	var result: Dictionary = OptimizeLogic.update_optimize_state(

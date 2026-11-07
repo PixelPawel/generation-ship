@@ -32,15 +32,19 @@ static func init_bot_state(main: Main) -> void:
 
 static func update_bots_for_new_round(main: Main) -> void:
 	for bot_id: int in GameNetwork.bot_ids:
-		var old_hand: Array = main.bot_hands.get(bot_id, [])
-		for cd: Variant in old_hand:
-			main.get_node("Board").add_to_discard(cd as CardData)
-		main.bot_hands[bot_id] = main.get_node("Board").draw_card_data(6)
+		# draw 6 more and keep the hand: there is no hand maximum (rule book p4; the bots threw
+		# their whole hand away every Generation)
+		var hand: Array[CardData] = bot_hand(main, bot_id)
+		hand.append_array(main.get_node("Board").draw_card_data(6))
+		bot_set_hand(main, bot_id, hand)
+		# the last Generation's income, as for the humans (Main._apply_supply_generation): 1 supply
+		# per card on the ship in its colour (the sector by its visible side), not +1 of every colour
 		var supply: Dictionary = main.bot_supplies.get(bot_id, {})
-		for color: CardData.SupplyColor in CardData.SupplyColor.values():
-			if FleetRules.blocks_income(int(color)):   # Fleet Dangers
-				continue
-			supply[int(color)] = supply.get(int(color), 0) + 1
+		for slot_v: Variant in (main.bot_boards.get(bot_id, []) as Array):
+			for color: int in BotScoring.slot_effective_placed_colors(slot_v as Dictionary):
+				if FleetRules.blocks_income(color):   # Fleet Dangers
+					continue
+				supply[color] = int(supply.get(color, 0)) + 1
 		main.bot_supplies[bot_id] = supply
 
 static func get_bot_snapshot(main: Main, bot_id: int) -> Dictionary:
@@ -188,7 +192,11 @@ static func bot_buy_sector(main: Main, bot_id: int, card_data: CardData) -> void
 	var color: int = int(card_data.color)
 	var cost: int = max(0, card_data.cost) + FleetRules.cost_increase(card_data)
 	main.bot_supplies[bot_id][color] = max(0, main.bot_supplies[bot_id].get(color, 0) - cost)
-	main.get_node("Board").get_market().remove_card(card_data)
+	# off every market, not only the host's (online players could buy the same card)
+	if GameNetwork.is_multiplayer:
+		main._rpc_sync_market_removal.rpc(CardRef.to_ref(card_data))
+	else:
+		main.get_node("Board").get_market().remove_card(card_data)
 	main.bot_boards[bot_id].append(_new_slot_entry(card_data, false))
 	var _bname: String = GameNetwork.player_names.get(bot_id, main.tr("Bot"))
 	main._broadcast_log(main.tr("%s: bought %s") % [_bname, card_data.card_name], CardData.color_tint(card_data.color))
@@ -218,25 +226,29 @@ static func _attach_stack_card(main: Main, bot_id: int, slot_idx: int, card_data
 	if card_data.card_type == CardData.CardType.TECH:
 		slot["last_placed_tech_cost"] = card_data.cost
 
-	var place_steps: Array[Dictionary] = PlaceEffects.get_steps_for_state(
-		card_data, BotScoring.is_slot_new(slot), BotScoring.is_slot_complete(slot),
-		BotScoring.is_slot_optimized(slot), BotScoring.slot_effective_placed_colors(slot))
-	apply_bot_effect_steps(main, bot_id, place_steps, slot_idx)
-
+	# the optimize state first, as Board._finalize_placement does for humans: "if fully
+	# optimized" includes the card that fully optimizes the sector (rule book p15)
 	var sector: CardData = slot.get("sector") as CardData
-	if sector == null:
-		return
+	var triggered: Array = []
 	var is_adv: bool = bool(slot.get("is_advanced", false))
 	var effective_colors: Array[int] = BotScoring.slot_effective_placed_colors(slot)
-	var result: Dictionary = OptimizeLogic.update_optimize_state(
-		sector, is_adv, effective_colors,
-		int(slot.get("optimize_count", 0)), int(slot.get("max_optimizations", 0)),
-		slot.get("triggered_levels", []) as Array[bool])
-	slot["optimize_count"] = result["optimize_count"]
-	slot["is_optimized"] = result["is_optimized"]
-	slot["triggered_levels"] = result["triggered_levels"]
-	var triggered: Array = result["triggered"] as Array
-	if triggered.is_empty():
+	if sector != null:
+		# tanks are filled by the cards placed ON the sector only, never by the sector card itself
+		var result: Dictionary = OptimizeLogic.update_optimize_state(
+			sector, is_adv, BotScoring.slot_tech_colors(slot),
+			int(slot.get("optimize_count", 0)), int(slot.get("max_optimizations", 0)),
+			slot.get("triggered_levels", []) as Array[bool])
+		slot["optimize_count"] = result["optimize_count"]
+		slot["is_optimized"] = result["is_optimized"]
+		slot["triggered_levels"] = result["triggered_levels"]
+		triggered = result["triggered"] as Array
+
+	var place_steps: Array[Dictionary] = PlaceEffects.get_steps_for_state(
+		card_data, BotScoring.is_slot_new(slot), BotScoring.is_slot_complete(slot),
+		BotScoring.is_slot_optimized(slot), effective_colors)
+	apply_bot_effect_steps(main, bot_id, place_steps, slot_idx)
+
+	if sector == null or triggered.is_empty():
 		return
 	var opt_steps: Array[Dictionary] = SectorEffects.get_optimize_steps_for_state(
 		sector, is_adv, effective_colors, int(slot.get("last_placed_tech_cost", 0)))

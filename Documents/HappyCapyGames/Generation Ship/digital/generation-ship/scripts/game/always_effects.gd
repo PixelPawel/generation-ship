@@ -83,14 +83,16 @@ static func _is_liquids_card(card_node: Node3D) -> bool:
 
 # Checks all placed expedition cards for board-wide Always triggers.
 # placed_card: the card just placed; placed_expeditions: all expeditions on board (including placed_card if it is one).
-static func get_global_expedition_steps(placed_card: CardData, placed_expeditions: Array[CardData]) -> Array[Dictionary]:
+static func get_global_expedition_steps(placed_card: CardData, placed_expeditions: Array[CardData],
+		placed_is_advanced: bool = false) -> Array[Dictionary]:
 	var steps: Array[Dictionary] = []
 	for expedition: CardData in placed_expeditions:
 		match expedition.card_name:
 			"Einstein-Rosen Portal":
-				# Store 1 supply of the placed card's color on its sector (handled via _effect_slot)
-				if placed_card.is_star_card:
-					var portal_color: CardData.SupplyColor = placed_card.adv_color if placed_card.card_type == CardData.CardType.SECTOR else placed_card.color
+				# Store 1 supply of the placed card's color on its sector (handled via _effect_slot);
+				# a grey (Dust-side) sector is no star card, whatever its back shows
+				if CardData.side_is_star_card(placed_card, placed_is_advanced):
+					var portal_color: CardData.SupplyColor = CardData.effective_color(placed_card, placed_is_advanced)
 					steps.append({type = "store_on_slot", color = portal_color, amount = 1, _source_name = "Einstein-Rosen Portal"})
 			"Galactic Capital":
 				# Draw 1 when you buy an expedition
@@ -103,8 +105,10 @@ static func get_global_expedition_steps(placed_card: CardData, placed_expedition
 						type = "choice",
 						prompt = "Archive 1 card — choose face direction:",
 						options = [
-							{label = "Faceup",   steps = [{type = "tuck", count = 1, face_up = true}]},
-							{label = "Facedown", steps = [{type = "tuck", count = 1, face_up = false}]},
+							# under any of your sectors (rule book: "under one of your sector cards"), not
+							# only the one the expedition went onto
+							{label = "Faceup",   steps = [{type = "tuck_any_sector_optional", max = 1, face_up = true, label = "Galactic Museum"}]},
+							{label = "Facedown", steps = [{type = "tuck_any_sector_optional", max = 1, face_up = false, label = "Galactic Museum"}]},
 						],
 					}, "Galactic Museum"))
 			"Industrial Cradle":

@@ -70,6 +70,7 @@ func _ready() -> void:
 	FleetRules.current = null
 	theme = GameTheme.get_theme()
 	_apply_saved_settings()
+	get_tree().set_quit_on_go_back(false)   # Back is handled in _on_back_requested
 	_setup_video()
 	_setup_music()
 
@@ -492,6 +493,34 @@ func _fit_tile_labels() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSLATION_CHANGED:
 		_fit_tile_labels()
+	elif what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		_on_back_requested()
+
+func _exit_tree() -> void:
+	get_tree().set_quit_on_go_back(true)
+
+## The phone's Back closes the open popup the way Escape does (Scan Tableau one layer at a time:
+## card picker, tray, selection, the screen), and quits only with nothing open, as before. It
+## quit the whole app from any popup (a scanned and corrected ship was lost with it).
+func _on_back_requested() -> void:
+	var settings: Control = get_node_or_null("PauseMenu") as Control
+	if settings and settings.visible:
+		settings.visible = false
+		return
+	var open: bool = false
+	for p: Control in [_collection, _manual, _leaderboard, _photo_scan]:
+		if p and p.visible:
+			open = true
+	if not open:
+		get_tree().quit()
+		return
+	var esc: InputEventKey = InputEventKey.new()
+	esc.keycode = KEY_ESCAPE
+	esc.pressed = true
+	Input.parse_input_event(esc)
+	var release: InputEventKey = esc.duplicate() as InputEventKey
+	release.pressed = false
+	Input.parse_input_event(release)
 
 func _tile_art(label: String) -> Texture2D:
 	var path: String = str(TILE_ART.get(label, ""))

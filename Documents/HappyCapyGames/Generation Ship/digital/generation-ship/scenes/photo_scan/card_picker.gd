@@ -29,6 +29,8 @@ const TITLE_FONT_SIZE: int = 28
 const TAB_FONT_SIZE: int = 20
 const TAB_MIN_HEIGHT: float = 72.0
 
+const TAP_SLOP: float = 20.0   # a press that moves further is a scroll, not a pick
+
 var _active_tab: int = 0
 var _tab_buttons: Array[Button] = []
 var _grid: GridContainer = null
@@ -85,7 +87,7 @@ func _build_ui() -> void:
 	var title_row: HBoxContainer = HBoxContainer.new()
 	vbox.add_child(title_row)
 	var title: Label = Label.new()
-	title.text = "PICK A CARD"
+	title.text = tr("PICK A CARD")
 	title.add_theme_font_size_override("font_size", TITLE_FONT_SIZE)
 	title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -200,8 +202,19 @@ func _populate_grid() -> void:
 		rect.tooltip_text = entry["name"]
 		var card_name: String = entry["name"]
 		var is_adv: bool = entry["is_advanced"]
+		# picked on release, and only if the finger didn't move: on a phone a drag that scrolls
+		# the grid starts on a tile, and picking on the press replaced the ship's card with it
+		var down: Array = [Vector2.INF]   # (closures copy plain values: a one-element array as a cell)
 		rect.gui_input.connect(func(event: InputEvent) -> void:
-			if _is_tap(event):
+			if not _is_tap_button(event):
+				return
+			var mb: InputEventMouseButton = event as InputEventMouseButton
+			if mb.pressed:
+				down[0] = mb.global_position
+				return
+			var start: Vector2 = down[0]
+			down[0] = Vector2.INF
+			if start != Vector2.INF and mb.global_position.distance_to(start) <= TAP_SLOP:
 				picked.emit(card_name, is_adv)
 				visible = false)
 		_grid.add_child(rect)
@@ -263,8 +276,8 @@ func _input(event: InputEvent) -> void:
 ## pressed=true (button_index MOUSE_BUTTON_WHEEL_UP/DOWN), so a plain
 ## "is InputEventMouseButton and pressed" check would wrongly fire on
 ## scrolling over a tile too.
-func _is_tap(event: InputEvent) -> bool:
+func _is_tap_button(event: InputEvent) -> bool:
 	if not (event is InputEventMouseButton):
 		return false
 	var mb: InputEventMouseButton = event as InputEventMouseButton
-	return mb.pressed and (mb.button_index == MOUSE_BUTTON_LEFT or mb.button_index == MOUSE_BUTTON_RIGHT)
+	return mb.button_index == MOUSE_BUTTON_LEFT or mb.button_index == MOUSE_BUTTON_RIGHT

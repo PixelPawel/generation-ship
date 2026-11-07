@@ -147,7 +147,7 @@ func _sector_display_name(slot: SectorSlot) -> String:
 	if slot and slot.placed_card and slot.placed_card.card_data:
 		var cd: CardData = slot.placed_card.card_data
 		var is_adv: bool = bool(slot.placed_card.get("is_advanced"))
-		return cd.adv_name if (is_adv and not cd.adv_name.is_empty()) else cd.card_name
+		return CardDatabase.display_name(cd, is_adv)   # the card in the player's language
 	return tr("Sector")
 
 func _describe_pending() -> String:

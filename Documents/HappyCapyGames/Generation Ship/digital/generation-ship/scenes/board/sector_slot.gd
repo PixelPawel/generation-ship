@@ -771,26 +771,26 @@ func _refresh_state_badges() -> void:
 	var tech_count: int = get_tech_count()
 	var total_slots: int = _tech_slots.size()
 	if tech_count == 0:
-		_stage_badge.text = "NEW"
+		_stage_badge.text = tr("NEW")
 		_stage_badge.modulate = STAGE_COLOR_READY
 		_stage_badge.visible = true
 	elif tech_count == total_slots - 1:
-		_stage_badge.text = "COMPLETES NEXT"
+		_stage_badge.text = tr("COMPLETES NEXT")
 		_stage_badge.modulate = STAGE_COLOR_SOON
 		_stage_badge.visible = true
 	elif tech_count == total_slots:
-		_stage_badge.text = "COMPLETE"
+		_stage_badge.text = tr("COMPLETE")
 		_stage_badge.modulate = STAGE_COLOR_DONE
 		_stage_badge.visible = true
 	else:
 		_stage_badge.visible = false
 
 	if is_optimized:
-		_optimize_state_badge.text = "OPTIMIZED"
+		_optimize_state_badge.text = tr("OPTIMIZED")
 		_optimize_state_badge.modulate = OPTIMIZE_COLOR_DONE
 		_optimize_state_badge.visible = true
 	elif _one_card_from_fully_optimized():
-		_optimize_state_badge.text = "OPTIMIZES NEXT"
+		_optimize_state_badge.text = tr("OPTIMIZES NEXT")
 		_optimize_state_badge.modulate = OPTIMIZE_COLOR_SOON
 		_optimize_state_badge.visible = true
 	else:

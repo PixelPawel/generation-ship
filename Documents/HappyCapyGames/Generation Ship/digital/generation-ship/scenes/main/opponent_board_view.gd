@@ -543,9 +543,9 @@ static func build_detail_card(cd: CardData, is_adv: bool, fallback_name: String,
 		name_lbl.custom_minimum_size = Vector2(card_size.x, 0)
 		vbox.add_child(name_lbl)
 
-	if cd and cd.stars > 0:
+	if cd and CardData.side_stars(cd, is_adv) > 0:
 		var stars_lbl: Label = Label.new()
-		stars_lbl.text = "⭐".repeat(cd.stars)
+		stars_lbl.text = "⭐".repeat(CardData.side_stars(cd, is_adv))
 		stars_lbl.add_theme_font_size_override("font_size", clampi(roundi(13.0 * scale), 8, 13))
 		stars_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		vbox.add_child(stars_lbl)

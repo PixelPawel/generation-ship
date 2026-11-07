@@ -344,7 +344,7 @@ func _make_score_line_row(line: Dictionary) -> Control:
 	row.add_theme_constant_override("separation", 10)
 
 	var label_lbl: Label = Label.new()
-	label_lbl.text = String(line.get("label", ""))
+	label_lbl.text = CardDatabase.score_label(String(line.get("label", "")))
 	label_lbl.add_theme_font_size_override("font_size", 13)
 	label_lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
 	label_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL

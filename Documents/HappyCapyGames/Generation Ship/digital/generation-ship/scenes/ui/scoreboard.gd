@@ -47,7 +47,7 @@ func show_scores(lines: Array[Dictionary], total: int) -> void:
 		_rows_container.add_child(row)
 
 		var name_label := Label.new()
-		name_label.text = line.get("label", "")
+		name_label.text = CardDatabase.score_label(str(line.get("label", "")))
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_label.add_theme_font_size_override("font_size", 22)
 		name_label.add_theme_color_override("font_color", Color.WHITE)
@@ -73,7 +73,8 @@ func show_multiplayer_scores(players: Array[Dictionary]) -> void:
 		var player_name: String = player.get("name", tr("Player"))
 		var player_total: int = player.get("total", 0)
 		var player_lines: Array = player.get("lines", [])
-		var is_winner: bool = i == 0
+		# every player with the top score wins (rule book p8: "In case of a tie both players win")
+		var is_winner: bool = player_total == int((players[0] as Dictionary).get("total", 0))
 
 		_add_player_section(player_name, player_total, player_lines, is_winner, i == 0)
 
@@ -155,7 +156,7 @@ func _add_player_section(player_name: String, total: int, lines: Array, is_winne
 			inner.add_child(row)
 
 			var line_lbl := Label.new()
-			line_lbl.text = ld.get("label", "")
+			line_lbl.text = CardDatabase.score_label(str(ld.get("label", "")))
 			line_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			line_lbl.add_theme_font_size_override("font_size", 18)
 			line_lbl.add_theme_color_override("font_color", Color(0.82, 0.82, 0.9))

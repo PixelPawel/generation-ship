@@ -267,7 +267,7 @@ func show_bid(card_data: CardData, is_advanced: bool, min_cost: int, cost_color:
 	var color_name: String = CardData.color_name(cost_color)
 	var card_name: String = ""
 	if card_data:
-		card_name = card_data.adv_name if (is_advanced and not card_data.adv_name.is_empty()) else card_data.card_name
+		card_name = CardDatabase.display_name(card_data, is_advanced)   # the card in the player's language
 	_title_label.visible = true
 	_hint_label.visible = true
 	_title_label.text = tr("Bid for %s") % card_name

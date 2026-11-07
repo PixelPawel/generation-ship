@@ -838,7 +838,7 @@ static func stats(main: Main) -> Dictionary:
 			var adv: bool = bool(c.get("is_advanced"))
 			var col: int = int(CardData.effective_color(c.card_data, adv))
 			st["cards_by"][col] = int(st["cards_by"].get(col, 0)) + 1
-			st["faceup_stars"] = int(st["faceup_stars"]) + c.card_data.stars
+			st["faceup_stars"] = int(st["faceup_stars"]) + CardData.side_stars(c.card_data, adv)
 		for t: Dictionary in s.tucked_cards:
 			st["archived"] = int(st["archived"]) + 1
 			if bool(t["face_up"]):
@@ -874,7 +874,7 @@ static func bot_stats(main: Main, bot_id: int) -> Dictionary:
 				continue
 			var col: int = int(CardData.effective_color(cd, bool(c["adv"])))
 			st["cards_by"][col] = int(st["cards_by"].get(col, 0)) + 1
-			st["faceup_stars"] = int(st["faceup_stars"]) + cd.stars
+			st["faceup_stars"] = int(st["faceup_stars"]) + CardData.side_stars(cd, bool(c["adv"]))
 		var stored: Dictionary = e.get("stored_supply", {}) as Dictionary
 		for col: Variant in stored:
 			st["stored"] = int(st["stored"]) + int(stored[col])

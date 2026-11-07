@@ -87,6 +87,19 @@ static func effective_color(cd: CardData, is_advanced: bool) -> SupplyColor:
 		return cd.adv_color
 	return cd.color
 
+## Printed stars / Star Card by the side that is showing: a sector's stars and Star Card flag are
+## loaded from its advanced side, and the grey Dust side has none (12 of the 30 physical sectors
+## have a starred back: Earth 2.0, Einstein-Rosen Portal, Superloop counted them for grey sectors)
+static func side_stars(cd: CardData, is_advanced: bool) -> int:
+	if cd.card_type == CardType.SECTOR and not is_advanced:
+		return 0
+	return cd.stars
+
+static func side_is_star_card(cd: CardData, is_advanced: bool) -> bool:
+	if cd.card_type == CardType.SECTOR and not is_advanced:
+		return false
+	return cd.is_star_card
+
 static func valid_payment_colors(card_color: SupplyColor) -> Array[SupplyColor]:
 	var result: Array[SupplyColor] = []
 	match card_color:

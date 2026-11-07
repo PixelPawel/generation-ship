@@ -147,7 +147,8 @@ func show_bid_payment(card_name: String, amount: int, valid_colors: Array[CardDa
 	elif _card_image_rect:
 		_card_image_rect.visible = false
 
-	_title_label.text = tr("Pay for %s") % card_name
+	# the card in the player's language (callers pass its English name)
+	_title_label.text = tr("Pay for %s") % (CardDatabase.display_name(card_data, is_advanced) if card_data else card_name)
 	_rebuild_rows()
 	_update_total()
 	show()

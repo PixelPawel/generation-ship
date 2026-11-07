@@ -370,6 +370,15 @@ const _CARD_TEXT_PATH: String = "res://data/Card Text Translations.csv"
 var _card_text: Dictionary = {}   # key -> {lang: text}
 var _card_text_loaded: bool = false
 
+## A score line's label in the player's language: card lines by the card's printed name in that
+## language, the fixed lines (Stars, archived, stored supply…) through the UI strings. The lines
+## themselves keep their English labels (the snapshot codec and leaderboards key on them).
+func score_label(label: String) -> String:
+	var cd: CardData = find_any_by_name(label)
+	if cd:
+		return display_name(cd, cd.card_type == CardData.CardType.SECTOR and cd.adv_name == label)
+	return tr(label)
+
 func display_name(cd: CardData, is_adv: bool = false) -> String:
 	var english: String = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
 	return _card_text_for(cd, is_adv, "name", english)

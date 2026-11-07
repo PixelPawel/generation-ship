@@ -247,6 +247,9 @@ func get_sector_slots() -> Array[SectorSlot]:
 func set_sector_reveal_mode(active: bool) -> void:
 	_market.set_reveal_mode(active)
 
+func can_reveal_sector() -> bool:
+	return _market.has_unrevealed_card()
+
 func set_cargo_click_mode(active: bool) -> void:
 	for slot: SectorSlot in _sector_row.get_children():
 		if slot.occupied and slot.placed_card:
@@ -338,7 +341,11 @@ func get_expedition_market() -> Node3D:
 func begin_panel_sector_purchase(slot_idx: int, is_advanced: bool) -> void:
 	if not GameNetwork.is_my_turn():
 		return
-	if _major_action_taken:
+	if _major_action_taken or _purchase_in_progress():
+		return
+	# a basic sector goes straight onto the ship: not a 7th (rule book p5 "up to a maximum of 6";
+	# it was paid for, then recycled, and the turn's action was gone)
+	if not is_advanced and not _has_free_sector_slot():
 		return
 	var card: Node3D
 	if is_advanced:
@@ -354,13 +361,19 @@ func begin_panel_sector_purchase(slot_idx: int, is_advanced: bool) -> void:
 	_begin_market_purchase(card, false)
 
 func begin_panel_expedition_purchase(slot_idx: int) -> void:
-	if not GameNetwork.is_my_turn() or _major_action_taken:
+	if not GameNetwork.is_my_turn() or _major_action_taken or _purchase_in_progress():
 		return
 	var card: Node3D = _expedition_market.detach_top_card(slot_idx)
 	if not card:
 		return
 	_drag_origin = DragOrigin.MARKET
 	_begin_market_purchase(card, true)
+
+## A bought card is still on its way (payment window, placement arrow or confirm): a second
+## market click started another purchase and orphaned the paid-for card.
+func _purchase_in_progress() -> bool:
+	return _dragged_card != null or _pending_card != null or _is_prepaid_placement \
+			or _placement_confirm_pending or _effect_active
 
 # Left-click entry point for market-panel purchases. No destination slot is
 # known yet: bid/payment resolves first (slot=null throughout), and only once
@@ -584,6 +597,18 @@ func add_expedition_round_cards() -> void:
 
 func set_supply_ui(ui: Control) -> void:
 	_supply_ui = ui
+	if "reserved_supply" in ui:
+		ui.set("reserved_supply", pending_payment)
+
+## The supplies a confirmed payment still owes: they are only spent once the card lands
+## (_finalize_placement / complete_purchase), so the supply screen keeps fuses and Undo Fuse off them
+## meanwhile (fusing them away first got the card for free: spend_supply stops at 0).
+func pending_payment() -> Dictionary:
+	if _placement_confirm_pending:
+		return _pending_placement_spent
+	if _is_prepaid_placement:
+		return _prepaid_spent_amounts
+	return {}
 
 # Lets a hand-card drag be dropped onto the cockpit's control screen (where
 # the supply totals live) as a drag-based equivalent of right-click-to-
@@ -895,7 +920,12 @@ func _on_hand_card_drag_started(card: Node3D) -> void:
 	# the market card (which is then orphaned, invisible, forever unplaceable).
 	# While paying, a hand card may still be picked up to recycle it (a free
 	# action, any turn) — even though the payment itself is an active effect.
-	var recycle_only: bool = _payment_open and not _dragged_card and not _pending_recycle_card
+	# Recycling is a free action on any turn (rule book p6 "You may ALWAYS Recycle"): on another
+	# player's turn a hand card may be picked up too, only to recycle it (since right-click
+	# recycling went, the drag refused it off-turn).
+	var idle: bool = not _dragged_card and not _pending_recycle_card
+	var recycle_only: bool = idle and (_payment_open
+			or (not GameNetwork.is_my_turn() and not _pending_card and not _effect_active))
 	if not recycle_only and (not GameNetwork.is_my_turn() or _pending_card or _pending_recycle_card or _dragged_card or _effect_active):
 		card.end_drag()
 		_hand.add_card(card, true)
@@ -1242,6 +1272,9 @@ func _any_tech_slot_available() -> bool:
 	return false
 
 # True if any of the fixed 6 sector slots is still empty.
+func has_free_sector_slot() -> bool:
+	return _has_free_sector_slot()
+
 func _has_free_sector_slot() -> bool:
 	for slot: SectorSlot in _sector_row.get_children():
 		if not slot.occupied and slot.is_available:
@@ -1314,7 +1347,9 @@ func _resolve_card_payment(placed: Node3D, slot: SectorSlot, is_tech: bool) -> b
 func _try_drop_sector() -> void:
 	var target_slot: SectorSlot = _find_nearest_empty_sector_slot()
 	if not target_slot:
-		if _is_prepaid_placement:
+		# a click that misses an empty slot must not forfeit a paid sector or a free one
+		# (Inflatable Hull: it went back to the market and the effect stalled)
+		if _is_prepaid_placement or _is_free_gain:
 			_resume_drag_arrow()
 			return
 		_handle_failed_drop()

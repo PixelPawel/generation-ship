@@ -12,6 +12,7 @@ var _skip_btn: Button = null
 var _multiselect_done_btn: Button = null
 var _selected_flags: Array[bool] = []
 var _max_select: int = 0
+var _min_select: int = 0      # multiselect: Done stays off until this many are picked
 var _vbox: VBoxContainer = null
 var _card_image_rect: TextureRect = null
 
@@ -321,11 +322,14 @@ func show_card_choices(prompt: String, cards: Array[CardData], skippable: bool =
 	show()
 	_schedule_layout(_layout_cards)
 
-func show_multiselect_card_choices(prompt: String, cards: Array[CardData], max_select: int = 0) -> void:
+func show_multiselect_card_choices(prompt: String, cards: Array[CardData], max_select: int = 0,
+		min_select: int = 0) -> void:
 	_begin(prompt)
 	if _card_image_rect:
 		_card_image_rect.visible = false
 	_max_select = max_select
+	_min_select = mini(min_select, cards.size())
+	_multiselect_done_btn.disabled = _min_select > 0
 	_selected_flags = []
 	for _i: int in cards.size():
 		_selected_flags.append(false)
@@ -358,7 +362,7 @@ func _build_card_rows(cards: Array[CardData], on_click: Callable, advanced_flags
 		var is_landscape: bool = cd.card_type == CardData.CardType.SECTOR
 		var url: String = cd.adv_image_url if (is_adv and not cd.adv_image_url.is_empty()) else cd.image_url
 		var tex: Texture2D = ImageCache.get_texture(url) if not url.is_empty() else null
-		var display: String = cd.adv_name if is_adv else cd.card_name
+		var display: String = CardDatabase.display_name(cd, is_adv)   # the card in the player's language
 
 		var card_vbox := VBoxContainer.new()
 		card_vbox.add_theme_constant_override("separation", 4)
@@ -434,6 +438,7 @@ func _on_multiselect_toggle(index: int, btn: Button) -> void:
 			return
 	_selected_flags[index] = not currently_selected
 	btn.modulate = Color(0.5, 1.0, 0.5) if _selected_flags[index] else Color.WHITE
+	_multiselect_done_btn.disabled = _selected_flags.count(true) < _min_select
 
 func _on_multiselect_done() -> void:
 	var selected: Array[int] = []

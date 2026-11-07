@@ -48,6 +48,8 @@ var _fuse_1to1_remaining: int = 0
 var _fuse_dust_1to1: bool = false
 var _fuse_1to1_label: Label = null
 var _fuse_history: Array[Dictionary] = []
+# Board.pending_payment: supplies a confirmed payment still owes (taken when the card lands)
+var reserved_supply: Callable = Callable()
 var _undo_btn: Button = null
 var _action_row: HBoxContainer = null
 var _research_btn: Button = null
@@ -245,13 +247,19 @@ func _build_ui() -> void:
 func _on_fuse_clicked(src: int, dst: int) -> void:
 	_fuse(src, dst)
 
+func _reserved(color: int) -> int:
+	if not reserved_supply.is_valid():
+		return 0
+	var owed: Dictionary = reserved_supply.call() as Dictionary
+	return int(owed.get(color, 0))
+
 func _fuse(source: int, target: int) -> void:
 	if FleetRules.blocks_fuse(source) or FleetRules.blocks_fuse(target):   # Fleet Dangers
 		return
 	var is_dust_free: bool = source == CardData.SupplyColor.DUST and _fuse_dust_1to1
 	var used_token: bool = not is_dust_free and _fuse_1to1_remaining > 0
 	var cost: int = 1 if (is_dust_free or used_token) else 2
-	if _counts.get(source, 0) < cost:
+	if _counts.get(source, 0) - _reserved(source) < cost:
 		return
 	UIAudio.play_fuse_sfx()
 	if used_token:
@@ -265,6 +273,11 @@ func _fuse(source: int, target: int) -> void:
 
 func _on_undo_fuse_pressed() -> void:
 	if _fuse_history.is_empty():
+		return
+	# the fused supply must still be there: once it was spent, undoing would hand back the
+	# source supplies for nothing
+	var last: Dictionary = _fuse_history.back()
+	if _counts.get(int(last.target), 0) - _reserved(int(last.target)) < 1:
 		return
 	var entry: Dictionary = _fuse_history.pop_back()
 	var src: int = int(entry.source)

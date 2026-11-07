@@ -1,7 +1,9 @@
 package com.godot.game
 
+import android.Manifest
 import android.app.Activity
 import android.content.ContentValues
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
@@ -10,6 +12,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.MediaStore
 import kotlin.math.max
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import org.godotengine.godot.Godot
 import org.godotengine.godot.plugin.GodotPlugin
@@ -270,6 +273,13 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 				emitSignal(PHOTO_CANCELED_SIGNAL)
 				return@runOnUiThread
 			}
+			// Camera permission refused: Android throws a SecurityException for ACTION_IMAGE_CAPTURE
+			// from an app that declares CAMERA without holding it (that crashed the game), so the camera
+			// app on its own instead (not permission-gated), and the photo picker once the game is back
+			if (ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+				open_camera_app()
+				return@runOnUiThread
+			}
 			val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
 			if (intent.resolveActivity(activity.packageManager) == null) {
 				emitSignal(PHOTO_CANCELED_SIGNAL)
@@ -283,7 +293,12 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 				activity, "${activity.packageName}.fileprovider", photoFile)
 			intent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
 			intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-			activity.startActivityForResult(intent, REQUEST_IMAGE_CAPTURE)
+			try {
+				activity.startActivityForResult(intent, REQUEST_IMAGE_CAPTURE)
+			} catch (e: Throwable) {          // an intent failure must not take the game down
+				pendingPhotoPath = null
+				emitSignal(PHOTO_CANCELED_SIGNAL)
+			}
 		}
 	}
 

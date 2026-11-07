@@ -55,6 +55,10 @@ static func _process_next_effect(main: Main) -> void:
 		main._effect_slot = null
 		main._refresh_vp()
 		main._refresh_card_counts()
+		# the placement and its effects have settled: the others see the new card, supplies and VP
+		# (the only broadcast came before the card was paid and attached; an off-turn auction
+		# winner stayed stale up to the final scoreboard)
+		main._broadcast_my_state()
 		main.get_node("Board").set_cards_can_elevate(true)
 		main._try_auto_end_turn()
 		return
@@ -200,9 +204,20 @@ static func _execute_effect_step(main: Main, step: Dictionary) -> void:
 			main._show_hand_popup(main.tr("%s — tuck a card %s? (%d remaining)") % [main._effect_label, face_str_any, main._effect_remaining], true)
 
 		"recycle_tuck":
+			# Entangled Radio: "Recycle 2, archive them facedown under this sector, then draw 2" —
+			# the recycle is a must (as many as the hand has, up to 2), the draw always 2
 			main._effect_mode = Main.EffectMode.EFFECT_RECYCLE_TUCK
 			main._effect_remaining = int(step.get("count", 2))
-			main._show_hand_multiselect(main.tr("Recycle & tuck up to %d card(s) facedown — draw equal") % main._effect_remaining)
+			main._recycle_tuck_draw = int(step.get("count", 2))
+			var need: int = mini(main._effect_remaining, main._gather_hand_source().size())
+			if need == 0:   # nothing to recycle: only the draw
+				main.get_node("Board").draw_cards(main._recycle_tuck_draw)
+				main._log_effect(main.tr("recycled & tucked %d card(s) facedown, drew %d") % [0, main._recycle_tuck_draw])
+				main._effect_mode = Main.EffectMode.NONE
+				_process_next_effect(main)
+				return
+			main._show_hand_multiselect(main.tr("Recycle & archive %d card(s) facedown — then draw %d")
+					% [need, main._recycle_tuck_draw], need)
 
 		"recycle_tuck_store_choice":
 			main._effect_mode = Main.EffectMode.EFFECT_RECYCLE_TUCK_STORE
@@ -210,6 +225,13 @@ static func _execute_effect_step(main: Main, step: Dictionary) -> void:
 			main._show_hand_multiselect(main.tr("Recycle & tuck up to %d card(s) facedown — choose store or gain") % main._effect_remaining)
 
 		"reveal_sector":
+			if not main.get_node("Board").can_reveal_sector():   # every basic pile is empty
+				main._log_effect(main.tr("no sector left to reveal"))
+				_process_next_effect(main)
+				return
+			# "Reveal up to 3 sectors" (Cargo Bays): Done ends the series (Main._end_optional_reveals)
+			if bool(step.get("optional", false)):
+				main._effect_done_btn.show()
 			main._pending_reveal_gain_supply = bool(step.get("gain_supply", false))
 			main._pending_reveal_may_bid = bool(step.get("may_bid", false))
 			main._pending_reveal_may_free_gain = bool(step.get("may_free_gain", false))
@@ -249,7 +271,13 @@ static func _execute_effect_step(main: Main, step: Dictionary) -> void:
 				_process_next_effect(main)
 				return
 			main.get_node("Board").market_origin_3d = CockpitRig.effect_card_origin(main, card_node, cd)
+			main._carry_effect_queue = true   # the steps queued behind this one survive the placement
 			main.get_node("Board").begin_free_sector_gain(card_node)
+
+		"resume_slot":   # back to the sector of the effect that queued the steps after this one
+			var back: Variant = step.get("slot")
+			main._effect_slot = back as SectorSlot if is_instance_valid(back) else null
+			_process_next_effect(main)
 
 		"initiate_market_bid":
 			var cd: CardData = step.get("card_data") as CardData
@@ -334,7 +362,7 @@ static func _effect_step_reveal_expedition_slot(main: Main, step: Dictionary) ->
 		main._reveal_bid_pool.append(revealed)
 	if GameNetwork.is_multiplayer:
 		if GameNetwork.is_host:
-			main._rpc_sync_expedition_reveal.rpc(exp_slot)
+			main._rpc_sync_expedition_reveal.rpc(exp_slot, 1)
 		else:
 			main._rpc_notify_expedition_reveal.rpc_id(1, exp_slot)
 	_process_next_effect(main)
@@ -452,7 +480,8 @@ static func _effect_step_offer_free_sector_gain(main: Main) -> void:
 		if not eligible.has(cd):
 			eligible.append(cd)
 			eligible_adv.append(false)
-	if eligible.is_empty():
+	# no room for a 7th sector: nothing to gain (the drag could never land)
+	if eligible.is_empty() or not main.get_node("Board").has_free_sector_slot():
 		_process_next_effect(main)
 		return
 	main._pending_choice_options = []

@@ -169,7 +169,7 @@ static func _expedition_vp_raw(name: String, slots: Array, expeditions: Array, a
 			var count: int = 0
 			for card: Node3D in all_cards:
 				var cd: CardData = card.get("card_data")
-				if cd != null and cd.is_star_card:
+				if cd != null and CardData.side_is_star_card(cd, bool(card.get("is_advanced"))):
 					count += 1
 			return 2 * count
 
@@ -193,7 +193,7 @@ static func _expedition_vp_raw(name: String, slots: Array, expeditions: Array, a
 						elif cd.card_type == CardData.CardType.TECH and _is_conditional_tech(cd.card_name):
 							top_vp = _tech_condition_vp(cd.card_name, slots, all_cards)
 						elif cd.card_type != CardData.CardType.EXPEDITION:
-							top_vp = cd.stars
+							top_vp = CardData.side_stars(cd, bool(top.get("is_advanced")))
 						else:
 							top_vp = 0
 						total += mini(top_vp, 6)

@@ -19,6 +19,8 @@ var _max_rounds: int = MAX_ROUNDS
 const SETTINGS_PATH: String = "user://settings.cfg"
 
 var _round: int = 0
+# set by _game_over(): no new turn, Pass, Research or End Turn after the last Generation
+var _game_finished: bool = false
 var _bid_amount: int = 0
 var _bid_color: CardData.SupplyColor = CardData.SupplyColor.DUST
 var _bid_card_name: String = ""
@@ -84,6 +86,10 @@ var _card_inspect: CardInspectOverlay = null   # a hand card read big (hold on p
 const TOUCH_TOOLTIP_TOP: float = 40.0          # phones: below the top-corner buttons
 var _effect_hint_top: bool = false             # the tutorial's banner sits at the top edge, not mid-screen
 var _effect_slot: SectorSlot = null
+# EffectSteps "free_sector_gain": the next placement keeps the effect queue (see _on_card_placed)
+var _carry_effect_queue: bool = false
+# recycle_tuck: the cards drawn afterwards (the card's fixed number, not one per card recycled)
+var _recycle_tuck_draw: int = 0
 var _effect_source_name: String = ""
 var _effect_remaining: int = 0
 var _effect_face_up: bool = false
@@ -124,6 +130,9 @@ var _fleet_choice_active: bool = false     # FleetFlow is awaiting the choice po
 var _fleet_first_peer: int = 0
 var _fleet_pending_generation: bool = false
 var _fleet_acks: Dictionary = {}
+# versus: the humans already in the new round, and who starts it (see _round_start_barrier)
+var _round_acks: Dictionary = {}
+var _round_first_peer: int = 0
 var _fleet_session: Dictionary = {}        # host: {no, need, total, colors, waiting}
 var _fleet_session_no: int = 0             # every peer: the Danger being solved together, 0 = none
 var _fleet_pledge_apply: Callable = Callable()   # this peer's pledge, paid if the solve goes through
@@ -804,10 +813,17 @@ func _accept_turn_button() -> bool:
 	_last_turn_button_ms = now
 	return true
 
+## An auction (its bidding, the winner's payment or placement) or a bought card's placement is
+## still open: the turn can't be handed on. End Turn, Pass and Research waited only on some of
+## these, so the next player could act (and start an auction) inside a live one.
+func _auction_unresolved() -> bool:
+	return _auction_active or _auction_starting or _pending_auction or _pending_auction_win \
+			or _auction_placement_pending or _runner_up_phase or $Board.is_card_drag_pending()
+
 func _on_research_pressed() -> void:
 	if not GameNetwork.is_my_turn():
 		return
-	if _has_passed or _effect_mode != EffectMode.NONE or _forfeit_discard_active:
+	if _has_passed or _effect_mode != EffectMode.NONE or _forfeit_discard_active or _auction_unresolved():
 		return
 	if not _accept_turn_button():
 		return
@@ -837,7 +853,7 @@ func _cancel_research() -> void:
 func _on_pass_pressed() -> void:
 	if not GameNetwork.is_my_turn():
 		return
-	if _has_passed or _forfeit_discard_active:
+	if _has_passed or _forfeit_discard_active or _auction_unresolved():
 		return
 	if not _accept_turn_button():
 		return
@@ -849,7 +865,7 @@ func _confirm_pass() -> void:
 	if not _pass_prompt.visible:
 		return
 	_pass_prompt.close()
-	if not GameNetwork.is_my_turn() or _has_passed or _turn_action_locked:
+	if not GameNetwork.is_my_turn() or _has_passed or _turn_action_locked or _auction_unresolved():
 		return
 	_turn_action_locked = true
 	_do_pass()
@@ -1037,6 +1053,8 @@ func _advance_turn_skipping_passed() -> void:
 		guard -= 1
 
 func _server_handle_pass() -> void:
+	if _game_finished:
+		return
 	_rpc_sync_opp_status.rpc(GameNetwork.active_peer_id, "passed")
 	if _all_players_done_this_round():
 		_rpc_sync_end_round.rpc()
@@ -1095,17 +1113,51 @@ func _rpc_sync_end_round() -> void:
 	get_tree().create_timer(delay).timeout.connect(func() -> void:
 		_show_round_transition(func() -> void:
 			_end_round()
+			if _game_finished:        # that was the last Generation: nobody gets another turn
+				_broadcast_my_state()
+				return
 			if _fleet_pending_generation and not GameNetwork.player_order.is_empty():
 				_fleet_pending_generation = false
 				var first: int = GameNetwork.player_order[(_round - 1) % GameNetwork.player_order.size()]
 				call_deferred("_fleet_generation_barrier", first)
 			elif GameNetwork.is_multiplayer and not GameNetwork.player_order.is_empty():
 				var first_idx: int = (_round - 1) % GameNetwork.player_order.size()
-				GameNetwork.active_peer_id = GameNetwork.player_order[first_idx]
-				_update_turn_ui()
-				if multiplayer.is_server() and GameNetwork.is_bot(GameNetwork.active_peer_id):
-					BotTurn.run_bot_turn(self, GameNetwork.active_peer_id)
+				_round_start_barrier(GameNetwork.player_order[first_idx])
 			_broadcast_my_state()))
+
+# ── New round barrier (versus) ────────────────────────────────────────────────
+# Every peer starts the new round on its own timer (its supply animation lasts as long as its own
+# ship), so nobody acts until every human is in it: each acks the host, and the host starts the
+# first turn for everyone (as Fleet's _fleet_generation_barrier). A peer that ran ahead had its
+# first Pass dropped by the host (soft-lock), or could trigger a second end of round.
+func _round_start_barrier(first: int) -> void:
+	_round_first_peer = first
+	GameNetwork.active_peer_id = 0
+	_update_turn_ui(false)
+	if multiplayer.is_server():
+		_server_round_ack(multiplayer.get_unique_id())
+	else:
+		_rpc_round_ack.rpc_id(1)
+
+@rpc("any_peer", "reliable")
+func _rpc_round_ack() -> void:
+	if multiplayer.is_server():
+		_server_round_ack(multiplayer.get_remote_sender_id())
+
+func _server_round_ack(pid: int) -> void:
+	_round_acks[pid] = true
+	for p: int in GameNetwork.player_order:
+		if not GameNetwork.is_bot(p) and not _round_acks.has(p):
+			return
+	_round_acks.clear()
+	_rpc_round_ready.rpc(_round_first_peer)
+
+@rpc("authority", "reliable", "call_local")
+func _rpc_round_ready(first: int) -> void:
+	GameNetwork.active_peer_id = first
+	_update_turn_ui()
+	if multiplayer.is_server() and GameNetwork.is_bot(first):
+		BotTurn.run_bot_turn(self, first)
 
 # ── Multiplayer state broadcast ───────────────────────────────────────────────
 
@@ -1560,6 +1612,11 @@ func _rpc_fleet_hands_passed(passed: Dictionary) -> void:
 	CardPassing._rpc_fleet_hands_passed(self, passed)
 
 func _game_over() -> void:
+	if _game_finished:
+		return
+	_game_finished = true
+	_has_passed = true                     # Research/Pass/purchases stay off behind the scores
+	$Board.set_major_action_taken()
 	_show_action_buttons(false)
 	_show_end_turn_button(false)
 	_cs_display.show_game_info(false)
@@ -1686,12 +1743,12 @@ func _show_hand_popup(prompt: String, skippable: bool) -> void:
 		return
 	_choice_popup.show_card_choices(prompt, card_data, skippable)
 
-func _show_hand_multiselect(prompt: String) -> void:
+func _show_hand_multiselect(prompt: String, min_select: int = 0) -> void:
 	var card_data: Array[CardData] = _gather_hand_source()
 	if card_data.is_empty():
 		_finish_interactive_step()
 		return
-	_choice_popup.show_multiselect_card_choices(prompt, card_data, _effect_remaining)
+	_choice_popup.show_multiselect_card_choices(prompt, card_data, _effect_remaining, min_select)
 
 func _process_hand_choice(index: int) -> void:
 	if index >= _pending_recycle_cards.size():
@@ -1810,6 +1867,14 @@ func _process_hand_choice(index: int) -> void:
 				_show_hand_popup(tr("Recycle %d more card(s) — gain double supply") % _effect_remaining, false)
 
 func _reset_effect_state() -> void:
+	# a card picked to archive whose sector wasn't chosen yet (Skip, End Turn): back into the hand,
+	# it had already flown out of it (Personality Library / Cultivation lost it)
+	if _effect_mode == EffectMode.EFFECT_TUCK_ANY_SECTOR_SLOT and _pending_tuck_card_data:
+		$Board.add_specific_card_to_hand(_pending_tuck_card_data)
+	if _sector_picker:
+		_sector_picker.hide()
+	if _cargo_drones_panel:
+		_cargo_drones_panel.hide()
 	_effect_mode = EffectMode.NONE
 	$Board.set_cards_can_elevate(true)
 	_effect_remaining = 0
@@ -1846,8 +1911,25 @@ func _finish_interactive_step() -> void:
 func _on_effect_done_pressed() -> void:
 	if _effect_mode == EffectMode.EFFECT_EXPEDITION_SHUFFLE:
 		_finish_expedition_shuffle()
+	elif _effect_mode == EffectMode.EFFECT_REVEAL_SECTOR:
+		_end_optional_reveals()
 	else:
 		_finish_interactive_step()
+
+## "Reveal up to 3 sectors" (Cargo Bays): Done ends the series. The cards revealed so far stay in
+## the bid pool for the "You may bid on one" step that follows (a full reset would clear it).
+func _end_optional_reveals() -> void:
+	while not _effect_queue.is_empty() and str(_effect_queue[0].get("type", "")) == "reveal_sector" \
+			and bool(_effect_queue[0].get("optional", false)):
+		_effect_queue.pop_front()
+	_effect_mode = EffectMode.NONE
+	_effect_done_btn.hide()
+	_hide_effect_hint()
+	$Board.set_sector_reveal_mode(false)
+	_pending_reveal_gain_supply = false
+	_pending_reveal_may_bid = false
+	_pending_reveal_may_free_gain = false
+	_process_next_effect()
 
 func _on_choice_made(index: int) -> void:
 	if _fleet_choice_active:   # FleetFlow awaits this popup itself
@@ -1910,6 +1992,8 @@ func _apply_seedbanks(indices: Array[int]) -> void:
 		var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
 		if _effect_slot:
 			_effect_slot.add_stored_supply(color, CardData.recycle_amount(card.card_data))
+		_apply_recycle_bonus(color)               # Trash Compactor: any recycled Dust card
+		$Board.add_to_discard(card.card_data)     # a recycled tech goes to the discard pile
 		$Hand.remove_card_fly_out(card)
 		count += 1
 	_pending_recycle_cards = []
@@ -1970,9 +2054,9 @@ func _apply_recycle_tuck_multiselect(indices: Array[int]) -> void:
 		_recycle_card_to_supply(card, color)
 		count += 1
 	_pending_recycle_cards = []
-	if count > 0:
-		$Board.draw_cards(count)
-		_log_effect(tr("recycled & tucked %d card(s) facedown, drew %d") % [count, count])
+	# Entangled Radio: "…then draw 2", however many could be recycled
+	$Board.draw_cards(_recycle_tuck_draw)
+	_log_effect(tr("recycled & tucked %d card(s) facedown, drew %d") % [count, _recycle_tuck_draw])
 	_finish_interactive_step()
 
 func _apply_recycle_tuck_store_multiselect(indices: Array[int]) -> void:
@@ -1997,6 +2081,7 @@ func _apply_recycle_tuck_store_decision(store_on_sector: bool) -> void:
 		var ts_amount: int = CardData.recycle_amount(card.card_data)
 		if store_on_sector and target:
 			target.add_stored_supply(color, ts_amount)
+			_apply_recycle_bonus(color)           # Trash Compactor counts this recycle too
 		else:
 			_cs_display.animate_supply_incoming(screen_pos, color)
 			_cs_display.add_supply(color, ts_amount)
@@ -2044,6 +2129,8 @@ func _apply_caldera_recycle(indices: Array[int]) -> void:
 		var cd: CardData = card.get("card_data") as CardData
 		if cd:
 			_pending_target_slot.add_stored_supply(cd.color, CardData.recycle_amount(cd))
+			_apply_recycle_bonus(cd.color)        # Trash Compactor
+			$Board.add_to_discard(cd)             # a recycled tech goes to the discard pile
 		_pending_target_slot.remove_tech_card(card)
 		card.queue_free()
 		count += 1
@@ -2223,6 +2310,7 @@ func _on_sector_revealed(card_data: CardData, slot_idx: int) -> void:
 	_pending_reveal_gain_supply = false
 	_pending_reveal_may_bid = false
 	_pending_reveal_may_free_gain = false
+	_effect_done_btn.hide()
 	_show_reveal_big_then_continue("advanced", slot_idx, card_data)
 
 # ── Place effect processing ───────────────────────────────────────────────────
@@ -2246,6 +2334,14 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	if _cd.card_type != CardData.CardType.SECTOR and slot.is_complete():
 		slot.celebrate(true)
 	$Board.refresh_hand_discounts()
+	# a sector gained for free inside an effect (Inflatable Hull): the steps still queued behind
+	# that effect go on after the new sector's own effects, on their own sector (they were wiped)
+	var carried: Array[Dictionary] = []
+	if _carry_effect_queue:
+		_carry_effect_queue = false
+		if not _effect_queue.is_empty():
+			carried.append({type = "resume_slot", slot = _effect_slot})
+			carried.append_array(_effect_queue)
 	if _effect_mode != EffectMode.NONE:
 		_reset_effect_state()
 	_effect_slot = slot
@@ -2256,7 +2352,8 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 		always_steps.append_array(AlwaysEffects.get_colocated_steps(card.card_data, card, slot))
 		always_steps.append_array(AlwaysEffects.get_board_wide_placement_steps(card, $Board.get_all_sector_slots()))
 		always_steps.append_array(AlwaysEffects.get_board_wide_steps(slot, $Board.get_all_sector_slots()))
-		always_steps.append_array(AlwaysEffects.get_global_expedition_steps(card.card_data, $Board.get_all_placed_expeditions()))
+		always_steps.append_array(AlwaysEffects.get_global_expedition_steps(card.card_data, $Board.get_all_placed_expeditions(),
+				bool(card.get("is_advanced"))))
 	var place_steps: Array[Dictionary] = PlaceEffects.get_steps(card.card_data, slot)
 	# optimize_triggered (see board.gd) always fires just before card_placed
 	# for the same placement, so this is already staged by now if this
@@ -2272,6 +2369,7 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 		_deferred_effect_queue.append_array(always_steps)
 		_deferred_effect_queue.append_array(place_steps)
 		_deferred_effect_queue.append_array(optimize_steps)
+		_deferred_effect_queue.append_array(carried)
 		_effect_slot = null
 		_effect_queue.clear()
 		return
@@ -2315,6 +2413,7 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 			for j: int in decided.size():
 				if j != i:
 					ordered.append_array(decided[j]["steps"] as Array)
+			ordered.append_array(carried)
 			_pending_choice_options.append({steps = ordered})
 		_effect_mode = EffectMode.EFFECT_CHOICE
 		if optimize_steps.is_empty() and always_cd and auto_steps.is_empty():
@@ -2332,6 +2431,7 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	_effect_queue.append_array(auto_steps)
 	for b: Dictionary in decided:
 		_effect_queue.append_array(b["steps"] as Array)
+	_effect_queue.append_array(carried)
 	_process_next_effect()
 
 static func _is_automatic_batch(steps: Array) -> bool:
@@ -2476,7 +2576,7 @@ func _rpc_sync_market_removal(card_ref: Dictionary) -> void:
 func _server_sync_sector_reveal(slot_idx: int, sender_id: int) -> void:
 	if sender_id != 1:
 		$Board.sync_market_reveal(slot_idx)
-	_rpc_sync_sector_revealed.rpc(slot_idx)
+	_rpc_sync_sector_revealed.rpc(slot_idx, sender_id)
 
 # Client → Host: I revealed a dust sector via an effect.
 @rpc("any_peer", "reliable")
@@ -2485,10 +2585,12 @@ func _rpc_notify_sector_revealed(slot_idx: int) -> void:
 		return
 	_server_sync_sector_reveal(slot_idx, multiplayer.get_remote_sender_id())
 
-# Host → Clients: sync this sector reveal (no call_local — active player already revealed).
+# Host → Clients: sync this sector reveal (no call_local). The revealer already did it: by id,
+# not by turn — an auction winner reveals off-turn (the active player skipped it, the revealer
+# replayed it a second time)
 @rpc("authority", "reliable")
-func _rpc_sync_sector_revealed(slot_idx: int) -> void:
-	if GameNetwork.is_my_turn():
+func _rpc_sync_sector_revealed(slot_idx: int, revealer_id: int) -> void:
+	if multiplayer.get_unique_id() == revealer_id:
 		return
 	$Board.sync_market_reveal(slot_idx)
 
@@ -2756,7 +2858,7 @@ func _execute_expedition_reveal(slot_idx: int) -> void:
 	_pending_expedition_reveal_may_bid = false
 	if GameNetwork.is_multiplayer:
 		if GameNetwork.is_host:
-			_rpc_sync_expedition_reveal.rpc(slot_idx)
+			_rpc_sync_expedition_reveal.rpc(slot_idx, 1)
 		else:
 			_rpc_notify_expedition_reveal.rpc_id(1, slot_idx)
 	_show_reveal_big_then_continue("expedition", slot_idx, revealed)
@@ -2775,14 +2877,14 @@ func _on_placement_confirm_required(card: Node3D, slot: SectorSlot, _is_tech: bo
 	if card.card_data:
 		var cd: CardData = card.card_data
 		var is_adv: bool = bool(card.get("is_advanced"))
-		card_name = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
+		card_name = CardDatabase.display_name(cd, is_adv)   # shown only: the player's language
 		card_color = CardData.effective_color(cd, is_adv)
 	var target_name: String = ""
 	var target_color: CardData.SupplyColor = CardData.SupplyColor.DUST
 	if slot and slot.placed_card and slot.placed_card.card_data:
 		var scd: CardData = slot.placed_card.card_data
 		var slot_is_adv: bool = bool(slot.placed_card.get("is_advanced"))
-		target_name = scd.adv_name if slot_is_adv and not scd.adv_name.is_empty() else scd.card_name
+		target_name = CardDatabase.display_name(scd, slot_is_adv)
 		target_color = CardData.effective_color(scd, slot_is_adv)
 	var preview_steps: Array[Dictionary] = $Board.preview_placement_steps(card, slot)
 	_placement_confirm_panel.show_confirm(card_name, card_color, target_name, target_color, preview_steps)
@@ -2815,7 +2917,7 @@ func _on_expedition_shuffled_back(card_data: CardData, deck_insert_idx: int) -> 
 	if GameNetwork.is_multiplayer and card_data:
 		var card_ref: Dictionary = CardRef.to_ref(card_data)
 		if GameNetwork.is_host:
-			_rpc_sync_expedition_shuffle.rpc(card_ref, deck_insert_idx)
+			_rpc_sync_expedition_shuffle.rpc(card_ref, deck_insert_idx, 1)
 		else:
 			_rpc_notify_expedition_shuffle.rpc_id(1, card_ref, deck_insert_idx)
 	_shuffle_count += 1
@@ -2945,15 +3047,13 @@ func _try_auto_end_turn() -> void:
 	_on_end_turn_pressed()
 
 func _on_end_turn_pressed() -> void:
-	if not GameNetwork.is_my_turn():
+	if not GameNetwork.is_my_turn() or _game_finished:
 		return
 	if not $Board.is_major_action_taken():
 		return
 	if _has_researched:   # Research or Pass only (see _on_major_action_changed)
 		return
-	if _runner_up_phase:
-		return
-	if _auction_placement_pending:
+	if _auction_unresolved():
 		return
 	if _forfeit_discard_active:
 		return
@@ -2990,6 +3090,8 @@ func _do_end_turn() -> void:
 		_rpc_request_end_turn.rpc_id(1)
 
 func _server_handle_end_turn() -> void:
+	if _game_finished:
+		return
 	if _all_players_done_this_round():
 		_rpc_sync_end_round.rpc()
 		return
@@ -3036,11 +3138,15 @@ func _refresh_card_counts() -> void:
 func _rpc_notify_expedition_shuffle(card_ref: Dictionary, deck_insert_idx: int) -> void:
 	if not multiplayer.is_server():
 		return
-	_rpc_sync_expedition_shuffle.rpc(card_ref, deck_insert_idx)
+	var sender: int = multiplayer.get_remote_sender_id()
+	var shuffled: CardData = CardRef.from_ref(card_ref)
+	if shuffled:   # the host's own market too: the relay below isn't call_local
+		$Board.sync_expedition_shuffle_in(shuffled, deck_insert_idx)
+	_rpc_sync_expedition_shuffle.rpc(card_ref, deck_insert_idx, sender)
 
 @rpc("authority", "reliable")
-func _rpc_sync_expedition_shuffle(card_ref: Dictionary, deck_insert_idx: int) -> void:
-	if GameNetwork.is_my_turn():
+func _rpc_sync_expedition_shuffle(card_ref: Dictionary, deck_insert_idx: int, actor_id: int) -> void:
+	if multiplayer.get_unique_id() == actor_id:   # (by id, not turn: see _rpc_sync_sector_revealed)
 		return
 	var cd: CardData = CardRef.from_ref(card_ref)
 	if cd:
@@ -3050,11 +3156,12 @@ func _rpc_sync_expedition_shuffle(card_ref: Dictionary, deck_insert_idx: int) ->
 func _rpc_notify_expedition_reveal(slot_idx: int) -> void:
 	if not multiplayer.is_server():
 		return
-	_rpc_sync_expedition_reveal.rpc(slot_idx)
+	$Board.sync_expedition_reveal(slot_idx)   # the host's own market: the relay isn't call_local
+	_rpc_sync_expedition_reveal.rpc(slot_idx, multiplayer.get_remote_sender_id())
 
 @rpc("authority", "reliable")
-func _rpc_sync_expedition_reveal(slot_idx: int) -> void:
-	if GameNetwork.is_my_turn():
+func _rpc_sync_expedition_reveal(slot_idx: int, revealer_id: int) -> void:
+	if multiplayer.get_unique_id() == revealer_id:   # (by id, not turn: see _rpc_sync_sector_revealed)
 		return
 	$Board.sync_expedition_reveal(slot_idx)
 
@@ -3076,6 +3183,8 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	if multiplayer.is_server():
 		_convert_peer_to_bot(peer_id)
 		_fleet_peer_left(peer_id)
+		if not _round_acks.is_empty():   # a new round waits on them: they count as in it now
+			_server_round_ack(peer_id)
 
 func _show_session_ended_modal(msg: String) -> void:
 	var panel: ScifiPanel = load("res://scenes/ui/scifi_panel.gd").new()
@@ -3147,14 +3256,21 @@ func _convert_peer_to_bot(peer_id: int) -> void:
 	_rpc_sync_peer_converted_to_bot.rpc(peer_id, "%s (Bot)" % original_name)
 	_broadcast_log(tr("%s disconnected — a bot has taken over (lost hand and any stored supply).") % original_name, Color(1.0, 0.6, 0.4))
 
-	if GameNetwork.active_peer_id == peer_id:
-		BotTurn.run_bot_turn(self, peer_id)
-	elif _auction_active and not _auction_remaining.is_empty() and _auction_remaining[_auction_active_idx] == peer_id:
+	# what they owe an open auction first: the initiator is also the active player, and a bot turn
+	# taken inside the auction left it stuck (and could start a second one over it). Their turn
+	# ends through the auction-settled path (_rpc_sync_auction_placement_pending).
+	if _auction_active and not _auction_remaining.is_empty() and _auction_remaining[_auction_active_idx] == peer_id:
 		BotTurn.bot_decide_bid(self, peer_id)
-	elif _interfleet_active and not _interfleet_remaining_order.is_empty() and _interfleet_remaining_order[0] == peer_id:
-		BotTurn.bot_decide_interfleet_pick(self, peer_id)
 	elif (_runner_up_phase and _auction_second_id == peer_id) or (_auction_placement_pending and _auction_leader_id == peer_id):
 		_host_force_decline_pending_auction(peer_id)
+	elif _interfleet_active and not _interfleet_remaining_order.is_empty() and _interfleet_remaining_order[0] == peer_id:
+		BotTurn.bot_decide_interfleet_pick(self, peer_id)
+	elif GameNetwork.active_peer_id == peer_id and not (_auction_active or _runner_up_phase or _auction_placement_pending):
+		BotTurn.run_bot_turn(self, peer_id)
+	if GameNetwork.active_peer_id == peer_id and (_auction_active or _runner_up_phase or _auction_placement_pending):
+		# as for an auction a bot started (BotTurn.bot_start_auction): the settled auction ends
+		# the bot's turn (_rpc_sync_auction_placement_pending checks this flag)
+		$Board.set_major_action_taken()
 
 # Host → All: peer_id is now bot-controlled. Only mutates GameNetwork state —
 # bot_hands/bot_supplies/bot_boards stay host-only, exactly like every other

@@ -83,7 +83,9 @@ static func _rpc_sync_auction_placement_pending(main: Main, pending: bool) -> vo
 		# this sync ever arrives more than once for the same turn.
 		if main.multiplayer.is_server() and GameNetwork.is_bot(GameNetwork.active_peer_id) and main.get_node("Board").is_major_action_taken():
 			main._server_handle_end_turn()
-		main._try_auto_end_turn()
+		# deferred: on the host this runs inside _on_card_placed, before the won card's own
+		# effects are queued, and ended the turn under them (they then ran in the next turn)
+		main.call_deferred("_try_auto_end_turn")
 
 # Client (whoever currently owes the placement) → Host: my auction win has
 # been placed, recycled, or otherwise resolved — safe to unblock everyone.
@@ -120,7 +122,8 @@ static func _rpc_sync_auction_started(main: Main, card_ref: Dictionary, slot_idx
 	var can_pass: bool = is_active and my_id != initiator_id
 	var _initiator_name: String = GameNetwork.player_names.get(initiator_id, "Player")
 	if GameNetwork.is_multiplayer and initiator_id != main.multiplayer.get_unique_id():
-		_show_auction_banner(main, main.tr("%s: auction for %s") % [_initiator_name, card_name])
+		var shown: String = CardDatabase.display_name(cd, is_adv) if cd else card_name   # the player's language
+		_show_auction_banner(main, main.tr("%s: auction for %s") % [_initiator_name, shown])
 	main._log_action(main.tr("%s: auction for %s") % [_initiator_name, card_name], Color(1.0, 0.72, 0.28))
 	main._bid_popup.show_auction(cd, is_adv, min_bid, leader_name, main._auction_cost_color, is_active, can_pass)
 	main._auction_active = true
@@ -167,6 +170,7 @@ static func _rpc_sync_auction_won(main: Main, initiator_id: int, winner_id: int,
 		if cd:
 			c_name = cd.adv_name if (main._auction_is_adv and not cd.adv_name.is_empty()) else cd.card_name
 		var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(cost_color)
+		_remember_owed(main, c_name, final_bid, cost_color, cd, main._auction_is_adv)
 		main._bid_payment_panel.show_bid_payment(c_name, final_bid, valid_colors, main._cs_display, cd, main._auction_is_adv)
 	else:
 		if my_id == initiator_id:
@@ -191,7 +195,8 @@ static func _rpc_sync_auction_won(main: Main, initiator_id: int, winner_id: int,
 	var _wn_toast: String = GameNetwork.player_names.get(winner_id, "Player")
 	var won_banner: Main.TurnBanner = Main.TurnBanner.new()
 	main.get_node("UILayer").add_child(won_banner)
-	won_banner.play(main.tr("%s won %s for %d") % [_wn_toast, _cn_toast, final_bid], Color(1.0, 0.92, 0.35), "", Main.AUCTION_BANNER_LENGTH)
+	var _shown_toast: String = CardDatabase.display_name(_cd_toast, main._auction_is_adv) if _cd_toast else _cn_toast
+	won_banner.play(main.tr("%s won %s for %d") % [_wn_toast, _shown_toast, final_bid], Color(1.0, 0.92, 0.35), "", Main.AUCTION_BANNER_LENGTH)
 	main._log_action(main.tr("%s won %s for %d") % [_wn_toast, _cn_toast, final_bid], Color(1.0, 0.92, 0.35))
 	UIAudio.play_gavel_sfx()
 	if winner_id == main.multiplayer.get_unique_id():
@@ -345,14 +350,19 @@ static func _server_offer_to_runner_up(main: Main, penalize: bool = true) -> voi
 	if not cd:
 		main._rpc_sync_auction_placement_pending.rpc(false)
 		return
+	var printed_cost: int = cd.adv_cost if main._auction_is_adv else cd.cost
 	if GameNetwork.is_bot(main._auction_second_id):
-		# Bots have no payment-panel UI to accept this at printed cost —
-		# treat it the same as a human runner-up declining outright.
-		main._rpc_sync_market_removal.rpc(main._auction_card_ref)
+		# rule book p7: the second-highest bidder pays the printed cost and gets the card. A bot
+		# always can (it never bids above what it has), and pays and places it itself (the card
+		# was just thrown away before, so a human could deny a bot any card by not paying)
+		BotTurn.bot_resolve_auction_win(main, main._auction_second_id, main._auction_card_ref, printed_cost,
+				main._auction_cost_color, main._auction_is_tech, main._auction_is_adv)
+		var bot_name: String = GameNetwork.player_names.get(main._auction_second_id, main.tr("Bot"))
+		var won_name: String = cd.adv_name if (main._auction_is_adv and not cd.adv_name.is_empty()) else cd.card_name
+		main._broadcast_log(main.tr("%s: bought %s") % [bot_name, won_name], CardData.color_tint(main._auction_cost_color))
 		main._rpc_sync_auction_placement_pending.rpc(false)
 		return
 	main._rpc_sync_runner_up_phase.rpc(true)
-	var printed_cost: int = cd.adv_cost if main._auction_is_adv else cd.cost
 	if main._auction_second_id == main.multiplayer.get_unique_id():
 		_on_runner_up_offer(main, main._auction_card_ref, main._auction_slot_idx, main._auction_is_tech, main._auction_is_adv, printed_cost, int(main._auction_cost_color))
 	else:
@@ -370,8 +380,19 @@ static func _on_runner_up_offer(main: Main, card_ref: Dictionary, _slot_idx: int
 	var c_name: String = cd.adv_name if (is_adv and not cd.adv_name.is_empty()) else cd.card_name
 	var cost_color: CardData.SupplyColor = cost_color_int as CardData.SupplyColor
 	var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(cost_color)
+	_remember_owed(main, c_name, printed_cost, cost_color, cd, is_adv)
 	main._bid_payment_panel.show_bid_payment(c_name, printed_cost, valid_colors, main._cs_display, cd, is_adv)
 	main._update_turn_ui()
+
+## What the winner (or the runner-up) owes, for the payment window a right-click on the placement
+## arrow reopens (_on_auction_payment_cancel_requested): it asked for 0 in every lobby game before.
+static func _remember_owed(main: Main, c_name: String, amount: int, cost_color: CardData.SupplyColor,
+		cd: CardData, is_adv: bool) -> void:
+	main._bid_card_name = c_name
+	main._bid_amount = amount
+	main._bid_color = cost_color
+	main._bid_card_data = cd
+	main._bid_is_advanced = is_adv
 
 static func _on_bid_confirmed(main: Main, amount: int) -> void:
 	if main._pending_auction:

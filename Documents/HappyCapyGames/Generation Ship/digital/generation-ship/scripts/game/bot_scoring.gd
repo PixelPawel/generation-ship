@@ -90,6 +90,15 @@ static func slot_effective_placed_colors(slot: Dictionary) -> Array[int]:
 			result.append(int((t as CardData).color))
 	return result
 
+## The colours that fill a sector's optimize tanks: the cards placed ON it (techs and expeditions)
+## only, never the sector card itself (as SectorSlot.get_placed_tech_colors for the humans).
+static func slot_tech_colors(slot: Dictionary) -> Array[int]:
+	var result: Array[int] = []
+	for t: Variant in (slot.get("techs", []) as Array):
+		if t is CardData:
+			result.append(int((t as CardData).color))
+	return result
+
 static func slot_cards(slot: Dictionary) -> Array[CardData]:
 	var result: Array[CardData] = []
 	var sector: CardData = slot.get("sector") as CardData
@@ -193,10 +202,16 @@ static func _expedition_vp_raw(name: String, fallback_stars: int, board: Array,
 		"Hive Mind":
 			return _count_color(board, CardData.SupplyColor.ELECTRIX)
 		"Earth 2.0":
+			# by slot, so a sector counts by the side that is showing
 			var count: int = 0
-			for cd: CardData in all_cards:
-				if cd.is_star_card:
+			for entry: Variant in board:
+				var slot: Dictionary = entry as Dictionary
+				var sector: CardData = slot.get("sector") as CardData
+				if sector and CardData.side_is_star_card(sector, bool(slot.get("is_advanced", false))):
 					count += 1
+				for t: Variant in (slot.get("techs", []) as Array):
+					if t is CardData and (t as CardData).is_star_card:
+						count += 1
 			return 2 * count
 		"Pleasure Planet":
 			var colors: Dictionary = {}
@@ -272,7 +287,7 @@ static func _expedition_vp_raw(name: String, fallback_stars: int, board: Array,
 					elif top.card_type == CardData.CardType.TECH and _is_conditional_tech(top.card_name):
 						top_vp = _tech_condition_vp(top.card_name, board)
 					elif top.card_type != CardData.CardType.EXPEDITION:
-						top_vp = top.stars
+						top_vp = CardData.side_stars(top, top == slot.get("sector") and bool(slot.get("is_advanced", false)))
 					else:
 						top_vp = 0
 					total += mini(top_vp, 6)

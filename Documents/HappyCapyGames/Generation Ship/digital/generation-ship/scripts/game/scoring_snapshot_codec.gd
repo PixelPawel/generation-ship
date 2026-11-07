@@ -34,9 +34,18 @@ const FIXED_LABELS: Array[String] = [
 	"Astra Cultura (Thrust bonus)",
 ]
 
+# The same lines as BotScoring.board_vp_lines labels them (the Scan Tableau's scorer): they were
+# dropped from every scan's leaderboard breakdown (only its expedition lines were left)
+const SCAN_LABELS: Dictionary = {
+	"Faceup archived": "Faceup archived (⭐)",
+	"Facedown archived": "Facedown archived (1 VP each)",
+	"Stored supply": "Stored supply (1 VP each)",
+	"Stars": "Stars (⭐)",
+}
+
 static func encode_line(label: String, vp: int) -> int:
 	var clamped_vp: int = clampi(vp, 0, 999)
-	var fixed_idx: int = FIXED_LABELS.find(label)
+	var fixed_idx: int = FIXED_LABELS.find(str(SCAN_LABELS.get(label, label)))
 	if fixed_idx >= 0:
 		return 1_000_000 + fixed_idx * 1000 + clamped_vp
 	for cd: CardData in CardDatabase.techs:

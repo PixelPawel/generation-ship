@@ -1463,8 +1463,9 @@ func _add_unsure_badge(thumb: TextureRect, thumb_size: Vector2, at: Vector2) -> 
 static func _art_path(cd: CardData, is_advanced: bool) -> String:
 	return cd.adv_local_art_path if is_advanced and not cd.adv_local_art_path.is_empty() else cd.local_art_path
 
+## A card's name as shown here: the printed card in the player's language (display only).
 static func _card_name(cd: CardData, is_advanced: bool) -> String:
-	return cd.adv_name if is_advanced and not cd.adv_name.is_empty() else cd.card_name
+	return CardDatabase.display_name(cd, is_advanced)
 
 func _sector_label(entry: Dictionary) -> String:
 	if bool(entry.get("unknown_sector", false)):
@@ -1783,7 +1784,7 @@ func _build_archive_tray(entry: Dictionary) -> Control:
 		card_col.add_theme_constant_override("separation", 4)
 		up_row.add_child(card_col)
 		var mini: TextureRect = _make_mini_card(tcd.local_art_path, TRAY_CARD)
-		mini.tooltip_text = tcd.card_name
+		mini.tooltip_text = CardDatabase.display_name(tcd)
 		mini.mouse_filter = Control.MOUSE_FILTER_PASS
 		card_col.add_child(mini)
 		var off: Button = _make_stepper_button("✕")
@@ -1886,7 +1887,7 @@ func _update_score() -> void:
 		return
 	_apply_alliance()
 	for line: Dictionary in BotScoring.board_vp_lines(_sectors):
-		var lbl: Label = _make_label("%s: %d" % [line["label"], line["vp"]], BODY_FONT_SIZE, CREAM)
+		var lbl: Label = _make_label("%s: %d" % [CardDatabase.score_label(str(line["label"])), line["vp"]], BODY_FONT_SIZE, CREAM)
 		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_results_box.add_child(lbl)
 	_score_total_label.text = str(BotScoring.board_vp(_sectors))

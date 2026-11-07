@@ -298,7 +298,18 @@ func detach_dust_card(slot_idx: int) -> Node3D:
 	market_changed.emit()
 	return card
 
+## A basic sector pile still has a card to reveal (reveal effects skip once every pile is empty).
+func has_unrevealed_card() -> bool:
+	for deck: Array in _dust_decks:
+		if not deck.is_empty():
+			return true
+	return false
+
 func reveal_slot_panel(slot_idx: int) -> void:
+	# an empty pile clicked: stay in reveal mode for another one (the effect waited forever)
+	if slot_idx >= 0 and slot_idx < _dust_decks.size() and (_dust_decks[slot_idx] as Array).is_empty() \
+			and has_unrevealed_card():
+		return
 	set_reveal_mode(false)
 	var data: CardData = _reveal_one_slot(slot_idx)
 	if data:

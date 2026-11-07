@@ -61,10 +61,10 @@ static func _build(name: String, placed_colors: Array[int], last_placed_tech_cos
 			steps.append({type = "reveal_expedition", gain_supply = true, may_bid = true})
 			steps.append({type = "offer_bid_pool"})
 
-		"Cargo Bays":
-			steps.append({type = "reveal_sector", may_bid = true})
-			steps.append({type = "reveal_sector", may_bid = true})
-			steps.append({type = "reveal_sector", may_bid = true})
+		"Cargo Bays":   # "Reveal up to 3 sectors. You may bid on one."
+			steps.append({type = "reveal_sector", may_bid = true, optional = true})
+			steps.append({type = "reveal_sector", may_bid = true, optional = true})
+			steps.append({type = "reveal_sector", may_bid = true, optional = true})
 			steps.append({type = "offer_bid_pool"})
 
 		# ── Advanced sector optimize effects ──────────────────────────────────
