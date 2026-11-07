@@ -119,7 +119,10 @@ static func _score_stars(lines: Array[Dictionary], all_cards: Array) -> void:
 		# condition fails, and double-count it when the condition succeeds.
 		# Sectors' printed stars don't score (rule book: techs, expeditions, stored
 		# supply, archived cards); expeditions are scored on their own line below.
-		if cd != null and cd.stars > 0 and cd.card_type == CardData.CardType.TECH and not _is_conditional_tech(cd.card_name):
+		# Only Score cards score their stars (designer ruling 2026-11-07): an Always or Place tech's
+		# star is part of its text (Crops, Living Hull, Quantum Archives, Skyhook) and scores nothing
+		if cd != null and cd.stars > 0 and cd.card_type == CardData.CardType.TECH \
+				and cd.trigger_type == CardData.TriggerType.SCORE and not _is_conditional_tech(cd.card_name):
 			total += cd.stars
 	_add_line(lines, "Stars (⭐)", total)
 
@@ -137,7 +140,7 @@ static func _score_expeditions(lines: Array[Dictionary], slots: Array, expeditio
 # cards), so every expedition's VP is capped here.
 const EXPEDITION_MAX: Dictionary = {
 	"Exodus Fleets": 24, "Equatorial Superloop": 36, "Pleasure Planet": 15,
-	"Compatible World": 12, "Astrobio Propagation": 24, "Aeon Ark": 12,
+	"Compatible World": 12, "Astrobio Propagation": 18, "Aeon Ark": 12,
 	"Cloud Colony": 18, "Hive Mind": 12, "Asteroid Colonies": 18,
 	"Millions of Colonists": 12, "Alliance": 12, "Polar Planet": 12,
 	"Waterworld": 12, "Self Replication": 12, "Lagrange Complex": 12,

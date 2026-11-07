@@ -134,7 +134,9 @@ static func board_vp_lines(board: Array) -> Array[Dictionary]:
 	var stars: int = 0
 	for cd: CardData in all_cards:
 		# techs only: sectors' printed stars don't score, expeditions have their own line
-		if cd.stars > 0 and cd.card_type == CardData.CardType.TECH and not _is_conditional_tech(cd.card_name):
+		# Score techs only (as Scoring: an Always/Place tech's star is part of its text)
+		if cd.stars > 0 and cd.card_type == CardData.CardType.TECH \
+				and cd.trigger_type == CardData.TriggerType.SCORE and not _is_conditional_tech(cd.card_name):
 			stars += cd.stars
 	_add(lines, "Stars", stars)
 

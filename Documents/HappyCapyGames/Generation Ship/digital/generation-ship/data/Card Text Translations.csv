@@ -364,7 +364,7 @@ Navette : 1 Dust pour envoyer une carte à un joueur."
 "dust:Simulators:name","Simulatoren","Simulatori","Symulatory","Simuladores","Simulateurs"
 "expedition:10:effect","Ziehe 3. Archiviere bis zu 3 Karten offen unter diesem Sektor.","Pesca 3. Archivia fino a 3 carte a faccia in su sotto questo settore.","Dobierz 3. Zarchiwizuj do 3 kart odkrytych pod tym sektorem.","Roba 3. Archiva hasta 3 cartas boca arriba bajo este sector.","Piochez 3. Archivez jusqu’à 3 cartes face visible sous ce secteur."
 "expedition:10:name","DNA-Formung","Scultura del DNA","Rzeźbienie DNA","Escultura de ADN","Sculpture ADN"
-"expedition:11:effect","Erhalte 1⭐ pro Organix-Karte. (einschließlich dieser)","Guadagna 1⭐ per ogni carta Organix. (inclusa questa)","Zdobądź 1⭐ za każdą kartę Organix. (włącznie z tą)","Gana 1⭐ por cada carta Organix. (incluida esta)","Gagnez 1⭐ par carte Organix ou plus.
+"expedition:11:effect","Erhalte 1⭐ pro Organix-Karte. (einschließlich dieser)","Guadagna 1⭐ per ogni carta Organix. (inclusa questa)","Zdobądź 1⭐ za każdą kartę Organix. (włącznie z tą)","Gana 1⭐ por cada carta Organix. (incluida esta)","Gagnez 1⭐ par carte Organix.
 (y compris celle-ci)"
 "expedition:11:name","Kompatible Welt","Mondo Compatibile","Biokompatybilny Świat","Mundo Compatible","Monde Compatible"
 "expedition:12:effect","Erhalte 3⭐ pro Sektor mit 2+ archivierten Karten.","Guadagna 3⭐ per ogni settore con 2 o più carte archiviate.","Zdobądź 3⭐ za każdy sektor z 2+ zarchiwizowanymi kartami.","Gana 3⭐ por cada sector con 2 o más cartas archivadas.","Gagnez 3⭐ par secteur avec 2 cartes archivées ou plus."
@@ -375,7 +375,7 @@ Navette : 1 Dust pour envoyer une carte à un joueur."
 "expedition:14:name","Wolkenkolonie","Colonia delle Nuvole","Kolonia Chmur","Colonia de las Nubes","Colonie des Nuages"
 "expedition:15:effect","Erhalte 1 Electrix, wenn du eine Expedition kaufst.","Guadagna 1 Electrix quando acquisti una spedizione.","Zdobądź 1 Electrix, gdy kupujesz ekspedycję.","Gana 1 Electrix cuando compras una expedición.","Gagnez 1 Electrix quand vous achetez une expédition."
 "expedition:15:name","Industrielle Wiege","Culla Industriale","Kolebka Przemysłu","Cuna Industrial","Berceau Industriel"
-"expedition:16:effect","Erhalte 1⭐ pro Electrix-Karte. (einschließlich dieser)","Guadagna 1⭐ per ogni carta Electrix. (inclusa questa)","Zdobądź 1⭐ za każdą kartę Electrix. (włącznie z tą)","Gana 1⭐ por cada carta Electrix. (incluida esta)","Gagnez 1⭐ par carte Electrix ou plus.
+"expedition:16:effect","Erhalte 1⭐ pro Electrix-Karte. (einschließlich dieser)","Guadagna 1⭐ per ogni carta Electrix. (inclusa questa)","Zdobądź 1⭐ za każdą kartę Electrix. (włącznie z tą)","Gana 1⭐ por cada carta Electrix. (incluida esta)","Gagnez 1⭐ par carte Electrix.
 (y compris celle-ci)"
 "expedition:16:name","Schwarmbewusstsein","Mente Alveare","Umysł Ula","Mente Colmena","Esprit de Ruche"
 "expedition:17:effect","Erhalte 3⭐ pro komplettem und vollständig optimiertem Sektor.","Guadagna 3⭐ per ogni settore completo e completamente ottimizzato.","Zdobądź 3⭐ za każdy kompletny i w pełni zoptymalizowany sektor.","Gana 3⭐ por cada sector completo y totalmente optimizado.","Gagnez 3⭐ par secteur complet et entièrement optimisé."
@@ -406,10 +406,10 @@ Navette : 1 Dust pour envoyer une carte à un joueur."
 (Jede Karte mit aufgedrucktem ⭐)","Guadagna 2⭐ per ogni carta (Star Card).
 (Qualsiasi carta con ⭐ stampata)","Zdobądź 2⭐ za każdą kartę (Star Card).
 (Karta z wydrukowaną⭐)","Gana 2⭐ por cada carta (Star Card).
-(Una carta con ⭐ impreso)","Gagnez 2⭐ par carte (Star Card) ou plus.
+(Una carta con ⭐ impreso)","Gagnez 2⭐ par carte (Star Card).
 (Toute carte avec ⭐ imprimée)"
 "expedition:2:name","Erde 2.0","Terra 2.0","Ziemia 2.0","Tierra 2.0","Terre 2.0"
-"expedition:3:effect","Erhalte 2 ⭐ pro Thrust-Karte. (einschließlich dieser)","Guadagna 2 ⭐ per ogni carta Thrust. (inclusa questa)","Zdobądź 2 ⭐ za każdą kartę Thrust. (włącznie z tą)","Gana 2 ⭐ por cada carta Thrust. (incluida esta)","Gagnez 2⭐ par carte Thrust ou plus.
+"expedition:3:effect","Erhalte 2 ⭐ pro Thrust-Karte. (einschließlich dieser)","Guadagna 2 ⭐ per ogni carta Thrust. (inclusa questa)","Zdobądź 2 ⭐ za każdą kartę Thrust. (włącznie z tą)","Gana 2 ⭐ por cada carta Thrust. (incluida esta)","Gagnez 2⭐ par carte Thrust.
 (y compris celle-ci)"
 "expedition:3:name","Exodus-Flotten","Flotte dell’Esodo","Floty Exodusu","Flotas del Éxodo","Flottes de l’Exode"
 "expedition:4:effect","Kopiere bis zu 6⭐ von der obersten Karte in jedem Sektor.","Copia fino a 6⭐ dalla carta in cima in ogni settore.","Skopiuj do 6⭐ z wierzchniej karty w każdym sektorze.","Copia hasta 6⭐ de la carta superior en cada sector.","Copiez jusqu’à 6⭐ de la carte du dessus dans chaque secteur."

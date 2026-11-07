@@ -473,7 +473,8 @@ static func _on_bid_payment_forfeited(main: Main) -> void:
 		main._auction_win_awaiting_placement = false
 		if main._auction_win_is_initiator:
 			main.get_node("Board").cancel_purchase()
-			main.get_node("Board").reset_turn()
+			# the auction stays the turn's action when its winner doesn't pay (designer ruling
+			# 2026-11-07; the turn used to be reset here, giving a second action)
 			if GameNetwork.is_host:
 				_server_offer_to_runner_up(main)
 			else:
