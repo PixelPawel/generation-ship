@@ -36,6 +36,8 @@ var _grid: GridContainer = null
 var _context_row: HBoxContainer = null
 var _context_pic: TextureRect = null
 var _context_lbl: Label = null
+# face-up archived cards: the ones with a printed star first, the rest from a new row below
+var _stars_first: bool = false
 
 func _ready() -> void:
 	_build_ui()
@@ -47,7 +49,8 @@ func _ready() -> void:
 ## through the picker in the first place. Empty means "no restriction."
 ## context / context_text: the card being changed, as the photo shows it, and a line about it
 ## (shown above the tabs; nothing when null / empty).
-func open(start_tab: int = TAB_SECTOR_DUST, allowed_tabs: Array[int] = [], context: Texture2D = null, context_text: String = "") -> void:
+func open(start_tab: int = TAB_SECTOR_DUST, allowed_tabs: Array[int] = [], context: Texture2D = null, context_text: String = "",
+		stars_first: bool = false) -> void:
 	# A ternary between allowed_tabs (Array[int]) and an untyped array
 	# literal infers a plain Array, which then fails to assign into the
 	# Array[int]-typed local below — reassigning after the fact instead
@@ -61,6 +64,7 @@ func open(start_tab: int = TAB_SECTOR_DUST, allowed_tabs: Array[int] = [], conte
 	(_context_pic.get_parent() as Control).visible = context != null   # the frame too (a card added by hand has no cut-out)
 	_context_lbl.text = context_text
 	_context_row.visible = context != null or not context_text.is_empty()
+	_stars_first = stars_first
 	_select_tab(start_tab)
 	visible = true
 
@@ -171,7 +175,16 @@ func _populate_grid() -> void:
 	var landscape: bool = _active_tab <= 1
 	_grid.columns = _LANDSCAPE_COLUMNS if landscape else _PORTRAIT_COLUMNS
 	var box_size: Vector2 = _LANDSCAPE_SIZE if landscape else _PORTRAIT_SIZE
-	for entry: Dictionary in _entries_for_tab(_active_tab):
+	var entries: Array[Dictionary] = _entries_for_tab(_active_tab)
+	if _stars_first and not landscape:
+		entries = _stars_on_top(entries, _grid.columns)
+	for entry: Dictionary in entries:
+		if entry.is_empty():          # a gap: the cards without stars start on a new row
+			var gap: Control = Control.new()
+			gap.custom_minimum_size = box_size
+			gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			_grid.add_child(gap)
+			continue
 		var tex: Texture2D = load(entry["art"] as String) as Texture2D
 		if not tex:
 			continue
@@ -192,6 +205,24 @@ func _populate_grid() -> void:
 				picked.emit(card_name, is_adv)
 				visible = false)
 		_grid.add_child(rect)
+
+## The cards with a printed star (what a face-up archived card scores) first, alphabetically; the
+## rest from the next row ({} entries fill up the starred cards' last row).
+static func _stars_on_top(entries: Array[Dictionary], columns: int) -> Array[Dictionary]:
+	var starred: Array[Dictionary] = []
+	var rest: Array[Dictionary] = []
+	for e: Dictionary in entries:
+		if int(e.get("stars", 0)) > 0:
+			starred.append(e)
+		else:
+			rest.append(e)
+	var out: Array[Dictionary] = []
+	out.append_array(starred)
+	if not starred.is_empty() and not rest.is_empty():
+		while out.size() % columns != 0:
+			out.append({})
+	out.append_array(rest)
+	return out
 
 func _entries_for_tab(idx: int) -> Array[Dictionary]:
 	match idx:
@@ -216,7 +247,7 @@ static func _dedupe(cards: Array[CardData], name_fn: Callable, art_fn: Callable,
 		if art.is_empty():
 			continue
 		seen[card_name] = true
-		out.append({"name": card_name, "art": art, "is_advanced": is_advanced})
+		out.append({"name": card_name, "art": art, "is_advanced": is_advanced, "stars": cd.stars})
 	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return (a["name"] as String) < (b["name"] as String))
 	return out
 

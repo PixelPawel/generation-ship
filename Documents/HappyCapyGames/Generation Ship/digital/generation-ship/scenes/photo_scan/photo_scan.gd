@@ -38,10 +38,12 @@ const NAME_FONT_SIZE: int = 32
 const SCORE_FONT_SIZE: int = 88
 const STEPPER_BUTTON_SIZE: float = 72.0
 const STEPPER_BUTTON_FONT_SIZE: int = 30
-const RAIL_WIDTH: float = 352.0
-const PHOTO_THUMB_HEIGHT: float = 300.0
-const CAPTURE_BUTTON_HEIGHT: float = 118.0
-const CAPTURE_GLYPH: float = 50.0
+const RAIL_WIDTH: float = 500.0
+const PHOTO_THUMB_HEIGHT: float = 376.0      # a 4:3 photo across the rail
+const CAPTURE_BUTTON_HEIGHT: float = 150.0
+const CAPTURE_FONT_SIZE: int = 26
+const LEADERBOARD_HEIGHT: float = 100.0
+const CAPTURE_GLYPH: float = 66.0
 const BAR_HEIGHT: float = 104.0           # the strip under the ship (edit actions / hint)
 
 # The ship's cards are sized to fit the space there is (all sectors side by side, the tallest
@@ -62,7 +64,7 @@ const GHOST_GAP: float = 0.04
 const SELECT_LIFT: float = 12.0           # a tapped card rises this far
 const SHIP_INFO_HEIGHT: float = 150.0     # tokens + archive under a sector (measured later)
 const TOKEN_ICON: float = 50.0
-const ARCHIVE_CARD: Vector2 = Vector2(44, 67)
+const ARCHIVE_CARD: Vector2 = Vector2(60, 91)
 const TRAY_TOKEN: float = 76.0
 const TRAY_CARD: Vector2 = Vector2(64, 97)
 # a card as the photo shows it: the part a stack leaves in view (a tech's lower CROP_TECH_SHOWN with its
@@ -257,9 +259,13 @@ func _build_ui() -> void:
 	title.text = tr("Scan Tableau").to_upper()
 	title.add_theme_font_size_override("font_size", TITLE_FONT_SIZE)
 	title.add_theme_color_override("font_color", CREAM)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	title_row.add_child(title)
+	# what the scan found / the cards to check, beside the title: the ship gets the height
+	var gap: Control = Control.new()
+	gap.custom_minimum_size = Vector2(24, 0)
+	title_row.add_child(gap)
+	_build_status(title_row)
 	# Android: also put each scan photo in the gallery (off by default; for checking a scan later or
 	# sending it in — the photos themselves stay in the app's private files)
 	# (no has_method() on a plugin singleton: Godot's Java bridge object doesn't report its
@@ -381,6 +387,9 @@ func _build_rail() -> Control:
 		capture.add_child(_make_capture_button("gallery", "Load Image", _on_scan_ship_pressed))
 
 	_leaderboard_btn = _make_button("Add to Leaderboard")
+	_leaderboard_btn.custom_minimum_size = Vector2(0, LEADERBOARD_HEIGHT)
+	# (a long translation is cut short rather than widening the rail)
+	_leaderboard_btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_style_gold(_leaderboard_btn)
 	_leaderboard_btn.pressed.connect(_on_leaderboard_pressed)
 	rail.add_child(_leaderboard_btn)
@@ -392,19 +401,6 @@ func _build_stage() -> Control:
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col.add_theme_constant_override("separation", 12)
 
-	var status_row: HBoxContainer = HBoxContainer.new()
-	status_row.add_theme_constant_override("separation", 12)
-	col.add_child(status_row)
-	_status_badge = _make_round_badge("?", 36.0, GOLD, BADGE_DARK)
-	_status_badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_status_badge.visible = false
-	status_row.add_child(_status_badge)
-	_status_label = _make_label("", BODY_FONT_SIZE, CREAM)
-	_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_status_label.max_lines_visible = 2          # (see _make_bar_hint)
-	status_row.add_child(_status_label)
-	_build_alliance_row(status_row)
 	_scan_progress = ProgressBar.new()
 	_scan_progress.custom_minimum_size = Vector2(0, 18)
 	_scan_progress.min_value = 0.0
@@ -453,6 +449,20 @@ func _build_stage() -> Control:
 	_bar.add_theme_stylebox_override("panel", _bar_style)
 	col.add_child(_bar)
 	return col
+
+## The status line: the gold "?" and "N cards to check" (else what the scan found), and the Alliance
+## question when the ship has Alliance. In the title row, above the line.
+func _build_status(row: HBoxContainer) -> void:
+	_status_badge = _make_round_badge("?", 36.0, GOLD, BADGE_DARK)
+	_status_badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_status_badge.visible = false
+	row.add_child(_status_badge)
+	_status_label = _make_label("", BODY_FONT_SIZE, CREAM)
+	_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status_label.max_lines_visible = 2          # (see _make_bar_hint)
+	row.add_child(_status_label)
+	_build_alliance_row(row)
 
 func _make_button(label: String) -> Button:
 	var btn: Button = Button.new()
@@ -526,7 +536,7 @@ func _make_capture_button(kind: String, caption: String, on_press: Callable) -> 
 	glyph.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(glyph)
-	var lbl: Label = _make_label(caption, 20, Color(0.78, 0.88, 1.0))
+	var lbl: Label = _make_label(caption, CAPTURE_FONT_SIZE, Color(0.78, 0.88, 1.0))
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(lbl)
@@ -1262,7 +1272,7 @@ func _build_sector_column(entry: Dictionary, index: int) -> Control:
 	var archive: PanelContainer = _make_tap_area(_open_tray.bind("archive", index))
 	outer.add_child(archive)
 	_ship_archive_boxes.append(archive)
-	archive.add_child(_make_archive_line(entry))
+	archive.add_child(_make_archive_line(entry, long_px))
 	return outer
 
 ## A card in the ship: its art (or nothing, for a sector the scan didn't find), a tap selects it.
@@ -1369,7 +1379,7 @@ func _make_token(color_int: int, n: int, icon_size: float) -> Control:
 
 ## The archive under a sector: face-up cards as small cards, face-down ones as backs with their count;
 ## an empty outline when there's nothing.
-func _make_archive_line(entry: Dictionary) -> Control:
+func _make_archive_line(entry: Dictionary, width: float) -> Control:
 	var line: HBoxContainer = HBoxContainer.new()
 	line.add_theme_constant_override("separation", 14)
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1383,8 +1393,13 @@ func _make_archive_line(entry: Dictionary) -> Control:
 		else:
 			down += 1
 	if not up.is_empty():
+		# fanned; with many they overlap more, so the line stays within the sector's width
+		var room: float = width - ((ARCHIVE_CARD.x + 4.0 + 40.0 + 14.0) if down > 0 else 0.0)
+		var step: float = ARCHIVE_CARD.x - 14.0
+		if up.size() > 1:
+			step = clampf((room - ARCHIVE_CARD.x) / (up.size() - 1), 12.0, step)
 		var fan: HBoxContainer = HBoxContainer.new()
-		fan.add_theme_constant_override("separation", -14)
+		fan.add_theme_constant_override("separation", roundi(step - ARCHIVE_CARD.x))
 		fan.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		for tcd: CardData in up:
 			fan.add_child(_make_mini_card(tcd.local_art_path, ARCHIVE_CARD))
@@ -1394,7 +1409,7 @@ func _make_archive_line(entry: Dictionary) -> Control:
 		backs.add_theme_constant_override("separation", 4)
 		backs.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		backs.add_child(_make_mini_card(_back_path(), ARCHIVE_CARD))
-		var lbl: Label = _make_label("×%d" % down, SMALL_FONT_SIZE, CREAM)
+		var lbl: Label = _make_label("×%d" % down, BODY_FONT_SIZE, CREAM)
 		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		backs.add_child(lbl)
 		line.add_child(backs)
@@ -1606,7 +1621,8 @@ func _on_add_sector() -> void:
 		_refresh_sector_list())
 
 ## Opens the card picker on the tabs a slot can hold (a sector slot only ever shows sectors).
-func _pick(default_tab: int, allowed: Array[int], on_pick: Callable, context: Texture2D = null, context_text: String = "") -> void:
+func _pick(default_tab: int, allowed: Array[int], on_pick: Callable, context: Texture2D = null, context_text: String = "",
+		stars_first: bool = false) -> void:
 	if _picker_callback.is_valid() and _card_picker.picked.is_connected(_picker_callback):
 		_card_picker.picked.disconnect(_picker_callback)
 	_picker_callback = on_pick
@@ -1615,7 +1631,7 @@ func _pick(default_tab: int, allowed: Array[int], on_pick: Callable, context: Te
 		_tray.visible = false
 		if not _card_picker.visibility_changed.is_connected(_on_picker_visibility):
 			_card_picker.visibility_changed.connect(_on_picker_visibility)
-	_card_picker.open(default_tab, allowed, context, context_text)
+	_card_picker.open(default_tab, allowed, context, context_text, stars_first)
 
 func _on_picker_visibility() -> void:
 	if not _card_picker.visible and _tray and is_instance_valid(_tray):
@@ -1807,15 +1823,19 @@ func _build_archive_tray(entry: Dictionary) -> Control:
 	down_row.add_child(plus)
 	return row
 
+## A face-up archived card scores its printed stars: the picker lists the cards with a star first.
 func _add_face_up() -> void:
 	var index: int = _tray_sector
+	if index < 0 or index >= _sectors.size():
+		return
+	var line: String = tr("SCAN_ARCHIVE_UNDER") % _sector_label(_sectors[index])
 	_pick(CardPickerScript.TAB_TECH, [CardPickerScript.TAB_TECH, CardPickerScript.TAB_EXPEDITION], func(card_name: String, _adv: bool) -> void:
 		var cd: CardData = CardDatabase.find_any_by_name(card_name)
 		if cd == null or index >= _sectors.size():
 			return
 		(_sectors[index]["tucked_cards"] as Array).append({"data": cd, "face_up": true})
 		_refresh_sector_list()
-		_fill_tray())
+		_fill_tray(), null, line, true)
 
 func _remove_tucked(i: int) -> void:
 	if _tray_sector < 0 or _tray_sector >= _sectors.size():
