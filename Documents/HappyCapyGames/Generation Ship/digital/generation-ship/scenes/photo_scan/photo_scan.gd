@@ -402,6 +402,7 @@ func _build_stage() -> Control:
 	_status_label = _make_label("", BODY_FONT_SIZE, CREAM)
 	_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status_label.max_lines_visible = 2          # (see _make_bar_hint)
 	status_row.add_child(_status_label)
 	_build_alliance_row(status_row)
 	_scan_progress = ProgressBar.new()
@@ -1072,6 +1073,9 @@ func _make_bar_hint(key: String) -> Label:
 	var lbl: Label = _make_label(key, BODY_FONT_SIZE, MUTED)
 	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# at most 2 lines: a wrapping label is born 0 px wide and for a frame wants a line per word
+	# (2700 px here), which pushed the whole screen down and it stayed there until the next tap
+	lbl.max_lines_visible = 2
 	return lbl
 
 func _make_back_button() -> Button:
