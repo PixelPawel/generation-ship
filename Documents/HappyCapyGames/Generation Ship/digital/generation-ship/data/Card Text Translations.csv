@@ -148,7 +148,7 @@ secteur avec le moins de cartes."
 "danger:27:solve","Wirf 2 Electrix- und/oder Thrust-Karten pro Spieler ab.","Scarta 2 carte Electrix e/o Thrust per giocatore.","Odrzuć 2 karty Electrix i/lub Thrust na gracza.","Descarta 2 cartas Electrix y/o Thrust por jugador.","Défaussez 2 cartes Electrix et/ou Thrust par joueur."
 "danger:28:effect","Du kannst keine Thrust-Karten platzieren oder recyceln.","Non puoi posizionare né riciclare Thrust.","Nie możesz umieszczać ani recyklować Thrust.","No puedes colocar ni reciclar Thrust.","Vous ne pouvez pas poser ni recycler de Thrust."
 "danger:28:name","Barbarei","Barbarie","Barbarzyństwo","Barbarie","Barbarie"
-"danger:28:solve","Vervollständige einen Electrix- oder Thrust-Sektor.","Completa un settore Electrix o Thrust.","Skompletuj sektor Electrix lub Thrust.","Completa un sector Electrix o Thrust.","Complétez un secteur Electrix ou Thrust."
+"danger:28:solve","Vervollständige einen Electrix- oder Organix-Sektor.","Completa un settore Electrix o Organix.","Skompletuj sektor Electrix lub Organix.","Completa un sector Electrix o Organix.","Complétez un secteur Electrix ou Organix."
 "danger:29:effect","Jeder Spieler gibt seine Karten nach links weiter.","Ogni giocatore passa le proprie
 carte a sinistra.","Każdy gracz przekazuje swoje
 karty w lewo.","Cada jugador pasa sus

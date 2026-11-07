@@ -111,7 +111,7 @@ const SOLVES: Dictionary = {
 	25: {"kind": "expedition_bought"},
 	26: {"kind": "destroy_expedition"},
 	27: {"kind": "discard_color", "per_player": true, "colors": [C.ELECTRIX, C.THRUST], "n": 2},
-	28: {"kind": "complete_color", "colors": [C.ELECTRIX, C.THRUST]},
+	28: {"kind": "complete_color", "colors": [C.ELECTRIX, C.ORGANIX]},   # as printed (designer, 2026-11-08)
 	29: {"kind": "discard_each_color"},
 	30: {"kind": "hand_empty"},
 }
