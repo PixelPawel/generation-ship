@@ -25,6 +25,9 @@ strings.
 |---|---|---|---|---|---|
 | Faceup | aufgedeckt / offen | a faccia in su | odkryta | boca arriba | face visible |
 | Facedown | verdeckt | a faccia in giù | zakryta | boca abajo | face cachée |
+| New (sector, 0 cards) | neu | nuovo | nowy | nuevo | neuf |
+| Complete (5 cards) | komplett | completo | kompletny | completo | complet |
+| Fully optimized | vollständig optimiert | pienamente ottimizzato | w pełni zoptymalizowany | totalmente optimizado | entièrement optimisé |
 
 ## Supply colors
 
@@ -94,7 +97,7 @@ term, so translate by context rather than a 1:1 word swap.
 | Always (card type) | Immer | Sempre | Zawsze | Siempre | Toujours |
 | Shuttle (Fleet) | Shuttle | navetta | wahadłowiec (rule book: Prom) | transbordador | navette |
 | Slot (sector space) | Platz | slot | miejsce | casilla | emplacement |
-| Interfleet Comms | Flotten Kommunikation | Comunicazioni Interflotta | Łączność Międzyflotowa | Comunicaciones Interflota | Comms Interflotte |
+| Interfleet Comms | Flottenkommunikation | Comunicazioni Interflotta | Łączność Międzyflotowa | Comunicaciones Interflota | Comms Interflotte |
 
 Card names in UI texts: always the printed card's name in that language (data/Card Text Translations.csv,
 `<deck>:<No.>:name`), e.g. Interfleet Comms above (it used to be kept in English; the printed cards

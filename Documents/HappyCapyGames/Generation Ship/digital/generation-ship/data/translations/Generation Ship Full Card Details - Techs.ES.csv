@@ -33,8 +33,8 @@
 Si este sector está totalmente optimizado, almacena 1 Metals extra.",Done,Daniel,
 ,,32,Español,Fundición,GS Techs 44x67mm32.png,Metals,2,¡Me derrito! ¡Me derrito!,,No,Place,"Fusiona 1:1 tres veces.
 Si este sector está totalmente optimizado, almacena 1 Metals extra.",Done,Daniel,
-,,33,Español,Sintetizador de Fusión,GS Techs 44x67mm33.png,Metals,2,El alquimista de guardia.,,No,Place,Fusiona 1:1 cualquier Dust extra.,Done,Alex,
-,,34,Español,Sintetizador de Fusión,GS Techs 44x67mm34.png,Metals,2,El alquimista de guardia.,,No,Place,Fusiona 1:1 cualquier Dust extra.,Done,Alex,
+,,33,Español,Sintetizador de Fusión,GS Techs 44x67mm33.png,Metals,2,El alquimista de guardia.,,No,Place,Fusiona Dust 1:1 tantas veces como quieras.,Done,Alex,
+,,34,Español,Sintetizador de Fusión,GS Techs 44x67mm34.png,Metals,2,El alquimista de guardia.,,No,Place,Fusiona Dust 1:1 tantas veces como quieras.,Done,Alex,
 ,,35,Español,Robot de Limpieza,GS Techs 44x67mm35.png,Metals,3,A sus órdenes.,,No,Place,"Recicla 1, pero gana el suministro dos veces.",Done,Daniel,
 ,,36,Español,Robot de Limpieza,GS Techs 44x67mm36.png,Metals,3,A sus órdenes.,,No,Place,"Recicla 1, pero gana el suministro dos veces.",Done,Daniel,
 ,,37,Español,Radar del Espacio Profundo,GS Techs 44x67mm37.png,Metals,2,¡Ping!,,No,Place,Revela 2 expediciones. Puedes pujar por 1.,Done,Alex,
@@ -63,9 +63,9 @@ Si este sector está totalmente optimizado, almacena 1 Metals extra.",Done,Danie
 ,,60,Español,Generador de Suelo,GS Techs 44x67mm60.png,Liquids,2,¿Sabes que nuestro planeta significa tierra?,⭐⭐,Yes,Score,⭐⭐,Done,Daniel,
 ,,61,Español,Generador de Suelo,GS Techs 44x67mm61.png,Liquids,2,¿Sabes que nuestro planeta significa tierra?,⭐⭐,Yes,Score,⭐⭐,Done,Daniel,
 ,,62,Español,Biodomos,GS Techs 44x67mm62.png,Liquids,3,"“¡No, dije agricultura en DOMOS!”",,No,Always,"Cuando coloques Liquids: roba 1.
-(incluido esto)",Done,Alex,
+(incluida esta)",Done,Alex,
 ,,63,Español,Biodomos,GS Techs 44x67mm63.png,Liquids,3,"“¡No, dije agricultura en DOMOS!”",,No,Always,"Cuando coloques Liquids: roba 1.
-(incluido esto)",Done,Alex,
+(incluida esta)",Done,Alex,
 ,,64,Español,Escudo de Hielo,GS Techs 44x67mm64.png,Liquids,3,"Es un quitanieves, pero en el espacio.",,No,Place,"Roba 2. Si este sector está completo, roba 3 en su lugar.",Done,Alex,
 ,,65,Español,Escudo de Hielo,GS Techs 44x67mm65.png,Liquids,3,"Es un quitanieves, pero en el espacio.",,No,Place,"Roba 2. Si este sector está completo, roba 3 en su lugar.",Done,Alex,
 ,,66,Español,Casco Inflable,GS Techs 44x67mm66.png,Liquids,3,"La inflación ha subido un 6,9 %.",,No,Place,"Revela 3 sectores.

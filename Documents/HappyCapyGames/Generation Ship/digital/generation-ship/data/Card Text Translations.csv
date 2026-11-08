@@ -9,19 +9,19 @@
 "adv:13:name","Exoproben","Esocampionamento","Egzopróbkowanie","Exomuestreo","Exo-échantillonnage"
 "adv:14:effect","Archiviere 1 Karte offen hier.","Archivia 1 carta a faccia in su qui.","Zarchiwizuj 1 kartę odkrytą tutaj.","Archiva 1 carta boca arriba aquí.","Archivez 1 carte face visible ici."
 "adv:14:name","Exoproben","Esocampionamento","Egzopróbkowanie","Exomuestreo","Exo-échantillonnage"
-"adv:15:effect","Ziehe so viele wie die aufgedruckten Kosten der gerade platzierten Karte.","Pesca tante quante il costo stampato della carta appena posizionata.","Dobierz tyle, ile wynosi wydrukowany koszt właśnie umieszczonej karty.","Roba tantas como el coste impreso de la carta recién colocada.","Piochez autant que le coût imprimé de la carte qui vient d’être posée."
+"adv:15:effect","Ziehe so viele wie die aufgedruckten Kosten der gerade platzierten Karte.","Pesca un numero di carte pari al costo stampato della carta appena posizionata.","Dobierz tyle, ile wynosi wydrukowany koszt właśnie umieszczonej karty.","Roba tantas como el coste impreso de la carta recién colocada.","Piochez autant que le coût imprimé de la carte qui vient d’être posée."
 "adv:15:name","Parlament","Parlamento","Parlament","Parlamento","Parlement"
-"adv:16:effect","Ziehe so viele wie die aufgedruckten Kosten der gerade platzierten Karte.","Pesca tante quante il costo stampato della carta appena posizionata.","Dobierz tyle, ile wynosi wydrukowany koszt właśnie umieszczonej karty.","Roba tantas como el coste impreso de la carta recién colocada.","Piochez autant que le coût imprimé de la carte qui vient d’être posée."
+"adv:16:effect","Ziehe so viele wie die aufgedruckten Kosten der gerade platzierten Karte.","Pesca un numero di carte pari al costo stampato della carta appena posizionata.","Dobierz tyle, ile wynosi wydrukowany koszt właśnie umieszczonej karty.","Roba tantas como el coste impreso de la carta recién colocada.","Piochez autant que le coût imprimé de la carte qui vient d’être posée."
 "adv:16:name","Parlament","Parlamento","Parlament","Parlamento","Parlement"
-"adv:17:effect","Ziehe 4, archiviere bis zu 4 Karten verdeckt unter beliebigen Sektoren.","Pesca 4, archivia fino a 4 carte a faccia in giù sotto qualsiasi settore.","Dobierz 4, zarchiwizuj do 4 kart zakrytych pod dowolnymi sektorami.","Roba 4, archiva hasta 4 cartas boca abajo bajo cualquier sector.","Piochez 4, archivez jusqu’à 4 cartes face cachée sous n’importe quels secteurs."
-"adv:17:name","Kultivierung","Coltivazione","Uprawa","Cultivo","Culture"
-"adv:18:effect","Ziehe 4, archiviere bis zu 4 Karten verdeckt unter beliebigen Sektoren.","Pesca 4, archivia fino a 4 carte a faccia in giù sotto qualsiasi settore.","Dobierz 4, zarchiwizuj do 4 kart zakrytych pod dowolnymi sektorami.","Roba 4, archiva hasta 4 cartas boca abajo bajo cualquier sector.","Piochez 4, archivez jusqu’à 4 cartes face cachée sous n’importe quels secteurs."
-"adv:18:name","Kultivierung","Coltivazione","Uprawa","Cultivo","Culture"
-"adv:19:effect","Lagere 2 beliebige Vorräte auf beliebigen Sektoren.","Immagazzina 2 risorse a scelta su qualsiasi settore.","Zmagazynuj 2 dowolne zasoby w dowolnych sektorach.","Almacena 2 suministros a elección en cualquier sector.","Stockez 2 matériels au choix sur n’importe quels secteurs."
+"adv:17:effect","Ziehe 4, archiviere bis zu 4 Karten verdeckt unter beliebigen Sektoren.","Pesca 4, archivia fino a 4 carte a faccia in giù sotto uno o più settori.","Dobierz 4, zarchiwizuj do 4 kart zakrytych pod dowolnymi sektorami.","Roba 4, archiva hasta 4 cartas boca abajo bajo cualquier sector.","Piochez 4, archivez jusqu’à 4 cartes face cachée sous n’importe quels secteurs."
+"adv:17:name","Kultivierung","Coltivazione","Plantacja","Cultivo","Culture"
+"adv:18:effect","Ziehe 4, archiviere bis zu 4 Karten verdeckt unter beliebigen Sektoren.","Pesca 4, archivia fino a 4 carte a faccia in giù sotto uno o più settori.","Dobierz 4, zarchiwizuj do 4 kart zakrytych pod dowolnymi sektorami.","Roba 4, archiva hasta 4 cartas boca abajo bajo cualquier sector.","Piochez 4, archivez jusqu’à 4 cartes face cachée sous n’importe quels secteurs."
+"adv:18:name","Kultivierung","Coltivazione","Plantacja","Cultivo","Culture"
+"adv:19:effect","Lagere 2 beliebige Vorräte auf beliebigen Sektoren.","Immagazzina 2 risorse a scelta su uno o più settori.","Zmagazynuj 2 dowolne zasoby w dowolnych sektorach.","Almacena 2 suministros a elección en cualquier sector.","Stockez 2 matériels au choix sur n’importe quels secteurs."
 "adv:19:name","Holodrucker","Olostampanti","Holodrukarki","Holoimpresoras","Holo-Imprimantes"
 "adv:1:effect","Fusioniere 1:1 für jede Metals-Karte und Electrix-Karte hier. (einschließlich dieser)","Fondi 1:1 per ogni carta Metals e carta Electrix qui. (inclusa questa)","Połącz 1:1 za każdą kartę Metals i kartę Electrix tutaj. (włącznie z tą)","Fusiona 1:1 por cada carta Metals y carta Electrix aquí. (incluida esta)","Fusionnez 1:1 pour chaque carte Metals et carte Electrix ici. (y compris celle-ci)"
 "adv:1:name","Zentraler Transport","Trasporto Centrale","Transport Centralny","Transporte Central","Transport Central"
-"adv:20:effect","Lagere 2 beliebige Vorräte auf beliebigen Sektoren.","Immagazzina 2 risorse a scelta su qualsiasi settore.","Zmagazynuj 2 dowolne zasoby w dowolnych sektorach.","Almacena 2 suministros a elección en cualquier sector.","Stockez 2 matériels au choix sur n’importe quels secteurs."
+"adv:20:effect","Lagere 2 beliebige Vorräte auf beliebigen Sektoren.","Immagazzina 2 risorse a scelta su uno o più settori.","Zmagazynuj 2 dowolne zasoby w dowolnych sektorach.","Almacena 2 suministros a elección en cualquier sector.","Stockez 2 matériels au choix sur n’importe quels secteurs."
 "adv:20:name","Holodrucker","Olostampanti","Holodrukarki","Holoimpresoras","Holo-Imprimantes"
 "adv:21:effect","Decke 1 Expedition auf. Du darfst auf eine beliebige Expedition bieten.","Rivela 1 spedizione. Puoi fare un’offerta per qualsiasi spedizione.","Odkryj 1 ekspedycję. Możesz licytować o dowolną ekspedycję.","Revela 1 expedición. Puedes pujar por cualquier expedición","Révélez 1 expédition. Vous pouvez enchérir sur n’importe quelle expédition."
 "adv:21:name","Sondenstarter","Lanciatore di Sonde","Wyrzutnia Sond","Lanzador de Sondas","Lanceur de Sondes"
@@ -49,9 +49,9 @@
 "adv:3:name","Fabrikation","Fabbricazione","Wytwórnia","Fabricación","Fabrication"
 "adv:4:effect","Erhalte 6 Dust ODER fusioniere 1:1, dreimal.","Guadagna 6 Dust O fondi 1:1, tre volte.","Zdobądź 6 Dust LUB połącz 1:1, trzy razy.","Gana 6 Dust O fusiona 1:1, tres veces.","Gagnez 6 Dust OU fusionnez 1:1, trois fois."
 "adv:4:name","Fabrikation","Fabbricazione","Wytwórnia","Fabricación","Fabrication"
-"adv:5:effect","Erhalte 2 Dust pro unterschiedlicher Farbe hier, einschließlich dieser.","Guadagna 2 Dust per ogni colore diverso qui, inclusa questa","Zdobądź 2 Dust za każdy różny kolor tutaj, włącznie z tą.","Gana 2 Dust por cada color distinto aquí, incluido esto","Gagnez 2 Dust par couleur différente ici, y compris celle-ci."
+"adv:5:effect","Erhalte 2 Dust pro unterschiedlicher Farbe hier, einschließlich dieser.","Guadagna 2 Dust per ogni colore diverso qui, inclusa questa","Zdobądź 2 Dust za każdy różny kolor tutaj, włącznie z tą.","Gana 2 Dust por cada color distinto aquí, incluida esta.","Gagnez 2 Dust par couleur différente ici, y compris celle-ci."
 "adv:5:name","Konservierung","Conservazione","Konserwacja","Conservación","Conservation"
-"adv:6:effect","Erhalte 2 Dust pro unterschiedlicher Farbe hier, einschließlich dieser.","Guadagna 2 Dust per ogni colore diverso qui, inclusa questa","Zdobądź 2 Dust za każdy różny kolor tutaj, włącznie z tą.","Gana 2 Dust por cada color distinto aquí, incluido esto","Gagnez 2 Dust par couleur différente ici, y compris celle-ci."
+"adv:6:effect","Erhalte 2 Dust pro unterschiedlicher Farbe hier, einschließlich dieser.","Guadagna 2 Dust per ogni colore diverso qui, inclusa questa","Zdobądź 2 Dust za każdy różny kolor tutaj, włącznie z tą.","Gana 2 Dust por cada color distinto aquí, incluida esta.","Gagnez 2 Dust par couleur différente ici, y compris celle-ci."
 "adv:6:name","Konservierung","Conservazione","Konserwacja","Conservación","Conservation"
 "adv:7:effect","Recycle bis zu 3, ziehe dann ebenso viele.","Ricicla fino a 3, poi pesca altrettante.","Zrecykluj do 3, następnie dobierz tyle samo.","Recicla hasta 3, luego roba esa cantidad.","Recyclez jusqu’à 3, puis piochez autant."
 "adv:7:name","Weltraumbasar","Bazar Spaziale","Kosmiczny Bazar","Bazar Espacial","Bazar Spatial"
@@ -59,13 +59,13 @@
 "adv:8:name","Weltraumbasar","Bazar Spaziale","Kosmiczny Bazar","Bazar Espacial","Bazar Spatial"
 "adv:9:effect","Lagere 1 Liquids hier. Erhalte 1⭐ pro Liquids hier.","Immagazzina 1 Liquids qui. Guadagna 1⭐ per Liquids qui.","Zmagazynuj 1 Liquids tutaj. Zdobądź 1⭐ za Liquids tutaj.","Almacena 1 Liquids aquí. Gana 1⭐ por Liquids aquí.","Stockez 1 Liquids ici. Gagnez 1⭐ par Liquids ici."
 "adv:9:name","Gewächshaus","Serra","Szklarnie","Invernadero","Serre"
-"danger:10:effect","Jeder Spieler wählt: Verliere 2 gelagerte Vorräte oder wirf 2 Karten ab.","Ogni giocatore sceglie: Perdi 2 risorse immagazzinate o scarta 2.","Każdy gracz wybiera: Strać 2 zmagazynowane zasoby lub odrzuć 2.","Cada jugador elige: Pierde 2 suministros almacenados o descarta 2.","Chaque joueur choisit : Perdez 2 matériels stockés ou défaussez-en 2."
+"danger:10:effect","Jeder Spieler wählt: Verliere 2 gelagerte Vorräte oder wirf 2 Karten ab.","Ogni giocatore sceglie: Perdi 2 risorse immagazzinate o scarta 2.","Każdy gracz wybiera: Strać 2 zmagazynowane zasoby lub odrzuć 2.","Cada jugador elige: Pierde 2 suministros almacenados o descarta 2.","Chaque joueur choisit : Perdez 2 matériels stockés ou défaussez 2 cartes."
 "danger:10:name","Algen-Megablüte","Megafioritura di Alghe","Zakwit Alg","Superfloración de Algas","Méga-Algues"
 "danger:10:solve","Zahle 2 Liquids pro Spieler.","Paga 2 Liquids per giocatore.","Zapłać 2 Liquids na gracza.","Paga 2 Liquids por jugador.","Payez 2 Liquids par joueur."
 "danger:11:effect","Liquids-Karten kosten +2.","Le carte Liquids costano +2.","Karty Liquids kosztują +2.","Las cartas Liquids cuestan +2.","Les cartes Liquids coûtent +2."
 "danger:11:name","Flüchtiges Leck","Perdita di Volatili","Wyciek Cieczy","Fuga Volátil","Fuite Volatile"
 "danger:11:solve","Wirf 1 Liquids-Karte pro Spieler ab.","Scarta 1 carta Liquids per giocatore.","Odrzuć 1 kartę Liquids na gracza.","Descarta 1 carta Liquids por jugador.","Défaussez 1 carte Liquids par joueur."
-"danger:12:effect","Erhalte am Ende einer Generation kein Liquids.","Non guadagnare Liquids alla fine di una generazione.","Nie zdobywaj Liquids na koniec generacji.","No ganes Liquids al final de una generación.","Ne gagnez pas de Liquids à la fin d’une génération."
+"danger:12:effect","Erhalte am Ende einer Generation kein Liquids.","Non guadagnare Liquids alla fine di una generazione.","Nie zdobywaj Liquids na koniec pokolenia.","No ganes Liquids al final de una generación.","Ne gagnez pas de Liquids à la fin d’une génération."
 "danger:12:name","Wassermangel","Carenza d’Acqua","Niedobór Cieczy","Escasez de Agua","Pénurie d’Eau"
 "danger:12:solve","Habe 3+ Liquids-Karten in 1 Sektor.","Abbi 3 o più carte Liquids in 1 settore.","Miej 3+ karty Liquids w 1 sektorze.","Ten 3 o más cartas Liquids en 1 sector.","Ayez 3 cartes Liquids ou plus dans 1 secteur."
 "danger:13:effect","Wirf 3 fortgeschrittene Sektoren im Markt ab.","Scarta 3 settori avanzati
@@ -73,19 +73,19 @@ sul mercato.","Usuń z gry 3 zaawansowane sektory
 z rynku.","Descarta 3 sectores avanzados
 del mercado.","Défaussez 3 secteurs avancés
 du marché."
-"danger:13:name","Sauerstofffressende kolonie","Supercolonia Mangia-Ossigeno","Superkolonia Pożerająca Tlen","colonia Devoradora de Oxígeno","Supercolonie Mangeuse d’Oxygène"
-"danger:13:solve","Leere 1 der Dust-Sektorstapel.","Svuota 1 dei mazzi di settore Dust.","Opróżnij 1 z talii sektorów Dust.","Vacía 1 de las barajas de sector Dust.","Videz 1 des pioches de secteur Dust."
+"danger:13:name","Sauerstofffressende Kolonie","Supercolonia Mangia-Ossigeno","Superkolonia Pożerająca Tlen","Colonia Devoradora de Oxígeno","Supercolonie Mangeuse d’Oxygène"
+"danger:13:solve","Leere 1 der Dust-Sektorstapel.","Svuota 1 dei mazzi di settore Dust.","Opróżnij 1 z talii sektorów Dust.","Vacía 1 de las pilas de sectores Dust.","Videz 1 des pioches de secteur Dust."
 "danger:14:effect","Du darfst keine Karten recyceln.","Non puoi riciclare carte.","Nie możesz recyklować kart.","No puedes reciclar cartas.","Vous ne pouvez pas recycler de cartes."
 "danger:14:name","Pandemie","Pandemia","Pandemia","Pandemia","Pandémie"
 "danger:14:solve","Wirf 1 Organix-Karte pro Spieler ab.","Scarta 1 carta Organix per giocatore.","Odrzuć 1 kartę Organix na gracza.","Descarta 1 carta Organix por jugador.","Défaussez 1 carte Organix par joueur."
 "danger:15:effect","Jeder Spieler zerstört 1 Karte, wenn möglich eine Organix-Karte.","Ogni giocatore distrugge 1 carta, Organix se possibile.","Każdy gracz niszczy 1 kartę, jeśli to możliwe kartę Organix.","Cada jugador destruye 1 carta, Organix si es posible.","Chaque joueur détruit 1 carte, une carte Organix si possible."
 "danger:15:name","Mutationen","Mutazioni","Mutacje","Mutaciones","Mutations"
 "danger:15:solve","Verliere 1 archivierte Karte pro Spieler.","Perdi 1 carta archiviata per giocatore.","Strać 1 zarchiwizowaną kartę na gracza.","Pierde 1 carta archivada por jugador.","Perdez 1 carte archivée par joueur."
-"danger:16:effect","Sektoren mit Organix können nicht optimiert werden.","I settori con qualsiasi Organix non possono essere ottimizzati.","Sektory z jakimkolwiek Organix nie mogą być optymalizowane.","Los sectores con cualquier Organix no pueden optimizarse.","Les secteurs avec du Organix ne peuvent pas être optimisés."
+"danger:16:effect","Sektoren mit Organix können nicht optimiert werden.","I settori con qualsiasi Organix non possono essere ottimizzati.","Sektory z jakimkolwiek Organix nie mogą być optymalizowane.","Los sectores con cualquier Organix no pueden optimizarse.","Les secteurs avec une carte Organix ne peuvent pas être optimisés."
 "danger:16:name","Befall","Infestazione","Inwazja","Infestación","Infestation"
 "danger:16:solve","Drehe 1 offen archivierte Karte pro Spieler um.","Gira a faccia in giù 1 carta archiviata a faccia in su, per giocatore.","Odwróć 1 odkrytą zarchiwizowaną kartę na zakrytą, na gracza.","Voltea boca abajo 1 carta archivada boca arriba por jugador.","Retournez 1 carte archivée face visible en face cachée par joueur."
-"danger:17:effect","Erhalte am Ende einer Generation kein Organix.","Non guadagnare Organix alla fine di una generazione.","Nie zdobywaj Organix na koniec generacji.","No ganes Organix al final de una generación.","Ne gagnez pas de Organix à la fin d’une génération."
-"danger:17:name","Pflanzenvirus","Virus della Pianta","Wirus Roślinny","Virus Vegetal","Virus Végétal"
+"danger:17:effect","Erhalte am Ende einer Generation kein Organix.","Non guadagnare Organix alla fine di una generazione.","Nie zdobywaj Organix na koniec pokolenia.","No ganes Organix al final de una generación.","Ne gagnez pas de Organix à la fin d’une génération."
+"danger:17:name","Pflanzenvirus","Virus Vegetale","Wirus Roślinny","Virus Vegetal","Virus Végétal"
 "danger:17:solve","Habe 3+ Organix-Karten in 1 Sektor.","Abbi 3 o più carte Organix in 1 settore.","Miej 3+ karty Organix w 1 sektorze.","Ten 3 o más cartas Organix en 1 sector.","Ayez 3 cartes Organix ou plus dans 1 secteur."
 "danger:18:effect","Organix-Karten kosten +2.","Le carte Organix costano +2.","Karty Organix kosztują +2.","Las cartas Organix cuestan +2.","Les cartes Organix coûtent +2."
 "danger:18:name","Außerirdischer Erreger","Patogeno Alieno","Obcy Patogen","Patógeno Alienígena","Pathogène Extraterrestre"
@@ -95,7 +95,7 @@ risorse immagazzinate o carte archiviate.","Każdy gracz wybiera: Strać 2
 zmagazynowane zasoby lub zarchiwizowane karty.","Cada jugador elige: Pierde 2
 suministros almacenados o cartas archivadas.","Chaque joueur choisit : Perdez 2 matériels stockés ou cartes archivées."
 "danger:19:name","Gammablitz","Lampo di Raggi Gamma","Rozbłysk Gamma","Estallido de Rayos Gamma","Sursaut Gamma"
-"danger:19:solve","Komplettiere einen vollständig optimierten Sektor.","Completa un settore completamente ottimizzato.","Skompletuj w pełni zoptymalizowany sektor.","Completa un sector totalmente optimizado.","Complétez un secteur entièrement optimisé."
+"danger:19:solve","Komplettiere einen vollständig optimierten Sektor.","Completa un settore pienamente ottimizzato.","Skompletuj w pełni zoptymalizowany sektor.","Completa un sector totalmente optimizado.","Complétez un secteur entièrement optimisé."
 "danger:1:effect","Shuttle-Kosten +1.","Costo della navetta +1.","Koszt wahadłowca +1.","Coste del transbordador +1.","Coût de la navette +1."
 "danger:1:name","Asteroidengürtel","Fascia di Asteroidi","Pas Asteroid","Cinturón de Asteroides","Ceinture d’Astéroïdes"
 "danger:1:solve","Zahle 2 Dust pro Spieler.","Paga 2 Dust per giocatore.","Zapłać 2 Dust na gracza.","Paga 2 Dust por jugador.","Payez 2 Dust par joueur."
@@ -106,12 +106,12 @@ suministros almacenados o cartas archivadas.","Chaque joueur choisit : Perdez 2
 1 carta, Electrix si es posible.","Chaque joueur détruit
 1 carte, une carte Electrix si possible."
 "danger:20:name","Kybernetischer Psychopath","Psicopatico Cibernetico","Cybernetyczny Psychopata","Psicópata Cibernético","Psychopathe Cybernétique"
-"danger:20:solve","Leere 1 der Dust-Sektorstapel.","Svuota 1 dei mazzi di settore Dust.","Opróżnij 1 z talii sektorów Dust.","Vacía 1 de las barajas de sector Dust.","Videz 1 des pioches de secteur Dust."
+"danger:20:solve","Leere 1 der Dust-Sektorstapel.","Svuota 1 dei mazzi di settore Dust.","Opróżnij 1 z talii sektorów Dust.","Vacía 1 de las pilas de sectores Dust.","Videz 1 des pioches de secteur Dust."
 "danger:21:effect","Du kannst keine Karten archivieren oder Vorräte lagern.","Non puoi archiviare carte
 né immagazzinare risorse.","Nie możesz archiwizować kart
 ani magazynować zasobów.","No puedes archivar cartas
 ni almacenar suministros.","Vous ne pouvez pas archiver de cartes ni stocker de matériels."
-"danger:21:name","Fehlfunktion des Neuralgeräts","Malfunzionamento Neurale","Awaria Neuralnego","Fallo del Engranaje Neural","Dysfonctionnement Neuronal"
+"danger:21:name","Fehlfunktion des Neuralgeräts","Malfunzionamento Neurale","Awaria Sprzętu Neuralnego","Fallo del Engranaje Neural","Dysfonctionnement Neuronal"
 "danger:21:solve","Wirf Karten im Wert von 3⭐ pro Spieler ab.","Scarta carte del valore di 3⭐ per giocatore.","Odrzuć karty o wartości 3⭐ na gracza.","Descarta cartas que valgan 3⭐ por jugador.","Défaussez des cartes valant 3⭐ par joueur."
 "danger:22:effect","Lagere 1 Electrix hier.
 Decke 1 Gefahr pro Electrix auf.","Immagazzina 1 Electrix qui.
@@ -124,7 +124,7 @@ Révélez 1 danger par Electrix."
 "danger:23:effect","Sektorkarten kosten +2.","Le carte settore costano +2.","Karty sektora kosztują +2.","Las cartas de sector cuestan +2.","Les cartes de secteur coûtent +2."
 "danger:23:name","Roboteraufstand","Rivolta dei Robot","Powstanie Robotów","Levantamiento Robótico","Soulèvement des Robots"
 "danger:23:solve","Zahle 1 Electrix pro Spieler.","Paga 1 Electrix per giocatore.","Zapłać 1 Electrix na gracza.","Paga 1 Electrix por jugador.","Payez 1 Electrix par joueur."
-"danger:24:effect","Erhalte am Ende einer Generation kein Electrix.","Non guadagnare Electrix alla fine di una generazione.","Nie zdobywaj Electrix na koniec generacji.","No ganes Electrix al final de una generación.","Ne gagnez pas de Electrix à la fin d’une génération."
+"danger:24:effect","Erhalte am Ende einer Generation kein Electrix.","Non guadagnare Electrix alla fine di una generazione.","Nie zdobywaj Electrix na koniec pokolenia.","No ganes Electrix al final de una generación.","Ne gagnez pas de Electrix à la fin d’une génération."
 "danger:24:name","Nanitenseuche","Peste di Naniti","Zaraza Nanitów","Plaga de Nanitas","Peste de Nanites"
 "danger:24:solve","Wirf Karten im Wert von 3⭐ pro Spieler ab.","Scarta carte del valore di 3⭐ per giocatore.","Odrzuć karty o wartości 3⭐ na gracza.","Descarta cartas que valgan 3⭐ por jugador.","Défaussez des cartes valant 3⭐ par joueur."
 "danger:25:effect","Mische alle Expeditionen
@@ -148,7 +148,7 @@ secteur avec le moins de cartes."
 "danger:27:solve","Wirf 2 Electrix- und/oder Thrust-Karten pro Spieler ab.","Scarta 2 carte Electrix e/o Thrust per giocatore.","Odrzuć 2 karty Electrix i/lub Thrust na gracza.","Descarta 2 cartas Electrix y/o Thrust por jugador.","Défaussez 2 cartes Electrix et/ou Thrust par joueur."
 "danger:28:effect","Du kannst keine Thrust-Karten platzieren oder recyceln.","Non puoi posizionare né riciclare Thrust.","Nie możesz umieszczać ani recyklować Thrust.","No puedes colocar ni reciclar Thrust.","Vous ne pouvez pas poser ni recycler de Thrust."
 "danger:28:name","Barbarei","Barbarie","Barbarzyństwo","Barbarie","Barbarie"
-"danger:28:solve","Vervollständige einen Electrix- oder Organix-Sektor.","Completa un settore Electrix o Organix.","Skompletuj sektor Electrix lub Organix.","Completa un sector Electrix o Organix.","Complétez un secteur Electrix ou Organix."
+"danger:28:solve","Komplettiere einen Electrix- oder Organix-Sektor.","Completa un settore Electrix o Organix.","Skompletuj sektor Electrix lub Organix.","Completa un sector Electrix o Organix.","Complétez un secteur Electrix ou Organix."
 "danger:29:effect","Jeder Spieler gibt seine Karten nach links weiter.","Ogni giocatore passa le proprie
 carte a sinistra.","Każdy gracz przekazuje swoje
 karty w lewo.","Cada jugador pasa sus
@@ -160,14 +160,14 @@ cartas a la izquierda.","Chaque joueur passe ses cartes à gauche."
 "danger:2:solve","Zerstöre 1 Karte pro Spieler.
 (dreh die oberste Karte eines Sektors um)","Distruggi 1 carta per giocatore.
 (gira a faccia in giù la carta in cima a un settore)","Zniszcz 1 kartę na gracza.
-(odwróć zakrytą wierzchnią kartę sektora)","Destruye 1 carta por jugador.
+(odwróć wierzchnią kartę sektora na zakrytą)","Destruye 1 carta por jugador.
 (voltea boca abajo la carta superior de un sector)","Détruisez 1 carte par joueur. (retournez face cachée la carte du dessus d’un secteur)"
 "danger:30:effect","Jeder Spieler wirft 3 Karten ab.","Ogni giocatore scarta 3 carte.","Każdy gracz odrzuca 3 karty.","Cada jugador descarta 3 cartas.","Chaque joueur défausse 3 cartes."
 "danger:30:name","Instabiles Wurmloch","Wormhole Instabile","Niestabilny Tunel Czasoprzestrzenny","Agujero de Gusano Inestable","Trou de Ver Instable"
-"danger:30:solve","Ein beliebiger Spieler hat keine Karten auf der Hand.","Un giocatore qualsiasi non ha carte in mano.","Dowolny gracz nie ma kart w ręce.","Cualquier jugador no tiene cartas en mano.","Un joueur quelconque n’a aucune carte en main."
-"danger:3:effect","Zerstöre die oberste Karte in deinem am weitesten rechts liegenden Sektor.","Distruggi la carta in cima nel tuo settore più a destra.","Zniszcz wierzchnią kartę w swoim najbardziej wysuniętym na prawo sektorze.","Destruye la carta superior en tu sector más a la derecha.","Détruisez la carte du dessus dans votre secteur le plus à droite."
-"danger:3:name","Rumpfbruch","Falla nello Scafo","Łamacz Kadłuba","Brecha en el Casco","Brèche de Coque"
-"danger:3:solve","Vervollständige deinen am weitesten rechts liegenden Sektor.","Completa il tuo settore più a destra.","Skompletuj swój najbardziej wysunięty na prawo sektor.","Completa tu sector más a la derecha.","Complétez votre secteur le plus à droite."
+"danger:30:solve","Ein beliebiger Spieler hat keine Karten auf der Hand.","Un giocatore qualsiasi non ha carte in mano.","Któryś z graczy nie ma kart na ręce.","Algún jugador no tiene cartas en la mano.","Un joueur quelconque n’a aucune carte en main."
+"danger:3:effect","Zerstöre die oberste Karte in deinem am weitesten rechts liegenden Sektor.","Distruggi la carta in cima al tuo settore più a destra.","Zniszcz wierzchnią kartę w swoim najbardziej wysuniętym na prawo sektorze.","Destruye la carta superior en tu sector más a la derecha.","Détruisez la carte du dessus dans votre secteur le plus à droite."
+"danger:3:name","Rumpfbruch","Falla nello Scafo","Wyłom w Kadłubie","Brecha en el Casco","Brèche de Coque"
+"danger:3:solve","Komplettiere deinen am weitesten rechts liegenden Sektor.","Completa il tuo settore più a destra.","Skompletuj swój najbardziej wysunięty na prawo sektor.","Completa tu sector más a la derecha.","Complétez votre secteur le plus à droite."
 "danger:4:effect","Du kannst keinen Dust erhalten.
 (du darfst weiterhin lagern)","Non puoi guadagnare Dust.
 (puoi comunque immagazzinare)","Nie możesz zdobywać Dust.
@@ -175,10 +175,10 @@ cartas a la izquierda.","Chaque joueur passe ses cartes à gauche."
 (aún puedes almacenar)","Vous ne pouvez pas gagner de Dust.
 (vous pouvez toujours stocker)"
 "danger:4:name","Bergbauunfall","Incidente Minerario","Wypadek Górniczy","Incidente Minero","Incident Minier"
-"danger:4:solve","Optimiere einen Dust-Sektor vollständig.","Ottimizza completamente un settore Dust.","W pełni zoptymalizuj sektor Dust.","Optimiza completamente un sector Dust.","Optimisez entièrement un secteur Dust."
-"danger:5:effect","Zerstöre die obersten 2 Karten in deinem am weitesten links liegenden Sektor.","Distruggi le 2 carte in cima nel tuo settore più a sinistra.","Zniszcz 2 wierzchnie karty w swoim najbardziej wysuniętym na lewo sektorze.","Destruye las 2 cartas superiores en tu sector más a la izquierda.","Détruisez les 2 cartes du dessus dans votre secteur le plus à gauche."
+"danger:4:solve","Optimiere einen Dust-Sektor vollständig.","Ottimizza pienamente un settore Dust.","W pełni zoptymalizuj sektor Dust.","Optimiza totalmente un sector Dust.","Optimisez entièrement un secteur Dust."
+"danger:5:effect","Zerstöre die obersten 2 Karten in deinem am weitesten links liegenden Sektor.","Distruggi le 2 carte in cima al tuo settore più a sinistra.","Zniszcz 2 wierzchnie karty w swoim najbardziej wysuniętym na lewo sektorze.","Destruye las 2 cartas superiores en tu sector más a la izquierda.","Détruisez les 2 cartes du dessus dans votre secteur le plus à gauche."
 "danger:5:name","Beschleunigte Korrosion","Ruggine Accelerata","Przyspieszona Korozja","Oxidación Acelerada","Rouille Accélérée"
-"danger:5:solve","Optimiere einen Metals-Sektor vollständig.","Ottimizza completamente un settore Metals.","W pełni zoptymalizuj sektor Metals.","Optimiza completamente un sector Metals.","Optimisez entièrement un secteur Metals."
+"danger:5:solve","Optimiere einen Metals-Sektor vollständig.","Ottimizza pienamente un settore Metals.","W pełni zoptymalizuj sektor Metals.","Optimiza totalmente un sector Metals.","Optimisez entièrement un secteur Metals."
 "danger:6:effect","Du kannst keine Metals fusionieren oder erhalten. (du darfst weiterhin lagern)","Non puoi fondere né guadagnare Metals.
 (puoi comunque immagazzinare)","Nie możesz łączyć ani zdobywać Metals.
 (nadal możesz magazynować)","No puedes fusionar ni ganar Metals.
@@ -205,149 +205,149 @@ Payez 2 Metals ou détruisez 2 cartes."
 (aún puedes ganar)","Vous ne pouvez pas stocker ni fusionner de Liquids.
 (vous pouvez toujours en gagner)"
 "danger:9:name","Antifusionsfeld","Campo Anti-Fusione","Pole Antyfuzyjne","Campo Antifusión","Champ Anti-Fusion"
-"danger:9:solve","Optimiere einen Liquids-Sektor vollständig.","Ottimizza completamente un settore Liquids.","W pełni zoptymalizuj sektor Liquids.","Optimiza completamente un sector Liquids.","Optimisez entièrement un secteur Liquids."
-"destination:10:effect1","Normal (zirkumsolar) Mittel (3 Generationen)","Normale (circumsolare) Media (3 Generazioni)","Normalny (okołosłoneczny) Średni (3 Generacje)","Normal (circumsolar) Media (3 Generaciones)","Normal (circumsolaire) Moyen (3 Générations)"
+"danger:9:solve","Optimiere einen Liquids-Sektor vollständig.","Ottimizza pienamente un settore Liquids.","W pełni zoptymalizuj sektor Liquids.","Optimiza totalmente un sector Liquids.","Optimisez entièrement un secteur Liquids."
+"destination:10:effect1","Normal (zirkumsolar) Mittel (3 Generationen)","Normale (circumsolare) Media (3 Generazioni)","Normalny (okołosłoneczny) Średni (3 Pokolenia)","Normal (circumsolar) Media (3 Generaciones)","Normal (circumsolaire) Moyen (3 Générations)"
 "destination:10:effect2","Mission: Jeder Spieler hat 15⭐ und 3 Liquids-Karten.
 Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: Ogni giocatore ha 15⭐ e 3 carte Liquids.
 Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: Każdy gracz ma 15⭐ i 3 karty Liquids.
 Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: Cada jugador tiene 15⭐ y 3 cartas Liquids.
-Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission : Chaque joueur a 15⭐ et 3 cartes Liquids.
+Transbordador: Paga 1 Dust para enviar una carta a cualquier jugador.","Mission : Chaque joueur a 15⭐ et 3 cartes Liquids.
 Navette : 1 Dust pour envoyer une carte à un joueur."
 "destination:10:name","Epsilon Eridani","Epsilon Eridani","Epsilon Eridani","Epsilon Eridani","Epsilon Eridani"
-"destination:11:effect1","Normal (zirkumsolar) Mittel (3 Generationen)","Normale (circumsolare) Media (3 Generazioni)","Normalny (okołosłoneczny) Średni (3 Generacje)","Normal (circumsolar) Media (3 Generaciones)","Normal (circumsolaire) Moyen (3 Générations)"
+"destination:11:effect1","Normal (zirkumsolar) Mittel (3 Generationen)","Normale (circumsolare) Media (3 Generazioni)","Normalny (okołosłoneczny) Średni (3 Pokolenia)","Normal (circumsolar) Media (3 Generaciones)","Normal (circumsolaire) Moyen (3 Générations)"
 "destination:11:effect2","Mission: 15⭐ und lagere 1 Thrust pro Spieler.
 Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: 15⭐ e immagazzina 1 Thrust per giocatore.
 Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: 15⭐ i zmagazynuj 1 Thrust na gracza.
 Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: 15⭐ y almacena 1 Thrust por jugador.
-Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission : 15⭐ et stockez 1 Thrust par joueur.
+Transbordador: Paga 1 Dust para enviar una carta a cualquier jugador.","Mission : 15⭐ et stockez 1 Thrust par joueur.
 Navette : 1 Dust pour envoyer une carte à un joueur."
 "destination:11:name","Cygnus","Cygnus","Cygnus","Cygnus","Cygnus"
-"destination:12:effect1","Normal (zirkumsolar) Mittel (3 Generationen)","Normale (circumsolare) Media (3 Generazioni)","Normalny (okołosłoneczny) Średni (3 Generacje)","Normal (circumsolar) Media (3 Generaciones)","Normal (circumsolaire) Moyen (3 Générations)"
+"destination:12:effect1","Normal (zirkumsolar) Mittel (3 Generationen)","Normale (circumsolare) Media (3 Generazioni)","Normalny (okołosłoneczny) Średni (3 Pokolenia)","Normal (circumsolar) Media (3 Generaciones)","Normal (circumsolaire) Moyen (3 Générations)"
 "destination:12:effect2","Mission: 7 offene ⭐ pro Spieler (archiviert oder platziert).
 Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: 7⭐ a faccia in su per giocatore (archiviate o posizionate).
-Navetta: Paga 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: 7⭐ odkrytych na gracza (zarchiwizowanych lub umieszczonych).
-Wahadłowiec: Zapłać 1 Dust, aby wysłać kartę do dowolnego gracza.","Misión: 7⭐ boca arriba por jugador (archivadas o en juego).
-Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission : 7⭐ face visible par joueur (archivées ou posées).
+Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: 7⭐ odkrytych na gracza (zarchiwizowanych lub umieszczonych).
+Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: 7⭐ boca arriba por jugador (archivadas o en juego).
+Transbordador: Paga 1 Dust para enviar una carta a cualquier jugador.","Mission : 7⭐ face visible par joueur (archivées ou posées).
 Navette : 1 Dust pour envoyer une carte à un joueur."
 "destination:12:name","Procyon","Procione","Procjon","Proción","Procyon"
-"destination:13:effect1","Schwer (galaktisch) Lang (4 Generationen)","Difficile (galattico) Lunga (4 Generazioni)","Trudny (galaktyczny) Długi (4 Generacje)","Difícil (galáctico) Larga (4 Generaciones)","Difficile (galactique) Long (4 Générations)"
+"destination:13:effect1","Schwer (galaktisch) Lang (4 Generationen)","Difficile (galattico) Lunga (4 Generazioni)","Trudny (galaktyczny) Długi (4 Pokolenia)","Difícil (galáctico) Larga (4 Generaciones)","Difficile (galactique) Long (4 Générations)"
 "destination:13:effect2","Mission: 30⭐ & 4 Electrix-Karten pro Spieler.
 Shuttle: 2 Dust eine Karte an einen Spieler geben.","Missione: 30⭐ e 4 carte Electrix per giocatore.
 Navetta: 2 Dust per inviare una carta a qualsiasi giocatore.","Misja: 30⭐ i 4 karty Electrix na gracza.
 Wahadłowiec: 2 Dust, aby wysłać kartę do gracza.","Misión: 30⭐ y 4 cartas Electrix por jugador.
-Transbordador: 2 Dust entregar una tarjeta a un jugador.","Mission : 30⭐ & 4 cartes Electrix par joueur.
+Transbordador: Paga 2 Dust para enviar una carta a cualquier jugador.","Mission : 30⭐ & 4 cartes Electrix par joueur.
 Navette : 2 Dust pour envoyer une carte à un joueur."
-"destination:13:name","Beta Hydri","Beta Hydri","Beta Hydri","Beta Hydri","Beta Hydri"
-"destination:14:effect1","Schwer (galaktisch) Lang (4 Generationen)","Difficile (galattico) Lunga (4 Generazioni)","Trudny (galaktyczny) Długi (4 Generacje)","Difícil (galáctico) Larga (4 Generaciones)","Difficile (galactique) Long (4 Générations)"
+"destination:13:name","Beta Hydri","Beta Hydri","Beta Hydri","Beta Hydri","Bêta Hydri"
+"destination:14:effect1","Schwer (galaktisch) Lang (4 Generationen)","Difficile (galattico) Lunga (4 Generazioni)","Trudny (galaktyczny) Długi (4 Pokolenia)","Difícil (galáctico) Larga (4 Generaciones)","Difficile (galactique) Long (4 Générations)"
 "destination:14:effect2","Mission: 30⭐ & 5⭐ auf archivierten Karten pro Spieler.
 Shuttle: 2 Dust eine Karte an einen Spieler geben.","Missione: 30⭐ e 5⭐ su carte archiviate per giocatore.
-Navetta: Paga 2 Dust per inviare una carta a qualsiasi giocatore.","Misja: 30⭐ i 5⭐ na zarchiwizowanych kartach na gracza.
-Wahadłowiec: Zapłać 2 Dust, aby wysłać kartę do dowolnego gracza.","Misión: 30⭐ y 5⭐ en cartas archivadas por jugador.
-Transbordador: 2 Dust entregar una tarjeta a un jugador.","Mission : 30⭐ & 5⭐ sur des cartes archivées par joueur.
+Navetta: 2 Dust per inviare una carta a qualsiasi giocatore.","Misja: 30⭐ i 5⭐ na zarchiwizowanych kartach na gracza.
+Wahadłowiec: 2 Dust, aby wysłać kartę do gracza.","Misión: 30⭐ y 5⭐ en cartas archivadas por jugador.
+Transbordador: Paga 2 Dust para enviar una carta a cualquier jugador.","Mission : 30⭐ & 5⭐ sur des cartes archivées par joueur.
 Navette : 2 Dust pour envoyer une carte à un joueur."
 "destination:14:name","„Las“ Vega","“Las” Vega","„Las” Vega","“Las” Vega","« Las » Vega"
-"destination:15:effect1","Schwer (galaktisch) Lang (4 Generationen)","Difficile (galattico) Lunga (4 Generazioni)","Trudny (galaktyczny) Długi (4 Generacje)","Difícil (galáctico) Larga (4 Generaciones)","Difficile (galactique) Long (4 Générations)"
+"destination:15:effect1","Schwer (galaktisch) Lang (4 Generationen)","Difficile (galattico) Lunga (4 Generazioni)","Trudny (galaktyczny) Długi (4 Pokolenia)","Difícil (galáctico) Larga (4 Generaciones)","Difficile (galactique) Long (4 Générations)"
 "destination:15:effect2","Mission: 30⭐ & lagere 3 Liquids pro Spieler.
 Shuttle: 2 Dust eine Karte an einen Spieler geben.","Missione: 30⭐ e immagazzina 3 Liquids per giocatore.
 Navetta: 2 Dust per inviare una carta a qualsiasi giocatore.","Misja: 30⭐ i zmagazynuj 3 Liquids na gracza.
 Wahadłowiec: 2 Dust, aby wysłać kartę do gracza.","Misión: 30⭐ y almacena 3 Liquids por jugador.
-Transbordador: 2 Dust entregar una tarjeta a un jugador.","Mission : 30⭐ & stockez 3 Liquids par joueur.
+Transbordador: Paga 2 Dust para enviar una carta a cualquier jugador.","Mission : 30⭐ & stockez 3 Liquids par joueur.
 Navette : 2 Dust pour envoyer une carte à un joueur."
 "destination:15:name","Pollux","Polluce","Polluks","Pólux","Pollux"
-"destination:16:effect1","Schwer (galaktisch) Lang (4 Generationen)","Difficile (galattico) Lunga (4 Generazioni)","Trudny (galaktyczny) Długi (4 Generacje)","Difícil (galáctico) Larga (4 Generaciones)","Difficile (galactique) Long (4 Générations)"
+"destination:16:effect1","Schwer (galaktisch) Lang (4 Generationen)","Difficile (galattico) Lunga (4 Generazioni)","Trudny (galaktyczny) Długi (4 Pokolenia)","Difícil (galáctico) Larga (4 Generaciones)","Difficile (galactique) Long (4 Générations)"
 "destination:16:effect2","Mission: Jeder Spieler hat 30⭐ & 4 vollständig optimierte Sektoren.
-Shuttle: Zahle 2 Dust, um eine Karte an einen beliebigen Spieler zu schicken.","Missione: Ogni giocatore ha 30⭐ e 4 settori completamente ottimizzati.
-Navetta: Paga 2 Dust per inviare una carta a qualsiasi giocatore.","Misja: Każdy gracz ma 30⭐ i 4 w pełni zoptymalizowane sektory.
-Wahadłowiec: Zapłać 2 Dust, aby wysłać kartę do dowolnego gracza.","Misión: Cada jugador tiene 30⭐ y 4 sectores totalmente optimizados.
+Shuttle: 2 Dust eine Karte an einen Spieler geben.","Missione: Ogni giocatore ha 30⭐ e 4 settori pienamente ottimizzati.
+Navetta: 2 Dust per inviare una carta a qualsiasi giocatore.","Misja: Każdy gracz ma 30⭐ i 4 w pełni zoptymalizowane sektory.
+Wahadłowiec: 2 Dust, aby wysłać kartę do gracza.","Misión: Cada jugador tiene 30⭐ y 4 sectores totalmente optimizados.
 Transbordador: Paga 2 Dust para enviar una carta a cualquier jugador.","Mission : Chaque joueur a 30⭐ & 4 secteurs entièrement optimisés.
-Navette : Payez 2 Dust pour envoyer une carte à n'importe quel joueur."
+Navette : 2 Dust pour envoyer une carte à un joueur."
 "destination:16:name","Arktur","Arturo","Arktur","Arturo","Arcturus"
-"destination:17:effect1","Schwer (galaktisch) Lang (4 Generationen)","Difficile (galattico) Lunga (4 Generazioni)","Trudny (galaktyczny) Długi (4 Generacje)","Difícil (galáctico) Larga (4 Generaciones)","Difficile (galactique) Long (4 Générations)"
+"destination:17:effect1","Schwer (galaktisch) Lang (4 Generationen)","Difficile (galattico) Lunga (4 Generazioni)","Trudny (galaktyczny) Długi (4 Pokolenia)","Difícil (galáctico) Larga (4 Generaciones)","Difficile (galactique) Long (4 Générations)"
 "destination:17:effect2","Mission: 1 Satz gelagerter Dust, Metals, Liquids, Organix, Electrix, Thrust pro Spieler.
-Shuttle: Zahle 2 Dust, um eine Karte an einen beliebigen Spieler zu schicken.","Missione: 1 set di Dust, Metals, Liquids, Organix, Electrix, Thrust immagazzinati per giocatore.
-Navetta: Paga 2 Dust per inviare una carta a qualsiasi giocatore.","Misja: 1 zestaw zmagazynowanych Dust, Metals, Liquids, Organix, Electrix, Thrust na gracza.
-Wahadłowiec: Zapłać 2 Dust, aby wysłać kartę do dowolnego gracza.","Misión: 1 set de Dust, Metals, Liquids, Organix, Electrix, Thrust almacenados por jugador.
+Shuttle: 2 Dust eine Karte an einen Spieler geben.","Missione: 1 set di Dust, Metals, Liquids, Organix, Electrix, Thrust immagazzinati per giocatore.
+Navetta: 2 Dust per inviare una carta a qualsiasi giocatore.","Misja: 1 zestaw zmagazynowanych Dust, Metals, Liquids, Organix, Electrix, Thrust na gracza.
+Wahadłowiec: 2 Dust, aby wysłać kartę do gracza.","Misión: 1 set de Dust, Metals, Liquids, Organix, Electrix, Thrust almacenados por jugador.
 Transbordador: Paga 2 Dust para enviar una carta a cualquier jugador.","Mission : 1 set de Dust, Metals, Liquids, Organix, Electrix, Thrust stockés par joueur.
-Navette : Payez 2 Dust pour envoyer une carte à n'importe quel joueur."
+Navette : 2 Dust pour envoyer une carte à un joueur."
 "destination:17:name","Gamma Serpentis","Gamma Serpentis","Gamma Serpentis","Gamma Serpentis","Gamma Serpentis"
-"destination:18:effect1","Schwer (galaktisch) Lang (4 Generationen)","Difficile (galattico) Lunga (4 Generazioni)","Trudny (galaktyczny) Długi (4 Generacje)","Difícil (galáctico) Larga (4 Generaciones)","Difficile (galactique) Long (4 Générations)"
+"destination:18:effect1","Schwer (galaktisch) Lang (4 Generationen)","Difficile (galattico) Lunga (4 Generazioni)","Trudny (galaktyczny) Długi (4 Pokolenia)","Difícil (galáctico) Larga (4 Generaciones)","Difficile (galactique) Long (4 Générations)"
 "destination:18:effect2","Mission: 40⭐ & lagere 3 Thrust pro Spieler.
 Shuttle: 2 Dust eine Karte an einen Spieler geben.","Missione: 40⭐ e immagazzina 3 Thrust per giocatore.
 Navetta: 2 Dust per inviare una carta a qualsiasi giocatore.","Misja: 40⭐ i zmagazynuj 3 Thrust na gracza.
 Wahadłowiec: 2 Dust, aby wysłać kartę do gracza.","Misión: 40⭐ y almacena 3 Thrust por jugador.
-Transbordador: 2 Dust entregar una tarjeta a un jugador.","Mission : 40⭐ & stockez 3 Thrust par joueur.
+Transbordador: Paga 2 Dust para enviar una carta a cualquier jugador.","Mission : 40⭐ & stockez 3 Thrust par joueur.
 Navette : 2 Dust pour envoyer une carte à un joueur."
 "destination:18:name","Theta Persei","Theta Persei","Theta Persei","Theta Persei","Thêta Persei"
-"destination:1:effect1","Leicht (interplanetar) Kurz (2 Generationen)","Facile (interplanetario) Breve (2 Generazioni)","Łatwy (międzyplanetarny) Krótki (2 Generacje)","Fácil (interplanetario) Corta (2 Generaciones)","Facile (interplanétaire) Court (2 Générations)"
+"destination:1:effect1","Leicht (interplanetar) Kurz (2 Generationen)","Facile (interplanetario) Breve (2 Generazioni)","Łatwy (międzyplanetarny) Krótki (2 Pokolenia)","Fácil (interplanetario) Corta (2 Generaciones)","Facile (interplanétaire) Court (2 Générations)"
 "destination:1:effect2","Mission: 5⭐ pro Spieler.
 Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: 5⭐ per giocatore.
 Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: 5⭐ na gracza.
 Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: 5⭐ por jugador.
-Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission : 5⭐ par joueur.
+Transbordador: Paga 1 Dust para enviar una carta a cualquier jugador.","Mission : 5⭐ par joueur.
 Navette : 1 Dust pour envoyer une carte à un joueur."
 "destination:1:name","Titan","Titano","Tytan","Titán","Titan"
-"destination:2:effect1","Leicht (interplanetar) Kurz (2 Generationen)","Facile (interplanetario) Breve (2 Generazioni)","Łatwy (międzyplanetarny) Krótki (2 Generacje)","Fácil (interplanetario) Corta (2 Generaciones)","Facile (interplanétaire) Court (2 Générations)"
+"destination:2:effect1","Leicht (interplanetar) Kurz (2 Generationen)","Facile (interplanetario) Breve (2 Generazioni)","Łatwy (międzyplanetarny) Krótki (2 Pokolenia)","Fácil (interplanetario) Corta (2 Generaciones)","Facile (interplanétaire) Court (2 Générations)"
 "destination:2:effect2","Mission: Lagere 3 Vorräte pro Spieler.
 Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: Immagazzina 3 risorse per giocatore.
 Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: Zmagazynuj 3 zasoby na gracza.
 Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: Almacena 3 suministros por jugador.
-Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission : Stockez 3 matériels par joueur.
+Transbordador: Paga 1 Dust para enviar una carta a cualquier jugador.","Mission : Stockez 3 matériels par joueur.
 Navette : 1 Dust pour envoyer une carte à un joueur."
 "destination:2:name","Mars","Marte","Mars","Marte","Mars"
-"destination:3:effect1","Leicht (interplanetar) Kurz (2 Generationen)","Facile (interplanetario) Breve (2 Generazioni)","Łatwy (międzyplanetarny) Krótki (2 Generacje)","Fácil (interplanetario) Corta (2 Generaciones)","Facile (interplanétaire) Court (2 Générations)"
+"destination:3:effect1","Leicht (interplanetar) Kurz (2 Generationen)","Facile (interplanetario) Breve (2 Generazioni)","Łatwy (międzyplanetarny) Krótki (2 Pokolenia)","Fácil (interplanetario) Corta (2 Generaciones)","Facile (interplanétaire) Court (2 Générations)"
 "destination:3:effect2","Mission: Jeder Spieler hat 5⭐.
 Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: Ogni giocatore ha 5⭐.
 Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: Każdy gracz ma 5⭐.
 Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: Cada jugador tiene 5⭐.
-Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission : Chaque joueur a 5⭐.
+Transbordador: Paga 1 Dust para enviar una carta a cualquier jugador.","Mission : Chaque joueur a 5⭐.
 Navette : 1 Dust pour envoyer une carte à un joueur."
 "destination:3:name","Venus","Venere","Wenus","Venus","Vénus"
-"destination:4:effect1","Leicht (interplanetar) Kurz (2 Generationen)","Facile (interplanetario) Breve (2 Generazioni)","Łatwy (międzyplanetarny) Krótki (2 Generacje)","Fácil (interplanetario) Corta (2 Generaciones)","Facile (interplanétaire) Court (2 Générations)"
+"destination:4:effect1","Leicht (interplanetar) Kurz (2 Generationen)","Facile (interplanetario) Breve (2 Generazioni)","Łatwy (międzyplanetarny) Krótki (2 Pokolenia)","Fácil (interplanetario) Corta (2 Generaciones)","Facile (interplanétaire) Court (2 Générations)"
 "destination:4:effect2","Mission: 2 vollständig optimierte Sektoren pro Spieler.
-Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: 2 settori completamente ottimizzati per giocatore.
+Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: 2 settori pienamente ottimizzati per giocatore.
 Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: 2 w pełni zoptymalizowane sektory na gracza.
 Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: 2 sectores totalmente optimizados por jugador.
-Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission : 2 secteurs entièrement optimisés par joueur.
+Transbordador: Paga 1 Dust para enviar una carta a cualquier jugador.","Mission : 2 secteurs entièrement optimisés par joueur.
 Navette : 1 Dust pour envoyer une carte à un joueur."
 "destination:4:name","Europa","Europa","Europa","Europa","Europe"
-"destination:5:effect1","Leicht (interplanetar) Kurz (2 Generationen)","Facile (interplanetario) Breve (2 Generazioni)","Łatwy (międzyplanetarny) Krótki (2 Generacje)","Fácil (interplanetario) Corta (2 Generaciones)","Facile (interplanétaire) Court (2 Générations)"
+"destination:5:effect1","Leicht (interplanetar) Kurz (2 Generationen)","Facile (interplanetario) Breve (2 Generazioni)","Łatwy (międzyplanetarny) Krótki (2 Pokolenia)","Fácil (interplanetario) Corta (2 Generaciones)","Facile (interplanétaire) Court (2 Générations)"
 "destination:5:effect2","Mission: 1 Thrust-Karte pro Spieler.
 Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: 1 carta Thrust per giocatore.
 Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: 1 karta Thrust na gracza.
 Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: 1 carta Thrust por jugador.
-Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission : 1 carte Thrust par joueur.
+Transbordador: Paga 1 Dust para enviar una carta a cualquier jugador.","Mission : 1 carte Thrust par joueur.
 Navette : 1 Dust pour envoyer une carte à un joueur."
 "destination:5:name","Jupiter","Giove","Jowisz","Júpiter","Jupiter"
-"destination:6:effect1","Leicht (interplanetar) Kurz (2 Generationen)","Facile (interplanetario) Breve (2 Generazioni)","Łatwy (międzyplanetarny) Krótki (2 Generacje)","Fácil (interplanetario) Corta (2 Generaciones)","Facile (interplanétaire) Court (2 Générations)"
+"destination:6:effect1","Leicht (interplanetar) Kurz (2 Generationen)","Facile (interplanetario) Breve (2 Generazioni)","Łatwy (międzyplanetarny) Krótki (2 Pokolenia)","Fácil (interplanetario) Corta (2 Generaciones)","Facile (interplanétaire) Court (2 Générations)"
 "destination:6:effect2","Mission: Jeder Spieler hat 2 komplettierte Sektoren.
-Shuttle: Zahle 0 Dust, um eine Karte an einen beliebigen Spieler zu schicken.","Missione: Ogni giocatore ha 2 settori completati.
-Navetta: Paga 0 Dust per inviare una carta a qualsiasi giocatore.","Misja: Każdy gracz ma 2 skompletowane sektory.
-Wahadłowiec: Zapłać 0 Dust, aby wysłać kartę do dowolnego gracza.","Misión: Cada jugador tiene 2 sectores completados.
+Shuttle: 0 Dust eine Karte an einen Spieler geben.","Missione: Ogni giocatore ha 2 settori completati.
+Navetta: 0 Dust per inviare una carta a qualsiasi giocatore.","Misja: Każdy gracz ma 2 skompletowane sektory.
+Wahadłowiec: 0 Dust, aby wysłać kartę do gracza.","Misión: Cada jugador tiene 2 sectores completados.
 Transbordador: Paga 0 Dust para enviar una carta a cualquier jugador.","Mission : Chaque joueur a 2 secteurs complétés.
-Navette : Payez 0 Dust pour envoyer une carte à n'importe quel joueur."
+Navette : 0 Dust pour envoyer une carte à un joueur."
 "destination:6:name","Luna","Luna","Luna","Luna","Luna"
-"destination:7:effect1","Normal (zirkumsolar) Mittel (3 Generationen)","Normale (circumsolare) Media (3 Generazioni)","Normalny (okołosłoneczny) Średni (3 Generacje)","Normal (circumsolar) Media (3 Generaciones)","Normal (circumsolaire) Moyen (3 Générations)"
+"destination:7:effect1","Normal (zirkumsolar) Mittel (3 Generationen)","Normale (circumsolare) Media (3 Generazioni)","Normalny (okołosłoneczny) Średni (3 Pokolenia)","Normal (circumsolar) Media (3 Generaciones)","Normal (circumsolaire) Moyen (3 Générations)"
 "destination:7:effect2","Mission: 18⭐ pro Spieler.
 Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: 18⭐ per giocatore.
 Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: 18⭐ na gracza.
 Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: 18⭐ por jugador.
-Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission : 18⭐ par joueur.
+Transbordador: Paga 1 Dust para enviar una carta a cualquier jugador.","Mission : 18⭐ par joueur.
 Navette : 1 Dust pour envoyer une carte à un joueur."
 "destination:7:name","Alpha Centauri","Alpha Centauri","Alfa Centauri","Alfa Centauri","Alpha du Centaure"
-"destination:8:effect1","Normal (zirkumsolar) Mittel (3 Generationen)","Normale (circumsolare) Media (3 Generazioni)","Normalny (okołosłoneczny) Średni (3 Generacje)","Normal (circumsolar) Media (3 Generaciones)","Normal (circumsolaire) Moyen (3 Générations)"
+"destination:8:effect1","Normal (zirkumsolar) Mittel (3 Generationen)","Normale (circumsolare) Media (3 Generazioni)","Normalny (okołosłoneczny) Średni (3 Pokolenia)","Normal (circumsolar) Media (3 Generaciones)","Normal (circumsolaire) Moyen (3 Générations)"
 "destination:8:effect2","Mission: Jeder Spieler hat 15⭐ & 1 gelagerten Vorrat.
 Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: Ogni giocatore ha 15⭐ e 1 risorsa immagazzinata.
-Navetta: Paga 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: Każdy gracz ma 15⭐ i 1 zmagazynowany zasób.
-Wahadłowiec: Zapłać 1 Dust, aby wysłać kartę do dowolnego gracza.","Misión: Cada jugador tiene 15⭐ y 1 suministro almacenado.
-Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission : Chaque joueur a 15⭐ & 1 matériel stocké.
+Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: Każdy gracz ma 15⭐ i 1 zmagazynowany zasób.
+Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: Cada jugador tiene 15⭐ y 1 suministro almacenado.
+Transbordador: Paga 1 Dust para enviar una carta a cualquier jugador.","Mission : Chaque joueur a 15⭐ & 1 matériel stocké.
 Navette : 1 Dust pour envoyer une carte à un joueur."
 "destination:8:name","Sirius","Sirio","Syriusz","Sirio","Sirius"
-"destination:9:effect1","Normal (zirkumsolar) Mittel (3 Generationen)","Normale (circumsolare) Media (3 Generazioni)","Normalny (okołosłoneczny) Średni (3 Generacje)","Normal (circumsolar) Media (3 Generaciones)","Normal (circumsolaire) Moyen (3 Générations)"
+"destination:9:effect1","Normal (zirkumsolar) Mittel (3 Generationen)","Normale (circumsolare) Media (3 Generazioni)","Normalny (okołosłoneczny) Średni (3 Pokolenia)","Normal (circumsolar) Media (3 Generaciones)","Normal (circumsolaire) Moyen (3 Générations)"
 "destination:9:effect2","Mission: 15⭐ und archiviere 3 Karten pro Spieler.
 Shuttle: 1 Dust eine Karte an einen Spieler geben.","Missione: 15⭐ e archivia 3 carte per giocatore.
 Navetta: 1 Dust per inviare una carta a qualsiasi giocatore.","Misja: 15⭐ i zarchiwizuj 3 karty na gracza.
 Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: 15⭐ y archiva 3 cartas por jugador.
-Transbordador: 1 Dust entregar una tarjeta a un jugador.","Mission : 15⭐ et archivez 3 cartes par joueur.
+Transbordador: Paga 1 Dust para enviar una carta a cualquier jugador.","Mission : 15⭐ et archivez 3 cartes par joueur.
 Navette : 1 Dust pour envoyer une carte à un joueur."
 "destination:9:name","Tau Ceti","Tau Ceti","Tau Ceti","Tau Ceti","Tau Ceti"
 "dust:Bioreactors:effect","Recycle bis zu 4 Karten, ziehe dann ebenso viele.","Ricicla fino a 4 carte, poi pesca altrettante.","Zrecykluj do 4 kart, następnie dobierz tyle samo.","Recicla hasta 4 cartas, luego roba esa cantidad.","Recyclez jusqu’à 4 cartes, puis piochez autant."
@@ -356,7 +356,7 @@ Navette : 1 Dust pour envoyer une carte à un joueur."
 "dust:Cargo Bays:name","Frachträume","Stive da Carico","Ładownie","Bodegas de Carga","Soutes à Cargo"
 "dust:Habitation Ring:effect","Erhalte 8 Dust.","Guadagna 8 Dust.","Zdobądź 8 Dust.","Gana 8 Dust.","Gagnez 8 Dust."
 "dust:Habitation Ring:name","Wohnring","Anello Abitativo","Pierścień Mieszkalny","Anillo de Habitación","Anneau d’Habitation"
-"dust:Hibernators:effect","Lagere 3 dust auf beliebigen Sektoren.","Immagazzina 3 Dust su qualsiasi settore.","Zmagazynuj 3 Dust w dowolnych sektorach.","Almacena 3 Dust en cualquier sector.","Stockez 3 Dust sur n’importe quel secteur."
+"dust:Hibernators:effect","Lagere 3 Dust auf beliebigen Sektoren.","Immagazzina 3 Dust su uno o più settori.","Zmagazynuj 3 Dust w dowolnych sektorach.","Almacena 3 Dust en cualquier sector.","Stockez 3 Dust sur n’importe quels secteurs."
 "dust:Hibernators:name","Winterschläfer","Ibernati","Hibernatorzy","Hibernantes","Hibernants"
 "dust:Operations:effect","Decke 1 Expedition auf, erhalte 1 Vorrat dieser Farbe. Du darfst darauf bieten.","Rivela 1 spedizione, guadagna 1 risorsa di quel colore. Puoi fare un’offerta per essa.","Odkryj 1 ekspedycję, zdobądź 1 zasób tego koloru. Możesz o nią licytować.","Revela 1 expedición, gana 1 suministro de ese color. Puedes pujar por ella.","Révélez 1 expédition, gagnez 1 matériel de cette couleur. Vous pouvez enchérir dessus."
 "dust:Operations:name","Operationen","Operazioni","Operacje","Operaciones","Opérations"
@@ -378,29 +378,29 @@ Navette : 1 Dust pour envoyer une carte à un joueur."
 "expedition:16:effect","Erhalte 1⭐ pro Electrix-Karte. (einschließlich dieser)","Guadagna 1⭐ per ogni carta Electrix. (inclusa questa)","Zdobądź 1⭐ za każdą kartę Electrix. (włącznie z tą)","Gana 1⭐ por cada carta Electrix. (incluida esta)","Gagnez 1⭐ par carte Electrix.
 (y compris celle-ci)"
 "expedition:16:name","Schwarmbewusstsein","Mente Alveare","Umysł Ula","Mente Colmena","Esprit de Ruche"
-"expedition:17:effect","Erhalte 3⭐ pro komplettem und vollständig optimiertem Sektor.","Guadagna 3⭐ per ogni settore completo e completamente ottimizzato.","Zdobądź 3⭐ za każdy kompletny i w pełni zoptymalizowany sektor.","Gana 3⭐ por cada sector completo y totalmente optimizado.","Gagnez 3⭐ par secteur complet et entièrement optimisé."
+"expedition:17:effect","Erhalte 3⭐ pro komplettem und vollständig optimiertem Sektor.","Guadagna 3⭐ per ogni settore completo e pienamente ottimizzato.","Zdobądź 3⭐ za każdy kompletny i w pełni zoptymalizowany sektor.","Gana 3⭐ por cada sector completo y totalmente optimizado.","Gagnez 3⭐ par secteur complet et entièrement optimisé."
 "expedition:17:name","Asteroidenkolonien","Colonie di Asteroidi","Kolonie Asteroid","Colonias de Asteroides","Colonies d’Astéroïdes"
 "expedition:18:effect","Erhalte 15⭐ pro Satz gelagerter Vorräte (Dust, Metals, Liquids, Organix, Electrix, Thrust)","Guadagna 15⭐ per ogni set di risorse immagazzinate (Dust, Metals, Liquids, Organix, Electrix, Thrust)","Zdobądź 15⭐ za każdy zestaw zmagazynowanych zasobów (Dust, Metals, Liquids, Organix, Electrix, Thrust)","Gana 15⭐ por cada set de suministros almacenados (Dust, Metals, Liquids, Organix, Electrix, Thrust)","Gagnez 15⭐ par set de matériels stockés (Dust, Metals, Liquids, Organix, Electrix, Thrust)"
 "expedition:18:name","Urbanisierter Planet","Pianeta Urbanizzato","Zurbanizowana Planeta","Planeta Urbanizado","Planète Urbanisée"
 "expedition:19:effect","Erhalte 2⭐ pro komplettem Sektor.","Guadagna 2⭐ per ogni settore completo.","Zdobądź 2⭐ za każdy kompletny sektor.","Gana 2⭐ por cada sector completo.","Gagnez 2⭐ par secteur complet."
 "expedition:19:name","Millionen von Kolonisten","Milioni di Coloni","Miliony Kolonistów","Millones de Colonos","Millions de Colons"
-"expedition:1:effect","Wenn du eine (Star Card) platzierst, lagere 1 Vorrat dieser Farbe auf diesem Sektor.","Quando posizioni una (Star Card), immagazzina 1 risorsa di quel colore su quel settore.","Gdy umieszczasz (Star Card), zmagazynuj 1 zasób tego koloru w tym sektorze.","Cuando colocas una (Star Card), almacena 1 suministro de ese color en ese sector.","Quand vous posez une (Star Card), stockez 1 matériel de cette couleur sur ce secteur."
-"expedition:1:name","Einstein-Rosen-Portal","Portale di Einstein-Rosen","Portal Einstein-Rosen","Portal de Einstein-Rosen","Portail d’Einstein-Rosen"
+"expedition:1:effect","Wenn du eine (Star Card) platzierst, lagere dort 1 Vorrat ihrer Farbe.","Quando posizioni una (Star Card), immagazzina 1 risorsa di quel colore su quel settore.","Gdy umieszczasz (Star Card), zmagazynuj 1 zasób jej koloru w sektorze, w którym ją umieszczasz.","Cuando colocas una (Star Card), almacena 1 suministro de ese color en ese sector.","Quand vous posez une (Star Card), stockez 1 matériel de cette couleur sur le secteur où vous la posez."
+"expedition:1:name","Einstein-Rosen-Portal","Portale di Einstein-Rosen","Portal Einsteina-Rosena","Portal de Einstein-Rosen","Portail d’Einstein-Rosen"
 "expedition:20:effect","Erhalte 2⭐ pro Expedition, die ein anderer Spieler hat.","Guadagna 2⭐ per ogni spedizione che un altro giocatore possiede.","Zdobądź 2⭐ za każdą ekspedycję posiadaną przez innego gracza.","Gana 2⭐ por cada expedición que tenga otro jugador.","Gagnez 2⭐ par expédition qu’un autre joueur possède."
 "expedition:20:name","Allianz","Alleanza","Sojusz","Alianza","Alliance"
-"expedition:21:effect","Erhalte 2⭐ pro unterschiedlicher Farbe gelagerter Vorräte auf einem Sektor.","Guadagna 2⭐ per ogni colore diverso di risorsa immagazzinata su un settore.","Zdobądź 2⭐ za każdy różny kolor zmagazynowanego zasobu w jednym sektorze.","Gana 2⭐ por cada color diferente de suministro almacenado en un sector.","Gagnez 2⭐ par couleur différente de matériel stocké sur un secteur."
+"expedition:21:effect","Erhalte 2⭐ pro unterschiedlicher Farbe gelagerter Vorräte auf einem Sektor.","Guadagna 2⭐ per ogni colore diverso di risorsa immagazzinata su uno dei tuoi settori.","Zdobądź 2⭐ za każdy różny kolor zmagazynowanego zasobu w jednym sektorze.","Gana 2⭐ por cada color diferente de suministro almacenado en un sector.","Gagnez 2⭐ par couleur différente de matériel stocké sur un même secteur."
 "expedition:21:name","Polarplanet","Pianeta Polare","Planeta Polarna","Planeta Polar","Planète Polaire"
 "expedition:22:effect","Erhalte 2⭐ pro Sektor mit 1+ Liquids-Karte.","Guadagna 2⭐ per ogni settore con 1 o più carte Liquids.","Zdobądź 2⭐ za każdy sektor z 1+ kartą Liquids.","Gana 2⭐ por cada sector con 1 o más cartas Liquids.","Gagnez 2⭐ par secteur avec 1 carte Liquids ou plus."
 "expedition:22:name","Wasserwelt","Mondo Acquatico","Wodny Świat","Mundo Acuático","Monde Aquatique"
 "expedition:23:effect","Erhalte 2⭐ pro Metals-Karte in einem deiner Sektoren. (einschließlich dieser)","Guadagna 2⭐ per ogni carta Metals in uno dei tuoi settori. (inclusa questa)","Zdobądź 2⭐ za każdą kartę Metals w jednym z twoich sektorów. (włącznie z tą)","Gana 2⭐ por cada carta Metals en uno de tus sectores.
-(incluido esto)","Gagnez 2⭐ par carte Metals dans l’un de vos secteurs.
+(incluida esta)","Gagnez 2⭐ par carte Metals dans l’un de vos secteurs.
 (y compris celle-ci)"
 "expedition:23:name","Selbstreplikation","Autoreplicazione","Samoreplikacja","Autorreplicación","Auto-Réplication"
-"expedition:24:effect","Erhalte 2⭐ pro vollständig optimiertem Sektor.","Guadagna 2⭐ per ogni settore completamente ottimizzato.","Zdobądź 2⭐ za każdy w pełni zoptymalizowany sektor.","Gana 2⭐ por cada sector totalmente optimizado.","Gagnez 2⭐ par secteur entièrement optimisé."
+"expedition:24:effect","Erhalte 2⭐ pro vollständig optimiertem Sektor.","Guadagna 2⭐ per ogni settore pienamente ottimizzato.","Zdobądź 2⭐ za każdy w pełni zoptymalizowany sektor.","Gana 2⭐ por cada sector totalmente optimizado.","Gagnez 2⭐ par secteur entièrement optimisé."
 "expedition:24:name","Lagrange-Komplex","Complesso di Lagrange","Kompleks Lagrange’a","Complejo de Lagrange","Complexe de Lagrange"
 "expedition:25:effect","Erhalte 2⭐ pro Sektor mit 2+ gelagerten Vorräten.","Guadagna 2⭐ per ogni settore con 2 o più risorse immagazzinate.","Zdobądź 2⭐ za każdy sektor z 2+ zmagazynowanymi zasobami.","Gana 2⭐ por cada sector con 2 o más suministros almacenados.","Gagnez 2⭐ par secteur avec 2 matériels stockés ou plus."
 "expedition:25:name","Handelshafen","Porto Commerciale","Port Handlowy","Puerto Comercial","Port Commercial"
-"expedition:26:effect","Recycle beliebige Karten von 1 Sektor und lagere die Vorräte auf diesem Sektor.","Ricicla un numero qualsiasi di carte da 1 settore e immagazzina le risorse su quel settore.","Zrecykluj dowolne karty z 1 sektora i zmagazynuj zasoby w tym sektorze.","Recicla cualquier cantidad de cartas de 1 sector y almacena los suministros en ese sector.","Recyclez n’importe quelles cartes d’1 secteur et stockez les matériels sur ce secteur."
+"expedition:26:effect","Recycle beliebige Karten von 1 Sektor und lagere die Vorräte auf demselben Sektor.","Ricicla un numero qualsiasi di carte da 1 settore e immagazzina le risorse su quel settore.","Zrecykluj dowolne karty z 1 sektora i zmagazynuj zasoby w tym sektorze.","Recicla cualquier cantidad de cartas de 1 sector y almacena los suministros en ese sector.","Recyclez n’importe quelles cartes d’un secteur et stockez les matériels sur ce secteur."
 "expedition:26:name","Kaldera-Kolonie","Colonia della Caldera","Kolonia Kaldery","Colonia de la Caldera","Colonie de la Caldeira"
 "expedition:2:effect","Erhalte 2⭐ pro (Star Card).
 (Jede Karte mit aufgedrucktem ⭐)","Guadagna 2⭐ per ogni carta (Star Card).
@@ -412,7 +412,7 @@ Navette : 1 Dust pour envoyer une carte à un joueur."
 "expedition:3:effect","Erhalte 2 ⭐ pro Thrust-Karte. (einschließlich dieser)","Guadagna 2 ⭐ per ogni carta Thrust. (inclusa questa)","Zdobądź 2 ⭐ za każdą kartę Thrust. (włącznie z tą)","Gana 2 ⭐ por cada carta Thrust. (incluida esta)","Gagnez 2⭐ par carte Thrust.
 (y compris celle-ci)"
 "expedition:3:name","Exodus-Flotten","Flotte dell’Esodo","Floty Exodusu","Flotas del Éxodo","Flottes de l’Exode"
-"expedition:4:effect","Kopiere bis zu 6⭐ von der obersten Karte in jedem Sektor.","Copia fino a 6⭐ dalla carta in cima in ogni settore.","Skopiuj do 6⭐ z wierzchniej karty w każdym sektorze.","Copia hasta 6⭐ de la carta superior en cada sector.","Copiez jusqu’à 6⭐ de la carte du dessus dans chaque secteur."
+"expedition:4:effect","Kopiere bis zu 6⭐ von der obersten Karte in jedem Sektor.","Copia fino a 6⭐ dalla carta in cima a ogni settore.","Skopiuj do 6⭐ z wierzchniej karty w każdym sektorze.","Copia hasta 6⭐ de la carta superior en cada sector.","Copiez jusqu’à 6⭐ de la carte du dessus dans chaque secteur."
 "expedition:4:name","Äquatorialer Superloop","Superloop Equatoriale","Równikowy Superloop","Superbucle Ecuatorial","Superboucle Équatoriale"
 "expedition:5:effect","Erhalte 3⭐ pro unterschiedlicher Expeditionsfarbe.","Guadagna 3⭐ per ogni colore di spedizione diverso.","Zdobądź 3⭐ za każdy różny kolor ekspedycji.","Gana 3⭐ por cada color de expedición diferente.","Gagnez 3⭐ par couleur d’expédition différente."
 "expedition:5:name","Vergnügungsplanet","Pianeta del Piacere","Planeta Przyjemności","Planeta del Placer","Planète du Plaisir"
@@ -438,9 +438,9 @@ Puis défaussez-la."
 "promo:3:name","Eis 9","Ghiaccio 9","Lód 9","Hielo 9","Glace 9"
 "promo:4:effect","Erhalte 1 Vorrat jeder unterschiedlichen Farbe auf diesem Sektor.","Guadagna 1 risorsa di ogni colore diverso presente su questo settore.","Zdobądź po 1 zasobie każdego koloru występującego na tym sektorze.","Gana 1 suministro de cada color distinto de este sector.","Gagnez 1 matériel de chaque couleur différente présente sur ce secteur."
 "promo:4:name","Biodiversität","Biodiversità","Bioróżnorodność","Biodiversidad","Biodiversité"
-"promo:5:effect","Sage eine Farbe voraus, ziehe 6, behalte alle dieser Farbe, wirf den Rest ab.","Prevedi un colore, pesca 6, tieni quelle di quel colore, scarta le altre.","Wskaż kolor, dobierz 6, zatrzymaj karty w tym kolorze, resztę odrzuć.","Predice un color, roba 6, quédate las de ese color y descarta el resto.","Prédisez une couleur, piochez 6, gardez celles de cette couleur, défaussez le reste."
+"promo:5:effect","Sage eine Farbe voraus, ziehe 6, behalte alle dieser Farbe, wirf den Rest ab.","Prevedi un colore, pesca 6, tieni quelle di quel colore, scarta le altre.","Wskaż kolor, dobierz 6, zatrzymaj karty w tym kolorze, resztę odrzuć.","Predice un color, roba 6, quédate con las de ese color y descarta el resto.","Prédisez une couleur, piochez 6, gardez celles de cette couleur, défaussez le reste."
 "promo:5:name","Hilfe von der Erde","Supporto Terrestre","Wsparcie z Ziemi","Apoyo Terrestre","Soutien Terrestre"
-"promo:6:effect","Starte eine Auktion und ändere die Farbe der Karte bis zum Auktionsende.","Avvia un’offerta e cambia il colore della carta fino a fine asta.","Rozpocznij licytację i zmień kolor tej karty do końca licytacji.","Inicia una puja y cambia el color de esa carta hasta el final de la subasta.","Lancez une enchère et changez la couleur de la carte jusqu’à sa fin."
+"promo:6:effect","Starte eine Auktion und ändere die Farbe der Karte bis zum Auktionsende.","Avvia un’offerta e cambia il colore della carta fino a fine asta.","Rozpocznij licytację i zmień kolor licytowanej karty do końca licytacji.","Inicia una puja y cambia el color de esa carta hasta el final de la subasta.","Lancez une enchère et changez la couleur de la carte jusqu’à la fin de l’enchère."
 "promo:6:name","Wurmloch-Surfen","Surf nel Wormhole","Surfing Czasoprzestrzenny","Surf en Agujero de Gusano","Surf dans un Trou de Ver"
 "tech:100:effect","⭐⭐","⭐⭐","⭐⭐","⭐⭐","⭐⭐"
 "tech:100:name","Solarenergie","Energia Solare","Energia Słoneczna","Energía Solar","Énergie Solaire"
@@ -454,40 +454,40 @@ Puis défaussez-la."
 "tech:104:name","Nanobots","Nanobot","Nanoboty","Nanobots","Nanobots"
 "tech:105:effect","Erhalte 1 Electrix pro unterschiedlicher Farbe auf diesem Sektor.","Guadagna 1 Electrix per ogni colore diverso su questo settore.","Zdobądź 1 Electrix za każdy różny kolor w tym sektorze.","Gana 1 Electrix por cada color diferente en este sector.","Gagnez 1 Electrix par couleur différente sur ce secteur."
 "tech:105:name","Nanobots","Nanobot","Nanoboty","Nanobots","Nanobots"
-"tech:106:effect","Erhalte 1 Organix. Wenn dieser Sektor vollständig optimiert ist, erhalte stattdessen 2 Organix.","Guadagna 1 Organix. Se questo settore è completamente ottimizzato, guadagna 2 Organix invece.","Zdobądź 1 Organix. Jeśli ten sektor jest w pełni zoptymalizowany, zdobądź zamiast tego 2 Organix.","Gana 1 Organix extra.
+"tech:106:effect","Erhalte 1 Organix. Wenn dieser Sektor vollständig optimiert ist, erhalte stattdessen 2 Organix.","Guadagna 1 Organix. Se questo settore è pienamente ottimizzato, guadagna 2 Organix invece.","Zdobądź 1 Organix. Jeśli ten sektor jest w pełni zoptymalizowany, zdobądź zamiast tego 2 Organix.","Gana 1 Organix extra.
 Si este sector está totalmente optimizado, gana 2 Organix en su lugar.","Gagnez 1 Organix. Si ce secteur est entièrement optimisé, gagnez 2 Organix à la place."
 "tech:106:name","Bio-Drucker","Biostampante","Biodrukarka","Bioimpresora","Bio-Imprimante"
-"tech:107:effect","Erhalte 1 Organix. Wenn dieser Sektor vollständig optimiert ist, erhalte stattdessen 2 Organix.","Guadagna 1 Organix. Se questo settore è completamente ottimizzato, guadagna 2 Organix invece.","Zdobądź 1 Organix. Jeśli ten sektor jest w pełni zoptymalizowany, zdobądź zamiast tego 2 Organix.","Gana 1 Organix extra.
+"tech:107:effect","Erhalte 1 Organix. Wenn dieser Sektor vollständig optimiert ist, erhalte stattdessen 2 Organix.","Guadagna 1 Organix. Se questo settore è pienamente ottimizzato, guadagna 2 Organix invece.","Zdobądź 1 Organix. Jeśli ten sektor jest w pełni zoptymalizowany, zdobądź zamiast tego 2 Organix.","Gana 1 Organix extra.
 Si este sector está totalmente optimizado, gana 2 Organix en su lugar.","Gagnez 1 Organix. Si ce secteur est entièrement optimisé, gagnez 2 Organix à la place."
 "tech:107:name","Bio-Drucker","Biostampante","Biodrukarka","Bioimpresora","Bio-Imprimante"
 "tech:108:effect","Lagere 1 beliebigen Vorrat pro aufgedrucktem ⭐ auf der nächsten hier platzierten Karte.","Immagazzina 1 risorsa a scelta per ogni ⭐ stampata sulla prossima carta posizionata qui.","Zmagazynuj 1 dowolny zasób za każdą wydrukowaną ⭐ na następnej karcie umieszczonej tutaj.","Almacena 1 suministro cualquiera por cada ⭐ impresa en la siguiente carta colocada aquí.","Stockez 1 matériel au choix par ⭐ imprimée sur la prochaine carte posée ici."
 "tech:108:name","Quantenarchive","Archivi Quantistici","Archiwa Kwantowe","Archivos Cuánticos","Archives Quantiques"
 "tech:109:effect","Fusioniere 1:1 viermal.","Fondi 1:1 quattro volte.","Połącz 1:1 cztery razy.","Fusiona 1:1 cuatro veces.","Fusionnez 1:1 quatre fois."
 "tech:109:name","Massenkonverter","Convertitore di Massa","Konwerter Masy","Convertidor de Masa","Convertisseur de Masse"
-"tech:10:effect","Fusioniere 1:1 zweimal. Wenn dieser Sektor vollständig optimiert ist, erhalte zusätzlich 2 Dust.","Fondi 1:1 due volte. Se questo settore è completamente ottimizzato, guadagna anche 2 Dust.","Połącz 1:1 dwa razy. Jeśli ten sektor jest w pełni zoptymalizowany, zdobądź dodatkowo 2 Dust.","Fusiona 1:1 dos veces. Si este sector está totalmente optimizado, gana también 2 Dust extra.","Fusionnez 1:1 deux fois. Si ce secteur est entièrement optimisé, gagnez aussi 2 Dust."
+"tech:10:effect","Fusioniere 1:1 zweimal. Wenn dieser Sektor vollständig optimiert ist, erhalte zusätzlich 2 Dust.","Fondi 1:1 due volte. Se questo settore è pienamente ottimizzato, guadagna anche 2 Dust.","Połącz 1:1 dwa razy. Jeśli ten sektor jest w pełni zoptymalizowany, zdobądź dodatkowo 2 Dust.","Fusiona 1:1 dos veces. Si este sector está totalmente optimizado, gana también 2 Dust extra.","Fusionnez 1:1 deux fois. Si ce secteur est entièrement optimisé, gagnez aussi 2 Dust."
 "tech:10:name","Chemielabore","Laboratori Chimici","Laboratoria Chemiczne","Laboratorios Químicos","Laboratoires Chimiques"
 "tech:110:effect","Fusioniere 1:1 viermal.","Fondi 1:1 quattro volte.","Połącz 1:1 cztery razy.","Fusiona 1:1 cuatro veces.","Fusionnez 1:1 quatre fois."
 "tech:110:name","Massenkonverter","Convertitore di Massa","Konwerter Masy","Convertidor de Masa","Convertisseur de Masse"
 "tech:111:effect","Ziehe 1 pro Spieler. Behalte 1, gib die Karten dann nach links weiter, jeder Spieler behält 1.","Pesca 1 per giocatore. Tienine 1, poi passa le carte a sinistra, ogni giocatore ne tiene 1.","Dobierz 1 na gracza. Zatrzymaj 1, następnie przekaż karty w lewo, każdy gracz zatrzymuje 1.","Roba 1 por jugador. Quédate con 1, luego pasa las cartas a la izquierda, cada jugador se queda con 1.","Piochez 1 par joueur. Gardez-en 1, puis passez les cartes à gauche, chaque joueur en garde 1."
-"tech:111:name","Flotten Kommunikation","Comunicazioni Interflotta","Łączność Międzyflotowa","Comunicaciones Interflota","Comms Interflotte"
+"tech:111:name","Flottenkommunikation","Comunicazioni Interflotta","Łączność Międzyflotowa","Comunicaciones Interflota","Comms Interflotte"
 "tech:112:effect","Ziehe 1 pro Spieler. Behalte 1, gib die Karten dann nach links weiter, jeder Spieler behält 1.","Pesca 1 per giocatore. Tienine 1, poi passa le carte a sinistra, ogni giocatore ne tiene 1.","Dobierz 1 na gracza. Zatrzymaj 1, następnie przekaż karty w lewo, każdy gracz zatrzymuje 1.","Roba 1 por jugador. Quédate con 1, luego pasa las cartas a la izquierda, cada jugador se queda con 1.","Piochez 1 par joueur. Gardez-en 1, puis passez les cartes à gauche, chaque joueur en garde 1."
-"tech:112:name","Flotten Kommunikation","Comunicazioni Interflotta","Łączność Międzyflotowa","Comunicaciones Interflota","Comms Interflotte"
-"tech:113:effect","Fusioniere 1:1 dreimal, oder sechsmal, wenn dieser Sektor komplett ist.","Fondi 1:1 tre volte, o sei volte se questo settore è completo.","Połącz 1:1 trzy razy, lub sześć razy, jeśli ten sektor jest kompletny.","Fusiona 1:1 tres veces, o seis veces si este sector está completo.","Fusionnez 1:1 trois fois, ou six fois si ce secteur est complet."
+"tech:112:name","Flottenkommunikation","Comunicazioni Interflotta","Łączność Międzyflotowa","Comunicaciones Interflota","Comms Interflotte"
+"tech:113:effect","Fusioniere 1:1 dreimal, oder sechsmal, wenn dieser Sektor komplett ist.","Fondi 1:1 tre volte, o sei volte se questo settore è completo.","Połącz 1:1 trzy razy lub sześć razy, jeśli ten sektor jest kompletny.","Fusiona 1:1 tres veces, o seis veces si este sector está completo.","Fusionnez 1:1 trois fois, ou six fois si ce secteur est complet."
 "tech:113:name","Nanofertigung","Nanoassemblaggio","Nanomontaż","Nanoensamblaje","Nano-Assemblage"
-"tech:114:effect","Fusioniere 1:1 dreimal, oder sechsmal, wenn dieser Sektor komplett ist.","Fondi 1:1 tre volte, o sei volte se questo settore è completo.","Połącz 1:1 trzy razy, lub sześć razy, jeśli ten sektor jest kompletny.","Fusiona 1:1 tres veces, o seis veces si este sector está completo.","Fusionnez 1:1 trois fois, ou six fois si ce secteur est complet."
+"tech:114:effect","Fusioniere 1:1 dreimal, oder sechsmal, wenn dieser Sektor komplett ist.","Fondi 1:1 tre volte, o sei volte se questo settore è completo.","Połącz 1:1 trzy razy lub sześć razy, jeśli ten sektor jest kompletny.","Fusiona 1:1 tres veces, o seis veces si este sector está completo.","Fusionnez 1:1 trois fois, ou six fois si ce secteur est complet."
 "tech:114:name","Nanofertigung","Nanoassemblaggio","Nanomontaż","Nanoensamblaje","Nano-Assemblage"
-"tech:115:effect","Kaufe Metals Tech für -1.","Acquista carte Tech Metals per -1.","Kupuj karty technologii Metals za -1.","Compra cartas de tecnología Metals por -1.","Achetez les cartes technologie Metals pour -1."
+"tech:115:effect","Kaufe Metals-Tech für -1.","Acquista carte Tech Metals per -1.","Kupuj karty Tech Metals za -1.","Compra cartas de tecnología Metals por -1.","Achetez les cartes Tech Metals pour -1."
 "tech:115:name","Industrieakademie","Accademia Industriale","Akademia Przemysłowa","Academia Industrial","Académie Industrielle"
-"tech:116:effect","Kaufe Organix Tech für -1.","Acquista carte Tech Organix per -1.","Kupuj karty technologii Organix za -1.","Compra cartas de tecnología Organix por -1.","Achetez les cartes technologie Organix pour -1."
+"tech:116:effect","Kaufe Organix-Tech für -1.","Acquista carte Tech Organix per -1.","Kupuj karty Tech Organix za -1.","Compra cartas de tecnología Organix por -1.","Achetez les cartes Tech Organix pour -1."
 "tech:116:name","Klonlabor","Laboratorio di Clonazione","Laboratoria Klonowania","Laboratorio de Clonación","Laboratoires de Clonage"
-"tech:117:effect","Kaufe Electrix Tech für -1.","Acquista carte Tech Electrix per -1.","Kupuj karty technologii Electrix za -1.","Compra cartas de tecnología Electrix por -1.","Achetez les cartes technologie Electrix pour -1."
+"tech:117:effect","Kaufe Electrix-Tech für -1.","Acquista carte Tech Electrix per -1.","Kupuj karty Tech Electrix za -1.","Compra cartas de tecnología Electrix por -1.","Achetez les cartes Tech Electrix pour -1."
 "tech:117:name","Physikakademie","Accademia di Fisica","Akademia Fizyki","Academia de Física","Académie de Physique"
 "tech:118:effect","Kaufe (Star Card) Tech für -1.
-(Karten mit aufgedrucktem ⭐)","Acquista carte Tech (Star Cards) per -1. (Qualsiasi carta con una ⭐ stampata)","Kupuj karty technologii (Star Cards) za -1. (Dowolna karta z wydrukowaną ⭐)","Compra cartas de tecnología (Star Cards) por -1. (Cualquier carta con ⭐ impresa)","Achetez les cartes technologie (Star Cards) pour -1. (Toute carte avec une ⭐ imprimée)"
+(Karten mit aufgedrucktem ⭐)","Acquista carte Tech (Star Cards) per -1. (Qualsiasi carta con una ⭐ stampata)","Kupuj karty Tech (Star Cards) za -1. (Dowolna karta z wydrukowaną ⭐)","Compra cartas de tecnología (Star Cards) por -1. (Cualquier carta con ⭐ impresa)","Achetez les cartes Tech (Star Cards) pour -1. (Toute carte avec une ⭐ imprimée)"
 "tech:118:name","Himmelshaken","Gancio Celeste","Niebiański Hak","Gancho Celeste","Crochet Céleste"
 "tech:119:effect","⭐","⭐","⭐","⭐","⭐"
 "tech:119:name","Märkte","Mercati","Rynki","Mercados","Marchés"
-"tech:11:effect","Wenn dieser Sektor neu ist, erhalte 3 Dust.","Se questo settore è nuovo, guadagna 3 Dust.","Jeśli ten sektor jest nowy, zdobądź 3 Dust.","Si este sector es nuevo, gana 3 Dust extra.","Si ce secteur est nouveau, gagnez 3 Dust."
+"tech:11:effect","Wenn dieser Sektor neu ist, erhalte 3 Dust.","Se questo settore è nuovo, guadagna 3 Dust.","Jeśli ten sektor jest nowy, zdobądź 3 Dust.","Si este sector es nuevo, gana 3 Dust extra.","Si ce secteur est neuf, gagnez 3 Dust."
 "tech:11:name","Hangar","Hangar","Hangary","Hangares","Hangars"
 "tech:120:effect","⭐","⭐","⭐","⭐","⭐"
 "tech:120:name","Märkte","Mercati","Rynki","Mercados","Marchés"
@@ -508,18 +508,18 @@ Si este sector está totalmente optimizado, gana 2 Organix en su lugar.","Gagnez
 "tech:128:effect","Wenn du einen Sektor komplettierst, erhalte 1 Thrust.","Quando completi un settore, guadagna 1 Thrust.","Gdy kompletujesz sektor, zdobądź 1 Thrust.","Cuando completas un sector, gana 1 Thrust extra.","Quand vous complétez un secteur, gagnez 1 Thrust."
 "tech:128:name","1-G-Schub","Spinta 1-G","Ciąg 1-G","Empuje 1-G","Poussée 1-G"
 "tech:129:effect","Lagere für jede Karte hier 1 Vorrat dieser Farbe auf diesem Sektor (auch für diese Karte).","Per ogni carta qui, immagazzina 1 risorsa di quel colore su questo settore.
-(inclusa questa)","Za każdą kartę tutaj, zmagazynuj 1 zasób tego koloru w tym sektorze. (włącznie z tą)","Por cada carta aquí, almacena 1 suministro de ese color en este sector (incluida esta).","Pour chaque carte ici, stockez 1 matériel de cette couleur sur ce secteur (y compris celle-ci)."
+(inclusa questa)","Za każdą kartę tutaj zmagazynuj 1 zasób jej koloru w tym sektorze. (włącznie z tą)","Por cada carta aquí, almacena 1 suministro de ese color en este sector (incluida esta).","Pour chaque carte ici, stockez 1 matériel de cette couleur sur ce secteur (y compris celle-ci)."
 "tech:129:name","Replikatoren","Replicatori","Replikatory","Replicadores","Réplicateurs"
-"tech:12:effect","Wenn dieser Sektor neu ist, erhalte 3 Dust.","Se questo settore è nuovo, guadagna 3 Dust.","Jeśli ten sektor jest nowy, zdobądź 3 Dust.","Si este sector es nuevo, gana 3 Dust extra.","Si ce secteur est nouveau, gagnez 3 Dust."
+"tech:12:effect","Wenn dieser Sektor neu ist, erhalte 3 Dust.","Se questo settore è nuovo, guadagna 3 Dust.","Jeśli ten sektor jest nowy, zdobądź 3 Dust.","Si este sector es nuevo, gana 3 Dust extra.","Si ce secteur est neuf, gagnez 3 Dust."
 "tech:12:name","Hangar","Hangar","Hangary","Hangares","Hangars"
 "tech:130:effect","Lagere für jede Karte hier 1 Vorrat dieser Farbe auf diesem Sektor (auch für diese Karte).","Per ogni carta qui, immagazzina 1 risorsa di quel colore su questo settore.
-(inclusa questa)","Za każdą kartę tutaj, zmagazynuj 1 zasób tego koloru w tym sektorze. (włącznie z tą)","Por cada carta aquí, almacena 1 suministro de ese color en este sector (incluida esta).","Pour chaque carte ici, stockez 1 matériel de cette couleur sur ce secteur (y compris celle-ci)."
+(inclusa questa)","Za każdą kartę tutaj zmagazynuj 1 zasób jej koloru w tym sektorze. (włącznie z tą)","Por cada carta aquí, almacena 1 suministro de ese color en este sector (incluida esta).","Pour chaque carte ici, stockez 1 matériel de cette couleur sur ce secteur (y compris celle-ci)."
 "tech:130:name","Replikatoren","Replicatori","Replikatory","Replicadores","Réplicateurs"
 "tech:131:effect","Recycle 2, archiviere sie verdeckt unter diesem Sektor, ziehe dann 2.","Ricicla 2, archiviale a faccia in giù sotto questo settore, poi pesca 2.","Zrecykluj 2, zarchiwizuj je zakryte pod tym sektorem, następnie dobierz 2.","Recicla 2, archívalas boca abajo bajo este sector, luego roba 2.","Recyclez 2, archivez-les face cachée sous ce secteur, puis piochez 2."
 "tech:131:name","Verschränktes Funkgerät","Radio a Entanglement","Radio Splątania Kwantowego","Radio Entrelazada","Radio Intriquée"
 "tech:132:effect","Recycle 2, archiviere sie verdeckt unter diesem Sektor, ziehe dann 2.","Ricicla 2, archiviale a faccia in giù sotto questo settore, poi pesca 2.","Zrecykluj 2, zarchiwizuj je zakryte pod tym sektorem, następnie dobierz 2.","Recicla 2, archívalas boca abajo bajo este sector, luego roba 2.","Recyclez 2, archivez-les face cachée sous ce secteur, puis piochez 2."
 "tech:132:name","Verschränktes Funkgerät","Radio a Entanglement","Radio Splątania Kwantowego","Radio Entrelazada","Radio Intriquée"
-"tech:133:effect","Wenn du 6 vollständig optimierte Sektoren hast: 12⭐","Se hai 6 settori completamente ottimizzati: 12⭐","Jeśli masz 6 w pełni zoptymalizowanych sektorów: 12⭐","Si tienes 6 sectores totalmente optimizados: 12⭐","Si vous avez 6 secteurs entièrement optimisés : 12⭐"
+"tech:133:effect","Wenn du 6 vollständig optimierte Sektoren hast: 12⭐","Se hai 6 settori pienamente ottimizzati: 12⭐","Jeśli masz 6 w pełni zoptymalizowanych sektorów: 12⭐","Si tienes 6 sectores totalmente optimizados: 12⭐","Si vous avez 6 secteurs entièrement optimisés : 12⭐"
 "tech:133:name","Tektonischer Beschleuniger","Acceleratore Tettonico","Akcelerator Tektoniczny","Acelerador Tectónico","Accélérateur Tectonique"
 "tech:134:effect","Wenn du 9+ archivierte Karten hast: 12⭐","Se hai 9 o più carte archiviate: 12⭐","Jeśli masz 9+ zarchiwizowanych kart: 12⭐","Si tienes 9 o más cartas archivadas:
 12⭐","Si vous avez 9 cartes archivées ou plus : 12⭐"
@@ -528,9 +528,9 @@ Si este sector está totalmente optimizado, gana 2 Organix en su lugar.","Gagnez
 "tech:135:name","Genesis-Gerät","Dispositivo Genesi","Urządzenie Genesis","Dispositivo Génesis","Dispositif Genèse"
 "tech:136:effect","Wenn du 9+ gelagerte Vorräte hast: 12⭐","Se hai 9 o più risorse immagazzinate: 12⭐","Jeśli masz 9+ zmagazynowanych zasobów: 12⭐","Si tienes 9 o más suministros almacenados: 12⭐","Si vous avez 9+ matériels stockés : 12⭐"
 "tech:136:name","Weltraumaufzug","Ascensore Spaziale","Winda Kosmiczna","Ascensor Espacial","Ascenseur Spatial"
-"tech:137:effect","Wenn du 6 komplette Sektoren hast: 12⭐","Se hai 6 settori completati:
+"tech:137:effect","Wenn du 6 komplette Sektoren hast: 12⭐","Se hai 6 settori completi:
 12⭐","Jeśli masz 6 skompletowanych sektorów: 12⭐","Si tienes 6 sectores completos:
-12⭐","Si vous avez 6 secteurs complétés :
+12⭐","Si vous avez 6 secteurs complets :
 12⭐"
 "tech:137:name","Atmosphärenprozessor","Processore Atmosferico","Procesor Atmosfery","Procesador de Atmósfera","Processeur Atmosphérique"
 "tech:13:effect","Decke 1 Sektor auf, erhalte 1 Vorrat dieser Farbe. Du darfst darauf bieten.","Rivela 1 settore, guadagna 1 risorsa di quel colore. Puoi fare un’offerta per esso.","Odkryj 1 sektor, zdobądź 1 zasób tego koloru. Możesz o niego licytować.","Revela 1 sector, gana 1 suministro de ese color. Puedes pujar por él.","Révélez 1 secteur, gagnez 1 matériel de cette couleur. Vous pouvez enchérir dessus."
@@ -541,15 +541,15 @@ Si este sector está totalmente optimizado, gana 2 Organix en su lugar.","Gagnez
 "tech:15:name","Chemischer Synthesizer","Sintetizzatore Chimico","Syntezator Chemiczny","Sintetizador Químico","Synthétiseur Chimique"
 "tech:16:effect","Archiviere 1 Karte verdeckt unter diesem Sektor, ziehe dann 1.","Archivia 1 carta a faccia in giù sotto questo settore, poi pesca 1.","Zarchiwizuj 1 kartę zakrytą pod tym sektorem, następnie dobierz 1.","Archiva 1 carta boca abajo bajo este sector, luego roba 1.","Archivez 1 carte face cachée sous ce secteur, puis piochez 1."
 "tech:16:name","Chemischer Synthesizer","Sintetizzatore Chimico","Syntezator Chemiczny","Sintetizador Químico","Synthétiseur Chimique"
-"tech:17:effect","Fusioniere 1:1 zweimal. Wenn dieser Sektor neu ist, ziehe zusätzlich 1.","Fondi 1:1 due volte. Se questo settore è nuovo, pesca anche 1.","Połącz 1:1 dwa razy. Jeśli ten sektor jest nowy, dobierz dodatkowo 1.","Fusiona 1:1 dos veces. Si este sector es nuevo, roba también 1.","Fusionnez 1:1 deux fois. Si ce secteur est nouveau, piochez aussi 1."
+"tech:17:effect","Fusioniere 1:1 zweimal. Wenn dieser Sektor neu ist, ziehe zusätzlich 1.","Fondi 1:1 due volte. Se questo settore è nuovo, pesca anche 1.","Połącz 1:1 dwa razy. Jeśli ten sektor jest nowy, dobierz dodatkowo 1.","Fusiona 1:1 dos veces. Si este sector es nuevo, roba también 1.","Fusionnez 1:1 deux fois. Si ce secteur est neuf, piochez aussi 1."
 "tech:17:name","Asteroideneinfang","Cattura di Asteroidi","Przechwytywanie Asteroid","Captura de Asteroides","Capture d’Astéroïde"
-"tech:18:effect","Fusioniere 1:1 zweimal. Wenn dieser Sektor neu ist, ziehe zusätzlich 1.","Fondi 1:1 due volte. Se questo settore è nuovo, pesca anche 1.","Połącz 1:1 dwa razy. Jeśli ten sektor jest nowy, dobierz dodatkowo 1.","Fusiona 1:1 dos veces. Si este sector es nuevo, roba también 1.","Fusionnez 1:1 deux fois. Si ce secteur est nouveau, piochez aussi 1."
+"tech:18:effect","Fusioniere 1:1 zweimal. Wenn dieser Sektor neu ist, ziehe zusätzlich 1.","Fondi 1:1 due volte. Se questo settore è nuovo, pesca anche 1.","Połącz 1:1 dwa razy. Jeśli ten sektor jest nowy, dobierz dodatkowo 1.","Fusiona 1:1 dos veces. Si este sector es nuevo, roba también 1.","Fusionnez 1:1 deux fois. Si ce secteur est neuf, piochez aussi 1."
 "tech:18:name","Asteroideneinfang","Cattura di Asteroidi","Przechwytywanie Asteroid","Captura de Asteroides","Capture d’Astéroïde"
-"tech:19:effect","Archiviere 1 Karte verdeckt unter diesem Sektor. Wenn dieser vollständig optimiert ist, ziehe zusätzlich 2.","Archivia 1 carta a faccia in giù sotto questo settore. Se è completamente ottimizzato, pesca anche 2.","Zarchiwizuj 1 kartę zakrytą pod tym sektorem. Jeśli jest w pełni zoptymalizowany, dobierz dodatkowo 2.","Archiva 1 carta boca abajo bajo este sector. Si está totalmente optimizado, roba también 2.","Archivez 1 carte face cachée sous ce secteur. Si celui-ci est entièrement optimisé, piochez aussi 2."
+"tech:19:effect","Archiviere 1 Karte verdeckt unter diesem Sektor. Wenn dieser vollständig optimiert ist, ziehe zusätzlich 2.","Archivia 1 carta a faccia in giù sotto questo settore. Se è pienamente ottimizzato, pesca anche 2.","Zarchiwizuj 1 kartę zakrytą pod tym sektorem. Jeśli jest w pełni zoptymalizowany, dobierz dodatkowo 2.","Archiva 1 carta boca abajo bajo este sector. Si está totalmente optimizado, roba también 2.","Archivez 1 carte face cachée sous ce secteur. Si celui-ci est entièrement optimisé, piochez aussi 2."
 "tech:19:name","Gedruckte Bibliothek","Biblioteca Stampata","Drukowana Biblioteka","Biblioteca Impresa","Bibliothèque Imprimée"
 "tech:1:effect","Kein Effekt","Nessun effetto","Brak efektu","Sin efecto","Aucun effet"
 "tech:1:name","Magnetnetz","Rete Magnetica","Sieć Magnetyczna","Red Magnética","Filet Magnétique"
-"tech:20:effect","Archiviere 1 Karte verdeckt unter diesem Sektor. Wenn dieser vollständig optimiert ist, ziehe zusätzlich 2.","Archivia 1 carta a faccia in giù sotto questo settore. Se è completamente ottimizzato, pesca anche 2.","Zarchiwizuj 1 kartę zakrytą pod tym sektorem. Jeśli jest w pełni zoptymalizowany, dobierz dodatkowo 2.","Archiva 1 carta boca abajo bajo este sector. Si está totalmente optimizado, roba también 2.","Archivez 1 carte face cachée sous ce secteur. Si celui-ci est entièrement optimisé, piochez aussi 2."
+"tech:20:effect","Archiviere 1 Karte verdeckt unter diesem Sektor. Wenn dieser vollständig optimiert ist, ziehe zusätzlich 2.","Archivia 1 carta a faccia in giù sotto questo settore. Se è pienamente ottimizzato, pesca anche 2.","Zarchiwizuj 1 kartę zakrytą pod tym sektorem. Jeśli jest w pełni zoptymalizowany, dobierz dodatkowo 2.","Archiva 1 carta boca abajo bajo este sector. Si está totalmente optimizado, roba también 2.","Archivez 1 carte face cachée sous ce secteur. Si celui-ci est entièrement optimisé, piochez aussi 2."
 "tech:20:name","Gedruckte Bibliothek","Biblioteca Stampata","Drukowana Biblioteka","Biblioteca Impresa","Bibliothèque Imprimée"
 "tech:21:effect","Jeder Spieler zieht 1.","Ogni giocatore pesca 1.","Każdy gracz dobiera 1.","Cada jugador roba 1.","Chaque joueur pioche 1."
 "tech:21:name","Gaswolke","Nube di Gas","Obłok Gazu","Nube de Gas","Nuage de Gaz"
@@ -560,28 +560,28 @@ Si este sector está totalmente optimizado, gana 2 Organix en su lugar.","Gagnez
 "tech:24:effect","Recycle 1, ziehe dann 1.","Ricicla 1, poi pesca 1.","Zrecykluj 1, następnie dobierz 1.","Recicla 1, luego roba 1.","Recyclez 1, puis piochez 1."
 "tech:24:name","Osmosefilter","Filtro a Osmosi","Filtr Osmotyczny","Filtro de Ósmosis","Filtre à Osmose"
 "tech:25:effect","Ziehe 1, recycle sie dann.","Pesca 1, poi riciclala.","Dobierz 1, następnie zrecykluj ją.","Roba 1, luego recíclala.","Piochez 1, puis recyclez-la."
-"tech:25:name","passierter Komet","Cometa di Passaggio","Przelatująca Kometa","Cometa de Paso","Comète de Passage"
+"tech:25:name","Passierter Komet","Cometa di Passaggio","Przelatująca Kometa","Cometa de Paso","Comète de Passage"
 "tech:26:effect","Ziehe 1, recycle sie dann.","Pesca 1, poi riciclala.","Dobierz 1, następnie zrecykluj ją.","Roba 1, luego recíclala.","Piochez 1, puis recyclez-la."
-"tech:26:name","passierter Komet","Cometa di Passaggio","Przelatująca Kometa","Cometa de Paso","Comète de Passage"
+"tech:26:name","Passierter Komet","Cometa di Passaggio","Przelatująca Kometa","Cometa de Paso","Comète de Passage"
 "tech:27:effect","Wenn dieser Sektor komplett ist, erhalte 1 Organix oder 1 Electrix.","Se questo settore è completo, guadagna 1 Organix o 1 Electrix.","Jeśli ten sektor jest kompletny, zdobądź 1 Organix lub 1 Electrix.","Si este sector está completo, gana 1 Organix o 1 Electrix extra.","Si ce secteur est complet, gagnez 1 Organix ou 1 Electrix."
-"tech:27:name","Magnet Rumpf","Scafo Magnetizzato","Namagnesowany Kadłub","Casco Magnetizado","Coque Magnétisée"
+"tech:27:name","Magnetrumpf","Scafo Magnetizzato","Namagnesowany Kadłub","Casco Magnetizado","Coque Magnétisée"
 "tech:28:effect","Wenn dieser Sektor komplett ist, erhalte 1 Organix oder 1 Electrix.","Se questo settore è completo, guadagna 1 Organix o 1 Electrix.","Jeśli ten sektor jest kompletny, zdobądź 1 Organix lub 1 Electrix.","Si este sector está completo, gana 1 Organix o 1 Electrix extra.","Si ce secteur est complet, gagnez 1 Organix ou 1 Electrix."
-"tech:28:name","Magnet Rumpf","Scafo Magnetizzato","Namagnesowany Kadłub","Casco Magnetizado","Coque Magnétisée"
-"tech:29:effect","Wenn dieser Sektor neu ist, fusioniere 1:1 zweimal.","Se questo settore è nuovo, fondi 1:1 due volte.","Jeśli ten sektor jest nowy, połącz 1:1 dwa razy.","Si este sector es nuevo, fusiona 1:1 dos veces.","Si ce secteur est nouveau, fusionnez 1:1 deux fois."
+"tech:28:name","Magnetrumpf","Scafo Magnetizzato","Namagnesowany Kadłub","Casco Magnetizado","Coque Magnétisée"
+"tech:29:effect","Wenn dieser Sektor neu ist, fusioniere 1:1 zweimal.","Se questo settore è nuovo, fondi 1:1 due volte.","Jeśli ten sektor jest nowy, połącz 1:1 dwa razy.","Si este sector es nuevo, fusiona 1:1 dos veces.","Si ce secteur est neuf, fusionnez 1:1 deux fois."
 "tech:29:name","Wasserstoffzelle","Cella a Idrogeno","Ogniwo Wodorowe","Celda de Hidrógeno","Cellule à Hydrogène"
 "tech:2:effect","Kein Effekt","Nessun effetto","Brak efektu","Sin efecto","Aucun effet"
 "tech:2:name","Magnetnetz","Rete Magnetica","Sieć Magnetyczna","Red Magnética","Filet Magnétique"
-"tech:30:effect","Wenn dieser Sektor neu ist, fusioniere 1:1 zweimal.","Se questo settore è nuovo, fondi 1:1 due volte.","Jeśli ten sektor jest nowy, połącz 1:1 dwa razy.","Si este sector es nuevo, fusiona 1:1 dos veces.","Si ce secteur est nouveau, fusionnez 1:1 deux fois."
+"tech:30:effect","Wenn dieser Sektor neu ist, fusioniere 1:1 zweimal.","Se questo settore è nuovo, fondi 1:1 due volte.","Jeśli ten sektor jest nowy, połącz 1:1 dwa razy.","Si este sector es nuevo, fusiona 1:1 dos veces.","Si ce secteur est neuf, fusionnez 1:1 deux fois."
 "tech:30:name","Wasserstoffzelle","Cella a Idrogeno","Ogniwo Wodorowe","Celda de Hidrógeno","Cellule à Hydrogène"
-"tech:31:effect","Fusioniere 1:1 dreimal. Wenn dieser Sektor vollständig optimiert ist, lagere 1 Metals.","Fondi 1:1 tre volte. Se questo settore è completamente ottimizzato, immagazzina 1 Metals.","Połącz 1:1 trzy razy. Jeśli ten sektor jest w pełni zoptymalizowany, zmagazynuj 1 Metals.","Fusiona 1:1 tres veces.
+"tech:31:effect","Fusioniere 1:1 dreimal. Wenn dieser Sektor vollständig optimiert ist, lagere 1 Metals.","Fondi 1:1 tre volte. Se questo settore è pienamente ottimizzato, immagazzina 1 Metals.","Połącz 1:1 trzy razy. Jeśli ten sektor jest w pełni zoptymalizowany, zmagazynuj 1 Metals.","Fusiona 1:1 tres veces.
 Si este sector está totalmente optimizado, almacena 1 Metals extra.","Fusionnez 1:1 trois fois. Si ce secteur est entièrement optimisé, stockez 1 Metals."
 "tech:31:name","Schmelze","Fonderia","Huta","Fundición","Fonderie"
-"tech:32:effect","Fusioniere 1:1 dreimal. Wenn dieser Sektor vollständig optimiert ist, lagere 1 Metals.","Fondi 1:1 tre volte. Se questo settore è completamente ottimizzato, immagazzina 1 Metals.","Połącz 1:1 trzy razy. Jeśli ten sektor jest w pełni zoptymalizowany, zmagazynuj 1 Metals.","Fusiona 1:1 tres veces.
+"tech:32:effect","Fusioniere 1:1 dreimal. Wenn dieser Sektor vollständig optimiert ist, lagere 1 Metals.","Fondi 1:1 tre volte. Se questo settore è pienamente ottimizzato, immagazzina 1 Metals.","Połącz 1:1 trzy razy. Jeśli ten sektor jest w pełni zoptymalizowany, zmagazynuj 1 Metals.","Fusiona 1:1 tres veces.
 Si este sector está totalmente optimizado, almacena 1 Metals extra.","Fusionnez 1:1 trois fois. Si ce secteur est entièrement optimisé, stockez 1 Metals."
 "tech:32:name","Schmelze","Fonderia","Huta","Fundición","Fonderie"
-"tech:33:effect","Fusioniere Dust 1:1 beliebig oft.","Fondi Dust 1:1 quante volte vuoi.","Łącz Dust 1:1 dowolną liczbę razy.","Fusiona 1:1 cualquier Dust extra.","Fusionnez 1:1 n’importe quel Dust."
+"tech:33:effect","Fusioniere Dust 1:1 beliebig oft.","Fondi Dust 1:1 quante volte vuoi.","Łącz Dust 1:1 dowolną liczbę razy.","Fusiona Dust 1:1 tantas veces como quieras.","Fusionnez 1:1 autant de Dust que vous voulez."
 "tech:33:name","Fusionssynthesizer","Sintetizzatore a Fusione","Syntezator Fuzyjny","Sintetizador de Fusión","Synthétiseur à Fusion"
-"tech:34:effect","Fusioniere Dust 1:1 beliebig oft.","Fondi Dust 1:1 quante volte vuoi.","Łącz Dust 1:1 dowolną liczbę razy.","Fusiona 1:1 cualquier Dust extra.","Fusionnez 1:1 n’importe quel Dust."
+"tech:34:effect","Fusioniere Dust 1:1 beliebig oft.","Fondi Dust 1:1 quante volte vuoi.","Łącz Dust 1:1 dowolną liczbę razy.","Fusiona Dust 1:1 tantas veces como quieras.","Fusionnez 1:1 autant de Dust que vous voulez."
 "tech:34:name","Fusionssynthesizer","Sintetizzatore a Fusione","Syntezator Fuzyjny","Sintetizador de Fusión","Synthétiseur à Fusion"
 "tech:35:effect","Recycle 1, aber erhalte den Vorrat zweimal.","Ricicla 1, ma guadagna la risorsa due volte.","Zrecykluj 1, ale zdobądź zasób dwa razy.","Recicla 1, pero gana el suministro dos veces.","Recyclez 1, mais gagnez le matériel deux fois."
 "tech:35:name","Reinigungsroboter","Robot Pulitore","Robot Sprzątający","Robot de Limpieza","Robot Nettoyeur"
@@ -593,11 +593,11 @@ Puoi fare un’offerta per 1.","Odkryj 2 ekspedycje. Możesz licytować o 1.","R
 "tech:38:effect","Decke 2 Expeditionen auf. Du darfst auf 1 bieten.","Rivela 2 spedizioni.
 Puoi fare un’offerta per 1.","Odkryj 2 ekspedycje. Możesz licytować o 1.","Revela 2 expediciones. Puedes pujar por 1.","Révélez 2 expéditions. Vous pouvez enchérir sur 1."
 "tech:38:name","Tiefraumradar","Radar dello Spazio","Radar Kosmosu","Radar del Espacio Profundo","Radar de l’Espace"
-"tech:39:effect","Wenn dieser Sektor neu ist, recycle bis zu 2, ziehe dann ebenso viele.","Se questo settore è nuovo, ricicla fino a 2, poi pesca altrettante.","Jeśli ten sektor jest nowy, zrecykluj do 2, następnie dobierz tyle samo.","Si este sector es nuevo, recicla hasta 2, luego roba esa cantidad.","Si ce secteur est nouveau, recyclez jusqu’à 2, puis piochez autant."
+"tech:39:effect","Wenn dieser Sektor neu ist, recycle bis zu 2, ziehe dann ebenso viele.","Se questo settore è nuovo, ricicla fino a 2, poi pesca altrettante.","Jeśli ten sektor jest nowy, zrecykluj do 2, następnie dobierz tyle samo.","Si este sector es nuevo, recicla hasta 2, luego roba esa cantidad.","Si ce secteur est neuf, recyclez jusqu’à 2, puis piochez autant."
 "tech:39:name","Robotische Arbeitskräfte","Manodopera Robotica","Robotyczna Siła Robocza","Mano de Obra Robótica","Main-d’Œuvre Robotique"
 "tech:3:effect","⭐","⭐","⭐","⭐","⭐"
 "tech:3:name","Aufblasbare Habitate","Habitat Gonfiabili","Nadmuchiwane Habitaty","Hábitats Inflables","Habitats Gonflables"
-"tech:40:effect","Wenn dieser Sektor neu ist, recycle bis zu 2, ziehe dann ebenso viele.","Se questo settore è nuovo, ricicla fino a 2, poi pesca altrettante.","Jeśli ten sektor jest nowy, zrecykluj do 2, następnie dobierz tyle samo.","Si este sector es nuevo, recicla hasta 2, luego roba esa cantidad.","Si ce secteur est nouveau, recyclez jusqu’à 2, puis piochez autant."
+"tech:40:effect","Wenn dieser Sektor neu ist, recycle bis zu 2, ziehe dann ebenso viele.","Se questo settore è nuovo, ricicla fino a 2, poi pesca altrettante.","Jeśli ten sektor jest nowy, zrecykluj do 2, następnie dobierz tyle samo.","Si este sector es nuevo, recicla hasta 2, luego roba esa cantidad.","Si ce secteur est neuf, recyclez jusqu’à 2, puis piochez autant."
 "tech:40:name","Robotische Arbeitskräfte","Manodopera Robotica","Robotyczna Siła Robocza","Mano de Obra Robótica","Main-d’Œuvre Robotique"
 "tech:41:effect","Decke 1 Sektor auf, erhalte 1 Vorrat dieser Farbe. Du darfst darauf bieten.","Rivela 1 settore, guadagna 1 risorsa di quel colore. Puoi fare un’offerta per esso.","Odkryj 1 sektor, zdobądź 1 zasób tego koloru. Możesz o niego licytować.","Revela 1 sector, gana 1 suministro de ese color. Puedes pujar por él.","Révélez 1 secteur, gagnez 1 matériel de cette couleur. Vous pouvez enchérir dessus."
 "tech:41:name","Transform. Rumpf","Scafo Trasformabile","Przekształcalny Kadłub","Casco Transformable","Coque Transformable"
@@ -615,7 +615,7 @@ Puoi fare un’offerta per 1.","Odkryj 2 ekspedycje. Możesz licytować o 1.","R
 "tech:47:name","Müllpresse","Compattatore di Rifiuti","Zgniatarka Śmieci","Compactador de Basura","Compacteur à Déchets"
 "tech:48:effect","Wenn du Dust-Karten recycelst, erhalte 1 zusätzlichen Dust.","Quando ricicli carte Dust, guadagna 1 Dust extra.","Gdy recyklujesz karty Dust, zdobądź 1 dodatkowy Dust.","Cuando reciclas cartas Dust, gana 1 Dust extra.","Quand vous recyclez des cartes Dust, gagnez 1 Dust supplémentaire."
 "tech:48:name","Müllpresse","Compattatore di Rifiuti","Zgniatarka Śmieci","Compactador de Basura","Compacteur à Déchets"
-"tech:49:effect","Kaufe Liquids Tech für -1.","Acquista carte Tech Liquids per -1.","Kupuj karty technologii Liquids za -1.","Compra cartas de tecnología Liquids por -1.","Achetez les cartes technologie Liquids pour -1."
+"tech:49:effect","Kaufe Liquids-Tech für -1.","Acquista carte Tech Liquids per -1.","Kupuj karty Tech Liquids za -1.","Compra cartas de tecnología Liquids por -1.","Achetez les cartes Tech Liquids pour -1."
 "tech:49:name","Abfallwirtschaft","Gestione dei Rifiuti","Gospodarka Odpadami","Gestión de Residuos","Gestion des Déchets"
 "tech:4:effect","⭐","⭐","⭐","⭐","⭐"
 "tech:4:name","Aufblasbare Habitate","Habitat Gonfiabili","Nadmuchiwane Habitaty","Hábitats Inflables","Habitats Gonflables"
@@ -623,10 +623,10 @@ Puoi fare un’offerta per 1.","Odkryj 2 ekspedycje. Możesz licytować o 1.","R
 "tech:50:name","Strahlungsabsorber","Assorbitore di Radiazioni","Absorber Promieniowania","Absorbente de Radiación","Absorbeur de Radiations"
 "tech:51:effect","Wenn dieser Sektor komplett ist, recycle bis zu 3, ziehe dann ebenso viele.","Se questo settore è completo, ricicla fino a 3, poi pesca altrettante.","Jeśli ten sektor jest kompletny, zrecykluj do 3, następnie dobierz tyle samo.","Si este sector está completo, recicla hasta 3, luego roba esa cantidad.","Si ce secteur est complet, recyclez jusqu’à 3, puis piochez autant."
 "tech:51:name","Strahlungsabsorber","Assorbitore di Radiazioni","Absorber Promieniowania","Absorbente de Radiación","Absorbeur de Radiations"
-"tech:52:effect","Wenn dieser Sektor neu ist, ziehe 1.","Se questo settore è nuovo, pesca 1.","Jeśli ten sektor jest nowy, dobierz 1.","Si este sector es nuevo, roba 1.","Si ce secteur est nouveau, piochez 1."
-"tech:52:name","Atmokontrollsystem","Controllo Atmosferico","Kontroli Atmosfery","Control Atmosférico","Contrôle Atmosphérique"
-"tech:53:effect","Wenn dieser Sektor neu ist, ziehe 1.","Se questo settore è nuovo, pesca 1.","Jeśli ten sektor jest nowy, dobierz 1.","Si este sector es nuevo, roba 1.","Si ce secteur est nouveau, piochez 1."
-"tech:53:name","Atmokontrollsystem","Controllo Atmosferico","Kontroli Atmosfery","Control Atmosférico","Contrôle Atmosphérique"
+"tech:52:effect","Wenn dieser Sektor neu ist, ziehe 1.","Se questo settore è nuovo, pesca 1.","Jeśli ten sektor jest nowy, dobierz 1.","Si este sector es nuevo, roba 1.","Si ce secteur est neuf, piochez 1."
+"tech:52:name","Atmokontrollsystem","Controllo Atmosferico","Kontrola Atmosfery","Control Atmosférico","Contrôle Atmosphérique"
+"tech:53:effect","Wenn dieser Sektor neu ist, ziehe 1.","Se questo settore è nuovo, pesca 1.","Jeśli ten sektor jest nowy, dobierz 1.","Si este sector es nuevo, roba 1.","Si ce secteur est neuf, piochez 1."
+"tech:53:name","Atmokontrollsystem","Controllo Atmosferico","Kontrola Atmosfery","Control Atmosférico","Contrôle Atmosphérique"
 "tech:54:effect","Decke 1 Expedition auf. Du darfst darauf bieten.","Rivela 1 spedizione. Puoi fare un’offerta per essa.","Odkryj 1 ekspedycję. Możesz o nią licytować.","Revela 1 expedición. Puedes pujar por ella.","Révélez 1 expédition. Vous pouvez enchérir dessus."
 "tech:54:name","Eisabbau","Estrazione di Ghiaccio","Wydobycie Lodu","Minería de Hielo","Extraction de Glace"
 "tech:55:effect","Decke 1 Expedition auf. Du darfst darauf bieten.","Rivela 1 spedizione. Puoi fare un’offerta per essa.","Odkryj 1 ekspedycję. Możesz o nią licytować.","Revela 1 expedición. Puedes pujar por ella.","Révélez 1 expédition. Vous pouvez enchérir dessus."
@@ -646,17 +646,17 @@ Puoi fare un’offerta per 1.","Odkryj 2 ekspedycje. Możesz licytować o 1.","R
 "tech:61:effect","⭐⭐","⭐⭐","⭐⭐","⭐⭐","⭐⭐"
 "tech:61:name","Bodenerzeuger","Generatore di Suolo","Generator Gleby","Generador de Suelo","Générateur de Sol"
 "tech:62:effect","Wenn du eine Liquids-Karte platzierst, ziehe 1.
-(auch bei dieser Karte).","Quando posizioni Liquids: Pesca 1.
+(auch bei dieser Karte)","Quando posizioni Liquids: Pesca 1.
 (inclusa questa)","Gdy umieszczasz Liquids: dobierz 1.
 (włącznie z tą)","Cuando coloques Liquids: roba 1.
-(incluido esto)","Quand vous posez Liquids : Piochez 1.
+(incluida esta)","Quand vous posez Liquids : Piochez 1.
 (y compris celle-ci)"
 "tech:62:name","Biodome","Biodomi","Biokopuły","Biodomos","Biodômes"
 "tech:63:effect","Wenn du eine Liquids-Karte platzierst, ziehe 1.
-(auch bei dieser Karte).","Quando posizioni Liquids: Pesca 1.
+(auch bei dieser Karte)","Quando posizioni Liquids: Pesca 1.
 (inclusa questa)","Gdy umieszczasz Liquids: dobierz 1.
 (włącznie z tą)","Cuando coloques Liquids: roba 1.
-(incluido esto)","Quand vous posez Liquids : Piochez 1.
+(incluida esta)","Quand vous posez Liquids : Piochez 1.
 (y compris celle-ci)"
 "tech:63:name","Biodome","Biodomi","Biokopuły","Biodomos","Biodômes"
 "tech:64:effect","Ziehe 2. Wenn dieser Sektor komplett ist, ziehe stattdessen 3.","Pesca 2. Se questo settore è completo, pesca 3 invece.","Dobierz 2. Jeśli ten sektor jest kompletny, dobierz zamiast tego 3.","Roba 2. Si este sector está completo, roba 3 en su lugar.","Piochez 2. Si ce secteur est complet, piochez 3 à la place."
@@ -664,18 +664,18 @@ Puoi fare un’offerta per 1.","Odkryj 2 ekspedycje. Możesz licytować o 1.","R
 "tech:65:effect","Ziehe 2. Wenn dieser Sektor komplett ist, ziehe stattdessen 3.","Pesca 2. Se questo settore è completo, pesca 3 invece.","Dobierz 2. Jeśli ten sektor jest kompletny, dobierz zamiast tego 3.","Roba 2. Si este sector está completo, roba 3 en su lugar.","Piochez 2. Si ce secteur est complet, piochez 3 à la place."
 "tech:65:name","Eisschild","Scudo di Ghiaccio","Tarcza Lodowa","Escudo de Hielo","Bouclier de Glace"
 "tech:66:effect","Decke 3 Sektoren auf. Überspringe das Bieten, erhalte einen Dust- oder Liquids-Sektor kostenlos.","Rivela 3 settori.
-Salta l’offerta, guadagna Dust o Liquids settore gratuitamente.","Odkryj 3 sektory.
+Salta l’offerta, guadagna gratuitamente un settore Dust o Liquids.","Odkryj 3 sektory.
 Pomiń licytację, zdobądź Dust lub Liquids sektor za darmo.","Revela 3 sectores.
 Sin pujar, gana un sector Dust o Liquids gratis.","Révélez 3 secteurs.
-Sautez les enchères, gagnez Dust ou Liquids secteur gratuitement."
+Sans enchère, gagnez gratuitement un secteur Dust ou Liquids."
 "tech:66:name","Aufblasbarer Rumpf","Scafo Gonfiabile","Nadmuchiwany Kadłub","Casco Inflable","Coque Gonflable"
 "tech:67:effect","Decke 3 Sektoren auf. Überspringe das Bieten, erhalte einen Dust- oder Liquids-Sektor kostenlos.","Rivela 3 settori.
-Salta l’offerta, guadagna Dust o Liquids settore gratuitamente.","Odkryj 3 sektory.
+Salta l’offerta, guadagna gratuitamente un settore Dust o Liquids.","Odkryj 3 sektory.
 Pomiń licytację, zdobądź Dust lub Liquids sektor za darmo.","Revela 3 sectores.
 Sin pujar, gana un sector Dust o Liquids gratis.","Révélez 3 secteurs.
-Sautez les enchères, gagnez Dust ou Liquids secteur gratuitement."
+Sans enchère, gagnez gratuitement un secteur Dust ou Liquids."
 "tech:67:name","Aufblasbarer Rumpf","Scafo Gonfiabile","Nadmuchiwany Kadłub","Casco Inflable","Coque Gonflable"
-"tech:68:effect","Die nächste hier platzierte Techkarte kostet -2.","La prossima carta Tech posizionata qui costa -2.","Następna karta technologii umieszczona tutaj kosztuje -2.","La próxima carta de tecnología colocada aquí cuesta -2.","La prochaine carte technologie posée ici coûte -2."
+"tech:68:effect","Die nächste hier platzierte Techkarte kostet -2.","La prossima carta Tech posizionata qui costa -2.","Następna karta Tech umieszczona tutaj kosztuje -2.","La próxima carta de tecnología colocada aquí cuesta -2.","La prochaine carte Tech posée ici coûte -2."
 "tech:68:name","Jahreszeiten","Stagioni","Pory Roku","Estaciones","Saisons"
 "tech:69:effect","Mische bis zu 3 Expeditionen zurück in den Stapel, decke dann ebenso viele auf.","Rimescola fino a 3 spedizioni nel mazzo, poi rivelane altrettante.","Wtasuj do 3 ekspedycji z powrotem do talii, następnie odkryj tyle samo.","Mezcla hasta 3 expediciones de vuelta al mazo, luego revela esa cantidad.","Mélangez jusqu’à 3 expéditions dans la pioche, puis révélez-en autant."
 "tech:69:name","Schwarzes Loch","Incontro con un Buco Nero","Spotkanie z Czarną Dziurą","Agujero Negro","Trou Noir"
@@ -683,9 +683,9 @@ Sautez les enchères, gagnez Dust ou Liquids secteur gratuitement."
 "tech:6:name","Frachtdrohnen","Droni da Carico","Drony Transportowe","Drones de Carga","Drones Cargo"
 "tech:70:effect","Mische bis zu 3 Expeditionen zurück in den Stapel, decke dann ebenso viele auf.","Rimescola fino a 3 spedizioni nel mazzo, poi rivelane altrettante.","Wtasuj do 3 ekspedycji z powrotem do talii, następnie odkryj tyle samo.","Mezcla hasta 3 expediciones de vuelta al mazo, luego revela esa cantidad.","Mélangez jusqu’à 3 expéditions dans la pioche, puis révélez-en autant."
 "tech:70:name","Schwarzes Loch","Incontro con un Buco Nero","Spotkanie z Czarną Dziurą","Agujero Negro","Trou Noir"
-"tech:71:effect","Die nächste hier platzierte Techkarte kostet -1.","La prossima carta Tech posizionata qui costa -1.","Następna karta technologii umieszczona tutaj kosztuje -1.","La próxima carta de tecnología colocada aquí cuesta -1.","La prochaine carte technologie posée ici coûte -1."
+"tech:71:effect","Die nächste hier platzierte Techkarte kostet -1.","La prossima carta Tech posizionata qui costa -1.","Następna karta Tech umieszczona tutaj kosztuje -1.","La próxima carta de tecnología colocada aquí cuesta -1.","La prochaine carte Tech posée ici coûte -1."
 "tech:71:name","Tag-Nacht-Zyklus","Ciclo Giorno-Notte","Cykl Dnia i Nocy","Ciclo Día-Noche","Cycle Jour-Nuit"
-"tech:72:effect","Die nächste hier platzierte Techkarte kostet -1.","La prossima carta Tech posizionata qui costa -1.","Następna karta technologii umieszczona tutaj kosztuje -1.","La próxima carta de tecnología colocada aquí cuesta -1.","La prochaine carte technologie posée ici coûte -1."
+"tech:72:effect","Die nächste hier platzierte Techkarte kostet -1.","La prossima carta Tech posizionata qui costa -1.","Następna karta Tech umieszczona tutaj kosztuje -1.","La próxima carta de tecnología colocada aquí cuesta -1.","La prochaine carte Tech posée ici coûte -1."
 "tech:72:name","Tag-Nacht-Zyklus","Ciclo Giorno-Notte","Cykl Dnia i Nocy","Ciclo Día-Noche","Cycle Jour-Nuit"
 "tech:73:effect","Kopiere den Platzierungseffekt einer anderen Karte in diesem Sektor.","Copia l’effetto di posizionamento di un’altra carta in questo settore.","Skopiuj efekt umieszczenia innej karty w tym sektorze.","Copia el efecto de colocación de otra carta en este sector.","Copiez l’effet de pose d’une autre carte de ce secteur."
 "tech:73:name","Reflektoren","Riflettori","Reflektory","Reflectores","Réflecteurs"
@@ -715,13 +715,13 @@ Sautez les enchères, gagnez Dust ou Liquids secteur gratuitement."
 "tech:84:name","Lebender Rumpf","Scafo Vivente","Żywy Kadłub","Casco Viviente","Coque Vivante"
 "tech:85:effect","Wenn du eine neue Farbe auf diesem Sektor platzierst, lagere 1 Vorrat dieser Farbe auf diesem Sektor.","Quando posizioni un nuovo colore su questo settore, immagazzina 1 risorsa di quel colore su questo settore.","Gdy umieszczasz kartę nowego koloru w tym sektorze, zmagazynuj 1 zasób tego koloru w tym sektorze.","Cuando colocas un nuevo color en este sector, almacena 1 suministro de ese color en este sector.","Quand vous posez une nouvelle couleur sur ce secteur, stockez 1 matériel de cette couleur sur ce secteur."
 "tech:85:name","Bestäuber","Impollinatori","Owady","Polinizadores","Pollinisateurs"
-"tech:86:effect","Wenn dieser Sektor vollständig optimiert ist, erhalte 6 Dust.","Se questo settore è completamente ottimizzato, guadagna 6 Dust.","Jeśli ten sektor jest w pełni zoptymalizowany, zdobądź 6 Dust.","Si este sector está totalmente optimizado, gana 6 Dust extra.","Si ce secteur est entièrement optimisé, gagnez 6 Dust."
+"tech:86:effect","Wenn dieser Sektor vollständig optimiert ist, erhalte 6 Dust.","Se questo settore è pienamente ottimizzato, guadagna 6 Dust.","Jeśli ten sektor jest w pełni zoptymalizowany, zdobądź 6 Dust.","Si este sector está totalmente optimizado, gana 6 Dust extra.","Si ce secteur est entièrement optimisé, gagnez 6 Dust."
 "tech:86:name","Laborfleisch","Carni da Laboratorio","Mięso Laboratoryjne","Carnes de Laboratorio","Viandes de Laboratoire"
-"tech:87:effect","Wenn dieser Sektor vollständig optimiert ist, erhalte 6 Dust.","Se questo settore è completamente ottimizzato, guadagna 6 Dust.","Jeśli ten sektor jest w pełni zoptymalizowany, zdobądź 6 Dust.","Si este sector está totalmente optimizado, gana 6 Dust extra.","Si ce secteur est entièrement optimisé, gagnez 6 Dust."
+"tech:87:effect","Wenn dieser Sektor vollständig optimiert ist, erhalte 6 Dust.","Se questo settore è pienamente ottimizzato, guadagna 6 Dust.","Jeśli ten sektor jest w pełni zoptymalizowany, zdobądź 6 Dust.","Si este sector está totalmente optimizado, gana 6 Dust extra.","Si ce secteur est entièrement optimisé, gagnez 6 Dust."
 "tech:87:name","Laborfleisch","Carni da Laboratorio","Mięso Laboratoryjne","Carnes de Laboratorio","Viandes de Laboratoire"
-"tech:88:effect","Archiviere 3 Karten verdeckt unter diesem Sektor. Wenn dieser Sektor vollständig optimiert ist, archiviere stattdessen 1 offen.","Archivia 3 carte a faccia in giù sotto questo settore. Se è completamente ottimizzato, archiviane invece 1 a faccia in su.","Zarchiwizuj 3 karty zakryte pod tym sektorem. Jeśli ten sektor jest w pełni zoptymalizowany, zarchiwizuj zamiast tego 1 odkrytą.","Archiva 3 cartas boca abajo bajo este sector. Si este sector está totalmente optimizado, archiva en su lugar 1 boca arriba.","Archivez 3 cartes face cachée sous ce secteur. Si ce secteur est entièrement optimisé, archivez plutôt 1 carte face visible."
+"tech:88:effect","Archiviere 3 Karten verdeckt unter diesem Sektor. Wenn dieser Sektor vollständig optimiert ist, archiviere stattdessen 1 offen.","Archivia 3 carte a faccia in giù sotto questo settore. Se è pienamente ottimizzato, archiviane invece 1 a faccia in su.","Zarchiwizuj 3 karty zakryte pod tym sektorem. Jeśli ten sektor jest w pełni zoptymalizowany, zarchiwizuj zamiast tego 1 odkrytą.","Archiva 3 cartas boca abajo bajo este sector. Si este sector está totalmente optimizado, archiva en su lugar 1 boca arriba.","Archivez 3 cartes face cachée sous ce secteur. Si ce secteur est entièrement optimisé, archivez plutôt 1 carte face visible."
 "tech:88:name","Künstlerviertel","Quartiere degli Artisti","Dzielnica Artystów","Barrio de Artistas","Quartier des Artistes"
-"tech:89:effect","Archiviere 3 Karten verdeckt unter diesem Sektor. Wenn dieser Sektor vollständig optimiert ist, archiviere stattdessen 1 offen.","Archivia 3 carte a faccia in giù sotto questo settore. Se è completamente ottimizzato, archiviane invece 1 a faccia in su.","Zarchiwizuj 3 karty zakryte pod tym sektorem. Jeśli ten sektor jest w pełni zoptymalizowany, zarchiwizuj zamiast tego 1 odkrytą.","Archiva 3 cartas boca abajo bajo este sector. Si este sector está totalmente optimizado, archiva en su lugar 1 boca arriba.","Archivez 3 cartes face cachée sous ce secteur. Si ce secteur est entièrement optimisé, archivez plutôt 1 carte face visible."
+"tech:89:effect","Archiviere 3 Karten verdeckt unter diesem Sektor. Wenn dieser Sektor vollständig optimiert ist, archiviere stattdessen 1 offen.","Archivia 3 carte a faccia in giù sotto questo settore. Se è pienamente ottimizzato, archiviane invece 1 a faccia in su.","Zarchiwizuj 3 karty zakryte pod tym sektorem. Jeśli ten sektor jest w pełni zoptymalizowany, zarchiwizuj zamiast tego 1 odkrytą.","Archiva 3 cartas boca abajo bajo este sector. Si este sector está totalmente optimizado, archiva en su lugar 1 boca arriba.","Archivez 3 cartes face cachée sous ce secteur. Si ce secteur est entièrement optimisé, archivez plutôt 1 carte face visible."
 "tech:89:name","Künstlerviertel","Quartiere degli Artisti","Dzielnica Artystów","Barrio de Artistas","Quartier des Artistes"
 "tech:8:effect","Lagere 1 Dust, 1 Metals oder 1 Liquids.","Immagazzina 1 Dust, 1 Metals o 1 Liquids.","Zmagazynuj 1 Dust, 1 Metals lub 1 Liquids.","Almacena 1 Dust, 1 Metals o 1 Liquids extra.","Stockez 1 Dust, 1 Metals ou 1 Liquids."
 "tech:8:name","Container","Container","Kontenery","Contenedores","Conteneurs"
@@ -737,13 +737,13 @@ Sautez les enchères, gagnez Dust ou Liquids secteur gratuitement."
 "tech:94:name","Erdlaser","Laser Terrestre","Laser Ziemski","Láser Terrestre","Laser Terrestre"
 "tech:95:effect","Ziehe 3, archiviere 1 davon verdeckt unter diesem Sektor.","Pesca 3, archiviane 1 a faccia in giù sotto questo settore.","Dobierz 3, zarchiwizuj 1 z nich zakrytą pod tym sektorem.","Roba 3, archiva 1 de ellas boca abajo bajo este sector.","Piochez 3, archivez-en 1 face cachée sous ce secteur."
 "tech:95:name","Erdlaser","Laser Terrestre","Laser Ziemski","Láser Terrestre","Laser Terrestre"
-"tech:96:effect","Lagere 1 beliebigen Vorrat. Wenn dieser Sektor vollständig ist, lagere stattdessen 2.","Immagazzina 1 risorsa a scelta. Se questo settore è completo, immagazzinane 2 invece.","Zmagazynuj 1 dowolny zasób. Jeśli ten sektor jest kompletny, zmagazynuj zamiast tego 2.","Almacena 1 suministro a elección. Si este sector está completo, almacena 2 en su lugar.","Stockez 1 matériel au choix. Si ce secteur est complet, stockez-en 2 à la place."
+"tech:96:effect","Lagere 1 beliebigen Vorrat. Wenn dieser Sektor komplett ist, lagere stattdessen 2.","Immagazzina 1 risorsa a scelta. Se questo settore è completo, immagazzinane 2 invece.","Zmagazynuj 1 dowolny zasób. Jeśli ten sektor jest kompletny, zmagazynuj zamiast tego 2.","Almacena 1 suministro a elección. Si este sector está completo, almacena 2 en su lugar.","Stockez 1 matériel au choix. Si ce secteur est complet, stockez-en 2 à la place."
 "tech:96:name","Pilze","Funghi","Grzyby","Hongos","Champignons"
-"tech:97:effect","Lagere 1 beliebigen Vorrat. Wenn dieser Sektor vollständig ist, lagere stattdessen 2.","Immagazzina 1 risorsa a scelta. Se questo settore è completo, immagazzinane 2 invece.","Zmagazynuj 1 dowolny zasób. Jeśli ten sektor jest kompletny, zmagazynuj zamiast tego 2.","Almacena 1 suministro a elección. Si este sector está completo, almacena 2 en su lugar.","Stockez 1 matériel au choix. Si ce secteur est complet, stockez-en 2 à la place."
+"tech:97:effect","Lagere 1 beliebigen Vorrat. Wenn dieser Sektor komplett ist, lagere stattdessen 2.","Immagazzina 1 risorsa a scelta. Se questo settore è completo, immagazzinane 2 invece.","Zmagazynuj 1 dowolny zasób. Jeśli ten sektor jest kompletny, zmagazynuj zamiast tego 2.","Almacena 1 suministro a elección. Si este sector está completo, almacena 2 en su lugar.","Stockez 1 matériel au choix. Si ce secteur est complet, stockez-en 2 à la place."
 "tech:97:name","Pilze","Funghi","Grzyby","Hongos","Champignons"
 "tech:98:effect","⭐","⭐","⭐","⭐","⭐"
 "tech:98:name","Tragbarer Reaktor","Reattore Portatile","Przenośny Reaktor","Reactor Portátil","Réacteur Portable"
 "tech:99:effect","⭐","⭐","⭐","⭐","⭐"
 "tech:99:name","Tragbarer Reaktor","Reattore Portatile","Przenośny Reaktor","Reactor Portátil","Réacteur Portable"
-"tech:9:effect","Fusioniere 1:1 zweimal. Wenn dieser Sektor vollständig optimiert ist, erhalte zusätzlich 2 Dust.","Fondi 1:1 due volte. Se questo settore è completamente ottimizzato, guadagna anche 2 Dust.","Połącz 1:1 dwa razy. Jeśli ten sektor jest w pełni zoptymalizowany, zdobądź dodatkowo 2 Dust.","Fusiona 1:1 dos veces. Si este sector está totalmente optimizado, gana también 2 Dust extra.","Fusionnez 1:1 deux fois. Si ce secteur est entièrement optimisé, gagnez aussi 2 Dust."
+"tech:9:effect","Fusioniere 1:1 zweimal. Wenn dieser Sektor vollständig optimiert ist, erhalte zusätzlich 2 Dust.","Fondi 1:1 due volte. Se questo settore è pienamente ottimizzato, guadagna anche 2 Dust.","Połącz 1:1 dwa razy. Jeśli ten sektor jest w pełni zoptymalizowany, zdobądź dodatkowo 2 Dust.","Fusiona 1:1 dos veces. Si este sector está totalmente optimizado, gana también 2 Dust extra.","Fusionnez 1:1 deux fois. Si ce secteur est entièrement optimisé, gagnez aussi 2 Dust."
 "tech:9:name","Chemielabore","Laboratori Chimici","Laboratoria Chemiczne","Laboratorios Químicos","Laboratoires Chimiques"

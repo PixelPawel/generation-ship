@@ -1,5 +1,5 @@
 No.,Name,Link,Color,Cost,Flavor,Printed Star,Star card,Type,Effect,Effect 2,Done,Artist,Check
-1,Einstein-Rosen-Portal,GS Expeditions 44x67mm26.png,Thrrust,2,Was ist eine Op’rah?,⭐⭐,Yes,Always,"Wenn du eine (Star Card) platzierst, lagere 1 Vorrat dieser Farbe auf diesem Sektor.",(Gelagerte Vorräte zählen als 1⭐),Done,Alex,
+1,Einstein-Rosen-Portal,GS Expeditions 44x67mm26.png,Thrrust,2,Was ist eine Op’rah?,⭐⭐,Yes,Always,"Wenn du eine (Star Card) platzierst, lagere dort 1 Vorrat ihrer Farbe.",(Gelagerte Vorräte zählen als 1⭐),Done,Alex,
 2,Erde 2.0,GS Expeditions 44x67mm25.png,Thrrust,4,Es ist eine kostenlose Immobilie!,⭐⭐,Yes,Score,"Erhalte 2⭐ pro (Star Card).
 (Jede Karte mit aufgedrucktem ⭐)",(Jede Karte mit aufgedrucktem ⭐),Done,Alex,
 3,Exodus-Flotten,GS Expeditions 44x67mm24.png,Thrrust,3,Folgt der Galactica!,⭐⭐,Yes,Score,Erhalte 2 ⭐ pro Thrust-Karte. (einschließlich dieser),Max. 24⭐,Done,Alex,
@@ -26,5 +26,5 @@ technische Probleme.",⭐⭐,Yes,Score,Kopiere bis zu 6⭐ von der obersten Kart
 23,Selbstreplikation,GS Expeditions 44x67mm4.png,Metals,3,Spam Spam Spam Spam Spam,⭐⭐,Yes,Score,Erhalte 2⭐ pro Metals-Karte in einem deiner Sektoren. (einschließlich dieser),Max. 12⭐,Done,Daniel,
 24,Lagrange-Komplex,GS Expeditions 44x67mm3.png,Metals,3,Der netteste Haufen Abschaum und Verkommenheit.,⭐⭐,Yes,Score,Erhalte 2⭐ pro vollständig optimiertem Sektor.,Max. 12⭐,Done,Alex,
 25,Handelshafen,GS Expeditions 44x67mm2.png,Metals,3,Glänzend!,⭐⭐,Yes,Score,Erhalte 2⭐ pro Sektor mit 2+ gelagerten Vorräten.,Max. 12⭐,Done,Alex,
-26,Kaldera-Kolonie,GS Expeditions 44x67mm.png,Metals,3,Warum nicht gleich 12 Bergbauindustrien?,⭐⭐⭐,Yes,Place,Recycle beliebige Karten von 1 Sektor und lagere die Vorräte auf diesem Sektor.,⭐⭐⭐,Done,Alex,
+26,Kaldera-Kolonie,GS Expeditions 44x67mm.png,Metals,3,Warum nicht gleich 12 Bergbauindustrien?,⭐⭐⭐,Yes,Place,Recycle beliebige Karten von 1 Sektor und lagere die Vorräte auf demselben Sektor.,⭐⭐⭐,Done,Alex,
 ,,,,,,,,,,,Done,Daniel,
