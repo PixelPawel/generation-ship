@@ -59,13 +59,28 @@ func fetch(key: String) -> void:
 func vote(key: String, value: int) -> void:
 	if not is_available():
 		return
-	var c: Dictionary = _cache.get(key, {up = 0, down = 0, mine = 0})
+	var prev: Dictionary = _cache.get(key, {})
+	var c: Dictionary = prev if not prev.is_empty() else {up = 0, down = 0, mine = 0}
 	var up: int = int(c.up) - (1 if int(c.mine) > 0 else 0) + (1 if value > 0 else 0)
 	var down: int = int(c.down) - (1 if int(c.mine) < 0 else 0) + (1 if value < 0 else 0)
-	_cache[key] = {up = up, down = down, mine = value}
+	var optimistic: Dictionary = {up = up, down = down, mine = value}
+	_cache[key] = optimistic
 	votes_ready.emit(key, up, down, value)
 	_request(HTTPClient.METHOD_POST, "/v1/votes",
-		JSON.stringify({key = key, voter = _voter_id(), value = value}), key)
+		JSON.stringify({key = key, voter = _voter_id(), value = value}), key,
+		func() -> void: _roll_back(key, prev, optimistic))
+
+# A vote that never reached the server (offline, timeout, 429) isn't left showing as
+# counted: back to what was there before (nothing: the card shows "–" again), unless
+# a newer vote has replaced it meanwhile.
+func _roll_back(key: String, prev: Dictionary, optimistic: Dictionary) -> void:
+	if not is_same(_cache.get(key), optimistic):
+		return
+	if prev.is_empty():
+		_cache.erase(key)
+	else:
+		_cache[key] = prev
+		votes_ready.emit(key, int(prev.up), int(prev.down), int(prev.mine))
 
 # Free-text feedback on one part (COMMENT_FIELDS) of one translated card.
 # Players may send as many as they like; the server rate-limits floods.
@@ -88,29 +103,35 @@ func send_comment(key: String, field: String, text: String) -> void:
 		req.queue_free()
 		comment_sent.emit(key, false, 0)
 
-func _request(method: HTTPClient.Method, path: String, body: String, key: String) -> void:
+## on_fail: a vote's roll-back (a failed fetch changes nothing).
+func _request(method: HTTPClient.Method, path: String, body: String, key: String, on_fail: Callable = Callable()) -> void:
 	var req: HTTPRequest = HTTPRequest.new()
 	req.timeout = TIMEOUT_SEC
 	add_child(req)
 	req.request_completed.connect(func(result: int, code: int, _headers: PackedStringArray, bytes: PackedByteArray) -> void:
-		_on_completed(req, key, result, code, bytes))
+		_on_completed(req, key, result, code, bytes, on_fail))
 	var err: Error = req.request(SERVER_URL + path, PackedStringArray(["Content-Type: application/json"]), method, body)
 	if err != OK:
 		req.queue_free()
-		votes_failed.emit(key)
+		_failed(key, on_fail)
 
-func _on_completed(req: HTTPRequest, key: String, result: int, code: int, bytes: PackedByteArray) -> void:
+func _failed(key: String, on_fail: Callable) -> void:
+	if on_fail.is_valid():
+		on_fail.call()
+	votes_failed.emit(key)
+
+func _on_completed(req: HTTPRequest, key: String, result: int, code: int, bytes: PackedByteArray, on_fail: Callable) -> void:
 	req.queue_free()
 	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
-		votes_failed.emit(key)
+		_failed(key, on_fail)
 		return
 	var data: Variant = JSON.parse_string(bytes.get_string_from_utf8())
 	if typeof(data) != TYPE_DICTIONARY or typeof(data.get("votes")) != TYPE_DICTIONARY:
-		votes_failed.emit(key)
+		_failed(key, on_fail)
 		return
 	var v: Variant = (data["votes"] as Dictionary).get(key)
 	if typeof(v) != TYPE_DICTIONARY:
-		votes_failed.emit(key)
+		_failed(key, on_fail)
 		return
 	var up: int = int(v.get("up", 0))
 	var down: int = int(v.get("down", 0))

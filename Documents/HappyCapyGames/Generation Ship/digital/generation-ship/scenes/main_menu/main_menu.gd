@@ -5,6 +5,7 @@ const TutorialSession = preload("res://scripts/tutorial_session.gd")
 const MenuIconButton = preload("res://scenes/ui/menu_icon_button.gd")
 const CockpitBackdrop = preload("res://scenes/main_menu/cockpit_backdrop.gd")
 const UnlockPanel = preload("res://scenes/ui/unlock_panel.gd")
+const PopupAnim = preload("res://scripts/popup_anim.gd")
 var _backdrop: Node3D = null   # the parked cockpit behind the menu
 var _launching: bool = false
 const GAME_SCENE: String = "res://scenes/main/main.tscn"
@@ -371,6 +372,7 @@ func _build_menu_layout() -> void:
 		var b: Button = MenuIconButton.new()
 		b.set("kind", icons[k][0])
 		b.tooltip_text = tr(str(icons[k][1]))
+		b.set_meta(&"tip_key", str(icons[k][1]))   # re-translated on a language switch
 		GameTheme.apply_to_button(b)
 		b.pressed.connect(icons[k][2] as Callable)
 		$Panels/MainView.add_child(b)
@@ -492,9 +494,26 @@ func _fit_tile_labels() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSLATION_CHANGED:
+		_refresh_locale_bits()
 		_fit_tile_labels()
 	elif what == NOTIFICATION_WM_GO_BACK_REQUEST:
 		_on_back_requested()
+
+# A language switch in Settings: the tiles' printed art (Rule Book cover, Tech
+# card) and the tooltips were picked once, in the language the menu opened in.
+func _refresh_locale_bits() -> void:
+	if _tile_row:
+		for tile: Node in _tile_row.get_children():
+			var lbl: Label = tile.find_child("TileLabel", true, false) as Label
+			if lbl == null:
+				continue
+			(tile as Control).tooltip_text = tr(lbl.text)
+			var art: TextureRect = lbl.get_parent().get_child(0) as TextureRect
+			if art:
+				art.texture = _tile_art(lbl.text)
+	for b: Button in _corner_btns:
+		if b.has_meta(&"tip_key"):
+			b.tooltip_text = tr(str(b.get_meta(&"tip_key")))
 
 func _exit_tree() -> void:
 	get_tree().set_quit_on_go_back(true)
@@ -507,6 +526,18 @@ func _on_back_requested() -> void:
 	if settings and settings.visible:
 		settings.visible = false
 		return
+	# the leaderboard question needs an answer (Yes / No), not Back
+	var consent: Control = LeaderboardManager.get("_consent") as Control
+	if consent and is_instance_valid(consent) and consent.visible:
+		return
+	if _unlock_panel and _unlock_panel.visible:
+		PopupAnim.close(_unlock_panel)
+		return
+	# Versus / Co-op slid in: step back out of it the way its own buttons do
+	# (quitting from here dropped a hosted room for everyone)
+	if $Panels.position.y < -1.0:
+		_lobby_back()
+		return
 	var open: bool = false
 	for p: Control in [_collection, _manual, _leaderboard, _photo_scan]:
 		if p and p.visible:
@@ -514,6 +545,28 @@ func _on_back_requested() -> void:
 	if not open:
 		get_tree().quit()
 		return
+	_send_escape()
+
+# The lobby's popups first (rule book, password prompt, Destination picker),
+# then staging → room list → main menu.
+func _lobby_back() -> void:
+	var lobby: Control = $Panels/LobbyView
+	var manual: Control = lobby.get("_manual") as Control
+	var prompt: Control = lobby.get("_password_prompt") as Control
+	var picker: Control = lobby.get("_dest_picker") as Control
+	var staging: Control = lobby.get("_staging_panel") as Control
+	if manual and manual.visible:
+		_send_escape()   # (the rule book closes on Escape)
+	elif prompt and prompt.visible:
+		lobby.call("_on_password_cancel_pressed")
+	elif picker and picker.visible:
+		PopupAnim.close(picker)   # (its visibility_changed tells the crew it's back to waiting)
+	elif staging and staging.visible:
+		lobby.call("_on_leave_pressed")
+	else:
+		lobby.call("_on_back_pressed")
+
+func _send_escape() -> void:
 	var esc: InputEventKey = InputEventKey.new()
 	esc.keycode = KEY_ESCAPE
 	esc.pressed = true
@@ -621,21 +674,36 @@ func _apply_saved_settings() -> void:
 	# "show the system bars", so re-applying the saved (default 1920x1080
 	# windowed) resolution kicked the game out of the export's immersive
 	# fullscreen as soon as any setting had ever been saved.
-	if not OS.has_feature("mobile"):
-		var res_idx: int = clampi(int(cfg.get_value("display", "resolution_index", 2)), 0, FULLSCREEN_IDX)
-		if res_idx == FULLSCREEN_IDX:
-			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
-		else:
-			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-			DisplayServer.window_set_size(RESOLUTIONS[res_idx])
+	# Only what was really chosen in Settings: the file also appears after the
+	# tutorial, a lobby name or the leaderboard question, and a missing resolution
+	# used to force a 1920x1080 window over the project's maximized start.
+	var has_res: bool = cfg.has_section_key("display", "resolution_index")
+	var has_mon: bool = cfg.has_section_key("display", "monitor_index")
+	if not OS.has_feature("mobile") and (has_res or has_mon):
+		if has_res:
+			var res_idx: int = clampi(int(cfg.get_value("display", "resolution_index", 2)), 0, FULLSCREEN_IDX)
+			if res_idx == FULLSCREEN_IDX:
+				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+			else:
+				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+				DisplayServer.window_set_size(RESOLUTIONS[res_idx])
 
 		var screen_count: int = DisplayServer.get_screen_count()
-		var mon_idx: int = clampi(int(cfg.get_value("display", "monitor_index", 0)), 0, screen_count - 1)
+		var mon_idx: int = clampi(int(cfg.get_value("display", "monitor_index", DisplayServer.window_get_current_screen())), 0, screen_count - 1)
 		DisplayServer.window_set_current_screen(mon_idx)
-		var screen_pos: Vector2i = DisplayServer.screen_get_position(mon_idx)
-		var screen_size: Vector2i = DisplayServer.screen_get_size(mon_idx)
-		var win_size: Vector2i = DisplayServer.window_get_size()
-		DisplayServer.window_set_position(screen_pos + Vector2i((screen_size - win_size) / 2.0))
+		_center_window(mon_idx)
 
 	Card.screen_shake_enabled = bool(cfg.get_value("display", "screen_shake", true))
 	Haptics.enabled = bool(cfg.get_value("display", "vibration", true))
+
+# Centres a windowed window in the screen's usable area (taskbar excluded),
+# title bar included, and never with the title bar above the screen.
+# (Maximized and fullscreen windows ignore window_set_position.)
+static func _center_window(screen: int) -> void:
+	var usable: Rect2i = DisplayServer.screen_get_usable_rect(screen)
+	var outer: Vector2i = DisplayServer.window_get_size_with_decorations()
+	var border: Vector2i = DisplayServer.window_get_position() - DisplayServer.window_get_position_with_decorations()
+	var pos: Vector2i = usable.position + (usable.size - outer) / 2 + border
+	pos.x = maxi(pos.x, usable.position.x + border.x)
+	pos.y = maxi(pos.y, usable.position.y + border.y)
+	DisplayServer.window_set_position(pos)

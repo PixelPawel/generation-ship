@@ -355,14 +355,26 @@ static func setup_responsive_screen_positions(main: Main) -> void:
 			"max_shift_toward_camera": def["max_shift_toward_camera"],
 		})
 
+	var base_fov: float = cam.fov
 	var reposition := func() -> void:
 		var vp_size: Vector2 = main.get_viewport().get_visible_rect().size
 		if vp_size.x <= 0.0 or vp_size.y <= 0.0:
 			return
 		var cur_aspect: float = vp_size.x / vp_size.y
-		var half_vfov: float = deg_to_rad(cam.fov) * 0.5
+		var half_vfov: float = deg_to_rad(base_fov) * 0.5
 		var half_hfov_ref: float = atan(tan(half_vfov) * SCREEN_LAYOUT_REFERENCE_ASPECT)
 		var half_hfov_cur: float = atan(tan(half_vfov) * cur_aspect)
+		# Narrower than 16:9 (16:10 laptops and the Steam Deck, 4:3 tablets, foldables):
+		# the vertical FOV widens so the 16:9 width stays in view, with extra room above
+		# and below. Keeping only each screen's centre had them overlap there (the log
+		# hidden behind the control screen, its buttons over the market). Still
+		# KEEP_HEIGHT, so cam.fov stays the vertical FOV other code expects (sun_video.gd
+		# uses the same formula).
+		if cur_aspect < SCREEN_LAYOUT_REFERENCE_ASPECT:
+			cam.fov = rad_to_deg(2.0 * atan(tan(half_vfov) * SCREEN_LAYOUT_REFERENCE_ASPECT / cur_aspect))
+			half_hfov_cur = half_hfov_ref
+		else:
+			cam.fov = base_fov
 		var boost_t: float = clampf(
 			(cur_aspect - SCREEN_LAYOUT_REFERENCE_ASPECT) / (SCREEN_LAYOUT_MAX_ASPECT - SCREEN_LAYOUT_REFERENCE_ASPECT),
 			0.0, 1.0
@@ -463,12 +475,19 @@ static func setup_screen_enlarge(main: Main) -> void:
 					).call_deferred()
 				elif mb.button_index == MOUSE_BUTTON_LEFT:
 					# Touch has no right-click — long-press is its equivalent
-					# here (this area has no competing left-click action of
-					# its own to conflict with).
+					# here. The same press also reaches the screen's SubViewport,
+					# where a market card or Danger runs its own long-press (the
+					# phone's big card view, which elevates no 3D card): deferred,
+					# and skipped when that view opened or the button was let go
+					# off the screen (vp_button_held, see _watch_releases).
 					if mb.pressed:
 						gesture.begin(main.get_tree(), mb.position, func() -> void:
-							if Time.get_ticks_msec() - main._last_card_elevation_toggle_ms > CARD_ELEVATION_IGNORE_WINDOW_MS:
-								_toggle_screen_enlarge(main, node))
+							(func() -> void:
+								if main.card_overlay_showing("market") or not main.vp_button_held:
+									return
+								if Time.get_ticks_msec() - main._last_card_elevation_toggle_ms > CARD_ELEVATION_IGNORE_WINDOW_MS:
+									_toggle_screen_enlarge(main, node)
+							).call_deferred())
 					else:
 						gesture.end()
 			elif event is InputEventMouseMotion:
@@ -514,6 +533,14 @@ static func _toggle_screen_enlarge(main: Main, node: Node3D) -> void:
 		_enlarge_screen(main, node)
 
 static func _enlarge_screen(main: Main, node: Node3D, duck: bool = true) -> void:
+	# a rumble still running on this screen would carry it back to its rest pose
+	# once the enlarge tween ends, while it's flagged as enlarged (only screens get
+	# here: UiCockpit's rumble tween, which restarts the rumble timer, is never killed)
+	var rtw: Tween = main.rumble_tweens.get(node) as Tween
+	if rtw and rtw.is_valid():
+		rtw.kill()
+		if main._rumble_base_rot.has(node):
+			node.rotation = main._rumble_base_rot[node]
 	var tw: Tween = main.screen_enlarge_tweens.get(node) as Tween
 	if tw and tw.is_valid():
 		tw.kill()
@@ -607,7 +634,11 @@ static func setup_viewport_input(main: Main, screen_mesh: MeshInstance3D, vp: Su
 	area.input_event.connect(func(_cam: Node, event: InputEvent, pos: Vector3, _norm: Vector3, _idx: int) -> void:
 		forward_to_viewport(main, event, pos, screen_mesh, vp)
 	)
+	area.mouse_entered.connect(func() -> void: main.set_meta(&"vp_hover", vp))
+	_watch_releases(main)
 	area.mouse_exited.connect(func() -> void:
+		if main.get_meta(&"vp_hover", null) == vp:
+			main.set_meta(&"vp_hover", null)
 		if main.vp_button_held:
 			return
 		main.vp_prev_pos.erase(vp)
@@ -625,6 +656,8 @@ static func forward_to_viewport(main: Main, event: InputEvent, world_pos: Vector
 	if event is InputEventMouseButton:
 		var src: InputEventMouseButton = event as InputEventMouseButton
 		main.vp_button_held = src.pressed
+		if src.pressed:
+			main.set_meta(&"vp_press", vp)   # where a release off every screen is sent (_watch_releases)
 		var mb: InputEventMouseButton = InputEventMouseButton.new()
 		mb.button_index = src.button_index
 		mb.pressed = src.pressed
@@ -638,6 +671,41 @@ static func forward_to_viewport(main: Main, event: InputEvent, world_pos: Vector
 		mm.position = vp_pos
 		mm.relative = vp_pos - prev
 		vp.push_input(mm, true)
+
+# A press on a screen released off every screen never reached forward_to_viewport:
+# vp_button_held stayed true (no screen's hover could end any more) and that
+# SubViewport never got the release (a dragged log scrollbar kept scrolling on
+# the next hover). The window's raw input sees every release first: send this one
+# to the viewport that got the press, plus a move off it. Connected once per game.
+static func _watch_releases(main: Main) -> void:
+	if main.has_meta(&"vp_release_watch"):
+		return
+	main.set_meta(&"vp_release_watch", true)
+	var win: Window = main.get_window()
+	var on_input: Callable = func(event: InputEvent) -> void:
+		var mb: InputEventMouseButton = event as InputEventMouseButton
+		if mb == null or mb.pressed or not is_instance_valid(main) or not main.vp_button_held:
+			return
+		if mb.button_index != MOUSE_BUTTON_LEFT and mb.button_index != MOUSE_BUTTON_RIGHT:
+			return
+		var press_vp: SubViewport = main.get_meta(&"vp_press", null) as SubViewport
+		if press_vp == null or not is_instance_valid(press_vp) or main.get_meta(&"vp_hover", null) == press_vp:
+			return   # over its own screen: the screen forwards this release itself
+		var at: Vector2 = main.vp_prev_pos.get(press_vp, Vector2(-1.0, -1.0))
+		var up: InputEventMouseButton = InputEventMouseButton.new()
+		up.button_index = mb.button_index
+		up.pressed = false
+		up.position = at
+		press_vp.push_input(up, true)
+		main.vp_button_held = false
+		main.vp_prev_pos.erase(press_vp)
+		var away: InputEventMouseMotion = InputEventMouseMotion.new()
+		away.position = Vector2(-1.0, -1.0)
+		press_vp.push_input(away, true)
+	win.window_input.connect(on_input)
+	main.tree_exiting.connect(func() -> void:
+		if win.window_input.is_connected(on_input):
+			win.window_input.disconnect(on_input))
 
 static func setup_info_screen_display(main: Main) -> void:
 	main._info_viewport = SubViewport.new()
@@ -703,6 +771,10 @@ static func setup_info_screen_display(main: Main) -> void:
 	# showing through on the right instead of being auto-hidden along with
 	# the rest of the market panel the way every other info panel behaves.
 	main._bid_popup.reparent(main._info_viewport, false)
+	# (not registered, see above, but an open opponent's board would cover it too)
+	main._bid_popup.visibility_changed.connect(func() -> void:
+		if main._bid_popup.visible and main.opp_info_panel:
+			OpponentBoardView.close_opponent_board_view(main))
 	main._scoreboard.reparent(main._info_viewport, false)
 	register_info_panel(main, main._scoreboard)
 
@@ -842,6 +914,10 @@ static func register_info_panel(main: Main, panel: Control) -> void:
 		if not main._market_panel:
 			return
 		if panel.visible:
+			# an opponent's board, opened later, would sit on top of this prompt and
+			# swallow its input (a bid, a payment, the final scores): close it
+			if main.opp_info_panel:
+				OpponentBoardView.close_opponent_board_view(main)
 			main._show_info_base(false)
 		else:
 			var any_active: bool = false
@@ -854,7 +930,8 @@ static func register_info_panel(main: Main, panel: Control) -> void:
 
 static func setup_log_screen_display(main: Main) -> void:
 	var myriad: FontFile = load("res://assets/fonts/Myriad Variable Concept.ttf") as FontFile
-	if myriad:
+	# (no ą ć ę ń ś ź ż in Myriad: Polish keeps the theme's Ethnocentric, as photo_scan.gd does)
+	if myriad and not TranslationServer.get_locale().begins_with("pl"):
 		main._log_font = FontVariation.new()
 		main._log_font.base_font = myriad
 		main._log_font.variation_opentype = {"wght": 500}

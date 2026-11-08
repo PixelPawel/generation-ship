@@ -1,5 +1,6 @@
 extends Control
 const Haptics = preload("res://scripts/haptics.gd")
+const PopupAnim = preload("res://scripts/popup_anim.gd")
 
 signal main_menu_pressed
 
@@ -46,6 +47,36 @@ func _ready() -> void:
 
 func toggle() -> void:
 	visible = not visible
+
+# Main menu (Settings opened on its own): Escape closes it like the other menu
+# windows. In game the pause menu's own action handles Escape (main panel shown).
+func _unhandled_input(event: InputEvent) -> void:
+	if not visible or _main_panel == null or _main_panel.visible or _settings_panel == null or not _settings_panel.visible:
+		return
+	var key: InputEventKey = event as InputEventKey
+	if key == null or not key.pressed or key.echo or key.keycode != KEY_ESCAPE:
+		return
+	var consent: Control = LeaderboardManager.get("_consent") as Control
+	if consent and is_instance_valid(consent) and consent.visible:
+		return   # that question needs an answer first
+	_settings_panel.visible = false
+	visible = false
+	get_viewport().set_input_as_handled()
+
+## The phone's Back while the pause menu is up (Main._on_back_requested): closes its Rule Book,
+## Collection or Settings first, back to the menu itself. True when something was closed.
+func close_top() -> bool:
+	if _manual and _manual.visible:
+		PopupAnim.close(_manual)
+		return true
+	if _collection and _collection.visible:
+		PopupAnim.close(_collection)
+		return true
+	if _settings_panel and _settings_panel.visible and _main_panel and not _main_panel.visible:
+		_settings_panel.visible = false
+		_main_panel.visible = true
+		return true
+	return false
 
 func open_settings() -> void:
 	if _main_panel:
@@ -787,9 +818,19 @@ func _apply_resolution(index: int) -> void:
 	else:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 		DisplayServer.window_set_size(RESOLUTIONS[index])
-		var screen: Vector2i = DisplayServer.screen_get_size()
-		var win: Vector2i = DisplayServer.window_get_size()
-		DisplayServer.window_set_position(Vector2i((Vector2(screen - win)) / 2.0))
+		# on the screen it's on (without the screen's offset it jumped to the primary one)
+		_center_window(DisplayServer.window_get_current_screen())
+
+# Centres a windowed window in the screen's usable area (taskbar excluded),
+# title bar included, and never with the title bar above the screen.
+static func _center_window(screen: int) -> void:
+	var usable: Rect2i = DisplayServer.screen_get_usable_rect(screen)
+	var outer: Vector2i = DisplayServer.window_get_size_with_decorations()
+	var border: Vector2i = DisplayServer.window_get_position() - DisplayServer.window_get_position_with_decorations()
+	var pos: Vector2i = usable.position + (usable.size - outer) / 2 + border
+	pos.x = maxi(pos.x, usable.position.x + border.x)
+	pos.y = maxi(pos.y, usable.position.y + border.y)
+	DisplayServer.window_set_position(pos)
 
 func _load_resolution_setting() -> void:
 	var cfg: ConfigFile = ConfigFile.new()
@@ -820,10 +861,7 @@ func _apply_monitor(index: int) -> void:
 	if index < 0 or index >= screen_count:
 		return
 	DisplayServer.window_set_current_screen(index)
-	var screen_pos: Vector2i = DisplayServer.screen_get_position(index)
-	var screen_size: Vector2i = DisplayServer.screen_get_size(index)
-	var win_size: Vector2i = DisplayServer.window_get_size()
-	DisplayServer.window_set_position(screen_pos + Vector2i(Vector2(screen_size - win_size) / 2.0))
+	_center_window(index)
 
 func _load_monitor_setting() -> void:
 	var current: int = DisplayServer.window_get_current_screen()

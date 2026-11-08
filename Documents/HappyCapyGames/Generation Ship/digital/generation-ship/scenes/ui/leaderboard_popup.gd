@@ -70,7 +70,7 @@ func _build_ui() -> void:
 	vbox.add_child(title_row)
 
 	var title: Label = Label.new()
-	title.text = tr("LEADERBOARD")
+	title.text = "LEADERBOARD"   # keys, not tr(): auto-translated, so they follow a language switch
 	title.add_theme_font_size_override("font_size", 28)
 	title.add_theme_color_override("font_color", TITLE_COLOR)
 	title.add_theme_color_override("font_shadow_color", Color(CYAN.r, CYAN.g, CYAN.b, 0.55))
@@ -97,7 +97,7 @@ func _build_ui() -> void:
 	filter_row.add_theme_constant_override("separation", 6)
 	vbox.add_child(filter_row)
 	for f: Array in FILTERS:
-		var btn: Button = _make_button(tr(f[1]))
+		var btn: Button = _make_button(f[1])
 		btn.toggle_mode = true
 		btn.button_pressed = f[0] == _source
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -108,9 +108,9 @@ func _build_ui() -> void:
 	var header: HBoxContainer = HBoxContainer.new()
 	header.add_theme_constant_override("separation", 10)
 	vbox.add_child(header)
-	header.add_child(_header_cell(tr("#"), 44))
-	header.add_child(_header_cell(tr("Player"), 0, true))
-	header.add_child(_header_cell(tr("Score"), 90))
+	header.add_child(_header_cell("#", 44))
+	header.add_child(_header_cell("Player", 0, true))
+	header.add_child(_header_cell("Score", 90))
 
 	_scroll = ScrollContainer.new()
 	_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -148,10 +148,15 @@ func _show_status(text: String) -> void:
 	_status_label.text = text
 	_status_label.visible = true
 
-func _on_top_scores_failed() -> void:
+# (a reply for another filter than the one now chosen is an overtaken request: ignored)
+func _on_top_scores_failed(source: String) -> void:
+	if source != _source:
+		return
 	_show_status(tr("Couldn't reach the leaderboard. Try again later."))
 
-func _on_top_scores_ready(entries: Array[Dictionary]) -> void:
+func _on_top_scores_ready(source: String, entries: Array[Dictionary], mine: Dictionary) -> void:
+	if source != _source:
+		return
 	for child: Node in _rows_container.get_children():
 		if child != _status_label:
 			child.queue_free()
@@ -164,10 +169,9 @@ func _on_top_scores_ready(entries: Array[Dictionary]) -> void:
 		_add_row(entry)
 		me_listed = me_listed or bool(entry.get("me", false))
 	# Outside the top 100: still show where the player's own best stands.
-	var mine: Dictionary = LeaderboardManager.my_best
 	if not me_listed and not mine.is_empty():
 		_add_row({rank = int(mine.get("rank", 0)), score = int(mine.get("score", 0)),
-				name = LeaderboardManager.player_name(), me = true, source = str(mine.get("source", ""))})
+				name = LeaderboardManager.board_name(), me = true, source = str(mine.get("source", ""))})
 
 func _add_row(entry: Dictionary) -> void:
 	var rank: int = int(entry.get("rank", 0))
@@ -204,13 +208,14 @@ func _add_row(entry: Dictionary) -> void:
 	row.add_child(_rank_badge(rank, medal))
 
 	var player_name: String = str(entry.get("name", ""))
-	if player_name.is_empty():
+	if player_name.is_empty() or player_name == "Player":   # (the default name stays localized)
 		player_name = tr("Player")
 	if is_me:
 		player_name = tr("%s (You)") % player_name
 
 	var name_lbl: Label = Label.new()
 	name_lbl.text = player_name
+	name_lbl.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED   # a player's name is no UI key ("Hard")
 	name_lbl.add_theme_font_size_override("font_size", ROW_FONT)
 	name_lbl.add_theme_color_override("font_color", TEXT if rank <= 3 or is_me else DIM)
 	name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -223,7 +228,10 @@ func _add_row(entry: Dictionary) -> void:
 		var dest: Dictionary = FleetData.destination(int(entry.get("destination", 0)))
 		if not dest.is_empty():
 			var dtag: Label = Label.new()
-			dtag.text = "%s · %s" % [dest["name"], tr(FleetData.DIFFICULTY_NAMES[int(dest["difficulty"])])]
+			# the printed (localized) Destination name, as on the Fleet screens
+			dtag.text = "%s · %s" % [FleetData.destination_name(int(entry.get("destination", 0))),
+					tr(FleetData.DIFFICULTY_NAMES[int(dest["difficulty"])])]
+			dtag.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 			dtag.add_theme_font_size_override("font_size", 13)
 			dtag.add_theme_color_override("font_color", SCAN_TAG_COLOR)
 			dtag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

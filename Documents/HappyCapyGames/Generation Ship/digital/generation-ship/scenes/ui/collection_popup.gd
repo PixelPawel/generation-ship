@@ -641,8 +641,11 @@ func _populate_grid() -> void:
 		rect.pivot_offset = box_size / 2.0
 		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		rect.mouse_filter = Control.MOUSE_FILTER_STOP
-		rect.gui_input.connect(func(event: InputEvent) -> void: _on_thumb_gui_input(event, entry, landscape))
+		# PASS, and the close-up on release: a swipe that starts on a card scrolls the
+		# grid on a phone (with STOP + zoom on press every swipe zoomed a card instead)
+		rect.mouse_filter = Control.MOUSE_FILTER_PASS
+		var down: Array = [Vector2.INF]   # where it was pressed (a lambda copies plain vars)
+		rect.gui_input.connect(func(event: InputEvent) -> void: _on_thumb_gui_input(event, entry, landscape, down))
 		rect.mouse_entered.connect(func() -> void: _on_thumb_hover(rect, true))
 		rect.mouse_exited.connect(func() -> void: _on_thumb_hover(rect, false))
 		var mat: ShaderMaterial = ShaderMaterial.new()
@@ -666,11 +669,18 @@ func _on_thumb_hover(rect: TextureRect, entered: bool) -> void:
 	tw.parallel().tween_property(rect, "scale", target_scale, dur)
 	_thumb_tweens[rect] = tw
 
-func _on_thumb_gui_input(event: InputEvent, entry: Dictionary, landscape: bool) -> void:
-	if not (event is InputEventMouseButton):
-		return
+const TAP_SLOP: float = 20.0   # a press that moves further is a scroll, not a zoom (as card_picker.gd)
+
+func _on_thumb_gui_input(event: InputEvent, entry: Dictionary, landscape: bool, down: Array) -> void:
 	var mb: InputEventMouseButton = event as InputEventMouseButton
-	if (mb.button_index == MOUSE_BUTTON_LEFT or mb.button_index == MOUSE_BUTTON_RIGHT) and mb.pressed:
+	if mb == null or (mb.button_index != MOUSE_BUTTON_LEFT and mb.button_index != MOUSE_BUTTON_RIGHT):
+		return
+	if mb.pressed:
+		down[0] = mb.global_position
+		return
+	var start: Vector2 = down[0]
+	down[0] = Vector2.INF
+	if start != Vector2.INF and mb.global_position.distance_to(start) <= TAP_SLOP:
 		_show_enlarged(entry, landscape)
 		get_viewport().set_input_as_handled()
 

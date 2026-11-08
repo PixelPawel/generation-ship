@@ -32,6 +32,7 @@ func open() -> void:
 	_set_busy(false)
 	_refresh_price()
 	_refresh_games()
+	FullGame.refresh_product()   # (start-up query failed: try again now)
 	PopupAnim.open(self)
 
 func _build_ui() -> void:
@@ -53,7 +54,7 @@ func _build_ui() -> void:
 	var title_row: HBoxContainer = HBoxContainer.new()
 	vbox.add_child(title_row)
 	var title: Label = Label.new()
-	title.text = tr("UNLOCK THE FULL GAME")
+	title.text = "UNLOCK THE FULL GAME"   # static texts as keys: auto-translated, they follow a language switch
 	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", GOLD)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -64,7 +65,7 @@ func _build_ui() -> void:
 	title_row.add_child(close_btn)
 
 	var body: Label = Label.new()
-	body.text = tr("Versus and Co-op open with a one-time purchase: online games, games against bots and Generation Fleet. The Tutorial, Rule Book, Collection and Scan Tableau stay free.")
+	body.text = "Versus and Co-op open with a one-time purchase: online games, games against bots and Generation Fleet. The Tutorial, Rule Book, Collection and Scan Tableau stay free."
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_theme_font_size_override("font_size", 20)
 	body.add_theme_color_override("font_color", TEXT_COLOR)
@@ -81,7 +82,7 @@ func _build_ui() -> void:
 	vbox.add_child(_buy_btn)
 
 	var code_head: Label = Label.new()
-	code_head.text = tr("Have a code?")
+	code_head.text = "Have a code?"
 	code_head.add_theme_font_size_override("font_size", 20)
 	code_head.add_theme_color_override("font_color", GOLD)
 	vbox.add_child(code_head)
@@ -96,7 +97,7 @@ func _build_ui() -> void:
 	_code_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_code_input.text_submitted.connect(func(_t: String) -> void: _redeem())
 	row.add_child(_code_input)
-	_redeem_btn = _make_button(tr("Redeem"))
+	_redeem_btn = _make_button("Redeem")
 	_redeem_btn.custom_minimum_size = Vector2(160, 52)
 	_redeem_btn.pressed.connect(_redeem)
 	row.add_child(_redeem_btn)
@@ -111,7 +112,7 @@ func _build_ui() -> void:
 	_games_note.add_theme_font_size_override("font_size", 16)
 	_games_note.add_theme_color_override("font_color", MUTED_COLOR)
 	games_row.add_child(_games_note)
-	_games_btn = _make_button(tr("Sign in with Google Play Games"))
+	_games_btn = _make_button("Sign in with Google Play Games")
 	_games_btn.add_theme_font_size_override("font_size", 16)
 	_games_btn.pressed.connect(func() -> void: FullGame.sign_in_games())
 	games_row.add_child(_games_btn)

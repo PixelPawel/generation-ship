@@ -81,6 +81,26 @@ func _ready() -> void:
 			add_child(player)
 			_supply_players[color] = player
 	_setup_sfx()
+	_apply_saved_audio()
+
+# The saved bus volumes and output device, at start-up: they were only applied
+# when a PauseMenu was built (main menu), after the studio intro's chime had
+# played at full SFX volume on the default device. PauseMenu still loads them
+# for its sliders.
+func _apply_saved_audio() -> void:
+	var cfg: ConfigFile = ConfigFile.new()
+	if cfg.load("user://settings.cfg") != OK:
+		return
+	for pair: Array in [["Music", "music_volume"], ["SFX", "sfx_volume"], ["Voice", "voice_volume"]]:
+		var idx: int = AudioServer.get_bus_index(str(pair[0]))
+		if idx < 0:
+			continue
+		var v: float = float(cfg.get_value("audio", str(pair[1]), 1.0))
+		AudioServer.set_bus_volume_db(idx, linear_to_db(v) if v > 0.0 else -80.0)
+	# only a device that's there: "" (unlike "Default") silences everything
+	var device: String = str(cfg.get_value("audio", "output_device", ""))
+	if not device.is_empty() and device in AudioServer.get_output_device_list():
+		AudioServer.output_device = device
 
 func _setup_sfx() -> void:
 	for cue: String in SFX_CUES:

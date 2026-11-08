@@ -41,6 +41,7 @@ var price_text: String = ""                     # Play's price in the player's c
 var _source: String = ""                        # what unlocked it: "play" or "code"
 var _billing: Node = null
 var _product_ready: bool = false                # Play knows the product: buying can start
+var _restoring: bool = false                    # a buy tap got ITEM_ALREADY_OWNED: its purchases query answers it
 var games_player_id: String = ""                # Google Play Games player, "" while not signed in
 var games_name: String = ""                     # its Play Games name, shown in the unlock panel only
 var _games: Object = null                       # the Play Games Android singleton
@@ -71,11 +72,13 @@ func is_locked() -> bool:
 ## Starts Google Play's purchase sheet; the outcome comes as purchase_result.
 func buy() -> void:
 	if _billing == null or not _product_ready:
+		refresh_product()   # so the next tap can work
 		purchase_result.emit(false, tr("Google Play isn't available right now. Please try again later."))
 		return
 	var r: Dictionary = _billing.call("purchase", PRODUCT_ID)
 	var code: int = int(r.get("response_code", RESPONSE_OK))
 	if code == ITEM_ALREADY_OWNED:
+		_restoring = true
 		_billing.call("query_purchases", INAPP)   # bought before (another install): restore it
 	elif code != RESPONSE_OK:
 		purchase_result.emit(false, tr("The purchase didn't go through. Please try again."))
@@ -178,6 +181,20 @@ func _restore_from_games() -> void:
 			HTTPClient.METHOD_POST, body) != OK:
 		req.queue_free()
 
+## The product query failed at start-up (offline, Play Store busy or updating) and
+## nothing asked again, so buying stayed impossible until the app was restarted:
+## ask Play again (unlock panel opened, or a buy tap that found no product).
+func refresh_product() -> void:
+	if _billing == null or _product_ready:
+		return
+	match int(_billing.call("get_connection_state")):
+		2:   # CONNECTED
+			_on_billing_connected()
+		1:   # CONNECTING: its `connected` queries the product
+			pass
+		_:   # DISCONNECTED / CLOSED
+			_billing.call("start_connection")
+
 func _on_billing_connected() -> void:
 	_billing.call("query_product_details", PackedStringArray([PRODUCT_ID]), INAPP)
 	_billing.call("query_purchases", INAPP)
@@ -196,14 +213,20 @@ func _on_product_details(response: Dictionary) -> void:
 
 # Both the start-up check (query_purchases) and a finished purchase sheet
 # (on_purchase_updated, from_sheet) land here.
+# The unlock panel waits (buttons off) for a purchase_result after a buy tap: a
+# restore query after ITEM_ALREADY_OWNED reports like the sheet (report).
 func _on_purchases(response: Dictionary, from_sheet: bool) -> void:
+	var report: bool = from_sheet or _restoring
+	if not from_sheet:
+		_restoring = false
 	var code: int = int(response.get("response_code", -1))
 	if code != RESPONSE_OK:
-		if not from_sheet:
+		if not report:
 			return   # Play didn't answer: keep what we had
-		if code == ITEM_ALREADY_OWNED:
+		if from_sheet and code == ITEM_ALREADY_OWNED:
+			_restoring = true
 			_billing.call("query_purchases", INAPP)
-		elif code == USER_CANCELED:
+		elif from_sheet and code == USER_CANCELED:
 			purchase_result.emit(false, "")
 		else:
 			purchase_result.emit(false, tr("The purchase didn't go through. Please try again."))
@@ -229,13 +252,16 @@ func _on_purchases(response: Dictionary, from_sheet: bool) -> void:
 				pending = true
 	if owned:
 		_unlock("play")
-		if from_sheet:
+		if report:
 			purchase_result.emit(true, "")
 	elif pending:
-		if from_sheet:
+		if report:
 			purchase_result.emit(false, tr("Payment pending: Versus and Co-op unlock as soon as it's complete."))
-	elif not from_sheet and _source == "play":
-		_set_source("")   # no longer owned (refunded)
+	else:
+		if not from_sheet and _source == "play":
+			_set_source("")   # no longer owned (refunded)
+		if report:
+			purchase_result.emit(false, tr("The purchase didn't go through. Please try again."))
 
 func _unlock(source: String) -> void:
 	# a code unlock is for good: a purchase found later doesn't replace it, so

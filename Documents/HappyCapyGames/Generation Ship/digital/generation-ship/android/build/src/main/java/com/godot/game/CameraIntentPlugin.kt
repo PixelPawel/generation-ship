@@ -8,6 +8,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.Environment
+import android.os.SystemClock
 import android.content.Intent
 import android.net.Uri
 import android.provider.MediaStore
@@ -49,6 +50,9 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 		private const val REQUEST_SCAN_CAMERA = 4174
 		private const val REQUEST_PICK_PHOTO = 4175
 		private const val REQUEST_PICK_VENDOR = 4176
+		// Camera-permission fallback: the camera app is started inside onActivityResult, and the game
+		// still resumes once right after that; a resume this soon isn't the player coming back
+		private const val FALLBACK_RESUME_GRACE_MS = 1500L
 		// The camera app straight in its night mode, where the maker lets apps ask for it (tried in turn,
 		// then the plain camera app). Honor: StoreShow, exported (MagicOS, checked 2026-11-06 on the Honor 200)
 		private val NIGHT_CAMERAS = listOf(Pair("com.hihonor.camera", "com.hihonor.camera.store.show.NIGHT_SCENE"))
@@ -62,6 +66,7 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 
 	private var pendingPhotoPath: String? = null
 	private var awaitingCameraApp = false      // open_camera_app(): pick the photo once the game is back
+	private var ignoreResumeUntil = 0L         // SystemClock.elapsedRealtime(): see FALLBACK_RESUME_GRACE_MS
 	private var hint: String = ""
 	private var guide: String = ""
 
@@ -176,7 +181,7 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 
 	override fun onMainResume() {
 		super.onMainResume()
-		if (awaitingCameraApp) {
+		if (awaitingCameraApp && SystemClock.elapsedRealtime() >= ignoreResumeUntil) {
 			awaitingCameraApp = false
 			pick_photo()
 		}
@@ -277,6 +282,8 @@ class CameraIntentPlugin(godot: Godot) : GodotPlugin(godot) {
 			// from an app that declares CAMERA without holding it (that crashed the game), so the camera
 			// app on its own instead (not permission-gated), and the photo picker once the game is back
 			if (ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+				// (we're inside onActivityResult: the picker opened at once on the game's own resume)
+				ignoreResumeUntil = SystemClock.elapsedRealtime() + FALLBACK_RESUME_GRACE_MS
 				open_camera_app()
 				return@runOnUiThread
 			}

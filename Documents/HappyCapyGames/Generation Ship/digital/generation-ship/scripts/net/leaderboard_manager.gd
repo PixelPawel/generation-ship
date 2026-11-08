@@ -26,8 +26,10 @@ extends Node
 # asks again. Settings (pause_menu.gd) can switch it either way.
 const ConsentPopup = preload("res://scenes/ui/leaderboard_consent.gd")
 
-signal top_scores_ready(entries: Array[Dictionary])
-signal top_scores_failed
+# source: which board the reply is for (filter taps can overtake each other); mine: the
+# player's own best on that board (empty if not on it)
+signal top_scores_ready(source: String, entries: Array[Dictionary], mine: Dictionary)
+signal top_scores_failed(source: String)
 signal score_uploaded(success: bool)
 signal score_not_shared            # the player said no (or posting is off): nothing was uploaded
 signal sharing_changed(on: bool)
@@ -69,7 +71,7 @@ func submit_score(score: int, details: PackedInt32Array = PackedInt32Array(), so
 
 func _upload(entry: Dictionary) -> void:
 	var body: String = JSON.stringify({
-		player = _player_id(), name = player_name(), score = int(entry["score"]), details = entry["details"],
+		player = _player_id(), name = board_name(), score = int(entry["score"]), details = entry["details"],
 		platform = "android" if OS.get_name() == "Android" else "steam",
 		source = str(entry["source"]), destination = int(entry["destination"]),
 	})
@@ -91,7 +93,8 @@ func set_sharing(on: bool, board_name: String = "") -> void:
 	cfg.load(_SETTINGS_PATH)
 	cfg.set_value("player", "leaderboard", SHARING_ON if on else SHARING_OFF)
 	if on and not board_name.strip_edges().is_empty():
-		cfg.set_value("player", "name", board_name.strip_edges())
+		cfg.set_value("player", "board_name", board_name.strip_edges())   # what goes public
+		cfg.set_value("player", "name", board_name.strip_edges())         # pre-fills the lobby
 	cfg.save(_SETTINGS_PATH)
 	var waiting: Array[Dictionary] = _pending.duplicate()
 	_pending.clear()
@@ -114,7 +117,8 @@ func ask_consent(delay_sec: float = 0.0) -> void:
 		layer.add_child(_consent)
 		_consent.answered.connect(set_sharing)
 	if not _consent.visible:
-		_consent.open(player_name())
+		var saved: String = _saved_board_name()
+		_consent.open(saved if not saved.is_empty() else player_name())
 
 ## The privacy policy for this build, at the half in the player's language.
 func privacy_url() -> String:
@@ -129,16 +133,17 @@ func request_top_scores(source: String = SOURCE_ALL) -> void:
 		path += "&player=" + _player_id().uri_encode()
 	_request(HTTPClient.METHOD_GET, path, "", func(ok: bool, data: Dictionary) -> void:
 		if not ok or typeof(data.get("entries")) != TYPE_ARRAY:
-			top_scores_failed.emit()
+			top_scores_failed.emit(source)
 			return
-		my_best = {}
+		var mine: Dictionary = {}
 		if typeof(data.get("mine")) == TYPE_DICTIONARY:
-			my_best = data["mine"]
+			mine = data["mine"]
+		my_best = mine
 		var entries: Array[Dictionary] = []
 		for e: Variant in data["entries"]:
 			if typeof(e) == TYPE_DICTIONARY:
 				entries.append(e)
-		top_scores_ready.emit(entries))
+		top_scores_ready.emit(source, entries, mine))
 
 # Decodes an entry's "details" into {label, vp} scoring lines. See
 # ScoringSnapshotCodec for the packing scheme this reverses.
@@ -150,14 +155,44 @@ func decode_snapshot(entry: Dictionary) -> Array[Dictionary]:
 			details.append(int(v))
 	return ScoringSnapshotCodec.decode_lines(details)
 
-# The name shown on the board: the lobby name if one was ever entered, else
-# the Steam display name, else "Player".
+# The lobby name if one was ever entered, else the Steam display name, else
+# "Player". (What the consent question proposes for the board.)
 func player_name() -> String:
 	var cfg: ConfigFile = ConfigFile.new()
 	if cfg.load(_SETTINGS_PATH) == OK:
 		var saved: String = str(cfg.get_value("player", "name", "")).strip_edges()
 		if not saved.is_empty():
 			return saved
+	return _default_name()
+
+# The name posted with scores: the one given when the player said yes. A name
+# typed later only for a lobby room no longer goes public (and renames every
+# earlier entry on the server). Changing it: Settings, posting off and on.
+func board_name() -> String:
+	var saved: String = _saved_board_name()
+	return saved if not saved.is_empty() else _default_name()
+
+func _saved_board_name() -> String:
+	var cfg: ConfigFile = ConfigFile.new()
+	if cfg.load(_SETTINGS_PATH) != OK:
+		return ""
+	return str(cfg.get_value("player", "board_name", "")).strip_edges()
+
+# Players who said yes before the board name had its own key posted under the
+# lobby name: that one becomes their board name, so it stays as it is.
+func _ready() -> void:
+	var cfg: ConfigFile = ConfigFile.new()
+	if cfg.load(_SETTINGS_PATH) != OK:
+		return
+	if str(cfg.get_value("player", "leaderboard", "")) != SHARING_ON or cfg.has_section_key("player", "board_name"):
+		return
+	var old: String = str(cfg.get_value("player", "name", "")).strip_edges()
+	if old.is_empty():
+		return
+	cfg.set_value("player", "board_name", old)
+	cfg.save(_SETTINGS_PATH)
+
+func _default_name() -> String:
 	var steam_mgr: Node = get_node_or_null("/root/SteamManager")
 	if steam_mgr and bool(steam_mgr.get("is_initialized")) and Engine.has_singleton("Steam"):
 		var steam_name: String = str(Engine.get_singleton("Steam").call("getPersonaName"))

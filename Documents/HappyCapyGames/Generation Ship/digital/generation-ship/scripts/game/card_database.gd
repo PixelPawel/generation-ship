@@ -385,7 +385,48 @@ func display_name(cd: CardData, is_adv: bool = false) -> String:
 
 func display_effect(cd: CardData, is_adv: bool = false) -> String:
 	var english: String = cd.adv_effect_text if is_adv and not cd.adv_effect_text.is_empty() else cd.effect_text
-	return _card_text_for(cd, is_adv, "effect", english)
+	return display_text(_card_text_for(cd, is_adv, "effect", english))
+
+const _SUPPLY_WORDS: Dictionary = {
+	"dust": CardData.SupplyColor.DUST, "metals": CardData.SupplyColor.METALS,
+	"liquids": CardData.SupplyColor.LIQUIDS, "organix": CardData.SupplyColor.ORGANIX,
+	"electrix": CardData.SupplyColor.ELECTRIX, "thrust": CardData.SupplyColor.THRUST,
+	"thrrust": CardData.SupplyColor.THRUST,
+}
+var _supply_word_re: RegEx = null
+var _star_after_card_re: RegEx = null
+var _star_before_tech_re: RegEx = null
+
+## Card effect text for a tooltip (also FleetData's Danger / Destination texts). The
+## sheet texts are the print sources, where the supply words and "(Star Card)" become
+## icons: shown as text they read "Erhalte 6 Dust", next to a title that says "Staub".
+## Supply words become the player's words; "(Star Card)" a ⭐ card. Never for names.
+func display_text(text: String) -> String:
+	if text.is_empty():
+		return text
+	if _supply_word_re == null:
+		_supply_word_re = RegEx.create_from_string("(?i)\\b(Dust|Metals|Liquids|Organix|Electrix|Thrr?ust)\\b")
+		# after a word for "card" / "tech" the star alone reads right ("ogni carta ⭐", "Tech ⭐")
+		_star_after_card_re = RegEx.create_from_string(
+				"(?i)\\b(carta|cartas|carte|cartes|karta|kartę|karty|tech|technologii|tecnología|technologie) \\(Star Cards?\\)")
+		_star_before_tech_re = RegEx.create_from_string("(?i)\\(Star Cards?\\)(?= tech\\b)")
+	var out: String = text
+	if out.contains("(Star Card"):
+		out = _star_after_card_re.sub(out, "$1 ⭐", true)
+		out = _star_before_tech_re.sub(out, "⭐", true)
+		var inline: String = tr("STAR_CARD_INLINE")
+		if inline == "STAR_CARD_INLINE":
+			inline = "⭐"   # (the key isn't in UI Strings.csv yet)
+		out = out.replace("(Star Cards)", inline).replace("(Star Card)", inline)
+	if TranslationServer.get_locale().substr(0, 2) == "en":
+		return out
+	var res: String = ""
+	var pos: int = 0
+	for m: RegExMatch in _supply_word_re.search_all(out):
+		var color: CardData.SupplyColor = _SUPPLY_WORDS[m.get_string().to_lower()]
+		res += out.substr(pos, m.get_start() - pos) + CardData.color_name(color)
+		pos = m.get_end()
+	return res + out.substr(pos)
 
 func _card_text_for(cd: CardData, is_adv: bool, field: String, english: String) -> String:
 	var lang: String = TranslationServer.get_locale().substr(0, 2)

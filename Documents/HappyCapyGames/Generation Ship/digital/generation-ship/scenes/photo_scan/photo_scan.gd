@@ -129,6 +129,7 @@ var _sectors: Array[Dictionary] = []          # the ship, BotScoring-shaped (+ u
 var _source_image: Image = null               # the one whole-ship photo
 
 var _body_font: FontVariation = null          # Myriad semibold, normal width
+var _myriad: FontFile = null
 var _file_dialog: FileDialog = null
 var _card_picker: Control = null
 var _picker_callback: Callable = Callable()   # armed while a pick is awaited
@@ -188,15 +189,29 @@ func _finish_scan_thread() -> void:
 	_scan_job = null
 
 func _ready() -> void:
-	var myriad: FontFile = load(MYRIAD_PATH) as FontFile
-	# Myriad Variable Concept has no Polish ą ć ę ń ś ź ż (nor · … ★): in Polish the theme's
-	# Ethnocentric stays, rather than letters patched in from a system font
-	if myriad and not TranslationServer.get_locale().begins_with("pl"):
+	_myriad = load(MYRIAD_PATH) as FontFile
+	if _myriad:
 		_body_font = FontVariation.new()
-		_body_font.base_font = myriad
-		_body_font.variation_opentype = {"wght": 600, "wdth": 100}
+		_pick_body_font()
 	_build_ui()
 	visible = false
+
+# Myriad Variable Concept has no Polish ą ć ę ń ś ź ż (nor · … ★): in Polish the body face
+# is the theme's Ethnocentric, rather than letters patched in from a system font. Every
+# label shares this one FontVariation, so a language switch re-picks it for all of them.
+func _pick_body_font() -> void:
+	if _body_font == null:
+		return
+	if TranslationServer.get_locale().begins_with("pl"):
+		_body_font.base_font = GameTheme.get_theme().default_font
+		_body_font.variation_opentype = {}
+	else:
+		_body_font.base_font = _myriad
+		_body_font.variation_opentype = {"wght": 600, "wdth": 100}
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED:
+		_pick_body_font()
 
 func open() -> void:
 	_close_tray()
@@ -222,6 +237,8 @@ func _input(event: InputEvent) -> void:
 			_close_tray()
 		elif _sel_sector >= 0:
 			_select(-1, -1)
+		elif _view != "ship":
+			_set_view("ship")   # photo / breakdown: back to the ship, not out (open() wipes the scan)
 		else:
 			PopupAnim.close(self)
 		get_viewport().set_input_as_handled()
@@ -256,7 +273,8 @@ func _build_ui() -> void:
 	title_row.add_theme_constant_override("separation", 18)
 	vbox.add_child(title_row)
 	var title: Label = Label.new()
-	title.text = tr("Scan Tableau").to_upper()
+	title.text = "Scan Tableau"   # (the key: auto-translated, so it follows a language switch)
+	title.uppercase = true
 	title.add_theme_font_size_override("font_size", TITLE_FONT_SIZE)
 	title.add_theme_color_override("font_color", CREAM)
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -650,7 +668,7 @@ func _build_alliance_row(parent: HBoxContainer) -> void:
 	_alliance_row.add_theme_constant_override("separation", 10)
 	_alliance_row.visible = false
 	parent.add_child(_alliance_row)
-	var lbl: Label = _make_label(tr("Alliance detected! Choose an ally — how many expeditions do they have?"), SMALL_FONT_SIZE, STAR_COLOR)
+	var lbl: Label = _make_label("Alliance detected! Choose an ally — how many expeditions do they have?", SMALL_FONT_SIZE, STAR_COLOR)
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lbl.custom_minimum_size = Vector2(360, 0)
 	_alliance_row.add_child(lbl)

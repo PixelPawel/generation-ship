@@ -2,6 +2,7 @@ class_name Scoreboard
 extends Control
 
 var _rows_container: VBoxContainer
+var _footer: VBoxContainer   # TOTAL and Main Menu: under the scrolling rows, always on screen
 var _title: Label
 
 func _ready() -> void:
@@ -28,9 +29,21 @@ func _ready() -> void:
 	var separator := HSeparator.new()
 	vbox.add_child(separator)
 
+	# the info screen is a fixed 1200x572: 3-4 players with an expanded winner ran
+	# past its bottom, Main Menu with it, so the rows scroll
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(scroll)
+
 	_rows_container = VBoxContainer.new()
 	_rows_container.add_theme_constant_override("separation", 8)
-	vbox.add_child(_rows_container)
+	_rows_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_rows_container)
+
+	_footer = VBoxContainer.new()
+	_footer.add_theme_constant_override("separation", 8)
+	vbox.add_child(_footer)
 
 # Generation Fleet: "Mission complete/failed" instead of "Final Scores".
 func set_title(text: String, color: Color = Color.WHITE) -> void:
@@ -39,8 +52,7 @@ func set_title(text: String, color: Color = Color.WHITE) -> void:
 
 # Solo / single-player: flat expanded list
 func show_scores(lines: Array[Dictionary], total: int) -> void:
-	for child: Node in _rows_container.get_children():
-		child.queue_free()
+	_clear()
 
 	for line: Dictionary in lines:
 		var row := HBoxContainer.new()
@@ -65,8 +77,7 @@ func show_scores(lines: Array[Dictionary], total: int) -> void:
 
 # Multiplayer: one collapsible section per player, sorted by score
 func show_multiplayer_scores(players: Array[Dictionary]) -> void:
-	for child: Node in _rows_container.get_children():
-		child.queue_free()
+	_clear()
 
 	for i: int in players.size():
 		var player: Dictionary = players[i]
@@ -179,13 +190,19 @@ func _add_player_section(player_name: String, total: int, lines: Array, is_winne
 	sep.modulate = Color(0.4, 0.4, 0.5, 0.5)
 	_rows_container.add_child(sep)
 
+func _clear() -> void:
+	for child: Node in _rows_container.get_children():
+		child.queue_free()
+	for child: Node in _footer.get_children():
+		child.queue_free()
+
 func _add_total_and_menu(total: int) -> void:
 	if total >= 0:
 		var sep := HSeparator.new()
-		_rows_container.add_child(sep)
+		_footer.add_child(sep)
 
 		var total_row := HBoxContainer.new()
-		_rows_container.add_child(total_row)
+		_footer.add_child(total_row)
 
 		var total_name := Label.new()
 		total_name.text = tr("TOTAL")
@@ -202,7 +219,7 @@ func _add_total_and_menu(total: int) -> void:
 		total_row.add_child(total_vp)
 
 	var sep2 := HSeparator.new()
-	_rows_container.add_child(sep2)
+	_footer.add_child(sep2)
 
 	var menu_btn := Button.new()
 	menu_btn.text = tr("Main Menu")
@@ -213,4 +230,4 @@ func _add_total_and_menu(total: int) -> void:
 	menu_btn.pressed.connect(func() -> void:
 		SceneTransition.change_scene("res://scenes/main_menu/main_menu.tscn")
 	)
-	_rows_container.add_child(menu_btn)
+	_footer.add_child(menu_btn)

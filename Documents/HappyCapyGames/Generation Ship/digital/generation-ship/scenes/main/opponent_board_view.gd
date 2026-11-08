@@ -115,7 +115,7 @@ static func build_opponent_widget(main: Main) -> void:
 			entry.accept_event()
 		)
 		var opp_name: String = GameNetwork.player_names.get(pid, "Player")
-		entry.mouse_entered.connect(func() -> void: main._show_tooltip("", "Click to view %s's board." % opp_name))
+		entry.mouse_entered.connect(func() -> void: main._show_tooltip("", main.hint("Click to view %s's board.", "Tap to view %s's board.") % opp_name))
 		entry.mouse_exited.connect(func() -> void: main._hide_tooltip())
 		outer_vbox.add_child(entry)
 
@@ -226,7 +226,8 @@ static func show_opponent_board(main: Main, peer_id: int) -> void:
 		main._show_info_base(false)
 	build_opp_info_panel(main, peer_id)
 
-static func build_opp_info_panel(main: Main, peer_id: int) -> void:
+## keep_scroll: the list's scroll position to restore (a refresh while it's open).
+static func build_opp_info_panel(main: Main, peer_id: int, keep_scroll: int = 0) -> void:
 	if main.opp_info_panel:
 		main.opp_info_panel.queue_free()
 	var snap: Dictionary = main._opp_snapshots.get(peer_id, {})
@@ -236,6 +237,18 @@ static func build_opp_info_panel(main: Main, peer_id: int) -> void:
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	main._info_viewport.add_child(root)
 	main.opp_info_panel = root
+	var scroll_cell: Array = [null]   # the sectors list, made further down
+	# Built from one snapshot: rebuilt when a newer one arrives (each broadcast is
+	# a new Dictionary), or supplies, hand, VP and cards went stale while watched.
+	var poll: Timer = Timer.new()
+	poll.wait_time = 0.5
+	poll.autostart = true
+	poll.timeout.connect(func() -> void:
+		var now: Variant = main._opp_snapshots.get(peer_id)
+		if now != null and not is_same(now, snap) and main.opp_info_panel == root:
+			var sc: ScrollContainer = scroll_cell[0] as ScrollContainer
+			build_opp_info_panel(main, peer_id, sc.scroll_vertical if sc else 0))
+	root.add_child(poll)
 
 	var scifi: ScifiPanel = load("res://scenes/ui/scifi_panel.gd").new()
 	scifi.set_content_margin(20)
@@ -253,6 +266,7 @@ static func build_opp_info_panel(main: Main, peer_id: int) -> void:
 
 	var name_lbl: Label = Label.new()
 	name_lbl.text = player_name
+	name_lbl.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED   # a name, not a UI key
 	name_lbl.add_theme_font_size_override("font_size", 30)
 	name_lbl.add_theme_color_override("font_color", Color(0.80, 0.90, 1.0))
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -260,7 +274,7 @@ static func build_opp_info_panel(main: Main, peer_id: int) -> void:
 	header.add_child(name_lbl)
 
 	var return_btn: Button = Button.new()
-	return_btn.text = "← Return"
+	return_btn.text = main.tr("← Back")
 	return_btn.add_theme_font_size_override("font_size", 20)
 	return_btn.custom_minimum_size = Vector2(160, 48)
 	return_btn.pressed.connect(func() -> void: close_opponent_board_view(main))
@@ -287,6 +301,7 @@ static func build_opp_info_panel(main: Main, peer_id: int) -> void:
 			var opid: int = opid_v
 			var tab_btn: Button = Button.new()
 			tab_btn.text = GameNetwork.player_names.get(opid, "Player")
+			tab_btn.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 			tab_btn.custom_minimum_size = Vector2(0, 36)
 			tab_btn.add_theme_font_size_override("font_size", 15)
 			tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -338,7 +353,7 @@ static func build_opp_info_panel(main: Main, peer_id: int) -> void:
 	stats_bar.add_child(sv1)
 
 	var hand_lbl: Label = Label.new()
-	hand_lbl.text = "♠  %d cards" % snap.get("hand_size", 0)
+	hand_lbl.text = "♠  %d" % int(snap.get("hand_size", 0))   # (as in the Players column: no word to translate)
 	hand_lbl.add_theme_font_size_override("font_size", 18)
 	hand_lbl.add_theme_color_override("font_color", Color(0.70, 0.82, 1.0))
 	hand_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -349,7 +364,7 @@ static func build_opp_info_panel(main: Main, peer_id: int) -> void:
 	stats_bar.add_child(sv2)
 
 	var vp_lbl: Label = Label.new()
-	vp_lbl.text = "⭐  VP: %d" % snap.get("vp", 0)
+	vp_lbl.text = main.tr("⭐ %d VP") % int(snap.get("vp", 0))
 	vp_lbl.add_theme_font_size_override("font_size", 20)
 	vp_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.35))
 	vp_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -369,6 +384,9 @@ static func build_opp_info_panel(main: Main, peer_id: int) -> void:
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	outer.add_child(scroll)
+	scroll_cell[0] = scroll
+	if keep_scroll > 0:
+		scroll.sort_children.connect(func() -> void: scroll.scroll_vertical = keep_scroll, CONNECT_ONE_SHOT)
 
 	var sectors_list: VBoxContainer = VBoxContainer.new()
 	sectors_list.add_theme_constant_override("separation", 16)
@@ -407,7 +425,9 @@ static func build_opp_sector_block(main: Main, slot: Dictionary) -> Control:
 	block.add_theme_constant_override("separation", 10)
 
 	var hdr: Label = Label.new()
-	hdr.text = ("▲ " if is_adv else "") + sector_name
+	# the printed name in the player's language (the snapshot carries the English one, for lookups)
+	hdr.text = ("▲ " if is_adv else "") + (CardDatabase.display_name(sector_cd, is_adv) if sector_cd else sector_name)
+	hdr.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	hdr.add_theme_font_size_override("font_size", 20)
 	hdr.add_theme_color_override("font_color",
 		Color(1.0, 0.90, 0.50) if is_adv else Color(0.80, 0.90, 1.0))
@@ -531,10 +551,11 @@ static func build_detail_card(cd: CardData, is_adv: bool, fallback_name: String,
 		placeholder.custom_minimum_size = card_size
 		vbox.add_child(placeholder)
 
-	var card_name: String = ((cd.adv_name if is_adv else cd.card_name) if cd else fallback_name)
+	var card_name: String = CardDatabase.display_name(cd, is_adv) if cd else fallback_name
 	if not card_name.is_empty():
 		var name_lbl: Label = Label.new()
 		name_lbl.text = card_name
+		name_lbl.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		name_lbl.add_theme_font_size_override("font_size", clampi(roundi(14.0 * scale), 9, 14))
 		name_lbl.add_theme_color_override("font_color",
 			Color(1.0, 0.90, 0.50) if is_adv else Color(0.85, 0.92, 1.0))
@@ -558,4 +579,4 @@ static func close_opponent_board_view(main: Main) -> void:
 		main.opp_info_panel.queue_free()
 		main.opp_info_panel = null
 	if main._market_panel:
-		main._show_info_base(true)
+		main._show_info_base(not main._info_panel_active())   # (not over a prompt still open)

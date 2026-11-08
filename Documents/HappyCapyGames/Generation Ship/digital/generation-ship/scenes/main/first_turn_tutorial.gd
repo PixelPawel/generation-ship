@@ -100,6 +100,8 @@ var _saw_market_inspect: bool = false
 var _saw_screen_enlarged: bool = false
 # the expedition was already won through Probe Launcher's bid offer: the bid chapter is done
 var _expedition_won_early: bool = false
+# bid chapter: DNA Sculpting's "archive up to 3 face up" choice came up (0 cards is a legal answer)
+var _saw_archive_choice: bool = false
 # Fleet chapter: the switch's screen came up (the step waits for it to go back); a card was sent
 var _saw_fleet_screen: bool = false
 var _shuttled: bool = false
@@ -130,6 +132,15 @@ func notify_researched() -> void:
 func notify_escape_pressed() -> void:
 	pass
 
+# Gates for Main/Board: after chapter 1 the grey pile's next card is Probe
+# Launcher's back (buying it would skip the auction chapters), and Research
+# outside its chapter would discard a card a step waits for.
+func allows_basic_sector() -> bool:
+	return _first_sector == null
+
+func allows_research() -> bool:
+	return _step >= 0 and _step < STEPS.size() and STEPS[_step] == "research"
+
 # ── Events ────────────────────────────────────────────────────────────────────
 
 func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
@@ -138,11 +149,14 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 		return
 	_placed.append(cd)
 	if cd.card_type == CardData.CardType.SECTOR:
+		# the 2nd and 3rd are the advanced ones won in an auction: another grey pile
+		# card bought on the way doesn't skip the auction chapters
+		var is_adv: bool = bool(card.get("is_advanced"))
 		if _first_sector == null:
 			_first_sector = slot
-		elif _second_sector == null and slot != _first_sector:
+		elif _second_sector == null and slot != _first_sector and is_adv:
 			_second_sector = slot
-		elif _third_sector == null and slot != _first_sector and slot != _second_sector:
+		elif _third_sector == null and slot != _first_sector and slot != _second_sector and is_adv:
 			_third_sector = slot
 
 func _on_card_recycled(_color: int, _amount: int) -> void:
@@ -186,6 +200,7 @@ func _next_step() -> void:
 	_saw_screen_enlarged = false
 	_saw_fleet_screen = false
 	_shuttled = false
+	_saw_archive_choice = false
 	_clear_highlights()
 
 func _refresh() -> void:
@@ -193,6 +208,8 @@ func _refresh() -> void:
 		return
 	if _main._effect_mode != Main.EffectMode.NONE:
 		_show_recycle_arrow(false)
+		if STEPS[_step] == "bid" and _main._effect_mode == Main.EffectMode.EFFECT_TUCK_OPTIONAL:
+			_saw_archive_choice = true
 		# DNA Sculpting's archive choice is the face-up lesson: explain it there
 		# (it can also be won through Probe Launcher's bid offer, in the probe step)
 		if _step < STEPS.size() and STEPS[_step] in ["probe", "bid"] and _placed_name(Main.TUTORIAL_EXPEDITION):
@@ -209,8 +226,89 @@ func _refresh() -> void:
 		_leave(step)
 		_next_step()
 		return
+	_rehand(step)
 	_tick(step)
 	_show(step)
+
+# The deck is scripted and empty, so a card a step waits for that left the hand
+# unplaced (recycled, researched away, forfeited after a bid, or the spare
+# Mag-Net placed on the ship) would never come back: hand it over again.
+func _rehand(step: String) -> void:
+	var need: Array[String] = _required_cards(step)
+	if need.is_empty():
+		return
+	# not while a card is on its way somewhere (drag, Recycle panel, payment, bid)
+	if _main._auction_unresolved() or _main._forfeit_discard_active \
+			or _board.get("_pending_recycle_card") != null or _board.get("_pending_card") != null \
+			or (_main._bid_popup and _main._bid_popup.visible) \
+			or (_main._bid_payment_panel and _main._bid_payment_panel.visible):
+		return
+	var have: Array[String] = []
+	for c: Node3D in _main.get_node("Hand").get_cards():
+		var cd: CardData = c.get("card_data")
+		if cd:
+			have.append(cd.card_name)
+	var missing: Array[String] = []
+	for n: String in need:
+		var i: int = have.find(n)
+		if i >= 0:
+			have.remove_at(i)
+		else:
+			missing.append(n)
+	_give(missing)
+
+# The cards the current step still needs in the hand.
+func _required_cards(step: String) -> Array[String]:
+	var out: Array[String] = []
+	match step:
+		"place":
+			if not _placed_type(CardData.CardType.TECH):
+				out.append("Mag-Net")
+		"optimize":
+			out = _missing_optimize_cards()
+		"if_full":
+			if not _placed_name("Lab Meats") and _any_tech_space():
+				out.append("Lab Meats")
+		"complete":
+			if _first_sector and not _first_sector.is_complete():
+				var free: int = 5 - _first_sector.get_tech_count()
+				var pc_down: bool = _placed_name("PC-Mind-Link")
+				for i: int in maxi(0, free - (0 if pc_down else 1)):
+					out.append("Mag-Net")
+				if not pc_down and free > 0:
+					out.append("PC-Mind-Link")
+		"if_new":
+			if not _placed_name("Hangars"):
+				out.append("Hangars")
+		"archive":
+			if not _placed_name("Chemical Synthesizer"):
+				out.append("Chemical Synthesizer")
+				out.append("Mag-Net")   # the card to archive
+		"store":
+			if not _placed_name("Containers"):
+				out.append("Containers")
+		"stars":
+			if not _gave_followup:
+				if not _placed_name("Quantum Archives"):
+					out.append("Quantum Archives")
+			elif not _placed_name("Solar Power") and _any_tech_space():
+				out.append("Solar Power")
+		"probe":
+			if not _placed_name(PROBE_CARD):
+				out.append(PROBE_CARD)
+		"always":
+			if not _gave_followup:
+				if not _placed_name(ALWAYS_CARD) and _board.count_tech_by_name(ALWAYS_CARD) == 0:
+					out.append(ALWAYS_CARD)
+			elif not _placed_name(ALWAYS_STAR_CARD) and _any_tech_space():
+				out.append(ALWAYS_STAR_CARD)
+		"research":
+			if not _researched:
+				out.append("Mag-Net")
+		"fleet_send":
+			if not _shuttled:
+				out.append(FLEET_SEND_CARD)
+	return out
 
 # Things that happen while a step waits (follow-up cards, nudges).
 func _tick(step: String) -> void:
@@ -226,7 +324,9 @@ func _tick(step: String) -> void:
 			# (shown from here, not _enter: the last one may still be shrinking away)
 			if _market_inspecting():
 				_saw_market_inspect = true
-			elif not _saw_market_inspect and (step != "intro_tech" or _step_time >= INTRO_DELAY_SEC):
+			# (not behind the pause menu: the card's click-to-dismiss would eat the menu's clicks)
+			elif not _saw_market_inspect and not (_main._pause_menu and _main._pause_menu.visible) \
+					and (step != "intro_tech" or _step_time >= INTRO_DELAY_SEC):
 				_show_intro_card(step)
 		"inspect_card":
 			if _main._sun_elevated_count > 0 or _main.card_overlay_showing("placed"):
@@ -249,8 +349,9 @@ func _tick(step: String) -> void:
 				_gave_followup = true
 				_give(["Solar Power"])
 		"always":
-			# Skyhook is down: now a star card, 1 cheaper because of it
-			if not _gave_followup and _placed_name(ALWAYS_CARD):
+			# Skyhook is down: now a star card, 1 cheaper because of it (not inside
+			# the bid Probe Launcher's reveal may offer: a forfeit would discard it)
+			if not _gave_followup and _placed_name(ALWAYS_CARD) and not _main._auction_unresolved():
 				_gave_followup = true
 				_give([ALWAYS_STAR_CARD])
 
@@ -313,12 +414,16 @@ func _enter(step: String) -> void:
 			_give(cards)
 			if free > 0:
 				_give_if_missing("PC-Mind-Link")   # Simulators' Draw 2 brought it already
+				# its "if complete: draw 4" needs cards to show the bonus: Mag-Nets, which the
+				# recycle, auction-payment, archive and research chapters then use up
+				_board.set_scripted_deck(_cards(["Mag-Net", "Mag-Net", "Mag-Net", "Mag-Net"]))
 		"buy3":
 			_top_up_supply()
 			_board.sync_market_reveal(Main.TUTORIAL_SECTOR_SLOT)   # Probe Launcher appears (no reveal effects)
 		"archive":
 			_top_up_supply()
-			_give(["Chemical Synthesizer", "Mag-Net"])   # Mag-Net: the card to archive
+			_give(["Chemical Synthesizer"])
+			_give_if_missing("Mag-Net")   # the card to archive (PC-Mind-Link may have drawn one)
 		"store":
 			_top_up_supply()
 			_give(["Containers"])
@@ -330,7 +435,7 @@ func _enter(step: String) -> void:
 			_give([ALWAYS_CARD])   # the star card follows once it's placed (_tick)
 		"research":
 			_board.set_scripted_deck(_cards(["Fish"]))   # the replacement it draws
-			_give(["Mag-Net"])
+			_give_if_missing("Mag-Net")
 		"fleet_dangers":
 			Main.FleetFlow.start_tutorial(_main, FLEET_DESTINATION, FLEET_DANGER, FLEET_CREW_ID, FLEET_CREW_NAME)
 		"fleet_send":
@@ -371,8 +476,8 @@ func _is_done(step: String) -> bool:
 		"bid":
 			if _expedition_won_early:
 				return true
-			# placed and its effect done: the drawn cards archived face up
-			return _placed_type(CardData.CardType.EXPEDITION) and (_any_tucked(true) or not _placed_name(Main.TUTORIAL_EXPEDITION))
+			# placed and its effect done: the drawn cards archived face up ("up to 3": none is fine too)
+			return _placed_type(CardData.CardType.EXPEDITION) and (_any_tucked(true) or _saw_archive_choice or not _placed_name(Main.TUTORIAL_EXPEDITION))
 		"complete":
 			return _first_sector == null or _first_sector.is_complete()
 		"buy2":
@@ -384,9 +489,10 @@ func _is_done(step: String) -> bool:
 		"store":
 			return _any_stored()
 		"stars":
-			return _placed_name("Solar Power")
+			# (no room left, e.g. a spare Mag-Net went onto the sector: move on, as if_full does)
+			return _placed_name("Solar Power") or not _any_tech_space()
 		"always":
-			return _placed_name(ALWAYS_STAR_CARD) and _board.count_tech_by_name(ALWAYS_CARD) > 0
+			return (_placed_name(ALWAYS_STAR_CARD) and _board.count_tech_by_name(ALWAYS_CARD) > 0) or not _any_tech_space()
 		"research":
 			return _researched
 		"fleet_dangers":
@@ -477,7 +583,9 @@ func _show(step: String) -> void:
 			_highlight_tech_slots()
 		"research":
 			_hint(tr("TUT_RESEARCH_TUT"))
-			_main._start_research_btn_3d_flash()
+			# (once: restarting it every refresh kept the pulse from ever rising)
+			if _main._research_btn_flash_tween == null or not _main._research_btn_flash_tween.is_valid():
+				_main._start_research_btn_3d_flash()
 		"fleet_dangers":
 			if _saw_fleet_screen:
 				_hint(tr("TUT_FLEET_DANGERS_BACK") % Main.FleetData.card_text("danger", FLEET_DANGER, "name"))
@@ -500,7 +608,8 @@ func _show(step: String) -> void:
 		"pass":
 			_main._stop_research_btn_3d_flash()
 			_hint(tr("TUT_PASS"))
-			_main._start_pass_btn_3d_flash()
+			if _main._pass_btn_flash_tween == null or not _main._pass_btn_flash_tween.is_valid():
+				_main._start_pass_btn_3d_flash()
 		"score":
 			_main._stop_pass_btn_3d_flash()
 			_hint(tr("TUT_SCORE"))
@@ -553,7 +662,9 @@ func _show_buy_advanced(step: String) -> void:
 		_hint(tr("TUT_BUY_PLACE"))
 	elif _main._bid_popup and _main._bid_popup.visible:
 		_main._market_panel.set_tutorial_advanced_highlight(false)
-		_hint(tr("TUT_BID_POPUP"))
+		# (TUT_BID_POPUP names an expedition; it stays the fallback until the sector key exists)
+		var bid_hint: String = tr("TUT_BID_POPUP_SECTOR")
+		_hint(bid_hint if bid_hint != "TUT_BID_POPUP_SECTOR" else tr("TUT_BID_POPUP"))
 	elif _main._bid_payment_panel and _main._bid_payment_panel.visible:
 		_main._market_panel.set_tutorial_advanced_highlight(false)
 		_hint(tr("TUT_BID_PAY"))
@@ -711,13 +822,15 @@ func _is_dragging(t: CardData.CardType) -> bool:
 	var cd: CardData = dragged.get("card_data")
 	return cd != null and cd.card_type == t
 
+# Re-asserted every refresh (no "unchanged" shortcut): a drop clears every slot's
+# highlight. SectorSlot.highlight() ignores a repeated state, so this is cheap.
 func _highlight_tech_slots() -> void:
+	if _board.get("_dragged_card") != null:
+		return   # the drag's own snap highlight is in charge
 	var eligible: Array[SectorSlot] = []
 	for slot: SectorSlot in _board.get_sector_slots():
 		if slot.has_tech_space():
 			eligible.append(slot)
-	if eligible == _highlighted_tech_slots:
-		return
 	for slot: SectorSlot in _highlighted_tech_slots:
 		if is_instance_valid(slot) and not eligible.has(slot):
 			slot.highlight(false)
@@ -730,7 +843,7 @@ func _highlight_only(slot: SectorSlot) -> void:
 	if slot == null or not is_instance_valid(slot):
 		_highlight_tech_slots()
 		return
-	if _highlighted_tech_slots.size() == 1 and _highlighted_tech_slots[0] == slot:
+	if _board.get("_dragged_card") != null:
 		return
 	for s: SectorSlot in _highlighted_tech_slots:
 		if is_instance_valid(s) and s != slot:

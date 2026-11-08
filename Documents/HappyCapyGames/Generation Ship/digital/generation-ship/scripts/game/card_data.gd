@@ -146,9 +146,16 @@ var placing_color_override: int = -1
 # Every recycle path (hand, sector, deck top, bots) should read this rather
 # than assuming 1 of cd.color.
 static func recycle_amount(cd: CardData) -> int:
-	if cd != null and cd.card_name == "Rich Asteroid":
+	if cd != null and cd.card_name == "Rich Asteroid" and not _always_effects_off():
 		return 2
 	return 1
+
+# Generation Fleet's Totalitarianism ("Can not use ALWAYS effects on your cards")
+# switches Rich Asteroid's Always effect off. Loaded at call time: fleet_rules.gd
+# refers back to CardData.
+static func _always_effects_off() -> bool:
+	var fr: GDScript = load("res://scripts/game/fleet_rules.gd") as GDScript
+	return fr != null and bool(fr.call("always_effects_off"))
 
 # Advanced side (sector cards only)
 @export var adv_name: String = ""

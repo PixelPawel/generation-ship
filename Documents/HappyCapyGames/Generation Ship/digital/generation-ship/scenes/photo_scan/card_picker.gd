@@ -41,9 +41,28 @@ var _context_lbl: Label = null
 # face-up archived cards: the ones with a printed star first, the rest from a new row below
 var _stars_first: bool = false
 
+var _myriad: FontFile = null
+var _context_font: FontVariation = null
+
 func _ready() -> void:
 	_build_ui()
 	visible = false
+
+# Myriad has no Polish ą ć ę ń ś ź ż: Polish keeps the theme's Ethnocentric. Re-picked on a
+# language switch (the label keeps this FontVariation).
+func _pick_context_font() -> void:
+	if _context_font == null:
+		return
+	if TranslationServer.get_locale().begins_with("pl"):
+		_context_font.base_font = GameTheme.get_theme().default_font
+		_context_font.variation_opentype = {}
+	else:
+		_context_font.base_font = _myriad
+		_context_font.variation_opentype = {"wght": 600, "wdth": 100}
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED:
+		_pick_context_font()
 
 ## allowed_tabs restricts which tabs are shown at all (e.g. a Scan Tableau
 ## slot that must be a sector only ever shows the 2 Sector tabs) so a wrong
@@ -118,12 +137,11 @@ func _build_ui() -> void:
 	_context_pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	frame.add_child(_context_pic)
 	_context_lbl = Label.new()
-	var myriad: FontFile = load("res://assets/fonts/Myriad Variable Concept.ttf") as FontFile
-	if myriad and not TranslationServer.get_locale().begins_with("pl"):   # (no Polish letters in it)
-		var fv: FontVariation = FontVariation.new()
-		fv.base_font = myriad
-		fv.variation_opentype = {"wght": 600, "wdth": 100}
-		_context_lbl.add_theme_font_override("font", fv)
+	_myriad = load("res://assets/fonts/Myriad Variable Concept.ttf") as FontFile
+	if _myriad:
+		_context_font = FontVariation.new()
+		_pick_context_font()
+		_context_lbl.add_theme_font_override("font", _context_font)
 	_context_lbl.add_theme_font_size_override("font_size", 26)
 	_context_lbl.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
 	_context_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
