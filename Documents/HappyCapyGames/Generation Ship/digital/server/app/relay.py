@@ -119,8 +119,12 @@ async def _send_bytes(ws: WebSocket, data: bytes) -> None:
 
 async def _fail(ws: WebSocket, reason: str) -> None:
     await _send_json(ws, {"op": "error", "reason": reason})
+    # Builds before 2026-11-08 read the reason only from the message above: give it a moment to
+    # arrive before closing. Newer builds also read it from the close frame (relay_peer._on_closed),
+    # which survives a close that races the message.
+    await asyncio.sleep(1.0)
     try:
-        await ws.close(code=4000)
+        await ws.close(code=4000, reason=reason)
     except RuntimeError:
         pass  # client already closed the socket
 
