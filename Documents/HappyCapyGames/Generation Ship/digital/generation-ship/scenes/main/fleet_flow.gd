@@ -670,7 +670,7 @@ static func _bot_condition_met(main: Main, bot_id: int, no: int) -> bool:
 ## Malfunction, storing under it (and Liquids under Anti-Fusion Field).
 static func step_blocked(step: Dictionary) -> bool:
 	match str(step.get("type", "")):
-		"tuck", "tuck_optional", "tuck_any_sector_optional", "recycle_tuck", "recycle_tuck_store_choice":
+		"tuck", "tuck_optional", "tuck_any_sector_optional", "recycle_tuck", "recycle_tuck_store_choice", "archive_card_any_sector":
 			return FleetRules.blocks_archive()
 		"store_on_slot", "store_on_any_sector":
 			return FleetRules.blocks_store(int(step.get("color", -1)))
@@ -1074,8 +1074,18 @@ static func mission_lines(main: Main, all_stats: Array = []) -> Array[Dictionary
 		var value: int = int(part["value"])
 		if str(part["scope"]) == "per_player":
 			var total: int = 0
-			for st: Dictionary in all_stats:
-				total += _stat(st, part)
+			if str(part["kind"]) == "stored_set":
+				# sets are pooled over the whole fleet (Gamma Serpentis, designer 2026-11-08: 4 players
+				# need 4 sets in all, whoever stores them): add each colour up first, then count sets
+				var pooled: Dictionary = {}
+				for st: Dictionary in all_stats:
+					var by: Dictionary = st.get("stored_by", {}) as Dictionary
+					for c: Variant in by:
+						pooled[int(c)] = int(pooled.get(int(c), 0)) + int(by[c])
+				total = _stat({"stored_by": pooled}, part)
+			else:
+				for st: Dictionary in all_stats:
+					total += _stat(st, part)
 			var need: int = value * players
 			out.append({"text": "%s: %d / %d" % [_part_label(main, part), mini(total, 999), need], "done": total >= need})
 		else:

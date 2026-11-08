@@ -46,6 +46,11 @@ const CONSENT_DELAY_SEC: float = 2.0   # end of a game: the final scores show fi
 const CONSENT_LAYER: int = 120         # above the game's UI, below scene transitions (128)
 
 var _pending: Array[Dictionary] = []   # scores waiting for the player's answer
+# Scores whose upload failed (no network): kept in user:// and sent the next time the server answers
+# or the game starts, while posting stays on (designer, 2026-11-08). Dropped after a few tries.
+const _OUTBOX_PATH: String = "user://score_outbox.json"
+const _OUTBOX_MAX: int = 20
+const _OUTBOX_TRIES: int = 5
 var _consent: Control = null
 
 # The player's own best, from the last download (null if not on the board).
@@ -69,14 +74,63 @@ func submit_score(score: int, details: PackedInt32Array = PackedInt32Array(), so
 		_pending.append(entry)
 		ask_consent(0.0 if source == SOURCE_SCAN else CONSENT_DELAY_SEC)
 
-func _upload(entry: Dictionary) -> void:
+func _upload(entry: Dictionary, from_outbox: bool = false) -> void:
+	var details: Array = []
+	for d: Variant in (entry["details"] as Array):
+		details.append(int(d))   # (read back from JSON as floats)
 	var body: String = JSON.stringify({
-		player = _player_id(), name = board_name(), score = int(entry["score"]), details = entry["details"],
+		player = _player_id(), name = board_name(), score = int(entry["score"]), details = details,
 		platform = "android" if OS.get_name() == "Android" else "steam",
 		source = str(entry["source"]), destination = int(entry["destination"]),
 	})
 	_request(HTTPClient.METHOD_POST, "/v1/scores", body, func(ok: bool, _data: Dictionary) -> void:
-		score_uploaded.emit(ok))
+		if ok and not from_outbox:
+			_flush_outbox()          # the server answers again: send what waited
+		elif not ok:
+			_keep_for_later(entry)
+		if not from_outbox:
+			score_uploaded.emit(ok))
+
+func _keep_for_later(entry: Dictionary) -> void:
+	if _sharing_state() != SHARING_ON:
+		return
+	var tries: int = int(entry.get("tries", 0))
+	if tries >= _OUTBOX_TRIES:
+		return
+	var waiting: Array = _load_outbox()
+	if waiting.size() >= _OUTBOX_MAX:
+		return
+	var kept: Dictionary = entry.duplicate()
+	kept["tries"] = tries
+	waiting.append(kept)
+	_save_outbox(waiting)
+
+func _flush_outbox() -> void:
+	if _sharing_state() != SHARING_ON:
+		return
+	var waiting: Array = _load_outbox()
+	if waiting.is_empty():
+		return
+	_save_outbox([])
+	for e: Variant in waiting:
+		var entry: Dictionary = e as Dictionary
+		entry["tries"] = int(entry.get("tries", 0)) + 1
+		_upload(entry, true)
+
+func _load_outbox() -> Array:
+	if not FileAccess.file_exists(_OUTBOX_PATH):
+		return []
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(_OUTBOX_PATH))
+	return parsed as Array if typeof(parsed) == TYPE_ARRAY else []
+
+func _save_outbox(waiting: Array) -> void:
+	if waiting.is_empty():
+		if FileAccess.file_exists(_OUTBOX_PATH):
+			DirAccess.remove_absolute(_OUTBOX_PATH)
+		return
+	var f: FileAccess = FileAccess.open(_OUTBOX_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify(waiting))
 
 func is_sharing() -> bool:
 	return _sharing_state() == SHARING_ON
@@ -96,6 +150,8 @@ func set_sharing(on: bool, board_name: String = "") -> void:
 		cfg.set_value("player", "board_name", board_name.strip_edges())   # what goes public
 		cfg.set_value("player", "name", board_name.strip_edges())         # pre-fills the lobby
 	cfg.save(_SETTINGS_PATH)
+	if not on:
+		_save_outbox([])   # posting turned off: nothing kept is sent any more
 	var waiting: Array[Dictionary] = _pending.duplicate()
 	_pending.clear()
 	sharing_changed.emit(on)
@@ -181,6 +237,8 @@ func _saved_board_name() -> String:
 # Players who said yes before the board name had its own key posted under the
 # lobby name: that one becomes their board name, so it stays as it is.
 func _ready() -> void:
+	# scores kept while offline go out a little after the start (the network may still be coming up)
+	get_tree().create_timer(8.0).timeout.connect(_flush_outbox)
 	var cfg: ConfigFile = ConfigFile.new()
 	if cfg.load(_SETTINGS_PATH) != OK:
 		return

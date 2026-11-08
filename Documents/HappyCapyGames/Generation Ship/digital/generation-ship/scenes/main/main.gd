@@ -164,6 +164,8 @@ var _pending_store_from_supply: bool = false
 # one supply per sector pick, the picker reopening until all are stored.
 var _pending_store_spread: bool = false
 var _pending_tuck_card_data: CardData = null
+# the card waiting for its archive sector was recycled already (Terraformed Planet), not from the hand
+var _pending_tuck_recycled: bool = false
 var _pending_target_slot: SectorSlot = null
 var _effect_label: String = ""
 var _has_passed: bool = false
@@ -2060,7 +2062,11 @@ func _reset_effect_state() -> void:
 	# a card picked to archive whose sector wasn't chosen yet (Skip, End Turn): back into the hand,
 	# it had already flown out of it (Personality Library / Cultivation lost it)
 	if _effect_mode == EffectMode.EFFECT_TUCK_ANY_SECTOR_SLOT and _pending_tuck_card_data:
-		$Board.add_specific_card_to_hand(_pending_tuck_card_data)
+		if _pending_tuck_recycled:   # Terraformed Planet already recycled it: it is discarded
+			$Board.add_to_discard(_pending_tuck_card_data)
+		else:
+			$Board.add_specific_card_to_hand(_pending_tuck_card_data)
+	_pending_tuck_recycled = false
 	# a mandatory Fleet prompt (FleetFlow awaits the choice popup / sector picker itself) stays up:
 	# an (auto) End Turn hid it and the Danger waited forever
 	if _sector_picker and not _fleet_choice_active:
@@ -2253,18 +2259,39 @@ func _apply_recycle_tuck_multiselect(indices: Array[int]) -> void:
 	_log_effect_t("recycled & tucked %d card(s) facedown, drew %d", [count, _recycle_tuck_draw])
 	_finish_interactive_step()
 
+# Terraformed Planet ("Recycle and archive up to 4 cards facedown. You may store the recycled
+# supplies."): card by card, each archived under a sector the player picks and its supply stored on
+# any sector or gained (designer, 2026-11-08; it was one sector and one choice for all of them).
 func _apply_recycle_tuck_store_multiselect(indices: Array[int]) -> void:
-	_pending_store_nodes = []
+	var picked: Array[Node3D] = []
 	for i: int in indices:
 		if i < _pending_recycle_cards.size():
-			_pending_store_nodes.append(_pending_recycle_cards[i])
+			picked.append(_pending_recycle_cards[i])
 	_pending_recycle_cards = []
-	if _pending_store_nodes.is_empty():
-		_finish_interactive_step()
-		return
-	_effect_mode = EffectMode.EFFECT_RECYCLE_TUCK_STORE_SECTOR
-	$Board.set_cargo_click_mode(true)
-	_sector_picker.setup(tr("Terraformed Planet — pick a sector to tuck facedown"), $Board.get_all_sector_slots())
+	var steps: Array[Dictionary] = []
+	for card: Node3D in picked:
+		var cd: CardData = card.card_data
+		if cd == null:
+			continue
+		var color: CardData.SupplyColor = cd.color
+		var amount: int = CardData.recycle_amount(cd)
+		$Hand.remove_card_fly_out(card)
+		_apply_recycle_bonus(color)   # Trash Compactor, whichever way the supply goes
+		steps.append({type = "archive_card_any_sector", card_data = cd, face_up = false, _source_name = "Terraformed Planet"})
+		var gain: Array = [{type = "gain_supply", color = color, amount = amount}]
+		if FleetRules.blocks_store(int(color)):   # a Danger forbids storing that colour: gained
+			steps.append({type = "gain_supply", color = color, amount = amount})
+		else:
+			steps.append({type = "choice", prompt = "Terraformed Planet — what to do with recycled supply?",
+					_source_name = "Terraformed Planet", options = [
+						{label = "Store on sector", steps = [{type = "store_on_any_sector", color = color, amount = amount}]},
+						{label = "Gain as currency", steps = gain}]})
+	# these cards' steps go before whatever else is still queued
+	var rest: Array[Dictionary] = _effect_queue.duplicate()
+	_effect_queue.clear()
+	_effect_queue.append_array(steps)
+	_effect_queue.append_array(rest)
+	_finish_interactive_step()
 
 func _apply_recycle_tuck_store_decision(store_on_sector: bool) -> void:
 	var target: SectorSlot = _pending_target_slot if _pending_target_slot else _effect_slot

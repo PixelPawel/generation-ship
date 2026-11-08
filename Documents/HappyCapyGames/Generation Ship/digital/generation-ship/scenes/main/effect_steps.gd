@@ -121,6 +121,22 @@ static func _execute_effect_step(main: Main, step: Dictionary) -> void:
 				main._log_effect(main.tr("stored %d %s on the sector") % [ss_amount, CardData.color_name(ss_color)])
 			_process_next_effect(main)
 
+		"archive_card_any_sector":   # one given card under a sector the player picks (Terraformed Planet)
+			var acd: CardData = step.get("card_data") as CardData
+			if acd == null:
+				_process_next_effect(main)
+				return
+			main._pending_tuck_card_data = acd
+			main._pending_tuck_recycled = true
+			main._effect_face_up = bool(step.get("face_up", false))
+			main._effect_remaining = 1
+			main._effect_tuck_mandatory = true
+			main._effect_mode = Main.EffectMode.EFFECT_TUCK_ANY_SECTOR_SLOT
+			main.get_node("Board").set_cargo_click_mode(true)
+			var face: String = main.tr("faceup") if main._effect_face_up else main.tr("facedown")
+			main._sector_picker.setup(main.tr("Tuck %s %s — pick a sector") % [CardDatabase.display_name(acd), face],
+					main.get_node("Board").get_all_sector_slots(), null, false)
+
 		"store_on_any_sector":
 			main._pending_store_color = step["color"] as CardData.SupplyColor
 			main._pending_store_amount = int(step.get("amount", 1))
