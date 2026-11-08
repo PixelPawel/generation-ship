@@ -1,5 +1,6 @@
 class_name Card
 extends Node3D
+const FleetRules = preload("res://scripts/game/fleet_rules.gd")
 
 static var screen_shake_enabled: bool = true
 
@@ -105,12 +106,17 @@ func set_card_data(data: CardData) -> void:
 # Broadcast via get_tree().call_group("cards", ...) from pause_menu.gd after
 # a locale change, so face-up cards already on screen re-pull their texture
 # (card_data's local_art_path/adv_local_art_path were just re-resolved by
-# CardDatabase.refresh_locale()). Face-down cards aren't covered — deck-back
-# art is currently English-only regardless of locale, so there's nothing to
-# refresh there yet.
+# CardDatabase.refresh_locale()). A Fleet-destroyed card (FleetRules.
+# DESTROYED_META, the only face-down placed card) re-pulls its back instead:
+# set_card_data would show its front again, as if it were still live.
 func refresh_locale_art() -> void:
-	if card_data:
-		set_card_data(card_data)
+	if not card_data:
+		return
+	if has_meta(FleetRules.DESTROYED_META):
+		set_face_down(CardDatabase.expedition_back_path() if card_data.card_type == CardData.CardType.EXPEDITION
+				else CardDatabase.tech_back_path())
+		return
+	set_card_data(card_data)
 
 func _instantiate_glb(card_type: CardData.CardType) -> void:
 	if _card_glb:

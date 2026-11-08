@@ -152,7 +152,8 @@ func _describe_step(step: Dictionary) -> String:
 		"reveal_expedition":
 			return tr("Reveal an expedition card")
 		"choice":
-			return str(step.get("prompt", tr("Choose an effect")))
+			# prompts are English keys (PlaceEffects/SectorEffects) and name cards in English
+			return CardDatabase.localize_card_names(tr(str(step.get("prompt", "Choose an effect"))))
 		"cargo_drones":
 			return tr("Move a cargo drone")
 		"seedbanks":

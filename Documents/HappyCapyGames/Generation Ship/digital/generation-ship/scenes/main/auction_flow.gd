@@ -201,10 +201,36 @@ static func _rpc_sync_auction_won(main: Main, initiator_id: int, winner_id: int,
 	UIAudio.play_gavel_sfx()
 	if winner_id == main.multiplayer.get_unique_id():
 		Main.Haptics.thump()
-	if main._bid_is_from_effect:
+	# an effect started it: someone else won, so its steps go on; a win of our own is paid and
+	# placed first (_begin_effect_purchase) — run under the payment window, the next step
+	# started on top of it and the placement then wiped the rest of the queue
+	if main._bid_is_from_effect and winner_id != my_id:
 		main._bid_is_from_effect = false
 		main._process_next_effect()
 	main._broadcast_my_state()
+
+## An effect offered this card (_bid_is_from_effect) and it is paid for now: the steps queued
+## behind the offer wait for its placement, which carries them over (Main._on_card_placed, as for
+## Inflatable Hull's free sector). They ran under the payment window before, and the placement
+## then wiped what was left. Call before handing the payment to Board, then _end_effect_purchase.
+static func _begin_effect_purchase(main: Main) -> bool:
+	if not main._bid_is_from_effect:
+		return false
+	main._bid_is_from_effect = false
+	main._carry_effect_queue = true
+	return true
+
+## No drag followed (recycled at once for lack of room): nothing will carry the steps, they go on.
+static func _end_effect_purchase(main: Main, carrying: bool) -> void:
+	if carrying and main._carry_effect_queue and not main.get_node("Board").is_card_drag_pending():
+		main._carry_effect_queue = false
+		main._process_next_effect()
+
+## An effect's card offer ended without a purchase (cancelled, forfeited): its steps go on.
+static func _resume_after_effect_offer(main: Main) -> void:
+	if main._bid_is_from_effect:
+		main._bid_is_from_effect = false
+		main._process_next_effect()
 
 static func _show_auction_toast(main: Main, message: String) -> void:
 	var panel := PanelContainer.new()
@@ -230,7 +256,7 @@ static func _show_auction_toast(main: Main, message: String) -> void:
 	style.content_margin_bottom = 8.0
 	panel.add_theme_stylebox_override("panel", style)
 	var lbl := Label.new()
-	lbl.text = message
+	lbl.text = CardDatabase.localize_card_names(message)   # English card names inside a translated text
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_size_override("font_size", 18)
@@ -423,7 +449,10 @@ static func _on_bid_payment_confirmed(main: Main, allocations: Dictionary) -> vo
 	if main._effect_mode == Main.EffectMode.PAYMENT_CONFIRM:
 		main._effect_mode = Main.EffectMode.NONE
 		main.get_node("Board").hide_payment_confirm_arrow()
+		# Fleet: an effect's "you may bid" is a purchase at printed cost (this window, no auction)
+		var carrying: bool = _begin_effect_purchase(main)
 		main.get_node("Board").confirm_payment_with_allocations(allocations)
+		_end_effect_purchase(main, carrying)
 		return
 	# Supply is deliberately NOT spent here anymore — same rule as every
 	# other purchase now: it's only actually taken once the card lands on a
@@ -438,7 +467,9 @@ static func _on_bid_payment_confirmed(main: Main, allocations: Dictionary) -> vo
 		return
 	if main._pending_auction_win:
 		main._pending_auction_win = false
+		var carrying_won: bool = false
 		if main._auction_win_is_initiator:
+			carrying_won = _begin_effect_purchase(main)
 			main.get_node("Board").complete_purchase(allocations)
 		else:
 			var card: CardData = CardRef.from_ref(main._pending_won_card_ref)
@@ -447,18 +478,21 @@ static func _on_bid_payment_confirmed(main: Main, allocations: Dictionary) -> vo
 				_notify_auction_placement_done(main)
 		main._show_action_buttons(true)
 		main._broadcast_my_state()
+		_end_effect_purchase(main, carrying_won)
 		return
+	var carrying_solo: bool = _begin_effect_purchase(main)   # (solo: the tutorial's Probe Launcher)
 	main.get_node("Board").complete_purchase(allocations)
 	main._show_action_buttons(true)
-	if main._bid_is_from_effect:
-		main._bid_is_from_effect = false
-		main._process_next_effect()
+	_end_effect_purchase(main, carrying_solo)
 
 static func _on_bid_payment_forfeited(main: Main) -> void:
 	if main._effect_mode == Main.EffectMode.PAYMENT_CONFIRM:
 		main._effect_mode = Main.EffectMode.NONE
 		main.get_node("Board").hide_payment_confirm_arrow()
 		main.get_node("Board").cancel_payment_confirm()
+		# Fleet: an effect's offered card not bought (a re-opened window never gets here with
+		# _bid_is_from_effect: the first payment already cleared it)
+		_resume_after_effect_offer(main)
 		return
 	if main._pending_auction_recancel:
 		# re-opened after the win (right-click on the arrow): Cancel means
@@ -494,12 +528,13 @@ static func _on_bid_payment_forfeited(main: Main) -> void:
 				else:
 					main._rpc_notify_auction_forfeit.rpc_id(1)
 		main._show_action_buttons(true)
+		# an effect's auction, won but not paid: its remaining steps go on (they waited for the
+		# payment, see _rpc_sync_auction_won)
+		_resume_after_effect_offer(main)
 		return
 	main.get_node("Board").cancel_purchase()
 	main._show_action_buttons(true)
-	if main._bid_is_from_effect:
-		main._bid_is_from_effect = false
-		main._process_next_effect()
+	_resume_after_effect_offer(main)
 
 static func _on_bid_cancelled(main: Main) -> void:
 	main._pending_auction = false
@@ -521,11 +556,17 @@ static func _on_payment_confirm_required(main: Main, card: Node3D, slot: SectorS
 		is_adv = bool(card.get("is_advanced"))
 		card_name = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
 		cost_color = CardData.effective_color(cd, is_adv)   # Fleet buys advanced sectors outright
+		# Fleet: Wormhole Surfing's colour (no auction to change it for: the purchase)
+		var override_color: int = main.get_node("Board").payment_color_override()
+		if override_color >= 0:
+			cost_color = override_color as CardData.SupplyColor
 		for v: Variant in pay_amounts.values():
 			total += int(v)
 	if total == 0:
 		main._effect_mode = Main.EffectMode.NONE
+		var carrying: bool = _begin_effect_purchase(main)   # (as in _on_bid_payment_confirmed)
 		main.get_node("Board").confirm_payment()
+		_end_effect_purchase(main, carrying)
 		return
 	var valid_colors: Array[CardData.SupplyColor] = CardData.valid_payment_colors(cost_color)
 	main._bid_payment_panel.show_bid_payment(card_name, total, valid_colors, main._cs_display, cd, is_adv)

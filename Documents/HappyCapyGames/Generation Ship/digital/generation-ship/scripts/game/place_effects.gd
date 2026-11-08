@@ -125,7 +125,8 @@ static func _build(name: String, _cd: CardData, placed_colors: Array[int],
 		"Smelter":
 			steps.append({type = "fuse_notice", count = 3})
 			if is_opt:
-				steps.append({type = "store_on_slot", color = CardData.SupplyColor.METALS, amount = 1})
+				# "store 1 Metals" names no place: any of your sectors (rule book p6, as Fungi/Containers)
+				steps.append({type = "store_on_any_sector", color = CardData.SupplyColor.METALS, amount = 1})
 
 		"Fusion Synthesizer":
 			steps.append({type = "fuse_dust_1to1"})

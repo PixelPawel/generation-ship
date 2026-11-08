@@ -95,10 +95,12 @@ static func _execute_effect_step(main: Main, step: Dictionary) -> void:
 				recycled_color_box[0] = c
 				recycled_color_box[1] = amt
 			main.get_node("Board").card_recycled.connect(capture_color, CONNECT_ONE_SHOT)
-			main.get_node("Board").draw_and_recycle_top()
+			var kept_in_hand: bool = main.get_node("Board").draw_and_recycle_top()
 			if main.get_node("Board").card_recycled.is_connected(capture_color):
 				main.get_node("Board").card_recycled.disconnect(capture_color)
-			if recycled_color_box[0] != null:
+			if kept_in_hand:   # Fleet: a Danger forbids the recycle (Board logged why)
+				main._log_effect(main.tr("drew %d card(s)") % 1)
+			elif recycled_color_box[0] != null:
 				main._log_effect(main.tr("drew and recycled the top card, gained %d %s") % [int(recycled_color_box[1]), CardData.color_name(recycled_color_box[0] as CardData.SupplyColor)])
 			else:
 				main._log_effect(main.tr("drew and recycled the top card"))
@@ -199,9 +201,16 @@ static func _execute_effect_step(main: Main, step: Dictionary) -> void:
 			main._effect_mode = Main.EffectMode.EFFECT_TUCK_ANY_SECTOR
 			main._effect_remaining = int(step.get("max", 1))
 			main._effect_face_up = bool(step.get("face_up", false))
-			main._effect_label = step.get("label", main.tr("Tuck"))
+			# shown only (here and in main.gd's repeat prompt): a card's name in the player's language
+			var label_text: String = str(step.get("label", main.tr("Tuck")))
+			var label_cd: CardData = CardDatabase.find_any_by_name(label_text)
+			main._effect_label = CardDatabase.display_name(label_cd, label_cd.card_type == CardData.CardType.SECTOR
+					and label_cd.adv_name == label_text) if label_cd else label_text
 			var face_str_any: String = main.tr("faceup") if main._effect_face_up else main.tr("facedown")
-			main._show_hand_popup(main.tr("%s — tuck a card %s? (%d remaining)") % [main._effect_label, face_str_any, main._effect_remaining], true)
+			# mandatory (Galactic Museum "Archive 1 card": no "may"): no Skip on the card pick
+			var tuck_skippable: bool = not bool(step.get("mandatory", false))
+			main._effect_tuck_mandatory = not tuck_skippable
+			main._show_hand_popup(main.tr("%s — tuck a card %s? (%d remaining)") % [main._effect_label, face_str_any, main._effect_remaining], tuck_skippable)
 
 		"recycle_tuck":
 			# Entangled Radio: "Recycle 2, archive them facedown under this sector, then draw 2" —
@@ -296,6 +305,10 @@ static func _execute_effect_step(main: Main, step: Dictionary) -> void:
 					CardData.color_name(step["bid_color"] as CardData.SupplyColor)])
 			main.get_node("Board").market_origin_3d = CockpitRig.effect_card_origin(main, card_node, cd)
 			main.get_node("Board").begin_revealed_card_bid(card_node)
+			# bought outright with no bid or payment window (a free Fleet buy offline): the steps
+			# queued behind this offer wait for its placement too (see AuctionFlow._begin_effect_purchase)
+			if main._bid_is_from_effect and not main.get_node("Board").has_pending_purchase():
+				Main.AuctionFlow._end_effect_purchase(main, Main.AuctionFlow._begin_effect_purchase(main))
 
 		"seedbanks":
 			_effect_step_seedbanks(main)
@@ -416,7 +429,8 @@ static func _effect_step_reflectors_choice(main: Main) -> void:
 		# exclude that (sectors have no place effect to copy) and Reflectors
 		# itself, but allow both Tech AND Expedition place effects, since an
 		# Expedition can occupy this same sector slot.
-		if not cd or cd.card_type == CardData.CardType.SECTOR or cd.card_name == "Reflectors":
+		if not cd or cd.card_type == CardData.CardType.SECTOR or cd.card_name == "Reflectors" \
+				or card_node.has_meta(Main.FleetRules.DESTROYED_META):   # Fleet-destroyed: no effect to copy
 			continue
 		var copied: Array[Dictionary] = PlaceEffects.get_steps(cd, main._effect_slot)
 		if copied.is_empty():
@@ -432,12 +446,24 @@ static func _effect_step_reflectors_choice(main: Main) -> void:
 	main._effect_mode = Main.EffectMode.EFFECT_CHOICE
 	main._choice_popup.show_card_choices(main.tr("Reflectors — copy which effect?"), eligible_cards, true)
 
+## Fleet: Barbarism — a Thrust card (an advanced sector's Thrust side too) can't be placed, so an
+## effect doesn't offer it for purchase (Board refuses it too: Board._refuse_fleet_blocked).
+## Logs why when that leaves nothing to offer.
+static func _without_place_blocked(main: Main, pool: Array[CardData]) -> Array[CardData]:
+	var out: Array[CardData] = []
+	for cd: CardData in pool:
+		if not Main.FleetRules.blocks_place(int(CardData.effective_color(cd, cd.card_type == CardData.CardType.SECTOR))):
+			out.append(cd)
+	if out.is_empty() and not pool.is_empty():
+		main._log_effect(main.tr("a Danger stops this — skipped"))
+	return out
+
 static func _effect_step_offer_bid_pool(main: Main) -> void:
-	if main._reveal_bid_pool.is_empty():
+	var pool: Array[CardData] = _without_place_blocked(main, main._reveal_bid_pool)
+	main._reveal_bid_pool.clear()
+	if pool.is_empty():
 		_process_next_effect(main)
 		return
-	var pool: Array[CardData] = main._reveal_bid_pool.duplicate()
-	main._reveal_bid_pool.clear()
 	main._pending_choice_options = []
 	for cd: CardData in pool:
 		main._pending_choice_options.append({steps = [{type = "initiate_market_bid", card_data = cd}]})
@@ -452,7 +478,7 @@ static func _effect_step_offer_bid_pool(main: Main) -> void:
 # older cards buried underneath a slot's current top are no longer up for
 # auction and shouldn't be biddable here either.
 static func _effect_step_offer_bid_any_expedition(main: Main) -> void:
-	var pool: Array[CardData] = main.get_node("Board").get_available_expeditions()
+	var pool: Array[CardData] = _without_place_blocked(main, main.get_node("Board").get_available_expeditions())
 	if pool.is_empty():
 		_process_next_effect(main)
 		return
@@ -492,14 +518,25 @@ static func _effect_step_offer_free_sector_gain(main: Main) -> void:
 		return
 	main._choice_popup.show_card_choices(main.tr("Inflatable Hull — gain which sector for free?"), eligible, false, eligible_adv)
 
+## Fleet: Pandemic — no card may be recycled at all (logged; the step is skipped).
+static func _recycle_forbidden(main: Main) -> bool:
+	if not main._fleet or not Main.FleetRules.blocks_recycle(-1):
+		return false
+	main._log_effect(main.tr("a Danger stops this — skipped"))
+	return true
+
 static func _effect_step_seedbanks(main: Main) -> void:
+	if _recycle_forbidden(main):
+		_process_next_effect(main)
+		return
 	main._effect_mode = Main.EffectMode.EFFECT_SEEDBANKS
 	var all_cards: Array[Node3D] = main.get_node("Hand").get_cards()
 	main._pending_recycle_cards = []
 	var card_data: Array[CardData] = []
 	for c: Node3D in all_cards:
 		var cd: CardData = c.get("card_data") as CardData
-		if cd:
+		# Fleet: no recycling Thrust (Barbarism), no storing its colour (Anti-Fusion Field: Liquids)
+		if cd and not Main.FleetRules.blocks_recycle(int(cd.color)) and not Main.FleetRules.blocks_store(int(cd.color)):
 			main._pending_recycle_cards.append(c)
 			card_data.append(cd)
 	if card_data.is_empty():
@@ -509,6 +546,9 @@ static func _effect_step_seedbanks(main: Main) -> void:
 			main.tr("Seedbanks — select cards to recycle (supplies stored on sector)"), card_data)
 
 static func _effect_step_caldera_colony(main: Main) -> void:
+	if _recycle_forbidden(main):
+		_process_next_effect(main)
+		return
 	main._caldera_slots = []
 	var caldera_cards: Array[CardData] = []
 	var caldera_advanced_flags: Array[bool] = []
@@ -579,8 +619,19 @@ static func _effect_step_placing_color(main: Main, color: CardData.SupplyColor) 
 	var levels: Array[int] = main.get_node("Board").apply_placing_color(main._effect_slot, color)
 	main._log_effect(main.tr("counted as %s while being placed, then discarded") % CardData.color_name(color))
 	var opt_steps: Array = []
-	for _level: int in levels:
-		opt_steps.append_array(SectorEffects.get_optimize_steps(main._effect_slot))
+	var sector: Node3D = main._effect_slot.placed_card
+	if sector and sector.get("card_data"):
+		# the optimize effect it triggered counts it as the chosen colour too ("per Metals card
+		# here", "per different color here"), not as its printed Dust (SectorEffects reads that)
+		var here_colors: Array[int] = []
+		for c: Node3D in main._effect_slot.get_all_placed_cards():
+			var ccd: CardData = c.get("card_data") as CardData
+			if ccd and not c.has_meta(Main.FleetRules.DESTROYED_META):   # (as SectorEffects: no colour)
+				here_colors.append(int(color) if ccd.card_name == "Karma Chameleon"
+						else int(CardData.effective_color(ccd, bool(c.get("is_advanced")))))
+		for _level: int in levels:
+			opt_steps.append_array(SectorEffects.get_optimize_steps_for_state(sector.get("card_data") as CardData,
+					bool(sector.get("is_advanced")), here_colors, main._effect_slot.last_placed_tech_cost))
 	for i: int in opt_steps.size():
 		main._effect_queue.insert(i, opt_steps[i])
 	main.get_node("Board").discard_karma_chameleon(main._effect_slot)
@@ -591,7 +642,12 @@ static func _effect_step_placing_color(main: Main, color: CardData.SupplyColor) 
 # itself). Same removal path as Caldera Colony. Two steps: pick the sector
 # (sector picker, or click it on the board), then the card on it — skipped
 # straight to the cards when only one sector has anything to recycle.
+# "Recycle a card on any of your sectors" is no "may": neither step has a Skip, and
+# the card is always picked in the popup, even a lone one (it vanished unseen).
 static func _effect_step_recycle_from_own_sector(main: Main) -> void:
+	if _recycle_forbidden(main):
+		_process_next_effect(main)
+		return
 	var slots: Array[SectorSlot] = []
 	for slot: SectorSlot in main.get_node("Board").get_all_sector_slots():
 		if not _ice9_cards_on(main, slot).is_empty():
@@ -605,7 +661,7 @@ static func _effect_step_recycle_from_own_sector(main: Main) -> void:
 		return
 	main._effect_mode = Main.EffectMode.EFFECT_ICE9_SECTOR
 	main.get_node("Board").set_cargo_click_mode(true)
-	main._sector_picker.setup(main.tr("Ice 9 — pick a sector to recycle a card from"), slots)
+	main._sector_picker.setup(main.tr("Ice 9 — pick a sector to recycle a card from"), slots, null, false)
 
 static func _ice9_cards_on(main: Main, slot: SectorSlot) -> Array[Node3D]:
 	var out: Array[Node3D] = []
@@ -613,7 +669,10 @@ static func _ice9_cards_on(main: Main, slot: SectorSlot) -> Array[Node3D]:
 		return out
 	for c: Node3D in slot.get_all_placed_cards():
 		var cd: CardData = c.get("card_data") as CardData
-		if cd and cd.card_type != CardData.CardType.SECTOR and cd.card_name != "Ice 9":
+		# Fleet: Barbarism forbids recycling Thrust cards; a destroyed (face-down) card is left be
+		if cd and cd.card_type != CardData.CardType.SECTOR and cd.card_name != "Ice 9" \
+				and not Main.FleetRules.blocks_recycle(int(cd.color)) \
+				and not c.has_meta(Main.FleetRules.DESTROYED_META):
 			out.append(c)
 	return out
 
@@ -624,8 +683,6 @@ static func _ice9_choose_card(main: Main, slot: SectorSlot) -> void:
 		choices.append(c.get("card_data") as CardData)
 		main._pending_choice_options.append({steps = [{type = "recycle_sector_card", card_node = c, slot = slot, _source_name = main._effect_source_name}]})
 	main._effect_mode = Main.EffectMode.EFFECT_CHOICE
-	if main._auto_pick_single_option():
-		return
 	main._choice_popup.show_card_choices(main.tr("Ice 9 — recycle which card?"), choices, false)
 
 static func _effect_step_recycle_sector_card(main: Main, card: Node3D, slot: SectorSlot) -> void:
@@ -673,18 +730,17 @@ static func _effect_step_earth_support(main: Main, color: CardData.SupplyColor) 
 # (top expedition or advanced sector) and pick the color it's bid in.
 static func _effect_step_wormhole_surfing(main: Main) -> void:
 	var pool: Array[CardData] = main.get_node("Board").get_available_expeditions()
+	pool.append_array(main.get_node("Board").get_available_advanced_sectors())
+	pool = _without_place_blocked(main, pool)
 	var adv_flags: Array[bool] = []
-	for _cd: CardData in pool:
-		adv_flags.append(false)
-	for cd: CardData in main.get_node("Board").get_available_advanced_sectors():
-		pool.append(cd)
-		adv_flags.append(true)
+	for cd: CardData in pool:
+		adv_flags.append(cd.card_type == CardData.CardType.SECTOR)
 	if pool.is_empty():
 		_process_next_effect(main)
 		return
 	main._pending_choice_options = []
 	for cd: CardData in pool:
-		var shown_name: String = cd.adv_name if cd.card_type == CardData.CardType.SECTOR else cd.card_name
+		var shown_name: String = CardDatabase.display_name(cd, cd.card_type == CardData.CardType.SECTOR)   # the player's language
 		var options: Array = []
 		for sc: int in 6:
 			var c: CardData.SupplyColor = sc as CardData.SupplyColor

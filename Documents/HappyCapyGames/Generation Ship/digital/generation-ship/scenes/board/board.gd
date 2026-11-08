@@ -77,6 +77,10 @@ var market_origin_3d: Vector3 = Vector3.ZERO
 # Wormhole Surfing: color the next auction started by _start_bid is paid in
 # instead of the card's own (-1 = none). Consumed by that one bid.
 var bid_color_override: int = -1
+# Fleet has no auction (printed cost): Wormhole Surfing's colour is the colour this market
+# purchase is paid in instead (-1 = none). Set from bid_color_override by _resolve_card_payment,
+# kept for a right-click re-open of the payment window, reset by the next market purchase.
+var _pay_color_override: int = -1
 # World position placed cards fly in from (the payment/info screen), set by
 # CockpitRig. Unset -> market_origin_3d.
 var placement_origin_provider: Callable = Callable()
@@ -310,6 +314,10 @@ func get_available_advanced_sectors() -> Array[CardData]:
 # or expeditions, so always bid. Same left-click-then-bid, drag-to-place-after
 # rule as the market panel: no destination slot is known yet.
 func begin_revealed_card_bid(card: Node3D) -> void:
+	if _refuse_fleet_blocked(card):
+		bid_color_override = -1   # Wormhole Surfing's colour was meant for this card only
+		market_card_drag_failed.emit(card)   # Main moves the effect queue on
+		return
 	var is_tech: bool = false
 	if card.card_data and card.card_data.card_type == CardData.CardType.EXPEDITION:
 		_expedition_market.detach_card(card)
@@ -350,7 +358,7 @@ func begin_panel_sector_purchase(slot_idx: int, is_advanced: bool) -> void:
 	var card: Node3D
 	if is_advanced:
 		card = _market.get_advanced_top_node(slot_idx)
-		if not card:
+		if not card or _refuse_fleet_blocked(card):
 			return
 		_market.detach_advanced_card(card)
 	else:
@@ -362,6 +370,9 @@ func begin_panel_sector_purchase(slot_idx: int, is_advanced: bool) -> void:
 
 func begin_panel_expedition_purchase(slot_idx: int) -> void:
 	if not GameNetwork.is_my_turn() or _major_action_taken or _purchase_in_progress():
+		return
+	var top: Node3D = _expedition_market.get_top_node(slot_idx)
+	if top and _refuse_fleet_blocked(top):
 		return
 	var card: Node3D = _expedition_market.detach_top_card(slot_idx)
 	if not card:
@@ -375,6 +386,20 @@ func _purchase_in_progress() -> bool:
 	return _dragged_card != null or _pending_card != null or _is_prepaid_placement \
 			or _placement_confirm_pending or _effect_active
 
+## A bid or payment window is open for a market card (Board holds it in _pending_card).
+func has_pending_purchase() -> bool:
+	return _pending_card != null
+
+## Fleet: Barbarism — a Thrust card (an advanced sector's Thrust side too: rule book "Card icons
+## represent tech, sector and expedition cards") can't be placed, so it can't be bought:
+## refused before any payment. Paid for first, the drop failed and left the purchase half-done
+## (the card back on this market only, every later market buy refused).
+func _refuse_fleet_blocked(card: Node3D) -> bool:
+	if not card.card_data or not FleetRules.blocks_place(int(CardData.effective_color(card.card_data, bool(card.get("is_advanced"))))):
+		return false
+	fleet_rule_blocked.emit(tr("A Danger stops you placing this card."))
+	return true
+
 # Left-click entry point for market-panel purchases. No destination slot is
 # known yet: bid/payment resolves first (slot=null throughout), and only once
 # that's settled does _begin_prepaid_drag() let the player drag the card onto
@@ -382,6 +407,7 @@ func _purchase_in_progress() -> bool:
 func _begin_market_purchase(card: Node3D, is_tech: bool) -> void:
 	_dismiss_inspecting_card()
 	_prepaid_market_notified = false
+	_pay_color_override = -1
 	if _should_bid(card):
 		_start_bid(card, null, is_tech)
 		return
@@ -608,7 +634,17 @@ func pending_payment() -> Dictionary:
 		return _pending_placement_spent
 	if _is_prepaid_placement:
 		return _prepaid_spent_amounts
+	# a payment window re-opened from the placement arrow (_cancel_prepaid_to_payment): its Cancel
+	# hands this payment back to the arrow unchecked, so it stays reserved while the window is up
+	if _cancelled_auction_card != null \
+			or (_pending_card != null and _pending_drag_origin == DragOrigin.MARKET and _prepaid_market_notified):
+		return _recancel_spent
 	return {}
+
+## The colour a market purchase in the open payment window is paid in, when Wormhole Surfing
+## changed it (Fleet: no auction); -1 = the card's own.
+func payment_color_override() -> int:
+	return _pay_color_override if _pending_drag_origin == DragOrigin.MARKET else -1
 
 # Lets a hand-card drag be dropped onto the cockpit's control screen (where
 # the supply totals live) as a drag-based equivalent of right-click-to-
@@ -663,7 +699,8 @@ func get_all_placed_expeditions() -> Array[CardData]:
 			continue
 		for card_node: Node3D in slot.get_all_placed_cards():
 			var cd: CardData = card_node.get("card_data")
-			if cd and cd.card_type == CardData.CardType.EXPEDITION:
+			# a Fleet-destroyed (face-down) expedition has no effect any more
+			if cd and cd.card_type == CardData.CardType.EXPEDITION and not card_node.has_meta(FleetRules.DESTROYED_META):
 				result.append(cd)
 	return result
 
@@ -809,11 +846,19 @@ func _emit_recycled(data: CardData, color: CardData.SupplyColor) -> void:
 	if data and data.card_name == "Rich Asteroid":
 		rich_asteroid_recycled.emit(amount)
 
-func draw_and_recycle_top() -> void:
+## Passing Comet. Returns true when a Fleet Danger forbids recycling the drawn card (Pandemic,
+## Barbarism's Thrust): it was drawn all the same, so it stays in the hand.
+func draw_and_recycle_top() -> bool:
 	var data: CardData = _draw_from_tech_deck()
-	if data:
-		add_to_discard(data)
-		_emit_recycled(data, data.color)
+	if not data:
+		return false
+	if FleetRules.blocks_recycle(int(data.color)):
+		fleet_rule_blocked.emit(tr("A Danger stops you recycling this card."))
+		add_specific_card_to_hand(data)
+		return true
+	add_to_discard(data)
+	_emit_recycled(data, data.color)
+	return false
 
 func draw_cards(count: int) -> void:
 	var new_cards: Array[Node3D] = []
@@ -1320,6 +1365,12 @@ func _resolve_card_payment(placed: Node3D, slot: SectorSlot, is_tech: bool) -> b
 		var is_adv: bool = cd.card_type == CardData.CardType.SECTOR and bool(placed.get("is_advanced"))
 		var base_cost: int = cd.adv_cost if is_adv else cd.cost
 		var pay_color: CardData.SupplyColor = CardData.effective_color(cd, is_adv)
+		if _drag_origin == DragOrigin.MARKET:
+			if bid_color_override >= 0:   # Wormhole Surfing in Fleet (no _start_bid to use it)
+				_pay_color_override = bid_color_override
+				bid_color_override = -1
+			if _pay_color_override >= 0:
+				pay_color = _pay_color_override as CardData.SupplyColor
 		var effective_cost: int = max(0, base_cost - get_purchase_discount(cd, slot, is_adv))
 		if effective_cost > 0:
 			var single_options: Array[CardData.SupplyColor] = _viable_single_color_options(pay_color, effective_cost)
@@ -1385,8 +1436,10 @@ func _try_drop_tech() -> void:
 	if _drag_origin == DragOrigin.HAND and _major_action_taken:
 		_handle_failed_drop()
 		return
-	# Fleet: Barbarism — Thrust cards can't be placed
-	if _dragged_card and _dragged_card.card_data and FleetRules.blocks_place(_dragged_card.card_data.color):
+	# Fleet: Barbarism — Thrust cards can't be placed. Not for a paid-for market card: those
+	# are refused before payment (_refuse_fleet_blocked), and failing one here left it half-bought.
+	if not _is_prepaid_placement and _dragged_card and _dragged_card.card_data \
+			and FleetRules.blocks_place(_dragged_card.card_data.color):
 		fleet_rule_blocked.emit(tr("A Danger stops you placing this card."))
 		_handle_failed_drop()
 		return
@@ -1468,6 +1521,9 @@ func preview_placement_steps(card: Node3D, slot: SectorSlot) -> Array[Dictionary
 	var opt_result: Dictionary = OptimizeLogic.update_optimize_state(
 		sector_cd, sector_is_adv, opt_pool,
 		slot.optimize_count, slot.max_optimizations, slot.triggered_levels.duplicate())
+	# Fleet: Infestation stops the optimize, as in _update_optimize_state (the panel promised it)
+	if _infested(sector_cd, sector_is_adv, opt_pool):
+		opt_result = {is_optimized = slot.is_optimized, triggered = []}
 	var is_opt: bool = opt_result["is_optimized"]
 
 	# Every card on the slot (sector + techs) by visible-side color, plus this
@@ -1476,7 +1532,7 @@ func preview_placement_steps(card: Node3D, slot: SectorSlot) -> Array[Dictionary
 	var opt_effect_colors: Array[int] = []
 	for c2: Node3D in slot.get_all_placed_cards():
 		var c2_cd: CardData = c2.get("card_data")
-		if c2_cd:
+		if c2_cd and not c2.has_meta(FleetRules.DESTROYED_META):   # destroyed: no colour (as SectorEffects)
 			opt_effect_colors.append(int(CardData.effective_color(c2_cd, bool(c2.get("is_advanced")))))
 	opt_effect_colors.append(int(cd.color))
 
@@ -1527,6 +1583,8 @@ func _finalize_placement(card: Node3D, slot: SectorSlot, is_tech: bool, spent: D
 	_is_auction_win_placement = false
 	_prepaid_spent_amounts = {}
 	_prepaid_market_notified = false
+	_recancel_spent = {}   # (pending_payment must never reserve a payment already spent)
+	_pay_color_override = -1
 	action_committed.emit()
 	for col: CardData.SupplyColor in spent:
 		_supply_ui.spend_supply(col, spent[col])
@@ -1722,6 +1780,10 @@ func _begin_prepaid_drag(card: Node3D, spent: Dictionary = {}, is_auction_win: b
 		# recycle bonus, since nothing would ever have left their supply.
 		for col: CardData.SupplyColor in spent:
 			_supply_ui.spend_supply(col, spent[col])
+		# the purchase ends here: nothing of it may stay pending (reserved, re-openable)
+		_prepaid_market_notified = false
+		_recancel_spent = {}
+		_pay_color_override = -1
 		card.reparent(self, true)
 		card.global_position = market_origin_3d
 		unplaceable_card_recycled.emit(card.card_data)
@@ -1877,7 +1939,9 @@ func cancel_payment_confirm() -> void:
 		return
 	if origin == DragOrigin.HAND:
 		_hand.add_card(card, true)
-	elif card.card_data and card.card_data.card_type == CardData.CardType.EXPEDITION:
+		return
+	_pay_color_override = -1   # back on the market: bought later, it pays its own colour
+	if card.card_data and card.card_data.card_type == CardData.CardType.EXPEDITION:
 		_expedition_market.return_card(card)
 	else:
 		_market.return_card(card)
@@ -1932,9 +1996,8 @@ func _update_optimize_state(slot: SectorSlot) -> Array[int]:
 	var cd: CardData = slot.placed_card.card_data
 	var is_adv: bool = bool(slot.placed_card.get("is_advanced"))
 	var pool: Array[int] = slot.get_placed_tech_colors()
-	# Fleet: Infestation — sectors with any Organix card can't be optimized
-	# (nothing new triggers; levels already reached stay)
-	if FleetRules.blocks_optimize_with_organix() and pool.has(CardData.SupplyColor.ORGANIX):
+	# Fleet: Infestation (nothing new triggers; levels already reached stay)
+	if _infested(cd, is_adv, pool):
 		return []
 	var result: Dictionary = OptimizeLogic.update_optimize_state(
 		cd, is_adv, pool, slot.optimize_count, slot.max_optimizations, slot.triggered_levels)
@@ -1943,6 +2006,13 @@ func _update_optimize_state(slot: SectorSlot) -> Array[int]:
 	slot.triggered_levels = result["triggered_levels"] as Array[bool]
 	slot.refresh_optimize_display()
 	return result["triggered"] as Array[int]
+
+## Fleet: Infestation — "Sectors with any Organix card can not be optimized": an Organix card on
+## the sector (pool: its tech colours) or the sector card itself on its Organix side (rule book:
+## "Card icons represent tech, sector and expedition cards").
+func _infested(sector_cd: CardData, sector_is_adv: bool, pool: Array[int]) -> bool:
+	return FleetRules.blocks_optimize_with_organix() and (pool.has(CardData.SupplyColor.ORGANIX)
+			or CardData.effective_color(sector_cd, sector_is_adv) == CardData.SupplyColor.ORGANIX)
 
 # Called after a tech card is removed from a sector (e.g. Caldera Colony
 # recycling a tucked tech) — a placement alone can never un-satisfy an
@@ -1990,6 +2060,12 @@ func _handle_failed_drop() -> void:
 	_dragged_card = null
 	_drag_origin = DragOrigin.NONE
 	_is_free_gain = false
+	# no paid-for state may outlive a failed drop (it locked every later market buy, and the next
+	# hand card took the prepaid branch and was placed for this card's payment)
+	_is_prepaid_placement = false
+	_is_auction_win_placement = false
+	_prepaid_spent_amounts = {}
+	_prepaid_market_notified = false
 	card.end_drag()
 	match origin:
 		DragOrigin.HAND:

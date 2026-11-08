@@ -158,14 +158,15 @@ func _begin(prompt: String) -> void:
 	_scroll_container.custom_minimum_size.x = 0
 	if _vbox:
 		_vbox.custom_minimum_size.x = 0
-	_prompt_label.text = prompt
+	# prompts and labels name cards in English (game logic, and inside translated UI strings)
+	_prompt_label.text = CardDatabase.localize_card_names(prompt)
 	_clear_options()
 
 func show_choices(prompt: String, option_labels: Array, skippable: bool = false, tints: Array[Color] = [], card_data: CardData = null, is_advanced: bool = false) -> void:
 	_begin(prompt)
 	for i: int in option_labels.size():
 		var btn := Button.new()
-		btn.text = str(option_labels[i])
+		btn.text = CardDatabase.localize_card_names(str(option_labels[i]))   # e.g. "resolve which first?" sources
 		GameTheme.size_info_button(btn)
 		if i < tints.size():
 			btn.add_theme_color_override("font_color", tints[i])

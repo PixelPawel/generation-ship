@@ -12,6 +12,7 @@ const SKIP_BTN_H := 80.0
 
 var _title_label: Label = null
 var _card_container: Control = null
+var _skip_btn: Button = null
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -61,9 +62,12 @@ func _ready() -> void:
 	skip_btn.offset_bottom = -12.0
 	skip_btn.pressed.connect(func() -> void: hide(); skipped.emit())
 	content.add_child(skip_btn)
+	_skip_btn = skip_btn
 
-func setup(title: String, all_slots: Array[SectorSlot], exclude: SectorSlot = null) -> void:
-	_title_label.text = title
+# skippable: false for a pick the card text makes a must (Ice 9 "Recycle a card on any of your sectors").
+func setup(title: String, all_slots: Array[SectorSlot], exclude: SectorSlot = null, skippable: bool = true) -> void:
+	_title_label.text = CardDatabase.localize_card_names(title)   # English card names inside a translated title
+	_skip_btn.visible = skippable
 	GameTheme.fit_label_width(_title_label, 1200.0 - PADDING * 2.0, 28, 16)
 	for child: Node in _card_container.get_children():
 		child.queue_free()

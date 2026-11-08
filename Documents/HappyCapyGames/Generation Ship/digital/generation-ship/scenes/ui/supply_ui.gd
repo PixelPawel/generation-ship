@@ -140,7 +140,7 @@ func _build_ui() -> void:
 	vbox.add_child(_turn_indicator_panel)
 
 	_turn_indicator_label = Label.new()
-	_turn_indicator_label.text = tr("YOUR TURN")
+	_turn_indicator_label.text = "YOUR TURN"   # a key: auto-translated, also after a language switch
 	_turn_indicator_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_turn_indicator_label.add_theme_font_size_override("font_size", 14)
 	_turn_indicator_label.add_theme_color_override("font_color", Color(0.18, 0.25, 0.18))
@@ -174,7 +174,7 @@ func _build_ui() -> void:
 	_game_info_box.add_child(info_sep)
 
 	_undo_btn = Button.new()
-	_undo_btn.text = tr("↩ Undo Fuse")
+	_undo_btn.text = "↩ Undo Fuse"   # a key (auto-translated)
 	_undo_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_undo_btn.add_theme_font_size_override("font_size", 14)
 	_undo_btn.add_theme_color_override("font_color", Color(1.0, 0.75, 0.35))
