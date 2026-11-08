@@ -58,6 +58,11 @@ all were unified to "matériel" on 2026-09-29.
 | Pass | passen | passare | pasować / pasuj | pasar | passer |
 | Bid | Gebot / bieten | offerta | oferta / licytacja | puja | enchère |
 | Auction | Auktion | asta | licytacja / aukcja | subasta | enchère |
+| Store (supply) | lagern | immagazzinare | zmagazynować | almacenar | stocker |
+| Discard | abwerfen | scartare | odrzucić | descartar | défausser |
+
+Note (2026-11-08 audit): German "Store" is "lagern" everywhere (cards, rule book, UI: "Gelagerte
+Vorräte"); the UI had used "speichern", which reads as saving a file.
 
 Note: "Archive" replaced "Tuck" (2026-10-01): a card placed faceup or facedown under a sector.
 Before, each language used several verbs for it (DE ablegen/verstauen/legen ... unter, ES colocar/guardar,
@@ -85,7 +90,12 @@ term, so translate by context rather than a 1:1 word swap.
 | Settings | Einstellungen | Impostazioni | Ustawienia | Ajustes | Paramètres |
 | Language | Sprache | Lingua | Język | Idioma | Langue |
 | Done | Fertig | Fatto | Gotowe | Hecho | Terminé |
-| Interfleet Comms | Interfleet Comms | Interfleet Comms | Interfleet Comms | Interfleet Comms | Interfleet Comms |
+| Generation (round) | Generation | Generazione | Pokolenie | Generación | Génération |
+| Always (card type) | Immer | Sempre | Zawsze | Siempre | Toujours |
+| Shuttle (Fleet) | Shuttle | navetta | wahadłowiec (rule book: Prom) | transbordador | navette |
+| Slot (sector space) | Platz | slot | miejsce | casilla | emplacement |
+| Interfleet Comms | Flotten Kommunikation | Comunicazioni Interflotta | Łączność Międzyflotowa | Comunicaciones Interflota | Comms Interflotte |
 
-Interfleet Comms is a proper noun/brand term and is kept untranslated in
-every language.
+Card names in UI texts: always the printed card's name in that language (data/Card Text Translations.csv,
+`<deck>:<No.>:name`), e.g. Interfleet Comms above (it used to be kept in English; the printed cards
+translate it, 2026-11-08). The UI strings were aligned with the printed names on 2026-11-08.
