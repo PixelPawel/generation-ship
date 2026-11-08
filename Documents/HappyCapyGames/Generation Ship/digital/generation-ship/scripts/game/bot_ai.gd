@@ -43,12 +43,17 @@ static func decide_action(
 	bot_board: Array,
 	_round: int,
 	market_sectors: Array[CardData],
-	market_expeditions: Array[CardData]
+	market_expeditions: Array[CardData],
+	market_adv_sectors: Array[CardData] = []
 ) -> Dictionary:
 	var skills: Dictionary = skills_for(difficulty)
 	var candidates: Array[Dictionary] = _get_affordable_sector_plays(market_sectors, supplies, bot_board)
 	candidates.append_array(_get_affordable_tech_plays(hand, supplies, bot_board))
 	candidates.append_array(_get_affordable_auction_plays(market_expeditions, supplies, bot_board))
+	# Generation Fleet: advanced sectors sell at their printed cost (no auction)
+	for play: Dictionary in _all_adv_sector_plays(market_adv_sectors, bot_board):
+		if _is_affordable(play, supplies):
+			candidates.append(play)
 
 	if difficulty == Difficulty.EASY:
 		if candidates.is_empty() or randf() < float(skills.get("randomness", 0.0)):
@@ -97,7 +102,10 @@ static func decide_bid(
 	# cost_color is the auction's actual payment color, which Wormhole
 	# Surfing can change away from the card's own.
 	var color: int = cost_color if cost_color >= 0 else int(card.adv_color if is_adv else card.color)
-	var budget: int = supplies.get(color, 0) as int
+	# a bid can be paid with the higher supplies of the colour's chain too, as the humans' bids
+	var budget: int = 0
+	for c: CardData.SupplyColor in CardData.valid_payment_colors(color as CardData.SupplyColor):
+		budget += int(supplies.get(int(c), 0))
 	# Keep raising while the next bid is both affordable (leaving one unit
 	# of headroom rather than spending the color down to zero) and still
 	# within what the card looks like it's actually worth. Every difficulty
@@ -180,9 +188,11 @@ static func _plan_fuses_to_afford(play: Dictionary, supplies: Dictionary, max_op
 static func _find_fuse_toward(target_color: int, supplies: Dictionary) -> Dictionary:
 	var best_source: int = -1
 	var best_amount: int = 1  # need at least 2 to fuse
+	if FleetRules.blocks_fuse(target_color):   # Fleet: Smelter Accident / Anti-Fusion Field
+		return {}
 	for source: int in SupplyUI.FUSE_MAP:
 		var dsts: Array = SupplyUI.FUSE_MAP[source] as Array
-		if not dsts.has(target_color):
+		if not dsts.has(target_color) or FleetRules.blocks_fuse(source):
 			continue
 		var have: int = supplies.get(source, 0) as int
 		if have >= 2 and have > best_amount:
@@ -214,6 +224,9 @@ static func suggest_recycle(
 		if _is_affordable(play, supplies):
 			continue
 		var needed: int = _play_color(play)
+		# Fleet: Pandemic / Barbarism forbid the recycle, Mining Incident / Smelter Accident the gain
+		if FleetRules.blocks_recycle(needed) or FleetRules.blocks_gain(needed):
+			continue
 		for card: CardData in hand:
 			if int(card.color) != needed or card == play.get("card"):
 				continue
@@ -263,9 +276,9 @@ static func _score_play(play: Dictionary, bot_board: Array, skills: Dictionary) 
 			score += _tech_effect_payoff(slot, card)
 			if bool(skills.get("optimize_aware", false)) and _would_trigger_optimize(slot, card):
 				score += 6.0
-	elif play["type"] == "buy_sector":
+	elif play["type"] == "buy_sector" or play["type"] == "buy_adv_sector":
 		if bool(skills.get("optimize_aware", false)):
-			score += 0.5 * float(OptimizeLogic.max_optimizations(card, false))
+			score += 0.5 * float(OptimizeLogic.max_optimizations(card, play["type"] == "buy_adv_sector"))
 	elif play["type"] == "start_auction" and bool(skills.get("bid_ev", false)):
 		# estimate_bid_value is a standalone worth estimate (same one decide_bid
 		# uses to judge raises), not a bonus on top of card_value — replace the
@@ -297,6 +310,8 @@ static func _would_trigger_optimize(slot: Dictionary, new_card: CardData) -> boo
 		return false
 	var effective_colors: Array[int] = BotScoring.slot_tech_colors(slot)   # tanks: placed cards only
 	effective_colors.append(int(new_card.color))
+	if infested(sector, bool(slot.get("is_advanced", false)), effective_colors):
+		return false
 	var triggered_copy: Array[bool] = (slot.get("triggered_levels", []) as Array[bool]).duplicate()
 	var result: Dictionary = OptimizeLogic.update_optimize_state(
 		sector, bool(slot.get("is_advanced", false)), effective_colors, cur_count, max_opt, triggered_copy)
@@ -323,8 +338,96 @@ static func _all_tech_plays(hand: Array[CardData], bot_board: Array) -> Array[Di
 		for card: CardData in hand:
 			if card.card_type != CardData.CardType.TECH:
 				continue
-			plays.append({type = "place_tech", card = card, slot_idx = i})
+			# the cost on this sector, with the bot's own discounts (Seasons/Day-Night only here)
+			plays.append({type = "place_tech", card = card, slot_idx = i, cost = tech_cost(card, bot_board, i)})
 	return plays
+
+## Generation Fleet: the market's advanced sectors at their printed cost (+ Danger surcharges).
+static func _all_adv_sector_plays(market_adv_sectors: Array[CardData], bot_board: Array) -> Array[Dictionary]:
+	var plays: Array[Dictionary] = []
+	if bot_board.size() >= MAX_SECTORS:
+		return plays
+	for card: CardData in market_adv_sectors:
+		plays.append({type = "buy_adv_sector", card = card, color = int(card.adv_color),
+				cost = maxi(0, card.adv_cost) + FleetRules.cost_increase(card, true)})
+	return plays
+
+## A tech's cost for a bot placing it on bot_board[slot_idx]: Board.get_purchase_discount over the
+## bot's ship (Waste Management, the Academies, Cloning Lab, Skyhook anywhere; Day-Night Cycle /
+## Seasons when on top of that sector), none under Totalitarianism, plus the Fleet surcharges.
+static func tech_cost(card: CardData, bot_board: Array, slot_idx: int) -> int:
+	var discount: int = 0
+	if card.card_type == CardData.CardType.TECH and not FleetRules.always_effects_off():
+		for i: int in bot_board.size():
+			var techs: Array = (bot_board[i] as Dictionary).get("techs", []) as Array
+			for j: int in techs.size():
+				if not (techs[j] is CardData):
+					continue   # a destroyed card has no effect
+				var on_top: bool = i == slot_idx and j == techs.size() - 1
+				match (techs[j] as CardData).card_name:
+					"Waste Management":
+						if card.color == CardData.SupplyColor.LIQUIDS:
+							discount += 1
+					"Industrial Academy":
+						if card.color == CardData.SupplyColor.METALS:
+							discount += 1
+					"Cloning Lab":
+						if card.color == CardData.SupplyColor.ORGANIX:
+							discount += 1
+					"Physics Academy":
+						if card.color == CardData.SupplyColor.ELECTRIX:
+							discount += 1
+					"Skyhook":
+						if card.is_star_card:
+							discount += 1
+					"Day-Night Cycle":
+						if on_top:
+							discount += 1
+					"Seasons":
+						if on_top:
+							discount += 2
+	return maxi(0, maxi(0, card.cost) - discount + FleetRules.cost_increase(card))
+
+## How a bot pays cost of color, as Board._compute_payment: the colour itself first, then the higher
+## supplies of its chain. {} when it can't (or when there's nothing to pay).
+static func bot_payment(supplies: Dictionary, color: int, cost: int) -> Dictionary:
+	var result: Dictionary = {}
+	var remaining: int = cost
+	for c: CardData.SupplyColor in CardData.valid_payment_colors(color as CardData.SupplyColor):
+		if remaining <= 0:
+			break
+		var available: int = int(supplies.get(int(c), 0))
+		if available <= 0:
+			continue
+		var take: int = mini(available, remaining)
+		result[int(c)] = take
+		remaining -= take
+	if remaining > 0:
+		return {}
+	return result
+
+static func can_pay(supplies: Dictionary, color: int, cost: int) -> bool:
+	return cost <= 0 or not bot_payment(supplies, color, cost).is_empty()
+
+## Takes cost of color out of supplies (in place) along the payment chain. Short of it (shouldn't
+## happen: plays are checked with can_pay first), it takes what the colour itself has.
+static func pay_supplies(supplies: Dictionary, color: int, cost: int) -> void:
+	if cost <= 0:
+		return
+	var plan: Dictionary = bot_payment(supplies, color, cost)
+	if plan.is_empty():
+		supplies[color] = maxi(0, int(supplies.get(color, 0)) - cost)
+		return
+	for c: Variant in plan:
+		supplies[int(c)] = int(supplies.get(int(c), 0)) - int(plan[c])
+
+## Fleet: Infestation — no new optimize level on a sector with any Organix card: one on it (its tank
+## colours) or the sector card itself on its Organix side (as Board._infested).
+static func infested(sector: CardData, is_adv: bool, tank_colors: Array[int]) -> bool:
+	if not FleetRules.blocks_optimize_with_organix():
+		return false
+	return tank_colors.has(int(CardData.SupplyColor.ORGANIX)) \
+			or (sector != null and CardData.effective_color(sector, is_adv) == CardData.SupplyColor.ORGANIX)
 
 static func _get_affordable_sector_plays(market_sectors: Array[CardData], supplies: Dictionary, bot_board: Array) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
@@ -369,10 +472,12 @@ static func _get_affordable_auction_plays(market_expeditions: Array[CardData], s
 
 static func _is_affordable(play: Dictionary, supplies: Dictionary) -> bool:
 	var card: CardData = play["card"] as CardData
-	if str(play.get("type", "")) == "place_tech" and FleetRules.blocks_place(int(card.color)):
-		return false   # Fleet: Barbarism
-	var avail: int = supplies.get(int(card.color), 0) as int
-	return avail >= max(0, card.cost) + FleetRules.cost_increase(card)
+	# Fleet: Barbarism — no Thrust card placed: expeditions (bought and placed in Fleet) and an
+	# advanced sector's Thrust side included (as Board._refuse_fleet_blocked)
+	if str(play.get("type", "")) in ["place_tech", "start_auction", "buy_adv_sector"] and FleetRules.blocks_place(_play_color(play)):
+		return false
+	var cost: int = int(play.get("cost", maxi(0, card.cost) + FleetRules.cost_increase(card)))
+	return can_pay(supplies, _play_color(play), cost)
 
 static func _play_color(play: Dictionary) -> int:
-	return int((play["card"] as CardData).color)
+	return int(play.get("color", int((play["card"] as CardData).color)))

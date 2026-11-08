@@ -191,7 +191,9 @@ static func _expedition_vp_raw(name: String, slots: Array, expeditions: Array, a
 					var cd: CardData = top.get("card_data")
 					if cd:
 						var top_vp: int
-						if cd.card_type == CardData.CardType.EXPEDITION and cd.card_name != "Equatorial Superloop":
+						if top.has_meta("fleet_destroyed"):   # Fleet: a destroyed (face-down) top card is worth 0
+							top_vp = 0
+						elif cd.card_type == CardData.CardType.EXPEDITION and cd.card_name != "Equatorial Superloop":
 							top_vp = expedition_card_vp(cd, _expedition_vp(cd.card_name, slots, expeditions, all_cards))
 						elif cd.card_type == CardData.CardType.TECH and _is_conditional_tech(cd.card_name):
 							top_vp = _tech_condition_vp(cd.card_name, slots, all_cards)
@@ -294,7 +296,8 @@ static func _expedition_vp_raw(name: String, slots: Array, expeditions: Array, a
 			var count: int = 0
 			for slot: SectorSlot in slots:
 				for card: Node3D in slot.get_all_placed_cards():
-					if _card_color(card) == CardData.SupplyColor.LIQUIDS:
+					# Fleet: a destroyed card has no colour any more
+					if _card_color(card) == CardData.SupplyColor.LIQUIDS and not card.has_meta("fleet_destroyed"):
 						count += 1
 						break
 			return 2 * count
@@ -305,7 +308,7 @@ static func _expedition_vp_raw(name: String, slots: Array, expeditions: Array, a
 			for slot: SectorSlot in slots:
 				var count: int = 0
 				for card: Node3D in slot.get_all_placed_cards():
-					if _card_color(card) == CardData.SupplyColor.METALS:
+					if _card_color(card) == CardData.SupplyColor.METALS and not card.has_meta("fleet_destroyed"):
 						count += 1
 				best = maxi(best, count)
 			return 2 * best

@@ -76,7 +76,11 @@ func _ready() -> void:
 
 func setup(destination_no: int) -> void:
 	_card.texture = FleetData.screen_texture(FleetData.destination_art(destination_no), CARD_SIZE)
-	_shuttle_label.text = tr("Shuttle cost: %d Dust") % int(FleetData.destination(destination_no).get("shuttle", 0))
+	set_shuttle_cost(int(FleetData.destination(destination_no).get("shuttle", 0)))
+
+## The cost right now (FleetRules.shuttle_cost: Asteroid Belt adds 1), kept current by FleetFlow.refresh_panel.
+func set_shuttle_cost(cost: int) -> void:
+	_shuttle_label.text = tr("Shuttle cost: %d Dust") % cost
 
 func set_generation(current: int, total: int) -> void:
 	_gen_label.text = tr("Generation %d / %d") % [current, total]

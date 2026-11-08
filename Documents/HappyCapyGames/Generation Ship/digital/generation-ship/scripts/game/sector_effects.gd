@@ -22,7 +22,8 @@ static func _slot_effective_colors(slot: SectorSlot) -> Array[int]:
 	var result: Array[int] = []
 	for card_node: Node3D in slot.get_all_placed_cards():
 		var cdata: CardData = card_node.get("card_data")
-		if cdata:
+		# Fleet: a destroyed (FleetRules.DESTROYED_META) card has no colour any more
+		if cdata and not card_node.has_meta("fleet_destroyed"):
 			result.append(int(CardData.effective_color(cdata, bool(card_node.get("is_advanced")))))
 	return result
 

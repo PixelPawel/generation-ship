@@ -110,6 +110,11 @@ static func destination(no: int) -> Dictionary:
 			return d
 	return {}
 
+## A Destination's printed name in the player's language (DESTINATIONS' "name" is the English key).
+static func destination_name(no: int) -> String:
+	var local: String = card_text("destination", no, "name")
+	return local if not local.is_empty() else str(destination(no).get("name", ""))
+
 static func danger(no: int) -> Dictionary:
 	for d: Dictionary in DANGERS:
 		if int(d["no"]) == no:
@@ -185,7 +190,8 @@ static func card_text(kind: String, no: int, field: String) -> String:
 	if lang != "en":
 		var t: String = CardDatabase.translated_text("%s:%d:%s" % [kind, no, field], lang)
 		if not t.is_empty():
-			return t.strip_edges()
+			# the sheets' supply words and "(Star Card)" are icons on the print (never for names)
+			return t.strip_edges() if field == "name" else CardDatabase.display_text(t.strip_edges())
 	if not _en_rows.has(kind):
 		var rows: Dictionary = {}
 		for r: Dictionary in CardDatabase._read_csv(_EN_SHEETS[kind]):
@@ -194,7 +200,8 @@ static func card_text(kind: String, no: int, field: String) -> String:
 				rows[int(n)] = r
 		_en_rows[kind] = rows
 	var row: Dictionary = (_en_rows[kind] as Dictionary).get(no, {})
-	return str(row.get(_COLUMNS.get(field, field), "")).strip_edges()
+	var en: String = str(row.get(_COLUMNS.get(field, field), "")).strip_edges()
+	return en if field == "name" else CardDatabase.display_text(en)
 
 static func shuffled_destinations(rng: RandomNumberGenerator) -> Array[int]:
 	var nos: Array[int] = []

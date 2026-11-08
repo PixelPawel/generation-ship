@@ -30,6 +30,10 @@ static func setup(main: Main) -> void:
 	rules.setup(GameNetwork.fleet_destination, rng)
 	FleetRules.current = rules
 	main._fleet = rules
+	# (static: nothing a previous game set aside carries over)
+	_pledge_supply = {}
+	_pledge_cards = []
+	BotTurn._fleet_pledges.clear()
 	var panel: Control = main._fleet_panel
 	panel.danger_solve_pressed.connect(func(no: int) -> void: try_solve(main, no))
 	# right-click / long press enlarges like the market's cards; right-clicking
@@ -56,6 +60,7 @@ static func setup(main: Main) -> void:
 	timer.autostart = true
 	timer.timeout.connect(func() -> void:
 		auto_solve(main)
+		bot_auto_solve(main)   # (host) what the bot crewmates' ships meet
 		if panel.visible or main._fleet_dest_view.visible:
 			refresh_panel(main))
 	main.add_child(timer)
@@ -243,7 +248,8 @@ static func _apply(main: Main, no: int, eff: Dictionary) -> void:
 				return
 			for col: int in pay:
 				main._cs_display.spend_supply(col, int(pay[col]))
-			main._log_action(main.tr("%s: paid %d %s.") % [_name(no), n, CardData.color_name(int(eff["color"]))], DANGER_COLOR)
+			# what was really spent: the higher supplies of the colour's chain count too
+			main._log_action(main.tr("%s: paid %s.") % [_name(no), _plan_text(pay)], DANGER_COLOR)
 		"lose_stored":
 			await _lose_items(main, no, n, true, false)
 		"lose_stored_or_archived":
@@ -304,7 +310,7 @@ static func _apply(main: Main, no: int, eff: Dictionary) -> void:
 				if s.get_all_placed_cards().size() == fewest:
 					cands.append(s)
 			var target: SectorSlot = await _pick_sector(main, main.tr("%s: which sector is removed?") % _name(no), cands, false)
-			var label: String = _sector_label(target)
+			var label: String = _sector_label(main, target)
 			for cd: CardData in target.fleet_remove_sector():
 				board.add_to_discard(cd)
 			main._log_action(main.tr("%s: sector removed — %s") % [_name(no), label], DANGER_COLOR)
@@ -359,9 +365,16 @@ static func _destroy(main: Main, no: int, n: int, where: String, pref: int, ask:
 			if target == null:
 				return false
 		var card: Node3D = target.fleet_top_card()
-		target.fleet_destroy_card(card, _back_path(card))
+		_destroy_card(main, target, card, _back_path(card))
 		main._log_action(main.tr("%s: %s destroyed (flipped face down).") % [_name(no), card.card_data.card_name], DANGER_COLOR)
 	return true
+
+# Flip a placed card face down (Fleet "destroy"). It has no colour any more, so it fills no tank:
+# the sector's optimize levels are re-checked at once, as after any card leaving it (Caldera, Ice 9).
+static func _destroy_card(main: Main, slot: SectorSlot, card: Node3D, back_path: String) -> void:
+	slot.fleet_destroy_card(card, back_path)
+	main.get_node("Board").revalidate_optimize_after_removal(slot)
+	slot.refresh_display()
 
 static func _destroyable_slots(main: Main, pref: int) -> Array[SectorSlot]:
 	var all: Array[SectorSlot] = []
@@ -393,7 +406,8 @@ static func _lose_items(main: Main, no: int, n: int, stored: bool, archived: boo
 			if archived:
 				for t: Dictionary in s.tucked_cards:
 					var cd: CardData = t["data"]
-					items.append({"slot": s, "tuck": t, "label": main.tr("Archived %s under %s") % [cd.card_name if bool(t["face_up"]) else main.tr("face-down card"), _sector_name(s)]})
+					var shown: String = CardDatabase.display_name(cd) if bool(t["face_up"]) and cd else main.tr("face-down card")
+					items.append({"slot": s, "tuck": t, "label": main.tr("Archived %s under %s") % [shown, _sector_name(s)]})
 		if items.is_empty():
 			return true
 		var pick: Dictionary = items[0]
@@ -406,13 +420,14 @@ static func _lose_items(main: Main, no: int, n: int, stored: bool, archived: boo
 			if ci < 0:
 				return false
 			pick = items[ci]
-		elif items.size() > 1 or ask:
+		# an archived card is always the player's pick, even the only one left (Fleet ruling)
+		elif items.size() > 1 or ask or pick.has("tuck"):
 			var labels: Array = []
 			for it: Dictionary in items:
 				labels.append(it["label"])
 			if ask:
 				labels.append(main.tr("Cancel"))
-			var idx: int = await _pick_option(main, prompt, labels)
+			var idx: int = await _pick_option(main, prompt, labels, labels.size() - 1 if ask else -1)
 			if idx >= items.size():
 				return false
 			pick = items[idx]
@@ -495,13 +510,29 @@ static func can_solve(main: Main, no: int) -> bool:
 					return true
 			return false
 		"hand_empty":
-			return hand.is_empty()
+			# a hand card being dragged, paid for, confirmed or recycled is still in hand
+			return hand.is_empty() and not _hand_card_in_flight(main)
 		"expedition_bought":
 			return bool(main._fleet.entry(no).get("expedition_bought", false))
 	return false
 
+# A hand card detached from the Hand while the player decides about it (Board's drag, payment,
+# placement-confirm and recycle states); it may still go back.
+static func _hand_card_in_flight(main: Main) -> bool:
+	var board: Node = main.get_node("Board")
+	var from_hand: int = board.DragOrigin.HAND
+	if board._dragged_card != null and int(board._drag_origin) == from_hand:
+		return true
+	if board._pending_card != null and int(board._pending_drag_origin) == from_hand:
+		return true
+	if board._pending_placement_card != null and int(board._pending_placement_origin) == from_hand:
+		return true
+	return board._pending_recycle_card != null
+
 static func try_solve(main: Main, no: int) -> void:
 	if main._fleet == null or main._fleet_busy or main._effect_mode != Main.EffectMode.NONE:
+		return
+	if _in_generation_barrier():
 		return
 	if GameNetwork.is_multiplayer:
 		_try_solve_online(main, no)
@@ -516,9 +547,10 @@ static func try_solve(main: Main, no: int) -> void:
 	var done: bool = true
 	match str(sv.get("kind", "")):
 		"pay":
+			# the prompt names what is really spent (the colour's chain pays too)
 			var pay: Dictionary = board._compute_payment(int(sv["color"]), n)
-			var ok: int = await _pick_option(main, main.tr("Solve %s: pay %d %s?") % [_name(no), n, CardData.color_name(int(sv["color"]))],
-					[main.tr("Pay"), main.tr("Cancel")])
+			var ok: int = await _pick_option(main, main.tr("Solve %s: pay %s?") % [_name(no), _plan_text(pay)],
+					[main.tr("Pay"), main.tr("Cancel")], 1)
 			done = ok == 0
 			if done:
 				for col: int in pay:
@@ -557,7 +589,7 @@ static func try_solve(main: Main, no: int) -> void:
 			done = pick >= 0
 			if done:
 				var card: Node3D = exps[pick]["card"]
-				(exps[pick]["slot"] as SectorSlot).fleet_destroy_card(card, CardDatabase.expedition_back_path())
+				_destroy_card(main, exps[pick]["slot"] as SectorSlot, card, CardDatabase.expedition_back_path())
 	main._fleet_busy = false
 	if not done:
 		return
@@ -570,7 +602,7 @@ static func try_solve(main: Main, no: int) -> void:
 # own Dust gain resolves). Checked when a card is placed, before every effect
 # step and every half second; not while the generation's Dangers resolve.
 static func auto_solve(main: Main) -> void:
-	if main._fleet == null or main._fleet_busy:
+	if main._fleet == null or main._fleet_busy or _in_generation_barrier():
 		return
 	for e: Dictionary in main._fleet.active.duplicate():
 		var no: int = int(e["no"])
@@ -584,6 +616,56 @@ static func auto_solve(main: Main) -> void:
 		if GameNetwork.is_multiplayer:
 			main.fleet_request_solved(no)
 
+## Online, while the generation's Dangers resolve (nobody's turn): every peer must reveal and resolve
+## the same Dangers, so nothing is solved until the host starts the first turn (a solve landing on a
+## peer still resolving changed what it revealed: System Failure, a condition Danger not yet revealed).
+static func _in_generation_barrier() -> bool:
+	return GameNetwork.is_multiplayer and GameNetwork.active_peer_id == 0
+
+## Host: condition solves met on a bot crewmate's ship ("Any player can solve any revealed danger",
+## the moment it's met). Expedition bought and an empty Dust deck reach every peer already.
+static func bot_auto_solve(main: Main) -> void:
+	if main._fleet == null or main._fleet_busy or not GameNetwork.is_multiplayer or not main.multiplayer.is_server():
+		return
+	if _in_generation_barrier() or GameNetwork.bot_ids.is_empty():
+		return
+	for e: Dictionary in main._fleet.active.duplicate():
+		var no: int = int(e["no"])
+		if not FleetRules.is_condition_solve(no):
+			continue
+		for bot_id: int in GameNetwork.bot_ids:
+			if _bot_condition_met(main, bot_id, no):
+				main._rpc_fleet_solved.rpc(no, str(GameNetwork.player_names.get(bot_id, main.tr("Bot"))))
+				break
+
+# can_solve's conditions on a bot's ship (BotTurn's board entries; a destroyed card is a marker
+# there: in the card count, no colour).
+static func _bot_condition_met(main: Main, bot_id: int, no: int) -> bool:
+	var sv: Dictionary = FleetRules.SOLVES.get(no, {})
+	var board: Array = main.bot_boards.get(bot_id, []) as Array
+	match str(sv.get("kind", "")):
+		"complete_rightmost":
+			return not board.is_empty() and BotScoring.is_slot_complete(board[board.size() - 1] as Dictionary)
+		"optimized_color":
+			for e: Variant in board:
+				if BotScoring.is_slot_optimized(e as Dictionary) and BotScoring.slot_effective_color(e as Dictionary) == int(sv["color"]):
+					return true
+		"cards_in_sector":
+			for e: Variant in board:
+				if BotScoring.slot_effective_placed_colors(e as Dictionary).count(int(sv["color"])) >= int(sv.get("n", 1)):
+					return true
+		"complete_optimized":
+			for e: Variant in board:
+				if BotScoring.is_slot_complete(e as Dictionary) and BotScoring.is_slot_optimized(e as Dictionary):
+					return true
+		"complete_color":
+			for e: Variant in board:
+				if BotScoring.is_slot_complete(e as Dictionary) and (sv["colors"] as Array).has(BotScoring.slot_effective_color(e as Dictionary)):
+					return true
+		"hand_empty":
+			return BotTurn.bot_hand(main, bot_id).is_empty()
+	return false
+
 ## An effect step a Danger forbids outright: archiving under Neural Gear
 ## Malfunction, storing under it (and Liquids under Anti-Fusion Field).
 static func step_blocked(step: Dictionary) -> bool:
@@ -594,6 +676,9 @@ static func step_blocked(step: Dictionary) -> bool:
 			return FleetRules.blocks_store(int(step.get("color", -1)))
 		"store_per_card_here", "seedbanks", "caldera_colony":
 			return FleetRules.blocks_store(-1)
+		"cargo_drones":
+			# Neural Gear: nothing can be stored or archived, so a move would only delete what it moves
+			return FleetRules.blocks_store(-1) and FleetRules.blocks_archive()
 	return false
 
 # The solved Danger shown big with a green SOLVED banner (everyone sees it).
@@ -637,11 +722,20 @@ static func _item_data(it: Dictionary) -> CardData:
 		return (it["card"] as Node3D).card_data
 	return (it["tuck"] as Dictionary)["data"]
 
+# This peer's pledged supplies and hand cards, set aside the moment they're pledged (so they
+# can't also be spent before the host's result): spent / discarded on success, handed back if not.
+static var _pledge_supply: Dictionary = {}
+static var _pledge_cards: Array[CardData] = []
+
+# need: what the crew still needs once the bot crewmates have pledged (_server_fleet_open).
 static func pledge_prompt(main: Main, no: int, who: String, need: int) -> void:
 	var sv: Dictionary = FleetRules.SOLVES.get(no, {})
 	var kind: String = str(sv.get("kind", ""))
 	main._fleet_pledge_apply = Callable()
 	main._log_action(main.tr("%s wants to solve %s — the crew needs %d.") % [who, _name(no), need], DANGER_COLOR)
+	if need <= 0:   # the bot crewmates cover it all
+		main.fleet_send_pledge(no, 0, [])
+		return
 	if main._fleet_choice_active or main._effect_mode != Main.EffectMode.NONE or main._fleet_busy:
 		main._log_action(main.tr("(You're busy — you pledge nothing this time.)"), DANGER_COLOR)
 		main.fleet_send_pledge(no, 0, [])
@@ -660,15 +754,15 @@ static func pledge_prompt(main: Main, no: int, who: String, need: int) -> void:
 				var plan: Dictionary = board._compute_payment(col, k)
 				if plan.is_empty():
 					break
-				labels.append(main.tr("%d %s") % [k, CardData.color_name(col)])
+				labels.append(_plan_text(plan))   # what is really spent (the colour's chain pays too)
 				plans.append(plan)
-			var pick: int = await _pick_option(main, title, labels)
+			var pick: int = await _pick_option(main, title, labels, 0)   # closed from outside: nothing
 			units = pick
 			if pick > 0:
 				var plan: Dictionary = plans[pick]
-				main._fleet_pledge_apply = func() -> void:
-					for c: int in plan:
-						main._cs_display.spend_supply(c, int(plan[c]))
+				for c: int in plan:
+					main._cs_display.spend_supply(c, int(plan[c]))
+				_pledge_supply = plan
 		"discard_color", "discard_stars", "discard_each_color":
 			var cands: Array[Node3D] = []
 			for c: Node3D in _hand_cards(main):
@@ -679,24 +773,22 @@ static func pledge_prompt(main: Main, no: int, who: String, need: int) -> void:
 				cands.append(c)
 			if not cands.is_empty():
 				var max_pick: int = need if kind != "discard_stars" else 0
-				var idx: Array[int] = await _pick_cards(main, title + main.tr(" (none = nothing)"), cands, max_pick)
-				var picks: Array[Node3D] = []
+				var idx: Array[int] = await _pick_cards(main, title + main.tr(" (none = nothing)"), cands, max_pick, true)
+				var hand: Node = main.get_node("Hand")
 				for i: int in idx:
-					picks.append(cands[i])
+					var c: Node3D = cands[i]
+					if not is_instance_valid(c) or not _hand_cards(main).has(c):
+						continue
 					if kind == "discard_stars":
-						units += cands[i].card_data.stars
+						units += c.card_data.stars
 					elif kind == "discard_each_color":
-						if not colors.has(int(cands[i].card_data.color)):
-							colors.append(int(cands[i].card_data.color))
+						if not colors.has(int(c.card_data.color)):
+							colors.append(int(c.card_data.color))
 					else:
 						units += 1
-				if not picks.is_empty():
-					main._fleet_pledge_apply = func() -> void:
-						var still: Array[Node3D] = []
-						for c: Node3D in picks:
-							if is_instance_valid(c) and _hand_cards(main).has(c):
-								still.append(c)
-						_discard_nodes(main, still)
+					# out of the hand now; discarded if the solve goes through, back otherwise
+					_pledge_cards.append(c.card_data)
+					hand.remove_card_fly_out(c)
 		"destroy":
 			var slots: Array[SectorSlot] = []
 			var cands: Array[SectorSlot] = _destroyable_slots(main, -1)
@@ -712,7 +804,7 @@ static func pledge_prompt(main: Main, no: int, who: String, need: int) -> void:
 					for t: SectorSlot in slots:
 						var card: Node3D = t.fleet_top_card()
 						if card:
-							t.fleet_destroy_card(card, _back_path(card))
+							_destroy_card(main, t, card, _back_path(card))
 		"lose_archived", "flip_archived", "destroy_expedition":
 			var pool: Array[Dictionary] = []
 			if kind == "destroy_expedition":
@@ -735,7 +827,8 @@ static func pledge_prompt(main: Main, no: int, who: String, need: int) -> void:
 					for it: Dictionary in chosen:
 						var slot: SectorSlot = it["slot"]
 						if kind == "destroy_expedition":
-							slot.fleet_destroy_card(it["card"], CardDatabase.expedition_back_path())
+							if is_instance_valid(it["card"]):
+								_destroy_card(main, slot, it["card"], CardDatabase.expedition_back_path())
 						elif kind == "flip_archived":
 							(it["tuck"] as Dictionary)["face_up"] = false
 						else:
@@ -743,24 +836,57 @@ static func pledge_prompt(main: Main, no: int, who: String, need: int) -> void:
 							board.add_to_discard((it["tuck"] as Dictionary)["data"])
 						slot.refresh_display()
 	main._fleet_busy = false
+	if not _pledge_supply.is_empty() or not _pledge_cards.is_empty():
+		_after_change(main)
+		main._broadcast_my_state()
 	main.fleet_send_pledge(no, units, colors)
 
 static func on_session_result(main: Main, no: int, ok: bool, total: int, need: int) -> void:
 	if not ok:
 		main._fleet_pledge_apply = Callable()
+		_pledge_hand_back(main)
 		main._log_action(main.tr("Not enough for %s — the crew pledged %d of %d. Nothing was paid.") % [_name(no), total, need], DANGER_COLOR)
 		return
+	# the set-aside supplies are spent already; the set-aside cards go to the discard pile
+	for cd: CardData in _pledge_cards:
+		main._log_action(main.tr("Discarded %s.") % cd.card_name, DANGER_COLOR)
+		main.get_node("Board").add_to_discard(cd)
+	_pledge_supply = {}
+	_pledge_cards = []
 	if main._fleet_pledge_apply.is_valid():
 		main._fleet_pledge_apply.call()
 	main._fleet_pledge_apply = Callable()
 	on_solved(main, no, main.tr("the crew"))
+
+# The solve fell short: this peer's set-aside supplies and cards come back (straight back: a
+# Danger blocking gains doesn't stop a refund).
+static func _pledge_hand_back(main: Main) -> void:
+	if _pledge_supply.is_empty() and _pledge_cards.is_empty():
+		return
+	for c: Variant in _pledge_supply:
+		main._cs_display.set_supply(int(c), main._cs_display.get_supply(int(c)) + int(_pledge_supply[c]))
+	var board: Node = main.get_node("Board")
+	for cd: CardData in _pledge_cards:
+		board.add_specific_card_to_hand(cd)
+	_pledge_supply = {}
+	_pledge_cards = []
+	_after_change(main)
+	main._broadcast_my_state()
+
+## "2 Dust + 1 Metals": a payment plan (colour -> amount, Board._compute_payment) as shown to the player.
+static func _plan_text(plan: Dictionary) -> String:
+	var parts: PackedStringArray = []
+	for c: Variant in plan:
+		if int(plan[c]) > 0:
+			parts.append("%d %s" % [int(plan[c]), CardData.color_name(int(c) as CardData.SupplyColor)])
+	return " + ".join(parts)
 
 static func _discard_each_color(main: Main, no: int) -> bool:
 	var cands: Array[Node3D] = []
 	for c: Node3D in _hand_cards(main):
 		cands.append(c)
 	while true:
-		var idx: Array[int] = await _pick_cards(main, main.tr("Solve %s: pick 1 card of each colour (none = cancel)") % _name(no), cands, 6)
+		var idx: Array[int] = await _pick_cards(main, main.tr("Solve %s: pick 1 card of each colour (none = cancel)") % _name(no), cands, 6, true)
 		if idx.is_empty():
 			return false
 		var colors: Dictionary = {}
@@ -776,7 +902,7 @@ static func _discard_each_color(main: Main, no: int) -> bool:
 
 static func _discard_for_stars(main: Main, no: int, cands: Array[Node3D], need: int) -> bool:
 	while true:
-		var idx: Array[int] = await _pick_cards(main, main.tr("Solve %s: discard cards worth %d ⭐ (none = cancel)") % [_name(no), need], cands, 0)
+		var idx: Array[int] = await _pick_cards(main, main.tr("Solve %s: discard cards worth %d ⭐ (none = cancel)") % [_name(no), need], cands, 0, true)
 		if idx.is_empty():
 			return false
 		var total: int = 0
@@ -797,7 +923,7 @@ static func _discard_from_hand(main: Main, prompt: String, cands: Array[Node3D],
 	if need <= 0:
 		return mandatory
 	while true:   # always the player's pick, even when every card has to go
-		var idx: Array[int] = await _pick_cards(main, prompt + (main.tr(" — pick %d") % need), cands, need)
+		var idx: Array[int] = await _pick_cards(main, prompt + (main.tr(" — pick %d") % need), cands, need, not mandatory)
 		if idx.size() == need:
 			var picks: Array[Node3D] = []
 			for i: int in idx:
@@ -854,6 +980,7 @@ static func bot_stats(main: Main, bot_id: int) -> Dictionary:
 	var st: Dictionary = {"stars": 0, "stored": 0, "stored_by": {}, "optimized": 0, "complete": 0,
 			"cards_by": {}, "archived": 0, "archived_stars": 0, "faceup_stars": 0}
 	var board: Array = main.bot_boards.get(bot_id, []) as Array
+	Scoring.other_players_expeditions = main._alliance_count_for(bot_id)   # this bot's own best ally
 	st["stars"] = BotScoring.board_vp(board)
 	for entry_v: Variant in board:
 		var e: Dictionary = entry_v as Dictionary
@@ -863,11 +990,12 @@ static func bot_stats(main: Main, bot_id: int) -> Dictionary:
 		var techs: Array = e.get("techs", []) as Array
 		if bool(e.get("is_optimized", false)):
 			st["optimized"] = int(st["optimized"]) + 1
-		if techs.size() + int(e.get("fleet_destroyed", 0)) >= 5:
+		if BotScoring.is_slot_complete(e):   # a destroyed card keeps its place in the count
 			st["complete"] = int(st["complete"]) + 1
 		var cards: Array = [{"cd": sector, "adv": bool(e.get("is_advanced", false))}]
 		for t: Variant in techs:
-			cards.append({"cd": t, "adv": false})
+			if t is CardData:   # (a destroyed card's marker: no colour, no stars)
+				cards.append({"cd": t, "adv": false})
 		for c: Dictionary in cards:
 			var cd: CardData = c["cd"] as CardData
 			if cd == null:
@@ -972,11 +1100,12 @@ static func refresh_panel(main: Main) -> void:
 	var list: Array = []
 	for e: Dictionary in main._fleet.active:
 		var no: int = int(e["no"])
-		list.append({"no": no, "solvable": not main._fleet_busy and can_solve(main, no)})
+		list.append({"no": no, "solvable": not main._fleet_busy and not _in_generation_barrier() and can_solve(main, no)})
 	main._fleet_panel.set_dangers(list, main._fleet.deck.size())
 	if main._fleet_dest_view:
 		main._fleet_dest_view.set_mission_progress(mission_lines(main))
 		main._fleet_dest_view.set_generation(main._round, main._max_rounds)
+		main._fleet_dest_view.set_shuttle_cost(FleetRules.shuttle_cost())   # Asteroid Belt's +1 included
 
 static func _after_change(main: Main) -> void:
 	main.get_node("Board").refresh_hand_discounts()
@@ -1040,14 +1169,13 @@ static func inspect_danger(main: Main, no: int) -> void:
 	main.get_node("Board").inspect_card_data(_art_card(path, _name(no), false), false, ["danger", no], origin, center)
 
 static func inspect_destination(main: Main) -> void:
-	var dest: Dictionary = FleetData.destination(GameNetwork.fleet_destination)
 	var path: String = FleetData.destination_art(GameNetwork.fleet_destination)
 	if path.is_empty():
 		return
 	# grows out of the control screen, in front of it, big enough to read
 	var screen: MeshInstance3D = main.get_node("UiControl").find_child("gs_ui_control_screen", true, false) as MeshInstance3D
 	var origin: Vector3 = screen.to_global(screen.mesh.get_aabb().get_center()) if screen else main.get_node("UiControl").global_position
-	main.get_node("Board").inspect_card_data(_art_card(path, str(dest.get("name", "")), true), false, ["destination", 0], origin, origin, DESTINATION_FILL)
+	main.get_node("Board").inspect_card_data(_art_card(path, FleetData.destination_name(GameNetwork.fleet_destination), true), false, ["destination", 0], origin, origin, DESTINATION_FILL)
 
 # A card shown big on screen (no dimming behind it): for duration seconds, or
 # until clicked when duration is 0.
@@ -1092,12 +1220,29 @@ static func show_card(main: Main, path: String, landscape: bool, duration: float
 
 # ── Choices (awaited) ─────────────────────────────────────────────────────────
 
-static func _pick_option(main: Main, prompt: String, labels: Array) -> int:
+# The popup and sector picker are Main's and shared: another flow may hide this prompt (End Turn's
+# reset) or show its own in it while it's open. An abortable prompt (solving, pledging) then ends
+# with its cancel answer at once, so its session still gets an answer and the other flow's click
+# isn't taken for this one; a mandatory one (a Danger striking) keeps waiting as before.
+static func _popup_taken(popup: Control, gen: int) -> bool:
+	return not popup.visible or int(popup.get("_layout_gen")) != gen
+
+# abort_idx: the answer when the prompt is closed from outside (-1: not abortable).
+static func _pick_option(main: Main, prompt: String, labels: Array, abort_idx: int = -1) -> int:
+	var popup: Control = main._choice_popup
+	var result: Array = []
+	var on_pick: Callable = func(i: int) -> void: result.append(i)
+	popup.choice_made.connect(on_pick)
 	main._fleet_choice_active = true
 	main._choice_popup.show_choices(prompt, labels, false)
-	var idx: int = await main._choice_popup.choice_made
+	var gen: int = int(popup.get("_layout_gen"))
+	while result.is_empty():
+		await main.get_tree().process_frame
+		if result.is_empty() and abort_idx >= 0 and _popup_taken(popup, gen):
+			result.append(abort_idx)
+	popup.choice_made.disconnect(on_pick)
 	main._fleet_choice_active = false
-	return idx
+	return int(result[0])
 
 static func _pick_color(main: Main, prompt: String, colors: Array[int]) -> int:
 	main._fleet_choice_active = true
@@ -1118,11 +1263,16 @@ static func _pick_sector(main: Main, prompt: String, cands: Array[SectorSlot], c
 		picker.skipped.connect(on_skip)
 		main._fleet_choice_active = true
 		picker.setup(prompt, cands)
+		var title: Label = picker.get("_title_label") as Label
 		while result.is_empty():
 			await main.get_tree().process_frame
+			# closed or taken over from outside (see _popup_taken): a cancelable pick is cancelled
+			if result.is_empty() and cancelable and (not picker.visible or (title and title.text != prompt)):
+				result.append(null)
 		picker.sector_selected.disconnect(on_sel)
 		picker.skipped.disconnect(on_skip)
-		picker.hide()
+		if title == null or title.text == prompt:   # (not another flow's picker now)
+			picker.hide()
 		main._fleet_choice_active = false
 		if result[0] != null or cancelable:
 			return result[0] as SectorSlot
@@ -1139,21 +1289,37 @@ static func _pick_card(main: Main, prompt: String, cards: Array[CardData], cance
 	popup.skipped.connect(on_skip)
 	main._fleet_choice_active = true
 	popup.show_card_choices(prompt, cards, cancelable)
+	var gen: int = int(popup.get("_layout_gen"))
 	while result.is_empty():
 		await main.get_tree().process_frame
+		if result.is_empty() and cancelable and _popup_taken(popup, gen):
+			result.append(-1)
 	popup.choice_made.disconnect(on_pick)
 	popup.skipped.disconnect(on_skip)
 	main._fleet_choice_active = false
 	return int(result[0])
 
-static func _pick_cards(main: Main, prompt: String, cards: Array[Node3D], max_select: int) -> Array[int]:
+# abortable: closed from outside, it answers "none" ([]).
+static func _pick_cards(main: Main, prompt: String, cards: Array[Node3D], max_select: int, abortable: bool = false) -> Array[int]:
 	var data: Array[CardData] = []
 	for c: Node3D in cards:
 		data.append(c.card_data)
+	var popup: Control = main._choice_popup
+	var result: Array = []
+	var on_done: Callable = func(indices: Array[int]) -> void: result.append(indices)
+	popup.multiselect_confirmed.connect(on_done)
 	main._fleet_choice_active = true
 	main._choice_popup.show_multiselect_card_choices(prompt, data, max_select)
-	var idx: Array[int] = await main._choice_popup.multiselect_confirmed
+	var gen: int = int(popup.get("_layout_gen"))
+	while result.is_empty():
+		await main.get_tree().process_frame
+		if result.is_empty() and abortable and _popup_taken(popup, gen):
+			var none: Array[int] = []
+			result.append(none)
+	popup.multiselect_confirmed.disconnect(on_done)
 	main._fleet_choice_active = false
+	var idx: Array[int] = []
+	idx.assign(result[0] as Array)
 	return idx
 
 # ── Board helpers ─────────────────────────────────────────────────────────────
@@ -1170,16 +1336,16 @@ static func _sector_color(s: SectorSlot) -> int:
 		return -1
 	return int(CardData.effective_color(s.placed_card.card_data, bool(s.placed_card.get("is_advanced"))))
 
+# Shown to the player (pick lists, log): the printed name in their language.
 static func _sector_name(s: SectorSlot) -> String:
 	if not s.placed_card or not s.placed_card.card_data:
 		return "?"
-	var cd: CardData = s.placed_card.card_data
-	return cd.adv_name if bool(s.placed_card.get("is_advanced")) and not cd.adv_name.is_empty() else cd.card_name
+	return CardDatabase.display_name(s.placed_card.card_data, bool(s.placed_card.get("is_advanced")))
 
-static func _sector_label(s: SectorSlot) -> String:
+static func _sector_label(main: Main, s: SectorSlot) -> String:
 	var top: Node3D = s.fleet_top_card()
-	var top_name: String = top.card_data.card_name if top and top.card_data else "—"
-	return "%s (%d cards, top: %s)" % [_sector_name(s), s.get_all_placed_cards().size(), top_name]
+	var top_name: String = CardDatabase.display_name(top.card_data) if top and top.card_data else "—"
+	return main.tr("%s (%d cards, top: %s)") % [_sector_name(s), s.get_all_placed_cards().size(), top_name]
 
 static func _stored_total(main: Main) -> int:
 	var t: int = 0
@@ -1241,21 +1407,21 @@ static func _fleet_game_over(main: Main, lines: Array[Dictionary], total: int) -
 	_fleet_show_result(main, mission_met(main), mission_lines(main), lines, total)
 
 static func _fleet_show_result(main: Main, won: bool, mission: Array, lines: Array[Dictionary], total: int) -> void:
-	var dest: Dictionary = FleetData.destination(GameNetwork.fleet_destination)
+	var dest_name: String = FleetData.destination_name(GameNetwork.fleet_destination)   # as printed, in this language
 	for l: Dictionary in mission:
 		main._log_action(("✔ " if bool(l["done"]) else "✘ ") + str(l["text"]),
 				Color(0.5, 1.0, 0.6) if bool(l["done"]) else Color(1.0, 0.5, 0.4))
-	if won:
+	if won and not Main.TutorialSession.active:   # the tutorial's Fleet chapter is no real game
 		LeaderboardManager.submit_score(total, ScoringSnapshotCodec.encode_lines(lines),
 				LeaderboardManager.SOURCE_FLEET, GameNetwork.fleet_destination)
 	UIAudio.play_sfx("mission_complete" if won else "mission_failed")
 	var banner: Main.TurnBanner = TurnBanner.new()
 	main.get_node("UILayer").add_child(banner)
 	banner.play(main.tr("MISSION COMPLETE") if won else main.tr("MISSION FAILED"),
-			Color(0.5, 1.0, 0.6) if won else Color(1.0, 0.45, 0.35), str(dest.get("name", "")), 1.6)
+			Color(0.5, 1.0, 0.6) if won else Color(1.0, 0.45, 0.35), dest_name, 1.6)
 	await banner.finished
-	main._scoreboard.set_title(main.tr("Mission complete — %s") % dest.get("name", "") if won
-			else main.tr("Mission failed — %s") % dest.get("name", ""), Color(0.5, 1.0, 0.6) if won else Color(1.0, 0.5, 0.4))
+	main._scoreboard.set_title(main.tr("Mission complete — %s") % dest_name if won
+			else main.tr("Mission failed — %s") % dest_name, Color(0.5, 1.0, 0.6) if won else Color(1.0, 0.5, 0.4))
 	main._scoreboard.show_scores(lines, total)
 	FleetRules.current = null
 
@@ -1302,6 +1468,11 @@ static func _fleet_peer_left(main: Main, peer_id: int) -> void:
 	_server_fleet_ack(main, peer_id)
 	if not main._fleet_final.is_empty():
 		_server_fleet_final(main, peer_id, bot_stats(main, peer_id))
+	# Dimension Pocket's hand pass waits only for humans: the leaver's seat is a bot now, so re-run
+	# the check (it only ran when a hand came in) — it may be complete with the others' hands
+	if not main._fleet_pass_hands.is_empty():
+		var k: int = int(main._fleet_pass_hands.keys()[0])
+		Main.CardPassing._server_fleet_pass_hand(main, k, main._fleet_pass_hands[k] as Array)
 
 static func fleet_expedition_bought(main: Main) -> void:
 	if not GameNetwork.is_multiplayer:
@@ -1347,20 +1518,31 @@ static func _rpc_fleet_req_session(main: Main, no: int) -> void:
 static func _server_fleet_open(main: Main, no: int, initiator: int) -> void:
 	if not main._fleet_session.is_empty() or main._fleet == null or main._fleet.entry(no).is_empty():
 		return
+	if _in_generation_barrier():   # the crew is still resolving this generation's Dangers
+		return
 	var waiting: Array[int] = []
 	for p: int in GameNetwork.player_order:
 		if not GameNetwork.is_bot(p):
 			waiting.append(p)
 	var need: int = FleetRules.solve_need(no, GameNetwork.player_order.size())
+	var each_color: bool = str(FleetRules.SOLVES.get(no, {}).get("kind", "")) == "discard_each_color"
 	main._fleet_session = {"no": no, "need": need, "total": 0, "colors": {}, "waiting": waiting}
-	main._rpc_fleet_session.rpc(no, str(GameNetwork.player_names.get(initiator, "Player")), need)
-	# bot crewmates chip in what they can (host)
+	# bot crewmates first (host), each chipping in only what is still missing; the humans are then
+	# asked for the rest (told the full cost, they pledged on top of the bots and the crew overpaid)
+	BotTurn.bot_fleet_clear_pledges(main)   # (none should be left from an earlier session)
 	for p: int in GameNetwork.player_order:
-		if GameNetwork.is_bot(p):
-			var bp: Dictionary = BotTurn.bot_fleet_pledge(main, p, no, need)
-			main._fleet_session["total"] = int(main._fleet_session["total"]) + int(bp.get("units", 0))
-			for c: Variant in bp.get("colors", []):
-				main._fleet_session["colors"][int(c)] = true
+		if not GameNetwork.is_bot(p):
+			continue
+		var covered: Dictionary = main._fleet_session["colors"]
+		var have: int = covered.size() if each_color else int(main._fleet_session["total"])
+		if have >= need:
+			break
+		var bp: Dictionary = BotTurn.bot_fleet_pledge(main, p, no, need - have, covered.keys())
+		main._fleet_session["total"] = int(main._fleet_session["total"]) + int(bp.get("units", 0))
+		for c: Variant in bp.get("colors", []):
+			covered[int(c)] = true
+	var pledged: int = (main._fleet_session["colors"] as Dictionary).size() if each_color else int(main._fleet_session["total"])
+	main._rpc_fleet_session.rpc(no, str(GameNetwork.player_names.get(initiator, "Player")), maxi(0, need - pledged))
 
 static func _rpc_fleet_session(main: Main, no: int, who: String, need: int) -> void:
 	main._fleet_session_no = no
@@ -1418,7 +1600,9 @@ static func _server_fleet_final(main: Main, pid: int, stats: Dictionary) -> void
 	for p: int in GameNetwork.player_order:
 		all_stats.append(main._fleet_final[p])
 	main._fleet_final = {}
-	main._rpc_fleet_result.rpc(mission_met(main, all_stats), mission_lines(main, all_stats))
+	# every ship's stats, not the host-worded lines: each peer words them in its own language
+	main._rpc_fleet_result.rpc(mission_met(main, all_stats), all_stats)
 
-static func _rpc_fleet_result(main: Main, won: bool, mission: Array) -> void:
-	_fleet_show_result(main, won, mission, main._fleet_end_lines, main._fleet_end_total)
+# all_stats: every ship's stats, from the host (_server_fleet_final).
+static func _rpc_fleet_result(main: Main, won: bool, all_stats: Array) -> void:
+	_fleet_show_result(main, won, mission_lines(main, all_stats), main._fleet_end_lines, main._fleet_end_total)

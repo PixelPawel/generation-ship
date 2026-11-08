@@ -29,6 +29,23 @@ const SECTOR_STORED_BONUS: Dictionary = {
 
 const STACK_CAPACITY: int = 5  # matches SectorSlot's 5 tech-slot children
 
+## Generation Fleet "destroy" on a bot's ship: the card stays in its place in "techs" (the sector
+## keeps its card count) as {destroyed: true, data: card} — every `t is CardData` loop below skips
+## it, so it has no colour, stars, income or effect any more (as FleetRules.DESTROYED_META).
+static func destroyed_marker(cd: CardData) -> Dictionary:
+	return {"destroyed": true, "data": cd}
+
+static func is_destroyed(t: Variant) -> bool:
+	return t is Dictionary and bool((t as Dictionary).get("destroyed", false))
+
+## Index in "techs" of the top card a Danger can still destroy (as SectorSlot.fleet_top_card), or -1.
+static func top_live_index(slot: Dictionary) -> int:
+	var techs: Array = slot.get("techs", []) as Array
+	for i: int in range(techs.size() - 1, -1, -1):
+		if techs[i] is CardData:
+			return i
+	return -1
+
 static func is_slot_new(slot: Dictionary) -> bool:
 	return (slot.get("techs", []) as Array).size() == 1
 
@@ -154,7 +171,11 @@ static func board_vp_lines(board: Array) -> Array[Dictionary]:
 	_add(lines, "Faceup archived", faceup_tuck)
 	_add(lines, "Facedown archived", facedown_tuck)
 
+	# the Greenhouse / Astra Cultura bonus on lines of their own, as Scoring does (the leaderboard
+	# labels "Stored supply" as "1 VP each")
 	var stored_total: int = 0
+	var greenhouse_bonus: int = 0
+	var astra_bonus: int = 0
 	for entry: Variant in board:
 		var slot: Dictionary = entry as Dictionary
 		stored_total += slot_total_stored(slot)
@@ -164,8 +185,14 @@ static func board_vp_lines(board: Array) -> Array[Dictionary]:
 			var bonus: Dictionary = SECTOR_STORED_BONUS.get(name, {})
 			if not bonus.is_empty():
 				var stored_supply: Dictionary = slot.get("stored_supply", {}) as Dictionary
-				stored_total += stored_supply.get(int(bonus["color"]), 0) * int(bonus["per"])
+				var bonus_vp: int = int(stored_supply.get(int(bonus["color"]), 0)) * int(bonus["per"])
+				if name == "Greenhouse":
+					greenhouse_bonus += bonus_vp
+				else:
+					astra_bonus += bonus_vp
 	_add(lines, "Stored supply", stored_total)
+	_add(lines, "Greenhouses (Liquids bonus)", greenhouse_bonus)
+	_add(lines, "Astra Cultura (Thrust bonus)", astra_bonus)
 
 	var expeditions: Array[CardData] = []
 	for cd: CardData in all_cards:
@@ -280,6 +307,9 @@ static func _expedition_vp_raw(name: String, fallback_stars: int, board: Array,
 			var total: int = 0
 			for entry: Variant in board:
 				var slot: Dictionary = entry as Dictionary
+				var stack: Array = slot.get("techs", []) as Array
+				if not stack.is_empty() and is_destroyed(stack[stack.size() - 1]):
+					continue   # Fleet: a destroyed (face-down) top card is worth 0
 				var cards: Array[CardData] = slot_cards(slot)
 				if not cards.is_empty():
 					var top: CardData = cards[cards.size() - 1]

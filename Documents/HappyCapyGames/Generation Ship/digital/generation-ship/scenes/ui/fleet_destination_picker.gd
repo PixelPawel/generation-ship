@@ -172,7 +172,7 @@ func _update_selection() -> void:
 	else:
 		var d: Dictionary = FleetData.destination(_selected)
 		var diff: int = int(d["difficulty"])
-		_info.text = tr("%s — %s, %d generations") % [d["name"], tr(FleetData.DIFFICULTY_NAMES[diff]), FleetData.DIFFICULTY_GENERATIONS[diff]]
+		_info.text = tr("%s — %s, %d generations") % [FleetData.destination_name(_selected), tr(FleetData.DIFFICULTY_NAMES[diff]), FleetData.DIFFICULTY_GENERATIONS[diff]]
 
 func _input(event: InputEvent) -> void:
 	if not visible:
