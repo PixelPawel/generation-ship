@@ -93,16 +93,13 @@ func _poll() -> void:
 		if not _hello_sent:
 			_ws.send_text(JSON.stringify(_hello))
 			_hello_sent = true
-		while _ws.get_available_packet_count() > 0:
-			var data: PackedByteArray = _ws.get_packet()
-			if _ws.was_string_packet():
-				_on_control(data.get_string_from_utf8())
-			elif data.size() >= 6:
-				_incoming.append({
-					from = data.decode_s32(0), mode = data[4], channel = data[5], data = data.slice(6),
-				})
-	elif state == WebSocketPeer.STATE_CLOSED:
-		_on_closed()
+		_read_packets()
+	elif state == WebSocketPeer.STATE_CLOSING or state == WebSocketPeer.STATE_CLOSED:
+		# a refused join is the error and the close back to back: whatever arrived is read
+		# before the connection counts as gone (see also the close reason in _on_closed)
+		_read_packets()
+		if state == WebSocketPeer.STATE_CLOSED:
+			_on_closed()
 	var now: int = Time.get_ticks_msec()
 	_connect_elapsed_ms += mini(now - _last_poll_ms, _MAX_COUNTED_FRAME_MS)
 	_last_poll_ms = now
@@ -110,6 +107,16 @@ func _poll() -> void:
 		error_reason = "unreachable"
 		_ws.close()
 		_on_closed()
+
+func _read_packets() -> void:
+	while _ws.get_available_packet_count() > 0:
+		var data: PackedByteArray = _ws.get_packet()
+		if _ws.was_string_packet():
+			_on_control(data.get_string_from_utf8())
+		elif data.size() >= 6:
+			_incoming.append({
+				from = data.decode_s32(0), mode = data[4], channel = data[5], data = data.slice(6),
+			})
 
 func _on_control(text: String) -> void:
 	var msg: Variant = JSON.parse_string(text)
@@ -142,7 +149,9 @@ func _on_closed() -> void:
 	if _status == MultiplayerPeer.CONNECTION_DISCONNECTED:
 		return
 	if _status == MultiplayerPeer.CONNECTION_CONNECTING and error_reason.is_empty():
-		error_reason = "unreachable"
+		# the error message can be lost in the same poll as the close: the server also gives
+		# the reason as the close reason ("wrong_password", "full", ...)
+		error_reason = _ws.get_close_reason() if _ws.get_close_code() == 4000 and not _ws.get_close_reason().is_empty() else "unreachable"
 	var was_connected: bool = _status == MultiplayerPeer.CONNECTION_CONNECTED
 	_status = MultiplayerPeer.CONNECTION_DISCONNECTED
 	if was_connected:

@@ -37,11 +37,14 @@ func clear_history() -> void:
 	history.clear()
 
 # The name typed in the lobby first (also the only one Android players
-# have), then the Steam persona name.
+# have), then the Steam persona name. The match's seat names only while a
+# match runs: afterwards they were the last game's, and relay ids restart per
+# room, so the next lobby's messages could be signed with another player's name.
 func _local_name() -> String:
-	var lobby_name: String = str(GameNetwork.player_names.get(multiplayer.get_unique_id(), ""))
-	if not lobby_name.is_empty():
-		return lobby_name
+	if GameNetwork.is_multiplayer:
+		var lobby_name: String = str(GameNetwork.player_names.get(multiplayer.get_unique_id(), ""))
+		if not lobby_name.is_empty():
+			return lobby_name
 	var cfg: ConfigFile = ConfigFile.new()
 	if cfg.load("user://settings.cfg") == OK:
 		var saved: String = str(cfg.get_value("player", "name", ""))

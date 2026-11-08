@@ -46,7 +46,7 @@ func _ready() -> void:
 func _build_ui() -> void:
 	# — Collapsed pill —
 	_toggle_btn = Button.new()
-	_toggle_btn.text = tr("💬 Chat")
+	_toggle_btn.text = "💬 Chat"   # keys, not tr(): they follow a language switch (auto-translate)
 	_toggle_btn.add_theme_font_size_override("font_size", 14)
 	_toggle_btn.custom_minimum_size = Vector2(110, 36)
 	_toggle_btn.position = Vector2(-122, -48)
@@ -108,7 +108,7 @@ func _build_ui() -> void:
 	var title_row: HBoxContainer = HBoxContainer.new()
 	vbox.add_child(title_row)
 	var title: Label = Label.new()
-	title.text = tr("CHAT")
+	title.text = "CHAT"
 	title.add_theme_font_size_override("font_size", 15)
 	title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -134,14 +134,14 @@ func _build_ui() -> void:
 	vbox.add_child(input_row)
 
 	_input_field = LineEdit.new()
-	_input_field.placeholder_text = tr("Message…")
+	_input_field.placeholder_text = "Message…"
 	_input_field.add_theme_font_size_override("font_size", 14)
 	_input_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_input_field.text_submitted.connect(_on_text_submitted)
 	input_row.add_child(_input_field)
 
 	var send_btn: Button = Button.new()
-	send_btn.text = tr("Send")
+	send_btn.text = "Send"
 	send_btn.add_theme_font_size_override("font_size", 13)
 	send_btn.custom_minimum_size = Vector2(60, 0)
 	GameTheme.apply_to_button(send_btn)
@@ -229,9 +229,24 @@ func _on_local_recording_changed(recording: bool) -> void:
 		Color(1.0, 0.45, 0.4) if recording else Color(0.55, 0.6, 0.7))
 
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("toggle_chat") and not _expanded:
-		_set_expanded(true)
-		get_viewport().set_input_as_handled()
-	elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE and _expanded:
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE and _expanded and _on_screen():
 		_set_expanded(false)
 		get_viewport().set_input_as_handled()
+
+# Opening on Enter waits for the GUI: in _input it took every Enter first, so the room code,
+# password and other text fields never got theirs (Enter didn't join, focus jumped into the
+# chat). The lobby's panel also sits off-screen in the main menu and must not react there.
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_chat") and not _expanded and _on_screen():
+		_set_expanded(true)
+		get_viewport().set_input_as_handled()
+
+## Closes the open chat (phones' Back); false if it wasn't open.
+func close_if_expanded() -> bool:
+	if not _expanded or not _on_screen():
+		return false
+	_set_expanded(false)
+	return true
+
+func _on_screen() -> bool:
+	return is_visible_in_tree() and get_viewport_rect().has_point(_toggle_btn.get_global_rect().get_center())

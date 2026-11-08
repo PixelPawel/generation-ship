@@ -10,6 +10,8 @@ const FleetFlow = preload("res://scenes/main/fleet_flow.gd")
 const CardPassing = preload("res://scenes/main/card_passing.gd")
 const AuctionFlow = preload("res://scenes/main/auction_flow.gd")
 const EffectSteps = preload("res://scenes/main/effect_steps.gd")
+const PopupAnim = preload("res://scripts/popup_anim.gd")
+const RuleRefs = preload("res://scripts/game/rule_refs.gd")
 
 @export var card_scene: PackedScene
 
@@ -88,6 +90,8 @@ var _effect_hint_top: bool = false             # the tutorial's banner sits at t
 var _effect_slot: SectorSlot = null
 # EffectSteps "free_sector_gain": the next placement keeps the effect queue (see _on_card_placed)
 var _carry_effect_queue: bool = false
+# tuck_any_sector_optional with "mandatory" (Galactic Museum): no Skip on its pickers
+var _effect_tuck_mandatory: bool = false
 # recycle_tuck: the cards drawn afterwards (the card's fixed number, not one per card recycled)
 var _recycle_tuck_draw: int = 0
 var _effect_source_name: String = ""
@@ -133,6 +137,15 @@ var _fleet_acks: Dictionary = {}
 # versus: the humans already in the new round, and who starts it (see _round_start_barrier)
 var _round_acks: Dictionary = {}
 var _round_first_peer: int = 0
+# online start (host): the clients whose game scene is up, and whether the start went out
+var _loaded_peers: Dictionary = {}
+var _start_sent: bool = false
+const START_WAIT_MS: int = 60000
+# Fleet online: the Generation whose new hands the host has dealt (the Dangers wait for them)
+var _dealt_round: int = 0
+signal fleet_round_dealt
+var _session_end_shown: bool = false   # the "session has ended" modal is up (shown once)
+var _log_follow: bool = true           # the event log was scrolled to its newest line
 var _fleet_session: Dictionary = {}        # host: {no, need, total, colors, waiting}
 var _fleet_session_no: int = 0             # every peer: the Danger being solved together, 0 = none
 var _fleet_pledge_apply: Callable = Callable()   # this peer's pledge, paid if the solve goes through
@@ -313,6 +326,7 @@ func _ready() -> void:
 	$Board.expedition_reveal_requested.connect(_execute_expedition_reveal)
 	$Board.market_card_taken.connect(_on_market_card_taken)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
+	multiplayer.server_disconnected.connect(_on_connection_lost)   # this peer's own relay link
 	_bid_popup = $UILayer/BidPopup
 	_scoreboard = $UILayer/Scoreboard
 	_pause_menu = $UILayer/PauseMenu
@@ -417,11 +431,20 @@ func _ready() -> void:
 	FleetFlow.setup(self)   # needs both Fleet screens (info + control)
 	OpponentBoardView.setup_enemy_screen_display(self)
 	CockpitRig.setup_log_screen_display(self)
+	if _log_scroll:
+		# keep the newest line in view: the scroll range only grows once the log has laid out the
+		# new line, after any deferred scroll queued when it was added
+		var log_bar: VScrollBar = _log_scroll.get_v_scroll_bar()
+		log_bar.changed.connect(func() -> void:
+			if _log_follow:
+				_log_scroll.scroll_vertical = int(log_bar.max_value))
 	CockpitRig.setup_floating_tooltip(self)
 	CockpitRig.setup_cockpit_switches(self)
 	CockpitRig.setup_screen_enlarge(self)
 
 	_wire_sector_slots_to_board()
+	if GameNetwork.is_multiplayer and not multiplayer.is_server():
+		_rpc_client_loaded.rpc_id(1)   # the host starts the game once every player's scene is up
 
 func _on_node_added_to_tree(node: Node) -> void:
 	if node is Card and not node.has_meta("_main_connected"):
@@ -561,15 +584,57 @@ func _on_cache_ready() -> void:
 
 func _deferred_pre_setup() -> void:
 	_do_game_setup(_cached_sector_order, _cached_exp_order, _cached_tech_order)
-	# Only other real players need the wait — it gives their game time to finish
-	# loading before the start reaches them. Solo, tutorial and bots-only games
+	# Only other real players need the wait: the start goes out once their game scene is up (an
+	# RPC reaching a scene that isn't loaded yet is lost, and a fixed 3 s lost it for a slow or
+	# paused phone: no market, no hand, the table stuck). Solo, tutorial and bots-only games
 	# start straight away.
 	if not _is_true_solo_session():
-		await get_tree().create_timer(3.0).timeout
+		await _wait_for_players_loaded()
 	if not GameNetwork.is_multiplayer:
 		_rpc_start_game([], [], [])
 	elif GameNetwork.is_host:
 		_rpc_start_game.rpc(_cached_sector_order, _cached_exp_order, _cached_tech_order)
+		_start_sent = true
+		# seats of players who left before the start (Main wasn't listening yet, or the wait let
+		# them go) go to bots now that every peer has the decks the bot draws from
+		var connected: PackedInt32Array = multiplayer.get_peers()
+		for pid: int in GameNetwork.player_order.duplicate():
+			if pid != 1 and not GameNetwork.is_bot(pid) and not connected.has(pid):
+				_on_peer_disconnected(pid)
+
+# Host: waits until every other human's game scene has reported in (_rpc_client_loaded), or has
+# left. Whoever is still not there after START_WAIT_MS is let go (the relay drops them and their
+# seat goes to a bot), so one broken client can't hold the whole table.
+func _wait_for_players_loaded() -> void:
+	_rpc_ask_loaded.rpc()   # a client that loaded first sent its report before this scene existed
+	$UILayer/LoadingLabel.text = tr("Waiting for other players…")
+	var waited_ms: int = 0
+	while waited_ms < START_WAIT_MS and not _players_not_loaded().is_empty():
+		await get_tree().create_timer(0.25).timeout
+		waited_ms += 250
+		$UILayer/LoadingLabel.visible = waited_ms >= 1000   # only once it's a noticeable wait
+	$UILayer/LoadingLabel.hide()
+	for pid: int in _players_not_loaded():
+		multiplayer.multiplayer_peer.disconnect_peer(pid)
+
+func _players_not_loaded() -> Array[int]:
+	var out: Array[int] = []
+	var connected: PackedInt32Array = multiplayer.get_peers()
+	for pid: int in GameNetwork.player_order:
+		if pid != 1 and not GameNetwork.is_bot(pid) and connected.has(pid) and not _loaded_peers.has(pid):
+			out.append(pid)
+	return out
+
+# Client → Host: this client's game scene is up and can take the start.
+@rpc("any_peer", "reliable")
+func _rpc_client_loaded() -> void:
+	if multiplayer.is_server():
+		_loaded_peers[multiplayer.get_remote_sender_id()] = true
+
+# Host → All: asks the loaded clients to report again (see _wait_for_players_loaded).
+@rpc("authority", "reliable")
+func _rpc_ask_loaded() -> void:
+	_rpc_client_loaded.rpc_id(1)
 
 func _do_game_setup(sector_order: Array, exp_order: Array, tech_order: Array) -> void:
 	_pre_setup_done = true
@@ -676,8 +741,10 @@ func _log_action(text: String, color: Color = Color(0.80, 0.88, 1.0)) -> void:
 	if _log_font:
 		lbl.add_theme_font_override("font", _log_font)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# follow the new line (the scroll bar's changed handler in _ready) unless scrolled back
+	var bar: VScrollBar = _log_scroll.get_v_scroll_bar()
+	_log_follow = bar.value + bar.page >= bar.max_value - 8.0
 	_log_vbox.add_child(lbl)
-	_log_scroll.call_deferred("set_v_scroll", 999999)
 
 # Host → All: append a line to the event log.
 @rpc("authority", "reliable", "call_local")
@@ -706,6 +773,59 @@ func _broadcast_log(text: String, color: Color = Color(0.80, 0.88, 1.0)) -> void
 func _log_effect(message: String) -> void:
 	var source: String = _effect_source_name if not _effect_source_name.is_empty() else tr("Effect")
 	_broadcast_log(tr("%s: %s") % [source, message], Color(0.6, 0.85, 0.75))
+
+# ── Log lines in every reader's language ──
+# _broadcast_log sends a finished line: translated on the sender, so in a mixed-language room the
+# others read it in the sender's language. These send the untranslated key and its arguments, and
+# each receiver builds the line itself (_format_log). An argument is a String or number as is
+# (English card names are localized as for every line), {"c": SupplyColor} a supply colour's
+# name, {"t": key} a translated word, {"k": key, "a": [...]} a nested line.
+func _broadcast_log_t(key: String, args: Array = [], color: Color = Color(0.80, 0.88, 1.0)) -> void:
+	if GameNetwork.is_multiplayer:
+		if GameNetwork.is_host:
+			_rpc_log_event_t.rpc(key, args, color.r, color.g, color.b)
+		else:
+			_rpc_request_log_event_t.rpc_id(1, key, args, color.r, color.g, color.b)
+	else:
+		_log_action(_format_log(key, args), color)
+
+# As _log_effect: "<card>: <what it did>".
+func _log_effect_t(key: String, args: Array = []) -> void:
+	var source: Variant = {"t": "Effect"}
+	if not _effect_source_name.is_empty() and _effect_source_name != "Effect":
+		source = _effect_source_name
+	_broadcast_log_t("%s: %s", [source, {"k": key, "a": args}], Color(0.6, 0.85, 0.75))
+
+# A card's name for a log line ("a card" when there's none).
+func _log_card(cd: CardData) -> Variant:
+	if cd == null:
+		return {"t": "a card"}
+	return cd.card_name
+
+func _format_log(key: String, args: Array) -> String:
+	var out: Array = []
+	for a: Variant in args:
+		if a is Dictionary:
+			var d: Dictionary = a as Dictionary
+			if d.has("c"):
+				out.append(CardData.color_name(int(d["c"]) as CardData.SupplyColor))
+			elif d.has("t"):
+				out.append(tr(str(d["t"])))
+			else:
+				out.append(_format_log(str(d.get("k", "")), d.get("a", []) as Array))
+		else:
+			out.append(a)
+	return tr(key) % out if not out.is_empty() else tr(key)
+
+@rpc("authority", "reliable", "call_local")
+func _rpc_log_event_t(key: String, args: Array, color_r: float, color_g: float, color_b: float) -> void:
+	_log_action(_format_log(key, args), Color(color_r, color_g, color_b))
+
+@rpc("any_peer", "reliable")
+func _rpc_request_log_event_t(key: String, args: Array, color_r: float, color_g: float, color_b: float) -> void:
+	if not multiplayer.is_server():
+		return
+	_rpc_log_event_t.rpc(key, args, color_r, color_g, color_b)
 
 func _generate_shuffled_order(size: int) -> Array:
 	var order: Array = []
@@ -784,6 +904,8 @@ func _rpc_start_game(sector_order: Array, exp_order: Array, tech_order: Array) -
 		$Board.deal_opening_hand()
 	elif GameNetwork.is_host:
 		_server_deal_hands_to_real_peers(6)
+		if GameNetwork.fleet_mode:
+			_rpc_round_dealt.rpc(_round)
 	if GameNetwork.is_multiplayer:
 		_broadcast_my_state()
 	await get_tree().create_timer(2.0).timeout
@@ -821,9 +943,11 @@ func _auction_unresolved() -> bool:
 			or _auction_placement_pending or _runner_up_phase or $Board.is_card_drag_pending()
 
 func _on_research_pressed() -> void:
-	if not GameNetwork.is_my_turn():
+	if not GameNetwork.is_my_turn() or _game_finished:
 		return
 	if _has_passed or _effect_mode != EffectMode.NONE or _forfeit_discard_active or _auction_unresolved():
+		return
+	if _tutorial and not _tutorial.allows_research():   # it would discard a card a step waits for
 		return
 	if not _accept_turn_button():
 		return
@@ -851,15 +975,26 @@ func _cancel_research() -> void:
 # The Pass button only asks ("Pass?" on the control screen): passing ends the
 # player's Generation, so it happens in _confirm_pass.
 func _on_pass_pressed() -> void:
-	if not GameNetwork.is_my_turn():
+	if not GameNetwork.is_my_turn() or _game_finished:
 		return
 	if _has_passed or _forfeit_discard_active or _auction_unresolved():
+		return
+	if _tutorial_blocks_pass():
 		return
 	if not _accept_turn_button():
 		return
 	if _effect_mode == EffectMode.RESEARCH:   # nothing discarded yet: Pass instead
 		_cancel_research()
 	_pass_prompt.open(tr("PASS?"), tr("You won't take any more actions this Generation."), tr("Pass"))
+
+# The Tutorial takes a Pass only in its Pass chapter: an earlier one started a real next round
+# (in the Fleet chapter with 3 random Dangers on the tutorial ship), and its Pass step then
+# needed a second Pass.
+func _tutorial_blocks_pass() -> bool:
+	if _tutorial == null:
+		return false
+	var step: int = _tutorial._step
+	return step >= 0 and step < FirstTurnTutorial.STEPS.size() and FirstTurnTutorial.STEPS[step] != "pass"
 
 func _confirm_pass() -> void:
 	if not _pass_prompt.visible:
@@ -933,6 +1068,8 @@ func _show_round_transition(then: Callable) -> void:
 	banner.play(tr("End of Round %d") % _round, Color(0.75, 0.90, 1.0))
 
 func _end_round() -> void:
+	if _game_finished:   # the Tutorial ends the game itself while its Pass's round end is pending
+		return
 	_cancel_pass()
 	_has_passed = false
 	_has_researched = false
@@ -952,6 +1089,8 @@ func _end_round() -> void:
 		$Board.draw_cards(6)
 	elif GameNetwork.is_host:
 		_server_deal_hands_to_real_peers(6)
+		if GameNetwork.fleet_mode:
+			_rpc_round_dealt.rpc(_round)   # after the deals (ordered): the clients' Dangers wait for it
 	$Board.refresh_hand_discounts()
 	if multiplayer.is_server() and not GameNetwork.bot_ids.is_empty():
 		BotTurn.update_bots_for_new_round(self)
@@ -960,7 +1099,9 @@ func _end_round() -> void:
 		$Board.add_expedition_round_cards()
 	_show_action_buttons(true)
 	_set_action_buttons_disabled(false)
-	if GameNetwork.fleet_mode:   # Fleet: Dangers after the draw
+	# Fleet: Dangers after the draw. Not in the Tutorial's Fleet chapter: there fleet_mode is on
+	# only to show the Fleet screens, and a Pass would have resolved 3 random Dangers on its ship.
+	if GameNetwork.fleet_mode and not TutorialSession.active:
 		if GameNetwork.is_multiplayer:
 			_fleet_pending_generation = true   # _rpc_sync_end_round starts the barrier
 		else:
@@ -1134,6 +1275,7 @@ func _round_start_barrier(first: int) -> void:
 	_round_first_peer = first
 	GameNetwork.active_peer_id = 0
 	_update_turn_ui(false)
+	_refresh_all_opp_status_labels()   # _end_round drew them with the last round's player 'Active'
 	if multiplayer.is_server():
 		_server_round_ack(multiplayer.get_unique_id())
 	else:
@@ -1156,6 +1298,7 @@ func _server_round_ack(pid: int) -> void:
 func _rpc_round_ready(first: int) -> void:
 	GameNetwork.active_peer_id = first
 	_update_turn_ui()
+	_refresh_all_opp_status_labels()
 	if multiplayer.is_server() and GameNetwork.is_bot(first):
 		BotTurn.run_bot_turn(self, first)
 
@@ -1182,10 +1325,16 @@ func _get_public_snapshot() -> Dictionary:
 			slot_info["sector_name"] = cd.adv_name if is_adv else cd.card_name
 			slot_info["sector_advanced"] = is_adv
 		var tech_names: Array[String] = []
+		var destroyed: int = 0   # Fleet: flipped face down by a Danger, worth nothing, no expedition
 		for ts: Node3D in slot._tech_slots:
 			if ts.get("occupied") and ts.get("placed_card") and ts.placed_card.card_data:
-				tech_names.append(ts.placed_card.card_data.card_name)
+				if ts.placed_card.has_meta(FleetRules.DESTROYED_META):
+					destroyed += 1   # not a live card: teammates' views and Alliance counts skip it
+				else:
+					tech_names.append(ts.placed_card.card_data.card_name)
 		slot_info["tech_names"] = tech_names
+		slot_info["destroyed_count"] = destroyed
+		slot_info["triggered_levels"] = slot.triggered_levels.duplicate()   # a bot takeover keeps them
 		var stored_snap: Dictionary = {}
 		for color: int in slot.stored_supply:
 			stored_snap[int(color)] = slot.stored_supply[color]
@@ -1239,6 +1388,7 @@ func _apply_opponent_state(state: Dictionary) -> void:
 	_opp_snapshots[peer_id] = state
 	if _market_panel:
 		_market_panel.update_opponent(peer_id, state.get("hand_size", 0), state.get("supply", {}), state.get("vp", 0))
+	_refresh_final_scores()
 	if not _opp_panels.has(peer_id):
 		return
 	var refs: Dictionary = _opp_panels[peer_id]
@@ -1254,6 +1404,10 @@ func _apply_opponent_state(state: Dictionary) -> void:
 
 	var vp_lbl: Label = refs["vp_lbl"] as Label
 	vp_lbl.text = "⭐ %d" % state.get("vp", 0)
+
+func _refresh_final_scores() -> void:
+	if _game_finished and GameNetwork.is_multiplayer and not GameNetwork.fleet_mode and not _final_scores_shown.is_empty():
+		_show_final_scores()   # a player's final state after the game (see _show_final_scores)
 
 func _refresh_opp_status_label(peer_id: int) -> void:
 	var status: String = _opp_statuses.get(peer_id, "") as String
@@ -1287,7 +1441,7 @@ func _refresh_all_opp_status_labels() -> void:
 func _rpc_sync_opp_status(peer_id: int, status: String) -> void:
 	_opp_statuses[peer_id] = status
 	_refresh_opp_status_label(peer_id)
-	var peer_name: String = GameNetwork.player_names.get(peer_id, "Player")
+	var peer_name: String = GameNetwork.player_names.get(peer_id, tr("Player"))
 	var others: bool = peer_id != multiplayer.get_unique_id()   # the player who acted gets no banner
 	if status == "passed":
 		_log_action(tr("%s: passed") % peer_name, Color(0.55, 0.55, 0.70))
@@ -1332,11 +1486,15 @@ func _rpc_request_research_status() -> void:
 func _rpc_send_board_state(state: Dictionary) -> void:
 	if not multiplayer.is_server():
 		return
-	_apply_opponent_state(state)
 	var sender: int = multiplayer.get_remote_sender_id()
+	var expeditions_before: int = _expedition_count_of(sender)
+	_apply_opponent_state(state)
 	for peer_id: int in GameNetwork.player_order:
 		if peer_id != sender and peer_id != 1 and not GameNetwork.is_bot(peer_id):
 			_rpc_recv_board_state.rpc_id(peer_id, state)
+	# a bot's Alliance counts the others' expeditions: its snapshot (shown total) is out of date
+	if _expedition_count_of(sender) != expeditions_before and not GameNetwork.bot_ids.is_empty():
+		BotTurn.broadcast_bot_states(self)
 
 # Host → Client: an opponent's board state.
 @rpc("authority", "reliable")
@@ -1390,8 +1548,8 @@ func _finish_forfeit_discard(card: Node3D) -> void:
 		$Board.add_to_discard(card.card_data)   # the hand flies the card out and frees it
 	_set_action_buttons_disabled(not GameNetwork.is_my_turn() or _has_passed)
 	_broadcast_my_state()
-	var me: String = GameNetwork.player_names.get(multiplayer.get_unique_id(), "Player")
-	_broadcast_log(tr("%s couldn't pay and discarded a tech card") % me, Color(0.85, 0.62, 0.50))
+	var me: String = GameNetwork.player_names.get(multiplayer.get_unique_id(), tr("Player"))
+	_broadcast_log_t("%s couldn't pay and discarded a tech card", [me], Color(0.85, 0.62, 0.50))
 	_try_auto_end_turn()   # it waited for the discard
 
 @rpc("authority", "reliable")
@@ -1499,7 +1657,19 @@ var _fleet_end_total: int = 0
 # ── Fleet online ──────────────────────────────────────────────────────────────
 
 func _fleet_generation_barrier(first: int) -> void:
+	GameNetwork.active_peer_id = 0   # (FleetFlow sets it too) nobody's turn: the Players column says so
+	_refresh_all_opp_status_labels()
+	# Dangers resolve "after drawing 6 cards" (rule book p11): a client whose own round end ran
+	# ahead of the host's deal resolved them (Dimension Pocket, Unstable Wormhole) on its old hand
+	while _dealt_round < _round:
+		await fleet_round_dealt
 	await FleetFlow._fleet_generation_barrier(self, first)
+
+# Host → All: this Generation's new hands are dealt (sent after the deals, so it arrives after them).
+@rpc("authority", "reliable", "call_local")
+func _rpc_round_dealt(round_no: int) -> void:
+	_dealt_round = maxi(_dealt_round, round_no)
+	fleet_round_dealt.emit()
 
 @rpc("any_peer", "reliable")
 func _rpc_fleet_ack() -> void:
@@ -1509,6 +1679,7 @@ func _rpc_fleet_ack() -> void:
 @rpc("authority", "reliable", "call_local")
 func _rpc_fleet_generation_ready(first: int) -> void:
 	FleetFlow._rpc_fleet_generation_ready(self, first)
+	_refresh_all_opp_status_labels()   # the new first player is 'Active'
 
 func _fleet_peer_left(peer_id: int) -> void:
 	FleetFlow._fleet_peer_left(self, peer_id)
@@ -1638,10 +1809,29 @@ func _game_over() -> void:
 	if not GameNetwork.is_multiplayer:
 		_scoreboard.show_scores(lines, total)
 		return
+	if multiplayer.is_server():
+		# the bots' last snapshots can predate others' last expeditions (Alliance)
+		for bot_id: int in GameNetwork.bot_ids:
+			_apply_opponent_state(BotTurn.get_bot_snapshot(self, bot_id))
+	_show_final_scores()
+
+# The versus final scores. The others' totals come from their snapshots, and Alliance in them
+# depends on everyone's final boards: each player's last snapshot can be older than another's
+# last expedition. So every peer sends its final state after the game (see _rpc_sync_end_round)
+# and the scores are rebuilt as those arrive (_apply_opponent_state); screens disagreed on the
+# totals and the winner.
+var _final_scores_shown: Array = []
+
+func _show_final_scores() -> void:
 	var my_id: int = multiplayer.get_unique_id()
+	Scoring.other_players_expeditions = _alliance_count_for(my_id)
+	var lines: Array[Dictionary] = $Board.calculate_score()
+	var total: int = 0
+	for line: Dictionary in lines:
+		total += int(line.get("vp", 0))
 	var players: Array[Dictionary] = []
 	players.append({
-		"name": GameNetwork.player_names.get(my_id, "You"),
+		"name": GameNetwork.player_names.get(my_id, tr("You")),
 		"total": total,
 		"lines": lines,
 	})
@@ -1653,13 +1843,19 @@ func _game_over() -> void:
 		for entry: Variant in snap.get("vp_lines", []):
 			peer_lines.append(entry as Dictionary)
 		players.append({
-			"name": GameNetwork.player_names.get(peer_id, "Player"),
+			"name": GameNetwork.player_names.get(peer_id, tr("Player")),
 			"total": snap.get("vp", 0),
 			"lines": peer_lines,
 		})
 	players.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return int(a.get("total", 0)) > int(b.get("total", 0))
 	)
+	var shown: Array = []
+	for p: Dictionary in players:
+		shown.append([str(p["name"]), int(p["total"])])
+	if shown == _final_scores_shown:
+		return   # nothing changed: keep the sections the player opened
+	_final_scores_shown = shown
 	_scoreboard.show_multiplayer_scores(players)
 
 # ── Card discarded (all modes) ────────────────────────────────────────────────
@@ -1718,7 +1914,7 @@ func _on_recycle_panel_cancelled() -> void:
 func _gather_hand_source() -> Array[CardData]:
 	var all_cards: Array[Node3D] = $Hand.get_cards()
 	var source: Array[Node3D]
-	if _restrict_picks_to_drawn and not _last_drawn_cards.is_empty():
+	if _restrict_picks_to_drawn:   # "…1 of them": nothing drawn (empty deck) leaves nothing to pick
 		source = _last_drawn_cards.filter(func(c: Node3D) -> bool: return all_cards.has(c))
 	else:
 		source = all_cards
@@ -1761,14 +1957,13 @@ func _process_hand_choice(index: int) -> void:
 	match _effect_mode:
 		EffectMode.EFFECT_RECYCLE:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-			var recycled_name: String = card.card_data.card_name if card.card_data else tr("a card")
 			var r_amount: int = CardData.recycle_amount(card.card_data)
 			_cs_display.add_supply(color, r_amount)
 			_apply_recycle_bonus(color)
 			_offer_rich_asteroid_store_for(card.card_data, r_amount)
 			$Board.add_to_discard(card.card_data)
 			_recycle_card_to_supply(card, color)
-			_log_effect(tr("recycled %s, gained %d %s") % [recycled_name, r_amount, CardData.color_name(color)])
+			_log_effect_t("recycled %s, gained %d %s", [_log_card(card.card_data), r_amount, {"c": int(color)}])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				_finish_interactive_step()
@@ -1777,7 +1972,6 @@ func _process_hand_choice(index: int) -> void:
 
 		EffectMode.EFFECT_RECYCLE_OPTIONAL:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-			var recycled_name: String = card.card_data.card_name if card.card_data else tr("a card")
 			var ro_amount: int = CardData.recycle_amount(card.card_data)
 			_cs_display.add_supply(color, ro_amount)
 			_apply_recycle_bonus(color)
@@ -1785,7 +1979,7 @@ func _process_hand_choice(index: int) -> void:
 			$Board.add_to_discard(card.card_data)
 			_recycle_card_to_supply(card, color)
 			$Board.draw_cards(1)
-			_log_effect(tr("recycled %s, gained %d %s, drew 1") % [recycled_name, ro_amount, CardData.color_name(color)])
+			_log_effect_t("recycled %s, gained %d %s, drew 1", [_log_card(card.card_data), ro_amount, {"c": int(color)}])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				_finish_interactive_step()
@@ -1793,12 +1987,10 @@ func _process_hand_choice(index: int) -> void:
 				_show_hand_popup(tr("Recycle up to %d more card(s)") % _effect_remaining, true)
 
 		EffectMode.EFFECT_TUCK:
-			var tucked_name: String = card.card_data.card_name if card.card_data else tr("a card")
 			if _effect_slot and card.card_data:
 				_effect_slot.add_tucked_card(card.card_data, _effect_face_up)
 			$Hand.remove_card_fly_out(card)
-			var face_str_log: String = tr("faceup") if _effect_face_up else tr("facedown")
-			_log_effect(tr("tucked %s %s under the sector") % [tucked_name, face_str_log])
+			_log_effect_t("tucked %s %s under the sector", [_log_card(card.card_data), {"t": "faceup" if _effect_face_up else "facedown"}])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				_finish_interactive_step()
@@ -1807,13 +1999,11 @@ func _process_hand_choice(index: int) -> void:
 				_show_hand_popup(tr("Tuck %d more card(s) %s") % [_effect_remaining, face_str], false)
 
 		EffectMode.EFFECT_TUCK_OPTIONAL:
-			var tucked_name: String = card.card_data.card_name if card.card_data else tr("a card")
 			if _effect_slot and card.card_data:
 				_effect_slot.add_tucked_card(card.card_data, _effect_face_up)
 			$Hand.remove_card_fly_out(card)
 			$Board.draw_cards(1)
-			var face_str_log_opt: String = tr("faceup") if _effect_face_up else tr("facedown")
-			_log_effect(tr("tucked %s %s under the sector, drew 1") % [tucked_name, face_str_log_opt])
+			_log_effect_t("tucked %s %s under the sector, drew 1", [_log_card(card.card_data), {"t": "faceup" if _effect_face_up else "facedown"}])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				_finish_interactive_step()
@@ -1827,12 +2017,13 @@ func _process_hand_choice(index: int) -> void:
 			_effect_mode = EffectMode.EFFECT_TUCK_ANY_SECTOR_SLOT
 			$Board.set_cargo_click_mode(true)
 			var face_str_tuck: String = tr("faceup") if _effect_face_up else tr("facedown")
-			var tuck_name: String = card.card_data.card_name if card.card_data else tr("card")
-			_sector_picker.setup(tr("Tuck %s %s — pick a sector") % [tuck_name, face_str_tuck], $Board.get_all_sector_slots())
+			var tuck_name: String = CardDatabase.display_name(card.card_data) if card.card_data else tr("card")   # (shown here only)
+			# a mandatory archive (Galactic Museum) has no Skip here either
+			_sector_picker.setup(tr("Tuck %s %s — pick a sector") % [tuck_name, face_str_tuck], $Board.get_all_sector_slots(),
+					null, not _effect_tuck_mandatory)
 
 		EffectMode.EFFECT_RECYCLE_TUCK:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-			var rt_name: String = card.card_data.card_name if card.card_data else tr("a card")
 			var rt_amount: int = CardData.recycle_amount(card.card_data)
 			_cs_display.add_supply(color, rt_amount)
 			_apply_recycle_bonus(color)
@@ -1840,26 +2031,25 @@ func _process_hand_choice(index: int) -> void:
 			if _effect_slot and card.card_data:
 				_effect_slot.add_tucked_card(card.card_data, false)
 			_recycle_card_to_supply(card, color)
-			_log_effect(tr("recycled & tucked %s facedown, gained %d %s") % [rt_name, rt_amount, CardData.color_name(color)])
+			_log_effect_t("recycled & tucked %s facedown, gained %d %s", [_log_card(card.card_data), rt_amount, {"c": int(color)}])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				var tucked_count: int = int(_effect_slot.tucked_cards.size()) if _effect_slot else 0
 				$Board.draw_cards(tucked_count)
-				_log_effect(tr("drew %d card(s)") % tucked_count)
+				_log_effect_t("drew %d card(s)", [tucked_count])
 				_finish_interactive_step()
 			else:
 				_show_hand_popup(tr("Recycle & tuck %d more card(s) facedown") % _effect_remaining, false)
 
 		EffectMode.EFFECT_RECYCLE_DOUBLE:
 			var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
-			var rd_name: String = card.card_data.card_name if card.card_data else tr("a card")
 			var rd_amount: int = 2 * CardData.recycle_amount(card.card_data)
 			_cs_display.add_supply(color, rd_amount)
 			_apply_recycle_bonus(color)
 			_offer_rich_asteroid_store_for(card.card_data, rd_amount)
 			$Board.add_to_discard(card.card_data)
 			_recycle_card_to_supply(card, color)
-			_log_effect(tr("recycled %s, gained %d %s") % [rd_name, rd_amount, CardData.color_name(color)])
+			_log_effect_t("recycled %s, gained %d %s", [_log_card(card.card_data), rd_amount, {"c": int(color)}])
 			_effect_remaining -= 1
 			if _effect_remaining <= 0:
 				_finish_interactive_step()
@@ -1871,13 +2061,16 @@ func _reset_effect_state() -> void:
 	# it had already flown out of it (Personality Library / Cultivation lost it)
 	if _effect_mode == EffectMode.EFFECT_TUCK_ANY_SECTOR_SLOT and _pending_tuck_card_data:
 		$Board.add_specific_card_to_hand(_pending_tuck_card_data)
-	if _sector_picker:
+	# a mandatory Fleet prompt (FleetFlow awaits the choice popup / sector picker itself) stays up:
+	# an (auto) End Turn hid it and the Danger waited forever
+	if _sector_picker and not _fleet_choice_active:
 		_sector_picker.hide()
 	if _cargo_drones_panel:
 		_cargo_drones_panel.hide()
 	_effect_mode = EffectMode.NONE
 	$Board.set_cards_can_elevate(true)
 	_effect_remaining = 0
+	_effect_tuck_mandatory = false
 	_pending_choice_options = []
 	_reveal_bid_pool.clear()
 	_reveal_free_pool.clear()
@@ -1894,7 +2087,8 @@ func _reset_effect_state() -> void:
 	_caldera_slots = []
 	_interfleet_awaiting_pick = false
 	_effect_done_btn.hide()
-	_choice_popup.hide()
+	if not _fleet_choice_active:
+		_choice_popup.hide()
 	_hide_effect_hint()
 	$Hand.set_discard_mode(false)
 	if _research_prompt:
@@ -1998,7 +2192,7 @@ func _apply_seedbanks(indices: Array[int]) -> void:
 		count += 1
 	_pending_recycle_cards = []
 	if count > 0:
-		_log_effect(tr("recycled %d card(s), stored their supplies on the sector") % count)
+		_log_effect_t("recycled %d card(s), stored their supplies on the sector", [count])
 	_finish_interactive_step()
 
 func _apply_recycle_optional_multiselect(indices: Array[int]) -> void:
@@ -2017,7 +2211,7 @@ func _apply_recycle_optional_multiselect(indices: Array[int]) -> void:
 	_pending_recycle_cards = []
 	if count > 0:
 		$Board.draw_cards(count)
-		_log_effect(tr("recycled %d card(s), drew %d") % [count, count])
+		_log_effect_t("recycled %d card(s), drew %d", [count, count])
 	_finish_interactive_step()
 
 func _apply_tuck_optional_multiselect(indices: Array[int]) -> void:
@@ -2034,9 +2228,9 @@ func _apply_tuck_optional_multiselect(indices: Array[int]) -> void:
 	if count > 0:
 		if not _restrict_picks_to_drawn and not _tuck_optional_no_bonus_draw:
 			$Board.draw_cards(count)
-			_log_effect(tr("tucked %d card(s), drew %d") % [count, count])
+			_log_effect_t("tucked %d card(s), drew %d", [count, count])
 		else:
-			_log_effect(tr("tucked %d card(s)") % count)
+			_log_effect_t("tucked %d card(s)", [count])
 	_finish_interactive_step()
 
 func _apply_recycle_tuck_multiselect(indices: Array[int]) -> void:
@@ -2056,7 +2250,7 @@ func _apply_recycle_tuck_multiselect(indices: Array[int]) -> void:
 	_pending_recycle_cards = []
 	# Entangled Radio: "…then draw 2", however many could be recycled
 	$Board.draw_cards(_recycle_tuck_draw)
-	_log_effect(tr("recycled & tucked %d card(s) facedown, drew %d") % [count, _recycle_tuck_draw])
+	_log_effect_t("recycled & tucked %d card(s) facedown, drew %d", [count, _recycle_tuck_draw])
 	_finish_interactive_step()
 
 func _apply_recycle_tuck_store_multiselect(indices: Array[int]) -> void:
@@ -2079,7 +2273,7 @@ func _apply_recycle_tuck_store_decision(store_on_sector: bool) -> void:
 		var color: CardData.SupplyColor = card.card_data.color if card.card_data else CardData.SupplyColor.DUST
 		var screen_pos: Vector2 = $Camera3D.unproject_position(card.global_position)
 		var ts_amount: int = CardData.recycle_amount(card.card_data)
-		if store_on_sector and target:
+		if store_on_sector and target and not FleetRules.blocks_store(int(color)):   # Fleet: banned -> gained
 			target.add_stored_supply(color, ts_amount)
 			_apply_recycle_bonus(color)           # Trash Compactor counts this recycle too
 		else:
@@ -2092,8 +2286,8 @@ func _apply_recycle_tuck_store_decision(store_on_sector: bool) -> void:
 		$Hand.remove_card_fly_out(card)
 	_pending_store_nodes = []
 	if count > 0:
-		var dest_str: String = tr("stored their supply on the sector") if store_on_sector else tr("gained their supply as currency")
-		_log_effect(tr("recycled & tucked %d card(s) facedown, %s") % [count, dest_str])
+		var dest_key: String = "stored their supply on the sector" if store_on_sector else "gained their supply as currency"
+		_log_effect_t("recycled & tucked %d card(s) facedown, %s", [count, {"t": dest_key}])
 	_finish_interactive_step()
 
 func _on_caldera_sector_chosen(index: int) -> void:
@@ -2105,7 +2299,10 @@ func _on_caldera_sector_chosen(index: int) -> void:
 	var eligible_cards: Array[CardData] = []
 	for card: Node3D in _pending_target_slot.get_all_placed_cards():
 		var cd: CardData = card.get("card_data") as CardData
-		if cd and (cd.card_type == CardData.CardType.TECH or cd.card_type == CardData.CardType.EXPEDITION):
+		# Fleet: not a card a Danger won't let you recycle (Barbarism: Thrust), nor one whose
+		# supply it won't let you store (Caldera stores it on the sector)
+		if cd and (cd.card_type == CardData.CardType.TECH or cd.card_type == CardData.CardType.EXPEDITION) \
+				and not FleetRules.blocks_recycle(int(cd.color)) and not FleetRules.blocks_store(int(cd.color)):
 			_pending_recycle_cards.append(card)
 			eligible_cards.append(cd)
 	if eligible_cards.is_empty():
@@ -2141,7 +2338,7 @@ func _apply_caldera_recycle(indices: Array[int]) -> void:
 	_pending_target_slot.refresh_display()
 	_pending_target_slot = null
 	if count > 0:
-		_log_effect(tr("recycled %d card(s) on the chosen sector, stored their supplies") % count)
+		_log_effect_t("recycled %d card(s) on the chosen sector, stored their supplies", [count])
 	_finish_interactive_step()
 
 func _on_choice_skipped() -> void:
@@ -2191,7 +2388,7 @@ func _on_sector_info_requested(slot: SectorSlot) -> void:
 					_cs_display.spend_supply(_pending_store_color, store_amount)
 					_pending_store_from_supply = false
 				slot.add_stored_supply(_pending_store_color, store_amount)
-				_log_effect(tr("stored %d %s on the chosen sector") % [store_amount, CardData.color_name(_pending_store_color)])
+				_log_effect_t("stored %d %s on the chosen sector", [store_amount, {"c": int(_pending_store_color)}])
 				if _pending_store_spread:
 					_pending_store_amount -= 1
 					if _pending_store_amount > 0:
@@ -2214,8 +2411,7 @@ func _on_sector_info_requested(slot: SectorSlot) -> void:
 				_sector_picker.hide()
 				if _pending_tuck_card_data:
 					slot.add_tucked_card(_pending_tuck_card_data, _effect_face_up)
-					var face_str_any_log: String = tr("faceup") if _effect_face_up else tr("facedown")
-					_log_effect(tr("tucked %s %s on the chosen sector") % [_pending_tuck_card_data.card_name, face_str_any_log])
+					_log_effect_t("tucked %s %s on the chosen sector", [_pending_tuck_card_data.card_name, {"t": "faceup" if _effect_face_up else "facedown"}])
 				_pending_tuck_card_data = null
 				$Board.set_cargo_click_mode(false)
 				_hide_effect_hint()
@@ -2229,7 +2425,12 @@ func _on_sector_info_requested(slot: SectorSlot) -> void:
 		_:
 			_sector_info_popup.show_sector(slot)
 
-func _on_cargo_move_requested(source: SectorSlot, dest: SectorSlot, supplies: Dictionary, tucked_indices: Array[int]) -> void:
+func _on_cargo_move_requested(source: SectorSlot, dest: SectorSlot, supplies_asked: Dictionary, tucked_indices: Array[int]) -> void:
+	# Fleet: moved onto another sector is stored there, which a store ban forbids: those stay put
+	var supplies: Dictionary = {}
+	for color: int in supplies_asked:
+		if not FleetRules.blocks_store(color):
+			supplies[color] = supplies_asked[color]
 	for color: int in supplies:
 		var amount: int = supplies[color]
 		var cur: int = source.stored_supply.get(color, 0)
@@ -2250,16 +2451,19 @@ func _on_cargo_move_requested(source: SectorSlot, dest: SectorSlot, supplies: Di
 			dest.tucked_cards.append(entry)
 	source.refresh_display()
 	dest.refresh_display()
-	var moved_supply_parts: Array[String] = []
+	# "2 Metals, 1 Dust" as nested lines, so each reader gets their own colour names
+	var move_key: String = ""
+	var move_args: Array = []
 	for color: int in supplies:
-		moved_supply_parts.append(tr("%d %s") % [supplies[color], CardData.color_name(color as CardData.SupplyColor)])
-	var move_desc: String = ", ".join(moved_supply_parts) if not moved_supply_parts.is_empty() else ""
-	if not move_desc.is_empty() and sorted_tucked.size() > 0:
-		_log_effect(tr("moved %s and %d tucked card(s) between sectors") % [move_desc, sorted_tucked.size()])
-	elif not move_desc.is_empty():
-		_log_effect(tr("moved %s between sectors") % move_desc)
+		move_key += ", %s" if not move_key.is_empty() else "%s"
+		move_args.append({"k": "%d %s", "a": [int(supplies[color]), {"c": color}]})
+	var move_desc: Dictionary = {"k": move_key, "a": move_args}
+	if not move_key.is_empty() and sorted_tucked.size() > 0:
+		_log_effect_t("moved %s and %d tucked card(s) between sectors", [move_desc, sorted_tucked.size()])
+	elif not move_key.is_empty():
+		_log_effect_t("moved %s between sectors", [move_desc])
 	elif sorted_tucked.size() > 0:
-		_log_effect(tr("moved %d tucked card(s) between sectors") % sorted_tucked.size())
+		_log_effect_t("moved %d tucked card(s) between sectors", [sorted_tucked.size()])
 
 # Auto-revealed cards (Ice Mining, Ancient Airlock, Cargo Bays, etc.) only
 # ever show as a tiny market-panel icon otherwise — this shows the just-
@@ -2328,7 +2532,7 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	var _cname: String = _cd.adv_name if _is_adv and not _cd.adv_name.is_empty() else _cd.card_name
 	var _pname: String = GameNetwork.player_names.get(multiplayer.get_unique_id(), tr("You"))
 	var _supply: CardData.SupplyColor = _cd.adv_color if _is_adv else _cd.color
-	_broadcast_log(tr("%s: placed %s") % [_pname, _cname], CardData.color_tint(_supply))
+	_broadcast_log_t("%s: placed %s", [_pname, _cname], CardData.color_tint(_supply))
 	UIAudio.play_supply_sfx(_supply)
 	Haptics.thump()
 	if _cd.card_type != CardData.CardType.SECTOR and slot.is_complete():
@@ -2761,6 +2965,8 @@ func _on_market_sector_dust_pressed(slot_idx: int) -> void:
 	if _effect_mode == EffectMode.EFFECT_REVEAL_SECTOR:
 		$Board.reveal_sector_panel_slot(slot_idx)
 	elif _effect_mode == EffectMode.NONE:
+		if _tutorial and not _tutorial.allows_basic_sector():   # the tutorial's later sectors are auctioned
+			return
 		$Board.market_origin_3d = CockpitRig.viewport_to_world(self, _market_panel.get_slot_center("dust", slot_idx))
 		$Board.begin_panel_sector_purchase(slot_idx, false)
 
@@ -2819,7 +3025,8 @@ func _on_market_card_hover_started(slot_type: String, slot_idx: int) -> void:
 	if not cd:
 		return
 	var card_name: String = CardDatabase.display_name(cd, is_adv)
-	var cost: int = CardData.effective_cost(cd, is_adv)
+	# what the purchase charges: with discounts and Fleet Danger surcharges (negative discounts)
+	var cost: int = maxi(0, CardData.effective_cost(cd, is_adv) - $Board.get_purchase_discount(cd, null, is_adv))
 	var cost_color: CardData.SupplyColor = cd.adv_color if is_adv else cd.color
 	var effect: String = CardDatabase.display_effect(cd, is_adv)
 	var desc_parts: Array[String] = []
@@ -2934,7 +3141,7 @@ func _finish_expedition_shuffle() -> void:
 	_hide_effect_hint()
 	_effect_done_btn.hide()
 	if _shuffle_count > 0:
-		_log_effect(tr("shuffled %d expedition(s) back into the deck") % _shuffle_count)
+		_log_effect_t("shuffled %d expedition(s) back into the deck", [_shuffle_count])
 	for _i: int in _shuffle_count:
 		_effect_queue.insert(0, {type = "reveal_expedition", _source_name = _effect_source_name})
 	_shuffle_count = 0
@@ -3000,11 +3207,30 @@ func _build_touch_menu_button() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST and GameTheme.is_touch() and _pause_menu:
-		_toggle_pause_menu()
+		_on_back_requested()
+
+## The phone's Back closes the topmost open window first, as Escape does, and only then toggles
+## the pause menu: it opened the menu behind the rule book from a '?' term or the card close-up,
+## so Back seemed to do nothing.
+func _on_back_requested() -> void:
+	var rule_book: Control = get_meta(RuleRefs.SHARED_META) as Control if has_meta(RuleRefs.SHARED_META) else null
+	if rule_book and is_instance_valid(rule_book) and rule_book.visible:
+		PopupAnim.close(rule_book)
+		return
+	if _card_inspect and _card_inspect.visible:
+		_card_inspect.visible = false
+		return
+	if _chat_panel and _chat_panel.has_method("close_if_expanded") and bool(_chat_panel.call("close_if_expanded")):
+		return
+	# the pause menu's own Rule Book / Collection / Settings (PauseMenu.close_top, where present)
+	if _pause_menu.visible and _pause_menu.has_method("close_top") and bool(_pause_menu.call("close_top")):
+		return
+	_toggle_pause_menu()
 
 func _exit_tree() -> void:
 	if GameTheme.is_touch():
 		get_tree().set_quit_on_go_back(true)
+	_leave_online_session()   # however the game scene is left (the scoreboard's Main Menu too)
 
 func _toggle_pause_menu() -> void:
 	_pause_menu.toggle()
@@ -3013,7 +3239,28 @@ func _toggle_pause_menu() -> void:
 
 func _on_pause_main_menu() -> void:
 	TutorialSession.active = false
+	_leave_online_session()   # at once: the others shouldn't wait out the fade
 	SceneTransition.change_scene("res://scenes/main_menu/main_menu.tscn")
+
+## Leaving the game: an online game's relay connection has to close, or the others never hear
+## that this seat left (no bot takeover, no "Host disconnected") and the table hangs, and the
+## old link fired the lobby's "Lost connection to host" in the menu later. Solo and bot games
+## keep their offline peer as before.
+func _leave_online_session() -> void:
+	if multiplayer.peer_disconnected.is_connected(_on_peer_disconnected):
+		multiplayer.peer_disconnected.disconnect(_on_peer_disconnected)
+	if multiplayer.server_disconnected.is_connected(_on_connection_lost):
+		multiplayer.server_disconnected.disconnect(_on_connection_lost)
+	var peer: MultiplayerPeer = multiplayer.multiplayer_peer
+	if peer != null and not (peer is OfflineMultiplayerPeer):
+		peer.close()
+		# the offline peer, not none: code still running during the fade asks who it is
+		multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
+		ChatManager.clear_history()
+	# this match's seats: the next lobby's chat signed with them (relay ids restart per room)
+	GameNetwork.is_multiplayer = false
+	GameNetwork.bot_ids = []
+	GameNetwork.player_names = {}
 
 func _try_auto_end_turn() -> void:
 	if _ending_turn:
@@ -3175,16 +3422,55 @@ func _on_peer_disconnected(peer_id: int) -> void:
 		return
 	if peer_id == 1:
 		# The host holds all game authority (turn flow, bot state) — there's
-		# no one left to continue the session for anyone.
-		_show_session_ended_modal(tr("Host disconnected."))
+		# no one left to continue the session for anyone. (At the final versus
+		# scores there's nothing left to end: no modal over them.)
+		if not (_game_finished and not GameNetwork.fleet_mode):
+			_end_session(tr("Host disconnected."))
 		return
+	if not multiplayer.is_server():
+		return
+	var own: MultiplayerPeer = multiplayer.multiplayer_peer
+	if own == null or own.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
+		# the host's own link went: its relay peer reports every player gone with it. Nobody
+		# can be reached, so no bot takeover (every .rpc() would fail anyway).
+		_on_connection_lost()
+		return
+	if not _start_sent:
+		return   # before the start: _deferred_pre_setup gives the seat to a bot right after it
+	if not GameNetwork.player_order.has(peer_id) or GameNetwork.is_bot(peer_id):
+		return   # no seat of theirs (joined as the game started), or already a bot
+	if _game_finished and not GameNetwork.fleet_mode:
+		return   # the game is over (Fleet still collects that seat's final stats from a bot board)
 	# A non-host player dropping doesn't have to end the game for everyone —
 	# hand their seat to the AI so the rest of the table can finish.
-	if multiplayer.is_server():
-		_convert_peer_to_bot(peer_id)
-		_fleet_peer_left(peer_id)
-		if not _round_acks.is_empty():   # a new round waits on them: they count as in it now
-			_server_round_ack(peer_id)
+	_convert_peer_to_bot(peer_id)
+	_fleet_peer_left(peer_id)
+	if not _round_acks.is_empty():   # a new round waits on them: they count as in it now
+		_server_round_ack(peer_id)
+
+## This peer's own relay link went (network drop, server restart or redeploy). From then on every
+## .rpc() fails, its call_local part too, so the host's game froze without a word.
+func _on_connection_lost() -> void:
+	if not GameNetwork.is_multiplayer or _session_end_shown:
+		return
+	if GameNetwork.is_host and _is_true_solo_session():
+		# only bots left at the table, and they run here: play on offline. Deferred: this runs
+		# inside the multiplayer poll that noticed the loss.
+		_switch_to_offline_peer.call_deferred()
+		return
+	if _game_finished and not GameNetwork.fleet_mode:
+		return
+	_end_session(tr("Can't reach the online server.") if GameNetwork.is_host else tr("Host disconnected."))
+
+func _switch_to_offline_peer() -> void:
+	if not (multiplayer.multiplayer_peer is OfflineMultiplayerPeer):
+		multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
+
+func _end_session(msg: String) -> void:
+	if _session_end_shown:
+		return
+	_session_end_shown = true
+	_show_session_ended_modal(msg)
 
 func _show_session_ended_modal(msg: String) -> void:
 	var panel: ScifiPanel = load("res://scenes/ui/scifi_panel.gd").new()
@@ -3206,9 +3492,7 @@ func _show_session_ended_modal(msg: String) -> void:
 	btn.custom_minimum_size = Vector2(200.0, 48.0)
 	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	btn.pressed.connect(func() -> void:
-		if multiplayer.multiplayer_peer:
-			multiplayer.multiplayer_peer.close()
-			multiplayer.multiplayer_peer = null
+		_leave_online_session()
 		SceneTransition.change_scene("res://scenes/main_menu/main_menu.tscn")
 	)
 	vbox.add_child(lbl)
@@ -3241,36 +3525,63 @@ func _convert_peer_to_bot(peer_id: int) -> void:
 		var sector: CardData = CardDatabase.find_sector_by_name(slot.get("sector_name", ""), is_adv)
 		if not sector:
 			continue
-		var techs: Array = []
-		for tech_name: String in (slot.get("tech_names", []) as Array):
+		# a full bot board entry (BotTurn's own fields), so the seat keeps its archived cards,
+		# stored supplies and optimize state: they were dropped, its score fell at once, and
+		# its next placement there broke on the missing optimize fields
+		var entry: Dictionary = BotTurn._new_slot_entry(sector, is_adv)
+		var techs: Array = entry["techs"] as Array
+		# Fleet: destroyed cards as a bot's own (BotTurn): counted, not on the stack
+		if int(slot.get("destroyed_count", 0)) > 0:
+			entry["fleet_destroyed"] = int(slot.get("destroyed_count", 0))
+		for tech_name: Variant in (slot.get("tech_names", []) as Array):
 			# tech_names can also hold Expedition card names (they attach to a
 			# sector's stack the same way Tech cards do) — a Tech-only lookup
 			# would silently drop those from the takeover bot's board.
-			var tech: CardData = CardDatabase.find_any_by_name(tech_name)
+			var tech: CardData = CardDatabase.find_any_by_name(str(tech_name))
 			if tech:
 				techs.append(tech)
-		board.append({"sector": sector, "is_advanced": is_adv, "techs": techs, "stored": {}})
+				if tech.card_type == CardData.CardType.TECH:
+					entry["last_placed_tech_cost"] = tech.cost
+		var stored: Dictionary = entry["stored_supply"] as Dictionary
+		var stored_snap: Dictionary = slot.get("stored_supply", {}) as Dictionary
+		for c: Variant in stored_snap:
+			stored[int(c)] = int(stored_snap[c])
+		var tucked: Array = entry["tucked_cards"] as Array
+		for t_v: Variant in (slot.get("tucked_cards", []) as Array):
+			var t: Dictionary = t_v as Dictionary
+			var face_up: bool = bool(t.get("face_up", false))
+			# a face-down card only counts (1 star, archive counts): which card it was isn't known
+			var cd: CardData = CardDatabase.find_any_by_name(str(t.get("name", ""))) if face_up else null
+			tucked.append({"data": cd, "face_up": face_up and cd != null})
+		var count: int = int(slot.get("optimize_count", 0))
+		entry["optimize_count"] = count
+		entry["is_optimized"] = bool(slot.get("is_optimized", false))
+		var levels: Array[bool] = entry["triggered_levels"] as Array[bool]
+		var levels_snap: Array = slot.get("triggered_levels", []) as Array
+		for i: int in levels.size():
+			levels[i] = bool(levels_snap[i]) if i < levels_snap.size() else i < count
+		board.append(entry)
 	bot_boards[peer_id] = board
 
-	var original_name: String = GameNetwork.player_names.get(peer_id, "Player")
+	var original_name: String = GameNetwork.player_names.get(peer_id, tr("Player"))
 	_rpc_sync_peer_converted_to_bot.rpc(peer_id, "%s (Bot)" % original_name)
-	_broadcast_log(tr("%s disconnected — a bot has taken over (lost hand and any stored supply).") % original_name, Color(1.0, 0.6, 0.4))
+	_broadcast_log_t("%s disconnected — a bot has taken over (hand lost).", [original_name], Color(1.0, 0.6, 0.4))
 
 	# what they owe an open auction first: the initiator is also the active player, and a bot turn
 	# taken inside the auction left it stuck (and could start a second one over it). Their turn
-	# ends through the auction-settled path (_rpc_sync_auction_placement_pending).
+	# ends through the auction-settled path (_rpc_sync_auction_placement_pending), which needs the
+	# host's turn flag set BEFORE the branches below: they can settle the auction at once.
+	var auction_open: bool = _auction_active or _runner_up_phase or _auction_placement_pending
+	if GameNetwork.active_peer_id == peer_id and auction_open:
+		$Board.set_major_action_taken()   # as BotTurn.bot_start_auction does for a bot's own auction
 	if _auction_active and not _auction_remaining.is_empty() and _auction_remaining[_auction_active_idx] == peer_id:
 		BotTurn.bot_decide_bid(self, peer_id)
 	elif (_runner_up_phase and _auction_second_id == peer_id) or (_auction_placement_pending and _auction_leader_id == peer_id):
 		_host_force_decline_pending_auction(peer_id)
 	elif _interfleet_active and not _interfleet_remaining_order.is_empty() and _interfleet_remaining_order[0] == peer_id:
 		BotTurn.bot_decide_interfleet_pick(self, peer_id)
-	elif GameNetwork.active_peer_id == peer_id and not (_auction_active or _runner_up_phase or _auction_placement_pending):
-		BotTurn.run_bot_turn(self, peer_id)
-	if GameNetwork.active_peer_id == peer_id and (_auction_active or _runner_up_phase or _auction_placement_pending):
-		# as for an auction a bot started (BotTurn.bot_start_auction): the settled auction ends
-		# the bot's turn (_rpc_sync_auction_placement_pending checks this flag)
-		$Board.set_major_action_taken()
+	elif GameNetwork.active_peer_id == peer_id and not auction_open and not _game_finished:
+		BotTurn.run_bot_turn(self, peer_id)   # (after the last Generation: no more turns)
 
 # Host → All: peer_id is now bot-controlled. Only mutates GameNetwork state —
 # bot_hands/bot_supplies/bot_boards stay host-only, exactly like every other
@@ -3326,6 +3637,9 @@ func _on_card_recycled(color: CardData.SupplyColor, amount: int) -> void:
 # its supply as usual; this just explains to the player why it vanished
 # instead of asking them to place it.
 func _on_unplaceable_card_recycled(card_data: CardData) -> void:
+	# Fleet: bought all the same (paid), only not placed — Undetected Wormhole's solve counts it
+	if _fleet and card_data and card_data.card_type == CardData.CardType.EXPEDITION:
+		fleet_expedition_bought()
 	var c_name: String = card_data.card_name if card_data else tr("Card")
 	_show_auction_toast(tr("No room to place %s — recycled instead") % c_name)
 	_log_action(tr("No room to place %s — recycled instead") % c_name, Color(1.0, 0.6, 0.4))
@@ -3351,7 +3665,7 @@ func _offer_rich_asteroid_store_for(cd: CardData, amount: int) -> void:
 		_offer_rich_asteroid_store(amount)
 
 func _offer_rich_asteroid_store(amount: int) -> void:
-	if amount <= 0:
+	if amount <= 0 or FleetRules.always_effects_off():   # Fleet Totalitarianism: no card effects
 		return
 	var has_sector: bool = false
 	for slot: SectorSlot in $Board.get_all_sector_slots():

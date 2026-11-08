@@ -69,16 +69,22 @@ func _setup_capture() -> void:
 
 # Voice is off in online (relay) rooms for now: raw PCM through our own
 # server would cost ~30 KB/s per speaker. Text chat still works there.
+# The offline peer (menus, solo, Tutorial, bot games) has nobody to talk to: holding V opened the
+# microphone there (Windows' mic-in-use notice) and showed the push-to-talk hint.
 func is_available() -> bool:
-	return multiplayer.multiplayer_peer != null and not (multiplayer.multiplayer_peer is RelayMultiplayerPeer)
+	var peer: MultiplayerPeer = multiplayer.multiplayer_peer
+	return peer != null and not (peer is RelayMultiplayerPeer) and not (peer is OfflineMultiplayerPeer) \
+			and peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED \
+			and not multiplayer.get_peers().is_empty()
 
 func _process(_delta: float) -> void:
 	if not is_available() or not voice_enabled:
 		if _recording:
 			_stop_recording()
 	else:
-		if Input.is_action_just_pressed("voice_ptt"):
-			_start_recording()
+		var focus: Control = get_viewport().gui_get_focus_owner()
+		if Input.is_action_just_pressed("voice_ptt") and not (focus is LineEdit or focus is TextEdit):
+			_start_recording()   # (not while typing a 'v')
 		elif Input.is_action_just_released("voice_ptt"):
 			_stop_recording()
 		if _recording:

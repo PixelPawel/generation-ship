@@ -55,6 +55,7 @@ var _chat_panel: Control = null
 # Start Game (the user, 2026-11-05), and it goes out with the start.
 var _coop: bool = false
 var _choosing: bool = false          # the host has the Destination picker open
+var _launching: bool = false         # host: the start went out, no more seats
 var _mode_label: Label = null
 var _dest_picker: Control = null
 
@@ -85,6 +86,7 @@ const _SPINNER_FRAMES: Array[String] = [
 @onready var _staging_copy_btn: Button = $StagingPanel/VBox/IPRow/CopyIPBtn
 
 func _ready() -> void:
+	_apply_saved_locale()
 	theme = GameTheme.get_theme()
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
@@ -117,6 +119,19 @@ func _ready() -> void:
 	_lobby_refresh_timer = LOBBY_REFRESH_INTERVAL
 	if GameTheme.is_touch():
 		_apply_touch_layout()
+
+# The saved language before any text here is built: in the main menu the lobby readies before
+# the PauseMenu (which applies it), so the lobby, its chat and the password prompt froze in the
+# OS language on every app start. The same setting and codes as PauseMenu._load_language_setting.
+func _apply_saved_locale() -> void:
+	var cfg: ConfigFile = ConfigFile.new()
+	var locale: String = "en"
+	if cfg.load(SETTINGS_PATH) == OK:
+		locale = str(cfg.get_value("game", "locale", "en"))
+	if not ["en", "de", "it", "pl", "es", "fr"].has(locale):
+		locale = "en"
+	if TranslationServer.get_locale() != locale:
+		TranslationServer.set_locale(locale)
 
 func _process(delta: float) -> void:
 	if _spinner_active:
@@ -244,6 +259,7 @@ func _show_lobby() -> void:
 	_lobby_refresh_timer = 0.0
 	_is_host = false
 	_room_code = ""
+	_launching = false
 	lobby_view_requested.emit()
 
 # ── Room list ─────────────────────────────────────────────────────────────────
@@ -472,9 +488,19 @@ func _start_coop(destination_no: int) -> void:
 	_launch(true, destination_no)
 
 func _launch(coop: bool, destination_no: int) -> void:
+	_launching = true
 	if _relay:
 		_relay.mark_started()
-	_rpc_load_game.rpc(coop, destination_no, randi())
+		# only the seated players load: one still connecting got the start with no seat (and a
+		# broken game); it's let go instead, and nobody else gets in now
+		_relay.refuse_new_connections = true
+	var danger_seed: int = randi()
+	for pid: int in multiplayer.get_peers():
+		if _players.has(pid):
+			_rpc_load_game.rpc_id(pid, coop, destination_no, danger_seed)
+		else:
+			multiplayer.multiplayer_peer.disconnect_peer(pid)
+	_rpc_load_game(coop, destination_no, danger_seed)
 
 func _on_leave_pressed() -> void:
 	_choosing = false
@@ -527,7 +553,9 @@ func _on_copy_ip_pressed() -> void:
 # ── Multiplayer signals ───────────────────────────────────────────────────────
 
 func _on_peer_connected(_id: int) -> void:
-	pass
+	# host: a joiner's seat counts from now (Start waits for their registration)
+	if multiplayer.is_server() and _staging_panel.visible:
+		_refresh_player_list()
 
 func _on_connection_failed() -> void:
 	var reason: String = _relay.error_reason if _relay else ""
@@ -594,7 +622,13 @@ func _rpc_notify_ready() -> void:
 func _rpc_register(player_name: String) -> void:
 	if not multiplayer.is_server():
 		return
-	_players[multiplayer.get_remote_sender_id()] = player_name
+	var id: int = multiplayer.get_remote_sender_id()
+	# the server only refuses a full room by the count last reported: two joining at once, or
+	# a bot added meanwhile, made 5 seats
+	if not _players.has(id) and (_players.size() >= MAX_PLAYERS or _launching):
+		multiplayer.multiplayer_peer.disconnect_peer(id)
+		return
+	_players[id] = _unique_name(player_name, id)
 	_rpc_sync_players.rpc(_players)
 	_rpc_sync_mode.rpc(_coop, _choosing)   # joiners play the host's mode
 
@@ -632,16 +666,40 @@ func _rpc_load_game(coop: bool = false, destination_no: int = 0, danger_seed: in
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 func _on_add_bot_pressed() -> void:
-	if _players.size() >= MAX_PLAYERS:
+	if _seat_count() >= MAX_PLAYERS:
 		return
 	_bot_count += 1
 	var bot_id: int = -_bot_count
 	var diff: int = _diff_btn.selected if _diff_btn else 1
 	_bot_difficulties[bot_id] = diff
-	_players[bot_id] = BOT_NAMES[diff]
+	_players[bot_id] = _unique_name(BOT_NAMES[diff], bot_id)
 	_players_ready[bot_id] = true
 	_rpc_sync_players.rpc(_players)
 	_refresh_player_list()
+
+# Seats taken: the registered players and bots, plus anyone connected (host) who hasn't
+# registered yet — their seat is already promised.
+func _seat_count() -> int:
+	var n: int = _players.size()
+	if multiplayer.multiplayer_peer and multiplayer.is_server():
+		for pid: int in multiplayer.get_peers():
+			if not _players.has(pid):
+				n += 1
+	return n
+
+# Two bots of one difficulty were both "Circuit", two players who left the name empty both
+# "Player": logs, auctions and the final scores couldn't tell the seats apart.
+func _unique_name(base: String, own_id: int) -> String:
+	var taken: Array[String] = []
+	for pid: Variant in _players:
+		if int(pid) != own_id:
+			taken.append(str(_players[pid]))
+	var candidate: String = base
+	var n: int = 2
+	while taken.has(candidate):
+		candidate = "%s %d" % [base, n]
+		n += 1
+	return candidate
 
 func _on_remove_bot_pressed() -> void:
 	for i: int in range(_bot_count, 0, -1):
@@ -667,7 +725,7 @@ func _refresh_player_list() -> void:
 				tag = tr("  [bot]")
 			lines.append(tr("• %s%s") % [_players[id], tag])
 		_staging_player_list.text = "\n".join(lines)
-	var all_ready: bool = not _players.is_empty()
+	var all_ready: bool = not _players.is_empty() and _seat_count() == _players.size()   # nobody half-joined
 	for pid: Variant in _players:
 		if not _players_ready.has(int(pid)):
 			all_ready = false
@@ -679,13 +737,13 @@ func _refresh_player_list() -> void:
 			has_any_bot = true
 			break
 	if _add_bot_btn:
-		_add_bot_btn.disabled = _players.size() >= MAX_PLAYERS
+		_add_bot_btn.disabled = _seat_count() >= MAX_PLAYERS
 	if _remove_bot_btn:
 		_remove_bot_btn.disabled = not has_any_bot
 	# Keep the room list's player count (incl. bots) up to date, which is also
 	# what the server uses to refuse joins once the room is full.
 	if _relay and multiplayer.is_server():
-		_relay.report_player_count(_players.size())
+		_relay.report_player_count(_seat_count())
 
 func _set_status(msg: String) -> void:
 	_status_label.text = msg
@@ -711,8 +769,9 @@ func _save_name(n: String) -> void:
 
 # Only rooms of the exact same game version can see/join each other, so a
 # Steam and an Android build must be on the same version to play together.
+# config/version alone never changed between releases: see GameNetwork.net_version.
 func _game_version() -> String:
-	return str(ProjectSettings.get_setting("application/config/version", "0"))
+	return GameNetwork.net_version()
 
 func _on_refresh_pressed() -> void:
 	_request_lobby_list()
@@ -811,3 +870,12 @@ func _touch_up(root: Node) -> void:
 			var l: Label = n as Label
 			var f: int = l.get_theme_font_size("font_size")
 			l.add_theme_font_size_override("font_size", maxi(f, TOUCH_TEXT_FONT))
+
+# Escape closes the password prompt, as its Cancel button does.
+func _unhandled_input(event: InputEvent) -> void:
+	if _password_prompt == null or not _password_prompt.visible:
+		return
+	var key: InputEventKey = event as InputEventKey
+	if key and key.pressed and not key.echo and key.keycode == KEY_ESCAPE:
+		_on_password_cancel_pressed()
+		get_viewport().set_input_as_handled()

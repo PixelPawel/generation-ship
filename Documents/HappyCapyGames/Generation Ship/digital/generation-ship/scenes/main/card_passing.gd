@@ -26,7 +26,7 @@ static func _rpc_sync_interfleet_started(main: Main, pool_refs: Array, order: Ar
 	main._interfleet_initiator_id = initiator_id
 	main._interfleet_active = true
 	main._effect_mode = Main.EffectMode.EFFECT_INTERFLEET_PICK
-	var iname: String = GameNetwork.player_names.get(initiator_id, "Player")
+	var iname: String = GameNetwork.player_names.get(initiator_id, main.tr("Player"))
 	main._log_action(main.tr("%s: Interfleet Comms — drew %d card(s) to pass around") % [iname, main._interfleet_pool_refs.size()], Color(0.6, 0.85, 1.0))
 	if not main._interfleet_remaining_order.is_empty():
 		_update_interfleet_ui(main, main._interfleet_remaining_order[0])
@@ -55,7 +55,7 @@ static func _rpc_sync_interfleet_pick_result(main: Main, peer_id: int, card_ref:
 			hand.append(cd)
 			BotTurn.bot_set_hand(main, peer_id, hand)
 	else:
-		var pname: String = GameNetwork.player_names.get(peer_id, "Player")
+		var pname: String = GameNetwork.player_names.get(peer_id, main.tr("Player"))
 		main._log_action(main.tr("%s kept a card (Interfleet Comms)") % pname, Color(0.6, 0.85, 1.0))
 
 # Host → All: sequence complete — the last player auto-received the final
@@ -78,7 +78,7 @@ static func _rpc_sync_interfleet_finished(main: Main, recipient_id: int, card_re
 			var hand: Array[CardData] = BotTurn.bot_hand(main, recipient_id)
 			hand.append(cd)
 			BotTurn.bot_set_hand(main, recipient_id, hand)
-	var rname: String = GameNetwork.player_names.get(recipient_id, "Player")
+	var rname: String = GameNetwork.player_names.get(recipient_id, main.tr("Player"))
 	main._log_action(main.tr("%s automatically received the last Interfleet Comms card") % rname, Color(0.6, 0.85, 1.0))
 	if my_id == initiator_id:
 		main._process_next_effect()
@@ -174,7 +174,7 @@ static func _update_interfleet_ui(main: Main, active_id: int) -> void:
 	else:
 		main._interfleet_awaiting_pick = false
 		main._choice_popup.hide()
-		var pname: String = GameNetwork.player_names.get(active_id, "Player")
+		var pname: String = GameNetwork.player_names.get(active_id, main.tr("Player"))
 		main._show_effect_hint(main.tr("Waiting for %s to pick a card (Interfleet Comms)…") % pname)
 
 # Called by Board while a hand card is dropped: the teammate whose row is under
@@ -205,14 +205,17 @@ static func _fleet_on_shuttle_requested(main: Main, cd: CardData, target: int) -
 	if main._fleet == null or main._fleet_busy or main._effect_mode != Main.EffectMode.NONE:
 		return
 	var cost: int = Main.FleetRules.shuttle_cost()
-	var who: String = str(GameNetwork.player_names.get(target, "Player"))
+	var who: String = str(GameNetwork.player_names.get(target, main.tr("Player")))
 	var pay: Dictionary = {}
 	if cost > 0:
 		pay = main.get_node("Board")._compute_payment(CardData.SupplyColor.DUST, cost)
 		if pay.is_empty():
 			main._log_action(main.tr("The shuttle costs %d Dust — you can't pay it.") % cost, Main.FleetFlow.DANGER_COLOR)
 			return
-	var prompt: String = main.tr("Pay %d Dust to send %s to %s?") % [cost, CardDatabase.display_name(cd), who]
+	# what is really spent: the payment may take other supplies than Dust
+	var spend: String = Main.FleetFlow._plan_text(pay) if not pay.is_empty() \
+			else "%d %s" % [cost, CardData.color_name(CardData.SupplyColor.DUST)]
+	var prompt: String = main.tr("Pay %s to send %s to %s?") % [spend, CardDatabase.display_name(cd), who]
 	main._fleet_choice_active = true
 	main._choice_popup.show_choices(prompt, [main.tr("Send"), main.tr("Cancel")], false, [], cd)
 	var pick: int = await main._choice_popup.choice_made
@@ -253,8 +256,8 @@ static func _server_fleet_shuttle(main: Main, sender: int, target: int, ref: Dic
 
 static func _rpc_fleet_shuttle_delivered(main: Main, sender: int, target: int, ref: Dictionary) -> void:
 	var cd: CardData = CardRef.from_ref(ref)
-	var from: String = str(GameNetwork.player_names.get(sender, "Player"))
-	var to: String = str(GameNetwork.player_names.get(target, "Player"))
+	var from: String = str(GameNetwork.player_names.get(sender, main.tr("Player")))
+	var to: String = str(GameNetwork.player_names.get(target, main.tr("Player")))
 	if target == main.multiplayer.get_unique_id():
 		UIAudio.play_sfx("shuttle_send")
 		main.get_node("Board").add_specific_card_to_hand(cd)
