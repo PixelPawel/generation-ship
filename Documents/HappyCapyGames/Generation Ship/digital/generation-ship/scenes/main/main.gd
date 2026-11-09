@@ -8,6 +8,7 @@ const FleetData = preload("res://scripts/game/fleet_data.gd")
 const FleetRules = preload("res://scripts/game/fleet_rules.gd")
 const FleetFlow = preload("res://scenes/main/fleet_flow.gd")
 const CardPassing = preload("res://scenes/main/card_passing.gd")
+const Showcase = preload("res://scripts/game/showcase.gd")   # screenshot set-up, --showcase only
 const AuctionFlow = preload("res://scenes/main/auction_flow.gd")
 const EffectSteps = preload("res://scenes/main/effect_steps.gd")
 const PopupAnim = preload("res://scripts/popup_anim.gd")
@@ -911,6 +912,8 @@ func _rpc_start_game(sector_order: Array, exp_order: Array, tech_order: Array) -
 	if GameNetwork.is_multiplayer:
 		_broadcast_my_state()
 	await get_tree().create_timer(2.0).timeout
+	if Showcase.active() and multiplayer.is_server() and not GameNetwork.fleet_mode:
+		Showcase.fill(self)   # filled ships for screenshots (tools/showcase.cmd)
 	if GameNetwork.fleet_mode:   # Fleet: 3 Dangers after the opening draw
 		if GameNetwork.is_multiplayer:
 			call_deferred("_fleet_generation_barrier", GameNetwork.active_peer_id)

@@ -8,6 +8,7 @@ const MAX_PLAYERS: int = 4
 const SETTINGS_PATH: String = "user://settings.cfg"
 const LOBBY_REFRESH_INTERVAL: float = 5.0
 const BOT_NAMES: Array[String] = ["Rusty", "Circuit", "Quantum"]  # Easy, Normal, Hard — proper nouns, not translated; original names, not references to copyrighted characters/products
+const Showcase = preload("res://scripts/game/showcase.gd")   # --showcase: the screenshot bots' names
 # Online rooms live on the Happy Capy Games server (digital/server/app/relay.py),
 # shared by Steam and Android players. Only rooms of the same game version
 # are listed/joinable.
@@ -672,7 +673,8 @@ func _on_add_bot_pressed() -> void:
 	var bot_id: int = -_bot_count
 	var diff: int = _diff_btn.selected if _diff_btn else 1
 	_bot_difficulties[bot_id] = diff
-	_players[bot_id] = _unique_name(BOT_NAMES[diff], bot_id)
+	var showcase_name: String = Showcase.bot_name(_bot_count) if Showcase.active() else ""
+	_players[bot_id] = _unique_name(BOT_NAMES[diff] if showcase_name.is_empty() else showcase_name, bot_id)
 	_players_ready[bot_id] = true
 	_rpc_sync_players.rpc(_players)
 	_refresh_player_list()

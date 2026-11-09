@@ -166,7 +166,7 @@ func _init_opponent_slots() -> void:
 		vp_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row3.add_child(vp_lbl)
 
-		_opp_slot_data.append({
+		var slot_data: Dictionary = {
 			"entry": entry,
 			"style": style,
 			"hbox": entry_hbox,
@@ -175,7 +175,31 @@ func _init_opponent_slots() -> void:
 			"hand_lbl": hand_lbl,
 			"supply_lbls": supply_lbls,
 			"vp_lbl": vp_lbl,
-		})
+		}
+		_opp_slot_data.append(slot_data)
+		row1.resized.connect(func() -> void: _fit_opp_name(slot_data))
+
+# A long name ("Communi-Kate") was clipped once a status ("Passed") sat next to it: shrink the name
+# until it fits beside the status, down to OPP_NAME_MIN_SIZE.
+const OPP_NAME_SIZE: int = 18
+const OPP_NAME_MIN_SIZE: int = 11
+
+func _fit_opp_name(slot: Dictionary) -> void:
+	var name_lbl: Label = slot.get("name_lbl") as Label
+	var status_lbl: Label = slot.get("status_lbl") as Label
+	if not is_instance_valid(name_lbl) or not is_instance_valid(status_lbl):
+		return
+	var row: Control = name_lbl.get_parent() as Control
+	if row == null or row.size.x <= 0.0:
+		return
+	var room: float = row.size.x
+	if not status_lbl.text.is_empty():
+		room -= status_lbl.get_combined_minimum_size().x + 8.0   # row1's separation
+	var font: Font = name_lbl.get_theme_font("font")
+	var fs: int = OPP_NAME_SIZE
+	while fs > OPP_NAME_MIN_SIZE and font.get_string_size(name_lbl.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
+		fs -= 1
+	name_lbl.add_theme_font_size_override("font_size", fs)
 
 func add_opponent(peer_id: int, player_name: String) -> void:
 	if _opp_refs.has(peer_id) or _opp_next_slot >= _opp_slot_data.size():
@@ -191,6 +215,7 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 
 	(slot["hbox"] as HBoxContainer).visible = true
 	(slot["name_lbl"] as Label).text = player_name
+	_fit_opp_name.call_deferred(slot)
 
 	var pid: int = peer_id
 	entry.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -211,6 +236,7 @@ func add_opponent(peer_id: int, player_name: String) -> void:
 	_opp_refs[peer_id] = {
 		"entry": entry,
 		"style": style,
+		"name_lbl": slot["name_lbl"],
 		"status_lbl": slot["status_lbl"],
 		"hand_lbl": slot["hand_lbl"],
 		"supply_lbls": slot["supply_lbls"],
@@ -305,6 +331,7 @@ func update_opponent_status(peer_id: int, status: String, is_active: bool) -> vo
 	else:
 		lbl.text = ""
 		lbl.remove_theme_color_override("font_color")
+	_fit_opp_name.call_deferred(_opp_refs[peer_id] as Dictionary)
 
 func _build_ui() -> void:
 	var panel: ScifiPanel = load("res://scenes/ui/scifi_panel.gd").new()
