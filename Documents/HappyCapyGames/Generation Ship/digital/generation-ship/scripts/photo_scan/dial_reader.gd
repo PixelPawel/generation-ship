@@ -182,6 +182,9 @@ var lights_pass: bool = false
 var light0_lit: bool = true
 ## Debug: never look for violet diamonds (test the lights pass on photos of the violet cards).
 var ignore_violet: bool = false
+## Fewer than 3 anchors after pass 1: refit the size slope on pass 2's readings and read the rest
+## again (_reread_with_slope). tools/scan_debug turns it off with SCAN_NO_SLOPE=1 for comparisons.
+var slope_reread: bool = true
 ## Debug: the lights pass writes its spots and rings here as JSON (full-resolution pixels).
 var debug_spots_path: String = ""
 var _strip_arts: Dictionary = {}     # code -> Array[PackedFloat32Array]: per language, planar RGB, each channel centred + unit length
@@ -477,11 +480,53 @@ func run(source: Image) -> Array[Dictionary]:
 	if cancelled:
 		progress = 1.0
 		return []
-	var out: Array[Dictionary] = _read_markers(pass2, [], 0.4, 0.6)
+	var out: Array[Dictionary] = _read_markers(pass2, [], 0.4, 0.6 if _has_plane else 0.4)
+	if not _has_plane and slope_reread and not cancelled:
+		out.append_array(_reread_with_slope(blobs, out, 0.8, 0.2))
 	if debug:
 		print("  time: pass1 %.1f s, pass2 %.1f s" % [(t_pass2 - t_pass1) / 1000.0, (Time.get_ticks_msec() - t_pass2) / 1000.0])
 	progress = 1.0
 	return out
+
+# Pass 1 left fewer than 3 agreeing dials (no perspective slope): pass 2 then held every dial to one
+# size, the anchors' — in a low-resolution photo (2026-11-09: a 3000 px mockup, ~7 px/mm) only the
+# near diamonds are clear enough for pass 1, and the far cards, 15-25 % smaller, fell outside pass 2's
+# radii and size check (9 of 24 cards read). Fit the slope on pass 2's readings instead (more of
+# them, near and far) and read the markers nothing was found at once more, at those sizes.
+func _reread_with_slope(blobs: Array[Vector3], read: Array[Dictionary], p0: float, span: float) -> Array[Dictionary]:
+	# every reading pass 2 kept: the weak ones passed the strip check (their name box looks like the
+	# card), and a soft photo has few clean ones (the 3000 px mockup: 2 of 9)
+	var pos: Array[Vector2] = []
+	var sc: Array[float] = []
+	for d: Dictionary in read:
+		pos.append(d["marker"] as Vector2)
+		sc.append(float(d["radius"]) / float(DECK_R_MM[_codes[int(d["code"])]]))
+	if pos.size() < 3:
+		return []
+	var old_scale: float = _scale
+	_fit_scale_plane(pos, sc)
+	if not _has_plane:
+		return []
+	var sorted_sc: Array[float] = sc.duplicate()
+	sorted_sc.sort()
+	@warning_ignore("integer_division")
+	_scale = sorted_sc[sorted_sc.size() / 2]
+	var rest: Array[Vector3] = []
+	for b: Vector3 in blobs:
+		if not _plausible_marker(b):
+			continue
+		var taken: bool = false
+		for d: Dictionary in read:
+			if (d["center"] as Vector2).distance_to(Vector2(b.x, b.y)) < float(d["radius"]) * 2.2:
+				taken = true
+				break
+		if not taken:
+			rest.append(b)
+	if debug:
+		print("  slope from %d pass-2 dials: scale %.2f -> %.2f px/mm, %d markers read again" % [pos.size(), old_scale, _scale, rest.size()])
+	if rest.is_empty() or cancelled:
+		return []
+	return _read_markers(rest, read, p0, span)
 
 # Pass 2 on the markers given, in two rounds: the dial shapes pass 1 tries (a circle, a few ovals),
 # then finely graded ovals (2026-11-01: in a photo taken at an angle the dials nearest the camera —

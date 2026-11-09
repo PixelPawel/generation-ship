@@ -35,6 +35,9 @@ func _scan(path: String) -> void:
 	if OS.get_environment("SCAN_LIGHTS_ONLY") != "":
 		reader.ignore_violet = true
 		reader.lights_pass = true
+	# SCAN_NO_SLOPE=1: without the size-slope re-read after too few anchors (for comparisons)
+	if OS.get_environment("SCAN_NO_SLOPE") != "":
+		reader.slope_reread = false
 	# SCAN_SPOTS=<folder>: the lights pass's spots and rings per photo as <photo>.spots.json there
 	if OS.get_environment("SCAN_SPOTS") != "":
 		reader.debug_spots_path = OS.get_environment("SCAN_SPOTS").path_join(path.get_file().get_basename() + ".spots.json")
