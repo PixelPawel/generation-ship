@@ -50,8 +50,12 @@ PLAY_KEY = os.environ.get("PLAY_KEY", os.path.join(os.path.expanduser("~"), ".se
 
 
 def godot_running() -> bool:
-    out = subprocess.run(["tasklist"], capture_output=True, text=True).stdout
-    return "Godot_v4" in out
+    # only a Godot with THIS project (or its Android copy) open blocks the export: another project's
+    # editor (Uprising Digital) is fine. Its command line carries --path <project> (or the project.godot path).
+    ps = ["powershell", "-NoProfile", "-Command",
+          "Get-CimInstance Win32_Process -Filter \"Name like 'Godot%'\" | ForEach-Object { $_.CommandLine }"]
+    out = subprocess.run(ps, capture_output=True, text=True).stdout
+    return "generation-ship" in out.lower().replace("\\", "/").replace("%20", " ")
 
 
 def run(cmd: list[str], cwd: str | None = None) -> None:
