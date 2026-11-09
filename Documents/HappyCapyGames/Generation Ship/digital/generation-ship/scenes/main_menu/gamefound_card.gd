@@ -34,8 +34,8 @@ const PAD: float = 14.0
 const LOGO_H: float = 30.0
 const CTA_H: float = 54.0
 const HEAD_FONT: int = 24
-const BODY_FONT: int = 19
-const BODY_FONT_WIDE: int = 15  # Polish: the body is Ethnocentric, much wider and heavier than Myriad
+const BODY_FONT: int = 23
+const BODY_FONT_WIDE: int = 17  # Polish: the body is Ethnocentric, much wider and heavier than Myriad
 const CTA_FONT: int = 19
 const MIN_FONT: int = 13
 const GAP: float = 8.0          # between headline, pitch and offer
@@ -264,8 +264,12 @@ func _pick_body_font() -> void:
 		_body_font.base_font = _ethno
 		_body_font.variation_opentype = {}
 	else:
+		# Semibold, normal width. The keys must be tag numbers: Godot 4.7 silently ignores the
+		# 4-letter strings ({"wght": 600} measured the same as {}), and this font's defaults
+		# are its thinnest, narrowest cut (wght 300, wdth 70).
+		var ts: TextServer = TextServerManager.get_primary_interface()
 		_body_font.base_font = _myriad
-		_body_font.variation_opentype = {"wght": 600, "wdth": 100}
+		_body_font.variation_opentype = {ts.name_to_tag("wght"): 600, ts.name_to_tag("wdth"): 100}
 
 # Everything inside the card lets the clicks through to it.
 static func _quiet(c: Control) -> void:
