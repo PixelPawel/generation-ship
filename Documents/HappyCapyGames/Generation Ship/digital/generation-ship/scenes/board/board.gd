@@ -1507,9 +1507,9 @@ func preview_placement_steps(card: Node3D, slot: SectorSlot) -> Array[Dictionary
 	# Optimize-trigger pool: tech colors only, never the sector itself
 	# (mirrors _update_optimize_state), plus this incoming card.
 	var opt_pool: Array[int] = slot.get_placed_tech_colors()
-	# Karma Chameleon sits out its own placement check (its color is picked
+	# Galactic Hitchhiker sits out its own placement check (its color is picked
 	# afterwards) — see _mark_color_choice_pending.
-	if cd.card_name != "Karma Chameleon":
+	if cd.card_name != "Galactic Hitchhiker":
 		opt_pool.append(int(cd.color))
 
 	var is_new: bool = slot.get_tech_count() == 0
@@ -1946,19 +1946,19 @@ func cancel_payment_confirm() -> void:
 	else:
 		_market.return_card(card)
 
-# Karma Chameleon ("counts as a color of your choice while being placed")
+# Galactic Hitchhiker ("counts as a color of your choice while being placed")
 # sits out of its own placement's optimize check — SectorSlot.
 # get_placed_tech_colors() skips it while this meta is set — and its Place
 # effect then picks the color and re-runs the check via
 # apply_placing_color(). Only set at real placement sites, never on
 # snapshot restores.
 func _mark_color_choice_pending(card: Node3D) -> void:
-	if card.card_data and card.card_data.card_name == "Karma Chameleon":
+	if card.card_data and card.card_data.card_name == "Galactic Hitchhiker":
 		card.set_meta(SectorSlot.COLOR_CHOICE_PENDING_META, true)
 
-# Resolves a pending Karma Chameleon on slot as color: re-runs the optimize
+# Resolves a pending Galactic Hitchhiker on slot as color: re-runs the optimize
 # check with it counting as that color. The caller queues the triggered
-# levels' effects, then discards it (discard_karma_chameleon).
+# levels' effects, then discards it (discard_galactic_hitchhiker).
 # Returns the newly triggered levels.
 func apply_placing_color(slot: SectorSlot, color: CardData.SupplyColor) -> Array[int]:
 	var card: Node3D = null
@@ -1975,13 +1975,13 @@ func apply_placing_color(slot: SectorSlot, color: CardData.SupplyColor) -> Array
 	cd.placing_color_override = -1
 	return levels
 
-# Karma Chameleon: "Counts as any color when placed. Then discard it." A plain
+# Galactic Hitchhiker: "Counts as any color when placed. Then discard it." A plain
 # discard (no supply). Re-checking the sector without it un-triggers the level
 # it completed, so another card can optimize that sector again.
-func discard_karma_chameleon(slot: SectorSlot) -> void:
+func discard_galactic_hitchhiker(slot: SectorSlot) -> void:
 	for c: Node3D in slot.get_all_placed_cards():
 		var cd: CardData = c.get("card_data") as CardData
-		if cd and cd.card_name == "Karma Chameleon":
+		if cd and cd.card_name == "Galactic Hitchhiker":
 			add_to_discard(cd)
 			slot.remove_tech_card(c)
 			c.queue_free()

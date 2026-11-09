@@ -137,9 +137,9 @@ static func effective_cost(cd: CardData, is_advanced: bool) -> int:
 # from the sheet's "Code" column — see tools/assign_scan_codes.py.
 @export var scan_code: int = 0
 
-# Karma Chameleon: the color it counts as for the optimize check of its own
+# Galactic Hitchhiker: the color it counts as for the optimize check of its own
 # placement only (-1 = none). Cleared right after that check, and the card is
-# then discarded (Board.discard_karma_chameleon).
+# then discarded (Board.discard_galactic_hitchhiker).
 var placing_color_override: int = -1
 
 # Rich Asteroid gives 2 Metals when recycled instead of 1 of its color.

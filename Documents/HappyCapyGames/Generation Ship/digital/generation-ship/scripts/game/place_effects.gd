@@ -256,9 +256,9 @@ static func _build(name: String, _cd: CardData, placed_colors: Array[int],
 
 		# ── Promo techs ───────────────────────────────────────────────────────
 
-		"Karma Chameleon":
+		"Galactic Hitchhiker":
 			steps.append(_all_colors_choice(
-				TranslationServer.translate("Karma Chameleon — count as which color?"), "placing_color"))
+				TranslationServer.translate("Galactic Hitchhiker — count as which color?"), "placing_color"))
 
 		"Ice 9":
 			steps.append({type = "recycle_from_own_sector"})

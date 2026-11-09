@@ -624,7 +624,7 @@ static func _effect_step_black_hole_encounter(main: Main) -> void:
 	main._effect_done_btn.show()
 	main.get_node("Board").set_expedition_shuffle_mode(true)
 
-# Karma Chameleon: it sat out its own placement's optimize check (see
+# Galactic Hitchhiker: it sat out its own placement's optimize check (see
 # Board._mark_color_choice_pending); now re-run it counting as the chosen
 # color, queue any newly satisfied optimize level, then discard it — the
 # sector can then be optimized again with another card.
@@ -643,14 +643,14 @@ static func _effect_step_placing_color(main: Main, color: CardData.SupplyColor) 
 		for c: Node3D in main._effect_slot.get_all_placed_cards():
 			var ccd: CardData = c.get("card_data") as CardData
 			if ccd and not c.has_meta(Main.FleetRules.DESTROYED_META):   # (as SectorEffects: no colour)
-				here_colors.append(int(color) if ccd.card_name == "Karma Chameleon"
+				here_colors.append(int(color) if ccd.card_name == "Galactic Hitchhiker"
 						else int(CardData.effective_color(ccd, bool(c.get("is_advanced")))))
 		for _level: int in levels:
 			opt_steps.append_array(SectorEffects.get_optimize_steps_for_state(sector.get("card_data") as CardData,
 					bool(sector.get("is_advanced")), here_colors, main._effect_slot.last_placed_tech_cost))
 	for i: int in opt_steps.size():
 		main._effect_queue.insert(i, opt_steps[i])
-	main.get_node("Board").discard_karma_chameleon(main._effect_slot)
+	main.get_node("Board").discard_galactic_hitchhiker(main._effect_slot)
 	main._broadcast_my_state()
 	_process_next_effect(main)
 

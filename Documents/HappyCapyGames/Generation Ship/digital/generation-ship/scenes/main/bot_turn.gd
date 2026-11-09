@@ -263,8 +263,8 @@ static func _attach_stack_card(main: Main, bot_id: int, slot_idx: int, card_data
 	var effective_colors: Array[int] = BotScoring.slot_effective_placed_colors(slot)
 	if sector != null:
 		# tanks are filled by the cards placed ON the sector only, never by the sector card itself;
-		# Karma Chameleon sits its own placement's check out (its Place effect picks its colour)
-		var tanks: Array[int] = _bot_tanks_without_karma(slot) if card_data.card_name == KARMA else BotScoring.slot_tech_colors(slot)
+		# Galactic Hitchhiker sits its own placement's check out (its Place effect picks its colour)
+		var tanks: Array[int] = _bot_tanks_without_hitchhiker(slot) if card_data.card_name == HITCHHIKER else BotScoring.slot_tech_colors(slot)
 		triggered = _bot_update_optimize(slot, tanks)
 
 	# what Main._on_card_placed queues, in its order: the Always effects reacting to this card, its own
@@ -287,7 +287,7 @@ static func _attach_stack_card(main: Main, bot_id: int, slot_idx: int, card_data
 	for _lvl: int in triggered.size():
 		apply_bot_effect_steps(main, bot_id, opt_steps, slot_idx)
 
-const KARMA: String = "Karma Chameleon"
+const HITCHHIKER: String = "Galactic Hitchhiker"
 
 # The new optimize state of a bot's sector for these tank colours, as Board._update_optimize_state
 # (Fleet Infestation: nothing changes on a sector with an Organix card). Returns the levels it triggered.
@@ -305,7 +305,7 @@ static func _bot_update_optimize(slot: Dictionary, tanks: Array[int]) -> Array:
 	slot["triggered_levels"] = result["triggered_levels"]
 	return result["triggered"] as Array
 
-# After a card left a bot's sector or lost its colour (Fleet destroy, Ice 9, Karma Chameleon): re-check
+# After a card left a bot's sector or lost its colour (Fleet destroy, Ice 9, Galactic Hitchhiker): re-check
 # its levels (one whose colours are gone can be earned again) and fire any level that newly triggers,
 # as Board.revalidate_optimize_after_removal.
 static func _bot_revalidate_optimize(main: Main, bot_id: int, slot_idx: int) -> void:
@@ -322,19 +322,19 @@ static func _bot_revalidate_optimize(main: Main, bot_id: int, slot_idx: int) -> 
 	for _lvl: int in triggered.size():
 		apply_bot_effect_steps(main, bot_id, opt_steps, slot_idx)
 
-# Tank colours of a bot's sector without its (topmost) Karma Chameleon.
-static func _bot_tanks_without_karma(slot: Dictionary) -> Array[int]:
+# Tank colours of a bot's sector without its (topmost) Galactic Hitchhiker.
+static func _bot_tanks_without_hitchhiker(slot: Dictionary) -> Array[int]:
 	var techs: Array = slot.get("techs", []) as Array
-	var skip: int = _karma_index(techs)
+	var skip: int = _hitchhiker_index(techs)
 	var result: Array[int] = []
 	for i: int in techs.size():
 		if i != skip and techs[i] is CardData:
 			result.append(int((techs[i] as CardData).color))
 	return result
 
-static func _karma_index(techs: Array) -> int:
+static func _hitchhiker_index(techs: Array) -> int:
 	for i: int in range(techs.size() - 1, -1, -1):
-		if techs[i] is CardData and (techs[i] as CardData).card_name == KARMA:
+		if techs[i] is CardData and (techs[i] as CardData).card_name == HITCHHIKER:
 			return i
 	return -1
 
@@ -483,8 +483,8 @@ static func apply_bot_effect_steps(main: Main, bot_id: int, steps: Array[Diction
 				_bot_ice9(main, bot_id)
 			"earth_support":
 				_bot_earth_support(main, bot_id, int(step.get("color", 0)))
-			"placing_color":   # Karma Chameleon's chosen colour
-				_bot_karma_resolve(main, bot_id, slot_idx, int(step.get("color", 0)))
+			"placing_color":   # Galactic Hitchhiker's chosen colour
+				_bot_hitchhiker_resolve(main, bot_id, slot_idx, int(step.get("color", 0)))
 			"choice":
 				var opts: Array = step.get("options", []) as Array
 				if not opts.is_empty():
@@ -523,7 +523,7 @@ static func _bot_count_card(main: Main, bot_id: int, card_name: String) -> int:
 				n += 1
 	return n
 
-# The option a bot takes in a "choice" step: Karma Chameleon the colour that optimizes, Earth Support
+# The option a bot takes in a "choice" step: Galactic Hitchhiker the colour that optimizes, Earth Support
 # the most common tech colour, an archive's face up only for a card worth 2+ ⭐ (face down is 1);
 # anything else the first option.
 static func _bot_pick_option(main: Main, bot_id: int, slot_idx: int, opts: Array) -> int:
@@ -531,7 +531,7 @@ static func _bot_pick_option(main: Main, bot_id: int, slot_idx: int, opts: Array
 	var kind: String = str((first[0] as Dictionary).get("type", "")) if not first.is_empty() else ""
 	match kind:
 		"placing_color":
-			return _bot_karma_pick(main, bot_id, slot_idx, opts)
+			return _bot_hitchhiker_pick(main, bot_id, slot_idx, opts)
 		"earth_support":
 			var counts: Dictionary = {}
 			for cd: CardData in CardDatabase.techs:
@@ -568,8 +568,8 @@ static func _bot_pick_option(main: Main, bot_id: int, slot_idx: int, opts: Array
 			return best
 	return 0
 
-# Karma Chameleon: the first colour that newly fills an optimize level of its sector, else the first.
-static func _bot_karma_pick(main: Main, bot_id: int, slot_idx: int, opts: Array) -> int:
+# Galactic Hitchhiker: the first colour that newly fills an optimize level of its sector, else the first.
+static func _bot_hitchhiker_pick(main: Main, bot_id: int, slot_idx: int, opts: Array) -> int:
 	var board: Array = main.bot_boards.get(bot_id, []) as Array
 	if slot_idx < 0 or slot_idx >= board.size():
 		return 0
@@ -582,7 +582,7 @@ static func _bot_karma_pick(main: Main, bot_id: int, slot_idx: int, opts: Array)
 		var col: int = int((opts[i] as Dictionary).get("color", -1))
 		if col < 0:
 			continue
-		var pool: Array[int] = _bot_tanks_without_karma(slot)
+		var pool: Array[int] = _bot_tanks_without_hitchhiker(slot)
 		pool.append(col)
 		if BotAI.infested(sector, bool(slot.get("is_advanced", false)), pool):
 			continue
@@ -594,19 +594,19 @@ static func _bot_karma_pick(main: Main, bot_id: int, slot_idx: int, opts: Array)
 			return i
 	return 0
 
-# Karma Chameleon "Counts as any color when placed. Then discard it.": the optimize check with the
+# Galactic Hitchhiker "Counts as any color when placed. Then discard it.": the optimize check with the
 # chosen colour, then it leaves the sector (the level it filled can be earned again), as
-# EffectSteps._effect_step_placing_color + Board.discard_karma_chameleon.
-static func _bot_karma_resolve(main: Main, bot_id: int, slot_idx: int, color: int) -> void:
+# EffectSteps._effect_step_placing_color + Board.discard_galactic_hitchhiker.
+static func _bot_hitchhiker_resolve(main: Main, bot_id: int, slot_idx: int, color: int) -> void:
 	var board: Array = main.bot_boards.get(bot_id, []) as Array
 	if slot_idx < 0 or slot_idx >= board.size():
 		return
 	var slot: Dictionary = board[slot_idx] as Dictionary
 	var techs: Array = slot.get("techs", []) as Array
-	var k: int = _karma_index(techs)
+	var k: int = _hitchhiker_index(techs)
 	if k < 0:
 		return
-	var pool: Array[int] = _bot_tanks_without_karma(slot)
+	var pool: Array[int] = _bot_tanks_without_hitchhiker(slot)
 	pool.append(color)
 	var triggered: Array = _bot_update_optimize(slot, pool)
 	var opt_steps: Array[Dictionary] = []
@@ -614,9 +614,9 @@ static func _bot_karma_resolve(main: Main, bot_id: int, slot_idx: int, color: in
 		opt_steps = SectorEffects.get_optimize_steps_for_state(slot.get("sector") as CardData,
 				bool(slot.get("is_advanced", false)), BotScoring.slot_effective_placed_colors(slot),
 				int(slot.get("last_placed_tech_cost", 0)))
-	var karma: CardData = techs[k] as CardData
+	var hitchhiker: CardData = techs[k] as CardData
 	techs.remove_at(k)
-	main.get_node("Board").add_to_discard(karma)
+	main.get_node("Board").add_to_discard(hitchhiker)
 	_bot_revalidate_optimize(main, bot_id, slot_idx)
 	for _lvl: int in triggered.size():
 		apply_bot_effect_steps(main, bot_id, opt_steps, slot_idx)

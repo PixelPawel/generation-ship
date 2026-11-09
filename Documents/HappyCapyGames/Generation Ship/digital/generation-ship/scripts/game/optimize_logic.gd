@@ -83,7 +83,7 @@ static func max_optimizations(cd: CardData, is_advanced: bool) -> int:
 # but a removal (e.g. Caldera Colony recycling a tucked tech) can shrink the
 # pool enough that a color the level depended on is gone, in which case it's
 # earnable again rather than staying permanently triggered off a
-# combination the sector no longer actually has. Karma Chameleon being
+# combination the sector no longer actually has. Galactic Hitchhiker being
 # discarded after its placement shrinks the pool the same way — and per the
 # rules its level may then be earned (and fire) again.
 static func update_optimize_state(

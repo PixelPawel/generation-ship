@@ -799,7 +799,7 @@ func _refresh_state_badges() -> void:
 func _on_placed_card_clicked(_card: Node3D) -> void:
 	slot_clicked.emit(self)
 
-# Set on a just-placed Karma Chameleon until its Place effect picks a color
+# Set on a just-placed Galactic Hitchhiker until its Place effect picks a color
 # (see Board._mark_color_choice_pending / apply_placing_color).
 const COLOR_CHOICE_PENDING_META: StringName = &"color_choice_pending"
 
