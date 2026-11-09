@@ -35,10 +35,6 @@ const DRAG_THRESHOLD_PX: float = 8.0
 const NEGLIGIBLE_SCALE: float = 0.02
 const _LANDSCAPE_CHILD_SCALE := Vector3(0.88 / 0.63, 0.63 / 0.88, 1.0)
 
-const _TECH_GLB := preload("res://assets/3d/gs_card_tech.glb")
-const _SECTOR_GLB := preload("res://assets/3d/gs_card_sector.glb")
-const _EXPEDITION_GLB := preload("res://assets/3d/gs_card_expedition.glb")
-
 static var _elev_counter: int = 0
 static var _any_dragging: bool = false
 
@@ -63,8 +59,6 @@ var _drag_arm_pos: Vector2 = Vector2.ZERO
 # Phones: tap-and-hold on a placed card = right-click (enlarge/shrink).
 var _long_press: LongPressGesture = LongPressGesture.new()
 var _suppress_tap: bool = false   # the hold that opened the inspect view isn't also a tap
-var _card_glb: Node3D = null
-var _face_surface: MeshInstance3D = null
 var _discount_badge: Label3D = null
 
 @onready var card_mesh: MeshInstance3D = $CardMesh
@@ -85,7 +79,6 @@ func set_card_data(data: CardData) -> void:
 	card_data = data
 	if not data:
 		return
-	_instantiate_glb(data.card_type)
 	var is_landscape := (data.card_type == CardData.CardType.SECTOR)
 	var child_scale := _LANDSCAPE_CHILD_SCALE if is_landscape else Vector3.ONE
 	card_mesh.scale = child_scale
@@ -117,24 +110,6 @@ func refresh_locale_art() -> void:
 				else CardDatabase.tech_back_path())
 		return
 	set_card_data(card_data)
-
-func _instantiate_glb(card_type: CardData.CardType) -> void:
-	if _card_glb:
-		_card_glb.queue_free()
-		_card_glb = null
-		_face_surface = null
-	var scene: PackedScene
-	match card_type:
-		CardData.CardType.TECH: scene = _TECH_GLB
-		CardData.CardType.SECTOR: scene = _SECTOR_GLB
-		CardData.CardType.EXPEDITION: scene = _EXPEDITION_GLB
-	if not scene:
-		return
-	_card_glb = scene.instantiate()
-	_card_glb.scale = Vector3(14.0, 14.0, 7.0)
-	_card_glb.visible = false
-	add_child(_card_glb)
-	_face_surface = _card_glb.find_child("*screen_image*", true, false) as MeshInstance3D
 
 func _apply_texture(tex: Texture2D) -> void:
 	var mat: ShaderMaterial = card_mesh.get_surface_override_material(0) as ShaderMaterial
