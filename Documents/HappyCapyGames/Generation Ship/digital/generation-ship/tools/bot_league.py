@@ -23,6 +23,9 @@ EXPEDITION_SKIP = {"Stars", "Faceup archived", "Facedown archived", "Stored supp
 EXTRA = ["--bv-" + a for a in (sys.argv[sys.argv.index("--bv") + 1].split(",") if "--bv" in sys.argv else [])]
 
 
+TRACE = "--trace" in sys.argv
+
+
 def arg(name, default):
     if name in sys.argv:
         return sys.argv[sys.argv.index(name) + 1]
@@ -35,6 +38,11 @@ def play(tag, seed, diff, speed, out_path, log_dir):
            "--botsim-out=" + os.path.join(log_dir, "g%d.json" % seed).replace("\\", "/")] + EXTRA
     t0 = time.time()
     try:
+        if TRACE:   # the bots' decisions (TURN/PLAN/ACT/... lines) per game, for tools/bot_league_calib.py
+            cmd.append("--botsim-trace")
+            with open(os.path.join(log_dir, "g%d.out" % seed), "w", encoding="utf-8", errors="replace") as out:
+                subprocess.run(cmd, stdout=out, stderr=subprocess.DEVNULL, timeout=600)
+            return seed, time.time() - t0, None
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=600)
         return seed, time.time() - t0, None
     except subprocess.TimeoutExpired:

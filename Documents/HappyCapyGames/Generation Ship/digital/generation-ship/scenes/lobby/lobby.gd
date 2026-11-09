@@ -7,7 +7,7 @@ signal lobby_view_requested
 const MAX_PLAYERS: int = 4
 const SETTINGS_PATH: String = "user://settings.cfg"
 const LOBBY_REFRESH_INTERVAL: float = 5.0
-const BOT_NAMES: Array[String] = ["Rusty", "Circuit", "Quantum"]  # Easy, Normal, Hard — proper nouns, not translated; original names, not references to copyrighted characters/products
+const BOT_NAMES: Array[String] = ["Rusty", "Circuit", "Quantum", "Singularity"]  # Easy, Normal, Hard, Very Hard — proper nouns, not translated; original names, not references to copyrighted characters/products
 const Showcase = preload("res://scripts/game/showcase.gd")   # --showcase: the screenshot bots' names
 # Online rooms live on the Happy Capy Games server (digital/server/app/relay.py),
 # shared by Steam and Android players. Only rooms of the same game version
@@ -188,6 +188,7 @@ func _show_staging() -> void:
 		_diff_btn.add_item(tr("Easy"))
 		_diff_btn.add_item(tr("Normal"))
 		_diff_btn.add_item(tr("Hard"))
+		_diff_btn.add_item(tr("Very Hard"))
 		_diff_btn.selected = 1
 		_diff_btn.custom_minimum_size = Vector2(100, 44)
 		_diff_btn.add_theme_font_size_override("font_size", 18)

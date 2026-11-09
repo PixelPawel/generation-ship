@@ -3,7 +3,7 @@ extends RefCounted
 const FleetRules = preload("res://scripts/game/fleet_rules.gd")
 const BotValue = preload("res://scripts/game/bot_value.gd")   # Hard/Normal: plays valued in projected final VP
 
-enum Difficulty { EASY = 0, NORMAL = 1, HARD = 2 }
+enum Difficulty { EASY = 0, NORMAL = 1, HARD = 2, VERY_HARD = 3 }
 
 const TECH_CAPACITY: int = 5   # matches SectorSlot's 5 tech-slot children
 const MAX_SECTORS: int = 6     # matches the "max 6 sectors" ship rule
@@ -18,11 +18,13 @@ static func skills_for(difficulty: int) -> Dictionary:
 	match difficulty:
 		# value_model: plays valued in projected final VP (BotValue, 2026-11-09); foresight = how much of the
 		# remaining game the projection sees; bid_scale = how close to that worth it bids
-		Difficulty.HARD:
+		# planner: plays tried out in BotTurn's sandbox and searched several deep (BotPlanner); Very Hard
+		# follows more lines further
+		Difficulty.HARD, Difficulty.VERY_HARD:
 			return {
 				rich_valuation = true, optimize_aware = true, fuse = "proactive",
 				recycle = true, bid_ev = true, can_research = true, smart_research = true,
-				randomness = 0.0, value_model = true, foresight = 1.0, bid_scale = 1.0,
+				randomness = 0.0, value_model = true, foresight = 1.0, bid_scale = 1.0, planner = true,
 			}
 		Difficulty.NORMAL:
 			return {

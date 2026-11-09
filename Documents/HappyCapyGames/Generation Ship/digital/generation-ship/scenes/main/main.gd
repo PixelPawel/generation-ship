@@ -1315,6 +1315,8 @@ func _rpc_round_ready(first: int) -> void:
 	_refresh_all_opp_status_labels()
 	if multiplayer.is_server() and GameNetwork.is_bot(first):
 		BotTurn.run_bot_turn(self, first)
+	if BotSim.active():
+		BotSim.auto_pass(self)   # (the player's seat is first this Generation)
 
 # ── Multiplayer state broadcast ───────────────────────────────────────────────
 

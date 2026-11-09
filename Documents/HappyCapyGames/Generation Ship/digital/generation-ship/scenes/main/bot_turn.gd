@@ -2,6 +2,7 @@ class_name BotTurn
 extends RefCounted
 const FleetRules = preload("res://scripts/game/fleet_rules.gd")
 const FleetFlow = preload("res://scenes/main/fleet_flow.gd")
+const BotPlanner = preload("res://scripts/game/bot_planner.gd")   # Hard/Very Hard: sandbox search
 
 # Server-side orchestration for AI-controlled players: owns bot hand/supply/
 # board state on the Main node and executes the plays BotAI decides on.
@@ -27,7 +28,7 @@ static func init_bot_state(main: Main) -> void:
 			int(CardData.SupplyColor.THRUST):   0,
 		}
 		main.bot_supplies[bot_id] = supply
-		main.bot_hands[bot_id] = main.get_node("Board").draw_card_data(6)
+		main.bot_hands[bot_id] = _draw(main, 6)
 		main.bot_boards[bot_id] = []
 
 static func update_bots_for_new_round(main: Main) -> void:
@@ -35,7 +36,7 @@ static func update_bots_for_new_round(main: Main) -> void:
 		# draw 6 more and keep the hand: there is no hand maximum (rule book p4; the bots threw
 		# their whole hand away every Generation)
 		var hand: Array[CardData] = bot_hand(main, bot_id)
-		hand.append_array(main.get_node("Board").draw_card_data(6))
+		hand.append_array(_draw(main, 6))
 		bot_set_hand(main, bot_id, hand)
 		# the last Generation's income, as for the humans (Main._apply_supply_generation): 1 supply
 		# per card on the ship in its colour (the sector by its visible side), not +1 of every colour
@@ -128,12 +129,32 @@ static func run_bot_turn(main: Main, bot_id: int) -> void:
 		print("TURN g%d %s sup %s total %d hand %d ship %d" % [main._round, GameNetwork.player_names.get(bot_id, "?"),
 				str(supplies.values()), BotScoring.slot_total_stored({}) + supplies.values().reduce(func(a: int, b: Variant) -> int: return a + int(b), 0),
 				hand.size(), n_cards])
+		var hs: PackedStringArray = []
+		for c: CardData in hand:
+			hs.append("%s(%s%d)" % [c.card_name, CardData.color_name(c.color).left(2), c.cost])
+		var bs: PackedStringArray = []
+		for e_v: Variant in board:
+			var e: Dictionary = e_v as Dictionary
+			var sec: CardData = e.get("sector") as CardData
+			var ts: PackedStringArray = []
+			for t: Variant in (e.get("techs", []) as Array):
+				ts.append((t as CardData).card_name if t is CardData else "x")
+			bs.append("%s%s[%s]o%d/%d t%d s%d" % [(sec.adv_name if bool(e.get("is_advanced", false)) else sec.card_name), "*" if bool(e.get("is_advanced", false)) else "",
+					",".join(ts), int(e.get("optimize_count", 0)), int(e.get("max_optimizations", 0)), (e.get("tucked_cards", []) as Array).size(), BotScoring.slot_total_stored(e)])
+		print("HAND %s | SHIP %s" % [", ".join(hs), " ; ".join(bs)])
 
 	var action: Dictionary = {}
 	if bool(BotAI.skills_for(difficulty).get("value_model", false)) and not GameNetwork.fleet_mode:
-		# Hard/Normal: the best play worth its supply and the fuses/recycles that pay for it (BotAI.plan_turn)
-		var plan: Dictionary = BotAI.plan_turn(difficulty, hand, supplies, board, main._round,
-				market_sectors, market_expeditions, market_adv_auction)
+		var plan: Dictionary = {}
+		if bool(BotAI.skills_for(difficulty).get("planner", false)):
+			# Hard/Very Hard: plays tried out in the sandbox and searched several deep (BotPlanner)
+			plan = await BotPlanner.plan(main, bot_id, difficulty)
+			if GameNetwork.active_peer_id != bot_id or main._game_finished:
+				return
+		else:
+			# Normal: the best play worth its supply and the fuses/recycles that pay for it (BotAI.plan_turn)
+			plan = BotAI.plan_turn(difficulty, hand, supplies, board, main._round,
+					market_sectors, market_expeditions, market_adv_auction)
 		for st_v: Variant in (plan.get("free", []) as Array):
 			var st: Dictionary = st_v as Dictionary
 			if OS.get_cmdline_user_args().has("--botsim-trace"):
@@ -235,12 +256,16 @@ static func bot_buy_sector(main: Main, bot_id: int, card_data: CardData) -> void
 	var cost: int = max(0, card_data.cost) + FleetRules.cost_increase(card_data)
 	BotAI.pay_supplies(main.bot_supplies[bot_id] as Dictionary, int(card_data.color), cost)
 	# off every market, not only the host's (online players could buy the same card)
-	if GameNetwork.is_multiplayer:
+	if _sim:
+		pass
+	elif GameNetwork.is_multiplayer:
 		main._rpc_sync_market_removal.rpc(CardRef.to_ref(card_data))
 	else:
 		main.get_node("Board").get_market().remove_card(card_data)
 	main.bot_boards[bot_id].append(_new_slot_entry(card_data, false))
 	_bot_sector_placed(main, bot_id, card_data, false)
+	if _sim:
+		return
 	var _bname: String = GameNetwork.player_names.get(bot_id, main.tr("Bot"))
 	main._broadcast_log(main.tr("%s: bought %s") % [_bname, card_data.card_name], CardData.color_tint(card_data.color))
 
@@ -274,6 +299,8 @@ static func bot_place_tech(main: Main, bot_id: int, card_data: CardData, slot_id
 	var cost: int = BotAI.tech_cost(card_data, main.bot_boards.get(bot_id, []) as Array, slot_idx)
 	BotAI.pay_supplies(main.bot_supplies[bot_id] as Dictionary, int(card_data.color), cost)
 	_attach_stack_card(main, bot_id, slot_idx, card_data)
+	if _sim:
+		return
 	var _bname: String = GameNetwork.player_names.get(bot_id, main.tr("Bot"))
 	main._broadcast_log(main.tr("%s: placed %s") % [_bname, card_data.card_name], CardData.color_tint(card_data.color))
 
@@ -381,11 +408,11 @@ static func bot_do_research(main: Main, bot_id: int, pick: CardData = null) -> v
 		return
 	if pick != null and hand.has(pick):
 		hand.erase(pick)
-		main.get_node("Board").add_to_discard(pick)
+		_discard(main, pick)
 	else:
 		hand.sort_custom(func(a: CardData, b: CardData) -> bool: return a.cost < b.cost)
-		main.get_node("Board").add_to_discard(hand.pop_front())
-	hand.append_array(main.get_node("Board").draw_card_data(1))
+		_discard(main, hand.pop_front())
+	hand.append_array(_draw(main, 1))
 	bot_set_hand(main, bot_id, hand)
 
 
@@ -399,6 +426,8 @@ static func bot_fuse(main: Main, bot_id: int, source: int, target: int) -> void:
 		return
 	main.bot_supplies[bot_id][source] = max(0, (main.bot_supplies[bot_id].get(source, 0) as int) - 2)
 	main.bot_supplies[bot_id][target] = (main.bot_supplies[bot_id].get(target, 0) as int) + 1
+	if _sim:
+		return
 	var _bname: String = GameNetwork.player_names.get(bot_id, main.tr("Bot"))
 	main._broadcast_log(
 		main.tr("%s: fused %s → %s") % [_bname, CardData.color_name(source as CardData.SupplyColor), CardData.color_name(target as CardData.SupplyColor)],
@@ -412,7 +441,9 @@ static func bot_recycle(main: Main, bot_id: int, card: CardData) -> void:
 	hand.erase(card)
 	bot_set_hand(main, bot_id, hand)
 	_bot_gain_recycle(main, bot_id, card)
-	main.get_node("Board").add_to_discard(card)
+	_discard(main, card)
+	if _sim:
+		return
 	var _bname: String = GameNetwork.player_names.get(bot_id, main.tr("Bot"))
 	main._broadcast_log(main.tr("%s: recycled %s") % [_bname, card.card_name], CardData.color_tint(card.color))
 
@@ -444,6 +475,90 @@ static func broadcast_bot_states(main: Main) -> void:
 # their own deck, no passing.
 static var _bot_last_drawn: Array[CardData] = []   # the last "draw" (for "…1 of them" steps)
 
+# ── Planning sandbox (BotPlanner, 2026-11-09) ────────────────────────────────
+# Hard/Very Hard bots try their plays out before choosing: sim_apply runs the REAL functions above
+# (bot_place_tech, bot_buy_sector, the whole effect resolver) on a copy of the bot's ship, supplies and
+# hand, with _sim set: no logs, no market changes, no discards, and a draw brings face-down "unknown"
+# cards instead of touching the deck (a bot doesn't get to peek). Synchronous: the bot's real state is
+# back in place before anything else runs.
+static var _sim: bool = false
+static var _unknowns: Array[CardData] = []
+static var _unknown_i: int = 0
+const UNKNOWN: String = "?"
+# colours of unknown draws, in about the deck's mix (CardData.SupplyColor)
+const _UNKNOWN_CYCLE: Array[int] = [2, 0, 1, 3, 4, 0, 2, 5, 1, 3, 4, 0, 2, 1]
+
+static func is_unknown(cd: CardData) -> bool:
+	return cd.card_name == UNKNOWN
+
+static func _draw(main: Main, count: int) -> Array[CardData]:
+	if not _sim:
+		return main.get_node("Board").draw_card_data(count)
+	if _unknowns.is_empty():
+		for c: int in 6:
+			var u: CardData = CardData.new()
+			u.card_name = UNKNOWN
+			u.card_type = CardData.CardType.TECH
+			u.color = c as CardData.SupplyColor
+			u.cost = 2
+			u.trigger_type = CardData.TriggerType.ALWAYS
+			_unknowns.append(u)
+	var out: Array[CardData] = []
+	for _i: int in count:
+		out.append(_unknowns[_UNKNOWN_CYCLE[_unknown_i % _UNKNOWN_CYCLE.size()]])
+		_unknown_i += 1
+	return out
+
+static func _discard(main: Main, cd: CardData) -> void:
+	if not _sim:
+		main.get_node("Board").add_to_discard(cd)
+
+## state {board, supplies, hand} after action on it (state itself is left alone). action: free = the
+## fuses/recycles first ([{fuse: {source, target}} | {recycle: CardData}]), then type place_tech
+## (card, slot_idx) | buy_sector (card) | win_expedition (card, slot_idx, price, color) |
+## win_adv_sector (card, price, color) | none.
+static func sim_apply(main: Main, bot_id: int, state: Dictionary, action: Dictionary) -> Dictionary:
+	var real_board: Variant = main.bot_boards.get(bot_id)
+	var real_supplies: Variant = main.bot_supplies.get(bot_id)
+	var real_hand: Variant = main.bot_hands.get(bot_id)
+	var real_last: Array[CardData] = _bot_last_drawn
+	main.bot_boards[bot_id] = BotAI.BotValue.copy_board(state["board"] as Array)
+	main.bot_supplies[bot_id] = (state["supplies"] as Dictionary).duplicate()
+	var sim_hand: Array[CardData] = []
+	sim_hand.assign(state["hand"] as Array)
+	main.bot_hands[bot_id] = sim_hand
+	_sim = true
+	_unknown_i = int(state.get("unknown_i", 0))
+	for st_v: Variant in (action.get("free", []) as Array):
+		var st: Dictionary = st_v as Dictionary
+		if st.has("fuse"):
+			var f: Dictionary = st["fuse"] as Dictionary
+			bot_fuse(main, bot_id, int(f["source"]), int(f["target"]))
+		elif st.has("recycle"):
+			bot_recycle(main, bot_id, st["recycle"] as CardData)
+	match str(action.get("type", "")):
+		"place_tech":
+			bot_place_tech(main, bot_id, action["card"] as CardData, int(action["slot_idx"]))
+		"buy_sector":
+			bot_buy_sector(main, bot_id, action["card"] as CardData)
+		"win_expedition":
+			BotAI.pay_supplies(main.bot_supplies[bot_id] as Dictionary, int(action["color"]), int(action["price"]))
+			_attach_stack_card(main, bot_id, int(action["slot_idx"]), action["card"] as CardData)
+		"win_adv_sector":
+			BotAI.pay_supplies(main.bot_supplies[bot_id] as Dictionary, int(action["color"]), int(action["price"]))
+			(main.bot_boards[bot_id] as Array).append(_new_slot_entry(action["card"] as CardData, true))
+			_bot_sector_placed(main, bot_id, action["card"] as CardData, true)
+	_sim = false
+	var out: Dictionary = {
+		"board": main.bot_boards[bot_id], "supplies": main.bot_supplies[bot_id],
+		"hand": bot_hand(main, bot_id), "unknown_i": _unknown_i,
+	}
+	main.bot_boards[bot_id] = real_board
+	main.bot_supplies[bot_id] = real_supplies
+	main.bot_hands[bot_id] = real_hand
+	_bot_last_drawn = real_last
+	return out
+
 static func apply_bot_effect_steps(main: Main, bot_id: int, steps: Array[Dictionary], slot_idx: int = -1) -> void:
 	for step: Dictionary in steps:
 		FleetFlow.bot_auto_solve(main)   # a free solve met by an earlier step counts before this one
@@ -452,19 +567,19 @@ static func apply_bot_effect_steps(main: Main, bot_id: int, steps: Array[Diction
 		match String(step.get("type", "")):
 			"draw":
 				var hand: Array[CardData] = bot_hand(main, bot_id)
-				var drawn: Array[CardData] = main.get_node("Board").draw_card_data(int(step.get("count", 1)))
+				var drawn: Array[CardData] = _draw(main, int(step.get("count", 1)))
 				_bot_last_drawn = drawn.duplicate()
 				hand.append_array(drawn)
 				bot_set_hand(main, bot_id, hand)
 			"draw_recycle_top":
 				# Passing Comet "Draw 1, then recycle it": the supply, not a hand card (Board.draw_and_recycle_top)
-				for cd: CardData in main.get_node("Board").draw_card_data(1):
+				for cd: CardData in _draw(main, 1):
 					if FleetRules.blocks_recycle(int(cd.color)):   # Fleet: it stays in hand then
 						var keep: Array[CardData] = bot_hand(main, bot_id)
 						keep.append(cd)
 						bot_set_hand(main, bot_id, keep)
 					else:
-						main.get_node("Board").add_to_discard(cd)
+						_discard(main, cd)
 						_bot_gain_recycle(main, bot_id, cd)
 			"draw_all_players", "interfleet_comms":
 				# Unlike a plain "draw", this must also reach every real peer
@@ -475,7 +590,10 @@ static func apply_bot_effect_steps(main: Main, bot_id: int, steps: Array[Diction
 				# see the comment on this function for why.
 				var count: int = 1 if step.get("type") == "interfleet_comms" else int(step.get("count", 1))
 				var source: String = str(step.get("_source_name", "Effect"))
-				main._server_handle_draw_all_players(count, bot_id, source)
+				if _sim:
+					_bot_draw(main, bot_id, count)   # (the others' draws don't matter to the plan)
+				else:
+					main._server_handle_draw_all_players(count, bot_id, source)
 			"gain_supply":
 				_bot_gain(main, bot_id, int(step.get("color", 0)), int(step.get("amount", 1)))
 			"gain_supply_per_stored":
@@ -489,7 +607,9 @@ static func apply_bot_effect_steps(main: Main, bot_id: int, steps: Array[Diction
 			"store_on_slot":
 				_bot_store(main, bot_id, slot_idx, int(step.get("color", 0)), int(step.get("amount", 1)))
 			"store_on_any_sector":
-				_bot_store(main, bot_id, _bot_any_slot(main, bot_id), int(step.get("color", 0)), int(step.get("amount", 1)))
+				# one at a time, each where it scores most ("on any sectors": they may be split)
+				for _n: int in int(step.get("amount", 1)):
+					_bot_store(main, bot_id, _bot_best_slot(main, bot_id, int(step.get("color", 0))), int(step.get("color", 0)), 1)
 			"store_per_card_here":
 				if slot_idx >= 0 and slot_idx < main.bot_boards[bot_id].size():
 					for color: int in BotScoring.slot_effective_placed_colors(main.bot_boards[bot_id][slot_idx] as Dictionary):
@@ -505,7 +625,9 @@ static func apply_bot_effect_steps(main: Main, bot_id: int, steps: Array[Diction
 				if tucked_n > 0 and not restrict_t and not bool(step.get("no_bonus_draw", false)):
 					_bot_draw(main, bot_id, tucked_n)
 			"tuck_any_sector_optional":
-				_bot_tuck(main, bot_id, _bot_any_slot(main, bot_id), int(step.get("max", 1)), bool(step.get("face_up", false)), true)
+				for _n: int in int(step.get("max", 1)):
+					if _bot_tuck(main, bot_id, _bot_best_slot(main, bot_id, -1), 1, bool(step.get("face_up", false)), true) == 0:
+						break
 			"recycle":
 				_bot_recycle_n(main, bot_id, int(step.get("count", 1)), 1, bool(step.get("restrict_to_drawn", false)))
 			"recycle_optional":
@@ -568,14 +690,14 @@ static func _bot_fuse_1to1(main: Main, bot_id: int, count: int, dust_only: bool)
 		supplies[best_s] = int(supplies.get(best_s, 0)) - 1
 		supplies[best_t] = int(supplies.get(best_t, 0)) + 1
 		done += 1
-	if done > 0 and OS.get_cmdline_user_args().has("--botsim-trace"):
+	if done > 0 and not _sim and OS.get_cmdline_user_args().has("--botsim-trace"):
 		print("FUSE1 g%d %s %d" % [main._round, GameNetwork.player_names.get(bot_id, "?"), done])
 
 static func _bot_draw(main: Main, bot_id: int, count: int) -> void:
 	if count <= 0:
 		return
 	var hand: Array[CardData] = bot_hand(main, bot_id)
-	hand.append_array(main.get_node("Board").draw_card_data(count))
+	hand.append_array(_draw(main, count))
 	bot_set_hand(main, bot_id, hand)
 
 ## A supply a bot gains: none under a Danger that blocks that colour's gains (as SupplyUI.add_supply).
@@ -694,7 +816,7 @@ static func _bot_hitchhiker_resolve(main: Main, bot_id: int, slot_idx: int, colo
 				int(slot.get("last_placed_tech_cost", 0)))
 	var hitchhiker: CardData = techs[k] as CardData
 	techs.remove_at(k)
-	main.get_node("Board").add_to_discard(hitchhiker)
+	_discard(main, hitchhiker)
 	_bot_revalidate_optimize(main, bot_id, slot_idx)
 	for _lvl: int in triggered.size():
 		apply_bot_effect_steps(main, bot_id, opt_steps, slot_idx)
@@ -724,17 +846,17 @@ static func _bot_ice9(main: Main, bot_id: int) -> void:
 	var gone: CardData = stack[best_idx] as CardData
 	stack.remove_at(best_idx)
 	_bot_gain_recycle(main, bot_id, gone)
-	main.get_node("Board").add_to_discard(gone)   # (only techs go back; an expedition leaves the game)
+	_discard(main, gone)   # (only techs go back; an expedition leaves the game)
 	_bot_revalidate_optimize(main, bot_id, best_slot)
 
 # Earth Support "Predict a color, draw 6, keep any of that color, discard the rest."
 static func _bot_earth_support(main: Main, bot_id: int, color: int) -> void:
 	var hand: Array[CardData] = bot_hand(main, bot_id)
-	for cd: CardData in main.get_node("Board").draw_card_data(6):
+	for cd: CardData in _draw(main, 6):
 		if int(cd.color) == color:
 			hand.append(cd)
 		else:
-			main.get_node("Board").add_to_discard(cd)
+			_discard(main, cd)
 	bot_set_hand(main, bot_id, hand)
 
 
@@ -751,6 +873,32 @@ static func _bot_store(main: Main, bot_id: int, slot_idx: int, color: int, amoun
 static func _bot_any_slot(main: Main, bot_id: int) -> int:
 	var board: Array = main.bot_boards.get(bot_id, []) as Array
 	return 0 if not board.is_empty() else -1
+
+## The sector where one more stored supply of color (or, color -1, one more archived card) scores most
+## by the game's own scoring (Astra Cultura's Thrust, Greenhouse's Liquids, what the bot's expeditions
+## pay for). Nothing in it yet: pairs first (the cards that pay per sector want 2+ on it), then a sector
+## with none. It used to be the first sector, always.
+static func _bot_best_slot(main: Main, bot_id: int, color: int) -> int:
+	var board: Array = main.bot_boards.get(bot_id, []) as Array
+	var best: int = -1
+	var best_score: float = -INF
+	for i: int in board.size():
+		var trial: Array = BotAI.BotValue.copy_board(board)
+		var slot: Dictionary = trial[i] as Dictionary
+		var have: int = 0
+		if color >= 0:
+			var stored: Dictionary = slot["stored_supply"] as Dictionary
+			have = BotScoring.slot_total_stored(slot)
+			stored[color] = int(stored.get(color, 0)) + 1
+		else:
+			have = (slot["tucked_cards"] as Array).size()
+			(slot["tucked_cards"] as Array).append({"data": null, "face_up": false})
+		var score: float = float(BotScoring.board_vp(trial))
+		score += 0.3 if have == 1 else (0.2 if have == 0 else 0.0)
+		if score > best_score:
+			best_score = score
+			best = i
+	return best
 
 # Archives up to count hand cards under bot slot slot_idx; returns how many. Face down: the least
 # valuable cards. Face up an archived card scores its printed stars: the most starred ones (an
@@ -795,7 +943,7 @@ static func _bot_recycle_n(main: Main, bot_id: int, count: int, mult: int = 1, r
 	for i: int in n:
 		hand.erase(pool[i])
 		_bot_gain_recycle(main, bot_id, pool[i], mult)
-		main.get_node("Board").add_to_discard(pool[i])
+		_discard(main, pool[i])
 	bot_set_hand(main, bot_id, hand)
 	return n
 
@@ -840,10 +988,27 @@ static func bot_decide_bid(main: Main, bot_id: int) -> void:
 	if not placeable:
 		main._server_handle_pass_bid(bot_id)
 		return
-	var new_bid: int = BotAI.decide_bid(
-		GameNetwork.bot_difficulty.get(bot_id, BotAI.Difficulty.EASY),
-		main._auction_current_bid, main.bot_supplies.get(bot_id, {}), cd, main._auction_is_adv,
-		main.bot_boards.get(bot_id, []) as Array, int(main._auction_cost_color), main._round)
+	var bid_difficulty: int = GameNetwork.bot_difficulty.get(bot_id, BotAI.Difficulty.EASY)
+	var new_bid: int = 0
+	if bool(BotAI.skills_for(bid_difficulty).get("planner", false)) and not GameNetwork.fleet_mode:
+		# Hard/Very Hard: one more while winning at that price still beats not winning (BotPlanner)
+		var next_bid: int = main._auction_current_bid + 1
+		var budget: int = 0
+		for c: CardData.SupplyColor in CardData.valid_payment_colors(main._auction_cost_color):
+			budget += int((main.bot_supplies.get(bot_id, {}) as Dictionary).get(int(c), 0))
+		if next_bid <= budget:
+			var seen_bid: int = main._auction_current_bid
+			var raise: bool = await BotPlanner.should_bid(main, bot_id, cd, main._auction_is_adv, next_bid, int(main._auction_cost_color))
+			# (it thought over a few frames: only if the auction still stands where it stood)
+			if not main._auction_active or main._auction_current_bid != seen_bid or CardRef.from_ref(main._auction_card_ref) != cd:
+				return
+			if raise:
+				new_bid = next_bid
+	else:
+		new_bid = BotAI.decide_bid(
+			bid_difficulty,
+			main._auction_current_bid, main.bot_supplies.get(bot_id, {}), cd, main._auction_is_adv,
+			main.bot_boards.get(bot_id, []) as Array, int(main._auction_cost_color), main._round)
 	if new_bid > 0:
 		main._server_handle_raise(bot_id, new_bid)
 	else:
@@ -879,13 +1044,17 @@ static func bot_resolve_auction_win(
 		main.get_node("Board").remove_market_card(cd)
 	if is_tech:
 		var difficulty: int = GameNetwork.bot_difficulty.get(bot_id, BotAI.Difficulty.EASY)
-		var slot_idx: int = BotAI.pick_stack_slot(board, cd, difficulty, main._round)
+		var slot_idx: int = -1
+		if bool(BotAI.skills_for(difficulty).get("planner", false)) and not GameNetwork.fleet_mode:
+			slot_idx = BotPlanner.best_slot(main, bot_id, cd)
+		if slot_idx == -1:
+			slot_idx = BotAI.pick_stack_slot(board, cd, difficulty, main._round)
 		if slot_idx == -1:
 			# No room anywhere — shouldn't normally happen since bots only bid
 			# when they have somewhere to put the card. Recycle it for supply
 			# rather than lose it silently.
 			_bot_gain_recycle(main, bot_id, cd)
-			main.get_node("Board").add_to_discard(cd)
+			_discard(main, cd)
 		else:
 			_attach_stack_card(main, bot_id, slot_idx, cd)
 	elif board.size() < BotAI.MAX_SECTORS:
@@ -970,7 +1139,7 @@ static func bot_fleet_pay_pledges(main: Main) -> void:
 	for bot_id: int in _fleet_pledges:
 		var plan: Dictionary = _fleet_pledges[bot_id]
 		for cd: Variant in plan.get("cards", []) as Array:
-			main.get_node("Board").add_to_discard(cd as CardData)
+			_discard(main, cd as CardData)
 	_fleet_pledges.clear()
 	broadcast_bot_states(main)
 
@@ -1084,7 +1253,7 @@ static func _bot_fleet_apply(main: Main, bot_id: int, eff: Dictionary) -> void:
 		"discard":
 			var hand: Array[CardData] = bot_hand(main, bot_id)
 			for i: int in mini(n, hand.size()):
-				main.get_node("Board").add_to_discard(hand.pop_back())
+				_discard(main, hand.pop_back())
 			bot_set_hand(main, bot_id, hand)
 		"remove_fewest_sector":
 			var fewest: int = -1
@@ -1097,7 +1266,7 @@ static func _bot_fleet_apply(main: Main, bot_id: int, eff: Dictionary) -> void:
 				for t: Variant in (board[fewest] as Dictionary).get("techs", []) as Array:
 					var tcd: CardData = (t as CardData) if t is CardData else ((t as Dictionary).get("data") as CardData)
 					if tcd and tcd.card_type == CardData.CardType.TECH:
-						main.get_node("Board").add_to_discard(tcd)
+						_discard(main, tcd)
 				board.remove_at(fewest)
 
 static func _bot_option_possible(main: Main, bot_id: int, o: Dictionary) -> bool:
