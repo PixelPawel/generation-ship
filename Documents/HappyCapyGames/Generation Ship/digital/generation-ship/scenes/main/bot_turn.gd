@@ -112,24 +112,54 @@ static func run_bot_turn(main: Main, bot_id: int) -> void:
 	var market_expeditions: Array[CardData] = main.get_node("Board").get_available_expeditions()
 	# Generation Fleet: advanced sectors are bought at their printed cost, like expeditions
 	var market_adv: Array[CardData] = []
+	# Versus: the advanced sectors are auctioned (Hard/Normal start auctions for them, 2026-11-09)
+	var market_adv_auction: Array[CardData] = []
 	if GameNetwork.fleet_mode:
 		market_adv = main.get_node("Board").get_available_advanced_sectors()
+	else:
+		market_adv_auction = main.get_node("Board").get_available_advanced_sectors()
 	var board: Array = main.bot_boards.get(bot_id, []) as Array
 	var supplies: Dictionary = main.bot_supplies.get(bot_id, {}) as Dictionary
 	var hand: Array[CardData] = bot_hand(main, bot_id)
+	if OS.get_cmdline_user_args().has("--botsim-trace"):   # tools/bot_league.py tuning
+		var n_cards: int = 0
+		for e_v: Variant in board:
+			n_cards += 1 + ((e_v as Dictionary).get("techs", []) as Array).size()
+		print("TURN g%d %s sup %s total %d hand %d ship %d" % [main._round, GameNetwork.player_names.get(bot_id, "?"),
+				str(supplies.values()), BotScoring.slot_total_stored({}) + supplies.values().reduce(func(a: int, b: Variant) -> int: return a + int(b), 0),
+				hand.size(), n_cards])
 
-	# Free actions first: fuse toward the best play, then (Hard only) recycle
-	# a dead hand card if that's what's actually blocking a play.
-	for f: Dictionary in BotAI.suggest_fuses(difficulty, hand, supplies, board, market_sectors):
-		bot_fuse(main, bot_id, int(f["source"]), int(f["target"]))
-
-	var action: Dictionary = BotAI.decide_action(difficulty, hand, supplies, board, main._round, market_sectors, market_expeditions, market_adv)
-	if String(action.get("type", "pass")) in ["pass", "research"]:
-		var recycle_card: CardData = BotAI.suggest_recycle(difficulty, hand, supplies, board, market_sectors)
+	var action: Dictionary = {}
+	if bool(BotAI.skills_for(difficulty).get("value_model", false)) and not GameNetwork.fleet_mode:
+		# Hard/Normal: the best play worth its supply and the fuses/recycles that pay for it (BotAI.plan_turn)
+		var plan: Dictionary = BotAI.plan_turn(difficulty, hand, supplies, board, main._round,
+				market_sectors, market_expeditions, market_adv_auction)
+		for st_v: Variant in (plan.get("free", []) as Array):
+			var st: Dictionary = st_v as Dictionary
+			if OS.get_cmdline_user_args().has("--botsim-trace"):
+				print("FREE g%d %s %s" % [main._round, GameNetwork.player_names.get(bot_id, "?"),
+						("fuse %d->%d" % [int((st["fuse"] as Dictionary)["source"]), int((st["fuse"] as Dictionary)["target"])]) if st.has("fuse") else ("recycle " + (st["recycle"] as CardData).card_name)])
+			if st.has("fuse"):
+				var f: Dictionary = st["fuse"] as Dictionary
+				bot_fuse(main, bot_id, int(f["source"]), int(f["target"]))
+			elif st.has("recycle"):
+				bot_recycle(main, bot_id, st["recycle"] as CardData)
+		action = plan.get("action", {type = "pass"}) as Dictionary
+		if OS.get_cmdline_user_args().has("--botsim-trace"):
+			print("ACT g%d %s %s %s" % [main._round, GameNetwork.player_names.get(bot_id, "?"), str(action.get("type", "")),
+					(action["card"] as CardData).card_name if action.get("card") is CardData else ""])
+	else:
+		# Free actions first: fuse toward the best play, then (Hard only) recycle
+		# a dead hand card if that's what's actually blocking a play.
+		for f: Dictionary in BotAI.suggest_fuses(difficulty, hand, supplies, board, market_sectors, main._round):
+			bot_fuse(main, bot_id, int(f["source"]), int(f["target"]))
+		action = BotAI.decide_action(difficulty, hand, supplies, board, main._round, market_sectors, market_expeditions, market_adv, market_adv_auction)
+	if String(action.get("type", "pass")) in ["pass", "research"] and not bool(BotAI.skills_for(difficulty).get("value_model", false)):
+		var recycle_card: CardData = BotAI.suggest_recycle(difficulty, hand, supplies, board, market_sectors, main._round)
 		if recycle_card:
 			bot_recycle(main, bot_id, recycle_card)
 			hand = bot_hand(main, bot_id)
-			action = BotAI.decide_action(difficulty, hand, supplies, board, main._round, market_sectors, market_expeditions, market_adv)
+			action = BotAI.decide_action(difficulty, hand, supplies, board, main._round, market_sectors, market_expeditions, market_adv, market_adv_auction)
 
 	match String(action.get("type", "pass")):
 		"buy_sector":
@@ -161,13 +191,18 @@ static func run_bot_turn(main: Main, bot_id: int) -> void:
 			# input. Main._rpc_sync_auction_placement_pending ends this bot's
 			# turn once that fully settles, mirroring how a human initiator's
 			# turn stays open until their auction is done.
+		"start_auction_adv":   # Versus: an advanced sector (as start_auction: the auction ends the turn)
+			bot_start_adv_auction(main, bot_id, action["card"] as CardData)
+			broadcast_bot_states(main)
 		"research":
 			bot_do_research(main, bot_id, action.get("card") as CardData)   # Hard: its smart pick
 			broadcast_bot_states(main)
 			# like a human's research: everyone logs it and sees the "is researching" banner
 			main._rpc_sync_opp_status.rpc(bot_id, "researching")
 			await main.get_tree().create_timer(0.3).timeout
-			bot_pass(main, bot_id)
+			# and like a human's, it only ends the turn: the bot is called again while others play on
+			# (it used to pass for the rest of the Generation, however much supply it still had)
+			main._server_handle_end_turn()
 		_:
 			bot_pass(main, bot_id)
 
@@ -483,6 +518,10 @@ static func apply_bot_effect_steps(main: Main, bot_id: int, steps: Array[Diction
 				_bot_ice9(main, bot_id)
 			"earth_support":
 				_bot_earth_support(main, bot_id, int(step.get("color", 0)))
+			"fuse_notice":   # "Fuse 1:1 x N": the humans get N tokens for this turn; a bot spends them now
+				_bot_fuse_1to1(main, bot_id, int(step.get("count", 1)), false)
+			"fuse_dust_1to1":   # Fusion Synthesizer: Dust fuses 1:1 this turn
+				_bot_fuse_1to1(main, bot_id, 99, true)
 			"placing_color":   # Galactic Hitchhiker's chosen colour
 				_bot_hitchhiker_resolve(main, bot_id, slot_idx, int(step.get("color", 0)))
 			"choice":
@@ -492,6 +531,45 @@ static func apply_bot_effect_steps(main: Main, bot_id: int, steps: Array[Diction
 					apply_bot_effect_steps(main, bot_id, BotScoring.to_dict_array((opts[pick] as Dictionary).get("steps", []) as Array), slot_idx)
 			_:
 				pass
+
+## 1:1 fuses (2026-11-09; they were a no-op for bots, and 8 card effects give them): each moves one supply
+## up a chain into the colour the hand needs most, from the colour with the most to spare. dust_only:
+## Fusion Synthesizer (Dust 1:1, as many as useful).
+static func _bot_fuse_1to1(main: Main, bot_id: int, count: int, dust_only: bool) -> void:
+	var supplies: Dictionary = main.bot_supplies.get(bot_id, {}) as Dictionary
+	var need: Dictionary = {}   # colour -> total cost of the hand cards of that colour
+	for cd: CardData in bot_hand(main, bot_id):
+		need[int(cd.color)] = int(need.get(int(cd.color), 0)) + maxi(1, cd.cost)
+	var done: int = 0
+	for _i: int in count:
+		var best_s: int = -1
+		var best_t: int = -1
+		var best_score: float = 0.0
+		for s: int in SupplyUI.FUSE_MAP:
+			if dust_only and s != CardData.SupplyColor.DUST:
+				continue
+			var have: int = int(supplies.get(s, 0))
+			var spare: int = have - int(need.get(s, 0))
+			if have <= 0 or FleetRules.blocks_fuse(s):
+				continue
+			for t_v: Variant in (SupplyUI.FUSE_MAP[s] as Array):
+				var t: int = int(t_v)
+				if FleetRules.blocks_fuse(t):
+					continue
+				var gap: int = int(need.get(t, 0)) - int(supplies.get(t, 0))
+				var score: float = (BotAI.BotValue.color_w(t) - BotAI.BotValue.color_w(s)) * (1.0 + maxf(0.0, float(gap))) \
+						+ (0.5 if spare > 0 else -0.5)
+				if score > best_score:
+					best_score = score
+					best_s = s
+					best_t = t
+		if best_s < 0:
+			break
+		supplies[best_s] = int(supplies.get(best_s, 0)) - 1
+		supplies[best_t] = int(supplies.get(best_t, 0)) + 1
+		done += 1
+	if done > 0 and OS.get_cmdline_user_args().has("--botsim-trace"):
+		print("FUSE1 g%d %s %d" % [main._round, GameNetwork.player_names.get(bot_id, "?"), done])
 
 static func _bot_draw(main: Main, bot_id: int, count: int) -> void:
 	if count <= 0:
@@ -738,6 +816,18 @@ static func bot_start_auction(main: Main, bot_id: int, card_data: CardData) -> v
 	# (logged once, for every peer, by _rpc_sync_auction_started as a human's auction)
 	main._server_start_auction(card_ref, -1, true, false, card_data.cost, int(card_data.color), bot_id)
 
+## Versus: a bot starts an advanced sector's auction, as a human does from the market panel. The card
+## leaves every market now (as a bot's expedition does); the winner gets it by reference.
+static func bot_start_adv_auction(main: Main, bot_id: int, card_data: CardData) -> void:
+	var board_node: Node = main.get_node("Board")
+	var card_ref: Dictionary = CardRef.to_ref(card_data)
+	if GameNetwork.is_multiplayer:
+		main._rpc_sync_market_removal.rpc(card_ref)
+	else:
+		board_node.remove_market_card(card_data)
+	board_node.set_major_action_taken()
+	main._server_start_auction(card_ref, -1, false, true, maxi(0, card_data.adv_cost), int(card_data.adv_color), bot_id)
+
 
 static func bot_decide_bid(main: Main, bot_id: int) -> void:
 	var cd: CardData = CardRef.from_ref(main._auction_card_ref)
@@ -753,7 +843,7 @@ static func bot_decide_bid(main: Main, bot_id: int) -> void:
 	var new_bid: int = BotAI.decide_bid(
 		GameNetwork.bot_difficulty.get(bot_id, BotAI.Difficulty.EASY),
 		main._auction_current_bid, main.bot_supplies.get(bot_id, {}), cd, main._auction_is_adv,
-		main.bot_boards.get(bot_id, []) as Array, int(main._auction_cost_color))
+		main.bot_boards.get(bot_id, []) as Array, int(main._auction_cost_color), main._round)
 	if new_bid > 0:
 		main._server_handle_raise(bot_id, new_bid)
 	else:
@@ -774,6 +864,9 @@ static func bot_resolve_auction_win(
 	var cd: CardData = CardRef.from_ref(card_ref)
 	if cd == null:
 		return
+	if OS.get_cmdline_user_args().has("--botsim-trace"):   # tools/bot_league.py tuning
+		print("WIN g%d %s %s for %d %s" % [main._round, GameNetwork.player_names.get(bot_id, "?"),
+				cd.adv_name if is_adv else cd.card_name, final_bid, CardData.color_name(cost_color)])
 	# the bid, paid along the colour's supply chain (as decide_bid budgets it)
 	BotAI.pay_supplies(main.bot_supplies[bot_id] as Dictionary, int(cost_color), maxi(0, final_bid))
 	var board: Array = main.bot_boards.get(bot_id, []) as Array
@@ -786,7 +879,7 @@ static func bot_resolve_auction_win(
 		main.get_node("Board").remove_market_card(cd)
 	if is_tech:
 		var difficulty: int = GameNetwork.bot_difficulty.get(bot_id, BotAI.Difficulty.EASY)
-		var slot_idx: int = BotAI.pick_stack_slot(board, cd, difficulty)
+		var slot_idx: int = BotAI.pick_stack_slot(board, cd, difficulty, main._round)
 		if slot_idx == -1:
 			# No room anywhere — shouldn't normally happen since bots only bid
 			# when they have somewhere to put the card. Recycle it for supply

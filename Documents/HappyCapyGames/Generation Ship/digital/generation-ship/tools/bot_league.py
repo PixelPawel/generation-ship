@@ -1,7 +1,7 @@
 """Bot-vs-bot test games (scripts/game/bot_sim.gd): plays N seeded Versus games headless, three bots each,
 in parallel, and summarises their scores and where the points came from.
 
-    python tools/bot_league.py <tag> [--games 30] [--diff 2,2,2] [--jobs 6] [--speed 30] [--seed0 1]
+    python tools/bot_league.py <tag> [--games 30] [--diff 2,2,2] [--jobs 4] [--speed 30] [--seed0 1]
     python tools/bot_league.py --report <tag> [<tag> ...]      # compare finished runs
 
 Results: tools/bot_league/<tag>.jsonl (one line per game). The player's seat passes every turn, so it is
@@ -19,6 +19,10 @@ EXPEDITION_SKIP = {"Stars", "Faceup archived", "Facedown archived", "Stored supp
                    "Greenhouses (Liquids bonus)", "Astra Cultura (Thrust bonus)"}
 
 
+# --bv name=value,... : BotValue tuning overrides passed to every game (scripts/game/bot_value.gd k())
+EXTRA = ["--bv-" + a for a in (sys.argv[sys.argv.index("--bv") + 1].split(",") if "--bv" in sys.argv else [])]
+
+
 def arg(name, default):
     if name in sys.argv:
         return sys.argv[sys.argv.index(name) + 1]
@@ -28,7 +32,7 @@ def arg(name, default):
 def play(tag, seed, diff, speed, out_path, log_dir):
     cmd = [GODOT, "--headless", "--path", PROJECT, "--log-file", os.path.join(log_dir, "g%d.log" % seed), "--",
            "--botsim", "--botsim-seed=%d" % seed, "--botsim-diff=" + diff, "--botsim-speed=%s" % speed,
-           "--botsim-out=" + os.path.join(log_dir, "g%d.json" % seed).replace("\\", "/")]
+           "--botsim-out=" + os.path.join(log_dir, "g%d.json" % seed).replace("\\", "/")] + EXTRA
     t0 = time.time()
     try:
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=600)
@@ -86,7 +90,7 @@ def main():
     tag = sys.argv[1]
     games = int(arg("--games", "30"))
     diff = arg("--diff", "2,2,2")
-    jobs = int(arg("--jobs", "6"))
+    jobs = int(arg("--jobs", "4"))   # the user games on this PC: 4 at a time is plenty
     speed = arg("--speed", "30")
     seed0 = int(arg("--seed0", "1"))
     os.makedirs(OUT, exist_ok=True)

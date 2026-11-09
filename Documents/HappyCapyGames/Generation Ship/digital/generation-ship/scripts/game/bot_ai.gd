@@ -1,6 +1,7 @@
 class_name BotAI
 extends RefCounted
 const FleetRules = preload("res://scripts/game/fleet_rules.gd")
+const BotValue = preload("res://scripts/game/bot_value.gd")   # Hard/Normal: plays valued in projected final VP
 
 enum Difficulty { EASY = 0, NORMAL = 1, HARD = 2 }
 
@@ -15,17 +16,19 @@ const MAX_SECTORS: int = 6     # matches the "max 6 sectors" ship rule
 # difficulty-scaled skill.
 static func skills_for(difficulty: int) -> Dictionary:
 	match difficulty:
+		# value_model: plays valued in projected final VP (BotValue, 2026-11-09); foresight = how much of the
+		# remaining game the projection sees; bid_scale = how close to that worth it bids
 		Difficulty.HARD:
 			return {
 				rich_valuation = true, optimize_aware = true, fuse = "proactive",
 				recycle = true, bid_ev = true, can_research = true, smart_research = true,
-				randomness = 0.0,
+				randomness = 0.0, value_model = true, foresight = 1.0, bid_scale = 1.0,
 			}
 		Difficulty.NORMAL:
 			return {
 				rich_valuation = true, optimize_aware = true, fuse = "reactive",
-				recycle = false, bid_ev = false, can_research = true, smart_research = false,
-				randomness = 0.0,
+				recycle = true, bid_ev = false, can_research = true, smart_research = false,
+				randomness = 0.0, value_model = true, foresight = 0.6, bid_scale = 0.8,
 			}
 		_:
 			return {
@@ -41,10 +44,11 @@ static func decide_action(
 	hand: Array[CardData],
 	supplies: Dictionary,
 	bot_board: Array,
-	_round: int,
+	gen: int,
 	market_sectors: Array[CardData],
 	market_expeditions: Array[CardData],
-	market_adv_sectors: Array[CardData] = []
+	market_adv_sectors: Array[CardData] = [],
+	market_adv_auction: Array[CardData] = []
 ) -> Dictionary:
 	var skills: Dictionary = skills_for(difficulty)
 	var candidates: Array[Dictionary] = _get_affordable_sector_plays(market_sectors, supplies, bot_board)
@@ -60,12 +64,169 @@ static func decide_action(
 			return {type = "pass"}
 		return candidates[randi() % candidates.size()]
 
+	# Versus: the advanced sectors are auctioned — a bot that never started one never had one
+	if bool(skills.get("value_model", false)) and bot_board.size() < MAX_SECTORS:
+		for card: CardData in market_adv_auction:
+			var play: Dictionary = {type = "start_auction_adv", card = card, color = int(card.adv_color), cost = maxi(0, card.adv_cost)}
+			if _is_affordable(play, supplies):
+				candidates.append(play)
+
 	if candidates.is_empty():
 		return _decide_research_or_pass(hand, supplies, skills)
+
+	if bool(skills.get("value_model", false)):
+		var ranked: Array[Dictionary] = rank_by_value(candidates, bot_board, gen, float(skills.get("foresight", 1.0)))
+		if OS.get_cmdline_user_args().has("--botsim-trace"):   # tools/bot_league.py tuning
+			var parts: PackedStringArray = []
+			for k: int in mini(5, ranked.size()):
+				var p: Dictionary = ranked[k]
+				parts.append("%s %s%s %.2f" % [p["type"], (p["card"] as CardData).card_name,
+						(" @%d" % int(p["slot_idx"])) if p.has("slot_idx") else "", float(p["_value"])])
+			print("TRACE g%d sup %s sectors %d hand %d | %s" % [gen, str(supplies.values()), bot_board.size(), hand.size(), " | ".join(parts)])
+		if float(ranked[0].get("_value", 0.0)) <= 0.0:
+			return _decide_research_or_pass(hand, supplies, skills)   # nothing worth its supply now
+		return ranked[0]
 
 	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return _score_play(a, bot_board, skills) > _score_play(b, bot_board, skills))
 	return candidates[0]
+
+## Hard/Normal (value model): the turn's play and the free actions that pay for it, as
+## {action: {...}, free: [{fuse: {source, target}} | {recycle: CardData}]}. Plays are tried best first; each
+## gets the cheapest way to afford it — fuses up the supply chains (several steps: Dust -> Liquids -> Organix),
+## then recycling the hand cards worth least placed — as long as what is given up costs less than the play
+## gains. The bots used to fuse one step toward their single best play only and recycle only when one card
+## of exactly the right colour did it: they ended Generations with 6-8 Dust and hands of 13 cards they
+## couldn't pay for (tools/bot_league.py traces, 2026-11-09).
+static func plan_turn(
+	difficulty: int, hand: Array[CardData], supplies: Dictionary, bot_board: Array, gen: int,
+	market_sectors: Array[CardData], market_expeditions: Array[CardData], market_adv_auction: Array[CardData]
+) -> Dictionary:
+	var skills: Dictionary = skills_for(difficulty)
+	var foresight: float = float(skills.get("foresight", 1.0))
+	var plays: Array[Dictionary] = _all_sector_plays(market_sectors, bot_board)
+	plays.append_array(_all_tech_plays(hand, bot_board))
+	plays.append_array(_all_auction_plays(market_expeditions, bot_board))
+	if bot_board.size() < MAX_SECTORS:
+		for card: CardData in market_adv_auction:
+			plays.append({type = "start_auction_adv", card = card, color = int(card.adv_color), cost = maxi(0, card.adv_cost)})
+	var allowed: Array[Dictionary] = []
+	for p: Dictionary in plays:
+		if str(p.get("type", "")) in ["place_tech", "start_auction", "buy_adv_sector"] and FleetRules.blocks_place(_play_color(p)):
+			continue
+		allowed.append(p)
+	var ranked: Array[Dictionary] = _worthwhile(rank_by_value(allowed, bot_board, gen, foresight))
+	# what each hand card is worth: placed now (its best slot), and at least what a card in hand is worth
+	# later (BotValue.CARD_VP) — one not worth its supply today often is next Generation. Without that floor
+	# the bots recycled ~11 cards a game, cards that could have been on the ship earning supply.
+	var keep: Dictionary = {}
+	var floor_vp: float = BotValue.CARD_VP[clampi(gen, 0, BotValue.ROUNDS)]
+	for c: CardData in hand:
+		keep[c] = floor_vp
+	for p: Dictionary in ranked:
+		if str(p.get("type", "")) == "place_tech":
+			var c: CardData = p["card"] as CardData
+			keep[c] = maxf(float(keep.get(c, floor_vp)), float(p["_value"]))
+	if OS.get_cmdline_user_args().has("--botsim-trace"):
+		var parts: PackedStringArray = []
+		for k: int in mini(5, ranked.size()):
+			var q: Dictionary = ranked[k]
+			parts.append("%s %s%s %.2f" % [q["type"], (q["card"] as CardData).card_name,
+					(" @%d" % int(q["slot_idx"])) if q.has("slot_idx") else "", float(q["_value"])])
+		print("TRACE g%d sup %s sectors %d hand %d | %s" % [gen, str(supplies.values()), bot_board.size(), hand.size(), " | ".join(parts)])
+	for p: Dictionary in ranked:
+		var pay: Dictionary = plan_to_afford(p, supplies, hand, keep, float(p["_value"]))
+		if bool(pay.get("ok", false)):
+			return {action = p, free = pay["steps"]}
+	if OS.get_cmdline_user_args().has("--botsim-trace"):
+		var hs: PackedStringArray = []
+		for c: CardData in hand:
+			hs.append("%s(%s%d)" % [c.card_name, CardData.color_name(c.color).left(2), c.cost])
+		print("PASS g%d sup %s worthwhile %d of %d plays | hand %s" % [gen, str(supplies.values()), ranked.size(), allowed.size(), ", ".join(hs)])
+	return {action = _decide_research_or_pass(hand, supplies, skills), free = []}
+
+## The fuses and recycles that make play affordable, cheapest first: {ok, steps, loss}. Gives up when what
+## the recycled cards were worth (keep) reaches the play's own worth.
+static func plan_to_afford(play: Dictionary, supplies: Dictionary, hand: Array[CardData], keep: Dictionary, play_value: float) -> Dictionary:
+	var work: Dictionary = supplies.duplicate()
+	var steps: Array = []
+	var pool: Array[CardData] = hand.duplicate()
+	pool.erase(play["card"])
+	var color: int = _play_color(play)
+	var cost: int = int(play.get("cost", maxi(0, (play["card"] as CardData).cost) + FleetRules.cost_increase(play["card"] as CardData)))
+	var loss: float = 0.0
+	for _i: int in 16:
+		if can_pay(work, color, cost):
+			return {ok = true, steps = steps, loss = loss}
+		var f: Dictionary = _fuse_step_toward(color, work, 3)
+		if not f.is_empty():
+			work[int(f["source"])] = int(work.get(int(f["source"]), 0)) - 2
+			work[int(f["target"])] = int(work.get(int(f["target"]), 0)) + 1
+			steps.append({fuse = f})
+			continue
+		var best: CardData = null
+		var best_keep: float = INF
+		for c: CardData in pool:
+			if not _feeds(int(c.color), color) or FleetRules.blocks_recycle(int(c.color)) or FleetRules.blocks_gain(int(c.color)):
+				continue
+			var k: float = float(keep.get(c, 0.0))
+			if k < best_keep:
+				best_keep = k
+				best = c
+		if best == null or loss + maxf(best_keep, 0.0) >= play_value:
+			return {ok = false}
+		work[int(best.color)] = int(work.get(int(best.color), 0)) + CardData.recycle_amount(best)
+		pool.erase(best)
+		loss += maxf(best_keep, 0.0)
+		steps.append({recycle = best})
+	return {ok = false}
+
+# One fuse on the way to target: straight into it from a source with 2+, else (depth) into one of its
+# sources first.
+static func _fuse_step_toward(target: int, work: Dictionary, depth: int) -> Dictionary:
+	if depth <= 0 or FleetRules.blocks_fuse(target):
+		return {}
+	var srcs: Array[int] = []
+	for source: int in SupplyUI.FUSE_MAP:
+		if (SupplyUI.FUSE_MAP[source] as Array).has(target) and not FleetRules.blocks_fuse(source):
+			srcs.append(source)
+	srcs.sort_custom(func(a: int, b: int) -> bool: return int(work.get(a, 0)) > int(work.get(b, 0)))
+	for s: int in srcs:
+		if int(work.get(s, 0)) >= 2:
+			return {source = s, target = target}
+	for s: int in srcs:
+		var deeper: Dictionary = _fuse_step_toward(s, work, depth - 1)
+		if not deeper.is_empty():
+			return deeper
+	return {}
+
+# Supply of colour src helps pay for a target-coloured cost: it pays directly (same chain, at or above),
+# or fuses up into the target.
+static func _feeds(src: int, target: int) -> bool:
+	if CardData.valid_payment_colors(target as CardData.SupplyColor).has(src as CardData.SupplyColor):
+		return true
+	var frontier: Array[int] = [src]
+	for _d: int in 4:
+		var nxt: Array[int] = []
+		for s: int in frontier:
+			for t_v: Variant in (SupplyUI.FUSE_MAP.get(s, []) as Array):
+				var t: int = int(t_v)
+				if t == target:
+					return true
+				nxt.append(t)
+		frontier = nxt
+	return false
+
+## Plays sorted by BotValue.value (best first), each with its "_value".
+static func rank_by_value(plays: Array[Dictionary], bot_board: Array, gen: int, foresight: float) -> Array[Dictionary]:
+	var base: float = BotValue.projected_vp(bot_board, gen, foresight)
+	var out: Array[Dictionary] = []
+	for p: Dictionary in plays:
+		var q: Dictionary = p.duplicate()
+		q["_value"] = BotValue.value(p, bot_board, gen, foresight, base)
+		out.append(q)
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a["_value"]) > float(b["_value"]))
+	return out
 
 static func _decide_research_or_pass(hand: Array[CardData], supplies: Dictionary, skills: Dictionary) -> Dictionary:
 	if hand.size() <= 1 or not bool(skills.get("can_research", false)):
@@ -97,7 +258,8 @@ static func decide_bid(
 	card: CardData,
 	is_adv: bool,
 	bot_board: Array,
-	cost_color: int = -1
+	cost_color: int = -1,
+	gen: int = 2
 ) -> int:
 	# cost_color is the auction's actual payment color, which Wormhole
 	# Surfing can change away from the card's own.
@@ -106,6 +268,13 @@ static func decide_bid(
 	var budget: int = 0
 	for c: CardData.SupplyColor in CardData.valid_payment_colors(color as CardData.SupplyColor):
 		budget += int(supplies.get(int(c), 0))
+	var skills: Dictionary = skills_for(difficulty)
+	if bool(skills.get("value_model", false)):
+		# up to what the card adds to the projected final score, in supply (BotValue.max_bid)
+		var nb: int = current_bid + 1
+		var cap: int = int(floor(float(BotValue.max_bid(card, is_adv, bot_board, gen, float(skills.get("foresight", 1.0))))
+				* float(skills.get("bid_scale", 1.0))))
+		return nb if nb <= budget and nb <= cap else 0
 	# Keep raising while the next bid is both affordable (leaving one unit
 	# of headroom rather than spending the color down to zero) and still
 	# within what the card looks like it's actually worth. Every difficulty
@@ -145,7 +314,7 @@ static func decide_bid(
 # up to 5. Only direct (one-hop) fuses — no Dust→Metals→Electrix chains.
 static func suggest_fuses(
 	difficulty: int, hand: Array[CardData], supplies: Dictionary,
-	bot_board: Array, market_sectors: Array[CardData]
+	bot_board: Array, market_sectors: Array[CardData], gen: int = 2
 ) -> Array[Dictionary]:
 	var skills: Dictionary = skills_for(difficulty)
 	var mode: String = String(skills.get("fuse", "off"))
@@ -155,8 +324,13 @@ static func suggest_fuses(
 	candidates.append_array(_all_tech_plays(hand, bot_board))
 	if candidates.is_empty():
 		return []
-	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return _score_play(a, bot_board, skills) > _score_play(b, bot_board, skills))
+	if bool(skills.get("value_model", false)):
+		candidates = _worthwhile(rank_by_value(candidates, bot_board, gen, float(skills.get("foresight", 1.0))))
+		if candidates.is_empty():
+			return []
+	else:
+		candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			return _score_play(a, bot_board, skills) > _score_play(b, bot_board, skills))
 
 	var max_ops: int = 5 if mode == "proactive" else 2
 	var scan_limit: int = candidates.size() if mode == "proactive" else 1
@@ -207,7 +381,7 @@ static func _find_fuse_toward(target_color: int, supplies: Dictionary) -> Dictio
 # candidate play — or null if recycling wouldn't help right now.
 static func suggest_recycle(
 	difficulty: int, hand: Array[CardData], supplies: Dictionary,
-	bot_board: Array, market_sectors: Array[CardData]
+	bot_board: Array, market_sectors: Array[CardData], gen: int = 2
 ) -> CardData:
 	var skills: Dictionary = skills_for(difficulty)
 	if not bool(skills.get("recycle", false)) or hand.is_empty():
@@ -216,8 +390,11 @@ static func suggest_recycle(
 	candidates.append_array(_all_tech_plays(hand, bot_board))
 	if candidates.is_empty():
 		return null
-	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return _score_play(a, bot_board, skills) > _score_play(b, bot_board, skills))
+	if bool(skills.get("value_model", false)):
+		candidates = _worthwhile(rank_by_value(candidates, bot_board, gen, float(skills.get("foresight", 1.0))))
+	else:
+		candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			return _score_play(a, bot_board, skills) > _score_play(b, bot_board, skills))
 	# Only when the recycled supply actually makes a play affordable — a card
 	# recycled just to get "closer" was a card thrown away for nothing.
 	for play: Dictionary in candidates:
@@ -236,8 +413,18 @@ static func suggest_recycle(
 				return card
 	return null
 
-static func pick_stack_slot(bot_board: Array, card: CardData, difficulty: int) -> int:
+## Plays worth their supply (BotValue), in rank order.
+static func _worthwhile(ranked: Array[Dictionary]) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for p: Dictionary in ranked:
+		if float(p.get("_value", 0.0)) > 0.0:
+			out.append(p)
+	return out
+
+static func pick_stack_slot(bot_board: Array, card: CardData, difficulty: int, gen: int = 2) -> int:
 	var skills: Dictionary = skills_for(difficulty)
+	if bool(skills.get("value_model", false)):
+		return BotValue.best_slot(bot_board, card, gen, float(skills.get("foresight", 1.0)))
 	var best_idx: int = -1
 	var best_score: float = -INF
 	for i: int in bot_board.size():

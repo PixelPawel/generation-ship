@@ -61,7 +61,9 @@ static func record(main: Main) -> void:
 			var cd: CardData = e.get("sector") as CardData
 			var adv: bool = bool(e.get("is_advanced", false))
 			sectors.append({"name": (cd.adv_name if adv else cd.card_name) if cd else "?", "adv": adv,
-					"cards": (e.get("techs", []) as Array).size(), "tucked": (e.get("tucked_cards", []) as Array).size()})
+					"cards": (e.get("techs", []) as Array).size(), "tucked": (e.get("tucked_cards", []) as Array).size(),
+					"opt": int(e.get("optimize_count", 0)), "max_opt": int(e.get("max_optimizations", 0)),
+					"stored": BotScoring.slot_total_stored(e)})
 		bots.append({"id": bot_id, "name": str(GameNetwork.player_names.get(bot_id, "")),
 				"diff": int(GameNetwork.bot_difficulty.get(bot_id, 0)), "vp": BotScoring.board_vp(board),
 				"lines": lines, "sectors": sectors, "supply": main.bot_supplies.get(bot_id, {})})
