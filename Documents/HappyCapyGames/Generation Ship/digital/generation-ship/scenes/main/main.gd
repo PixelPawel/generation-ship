@@ -9,6 +9,7 @@ const FleetRules = preload("res://scripts/game/fleet_rules.gd")
 const FleetFlow = preload("res://scenes/main/fleet_flow.gd")
 const CardPassing = preload("res://scenes/main/card_passing.gd")
 const Showcase = preload("res://scripts/game/showcase.gd")   # screenshot set-up, --showcase only
+const BotSim = preload("res://scripts/game/bot_sim.gd")       # bot-vs-bot test games, --botsim only
 const AuctionFlow = preload("res://scenes/main/auction_flow.gd")
 const EffectSteps = preload("res://scenes/main/effect_steps.gd")
 const PopupAnim = preload("res://scripts/popup_anim.gd")
@@ -922,7 +923,9 @@ func _rpc_start_game(sector_order: Array, exp_order: Array, tech_order: Array) -
 			return   # the first turn starts once the whole crew is done
 		await FleetFlow.start_generation(self)
 	_start_first_turn_tutorial_if_needed()
-	if GameNetwork.is_my_turn():
+	if BotSim.active():
+		BotSim.auto_pass(self)
+	elif GameNetwork.is_my_turn():
 		_show_your_turn_banner()
 	if multiplayer.is_server() and GameNetwork.is_bot(GameNetwork.active_peer_id):
 		BotTurn.run_bot_turn(self, GameNetwork.active_peer_id)
@@ -1252,6 +1255,8 @@ func _rpc_sync_active_player(peer_id: int) -> void:
 	_refresh_all_opp_status_labels()
 	if multiplayer.is_server() and GameNetwork.is_bot(peer_id):
 		BotTurn.run_bot_turn(self, peer_id)
+	if BotSim.active():
+		BotSim.auto_pass(self)
 
 # Host → All: all players passed — end the round and start the next.
 @rpc("authority", "reliable", "call_local")
@@ -1809,6 +1814,9 @@ func _game_over() -> void:
 	# a tutorial score isn't a real game; Fleet has its own board, wins only
 	if GameNetwork.fleet_mode:
 		_fleet_game_over(lines, total)        # Fleet sounds its own mission result
+		return
+	if BotSim.active():                       # bot test game: the bots' results, no leaderboard
+		BotSim.record(self)
 		return
 	UIAudio.play_sfx("game_end")
 	if not TutorialSession.active:

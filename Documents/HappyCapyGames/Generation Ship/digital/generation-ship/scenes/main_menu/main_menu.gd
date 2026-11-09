@@ -8,6 +8,7 @@ const UnlockPanel = preload("res://scenes/ui/unlock_panel.gd")
 const PopupAnim = preload("res://scripts/popup_anim.gd")
 const GamefoundCard = preload("res://scenes/main_menu/gamefound_card.gd")
 const Showcase = preload("res://scripts/game/showcase.gd")   # --showcase-auto: screenshot run
+const BotSim = preload("res://scripts/game/bot_sim.gd")       # --botsim: bot-vs-bot test games
 var _backdrop: Node3D = null   # the parked cockpit behind the menu
 var _launching: bool = false
 const GAME_SCENE: String = "res://scenes/main/main.tscn"
@@ -116,6 +117,8 @@ func _ready() -> void:
 	_add_link_button(DISCORD_LOGO, DISCORD_URL, 34.0, true)
 	if Showcase.auto():
 		Showcase.start_from_menu(self)
+	elif BotSim.active():
+		BotSim.start_from_menu(self)
 
 # The Gamefound card replaced the bare logo in the bottom-left corner: left of the
 # buttons, its bottom in line with the tool tiles, in MainView so it slides away with the menu.

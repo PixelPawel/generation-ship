@@ -162,6 +162,9 @@ static func _server_finish_interfleet(main: Main) -> void:
 # framing the sector-reveal flow already uses, no new UI nodes needed.
 static func _update_interfleet_ui(main: Main, active_id: int) -> void:
 	var my_id: int = main.multiplayer.get_unique_id()
+	if my_id == active_id and Main.BotSim.active():   # bot test games: the player's seat takes the first card
+		main.call_deferred("_server_handle_interfleet_pick", my_id, 0)
+		return
 	if my_id == active_id:
 		var pool: Array[CardData] = []
 		for ref: Dictionary in main._interfleet_pool_refs:

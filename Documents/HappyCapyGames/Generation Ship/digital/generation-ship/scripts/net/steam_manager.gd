@@ -14,7 +14,7 @@ func _ready() -> void:
 	if DisplayServer.get_name() == "headless":
 		return
 	# nor the automatic screenshot run (scripts/game/showcase.gd)
-	if OS.get_cmdline_user_args().has("--showcase-auto"):
+	if OS.get_cmdline_user_args().has("--showcase-auto") or OS.get_cmdline_user_args().has("--botsim"):
 		return
 	var result: Dictionary = Steam.steamInitEx()
 	if result["status"] == Steam.STEAM_API_INIT_RESULT_OK:
