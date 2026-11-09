@@ -116,7 +116,11 @@ func _ready() -> void:
 
 # The Gamefound card replaced the bare logo in the bottom-left corner: left of the
 # buttons, its bottom in line with the tool tiles, in MainView so it slides away with the menu.
+# Not on Android: the pledges include the Android unlock, and Google Play doesn't allow
+# sending players to buy in-app content outside Play (2026-11-09, user's call).
 func _add_gamefound_card() -> void:
+	if OS.has_feature("android"):
+		return
 	var touch: bool = GameTheme.is_touch()
 	var side: float = GameTheme.TOUCH_CORNER_MARGIN if touch else GAMEFOUND_SIDE
 	var tiles_w: float = 4.0 * TILE_SIZE.x + 3.0 * float(TILE_GAP)
