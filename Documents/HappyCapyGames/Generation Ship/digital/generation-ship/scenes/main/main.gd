@@ -458,7 +458,9 @@ func _on_node_added_to_tree(node: Node) -> void:
 		node.hovered.connect(_on_any_card_hovered)
 		node.unhovered.connect(_on_any_card_unhovered)
 		node.placed_inspect_requested.connect(func(card: Node3D) -> void:
-			_card_inspect.show_card(card.get("card_data") as CardData, bool(card.get("is_advanced")), "placed"))
+			var under: SectorSlot = card.get_parent() as SectorSlot   # a sector card: its supply and archive too
+			_card_inspect.show_card(card.get("card_data") as CardData, bool(card.get("is_advanced")), "placed",
+					under if under and under.placed_card == card else null))
 
 ## The big card view (phones) is showing a card from `from` ("hand", "market", "placed").
 func card_overlay_showing(from: String) -> bool:

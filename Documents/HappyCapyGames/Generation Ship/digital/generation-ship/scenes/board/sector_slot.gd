@@ -78,6 +78,9 @@ var _faceup_count_icon: MeshInstance3D = null
 var _facedown_count_icon: MeshInstance3D = null
 var _faceup_count_label: Label3D = null
 var _facedown_count_label: Label3D = null
+# Copies of the stored supply and archive display riding on the sector card while it is enlarged
+# (right-click): those elements are this slot's children, so they stayed behind at the slot.
+var _elevated_overlay: Node3D = null
 var _optimize_icons: Array = []  # index = level (0..2), value = Array[MeshInstance3D] for that level's icons
 var _optimize_level_reqs: Array = []  # index = level (0..2), value = Array[int] (that level's required colors, same order as _optimize_icons)
 var _optimize_nodes: Array[Node3D] = []  # every icon node, tracked for cleanup
@@ -262,6 +265,8 @@ func refresh_display() -> void:
 		if count > 0:
 			_supply_labels[i].text = str(count)
 	_refresh_tuck_display()
+	if is_instance_valid(_elevated_overlay):
+		_build_elevated_overlay()   # changed while enlarged: the copies follow
 
 func _refresh_tuck_display() -> void:
 	for n: Node3D in _tuck_nodes:
@@ -327,6 +332,62 @@ func _refresh_tuck_display() -> void:
 	var back_tex: Texture2D = ImageCache.get_texture(CardDatabase.tech_back_path())
 	_update_count_badge(_faceup_count_icon, _faceup_count_label, faceup_idx, back_tex)
 	_update_count_badge(_facedown_count_icon, _facedown_count_label, facedown_idx, back_tex)
+
+# ── Enlarged sector: its stored supply and archive come along ────────────────
+# The stored-supply icons/counts and the archived cards are this slot's children, so lifting the sector
+# card (Card.toggle_elevation) left them behind at the slot (2026-11-09, user: show them enlarged too).
+# While the card is up, copies of the visible ones hang under it, placed relative to the card exactly as
+# the originals sit relative to its resting place, so they lift and grow with it; the originals hide
+# meanwhile and come back when it goes down.
+
+func _overlay_elements() -> Array[Node3D]:
+	var nodes: Array[Node3D] = []
+	nodes.append_array(_supply_sprites)
+	nodes.append_array(_supply_labels)
+	nodes.append_array(_tuck_nodes)
+	for n: Node3D in [_faceup_vp_label, _facedown_vp_label, _faceup_count_icon, _faceup_count_label,
+			_facedown_count_icon, _facedown_count_label]:
+		if n:
+			nodes.append(n)
+	return nodes
+
+func _on_card_elevation_started(card: Node3D) -> void:
+	if card == placed_card and (not stored_supply.is_empty() or not tucked_cards.is_empty()):
+		_build_elevated_overlay()
+
+func _on_card_elevation_ended(card: Node3D) -> void:
+	if card != placed_card or not is_instance_valid(_elevated_overlay):
+		return
+	_clear_elevated_overlay()
+	refresh_display()   # the slot's own display back
+
+func _build_elevated_overlay() -> void:
+	_clear_elevated_overlay()
+	if not is_instance_valid(placed_card):
+		return
+	var holder: Node3D = Node3D.new()
+	# undoes the card's resting transform in this slot (accept_card), so copies keep their slot-local
+	# transforms and land exactly where the originals are relative to the card
+	holder.transform = Transform3D(Basis.from_euler(Vector3(-PI / 2.0, 0.0, 0.0)), Vector3(0.0, CARD_REST_Y, 0.0)).affine_inverse()
+	placed_card.add_child(holder)
+	# the lifted card draws later than everything else (Card.set_sort_order); the copies after it
+	var card_mesh: MeshInstance3D = placed_card.get("card_mesh") as MeshInstance3D
+	var after_card: float = (card_mesh.sorting_offset if card_mesh else 0.0) + 0.5
+	for n: Node3D in _overlay_elements():
+		if not n.visible:
+			continue
+		var copy: Node3D = n.duplicate() as Node3D
+		holder.add_child(copy)
+		var lbl: Label3D = copy as Label3D
+		if lbl:
+			lbl.sorting_offset = after_card
+		n.visible = false
+	_elevated_overlay = holder
+
+func _clear_elevated_overlay() -> void:
+	if is_instance_valid(_elevated_overlay):
+		_elevated_overlay.queue_free()
+	_elevated_overlay = null
 
 func _update_count_badge(icon: MeshInstance3D, lbl: Label3D, count: int, tex: Texture2D) -> void:
 	if icon:
@@ -846,6 +907,9 @@ func accept_card(card: Node3D) -> void:
 	_build_optimize_display(card)
 	if card.has_signal("clicked") and not card.clicked.is_connected(_on_placed_card_clicked):
 		card.clicked.connect(_on_placed_card_clicked)
+	if card.has_signal("elevation_started") and not card.elevation_started.is_connected(_on_card_elevation_started):
+		card.elevation_started.connect(_on_card_elevation_started)
+		card.elevation_ended.connect(_on_card_elevation_ended)
 	card.reparent(self, true)
 	card.managed_by_hand = false
 	card.set("_elev_rest_pos", Vector3(0, CARD_REST_Y, 0))

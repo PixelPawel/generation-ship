@@ -9,9 +9,11 @@ const RuleRefs = preload("res://scripts/game/rule_refs.gd")
 const FILL_HEIGHT: float = 0.86
 const OPEN_DURATION: float = 0.16
 const TERMS_HEIGHT: float = 0.1    # share of the height kept for the rule book buttons
+const EXTRAS_HEIGHT: float = 0.17  # share kept for a placed sector's stored supply and archived cards
 
 var _art: TextureRect = null
 var _terms: Control = null      # rule book buttons for the card's keywords
+var _extras: Control = null     # a placed sector's stored supply and archive, under the art
 var source: String = ""         # what is shown: "hand", "market" or "placed" (the tutorial waits on it)
 
 func _ready() -> void:
@@ -24,7 +26,9 @@ func _ready() -> void:
 	_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_art)
 
-func show_card(cd: CardData, is_advanced: bool, from: String = "hand") -> void:
+## under: the sector slot when the card is a placed sector — its stored supply and archived cards are
+## shown under the art too (2026-11-09, as the enlarged sector on desktop shows them).
+func show_card(cd: CardData, is_advanced: bool, from: String = "hand", under: SectorSlot = null) -> void:
 	if cd == null:
 		return
 	var url: String = cd.adv_image_url if is_advanced and not cd.adv_image_url.is_empty() else cd.image_url
@@ -40,17 +44,30 @@ func show_card(cd: CardData, is_advanced: bool, from: String = "hand") -> void:
 	if _terms:
 		_terms.queue_free()
 		_terms = null
+	if _extras:
+		_extras.queue_free()
+		_extras = null
 	var terms: Array[Array] = RuleRefs.terms_for([cd] as Array[CardData], [is_advanced] as Array[bool])
-	var h: float = size.y * (FILL_HEIGHT if terms.is_empty() else FILL_HEIGHT - TERMS_HEIGHT)
+	var extras_h: float = size.y * EXTRAS_HEIGHT
+	var extras: Control = _make_extras(under, extras_h) if under else null
+	var below: float = (0.0 if terms.is_empty() else TERMS_HEIGHT) + (0.0 if extras == null else EXTRAS_HEIGHT)
+	var h: float = size.y * (FILL_HEIGHT - below)
 	var aspect: float = float(tex.get_width()) / float(maxi(tex.get_height(), 1))
 	_art.size = Vector2(h * aspect, h)
 	_art.position = (size - _art.size) / 2.0
+	_art.position.y -= size.y * below / 2.0
+	var next_y: float = _art.position.y + _art.size.y + 12.0
+	if extras:
+		_extras = extras
+		add_child(_extras)
+		_extras.size = _extras.get_combined_minimum_size()
+		_extras.position = Vector2((size.x - _extras.size.x) / 2.0, next_y)
+		next_y += extras_h
 	if not terms.is_empty():
-		_art.position.y -= size.y * TERMS_HEIGHT / 2.0
 		_terms = RuleRefs.make_term_row(terms, 20)
 		add_child(_terms)
 		_terms.size = Vector2(size.x * 0.9, 0.0)
-		_terms.position = Vector2(size.x * 0.05, _art.position.y + _art.size.y + 12.0)
+		_terms.position = Vector2(size.x * 0.05, next_y)
 	_art.pivot_offset = _art.size / 2.0
 	_art.scale = Vector2.ONE * 0.6
 	_art.modulate.a = 0.0
@@ -59,6 +76,59 @@ func show_card(cd: CardData, is_advanced: bool, from: String = "hand") -> void:
 	t.tween_property(_art, "scale", Vector2.ONE, OPEN_DURATION)
 	t.parallel().tween_property(_art, "modulate:a", 1.0, OPEN_DURATION * 0.6)
 	Haptics.tick()
+
+# One row: each stored supply colour (icon and count), then the archived cards, face-up ones by their art,
+# face-down ones by the tech back — null when the sector has neither.
+func _make_extras(under: SectorSlot, row_h: float) -> Control:
+	var stored: Dictionary = under.stored_supply
+	var has_supply: bool = false
+	for v: Variant in stored.values():
+		if int(v) > 0:
+			has_supply = true
+	if not has_supply and under.tucked_cards.is_empty():
+		return null
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", int(row_h * 0.1))
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE   # a tap anywhere still closes the view
+	for c: int in 6:
+		var n: int = int(stored.get(c, 0))
+		if n <= 0:
+			continue
+		var icon: TextureRect = TextureRect.new()
+		icon.texture = load(SectorSlot.SUPPLY_ICON_PATHS[c]) as Texture2D
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.custom_minimum_size = Vector2(row_h * 0.5, row_h * 0.5)
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(icon)
+		var lbl: Label = Label.new()
+		lbl.text = "×%d" % n
+		lbl.add_theme_font_size_override("font_size", int(row_h * 0.3))
+		lbl.add_theme_constant_override("outline_size", 8)
+		lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+		lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(lbl)
+	var back_path: String = CardDatabase.tech_back_path()
+	for face_up: bool in [true, false]:
+		for entry_v: Variant in under.tucked_cards:
+			var entry: Dictionary = entry_v as Dictionary
+			if bool(entry.get("face_up", false)) != face_up:
+				continue
+			var data: CardData = entry.get("data") as CardData
+			var url: String = (data.image_url if data else "") if face_up else back_path
+			var tex: Texture2D = ImageCache.get_texture(url) if not url.is_empty() else null
+			if tex == null and not url.is_empty() and ResourceLoader.exists(url):
+				tex = load(url) as Texture2D
+			var img: TextureRect = TextureRect.new()
+			img.texture = tex
+			img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			img.custom_minimum_size = Vector2(row_h * 0.72, row_h)
+			img.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			row.add_child(img)
+	return row
 
 ## Showing a card that came from `from` ("hand", "market", "placed").
 func showing(from: String) -> bool:
