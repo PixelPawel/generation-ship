@@ -6,6 +6,7 @@ const MenuIconButton = preload("res://scenes/ui/menu_icon_button.gd")
 const CockpitBackdrop = preload("res://scenes/main_menu/cockpit_backdrop.gd")
 const UnlockPanel = preload("res://scenes/ui/unlock_panel.gd")
 const PopupAnim = preload("res://scripts/popup_anim.gd")
+const GamefoundCard = preload("res://scenes/main_menu/gamefound_card.gd")
 var _backdrop: Node3D = null   # the parked cockpit behind the menu
 var _launching: bool = false
 const GAME_SCENE: String = "res://scenes/main/main.tscn"
@@ -48,8 +49,12 @@ var _photo_scan: Control = null
 var _unlock_panel: UnlockPanel = null   # Android: made the first time a locked mode is tapped
 var _lock_hint: Label = null
 
-const GAMEFOUND_LOGO: String = "res://assets/ui/gamefound_logo_white.png"
-const GAMEFOUND_URL: String = "https://gamefound.com/en/projects/happy-capy-games/generation-ship#/section/project-story"
+# The Gamefound campaign card (gamefound_card.gd) left of the buttons; phones get it bigger,
+# as far as the room left of the tile row allows
+const GAMEFOUND_SIDE: float = 48.0
+const GAMEFOUND_TOUCH_SCALE: float = 1.3
+const GAMEFOUND_TILE_GAP: float = 28.0
+var _gamefound_card: Control = null
 const DISCORD_LOGO: String = "res://assets/ui/Discord-Logo-Blurple.png"
 const DISCORD_URL: String = "https://discord.gg/ewEB2PYTWc"   # never expires (2026-11-04; the old invite had run out)
 const _LINK_MARGIN: float = 28.0
@@ -106,8 +111,29 @@ func _ready() -> void:
 	ver_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(ver_lbl)
 
-	_add_link_button(GAMEFOUND_LOGO, GAMEFOUND_URL, 44.0, false)
+	_add_gamefound_card()
 	_add_link_button(DISCORD_LOGO, DISCORD_URL, 34.0, true)
+
+# The Gamefound card replaced the bare logo in the bottom-left corner: left of the
+# buttons, its bottom in line with the tool tiles, in MainView so it slides away with the menu.
+func _add_gamefound_card() -> void:
+	var touch: bool = GameTheme.is_touch()
+	var side: float = GameTheme.TOUCH_CORNER_MARGIN if touch else GAMEFOUND_SIDE
+	var tiles_w: float = 4.0 * TILE_SIZE.x + 3.0 * float(TILE_GAP)
+	var room: float = (get_viewport_rect().size.x - tiles_w) / 2.0 - side - GAMEFOUND_TILE_GAP
+	var k: float = clampf(room / GamefoundCard.W, 0.75, GAMEFOUND_TOUCH_SCALE if touch else 1.0)
+	var card: Button = GamefoundCard.new(k)
+	card.modulate.a = 0.0
+	$Panels/MainView.add_child(card)
+	card.anchor_left = 0.0
+	card.anchor_right = 0.0
+	card.anchor_top = 1.0
+	card.anchor_bottom = 1.0
+	card.offset_left = side
+	card.offset_right = side + GamefoundCard.W * k
+	card.offset_bottom = -TILE_BOTTOM
+	card.offset_top = -TILE_BOTTOM - GamefoundCard.H * k
+	_gamefound_card = card
 
 # Logo button pinned to a bottom corner of MainView (so it slides away with the
 # menu). Height drives size; width follows the logo's aspect ratio.
@@ -199,6 +225,10 @@ func _start_animations() -> void:
 		var tw: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 		tw.tween_interval(1.2)
 		tw.tween_property(btn, "modulate:a", 1.0, 0.5)
+	if _gamefound_card:   # (its own hover: the menu's grow-and-brighten is too much for a picture)
+		var card_tw: Tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		card_tw.tween_interval(1.0)
+		card_tw.tween_property(_gamefound_card, "modulate:a", 1.0, 0.6)
 
 # The 3D logo is two clips: an entrance that plays once, then a seamless idle
 # loop. The loop player is loaded up front (hidden, paused) so it can take over
