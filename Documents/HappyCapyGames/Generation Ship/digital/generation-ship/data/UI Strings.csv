@@ -267,6 +267,8 @@
 "Pays with:","Pays with:","Zahlt mit:","Paga con:","Można płacić:","Paga con:","Payable en :"
 "Bid for %s","Bid for %s","Gebot für %s","Offerta per %s","Oferta na %s","Puja por %s","Enchère pour %s"
 "Minimum bid: %d %s","Minimum bid: %d %s","Mindestgebot: %d %s","Offerta minima: %d %s","Minimalna oferta: %d %s","Puja mínima: %d %s","Enchère minimale : %d %s"
+"Current bid: %d by %s","Current bid: %d by %s","Aktuelles Gebot: %d von %s","Offerta attuale: %d di %s","Aktualna oferta: %d – %s","Puja actual: %d de %s","Enchère actuelle : %d par %s"
+"Current bid: %d by you","Current bid: %d by you","Aktuelles Gebot: %d von dir","Offerta attuale: %d (la tua)","Aktualna oferta: %d – Twoja","Puja actual: %d (la tuya)","Enchère actuelle : %d (la vôtre)"
 "Current bid: %d %s  —  Leader: %s","Current bid: %d %s  —  Leader: %s","Aktuelles Gebot: %d %s  —  Führend: %s","Offerta attuale: %d %s  —  In testa: %s","Obecna oferta: %d %s  —  Prowadzi: %s","Puja actual: %d %s  —  Líder: %s","Enchère actuelle : %d %s  —  En tête : %s"
 "Raise","Raise","Erhöhen","Rilancia","Podbij","Subir","Surenchérir"
 "Your turn — raise to win!","Your turn — raise to win!","Du bist dran — erhöhe, um zu gewinnen!","Tocca a te — rilancia per vincere!","Twoja kolej — podbij, aby wygrać!","Tu turno — ¡sube para ganar!","À vous — surenchérissez pour gagner !"

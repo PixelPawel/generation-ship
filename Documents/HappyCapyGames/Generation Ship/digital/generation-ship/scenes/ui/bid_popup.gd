@@ -12,6 +12,7 @@ var _is_active_turn: bool = false
 var _title_label: Label
 var _hint_label: Label
 var _status_label: Label
+var _current_bid_label: Label
 var _amount_label: Label
 var _confirm_btn: Button
 var _cancel_btn: Button
@@ -109,6 +110,15 @@ func _ready() -> void:
 	_accepted_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_accepted_row.add_theme_constant_override("separation", 8)
 	vbox.add_child(_accepted_row)
+
+	# Auctions: the bid to beat and who holds it ("Current bid: 4 by Cornelius"), 2026-11-09 (user)
+	_current_bid_label = Label.new()
+	_current_bid_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_current_bid_label.add_theme_font_size_override("font_size", 24)
+	_current_bid_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	_current_bid_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_current_bid_label.visible = false
+	vbox.add_child(_current_bid_label)
 
 	_status_label = Label.new()
 	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -273,6 +283,7 @@ func show_bid(card_data: CardData, is_advanced: bool, min_cost: int, cost_color:
 	_title_label.text = tr("Bid for %s") % card_name
 	_hint_label.text = tr("Minimum bid: %d %s") % [min_cost, color_name]
 	_status_label.visible = false
+	_current_bid_label.visible = false
 	_cancel_btn.show()
 	_pass_btn.visible = false
 	_confirm_btn.text = tr("Confirm Bid")
@@ -283,33 +294,41 @@ func show_bid(card_data: CardData, is_advanced: bool, min_cost: int, cost_color:
 
 # ── Auction mode ──────────────────────────────────────────────────────────────
 
-func show_auction(card_data: CardData, is_advanced: bool, current_bid: int, _leader_name: String, cost_color: CardData.SupplyColor, is_active: bool, can_pass: bool) -> void:
+func show_auction(card_data: CardData, is_advanced: bool, current_bid: int, leader_name: String, cost_color: CardData.SupplyColor, is_active: bool, can_pass: bool, leader_is_me: bool = false) -> void:
 	_card_image.custom_minimum_size = Vector2(0, _CARD_IMAGE_HEIGHT_AUCTION)
 	_set_card_image(card_data, is_advanced)
 	_set_accepted_colors(cost_color)
 	_auction_mode = true
 	_min_cost = current_bid
 	_bid_amount = current_bid + 1
-	# Card name/current-bid/leader as text is redundant here — the card art
-	# is already shown above, and the Players column on the right (see the
-	# ~58%-width anchor note at the top of _ready) already shows live
-	# per-player auction status, including who's leading.
+	# No title or hint: the card art is shown above. The bid to beat and its
+	# holder are spelled out though (the Players column on the right only
+	# hints at who leads).
 	_title_label.visible = false
 	_hint_label.visible = false
+	_set_current_bid(current_bid, leader_name, leader_is_me)
 	_cancel_btn.hide()
 	_confirm_btn.text = tr("Raise")
 	_set_auction_active(is_active, can_pass)
 	_update()
 	show()
 
-func update_auction(current_bid: int, _leader_name: String, is_active: bool, can_pass: bool) -> void:
+func update_auction(current_bid: int, leader_name: String, is_active: bool, can_pass: bool, leader_is_me: bool = false) -> void:
 	_min_cost = current_bid
 	if _bid_amount <= current_bid:
 		_bid_amount = current_bid + 1
+	_set_current_bid(current_bid, leader_name, leader_is_me)
 	_set_auction_active(is_active, can_pass)
 	_update()
 	if not visible:
 		show()
+
+func _set_current_bid(current_bid: int, leader_name: String, leader_is_me: bool) -> void:
+	if leader_is_me:
+		_current_bid_label.text = tr("Current bid: %d by you") % current_bid
+	else:
+		_current_bid_label.text = tr("Current bid: %d by %s") % [current_bid, leader_name]
+	_current_bid_label.visible = true
 
 func _set_auction_active(is_active: bool, can_pass: bool) -> void:
 	_is_active_turn = is_active

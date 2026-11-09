@@ -125,7 +125,7 @@ static func _rpc_sync_auction_started(main: Main, card_ref: Dictionary, slot_idx
 		var shown: String = CardDatabase.display_name(cd, is_adv) if cd else card_name   # the player's language
 		_show_auction_banner(main, main.tr("%s: auction for %s") % [_initiator_name, shown])
 	main._log_action(main.tr("%s: auction for %s") % [_initiator_name, card_name], Color(1.0, 0.72, 0.28))
-	main._bid_popup.show_auction(cd, is_adv, min_bid, leader_name, main._auction_cost_color, is_active, can_pass)
+	main._bid_popup.show_auction(cd, is_adv, min_bid, leader_name, main._auction_cost_color, is_active, can_pass, initiator_id == my_id)
 	main._auction_active = true
 	main._auction_starting = false
 	main._show_action_buttons(false)
@@ -142,7 +142,7 @@ static func _rpc_sync_auction_state(main: Main, current_bid: int, leader_id: int
 	var my_id: int = main.multiplayer.get_unique_id()
 	var is_active: bool = my_id == active_id
 	var can_pass: bool = is_active and my_id != leader_id
-	main._bid_popup.update_auction(current_bid, leader_name, is_active, can_pass)
+	main._bid_popup.update_auction(current_bid, leader_name, is_active, can_pass, leader_id == my_id)
 	_set_auction_opponent_statuses(main, remaining_ids, leader_id, active_id, current_bid)
 	if main.multiplayer.is_server() and GameNetwork.is_bot(active_id):
 		var _ab2: int = active_id
