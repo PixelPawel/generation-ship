@@ -17,9 +17,43 @@ const BOT_SHIPS: Array = [
 	[[true, 3], [true, 4], [false, 2], [true, 1], [false, 2]],
 ]
 const YOUR_SUPPLY: Array[int] = [6, 3, 2, 4, 1, 2]   # Dust, Metals, Liquids, Organix, Electrix, Thrust
+const LOG_LINES: int = 12
+const PLAYER_NAME: String = "You"   # --showcase-auto: the player's name in the log (not the saved one)
 
 static func active() -> bool:
-	return OS.get_cmdline_user_args().has("--showcase")
+	return OS.get_cmdline_user_args().has("--showcase") or auto()
+
+## --showcase-auto: from the main menu straight into the set-up game (offline Versus, three bots, the player
+## first so no bot auction covers the board), a screenshot to --showcase-shot=<png> (default
+## user://showcase.png), then quit. Steam stays off (steam_manager.gd).
+static func auto() -> bool:
+	return OS.get_cmdline_user_args().has("--showcase-auto")
+
+static func shot_path() -> String:
+	for a: String in OS.get_cmdline_user_args():
+		if a.begins_with("--showcase-shot="):
+			return a.trim_prefix("--showcase-shot=")
+	return "user://showcase.png"
+
+## Main menu, --showcase-auto: what the Versus button, Add Bot x3 and Start would do.
+static func start_from_menu(menu: Control) -> void:
+	await menu.get_tree().create_timer(1.5).timeout
+	var lobby: Control = menu.get_node("Panels/LobbyView") as Control
+	lobby.call("set_coop", false)
+	lobby.set("_player_name", PLAYER_NAME)   # not saved: the player's own name stays as it is
+	lobby.call("_start_offline_host")
+	for _i: int in BOT_NAMES.size():
+		lobby.call("_on_add_bot_pressed")
+	lobby.call("_on_start_pressed")
+
+## After fill(), --showcase-auto: wait for the cards to land and the "Your turn" banner to go, save, quit.
+static func capture(main: Main) -> void:
+	await main.get_tree().create_timer(7.0).timeout
+	var img: Image = main.get_viewport().get_texture().get_image()
+	var path: String = shot_path()
+	var err: Error = img.save_png(path)
+	print("showcase: %s %dx%d -> %s" % [error_string(err), img.get_width(), img.get_height(), path])
+	main.get_tree().quit()
 
 ## The name for the n-th bot added in the lobby (1-based), "" past the three.
 static func bot_name(n: int) -> String:
@@ -32,7 +66,7 @@ static func fill(main: Main) -> void:
 	var board: Node3D = main.get_node("Board") as Node3D
 	var scene: PackedScene = board.get("_card_scene") as PackedScene
 	var slots: Array = board.call("get_sector_slots") as Array
-	var log_lines: Array[Array] = []   # [text, colour]
+	var bot_lines: Array = []   # per bot: Array of [text, colour], in the order of its sectors
 
 	# ── your ship ──
 	var names: Array[String] = []
@@ -74,6 +108,7 @@ static func fill(main: Main) -> void:
 		var bot_names: Array[String] = []
 		var entries: Array = []
 		var bname: String = str(GameNetwork.player_names.get(bot_id, "Bot"))
+		var lines: Array = []
 		for p_v: Variant in plan:
 			var p: Array = p_v as Array
 			var adv: bool = bool(p[0])
@@ -91,11 +126,14 @@ static func fill(main: Main) -> void:
 			if rng.randf() < 0.4:
 				e["stored_supply"] = {int(_side_color(cd, adv)): 1 + rng.randi() % 2}
 			entries.append(e)
-			if adv and log_lines.size() < 2:
-				log_lines.append([main.tr("%s won %s for %d") % [bname, cd.adv_name, 3 + rng.randi() % 3], Color(1.0, 0.92, 0.35)])
-			elif not stack.is_empty() and rng.randf() < 0.5:
+			if adv and lines.is_empty():
+				lines.append([main.tr("%s won %s for %d") % [bname, cd.adv_name, 3 + rng.randi() % 3], Color(1.0, 0.92, 0.35)])
+			elif not adv:
+				lines.append([main.tr("%s: bought %s") % [bname, cd.card_name], CardData.color_tint(cd.color)])
+			if not stack.is_empty():
 				var t0: CardData = stack[stack.size() - 1]
-				log_lines.append([main.tr("%s: placed %s") % [bname, t0.card_name], CardData.color_tint(t0.color)])
+				lines.append([main.tr("%s: placed %s") % [bname, t0.card_name], CardData.color_tint(t0.color)])
+		bot_lines.append(lines)
 		main.bot_boards[bot_id] = entries
 		var supply: Dictionary = {}
 		for c: int in 6:
@@ -106,11 +144,32 @@ static func fill(main: Main) -> void:
 	main._round = ROUND
 	main._update_round_label()
 	main._refresh_vp()
+	main._refresh_card_counts()
+	# the log: this Generation's header, then turns in seat order (you, then each bot), up to LOG_LINES
 	var me: String = str(GameNetwork.player_names.get(1, main.tr("You")))
-	if not my_techs.is_empty():
-		var mt: CardData = my_techs[my_techs.size() - 1]
-		log_lines.insert(mini(1, log_lines.size()), [main.tr("%s: placed %s") % [me, mt.card_name], CardData.color_tint(mt.color)])
-	for line: Array in log_lines:
+	var my_lines: Array = []
+	for k: int in mini(3, my_techs.size()):
+		var mt: CardData = my_techs[my_techs.size() - 1 - k]
+		my_lines.append([main.tr("%s: placed %s") % [me, mt.card_name], CardData.color_tint(mt.color)])
+	var seats: Array = [my_lines] + bot_lines
+	var log_lines: Array = []
+	var turn: int = 0
+	while log_lines.size() < LOG_LINES:
+		var any: bool = false
+		for s_v: Variant in seats:
+			var s: Array = s_v as Array
+			if turn < s.size() and log_lines.size() < LOG_LINES:
+				log_lines.append(s[turn])
+				any = true
+		if not any:
+			break
+		turn += 1
+	if main._log_vbox:
+		for old: Node in main._log_vbox.get_children():
+			old.queue_free()   # the real game's "Round 1 / 4"
+	main._log_action(main.tr("─── Round %d / %d ───") % [ROUND, main._max_rounds], Color(0.6, 0.82, 1.0))
+	for line_v: Variant in log_lines:
+		var line: Array = line_v as Array
 		main._log_action(str(line[0]), line[1] as Color)
 	main._broadcast_my_state()
 

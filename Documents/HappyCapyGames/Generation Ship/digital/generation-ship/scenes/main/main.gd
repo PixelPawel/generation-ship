@@ -914,6 +914,8 @@ func _rpc_start_game(sector_order: Array, exp_order: Array, tech_order: Array) -
 	await get_tree().create_timer(2.0).timeout
 	if Showcase.active() and multiplayer.is_server() and not GameNetwork.fleet_mode:
 		Showcase.fill(self)   # filled ships for screenshots (tools/showcase.cmd)
+		if Showcase.auto():
+			Showcase.capture(self)   # not awaited: the game goes on until the shot is saved
 	if GameNetwork.fleet_mode:   # Fleet: 3 Dangers after the opening draw
 		if GameNetwork.is_multiplayer:
 			call_deferred("_fleet_generation_barrier", GameNetwork.active_peer_id)

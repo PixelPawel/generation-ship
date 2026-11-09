@@ -13,6 +13,9 @@ func _ready() -> void:
 	# without this, Steam showed Generation Ship as running during every offline test.
 	if DisplayServer.get_name() == "headless":
 		return
+	# nor the automatic screenshot run (scripts/game/showcase.gd)
+	if OS.get_cmdline_user_args().has("--showcase-auto"):
+		return
 	var result: Dictionary = Steam.steamInitEx()
 	if result["status"] == Steam.STEAM_API_INIT_RESULT_OK:
 		is_initialized = true
