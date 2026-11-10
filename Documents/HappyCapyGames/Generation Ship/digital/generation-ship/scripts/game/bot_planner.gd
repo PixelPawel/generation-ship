@@ -5,11 +5,17 @@ extends RefCounted
 ## unknown cards), several plays deep (a beam search: the best few lines are followed), and each resulting
 ## position is scored by evaluate():
 ##   * in the last Generation, simply the score the ship would end with;
-##   * earlier, the score the ship is heading for: an economy forecast (supply in hand + what the ship
-##     earns each Generation + cards to play) says how many more cards the bot will get onto the ship,
-##     the ship is filled up with that many stand-ins, and the result is scored by the game's own scoring.
+##   * earlier, what the ship scores now plus what a position like it went on to add in the bots' own
+##     games: its supply and what its cards earn (in points, by colour and Generation), the cards in
+##     hand, room on the ship, the optimize effects within reach, what its expeditions pay for a full ship.
 ## So supply, income, cards, completing and optimizing sectors and what the expeditions pay for all count,
 ## at what they are really worth on this ship — the old bots chased printed stars and ended near 20.
+## Very Hard follows more lines further, and fuses and recycles to raise a bid (bids_convert), as a human
+## bidder can; Hard bids with the supply it has in the auction's colours.
+## Where they stand (2026-11-10, tools/bot_league.py, 32 games each, average score):
+##   alone 88 (Hard) / 86 (Very Hard); two Hard bots 67 each; three 57 each; Very Hard 77 against Hard's 52;
+##   two Very Hard bots 60 each (they bid each other up). The 12 expeditions are most of the points and
+##   the players share them: a bot alone buys seven, of two bots each gets five.
 ## Preloaded by BotTurn (no class_name). Tuned with tools/bot_league.py.
 
 const ROUNDS: int = 4
@@ -61,52 +67,90 @@ static func units_of(supplies: Dictionary) -> float:
 ## The final score this position is heading for (see the top of the file).
 static func evaluate(st: Dictionary, gen: int) -> float:
 	var board: Array = st["board"] as Array
-	var units: float = units_of(st["supplies"] as Dictionary)
+	var vp: float = float(BotScoring.board_vp(board))
 	if gen >= ROUNDS:
-		return float(BotScoring.board_vp(board)) + 0.02 * units
+		return vp + 0.02 * units_of(st["supplies"] as Dictionary)
 	if W.has(gen + 1) and kf("model", 1.0) > 0.5:
 		# what the ship scores now + what a position like the one the next Generation will start from
 		# went on to add in the bots' own games (W: fitted by tools/bot_league_fit.py)
-		var f: PackedFloat32Array = features(st, gen + 1, true)
-		var w: Array = W[gen + 1] as Array
-		var v2: float = float(BotScoring.board_vp(board))
+		var f: PackedFloat32Array = features(st, gen + 1, true, vp)
+		if not _wc.has(gen + 1):   # --bv-w<gen>_<feature>=<weight>: tuning runs (tools/bot_league.py)
+			var row: Array[float] = []
+			for i: int in FEATURES.size():
+				row.append(kf("w%d_%s" % [gen + 1, FEATURES[i]], float((W[gen + 1] as Array)[i])))
+			_wc[gen + 1] = row
+		var w: Array[float] = _wc[gen + 1]
+		var v2: float = vp
 		for i: int in mini(f.size(), w.size()):
-			v2 += f[i] * float(w[i])
+			v2 += f[i] * w[i]
 		return v2
 	return forecast(st, gen)
 
-## Fitted weights per Generation start (2, 3, 4), one per feature (FEATURES). Empty: forecast() is used.
+static var _wc: Dictionary = {}
+
+## Weights per Generation start (2, 3, 4), one per feature (FEATURES). units and income are in points
+## already (SUPPLY_VP), so theirs are 1; the rest were fitted to the bots' own games.
 const W: Dictionary = {
-	2: [3.1, 1.16, 1.33, 1.0, 0.1, 0.0, 0.3, 0.1, 1.0, 0.0],
-	3: [-2.0, 0.76, 0.57, 0.96, 0.1, 0.0, 0.3, 0.05, 1.0, 0.0],
-	4: [-6.7, 0.57, 0.0, 0.86, 0.0, 0.0, 0.3, 0.05, 0.6, 0.0],
+	2: [3.1, 1.0, 1.0, 1.0, 0.1, 0.0, 0.3, 0.1, 1.0, 0.0],
+	3: [-2.0, 1.0, 1.0, 0.96, 0.1, 0.0, 0.3, 0.05, 1.0, 0.0],
+	4: [-6.7, 1.0, 0.0, 0.86, 0.0, 0.0, 0.3, 0.05, 0.6, 0.0],
 }
+## What a Dust is worth in points at the start of Generation 2, 3, 4 (fitted); the other colours are
+## worth U times that.
+## Tried and worse (2026-11-10; two Hard bots, 32 games each, against 67 for these values): the colours
+## at what they fuse from, 1:2:4:8 (61.7), half way there (64.2), values fitted per colour (62.2) - each
+## made Dust cheap, and the bots bought fewer sectors in the first Generation; an expedition valued at
+## what it usually ends up worth (62.9); a price on an empty sector slot (62.0); a card in hand at 3
+## points (57.3: they sat on 14 cards); a revealed expedition at 3 points (62.9); draws in optimize
+## effects at 2.5 a card (62.9); unstarted optimize levels at half their worth (62.9). A wider, deeper
+## search (10 lines, 10 plays) changed nothing either.
+const SUPPLY_VP: Dictionary = {2: 1.16, 3: 0.76, 4: 0.57}
+
+## A supply of color at the start of Generation gen_start, in points (nothing after the last).
+static func sup_vp(gen_start: int, color: int) -> float:
+	if not SUPPLY_VP.has(gen_start):
+		return 0.0
+	return U[clampi(color, 0, 5)] * float(SUPPLY_VP[gen_start])
+
+## A card of color on the ship at the start of Generation gen_start: the supply it still earns (one at
+## the start of every later Generation).
+static func inc_vp(gen_start: int, color: int) -> float:
+	var v: float = 0.0
+	for g: int in range(gen_start + 1, ROUNDS + 1):
+		v += sup_vp(g, color)
+	return v
+
 const FEATURES: Array[String] = ["one", "units", "income", "hand", "capacity", "open_sectors", "synergy", "hand_stars", "opt_value", "ship"]
 
 ## A position as the start of Generation gen_start sees it. advance: st is the END of the Generation
 ## before (the ship's income and the 6 new cards are added); else st is already that start.
-static func features(st: Dictionary, gen_start: int, advance: bool) -> PackedFloat32Array:
+static func features(st: Dictionary, gen_start: int, advance: bool, vp: float = -1.0) -> PackedFloat32Array:
 	var board: Array = st["board"] as Array
+	if vp < 0.0:   # (evaluate has scored the ship already)
+		vp = float(BotScoring.board_vp(board))
 	var hand: Array = st["hand"] as Array
-	var units: float = units_of(st["supplies"] as Dictionary)
-	var income: float = 0.0
+	var supplies: Dictionary = st["supplies"] as Dictionary
+	var units: float = 0.0    # the supply at that start, in points
+	var income: float = 0.0   # what the cards on the ship earn after it, in points
+	for c: Variant in supplies:
+		units += float(int(supplies[c])) * sup_vp(gen_start, int(c))
 	var capacity: int = 0
 	var ship: int = 0
 	var opt_value: float = 0.0
-	var wu: float = unit_vp(gen_start)
 	var wh: float = card_vp(gen_start)
 	for e_v: Variant in board:
 		var e: Dictionary = e_v as Dictionary
 		var n_techs: int = (e.get("techs", []) as Array).size()
 		for c: int in BotScoring.slot_effective_placed_colors(e):
-			income += U[clampi(c, 0, 5)]
+			income += inc_vp(gen_start, c)
+			if advance:   # (paid out at that start)
+				units += sup_vp(gen_start, c)
 		ship += 1 + n_techs
 		capacity += maxi(0, CAP - n_techs)
-		opt_value += opt_potential(e, board.size(), wu, wh)
+		opt_value += opt_potential(e, board.size(), gen_start, wh)
 	var open_sectors: int = MAX_SECTORS - board.size()
 	var n_hand: float = float(hand.size())
 	if advance:
-		units += income
 		n_hand += 6.0
 	var hand_stars: float = 0.0
 	for cd_v: Variant in hand:
@@ -117,22 +161,19 @@ static func features(st: Dictionary, gen_start: int, advance: bool) -> PackedFlo
 	# "6 complete sectors" techs): the ship filled up as far as the game still allows, scored
 	var gens_left: int = ROUNDS + 1 - gen_start
 	var fill: int = mini(capacity + CAP * open_sectors, 6 * gens_left)
-	var synergy: float = float(BotScoring.board_vp(project(board, fill, open_sectors)) - BotScoring.board_vp(board))
+	var synergy: float = float(BotScoring.board_vp(project(board, fill, open_sectors))) - vp
 	return PackedFloat32Array([1.0, units, income, n_hand, float(capacity), float(open_sectors), synergy, hand_stars, opt_value, float(ship)])
 
-## What a unit of supply / a card in hand is worth at the start of Generation gen_start (the fitted
-## weights; past the last Generation, nothing).
-static func unit_vp(gen_start: int) -> float:
-	return float((W[gen_start] as Array)[1]) if W.has(gen_start) else 0.0
-
+## What a card in hand is worth at the start of Generation gen_start (the fitted weight; past the last
+## Generation, nothing).
 static func card_vp(gen_start: int) -> float:
-	return float((W[gen_start] as Array)[3]) if W.has(gen_start) else 0.0
+	return kf("w%d_hand" % gen_start, float((W[gen_start] as Array)[3])) if W.has(gen_start) else 0.0
 
 ## What a sector's optimize effects still to come are worth: each level's effect, by how far along its
 ## colours are (a quarter for the bare level, the rest as its colours arrive), as long as the sector has
 ## room for the missing ones. This is what makes a bot work toward Habitation Ring's 8 Dust or an
 ## advanced sector's three levels instead of spreading cards anywhere.
-static func opt_potential(e: Dictionary, n_sectors: int, wu: float, wh: float) -> float:
+static func opt_potential(e: Dictionary, n_sectors: int, gen_start: int, wh: float) -> float:
 	var sector: CardData = e.get("sector") as CardData
 	var max_opt: int = int(e.get("max_optimizations", 0))
 	if sector == null or int(e.get("optimize_count", 0)) >= max_opt:
@@ -145,7 +186,7 @@ static func opt_potential(e: Dictionary, n_sectors: int, wu: float, wh: float) -
 	var triggered: Array = e.get("triggered_levels", []) as Array
 	var pool: Array[int] = BotScoring.slot_tech_colors(e)
 	var steps: Array[Dictionary] = SectorEffects.get_optimize_steps_for_state(sector, is_adv, BotScoring.slot_effective_placed_colors(e), 2)
-	var val: float = steps_vp(steps, n_sectors, wu, wh)
+	var val: float = steps_vp(steps, n_sectors, gen_start, wh)
 	var total: float = 0.0
 	for i: int in reqs.size():
 		var req: Array[int] = []
@@ -167,9 +208,11 @@ static func opt_potential(e: Dictionary, n_sectors: int, wu: float, wh: float) -
 		OptimizeLogic.consume_from_pool(pool, req)
 	return total
 
-## Effect steps in points: supply at wu a unit, cards at wh each, stores and archives at what they score.
-static func steps_vp(steps: Array[Dictionary], n_sectors: int, wu: float, wh: float) -> float:
+## Effect steps in points: supply at what its colour is worth at the start of Generation gen_start,
+## cards at wh each, stores and archives at what they score.
+static func steps_vp(steps: Array[Dictionary], n_sectors: int, gen_start: int, wh: float) -> float:
 	var v: float = 0.0
+	var wu: float = sup_vp(gen_start, 1)   # (a supply of no particular colour: a Metals')
 	for step: Dictionary in steps:
 		match str(step.get("type", "")):
 			"draw":
@@ -177,13 +220,13 @@ static func steps_vp(steps: Array[Dictionary], n_sectors: int, wu: float, wh: fl
 			"draw_all_players", "interfleet_comms":
 				v += float(step.get("count", 1)) * wh * 0.6
 			"draw_recycle_top":
-				v += 1.5 * wu
+				v += 1.2 * wu
 			"gain_supply":
-				v += float(step.get("amount", 1)) * U[clampi(int(step.get("color", 0)), 0, 5)] * wu
+				v += float(step.get("amount", 1)) * sup_vp(gen_start, int(step.get("color", 0)))
 			"gain_supply_per_sector_count":
-				v += float(n_sectors) * U[clampi(int(step.get("color", 0)), 0, 5)] * wu
+				v += float(n_sectors) * sup_vp(gen_start, int(step.get("color", 0)))
 			"gain_supply_per_stored":
-				v += 1.5 * wu
+				v += 1.2 * wu
 			"store_on_slot", "store_on_any_sector":
 				v += float(step.get("amount", 1))
 			"store_per_card_here":
@@ -201,7 +244,7 @@ static func steps_vp(steps: Array[Dictionary], n_sectors: int, wu: float, wh: fl
 			"choice":
 				var best: float = 0.0
 				for o_v: Variant in (step.get("options", []) as Array):
-					best = maxf(best, steps_vp(BotScoring.to_dict_array((o_v as Dictionary).get("steps", []) as Array), n_sectors, wu, wh))
+					best = maxf(best, steps_vp(BotScoring.to_dict_array((o_v as Dictionary).get("steps", []) as Array), n_sectors, gen_start, wh))
 				v += best
 			_:
 				v += 0.6   # reveals and offers: a look at more of the market
@@ -500,14 +543,14 @@ static func _idle_action(st: Dictionary, gen: int = 1) -> Dictionary:
 
 ## What winning cd at price (paid in color) would leave the bot with: the best outlook over the sectors
 ## it could go on ({v, slot_idx}; v = -INF when it can't be placed or paid).
-static func win_value(main: Main, bot_id: int, st: Dictionary, cd: CardData, is_adv: bool, price: int, color: int, gen: int) -> Dictionary:
+static func win_value(main: Main, bot_id: int, st: Dictionary, cd: CardData, is_adv: bool, price: int, color: int, gen: int, free: Array = []) -> Dictionary:
 	var board: Array = st["board"] as Array
-	if not BotAI.can_pay(st["supplies"] as Dictionary, color, price):
+	if free.is_empty() and not BotAI.can_pay(st["supplies"] as Dictionary, color, price):
 		return {v = -INF, slot_idx = -1}
 	if is_adv or cd.card_type == CardData.CardType.SECTOR:
 		if board.size() >= MAX_SECTORS:
 			return {v = -INF, slot_idx = -1}
-		var st2: Dictionary = BotTurn.sim_apply(main, bot_id, st, {type = "win_adv_sector", card = cd, price = price, color = color})
+		var st2: Dictionary = BotTurn.sim_apply(main, bot_id, st, {type = "win_adv_sector", card = cd, price = price, color = color, free = free})
 		return {v = evaluate(st2, gen), slot_idx = -1}
 	var best: Dictionary = {v = -INF, slot_idx = -1}
 	var sigs: Dictionary = {}
@@ -519,7 +562,7 @@ static func win_value(main: Main, bot_id: int, st: Dictionary, cd: CardData, is_
 		if sigs.has(sig):
 			continue
 		sigs[sig] = true
-		var st2: Dictionary = BotTurn.sim_apply(main, bot_id, st, {type = "win_expedition", card = cd, slot_idx = i, price = price, color = color})
+		var st2: Dictionary = BotTurn.sim_apply(main, bot_id, st, {type = "win_expedition", card = cd, slot_idx = i, price = price, color = color, free = free})
 		var v: float = evaluate(st2, gen)
 		if v > float(best["v"]):
 			best = {v = v, slot_idx = i}
@@ -529,23 +572,44 @@ static func win_value(main: Main, bot_id: int, st: Dictionary, cd: CardData, is_
 ## each judged by what the bot could go on to do this Generation (a short search from both positions:
 ## judged as they stand, supply still in hand counted for nothing in the last Generation, and a bot paid
 ## 8 Metals for a 3-point card). A coroutine (see search).
-static func should_bid(main: Main, bot_id: int, cd: CardData, is_adv: bool, next_bid: int, color: int) -> bool:
+static func should_bid(main: Main, bot_id: int, cd: CardData, is_adv: bool, next_bid: int, color: int, convert: bool = false) -> bool:
 	var gen: int = main._round
 	Scoring.other_players_expeditions = main._alliance_count_for(bot_id)
 	var st: Dictionary = state_of(main, bot_id)
-	var win: Dictionary = win_value(main, bot_id, st, cd, is_adv, next_bid, color, gen)
+	# convert: a bid above the supply at hand in its colour, paid by fusing up to it and recycling
+	# cards (free actions at any time, for a human bidder too; BotTurn.bot_resolve_auction_win does them)
+	var free: Array = []
+	if convert and not BotAI.can_pay(st["supplies"] as Dictionary, color, next_bid):
+		var pay: Dictionary = pay_plan(st, color, next_bid, null)
+		if not bool(pay["ok"]):
+			if OS.get_cmdline_user_args().has("--botsim-trace"):
+				print("BID g%d %s %s at %d %s: can't pay" % [gen, GameNetwork.player_names.get(bot_id, "?"),
+						cd.adv_name if is_adv else cd.card_name, next_bid, CardData.color_name(color as CardData.SupplyColor)])
+			return false
+		free = pay["steps"] as Array
+	var win: Dictionary = win_value(main, bot_id, st, cd, is_adv, next_bid, color, gen, free)
 	if float(win["v"]) == -INF:
 		return false
 	var market: Dictionary = market_of(main, cd)
-	var action: Dictionary = {type = "win_adv_sector", card = cd, price = next_bid, color = color}
+	var action: Dictionary = {type = "win_adv_sector", card = cd, price = next_bid, color = color, free = free}
 	if int(win["slot_idx"]) >= 0:
-		action = {type = "win_expedition", card = cd, slot_idx = int(win["slot_idx"]), price = next_bid, color = color}
+		action = {type = "win_expedition", card = cd, slot_idx = int(win["slot_idx"]), price = next_bid, color = color, free = free}
 	var st_win: Dictionary = BotTurn.sim_apply(main, bot_id, st, action)
 	var w: int = int(kf("bw", 2.0))
 	var d: int = int(kf("bd", 3.0))
 	var with_card: Dictionary = await search(main, bot_id, st_win, gen, market, w, d)
 	var without: Dictionary = await search(main, bot_id, st, gen, market, w, d)
+	if OS.get_cmdline_user_args().has("--botsim-trace"):
+		print("BID g%d %s %s at %d %s: with %.1f without %.1f (%d free steps)" % [gen, GameNetwork.player_names.get(bot_id, "?"),
+				cd.adv_name if is_adv else cd.card_name, next_bid, CardData.color_name(color as CardData.SupplyColor),
+				float(with_card["v"]), float(without["v"]), free.size()])
 	return float(with_card["v"]) > float(without["v"]) + kf("bidmargin", 0.5)
+
+## Does a bot of this difficulty fuse and recycle to raise a bid?
+static func bids_convert(difficulty: int) -> bool:
+	if difficulty >= BotAI.Difficulty.VERY_HARD:
+		return kf("vbidfuse", 1.0) > 0.5
+	return kf("hbidfuse", 0.0) > 0.5
 
 ## The sector a won expedition goes on (-1: none has room).
 static func best_slot(main: Main, bot_id: int, cd: CardData) -> int:

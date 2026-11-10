@@ -1,7 +1,10 @@
-"""Bot-vs-bot test games (scripts/game/bot_sim.gd): plays N seeded Versus games headless, three bots each,
-in parallel, and summarises their scores and where the points came from.
+"""Bot-vs-bot test games (scripts/game/bot_sim.gd): plays N seeded Versus games headless, in parallel,
+and summarises the bots' scores and where the points came from.
 
     python tools/bot_league.py <tag> [--games 30] [--diff 2,2,2] [--jobs 4] [--speed 30] [--seed0 1]
+        --diff: one level per bot, 1 to 3 bots (0 Easy, 1 Normal, 2 Hard, 3 Very Hard): "2,2" two Hard
+        bots, "3,2" Very Hard against Hard, "2" one alone. Scores depend on it: the bots share the 12
+        expeditions. [--trace] keeps the bots' decisions; [--bv name=value,...] tuning overrides.
     python tools/bot_league.py --report <tag> [<tag> ...]      # compare finished runs
 
 Results: tools/bot_league/<tag>.jsonl (one line per game). The player's seat passes every turn, so it is
@@ -78,7 +81,7 @@ def summarise(tag):
             for k in ["Stars", "Faceup archived", "Facedown archived", "Stored supply", "Expeditions/conditional"]:
                 cats[d][k].append(c.get(k, 0))
             adv[d].append(sum(1 for s in b["sectors"] if s["adv"]))
-    names = {0: "Easy", 1: "Normal", 2: "Hard"}
+    names = {0: "Easy", 1: "Normal", 2: "Hard", 3: "V.Hard"}
     print("== %s: %d games" % (tag, len(rows)))
     for d in sorted(by_diff):
         v = by_diff[d]

@@ -8,12 +8,12 @@ enum Difficulty { EASY = 0, NORMAL = 1, HARD = 2, VERY_HARD = 3 }
 const TECH_CAPACITY: int = 5   # matches SectorSlot's 5 tech-slot children
 const MAX_SECTORS: int = 6     # matches the "max 6 sectors" ship rule
 
-# Skill flags per difficulty. Hard has every skill on with the richest
-# valuation; Normal gets a reduced subset; Easy stays close to its original
-# mostly-random, easily-beatable baseline. Rule resolution (card effects,
-# optimize triggers) is NOT gated here — that happens uniformly for every
-# bot in bot_turn.gd, since that's just playing the game correctly, not a
-# difficulty-scaled skill.
+# Skill flags per difficulty. Rule resolution (card effects, optimize triggers) is NOT gated here —
+# that happens uniformly for every bot in bot_turn.gd, since that's just playing the game correctly,
+# not a difficulty-scaled skill.
+# Targets (2026-11-10): Easy 15-20, Normal 30-40, Hard 65+, Very Hard 90+. Measured in two-player
+# games against a bot of the same level (tools/bot_league.py, 32 games): Easy 18, Normal 36, Hard 67,
+# Very Hard 60 - and 77 against a Hard bot (see BotPlanner's notes and head_start below).
 static func skills_for(difficulty: int) -> Dictionary:
 	match difficulty:
 		# value_model: plays valued in projected final VP (BotValue, 2026-11-09); foresight = how much of the
@@ -33,11 +33,39 @@ static func skills_for(difficulty: int) -> Dictionary:
 				randomness = 0.0, value_model = true, foresight = 0.6, bid_scale = 0.8,
 			}
 		_:
+			# Easy (2026-11-10; it used to pick at random and pass 35% of its turns: 2 points a game):
+			# Normal's judgement with a beginner's habits. It sees little further than the ship as it is
+			# (foresight), as often as not takes any play that looks all right instead of the best
+			# (blunder), pays with the supply it has (one fuse; recycling a card for it is what it thinks
+			# of on one turn in sixteen - with it every turn it scores 35), bids low, never researches.
+			# (randomness: its old self, still what it plays in Generation Fleet)
 			return {
 				rich_valuation = false, optimize_aware = false, fuse = "off",
 				recycle = false, bid_ev = false, can_research = false, smart_research = false,
-				randomness = 0.35,
+				randomness = 0.35, value_model = true, foresight = BotValue.k("efore", 0.3), bid_scale = BotValue.k("ebid", 0.5),
+				blunder = BotValue.k("eblunder", 0.5), early_pass = BotValue.k("epass", 0.0),
+				pay_fuses = int(BotValue.k("efuse", 1.0)), pay_recycle = BotValue.k("erec", 0.06),
 			}
+
+## A head start for Very Hard, OFF as it stands (0 cards, no supply): what it would get on top of the
+## rules at the start of every Generation - {cards: extra cards drawn, supply: {colour: extra supply}}.
+## Hard and Very Hard play the same game by the rules; Very Hard thinks further and fuses and recycles
+## to raise a bid. Against a Hard bot in a two-player game that is worth 77 points (2026-11-10,
+## tools/bot_league.py), and nothing tried got it further by the rules: the 12 expeditions are shared.
+## With 1 extra card a Generation it scored 86, with 2 it scored 104, with 2 and a Thrust 115.
+## (--bv-vbcards / --bv-vbsup<colour>: test games)
+const VERY_HARD_BONUS_CARDS: int = 0
+const VERY_HARD_BONUS_SUPPLY: Dictionary = {}
+
+static func head_start(difficulty: int) -> Dictionary:
+	if difficulty < Difficulty.VERY_HARD or GameNetwork.fleet_mode:
+		return {cards = 0, supply = {}}
+	var supply: Dictionary = {}
+	for c: int in 6:
+		var n: int = int(BotValue.k("vbsup%d" % c, float(int(VERY_HARD_BONUS_SUPPLY.get(c, 0)))))
+		if n > 0:
+			supply[c] = n
+	return {cards = int(BotValue.k("vbcards", float(VERY_HARD_BONUS_CARDS))), supply = supply}
 
 # Returns {type, card?, slot_idx?}
 # type: "pass" | "research" | "buy_sector" | "place_tech" | "start_auction"
@@ -136,8 +164,16 @@ static func plan_turn(
 			parts.append("%s %s%s %.2f" % [q["type"], (q["card"] as CardData).card_name,
 					(" @%d" % int(q["slot_idx"])) if q.has("slot_idx") else "", float(q["_value"])])
 		print("TRACE g%d sup %s sectors %d hand %d | %s" % [gen, str(supplies.values()), bot_board.size(), hand.size(), " | ".join(parts)])
+	# the weaker levels' habits (skills_for): done for this Generation on a whim; any play that looks
+	# all right instead of the best one
+	if randf() < float(skills.get("early_pass", 0.0)):
+		return {action = {type = "pass"}, free = []}
+	if randf() < float(skills.get("blunder", 0.0)):
+		ranked.shuffle()
+	var may_recycle: bool = randf() < float(skills.get("pay_recycle", 1.0))   # (this turn)
 	for p: Dictionary in ranked:
-		var pay: Dictionary = plan_to_afford(p, supplies, hand, keep, float(p["_value"]))
+		var pay: Dictionary = plan_to_afford(p, supplies, hand, keep, float(p["_value"]),
+				int(skills.get("pay_fuses", 99)), may_recycle)
 		if bool(pay.get("ok", false)):
 			return {action = p, free = pay["steps"]}
 	if OS.get_cmdline_user_args().has("--botsim-trace"):
@@ -149,7 +185,8 @@ static func plan_turn(
 
 ## The fuses and recycles that make play affordable, cheapest first: {ok, steps, loss}. Gives up when what
 ## the recycled cards were worth (keep) reaches the play's own worth.
-static func plan_to_afford(play: Dictionary, supplies: Dictionary, hand: Array[CardData], keep: Dictionary, play_value: float) -> Dictionary:
+static func plan_to_afford(play: Dictionary, supplies: Dictionary, hand: Array[CardData], keep: Dictionary, play_value: float,
+		max_fuses: int = 99, may_recycle: bool = true) -> Dictionary:
 	var work: Dictionary = supplies.duplicate()
 	var steps: Array = []
 	var pool: Array[CardData] = hand.duplicate()
@@ -157,15 +194,19 @@ static func plan_to_afford(play: Dictionary, supplies: Dictionary, hand: Array[C
 	var color: int = _play_color(play)
 	var cost: int = int(play.get("cost", maxi(0, (play["card"] as CardData).cost) + FleetRules.cost_increase(play["card"] as CardData)))
 	var loss: float = 0.0
+	var fuses: int = 0
 	for _i: int in 16:
 		if can_pay(work, color, cost):
 			return {ok = true, steps = steps, loss = loss}
-		var f: Dictionary = _fuse_step_toward(color, work, 3)
+		var f: Dictionary = _fuse_step_toward(color, work, 3) if fuses < max_fuses else {}
 		if not f.is_empty():
 			work[int(f["source"])] = int(work.get(int(f["source"]), 0)) - 2
 			work[int(f["target"])] = int(work.get(int(f["target"]), 0)) + 1
 			steps.append({fuse = f})
+			fuses += 1
 			continue
+		if not may_recycle:
+			return {ok = false}
 		var best: CardData = null
 		var best_keep: float = INF
 		for c: CardData in pool:

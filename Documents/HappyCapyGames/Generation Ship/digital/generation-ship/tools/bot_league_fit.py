@@ -11,7 +11,7 @@ import json, os, re, sys
 import numpy as np
 
 HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bot_league")
-FEATURES = ["one", "units", "income", "hand", "capacity", "open_sectors", "synergy", "hand_stars", "opt_open", "ship"]
+FEATURES = ["one", "units", "income", "hand", "capacity", "open_sectors", "synergy", "hand_stars", "opt_value", "ship"]
 ridge = float(sys.argv[sys.argv.index("--ridge") + 1]) if "--ridge" in sys.argv else 3.0
 tags = [a for i, a in enumerate(sys.argv[1:], 1) if not a.startswith("--") and sys.argv[i - 1] != "--ridge"]
 
