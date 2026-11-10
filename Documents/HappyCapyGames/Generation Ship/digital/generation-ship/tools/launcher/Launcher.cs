@@ -19,6 +19,7 @@ using System.Windows.Forms;
 static class Launcher
 {
     const string GameExe = "GS_game.exe";
+    const string GamePck = "GS_game.pck";   // the game's data, next to the exe (not inside it: tools/release.py says why)
     const string SafeArgs = "--rendering-method gl_compatibility --rendering-driver opengl3";
     const int StartSeconds = 60;   // an error exit sooner than this counts as "while starting"
     const string ReportUrl = "https://api.happycapygames.com/v1/crashes";
@@ -36,9 +37,12 @@ static class Launcher
         Application.EnableVisualStyles();
         string game = Path.Combine(GameDir, GameExe);
         Strings s = Strings.For(Locale());
-        if (!File.Exists(game))
+        Log("launcher started");
+        string missing = !File.Exists(game) ? GameExe : !File.Exists(Path.Combine(GameDir, GamePck)) ? GamePck : null;
+        if (missing != null)
         {
-            MessageBox.Show(s.Missing, "Generation Ship", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Log(missing + " is missing");
+            Error(s.Missing.Replace(GameExe, missing));
             return 1;
         }
         if (File.Exists(SafeFlag) && ReadSmall(SafeFlag) != "quiet")
@@ -51,19 +55,23 @@ static class Launcher
             psi.WorkingDirectory = GameDir;
             DateTime t0 = DateTime.Now;
             int code;
+            Log("starting " + GameExe + (safe ? " in safe graphics mode" : ""));
             try
             {
                 using (Process p = Process.Start(psi))
                 {
+                    Log("game process " + p.Id + " is running (" + Seconds(t0) + " s to start it)");
                     p.WaitForExit();
                     code = p.ExitCode;
                 }
             }
             catch (Exception e)
             {
-                MessageBox.Show(s.Missing + "\n\n" + e.Message, "Generation Ship", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Log("the game could not be started: " + e.Message);
+                Error(s.Missing + "\n\n" + e.Message);
                 return 1;
             }
+            Log("the game ended with exit code 0x" + code.ToString("X8") + " after " + Seconds(t0) + " s");
             if (code == 0)
                 return 0;
             bool starting = (DateTime.Now - t0).TotalSeconds < StartSeconds;
@@ -79,6 +87,46 @@ static class Launcher
                 SetFlag(SafeFlag, true);
             else if (c == Choice.NormalMode)
                 SetFlag(SafeFlag, false);
+        }
+    }
+
+    static string Seconds(DateTime since)
+    {
+        return (DateTime.Now - since).TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture);
+    }
+
+    // launcher.log in the game's user folder: when the launcher started the game and how that ended, so
+    // a start where "nothing happens" can be told apart from one that failed (2026-11-10: Steam showed
+    // the game as running for minutes with no game process, and nothing said where it was stuck).
+    // The newest 150 lines are kept.
+    static void Log(string what)
+    {
+        try
+        {
+            Directory.CreateDirectory(UserDir);
+            string path = Path.Combine(UserDir, "launcher.log");
+            if (File.Exists(path) && new FileInfo(path).Length > 24000)
+            {
+                string[] lines = File.ReadAllLines(path);
+                int keep = Math.Min(lines.Length, 150);
+                string[] tail = new string[keep];
+                Array.Copy(lines, lines.Length - keep, tail, 0, keep);
+                File.WriteAllLines(path, tail);
+            }
+            File.AppendAllText(path, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture) + " " + what + "\r\n");
+        }
+        catch (Exception) { }
+    }
+
+    // An error box that can't open behind the Steam window (a plain MessageBox of a program without a
+    // window of its own may: the launcher then waits for an OK nobody sees).
+    static void Error(string text)
+    {
+        using (var owner = new Form { TopMost = true, ShowInTaskbar = false, StartPosition = FormStartPosition.CenterScreen,
+            FormBorderStyle = FormBorderStyle.None, Size = new Size(1, 1), Opacity = 0 })
+        {
+            owner.Show();
+            MessageBox.Show(owner, text, "Generation Ship", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 

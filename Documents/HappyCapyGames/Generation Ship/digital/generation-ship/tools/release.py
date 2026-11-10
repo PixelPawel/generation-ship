@@ -2,7 +2,7 @@
 
 Close Godot first (exports and the Android sync need the editor closed).
 
-    python tools/release.py windows           # export Build/Windows: GS_game.exe + crash launcher GS.exe
+    python tools/release.py windows           # export Build/Windows: GS_game.exe + GS_game.pck + crash launcher GS.exe
     python tools/release.py android           # version code +1, sync, export the signed AAB
     python tools/release.py steam             # upload Build/Windows via steamcmd (app_build_4724920.vdf)
     python tools/release.py play [track]      # upload the AAB to Google Play (default track: internal)
@@ -37,7 +37,15 @@ PROJECT = os.path.dirname(HERE)
 ANDROID = os.path.join(os.path.dirname(PROJECT), os.path.basename(PROJECT) + "-android")
 GODOT = r"C:\Program Files (x86)\Godot 4\Godot_v4.7-stable_win64.exe"
 # Steam starts GS.exe = tools/launcher (invisible unless the game crashes); the game is GS_game.exe
+# with its data in GS_game.pck beside it. The data used to be inside the exe (embed_pck): 1.4 GB, a
+# new file with every build, and Windows Defender holds a program that large and new back for 10
+# seconds every time it starts "cold" (after each update of the game and of Defender's definitions;
+# measured 2026-11-10: a never-seen 100 or 300 MB exe starts at once, a 1.4 GB one after 10.5 s).
+# Under Steam that wait sometimes never ended: the launcher sat there with no game process until the
+# player pressed Stop, and the second try worked. The exe alone is the 100 MB Godot player.
 WIN_PRESET, WIN_OUT, WIN_LAUNCHER = "GS Windows", "Build/Windows/GS_game.exe", "Build/Windows/GS.exe"
+WIN_PCK = "Build/Windows/GS_game.pck"
+WIN_EXE_MAX_MB = 250   # more than this and the data is inside the exe again
 CSC = r"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"   # ships with Windows
 AAB_PRESET, AAB_OUT = "Android Release (AAB)", "Build/GS.aab"
 PACKAGE = "com.happycapygames.generationship"
@@ -91,6 +99,11 @@ def bump_version_code() -> int:
 
 def windows() -> None:
     export(PROJECT, WIN_PRESET, WIN_OUT)
+    exe, pck = os.path.join(PROJECT, WIN_OUT), os.path.join(PROJECT, WIN_PCK)
+    if not os.path.exists(pck) or os.path.getsize(exe) > WIN_EXE_MAX_MB * 1024 * 1024:
+        sys.exit("the Windows export must not embed its data (preset '%s': binary_format/embed_pck=false): "
+                 "see the note at WIN_PRESET" % WIN_PRESET)
+    print("data", pck, os.path.getsize(pck) // (1024 * 1024), "MB")
     src = os.path.join(HERE, "launcher")
     run([CSC, "-nologo", "-codepage:65001", "-target:winexe", "-optimize+", "-win32icon:gs.ico",
          "-r:System.Windows.Forms.dll", "-r:System.Drawing.dll", "-r:System.Management.dll",
