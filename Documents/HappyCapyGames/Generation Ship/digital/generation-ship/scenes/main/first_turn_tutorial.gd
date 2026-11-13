@@ -5,7 +5,7 @@ extends Node
 # mechanic in order, each chapter waiting for the player to really do it.
 # It highlights the real UI and shows the step on the effect-hint banner (top
 # edge while the tutorial runs). Before a chapter it hands over exactly the
-# cards and supply that chapter needs, so it never depends on lucky draws.
+# cards that chapter needs, so it never depends on lucky draws.
 #
 # Chapters: the three card types, each shown big and named (a Tech out of the
 # hand, the Sector on the market screen, an Expedition out of the market
@@ -34,7 +34,7 @@ extends Node
 
 const REFRESH_INTERVAL_SEC: float = 0.2
 const SETTINGS_PATH: String = "user://settings.cfg"
-const MIN_SUPPLY: int = 6        # topped up before chapters that cost supply
+const START_SUPPLY: int = 10     # of each colour at the start; never topped up afterwards
 # A cheap, effect-free card of each colour, to fill a sector's optimize group.
 const FILLER_BY_COLOR: Dictionary = {
 	CardData.SupplyColor.DUST: "Mag-Net",
@@ -116,6 +116,8 @@ func start(main: Main) -> void:
 	_board.optimize_triggered.connect(func(_slot: SectorSlot, _level: int) -> void: _optimized = true)
 	main._cs_display.fused.connect(func(_s: int, _t: int) -> void: _fused = true)
 	main.fleet_card_shuttled.connect(func(_target: int) -> void: _shuttled = true)
+	for color: CardData.SupplyColor in CardData.SupplyColor.values():
+		main._cs_display.set_supply(color, START_SUPPLY)
 	var timer: Timer = Timer.new()
 	timer.wait_time = REFRESH_INTERVAL_SEC
 	timer.autostart = true
@@ -364,49 +366,39 @@ func _leave(step: String) -> void:
 		"fleet_send":
 			Main.FleetFlow.end_tutorial(_main, FLEET_CREW_ID)
 
-# Hand-overs before a chapter: the cards it needs, enough supply to play them.
+# Hand-overs before a chapter: the cards it needs. Supply is never refilled: the
+# player starts with START_SUPPLY of each and what is spent stays spent.
 func _enter(step: String) -> void:
 	match step:
-		"buy":
-			_top_up_supply()
 		"probe":
-			_top_up_supply()
 			# its reveal brings out DNA Sculpting and offers a bid: if it's won here,
 			# its "Draw 3" brings these, to archive face up (they keep their printed stars)
 			_board.set_scripted_deck(_cards(STAR_DRAWS))
 			_give([PROBE_CARD])
 		"bid":
 			if not _expedition_won_early:
-				_top_up_supply()
 				_board.set_scripted_deck(_cards(STAR_DRAWS))
 				# Probe Launcher revealed it already (unless that was skipped somehow)
 				if _board.get_available_expeditions().is_empty():
 					_board.reveal_expedition_to_slot(Main.TUTORIAL_SECTOR_SLOT)   # only DNA Sculpting, clear of the banner
 		"buy2":
-			_top_up_supply()
 			_board.sync_market_reveal(Main.TUTORIAL_SECTOR_SLOT)   # the advanced sector appears (no reveal effects)
 		"place":
 			_give(["Mag-Net"])
 		"fuse":
-			if _main._cs_display.get_supply(CardData.SupplyColor.DUST) < 2:
-				_main._cs_display.set_supply(CardData.SupplyColor.DUST, 2)
 			CockpitRig.set_screen_enlarged(_main, _main.get_node("UiControl"), true)
 		"if_full":
-			_top_up_supply()
 			_give_if_missing("Lab Meats")
 		"if_new":
-			_top_up_supply()
 			_give(["Hangars"])
 		"recycle":
 			_give_if_missing("Mag-Net")
 			CockpitRig.set_screen_enlarged(_main, _main.get_node("UiControl"), true)
 		"optimize":
-			_top_up_supply()
 			# Simulators' optimize effect is "Draw 2": it draws the next steps' cards
 			_board.set_scripted_deck(_cards(["Lab Meats", "PC-Mind-Link"]))
 			_give(_missing_optimize_cards())
 		"complete":
-			_top_up_supply()
 			var free: int = 5 - (_first_sector.get_tech_count() if _first_sector else 5)
 			var cards: Array[String] = []
 			for i: int in maxi(0, free - 1):
@@ -418,20 +410,15 @@ func _enter(step: String) -> void:
 				# recycle, auction-payment, archive and research chapters then use up
 				_board.set_scripted_deck(_cards(["Mag-Net", "Mag-Net", "Mag-Net", "Mag-Net"]))
 		"buy3":
-			_top_up_supply()
 			_board.sync_market_reveal(Main.TUTORIAL_SECTOR_SLOT)   # Probe Launcher appears (no reveal effects)
 		"archive":
-			_top_up_supply()
 			_give(["Chemical Synthesizer"])
 			_give_if_missing("Mag-Net")   # the card to archive (PC-Mind-Link may have drawn one)
 		"store":
-			_top_up_supply()
 			_give(["Containers"])
 		"stars":
-			_top_up_supply()
 			_give(["Quantum Archives"])
 		"always":
-			_top_up_supply()
 			_give([ALWAYS_CARD])   # the star card follows once it's placed (_tick)
 		"research":
 			_board.set_scripted_deck(_cards(["Fish"]))   # the replacement it draws
@@ -439,7 +426,6 @@ func _enter(step: String) -> void:
 		"fleet_dangers":
 			Main.FleetFlow.start_tutorial(_main, FLEET_DESTINATION, FLEET_DANGER, FLEET_CREW_ID, FLEET_CREW_NAME)
 		"fleet_send":
-			_top_up_supply()
 			_give([FLEET_SEND_CARD])
 		"score":
 			_main._hide_effect_hint()
@@ -763,11 +749,6 @@ static func _cards(names: Array[String]) -> Array[CardData]:
 		if cd:
 			out.append(cd)
 	return out
-
-func _top_up_supply() -> void:
-	for color: CardData.SupplyColor in CardData.SupplyColor.values():
-		if _main._cs_display.get_supply(color) < MIN_SUPPLY:
-			_main._cs_display.set_supply(color, MIN_SUPPLY)
 
 # The cards the first sector's first optimize group still needs ("Any" = Mag-Net).
 func _missing_optimize_cards() -> Array[String]:
