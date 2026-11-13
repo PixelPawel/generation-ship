@@ -124,11 +124,36 @@ func refresh_locale_text() -> void:
 	for ctrl: Control in _tr_targets:
 		if is_instance_valid(ctrl):
 			ctrl.text = tr(_tr_targets[ctrl] as String)
+	_sync_language_buttons()
 	if _vote_up_btn:
 		_vote_up_btn.tooltip_text = tr("Good translation")
 		_vote_down_btn.tooltip_text = tr("Needs work")
 
+var _lang_buttons: Dictionary = {}   # locale code -> its toggle Button in the title row
+
+func _sync_language_buttons() -> void:
+	var current: String = _current_lang().to_lower()
+	for code: String in _lang_buttons:
+		var b: Button = _lang_buttons[code] as Button
+		b.set_pressed_no_signal(code == current)
+		b.tooltip_text = tr("LANG_" + code.to_upper())
+
+func _on_language_pressed(code: String) -> void:
+	if code == _current_lang().to_lower():
+		_sync_language_buttons()
+		return
+	# the PauseMenu (main menu and game both have one) applies it: saved, card art and every window follow
+	var switcher: Node = get_tree().get_first_node_in_group("language_switch")
+	if switcher == null or not switcher.has_method("apply_language"):
+		_sync_language_buttons()
+		return
+	_hide_enlarged()
+	switcher.call("apply_language", code)
+	_select_tab(_active_tab)
+	_sync_language_buttons()
+
 func open() -> void:
+	_sync_language_buttons()
 	_hide_enlarged()
 	# the grid is built once (the main menu warms it up) and kept, unless the
 	# language changed — rebuilding 100+ cards on every open was a stutter
@@ -177,6 +202,22 @@ func _build_ui() -> void:
 	title.add_theme_color_override("font_color", Color(0.9, 0.85, 0.7))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_row.add_child(title)
+
+	# — Language buttons: switch the game's language right here (the cards follow), as Settings does —
+	var lang_group: ButtonGroup = ButtonGroup.new()
+	for code: String in _LANGUAGE_CODES:
+		var lb: Button = _make_button(code.to_upper())
+		lb.custom_minimum_size = Vector2(48, 36)
+		lb.toggle_mode = true
+		lb.button_group = lang_group
+		lb.tooltip_text = tr("LANG_" + code.to_upper())
+		lb.focus_mode = Control.FOCUS_NONE
+		lb.pressed.connect(_on_language_pressed.bind(code))
+		title_row.add_child(lb)
+		_lang_buttons[code] = lb
+	var gap: Control = Control.new()
+	gap.custom_minimum_size = Vector2(12, 0)
+	title_row.add_child(gap)
 
 	var close_btn: Button = _make_button("✕")
 	close_btn.custom_minimum_size = Vector2(36, 0)

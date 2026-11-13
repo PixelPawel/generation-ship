@@ -42,6 +42,7 @@ func _tr_set(ctrl: Control, key: String) -> void:
 	_tr_targets[ctrl] = key
 
 func _ready() -> void:
+	add_to_group("language_switch")   # the Collection's language buttons switch through apply_language()
 	_build_ui()
 	visible = false
 
@@ -743,6 +744,16 @@ func _on_language_selected(idx: int) -> void:
 	ImageCache.refresh_local_art()
 	get_tree().call_group("cards", "refresh_locale_art")
 	get_tree().call_group("locale_refresh", "refresh_locale_text")
+
+## Switches the game's language from elsewhere (the Collection's language buttons), exactly as the
+## Settings dropdown does: saved, card art and every open window follow.
+func apply_language(locale: String) -> void:
+	var idx: int = LANGUAGE_CODES.find(locale)
+	if idx == -1:
+		return
+	if _language_option:
+		_language_option.selected = idx
+	_on_language_selected(idx)
 
 # Re-applies tr() to every UI element after a live locale change. Most
 # labels/buttons are simple key lookups tracked in _tr_targets; OptionButton
