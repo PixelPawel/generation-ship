@@ -50,6 +50,8 @@ static func update_bots_for_new_round(main: Main) -> void:
 				if FleetRules.blocks_income(color):   # Fleet Dangers
 					continue
 				supply[color] = int(supply.get(color, 0)) + 1
+				if _econ_trace():
+					print("INC g%d %s %d" % [main._round, GameNetwork.player_names.get(bot_id, "?"), color])
 		for c: Variant in (bonus["supply"] as Dictionary):
 			supply[int(c)] = int(supply.get(int(c), 0)) + int((bonus["supply"] as Dictionary)[c])
 		main.bot_supplies[bot_id] = supply
@@ -148,6 +150,16 @@ static func run_bot_turn(main: Main, bot_id: int) -> void:
 			bs.append("%s%s[%s]o%d/%d t%d s%d" % [(sec.adv_name if bool(e.get("is_advanced", false)) else sec.card_name), "*" if bool(e.get("is_advanced", false)) else "",
 					",".join(ts), int(e.get("optimize_count", 0)), int(e.get("max_optimizations", 0)), (e.get("tucked_cards", []) as Array).size(), BotScoring.slot_total_stored(e)])
 		print("HAND %s | SHIP %s" % [", ".join(hs), " ; ".join(bs)])
+		var bnode: Node = main.get_node("Board")
+		var deck_n: int = int(bnode.get("_tech_deck").call("remaining")) if bnode.get("_tech_deck") else -1
+		var disc_n: int = (bnode.get("_discard_pile").get("_discarded_cards") as Array).size() if bnode.get("_discard_pile") else -1
+		var hands: PackedStringArray = []
+		for bid: int in GameNetwork.bot_ids:
+			hands.append(str(bot_hand(main, bid).size()))
+		var seat: int = -1
+		if bnode.get("_hand"):
+			seat = ((bnode.get("_hand") as Node).call("get_cards") as Array).size()
+		print("DECK g%d deck %d discard %d bot_hands %s seat_hand %d" % [main._round, deck_n, disc_n, ",".join(hands), seat])
 
 	var action: Dictionary = {}
 	if bool(BotAI.skills_for(difficulty).get("value_model", false)) and not GameNetwork.fleet_mode:
@@ -349,11 +361,21 @@ static func _attach_stack_card(main: Main, bot_id: int, slot_idx: int, card_data
 			sector, is_adv, effective_colors, int(slot.get("last_placed_tech_cost", 0)))
 	# Fleet: free solves met by this placement go before its effects (as for the humans)
 	FleetFlow.bot_auto_solve(main)
+	_eff_src = "always"
 	apply_bot_effect_steps(main, bot_id, always_steps, slot_idx)
+	_eff_src = card_data.card_name
 	apply_bot_effect_steps(main, bot_id, place_steps, slot_idx)
 	# Mirrors main.gd:_on_optimize_triggered firing once per triggered level.
+	_eff_src = _opt_src(slot)
 	for _lvl: int in triggered.size():
 		apply_bot_effect_steps(main, bot_id, opt_steps, slot_idx)
+	_eff_src = ""
+
+static func _opt_src(slot: Dictionary) -> String:
+	var sector: CardData = slot.get("sector") as CardData
+	if sector == null:
+		return "optimize"
+	return "OPT " + (sector.adv_name if bool(slot.get("is_advanced", false)) else sector.card_name)
 
 const HITCHHIKER: String = "Galactic Hitchhiker"
 
@@ -387,8 +409,10 @@ static func _bot_revalidate_optimize(main: Main, bot_id: int, slot_idx: int) -> 
 	var opt_steps: Array[Dictionary] = SectorEffects.get_optimize_steps_for_state(
 		slot.get("sector") as CardData, bool(slot.get("is_advanced", false)),
 		BotScoring.slot_effective_placed_colors(slot), int(slot.get("last_placed_tech_cost", 0)))
+	_eff_src = _opt_src(slot)
 	for _lvl: int in triggered.size():
 		apply_bot_effect_steps(main, bot_id, opt_steps, slot_idx)
+	_eff_src = ""
 
 # Tank colours of a bot's sector without its (topmost) Galactic Hitchhiker.
 static func _bot_tanks_without_hitchhiker(slot: Dictionary) -> Array[int]:
@@ -499,7 +523,11 @@ static func is_unknown(cd: CardData) -> bool:
 
 static func _draw(main: Main, count: int) -> Array[CardData]:
 	if not _sim:
-		return main.get_node("Board").draw_card_data(count)
+		var got: Array[CardData] = main.get_node("Board").draw_card_data(count)
+		_drawn_total += got.size()
+		if got.size() < count and _econ_trace():
+			print("DRY g%d wanted %d got %d" % [main._round, count, got.size()])
+		return got
 	if _unknowns.is_empty():
 		for c: int in 6:
 			var u: CardData = CardData.new()
@@ -567,10 +595,18 @@ static func sim_apply(main: Main, bot_id: int, state: Dictionary, action: Dictio
 
 static func apply_bot_effect_steps(main: Main, bot_id: int, steps: Array[Dictionary], slot_idx: int = -1) -> void:
 	var optional_revealed: bool = false
+	var trace: bool = not _sim and _econ_trace()
+	var before: Array = []
+	var pending: Dictionary = {}
 	for step: Dictionary in steps:
 		FleetFlow.bot_auto_solve(main)   # a free solve met by an earlier step counts before this one
 		if FleetFlow.step_blocked(step):   # Fleet: archiving/storing forbidden by a Danger
 			continue
+		if trace:
+			if not pending.is_empty():
+				_econ_print(main, bot_id, pending, before)
+			before = _econ_snapshot(main, bot_id)
+			pending = step
 		match String(step.get("type", "")):
 			"draw":
 				var hand: Array[CardData] = bot_hand(main, bot_id)
@@ -678,6 +714,49 @@ static func apply_bot_effect_steps(main: Main, bot_id: int, steps: Array[Diction
 					apply_bot_effect_steps(main, bot_id, BotScoring.to_dict_array((opts[pick] as Dictionary).get("steps", []) as Array), slot_idx)
 			_:
 				pass
+
+	if trace and not pending.is_empty():
+		_econ_print(main, bot_id, pending, before)
+
+# ── Economy trace (--botsim-trace): what every card effect brings, for tuning the cards ──────────
+static var _eff_src: String = ""
+static var _drawn_total: int = 0   # real cards drawn by bots (not in the sandbox)
+static var _econ_on: int = -1
+
+static func _econ_trace() -> bool:
+	if _econ_on < 0:
+		_econ_on = 1 if OS.get_cmdline_user_args().has("--botsim-trace") else 0
+	return _econ_on == 1
+
+# [supplies by colour (6), hand size, cards drawn so far, stored total, archived total]
+static func _econ_snapshot(main: Main, bot_id: int) -> Array:
+	var sup: Dictionary = main.bot_supplies.get(bot_id, {}) as Dictionary
+	var out: Array = []
+	for c: int in 6:
+		out.append(int(sup.get(c, 0)))
+	out.append(bot_hand(main, bot_id).size())
+	out.append(_drawn_total)
+	var stored: int = 0
+	var tucked: int = 0
+	for e_v: Variant in (main.bot_boards.get(bot_id, []) as Array):
+		stored += BotScoring.slot_total_stored(e_v as Dictionary)
+		tucked += ((e_v as Dictionary).get("tucked_cards", []) as Array).size()
+	out.append(stored)
+	out.append(tucked)
+	return out
+
+# EFF g<gen> <bot> | <source card> | <step type> | supply gained per colour | cards drawn | hand +- | stored | archived
+static func _econ_print(main: Main, bot_id: int, step: Dictionary, before: Array) -> void:
+	var after: Array = _econ_snapshot(main, bot_id)
+	var src: String = str(step.get("_source_name", ""))
+	if src.is_empty():
+		src = _eff_src if not _eff_src.is_empty() else "?"
+	var dsup: PackedStringArray = []
+	for c: int in 6:
+		dsup.append(str(int(after[c]) - int(before[c])))
+	print("EFF g%d %s | %s | %s | %s | %d | %d | %d | %d" % [main._round, GameNetwork.player_names.get(bot_id, "?"), src,
+			str(step.get("type", "")), " ".join(dsup), int(after[7]) - int(before[7]), int(after[6]) - int(before[6]),
+			int(after[8]) - int(before[8]), int(after[9]) - int(before[9])])
 
 static func _say(main: Main, bot_id: int, what: String, color: Color = Color(0.7, 0.85, 1.0)) -> void:
 	if not _sim:
