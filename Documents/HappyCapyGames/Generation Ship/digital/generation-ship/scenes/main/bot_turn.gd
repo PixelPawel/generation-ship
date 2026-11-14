@@ -676,7 +676,8 @@ static func apply_bot_effect_steps(main: Main, bot_id: int, steps: Array[Diction
 			"recycle_optional":
 				# "Recycle up to N, then draw that many"
 				var recycled_n: int = _bot_recycle_n(main, bot_id, int(step.get("max", 1)), 1, bool(step.get("restrict_to_drawn", false)))
-				_bot_draw(main, bot_id, recycled_n)
+				# test games only (--bv-rdnerf=N): the card draws N fewer than it recycled
+				_bot_draw(main, bot_id, maxi(0, recycled_n - int(BotPlanner.kf("rdnerf", 0.0))))
 			"recycle_double":   # Cleaning Robot: "Recycle 1 but gain the supply twice."
 				_bot_recycle_n(main, bot_id, int(step.get("count", 1)), 2, bool(step.get("restrict_to_drawn", false)))
 			"recycle_from_own_sector":   # Ice 9

@@ -64,10 +64,35 @@ static func units_of(supplies: Dictionary) -> float:
 		u += float(int(supplies[c])) * U[clampi(int(c), 0, 5)]
 	return u
 
+## Test games only (--bv-rdpush=<points>, tools/bot_league.py): the bots favour the "recycle up to N, then
+## draw that many" cards - points for each such tech on the ship, each Bioreactors / Space Bazaar and each of
+## their optimize levels already triggered - so their effect on the game can be measured. 0 in real games.
+const RD_TECHS: Array[String] = ["Robotic Workforce", "Radiation Absorber"]
+const RD_SECTORS: Array[String] = ["Bioreactors", "Bioreactor", "Space Bazaar"]
+static var _rd_k: float = -1.0
+
+static func _rd_push(board: Array) -> float:
+	if _rd_k < 0.0:
+		_rd_k = kf("rdpush", 0.0)
+	if _rd_k <= 0.0:
+		return 0.0
+	var n: float = 0.0
+	for e_v: Variant in board:
+		var e: Dictionary = e_v as Dictionary
+		var sector: CardData = e.get("sector") as CardData
+		if sector != null:
+			var shown: String = sector.adv_name if bool(e.get("is_advanced", false)) else sector.card_name
+			if RD_SECTORS.has(shown):
+				n += 0.5 + float(int(e.get("optimize_count", 0)))
+		for t: Variant in (e.get("techs", []) as Array):
+			if t is CardData and RD_TECHS.has((t as CardData).card_name):
+				n += 1.0
+	return n * _rd_k
+
 ## The final score this position is heading for (see the top of the file).
 static func evaluate(st: Dictionary, gen: int) -> float:
 	var board: Array = st["board"] as Array
-	var vp: float = float(BotScoring.board_vp(board))
+	var vp: float = float(BotScoring.board_vp(board)) + _rd_push(board)
 	if gen >= ROUNDS:
 		return vp + 0.02 * units_of(st["supplies"] as Dictionary)
 	if W.has(gen + 1) and kf("model", 1.0) > 0.5:
