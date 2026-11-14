@@ -675,7 +675,8 @@ static func apply_bot_effect_steps(main: Main, bot_id: int, steps: Array[Diction
 				_bot_recycle_n(main, bot_id, int(step.get("count", 1)), 1, bool(step.get("restrict_to_drawn", false)))
 			"recycle_optional":
 				# "Recycle up to N, then draw that many"
-				var recycled_n: int = _bot_recycle_n(main, bot_id, int(step.get("max", 1)), 1, bool(step.get("restrict_to_drawn", false)))
+				var recycled_n: int = _bot_recycle_n(main, bot_id, int(step.get("max", 1)), 1, bool(step.get("restrict_to_drawn", false)),
+						BotPlanner.kf("rdhigh", 0.0) > 0.5)
 				# test games only (--bv-rdnerf=N): the card draws N fewer than it recycled
 				_bot_draw(main, bot_id, maxi(0, recycled_n - int(BotPlanner.kf("rdnerf", 0.0))))
 			"recycle_double":   # Cleaning Robot: "Recycle 1 but gain the supply twice."
@@ -1220,7 +1221,7 @@ static func _bot_tuck(main: Main, bot_id: int, slot_idx: int, count: int, face_u
 
 # Recycles up to count of the bot's least valuable hand cards (mult x the supply); returns how many.
 # Fleet: cards a Danger forbids recycling stay. restrict: only cards the last "draw" brought.
-static func _bot_recycle_n(main: Main, bot_id: int, count: int, mult: int = 1, restrict: bool = false) -> int:
+static func _bot_recycle_n(main: Main, bot_id: int, count: int, mult: int = 1, restrict: bool = false, high: bool = false) -> int:
 	var hand: Array[CardData] = bot_hand(main, bot_id)
 	var pool: Array[CardData] = []
 	for cd: CardData in hand:
@@ -1228,6 +1229,9 @@ static func _bot_recycle_n(main: Main, bot_id: int, count: int, mult: int = 1, r
 			continue
 		pool.append(cd)
 	pool.sort_custom(func(a: CardData, b: CardData) -> bool: return BotScoring.card_value(a) < BotScoring.card_value(b))
+	if high:   # test games (--bv-rdhigh=1): the cards whose supply is worth most first, as people play it
+		pool.sort_custom(func(a: CardData, b: CardData) -> bool:
+			return BotPlanner.U[clampi(int(a.color), 0, 5)] * CardData.recycle_amount(a) > BotPlanner.U[clampi(int(b.color), 0, 5)] * CardData.recycle_amount(b))
 	var n: int = mini(count, pool.size())
 	for i: int in n:
 		hand.erase(pool[i])
