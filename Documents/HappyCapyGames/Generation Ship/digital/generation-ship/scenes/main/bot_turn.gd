@@ -431,8 +431,36 @@ static func _hitchhiker_index(techs: Array) -> int:
 	return -1
 
 
+# Test games only (--bv-reslimit=N, tools/bot_league.py): a rule being tried out - a player's first
+# Research of a Generation recycles the hand down to N cards first. Off (0) in real games.
+static var _researched_gen: Dictionary = {}   # bot id -> the Generation it last researched in
+
+static func researched_this_gen(main: Main, bot_id: int) -> bool:
+	return int(_researched_gen.get(bot_id, 0)) == main._round
+
+## The cards that rule would make the bot recycle from hand: the ones worth least to keep.
+static func research_limit_dump(hand: Array, limit: int) -> Array[CardData]:
+	var pool: Array[CardData] = []
+	pool.assign(hand)
+	pool.sort_custom(func(a: CardData, b: CardData) -> bool: return BotPlanner.keep_value(a) < BotPlanner.keep_value(b))
+	return pool.slice(0, maxi(0, pool.size() - limit))
+
 # pick: the card BotAI chose to research away (Hard's smart pick); else the cheapest one
 static func bot_do_research(main: Main, bot_id: int, pick: CardData = null) -> void:
+	var limit: int = BotPlanner.research_limit()
+	if limit > 0 and not researched_this_gen(main, bot_id):
+		var dump: Array[CardData] = research_limit_dump(bot_hand(main, bot_id), limit)
+		if _econ_trace():
+			print("RLIM g%d %s hand %d recycled %d" % [main._round, GameNetwork.player_names.get(bot_id, "?"),
+					bot_hand(main, bot_id).size(), dump.size()])
+		for cd: CardData in dump:
+			bot_recycle(main, bot_id, cd)
+		if pick != null and dump.has(pick):   # (recycled already: the next worst is researched away)
+			pick = null
+			for cd: CardData in bot_hand(main, bot_id):
+				if pick == null or BotPlanner.keep_value(cd) < BotPlanner.keep_value(pick):
+					pick = cd
+	_researched_gen[bot_id] = main._round
 	var hand: Array[CardData] = bot_hand(main, bot_id)
 	if hand.is_empty():
 		return
@@ -447,6 +475,10 @@ static func bot_do_research(main: Main, bot_id: int, pick: CardData = null) -> v
 
 
 static func bot_pass(main: Main, bot_id: int) -> void:
+	if _econ_trace():
+		print("PASS g%d %s hand %d researched %d units %.1f" % [main._round, GameNetwork.player_names.get(bot_id, "?"),
+				bot_hand(main, bot_id).size(), 1 if researched_this_gen(main, bot_id) else 0,
+				BotPlanner.units_of(main.bot_supplies.get(bot_id, {}) as Dictionary)])
 	main._bots_passed_this_round.append(bot_id)
 	main._server_handle_pass()
 
