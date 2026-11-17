@@ -44,7 +44,22 @@ static func start_from_menu(menu: Control) -> void:
 ## Main: the player's seat never plays — it passes as soon as it is its turn.
 static func auto_pass(main: Main) -> void:
 	if GameNetwork.is_my_turn() and not bool(main.get("_has_passed")) and not bool(main.get("_game_finished")):
+		_seat_hand_limit(main)
 		main.call_deferred("_do_pass")
+
+## The hand limit being tried out (--bv-reslimit=N, BotPlanner.hand_limit): the seat passes, so it
+## recycles down to N cards as well - its cards go back to the discard pile (it never spends supply).
+static func _seat_hand_limit(main: Main) -> void:
+	var limit: int = int(BotAI.BotValue.k("reslimit", 0.0))
+	var hand: Node = main.get_node_or_null("Hand")
+	if limit <= 0 or hand == null:
+		return
+	var cards: Array = (hand.call("get_cards") as Array).duplicate()
+	for i: int in range(limit, cards.size()):
+		var card: Node3D = cards[i] as Node3D
+		hand.call("remove_card", card)
+		main.get_node("Board").call("add_to_discard", card.get("card_data") as CardData)
+		card.queue_free()
 
 ## Main, game over: every bot's final score and lines, one JSON line, then quit.
 static func record(main: Main) -> void:

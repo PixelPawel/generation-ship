@@ -89,10 +89,10 @@ static func _rd_push(board: Array) -> float:
 				n += 1.0
 	return n * _rd_k
 
-## Test games only (--bv-reslimit=N, tools/bot_league.py): a rule being tried out - a player's first
-## Research of a Generation recycles the hand down to N cards first (BotTurn.bot_do_research). 0 = off,
-## as in real games.
-static func research_limit() -> int:
+## Test games only (--bv-reslimit=N, tools/bot_league.py): a rule being tried out - a player who passes
+## or researches recycles the hand down to N cards first (BotTurn.bot_hand_limit). 0 = off, as in real
+## games.
+static func hand_limit() -> int:
 	return int(kf("reslimit", 0.0))
 
 ## The final score this position is heading for (see the top of the file).
@@ -181,10 +181,10 @@ static func features(st: Dictionary, gen_start: int, advance: bool, vp: float = 
 		opt_value += opt_potential(e, board.size(), gen_start, wh)
 	var open_sectors: int = MAX_SECTORS - board.size()
 	var n_hand: float = float(hand.size())
-	# test games (--bv-reslimit with --bv-resforce=1, a hand limit there is no passing around): the
-	# cards above it won't be there next Generation
-	if research_limit() > 0 and kf("resforce", 0.0) > 0.5:
-		n_hand = minf(n_hand, float(research_limit()))
+	# test games (--bv-reslimit, the hand limit being tried out): the cards above it won't be there
+	# next Generation
+	if hand_limit() > 0:
+		n_hand = minf(n_hand, float(hand_limit()))
 	if advance:
 		n_hand += 6.0
 	var hand_stars: float = 0.0
@@ -551,7 +551,7 @@ static func plan(main: Main, bot_id: int, difficulty: int) -> Dictionary:
 				float(found["base"]), float(found["v"]), int(found["tried"]), str(best_first.get("type", "-")),
 				(best_first["card"] as CardData).card_name if best_first.has("card") else ""])
 	if best_first.is_empty() or float(found["v"]) < float(found["base"]) + kf("mingain", MIN_GAIN):
-		return {action = _idle_action(root, gen, main, bot_id), free = []}
+		return {action = _idle_action(root, gen), free = []}
 	var action: Dictionary = best_first.duplicate()
 	match str(action["type"]):
 		"win_expedition":
@@ -562,26 +562,12 @@ static func plan(main: Main, bot_id: int, difficulty: int) -> Dictionary:
 
 # Nothing worth its supply: research away the card worth least (a soft pass: it brings a new card and
 # the bot is asked again while others play on), or pass with an empty hand.
-static func _idle_action(st: Dictionary, gen: int = 1, main: Main = null, bot_id: int = 0) -> Dictionary:
+static func _idle_action(st: Dictionary, gen: int = 1) -> Dictionary:
 	var worst: CardData = null
 	for cd_v: Variant in (st["hand"] as Array):
 		var cd: CardData = cd_v as CardData
 		if worst == null or keep_value(cd) < keep_value(worst):
 			worst = cd
-	# the hand-limit rule being tried out (research_limit): a first Research would cost the cards above
-	# the limit. The bot takes it only if that leaves it better off than passing with its hand
-	# (--bv-resforce=1: it always researches before it passes, whatever that costs)
-	var limit: int = research_limit()
-	var over: bool = limit > 0 and (st["hand"] as Array).size() > limit
-	if main != null and worst != null and over and not BotTurn.researched_this_gen(main, bot_id):
-		if kf("resforce", 0.0) > 0.5:
-			return {type = "research", card = worst}
-		var dump: Array = []
-		for cd: CardData in BotTurn.research_limit_dump(st["hand"] as Array, limit):
-			dump.append({recycle = cd})
-		var st2: Dictionary = BotTurn.sim_apply(main, bot_id, st, {type = "none", free = dump})
-		if evaluate(st2, gen) <= evaluate(st, gen):
-			return {type = "pass"}
 	# in the last Generation a card the bot can't play is worth nothing: with supply left, any goes
 	var last_dig: bool = gen >= ROUNDS and units_of(st["supplies"] as Dictionary) >= 2.0
 	if worst == null or (keep_value(worst) > kf("junk", 1.4) and not last_dig):
