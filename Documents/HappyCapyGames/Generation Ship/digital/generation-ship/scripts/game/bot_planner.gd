@@ -89,9 +89,9 @@ static func _rd_push(board: Array) -> float:
 				n += 1.0
 	return n * _rd_k
 
-## The hand limit (Main.HAND_LIMIT, rule of 2026-11-17): a player who passes or researches recycles the
-## hand down to 6 cards first (BotTurn.bot_hand_limit). Test games: --bv-reslimit=N tries another
-## limit, 0 plays without the rule (tools/bot_league.py).
+## The hand limit (Main.HAND_LIMIT; rule book, Cleanup): at the end of a Generation every player
+## recycles the hand down to 6 cards (BotTurn.bot_hand_limit). Test games: --bv-reslimit=N tries
+## another limit, 0 plays without the rule (tools/bot_league.py).
 static func hand_limit() -> int:
 	return int(kf("reslimit", float(Main.HAND_LIMIT)))
 

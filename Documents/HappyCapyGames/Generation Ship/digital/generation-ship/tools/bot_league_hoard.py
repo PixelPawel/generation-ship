@@ -6,8 +6,9 @@ Per Generation: the bots' hands at their first and last turn, the supply they ho
 passes, how many cards the hand limit recycled (RLIM lines), the passive seat's hand, the deck +
 discard pile, and draws that found both empty.
 
-The rule tried out 2026-11-17 (off in real games): --bv reslimit=6 = a player who passes or researches
-recycles the hand down to 6 cards first (the passive seat too). The hoarding bots of that test:
+The hand limit (in the game since 2026-11-17; --bv reslimit=0 plays without it): at the end of a
+Generation every player recycles the hand down to 6 cards (the passive seat too). The hoarding bots
+of the tests:
 --bv w2_hand=8,w3_hand=8,w4_hand=8,w2_units=3,w3_units=3,w4_units=3 (a card in hand at 8 points).
 """
 import os, re, sys, json, collections, statistics
@@ -40,7 +41,7 @@ for tag in sys.argv[1:]:
             if m:
                 acts[int(m.group(1))][m.group(3)] += 1
                 continue
-            m = re.match(r"RLIM g(\d) (.+?) (?:research |pass )?hand (\d+) recycled (\d+)", line)
+            m = re.match(r"RLIM g(\d) (.+?) (?:research |pass |cleanup )?hand (\d+) recycled (\d+)", line)
             if m:
                 dumped[(int(m.group(1)), m.group(2))] += int(m.group(4))
                 continue

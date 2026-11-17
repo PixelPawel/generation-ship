@@ -338,6 +338,7 @@ static func _server_handle_raise(main: Main, peer_id: int, amount: int) -> void:
 		return
 	if amount <= main._auction_current_bid:
 		return
+	amount = main._auction_current_bid + 1   # a raise is exactly 1 (rule book p6), whatever was sent
 	main._auction_second_id = main._auction_leader_id
 	main._auction_current_bid = amount
 	main._auction_leader_id = peer_id

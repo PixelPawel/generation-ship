@@ -36,9 +36,9 @@ static func init_bot_state(main: Main) -> void:
 
 static func update_bots_for_new_round(main: Main) -> void:
 	for bot_id: int in GameNetwork.bot_ids:
-		# draw 6 more and keep the hand: there is no hand maximum (rule book p4; the bots threw
-		# their whole hand away every Generation)
+		# down to 6 cards (the hand limit), then 6 more
 		var bonus: Dictionary = BotAI.head_start(int(GameNetwork.bot_difficulty.get(bot_id, BotAI.Difficulty.EASY)))
+		bot_hand_limit(main, bot_id, "cleanup")   # Cleanup of the Generation that just ended
 		var hand: Array[CardData] = bot_hand(main, bot_id)
 		hand.append_array(_draw(main, 6 + int(bonus["cards"])))
 		bot_set_hand(main, bot_id, hand)
@@ -444,9 +444,10 @@ static func _hitchhiker_index(techs: Array) -> int:
 	return -1
 
 
-# The hand limit (Main.HAND_LIMIT): a player who passes or researches recycles the hand down to 6 cards
-# first. The bot recycles the cards worth least to keep; returns them. (A card a Fleet Danger won't let
-# it recycle stays, as for a human. Test games: --bv-reslimit, see BotPlanner.hand_limit.)
+# The hand limit (Main.HAND_LIMIT; rule book, Cleanup): at the end of a Generation every player recycles
+# the hand down to 6 cards, before the supplies are gained (update_bots_for_new_round). The bot recycles
+# the cards worth least to keep; returns them. (A card a Fleet Danger won't let it recycle stays, as
+# for a human. Test games: --bv-reslimit, see BotPlanner.hand_limit.)
 static func bot_hand_limit(main: Main, bot_id: int, why: String) -> Array[CardData]:
 	var limit: int = BotPlanner.hand_limit()
 	var dump: Array[CardData] = []
@@ -464,12 +465,6 @@ static func bot_hand_limit(main: Main, bot_id: int, why: String) -> Array[CardDa
 
 # pick: the card BotAI chose to research away (Hard's smart pick); else the cheapest one
 static func bot_do_research(main: Main, bot_id: int, pick: CardData = null) -> void:
-	var dumped: Array[CardData] = bot_hand_limit(main, bot_id, "research")
-	if pick != null and dumped.has(pick):   # (recycled already: the next worst is researched away)
-		pick = null
-		for cd: CardData in bot_hand(main, bot_id):
-			if pick == null or BotPlanner.keep_value(cd) < BotPlanner.keep_value(pick):
-				pick = cd
 	var hand: Array[CardData] = bot_hand(main, bot_id)
 	if hand.is_empty():
 		return
@@ -484,7 +479,6 @@ static func bot_do_research(main: Main, bot_id: int, pick: CardData = null) -> v
 
 
 static func bot_pass(main: Main, bot_id: int) -> void:
-	bot_hand_limit(main, bot_id, "pass")
 	main._bots_passed_this_round.append(bot_id)
 	main._server_handle_pass()
 

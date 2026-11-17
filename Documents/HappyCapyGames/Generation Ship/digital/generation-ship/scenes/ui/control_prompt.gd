@@ -72,10 +72,11 @@ func _make_button(row: HBoxContainer) -> Button:
 
 ## confirm_text empty = Cancel only (Research); otherwise the confirm button
 ## (e.g. "Pass") sits beside Cancel.
-func open(head_text: String, how_text: String, confirm_text: String = "") -> void:
+func open(head_text: String, how_text: String, confirm_text: String = "", cancellable: bool = true) -> void:
 	_head.text = head_text
 	_hint.text = how_text
 	_cancel.text = tr("Cancel")
+	_cancel.visible = cancellable
 	_confirm.text = confirm_text
 	_confirm.visible = not confirm_text.is_empty()
 	move_to_front()

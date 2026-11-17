@@ -289,6 +289,8 @@ func show_bid(card_data: CardData, is_advanced: bool, min_cost: int, cost_color:
 	_confirm_btn.text = tr("Confirm Bid")
 	_dec_btn.disabled = false
 	_inc_btn.disabled = false
+	_dec_btn.visible = true   # (an auction hides them)
+	_inc_btn.visible = true
 	_update()
 	show()
 
@@ -301,6 +303,9 @@ func show_auction(card_data: CardData, is_advanced: bool, current_bid: int, lead
 	_auction_mode = true
 	_min_cost = current_bid
 	_bid_amount = current_bid + 1
+	# a raise is exactly 1 (rule book p6): nothing to choose, so no - / + (only the opening bid has them)
+	_dec_btn.visible = false
+	_inc_btn.visible = false
 	# No title or hint: the card art is shown above. The bid to beat and its
 	# holder are spelled out though (the Players column on the right only
 	# hints at who leads).
@@ -315,8 +320,7 @@ func show_auction(card_data: CardData, is_advanced: bool, current_bid: int, lead
 
 func update_auction(current_bid: int, leader_name: String, is_active: bool, can_pass: bool, leader_is_me: bool = false) -> void:
 	_min_cost = current_bid
-	if _bid_amount <= current_bid:
-		_bid_amount = current_bid + 1
+	_bid_amount = current_bid + 1
 	_set_current_bid(current_bid, leader_name, leader_is_me)
 	_set_auction_active(is_active, can_pass)
 	_update()
