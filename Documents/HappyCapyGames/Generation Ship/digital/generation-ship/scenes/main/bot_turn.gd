@@ -444,9 +444,9 @@ static func _hitchhiker_index(techs: Array) -> int:
 	return -1
 
 
-# Test games only (--bv-reslimit=N, tools/bot_league.py): a rule being tried out - a player who passes
-# or researches recycles the hand down to N cards first. Off (0) in real games. The bot recycles the
-# cards worth least to keep; returns them.
+# The hand limit (Main.HAND_LIMIT): a player who passes or researches recycles the hand down to 6 cards
+# first. The bot recycles the cards worth least to keep; returns them. (A card a Fleet Danger won't let
+# it recycle stays, as for a human. Test games: --bv-reslimit, see BotPlanner.hand_limit.)
 static func bot_hand_limit(main: Main, bot_id: int, why: String) -> Array[CardData]:
 	var limit: int = BotPlanner.hand_limit()
 	var dump: Array[CardData] = []

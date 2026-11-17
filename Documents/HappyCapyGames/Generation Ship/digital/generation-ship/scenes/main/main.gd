@@ -60,6 +60,7 @@ enum EffectMode {
 	EFFECT_RECYCLE_TUCK_STORE,
 	EFFECT_RECYCLE_TUCK_STORE_DECIDE,
 	EFFECT_RECYCLE_TUCK_STORE_SECTOR,
+	HAND_LIMIT,   # recycling down to HAND_LIMIT cards before a Pass or Research (_start_hand_limit)
 	EFFECT_ICE9_SECTOR,
 	EFFECT_TUCK_ANY_SECTOR,
 	EFFECT_TUCK_ANY_SECTOR_SLOT,
@@ -227,6 +228,11 @@ var _auction_placement_pending: bool = false
 var _auction_win_awaiting_placement: bool = false
 var _bots_passed_this_round: Array[int] = []
 var _bots_researched_this_round: Array[int] = []   # Research or Pass only from then on (BotTurn.run_bot_turn)
+
+## Rule (2026-11-17): "If you pass or research, recycle your hand down to 6 cards." The players do it
+## in the hand-limit step below (_start_hand_limit), the bots in BotTurn.bot_hand_limit.
+const HAND_LIMIT: int = 6
+var _hand_limit_for: String = ""   # "pass" | "research": what goes on once the hand is down to HAND_LIMIT
 
 var _interfleet_active: bool = false
 var _interfleet_initiator_id: int = 0
@@ -965,6 +971,12 @@ func _on_research_pressed() -> void:
 	if not _accept_turn_button():
 		return
 	_cancel_pass()   # Research instead of an unconfirmed Pass
+	if _hand_limit_excess() > 0:   # first down to 6 cards, then _begin_research
+		_start_hand_limit("research")
+		return
+	_begin_research()
+
+func _begin_research() -> void:
 	_effect_mode = EffectMode.RESEARCH
 	_set_action_buttons_disabled(true)
 	var how: String = hint("Click a card in your hand to discard it", "Tap a card in your hand to discard it")
@@ -998,7 +1010,89 @@ func _on_pass_pressed() -> void:
 		return
 	if _effect_mode == EffectMode.RESEARCH:   # nothing discarded yet: Pass instead
 		_cancel_research()
+	if _effect_mode == EffectMode.HAND_LIMIT:
+		if _hand_limit_for == "pass":   # already recycling down for this Pass
+			return
+		_cancel_hand_limit()            # was for a Research: Pass instead
+	if _hand_limit_excess() > 0:        # first down to 6 cards, then the "Pass?" prompt
+		if _effect_mode == EffectMode.NONE:   # (an effect still resolving comes first)
+			_start_hand_limit("pass")
+		return
+	_open_pass_prompt()
+
+func _open_pass_prompt() -> void:
 	_pass_prompt.open(tr("PASS?"), tr("You won't take any more actions this Generation."), tr("Pass"))
+
+# ── Hand limit ────────────────────────────────────────────────────────────────
+# "If you pass or research, recycle your hand down to 6 cards" (HAND_LIMIT). Pass and Research open
+# this step first when the hand is larger: the player clicks the cards to recycle, each gives its
+# supply as any recycled card does, and at 6 cards the Pass ("Pass?" prompt) or the Research goes on
+# by itself. Cancel leaves the cards already recycled as they are: recycling is a free action anyway.
+# Cards a Fleet Danger won't let the player recycle can't be picked and don't count, and the
+# Tutorial's scripted hand is left alone. (Rich Asteroid gives its 2 Metals here; to store them
+# instead, recycle it the usual way before passing.)
+
+func _hand_limit_recyclable(card: Node3D) -> bool:
+	var cd: CardData = card.get("card_data") as CardData
+	return cd != null and not FleetRules.blocks_recycle(cd.color)
+
+## How many cards the player still has to recycle before a Pass or Research.
+func _hand_limit_excess() -> int:
+	if _tutorial != null:
+		return 0
+	var cards: Array[Node3D] = $Hand.get_cards()
+	var recyclable: int = 0
+	for c: Node3D in cards:
+		if _hand_limit_recyclable(c):
+			recyclable += 1
+	return clampi(cards.size() - HAND_LIMIT, 0, recyclable)
+
+func _start_hand_limit(what: String) -> void:
+	_hand_limit_for = what
+	_effect_mode = EffectMode.HAND_LIMIT
+	_set_action_buttons_disabled(true)
+	_show_hand_limit_prompt()
+
+func _show_hand_limit_prompt() -> void:
+	var how: String = hint("You keep %d cards when you pass or research. Click a card in your hand to recycle it: %d to go.",
+			"You keep %d cards when you pass or research. Tap a card in your hand to recycle it: %d to go.") % [HAND_LIMIT, _hand_limit_excess()]
+	_show_effect_hint(how)
+	$Hand.set_discard_mode(true, _hand_limit_recyclable)
+	_pass_prompt.open(tr("HAND LIMIT"), how)
+
+# Cancel on the hand-limit panel, and whatever else calls the Pass or Research off (_cancel_pass).
+func _cancel_hand_limit() -> void:
+	if _effect_mode != EffectMode.HAND_LIMIT:
+		return
+	_effect_mode = EffectMode.NONE
+	_hand_limit_for = ""
+	$Hand.set_discard_mode(false)
+	_hide_effect_hint()
+	_pass_prompt.close()
+	_set_action_buttons_disabled(false)
+
+# A card picked in the hand-limit step (the hand has let go of it and flies it out): recycled.
+func _hand_limit_recycle(card: Node3D) -> void:
+	var cd: CardData = card.get("card_data") as CardData
+	if cd:
+		var color: CardData.SupplyColor = cd.color
+		UIAudio.play_recycle_sfx()
+		_cs_display.add_supply(color, CardData.recycle_amount(cd))
+		_apply_recycle_bonus(color)   # Trash Compactor
+		$Board.add_to_discard(cd)
+		_cs_display.animate_supply_incoming($Camera3D.unproject_position(card.global_position), color)
+		var me: String = GameNetwork.player_names.get(multiplayer.get_unique_id(), tr("Player"))
+		_broadcast_log_t("%s: recycled %s", [me, _log_card(cd)], CardData.color_tint(color))
+	_broadcast_my_state()
+	if _hand_limit_excess() > 0:
+		_show_hand_limit_prompt()   # (the hand left pick mode with the click)
+		return
+	var what: String = _hand_limit_for
+	_cancel_hand_limit()
+	if what == "research":
+		_begin_research()
+	else:
+		_open_pass_prompt()
 
 # The Tutorial takes a Pass only in its Pass chapter: an earlier one started a real next round
 # (in the Fleet chapter with 3 random Dangers on the tutorial ship), and its Pass step then
@@ -1010,7 +1104,7 @@ func _tutorial_blocks_pass() -> bool:
 	return step >= 0 and step < FirstTurnTutorial.STEPS.size() and FirstTurnTutorial.STEPS[step] != "pass"
 
 func _confirm_pass() -> void:
-	if not _pass_prompt.visible:
+	if not _pass_prompt.visible or _effect_mode == EffectMode.HAND_LIMIT:
 		return
 	_pass_prompt.close()
 	if not GameNetwork.is_my_turn() or _has_passed or _turn_action_locked or _auction_unresolved():
@@ -1021,6 +1115,7 @@ func _confirm_pass() -> void:
 # Cancel on the "Pass?" panel, and whatever else makes an unconfirmed Pass
 # moot (Research, End Turn, the turn moving on).
 func _cancel_pass() -> void:
+	_cancel_hand_limit()
 	if _pass_prompt and _pass_prompt.visible:
 		_pass_prompt.close()
 
@@ -1913,6 +2008,8 @@ func _on_card_discarded(card: Node3D) -> void:
 				$Board.set_major_action_taken()
 				_show_action_buttons(true)
 				_set_action_buttons_disabled(false)
+		EffectMode.HAND_LIMIT:
+			_hand_limit_recycle(card)
 
 
 func _recycle_card_to_supply(card: Node3D, color: CardData.SupplyColor) -> void:
@@ -2118,6 +2215,9 @@ func _reset_effect_state() -> void:
 	$Hand.set_discard_mode(false)
 	if _research_prompt:
 		_research_prompt.close()
+	if _hand_limit_for != "":   # the hand-limit step was open
+		_hand_limit_for = ""
+		_pass_prompt.close()
 	$Board.set_sector_reveal_mode(false)
 	$Board.set_expedition_reveal_mode(false)
 	$Board.set_expedition_shuffle_mode(false)

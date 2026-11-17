@@ -117,11 +117,13 @@ func detach_card(card: Node3D) -> void:
 	_cards.erase(card)
 	_layout(true)
 
-func set_discard_mode(active: bool) -> void:
+## allow (optional): only the cards it returns true for can be picked (the hand limit leaves out the
+## cards a Fleet Danger won't let the player recycle).
+func set_discard_mode(active: bool, allow: Callable = Callable()) -> void:
 	_discard_mode_active = active
 	for card: Node3D in _cards:
 		card.can_drag = not active
-		if active:
+		if active and (not allow.is_valid() or bool(allow.call(card))):
 			if not card.clicked.is_connected(_on_card_clicked_for_discard):
 				card.clicked.connect(_on_card_clicked_for_discard)
 		else:

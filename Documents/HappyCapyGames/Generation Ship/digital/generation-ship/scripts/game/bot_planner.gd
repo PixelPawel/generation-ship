@@ -89,11 +89,11 @@ static func _rd_push(board: Array) -> float:
 				n += 1.0
 	return n * _rd_k
 
-## Test games only (--bv-reslimit=N, tools/bot_league.py): a rule being tried out - a player who passes
-## or researches recycles the hand down to N cards first (BotTurn.bot_hand_limit). 0 = off, as in real
-## games.
+## The hand limit (Main.HAND_LIMIT, rule of 2026-11-17): a player who passes or researches recycles the
+## hand down to 6 cards first (BotTurn.bot_hand_limit). Test games: --bv-reslimit=N tries another
+## limit, 0 plays without the rule (tools/bot_league.py).
 static func hand_limit() -> int:
-	return int(kf("reslimit", 0.0))
+	return int(kf("reslimit", float(Main.HAND_LIMIT)))
 
 ## The final score this position is heading for (see the top of the file).
 static func evaluate(st: Dictionary, gen: int) -> float:
@@ -181,8 +181,7 @@ static func features(st: Dictionary, gen_start: int, advance: bool, vp: float = 
 		opt_value += opt_potential(e, board.size(), gen_start, wh)
 	var open_sectors: int = MAX_SECTORS - board.size()
 	var n_hand: float = float(hand.size())
-	# test games (--bv-reslimit, the hand limit being tried out): the cards above it won't be there
-	# next Generation
+	# the hand limit: the cards above it won't be there next Generation
 	if hand_limit() > 0:
 		n_hand = minf(n_hand, float(hand_limit()))
 	if advance:

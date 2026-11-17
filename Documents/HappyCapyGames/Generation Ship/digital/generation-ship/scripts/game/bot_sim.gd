@@ -47,10 +47,10 @@ static func auto_pass(main: Main) -> void:
 		_seat_hand_limit(main)
 		main.call_deferred("_do_pass")
 
-## The hand limit being tried out (--bv-reslimit=N, BotPlanner.hand_limit): the seat passes, so it
-## recycles down to N cards as well - its cards go back to the discard pile (it never spends supply).
+## The hand limit (Main.HAND_LIMIT; --bv-reslimit=N, BotPlanner.hand_limit): the seat passes, so it
+## recycles down to 6 cards as well - its cards go back to the discard pile (it never spends supply).
 static func _seat_hand_limit(main: Main) -> void:
-	var limit: int = int(BotAI.BotValue.k("reslimit", 0.0))
+	var limit: int = int(BotAI.BotValue.k("reslimit", float(Main.HAND_LIMIT)))
 	var hand: Node = main.get_node_or_null("Hand")
 	if limit <= 0 or hand == null:
 		return
