@@ -162,7 +162,18 @@ static func run_bot_turn(main: Main, bot_id: int) -> void:
 		print("DECK g%d deck %d discard %d bot_hands %s seat_hand %d" % [main._round, deck_n, disc_n, ",".join(hands), seat])
 
 	var action: Dictionary = {}
-	if bool(BotAI.skills_for(difficulty).get("value_model", false)) and not GameNetwork.fleet_mode:
+	# a bot that has researched this Generation may only research again or pass, as a human
+	# (2026-11-17: it went on placing cards after a Research, about 1.5 plays a game for a Hard bot)
+	var research_locked: bool = main._bots_researched_this_round.has(bot_id)
+	if research_locked:
+		if bool(BotAI.skills_for(difficulty).get("planner", false)) and not GameNetwork.fleet_mode:
+			action = BotPlanner._idle_action(BotPlanner.state_of(main, bot_id), main._round)
+		else:
+			action = BotAI._decide_research_or_pass(hand, supplies, BotAI.skills_for(difficulty))
+		if OS.get_cmdline_user_args().has("--botsim-trace"):
+			print("ACT g%d %s %s %s" % [main._round, GameNetwork.player_names.get(bot_id, "?"), str(action.get("type", "")),
+					(action["card"] as CardData).card_name if action.get("card") is CardData else ""])
+	elif bool(BotAI.skills_for(difficulty).get("value_model", false)) and not GameNetwork.fleet_mode:
 		var plan: Dictionary = {}
 		if bool(BotAI.skills_for(difficulty).get("planner", false)):
 			# Hard/Very Hard: plays tried out in the sandbox and searched several deep (BotPlanner)
@@ -193,7 +204,7 @@ static func run_bot_turn(main: Main, bot_id: int) -> void:
 		for f: Dictionary in BotAI.suggest_fuses(difficulty, hand, supplies, board, market_sectors, main._round):
 			bot_fuse(main, bot_id, int(f["source"]), int(f["target"]))
 		action = BotAI.decide_action(difficulty, hand, supplies, board, main._round, market_sectors, market_expeditions, market_adv, market_adv_auction)
-	if String(action.get("type", "pass")) in ["pass", "research"] and not bool(BotAI.skills_for(difficulty).get("value_model", false)):
+	if not research_locked and String(action.get("type", "pass")) in ["pass", "research"] and not bool(BotAI.skills_for(difficulty).get("value_model", false)):
 		var recycle_card: CardData = BotAI.suggest_recycle(difficulty, hand, supplies, board, market_sectors, main._round)
 		if recycle_card:
 			bot_recycle(main, bot_id, recycle_card)
@@ -235,12 +246,14 @@ static func run_bot_turn(main: Main, bot_id: int) -> void:
 			broadcast_bot_states(main)
 		"research":
 			bot_do_research(main, bot_id, action.get("card") as CardData)   # Hard: its smart pick
+			if not research_locked:
+				main._bots_researched_this_round.append(bot_id)
 			broadcast_bot_states(main)
 			# like a human's research: everyone logs it and sees the "is researching" banner
 			main._rpc_sync_opp_status.rpc(bot_id, "researching")
 			await main.get_tree().create_timer(0.3).timeout
-			# and like a human's, it only ends the turn: the bot is called again while others play on
-			# (it used to pass for the rest of the Generation, however much supply it still had)
+			# and like a human's, it only ends the turn: the bot is called again while others play on,
+			# to research again or pass (research_locked above)
 			main._server_handle_end_turn()
 		_:
 			bot_pass(main, bot_id)

@@ -560,17 +560,16 @@ static func plan(main: Main, bot_id: int, difficulty: int) -> Dictionary:
 			action["type"] = "start_auction_adv"
 	return {action = action, free = best_first.get("free", [])}
 
-# Nothing worth its supply: research away the card worth least (a soft pass: it brings a new card and
-# the bot is asked again while others play on), or pass with an empty hand.
+# Nothing worth its supply: research away the card worth least (it brings a new card for the next
+# Generation; after a Research the bot may only research again or pass, BotTurn.run_bot_turn), or pass.
 static func _idle_action(st: Dictionary, gen: int = 1) -> Dictionary:
 	var worst: CardData = null
 	for cd_v: Variant in (st["hand"] as Array):
 		var cd: CardData = cd_v as CardData
 		if worst == null or keep_value(cd) < keep_value(worst):
 			worst = cd
-	# in the last Generation a card the bot can't play is worth nothing: with supply left, any goes
-	var last_dig: bool = gen >= ROUNDS and units_of(st["supplies"] as Dictionary) >= 2.0
-	if worst == null or (keep_value(worst) > kf("junk", 1.4) and not last_dig):
+	# (in the last Generation a new card could not be played any more: pass)
+	if worst == null or gen >= ROUNDS or keep_value(worst) > kf("junk", 1.4):
 		return {type = "pass"}   # (a hand of good cards is kept for the next Generation)
 	return {type = "research", card = worst}
 

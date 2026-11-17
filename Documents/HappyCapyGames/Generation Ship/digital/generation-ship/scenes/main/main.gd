@@ -226,6 +226,7 @@ var _auction_placement_pending: bool = false
 # winner, or the runner-up if the winner forfeited).
 var _auction_win_awaiting_placement: bool = false
 var _bots_passed_this_round: Array[int] = []
+var _bots_researched_this_round: Array[int] = []   # Research or Pass only from then on (BotTurn.run_bot_turn)
 
 var _interfleet_active: bool = false
 var _interfleet_initiator_id: int = 0
@@ -1087,6 +1088,7 @@ func _end_round() -> void:
 	_has_researched = false
 	_turn_action_locked = false
 	_bots_passed_this_round.clear()
+	_bots_researched_this_round.clear()
 	_opp_statuses.clear()
 	_refresh_all_opp_status_labels()
 	$Board.reset_turn()
