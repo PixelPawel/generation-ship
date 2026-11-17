@@ -62,8 +62,20 @@ static func make_term_row(terms: Array[Array], font_size: int = 16) -> Control:
 		row.add_child(btn)
 	return row
 
+## The English rule book has a new page order since 2026-11-17 (Setup, Overview + Supplies, Cards,
+## Actions: the Actions page is page 6 now); the other five languages still have the old order until
+## their books are redone. Then give them the same numbers and drop this.
+const EN_PAGES: Dictionary = {5: 6}
+
+static func _book_page(page: int) -> int:
+	var lang: String = TranslationServer.get_locale().substr(0, 2).to_upper()
+	# (ManualPopup shows the English book for a language without pages of its own)
+	var english: bool = lang == "EN" or not ResourceLoader.exists("res://assets/cards/Rule Book/%s/GS Rule Book A5.png" % lang)
+	return int(EN_PAGES.get(page, page)) if english else page
+
 ## Opens the rule book at a page, over the current scene (one shared popup).
 static func open_page(from: Node, page: int) -> void:
+	page = _book_page(page)
 	var tree: SceneTree = from.get_tree()
 	if tree == null or tree.current_scene == null:
 		return
