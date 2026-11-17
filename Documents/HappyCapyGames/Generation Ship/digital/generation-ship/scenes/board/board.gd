@@ -28,6 +28,7 @@ const _REVEAL_FILL_MARGIN := 0.92 * 0.34
 # amount is normally 1 — see CardData.recycle_amount() (Rich Asteroid).
 # Fleet: a Danger refused the player's action (message for the log/tooltip).
 signal fleet_rule_blocked(message: String)
+signal bid_refused(message: String)   # no room on the ship for the card (_refuse_no_room)
 # Fleet online: a hand card dropped on a teammate's row in the Players column.
 signal shuttle_requested(card_data: CardData, peer_id: int)
 # Returns the teammate under the mouse (0 = none); set by Main in Fleet online.
@@ -319,6 +320,10 @@ func begin_revealed_card_bid(card: Node3D) -> void:
 		market_card_drag_failed.emit(card)   # Main moves the effect queue on
 		return
 	var is_tech: bool = false
+	if card.card_data and _refuse_no_room(card.card_data.card_type == CardData.CardType.EXPEDITION):
+		bid_color_override = -1
+		market_card_drag_failed.emit(card)   # Main moves the effect queue on
+		return
 	if card.card_data and card.card_data.card_type == CardData.CardType.EXPEDITION:
 		_expedition_market.detach_card(card)
 		is_tech = true
@@ -358,7 +363,7 @@ func begin_panel_sector_purchase(slot_idx: int, is_advanced: bool) -> void:
 	var card: Node3D
 	if is_advanced:
 		card = _market.get_advanced_top_node(slot_idx)
-		if not card or _refuse_fleet_blocked(card):
+		if not card or _refuse_fleet_blocked(card) or _refuse_no_room(false):
 			return
 		_market.detach_advanced_card(card)
 	else:
@@ -372,7 +377,7 @@ func begin_panel_expedition_purchase(slot_idx: int) -> void:
 	if not GameNetwork.is_my_turn() or _major_action_taken or _purchase_in_progress():
 		return
 	var top: Node3D = _expedition_market.get_top_node(slot_idx)
-	if top and _refuse_fleet_blocked(top):
+	if top and (_refuse_fleet_blocked(top) or _refuse_no_room(true)):
 		return
 	var card: Node3D = _expedition_market.detach_top_card(slot_idx)
 	if not card:
@@ -399,6 +404,22 @@ func _refuse_fleet_blocked(card: Node3D) -> bool:
 		return false
 	fleet_rule_blocked.emit(tr("A Danger stops you placing this card."))
 	return true
+
+## Rule (2026-11-17, rule book p5/p6): with no room to place the card you may not bid on it at all -
+## an Expedition needs a Sector with a free space, an Advanced Sector a free Sector space. Refused
+## before the card leaves the market. (Versus only: in Generation Fleet these cards are bought, not
+## bid on.) The other bidders are left out by the host: AuctionFlow._has_room_for.
+func _refuse_no_room(is_expedition: bool) -> bool:
+	if GameNetwork.fleet_mode:
+		return false
+	if _any_tech_slot_available() if is_expedition else _has_free_sector_slot():
+		return false
+	bid_refused.emit(tr("No room on your ship: you can't bid on this card."))
+	return true
+
+## For the host (AuctionFlow._has_room_for): has this ship room for an Expedition / an Advanced Sector?
+func has_room_for_bid(is_expedition: bool) -> bool:
+	return _any_tech_slot_available() if is_expedition else _has_free_sector_slot()
 
 # Left-click entry point for market-panel purchases. No destination slot is
 # known yet: bid/payment resolves first (slot=null throughout), and only once

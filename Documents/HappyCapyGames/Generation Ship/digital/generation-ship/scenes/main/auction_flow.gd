@@ -126,6 +126,7 @@ static func _rpc_sync_auction_started(main: Main, card_ref: Dictionary, slot_idx
 		_show_auction_banner(main, main.tr("%s: auction for %s") % [_initiator_name, shown])
 	main._log_action(main.tr("%s: auction for %s") % [_initiator_name, card_name], Color(1.0, 0.72, 0.28))
 	main._bid_popup.show_auction(cd, is_adv, min_bid, leader_name, main._auction_cost_color, is_active, can_pass, initiator_id == my_id)
+	main._bid_popup.set_no_room(not remaining_ids.has(my_id))   # left out: no room for the card
 	if is_active and Main.BotSim.active():   # bot test games: the player's seat never bids
 		main._server_handle_pass_bid.call_deferred(my_id)
 	main._auction_active = true
@@ -308,6 +309,33 @@ static func _on_bid_passed(main: Main) -> void:
 	else:
 		main._rpc_pass_bid.rpc_id(1)
 
+## Rule (2026-11-17): a player with no room to place the card may not bid on it at all. is_tech: the
+## card goes on a Sector's stack (an Expedition: needs a Sector with under 5 cards); else it is an
+## Advanced Sector (needs a free Sector space). The host's own ship, a bot's board, or what an online
+## player last sent of their ship (nothing known yet: they stay in).
+static func _has_room_for(main: Main, peer_id: int, is_tech: bool) -> bool:
+	if GameNetwork.is_bot(peer_id):
+		var board: Array = main.bot_boards.get(peer_id, []) as Array
+		if not is_tech:
+			return board.size() < BotAI.MAX_SECTORS
+		for e_v: Variant in board:
+			if ((e_v as Dictionary).get("techs", []) as Array).size() < BotAI.TECH_CAPACITY:
+				return true
+		return false
+	if peer_id == main.multiplayer.get_unique_id():
+		return bool(main.get_node("Board").has_room_for_bid(is_tech))
+	var slots: Array = (main._opp_snapshots.get(peer_id, {}) as Dictionary).get("slots", []) as Array
+	if slots.is_empty():
+		return true
+	for s_v: Variant in slots:
+		var s: Dictionary = s_v as Dictionary
+		var occupied: bool = bool(s.get("occupied", false))
+		if is_tech and occupied and int(s.get("tech_count", 0)) < BotAI.TECH_CAPACITY:
+			return true
+		if not is_tech and not occupied:
+			return true
+	return false
+
 static func _server_start_auction(main: Main, card_ref: Dictionary, slot_idx: int, is_tech: bool, is_adv: bool, min_bid: int, cost_color_int: int, initiator_id: int) -> void:
 	main._auction_card_ref = card_ref
 	main._auction_slot_idx = slot_idx
@@ -322,7 +350,9 @@ static func _server_start_auction(main: Main, card_ref: Dictionary, slot_idx: in
 	main._auction_remaining = []
 	main._auction_second_id = -1
 	for j: int in n:
-		main._auction_remaining.append(GameNetwork.player_order[(start_pos + j) % n])
+		var pid: int = GameNetwork.player_order[(start_pos + j) % n]
+		if pid == initiator_id or _has_room_for(main, pid, is_tech):   # no room: no bid at all
+			main._auction_remaining.append(pid)
 	if main._auction_remaining.size() <= 1:
 		main._rpc_sync_auction_won.rpc(initiator_id, initiator_id, min_bid, card_ref, slot_idx, is_tech, cost_color_int)
 		return

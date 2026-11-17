@@ -332,6 +332,9 @@ func _ready() -> void:
 	$Board.major_action_changed.connect(_on_major_action_changed)
 	$Board.sector_revealed.connect(_on_sector_revealed)
 	$Board.market_card_drag_failed.connect(_on_market_card_drag_failed)
+	$Board.bid_refused.connect(func(msg: String) -> void:
+		_show_auction_toast(msg)
+		_log_action(msg, Color(1.0, 0.6, 0.4)))
 	$Board.payment_confirm_required.connect(_on_payment_confirm_required)
 	$Board.placement_confirm_required.connect(_on_placement_confirm_required)
 	$Board.expedition_card_shuffled_back.connect(_on_expedition_shuffled_back)

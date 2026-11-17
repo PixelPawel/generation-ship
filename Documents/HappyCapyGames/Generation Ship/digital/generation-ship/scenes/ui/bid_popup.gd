@@ -9,6 +9,7 @@ var _min_cost: int = 0
 var _bid_amount: int = 0
 var _auction_mode: bool = false
 var _is_active_turn: bool = false
+var _no_room: bool = false   # this player is not in the auction: no room on their ship for the card
 var _title_label: Label
 var _hint_label: Label
 var _status_label: Label
@@ -301,6 +302,7 @@ func show_auction(card_data: CardData, is_advanced: bool, current_bid: int, lead
 	_set_card_image(card_data, is_advanced)
 	_set_accepted_colors(cost_color)
 	_auction_mode = true
+	_no_room = false
 	_min_cost = current_bid
 	_bid_amount = current_bid + 1
 	# a raise is exactly 1 (rule book p6): nothing to choose, so no - / + (only the opening bid has them)
@@ -317,6 +319,12 @@ func show_auction(card_data: CardData, is_advanced: bool, current_bid: int, lead
 	_set_auction_active(is_active, can_pass)
 	_update()
 	show()
+
+## The player is watching this auction only: no room on their ship for the card (AuctionFlow).
+func set_no_room(v: bool) -> void:
+	_no_room = v
+	if v and not _is_active_turn:
+		_status_label.text = tr("No room on your ship: you can't bid on this card.")
 
 func update_auction(current_bid: int, leader_name: String, is_active: bool, can_pass: bool, leader_is_me: bool = false) -> void:
 	_min_cost = current_bid
@@ -341,7 +349,7 @@ func _set_auction_active(is_active: bool, can_pass: bool) -> void:
 		_status_label.text = tr("Your turn — raise to win!")
 		_status_label.add_theme_color_override("font_color", Color(0.4, 1.0, 0.4))
 	else:
-		_status_label.text = tr("Waiting for other players…")
+		_status_label.text = tr("No room on your ship: you can't bid on this card.") if _no_room else tr("Waiting for other players…")
 		_status_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 	_dec_btn.disabled = not is_active
 	_inc_btn.disabled = not is_active
