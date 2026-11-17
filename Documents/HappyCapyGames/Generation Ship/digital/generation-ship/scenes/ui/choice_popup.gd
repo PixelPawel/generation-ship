@@ -313,11 +313,14 @@ const _CARD_SHRINK_TO_FIT_MIN: float = 0.85
 
 var _card_entries: Array[Dictionary] = []   # {btn: Button, lbl: Label, aspect: float}
 
-func show_card_choices(prompt: String, cards: Array[CardData], skippable: bool = true, advanced_flags: Array[bool] = []) -> void:
+## captions (optional): the line under a card instead of its name ("" keeps the name), e.g.
+## "Optimize: Habitation Ring" where the choice is that sector's optimize effect.
+func show_card_choices(prompt: String, cards: Array[CardData], skippable: bool = true, advanced_flags: Array[bool] = [],
+		captions: Array[String] = []) -> void:
 	_begin(prompt)
 	if _card_image_rect:
 		_card_image_rect.visible = false
-	_build_card_rows(cards, func(idx: int, _btn: Button) -> void: _on_pressed(idx), advanced_flags)
+	_build_card_rows(cards, func(idx: int, _btn: Button) -> void: _on_pressed(idx), advanced_flags, captions)
 	_skip_btn.visible = skippable
 	_multiselect_done_btn.visible = false
 	show()
@@ -351,7 +354,8 @@ static func fit_scale(count: int, base_w: float, avail_w: float, separation: flo
 	var per_item_w: float = (avail_w - separation * float(max(count - 1, 0))) / float(max(count, 1))
 	return per_item_w / base_w
 
-func _build_card_rows(cards: Array[CardData], on_click: Callable, advanced_flags: Array[bool] = []) -> void:
+func _build_card_rows(cards: Array[CardData], on_click: Callable, advanced_flags: Array[bool] = [],
+		captions: Array[String] = []) -> void:
 	for i: int in cards.size():
 		var cd: CardData = cards[i]
 		var is_adv: bool = advanced_flags[i] if i < advanced_flags.size() else cd.card_type == CardData.CardType.SECTOR
@@ -385,7 +389,7 @@ func _build_card_rows(cards: Array[CardData], on_click: Callable, advanced_flags
 		card_vbox.add_child(img_btn)
 
 		var name_lbl := Label.new()
-		name_lbl.text = display
+		name_lbl.text = captions[i] if i < captions.size() and not captions[i].is_empty() else display
 		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		name_lbl.add_theme_font_size_override("font_size", _CARD_NAME_FONT)
 		name_lbl.add_theme_color_override("font_color", Color.WHITE)

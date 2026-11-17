@@ -204,6 +204,8 @@ var _defer_place_effects: bool = false
 # take part in its "which effect goes first" choice, instead of silently
 # landing after everything else.
 var _pending_optimize_steps: Array[Dictionary] = []
+var _pending_optimize_card: CardData = null   # the sector those steps come from, and its side:
+var _pending_optimize_adv: bool = false       # shown in the "which effect first" choice
 var _pending_auction: bool = false
 var _pending_auction_card_ref: Dictionary = {}
 var _pending_auction_slot_idx: int = -1
@@ -2711,6 +2713,9 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	# that sector's optimize requirement.
 	var optimize_steps: Array[Dictionary] = _pending_optimize_steps.duplicate()
 	_pending_optimize_steps = []
+	var optimize_cd: CardData = _pending_optimize_card
+	var optimize_adv: bool = _pending_optimize_adv
+	_pending_optimize_card = null
 
 	if _defer_place_effects:
 		_defer_place_effects = false
@@ -2729,19 +2734,33 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 	var card_name: String = cd.adv_name if is_adv and not cd.adv_name.is_empty() else cd.card_name
 	var always_source_name: String = str(always_steps[0].get("_source_name", "")) if not always_steps.is_empty() else ""
 	var always_cd: CardData = _find_card_data_by_name(always_source_name)
+	if always_cd == null and not always_source_name.is_empty():   # a sector (either side)
+		for s: CardData in CardDatabase.sectors:
+			if s.adv_name == always_source_name or s.card_name == always_source_name:
+				always_cd = s
+				break
 
 	# Every distinct source of effects this placement triggered at once: the
 	# placed card's own place effect, another card's always-effect reacting
 	# to it, and any optimize effect this same placement satisfied. More
 	# than one means the player should choose the order, not have one
 	# silently land first.
+	# card / adv: the card the effect comes from and the side it shows, for the order question;
+	# caption: the line under it there ("" = the card's name).
 	var batches: Array[Dictionary] = []
 	if not always_steps.is_empty():
-		batches.append({label = always_cd.card_name if always_cd else tr("Sector effects"), steps = always_steps})
+		var always_adv: bool = always_cd != null and always_cd.card_type == CardData.CardType.SECTOR \
+				and always_cd.adv_name == always_source_name
+		batches.append({label = always_source_name if always_cd else tr("Sector effects"), steps = always_steps,
+				card = always_cd, adv = always_adv, caption = ""})
 	if not place_steps.is_empty():
-		batches.append({label = card_name, steps = place_steps})
+		batches.append({label = card_name, steps = place_steps, card = cd, adv = is_adv, caption = ""})
 	if not optimize_steps.is_empty():
-		batches.append({label = tr("Optimize"), steps = optimize_steps})
+		var opt_caption: String = ""
+		if optimize_cd:
+			opt_caption = "%s: %s" % [tr("Optimize"), CardDatabase.display_name(optimize_cd, optimize_adv)]
+		batches.append({label = tr("Optimize"), steps = optimize_steps, card = optimize_cd, adv = optimize_adv,
+				caption = opt_caption})
 
 	# Batches that only gain or store a fixed supply (Pollinators, Crops, 1-G
 	# Thrust…) can't be worse first — more supply never removes an option — so
@@ -2766,12 +2785,22 @@ func _on_card_placed(card: Node3D, slot: SectorSlot) -> void:
 			ordered.append_array(carried)
 			_pending_choice_options.append({steps = ordered})
 		_effect_mode = EffectMode.EFFECT_CHOICE
-		if optimize_steps.is_empty() and always_cd and auto_steps.is_empty():
-			var choice_cards: Array[CardData] = [always_cd, cd]
-			var choice_adv_flags: Array[bool] = [false, is_adv]
-			_choice_popup.show_card_choices(tr("Two effects triggered — resolve which first?"),
-				choice_cards, false, choice_adv_flags)
-		else:
+		# the cards the effects come from, to click (2026-11-17: an optimize effect or a third one
+		# used to turn the choice into small text buttons): the placed card, the card whose Always
+		# effect reacts to it, and the sector for its optimize effect
+		var choice_cards: Array[CardData] = []
+		var choice_adv_flags: Array[bool] = []
+		var choice_captions: Array[String] = []
+		for b: Dictionary in decided:
+			if b["card"] is CardData:
+				choice_cards.append(b["card"] as CardData)
+				choice_adv_flags.append(bool(b["adv"]))
+				choice_captions.append(str(b["caption"]))
+		if choice_cards.size() == decided.size():
+			var ask: String = tr("Two effects triggered — resolve which first?") if decided.size() == 2 \
+					else tr("Multiple effects triggered — resolve which first?")
+			_choice_popup.show_card_choices(ask, choice_cards, false, choice_adv_flags, choice_captions)
+		else:   # (an effect whose card can't be found: its name on a button)
 			var labels: Array[String] = []
 			for b: Dictionary in decided:
 				labels.append(str(b["label"]))
@@ -3318,6 +3347,9 @@ func _on_optimize_triggered(slot: SectorSlot, _level: int) -> void:
 		UIAudio.play_sfx("fully_optimized")      # the sector's last level
 	_effect_slot = slot
 	_pending_optimize_steps.append_array(SectorEffects.get_optimize_steps(slot))
+	if slot.placed_card:
+		_pending_optimize_card = slot.placed_card.card_data
+		_pending_optimize_adv = bool(slot.placed_card.get("is_advanced"))
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):
