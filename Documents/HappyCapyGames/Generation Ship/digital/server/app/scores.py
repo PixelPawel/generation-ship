@@ -1,10 +1,10 @@
 """Global leaderboard — Steam and Android share one board.
 
-One row per posted score (player ids as in votes: "steam:<id>" or "dev:<device
-id>"): every finished game shows up, a player can be on the board many times
-(user, 2026-10-31; before, only a player's best was kept). A new post refreshes
-the display name on all of that player's rows. The contest standings
-(take_snapshot) still rank players, by their best.
+One row per posted score is stored (player ids as in votes: "steam:<id>" or
+"dev:<device id>"), but the board shows each player once, with their best score
+(user, 2026-11-23; from 2026-10-31 it listed every posted score). A new post
+refreshes the display name on all of that player's rows. The contest standings
+(take_snapshot) rank the same way.
 Source "play" is a game played to the end in the app, "scan" a tableau read
 from a photo (Scan Tableau) - anyone can photograph any ship, so the board can
 show either or both. "fleet" is a won Generation Fleet (co-op) game, ranked by
@@ -105,12 +105,26 @@ def _where(source: str) -> tuple[str, tuple]:
     return f"source NOT IN ({marks}) AND ", OWN_BOARD_SOURCES
 
 
-def _rank(c, score: int, updated_at: int, row_id: int, source: str = "all") -> int:
+def _bests(w: str) -> str:
+    """SQL for the board's rows: each player once, with their best score (ties: the earlier one)."""
+    return (f"SELECT {_COLS}, id FROM (SELECT {_COLS}, id, "
+            f"ROW_NUMBER() OVER (PARTITION BY player ORDER BY {_ORDER}) AS nth FROM scores WHERE {w}1) WHERE nth = 1")
+
+
+def _best_of(c, player: str, source: str = "all"):
+    """(score, updated_at, id, source) of the player's best on a board, or None."""
+    w, args = _where(source)
+    return c.execute(f"SELECT score, updated_at, id, source FROM scores WHERE {w}player = ? ORDER BY {_ORDER} LIMIT 1",
+                     args + (player,)).fetchone()
+
+
+def _rank(c, player: str, score: int, updated_at: int, row_id: int, source: str = "all") -> int:
+    """Where a player's best stands: 1 + the other players whose best is ahead of it."""
     w, args = _where(source)
     better = c.execute(
-        f"SELECT COUNT(*) FROM scores WHERE {w}(score > ? OR (score = ? AND "
+        f"SELECT COUNT(*) FROM ({_bests(w)}) WHERE player != ? AND (score > ? OR (score = ? AND "
         f"(updated_at < ? OR (updated_at = ? AND id < ?))))",
-        args + (score, score, updated_at, updated_at, row_id),
+        args + (player, score, score, updated_at, updated_at, row_id),
     ).fetchone()[0]
     return better + 1
 
@@ -133,35 +147,32 @@ def post_score(entry: ScoreIn, request: Request) -> dict:
             (entry.player, entry.source, name, entry.score, details, entry.platform[:16], now, entry.destination),
         ).lastrowid
         c.execute("UPDATE scores SET name = ? WHERE player = ?", (name, entry.player))
-        # best: the player's new best for this source; rank: where this score landed
+        # best: the player's new best for this source; rank: where the player's best (on this source's board)
+        # stands now - the board shows each player once (user, 2026-11-23)
+        b = _best_of(c, entry.player, entry.source)
         return {"best": prev is None or entry.score > prev, "score": entry.score,
-                "rank": _rank(c, entry.score, now, row_id, entry.source)}
+                "rank": _rank(c, entry.player, b[0], b[1], b[2], entry.source)}
 
 
 @router.get("/v1/scores/top")
 def top_scores(player: str | None = None, limit: int = Query(TOP_LIMIT, ge=1, le=TOP_LIMIT),
                source: str = "all") -> dict:
-    """The board for one source ("play", "scan", "fleet") or "all": every posted score, so a player can
-    be on it many times (all their rows "me"). "mine" is the player's best, also when it is below the top."""
+    """The board for one source ("play", "scan", "fleet") or "all": each player once, with their best score
+    (user, 2026-11-23; from 2026-10-31 it listed every posted score). Every posted score is still stored.
+    "mine" is the player's best, also when it is below the top."""
     w, args = _where(source)
     with db() as c:
-        rows = c.execute(
-            f"SELECT {_COLS} FROM scores WHERE {w}1 ORDER BY {_ORDER} LIMIT ?",
-            args + (limit,),
-        ).fetchall()
+        rows = c.execute(f"{_bests(w)} ORDER BY {_ORDER} LIMIT ?", args + (limit,)).fetchall()
         entries = [
             {"rank": i + 1, "name": n, "score": s, "details": json.loads(d), "platform": p, "source": src,
              "destination": dest, "me": bool(player) and pl == player}
-            for i, (pl, src, n, s, d, p, _u, dest) in enumerate(rows)
+            for i, (pl, src, n, s, d, p, _u, dest, _id) in enumerate(rows)
         ]
         mine = None
         if player and VOTER_RE.match(player):
-            r = c.execute(
-                f"SELECT score, updated_at, id, source FROM scores WHERE {w}player = ? ORDER BY {_ORDER} LIMIT 1",
-                args + (player,),
-            ).fetchone()
+            r = _best_of(c, player, source)
             if r:
-                mine = {"score": r[0], "rank": _rank(c, r[0], r[1], r[2], source), "source": r[3]}
+                mine = {"score": r[0], "rank": _rank(c, player, r[0], r[1], r[2], source), "source": r[3]}
     return {"entries": entries, "mine": mine}
 
 
@@ -206,13 +217,8 @@ def _require_admin(token: str | None) -> None:
 def _player_bests(c, source: str, limit: int) -> list[tuple]:
     """The contest's ranking: each player once, with their best score (name, score, platform, set at)."""
     w, args = _where(source)
-    return c.execute(
-        f"SELECT name, score, platform, updated_at FROM ("
-        f"SELECT name, score, platform, updated_at, id, "
-        f"ROW_NUMBER() OVER (PARTITION BY player ORDER BY {_ORDER}) AS nth FROM scores WHERE {w}1"
-        f") WHERE nth = 1 ORDER BY {_ORDER} LIMIT ?",
-        args + (limit,),
-    ).fetchall()
+    return c.execute(f"SELECT name, score, platform, updated_at FROM ({_bests(w)}) ORDER BY {_ORDER} LIMIT ?",
+                     args + (limit,)).fetchall()
 
 
 def take_snapshot(source: str, now: int | None = None) -> dict:

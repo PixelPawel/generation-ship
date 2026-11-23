@@ -21,20 +21,29 @@ def post(player, name, score, details=None, source=None):
     return r.json()
 
 
-def test_every_score_is_a_row():
+def test_each_player_once_with_their_best():
     assert post(P1, "Ann", 40, [123, 456])["best"]
     assert post(P2, "Bob", 55)["rank"] == 1
-    # a lower score gets a row of its own; the new name shows on all the player's rows
+    # a lower score is stored but the board shows only the best; the new name shows on it
     r = post(P1, "Annie", 30)
-    assert not r["best"] and r["score"] == 30 and r["rank"] == 3
+    assert not r["best"] and r["score"] == 30 and r["rank"] == 2      # rank = where the player's best stands
     top = client.get("/v1/scores/top", params={"player": P1}).json()
     rows = [(e["name"], e["score"], e["me"]) for e in top["entries"] if e["name"] in ("Annie", "Bob")]
-    assert rows == [("Bob", 55, False), ("Annie", 40, True), ("Annie", 30, True)]
+    assert rows == [("Bob", 55, False), ("Annie", 40, True)]
     assert top["mine"] == {"score": 40, "rank": 2, "source": "play"}
-    assert [e["details"] for e in top["entries"] if e["name"] == "Annie"] == [[123, 456], []]
-    # the same score again: the earlier one stays ahead
+    assert [e["details"] for e in top["entries"] if e["name"] == "Annie"] == [[123, 456]]
+    # ranks count players, not rows
+    assert [e["rank"] for e in top["entries"] if e["name"] in ("Annie", "Bob")] == [1, 2]
+    # the same score again: no second row, the earlier one counts
     r = post(P2, "Bob", 55)
-    assert not r["best"] and r["rank"] == 2
+    assert not r["best"] and r["rank"] == 1
+    top = client.get("/v1/scores/top").json()
+    assert [e["score"] for e in top["entries"] if e["name"] == "Bob"] == [55]
+    # a new best replaces the old one on the board
+    r = post(P1, "Annie", 70)
+    assert r["best"] and r["rank"] == 1
+    top = client.get("/v1/scores/top", params={"player": P1}).json()
+    assert [(e["name"], e["score"]) for e in top["entries"] if e["name"] in ("Annie", "Bob")] == [("Annie", 70), ("Bob", 55)]
 
 
 def test_full_details_from_the_game():
@@ -66,7 +75,7 @@ def test_sources_kept_apart_and_filtered():
     assert scan["mine"]["rank"] == 1
     every = client.get("/v1/scores/top", params={"player": P3}).json()
     cara = [(e["score"], e["source"]) for e in every["entries"] if e["name"] == "Cara"]
-    assert cara == [(120, "scan"), (60, "play")]
+    assert cara == [(120, "scan")]                             # "all": once, with the best of both
     assert every["mine"]["score"] == 120
     assert client.post("/v1/scores", json={"player": P3, "name": "x", "score": 1, "source": "nope"}).status_code == 400
 
@@ -124,9 +133,11 @@ def test_migrates_best_per_player_board():
         c.execute(f"INSERT INTO scores VALUES ('{P}', 'fleet', 'Hal', 12, '[]', 'steam', 2, 4)")
     scores.init_scores()
     scores.init_scores()   # runs on every start: a second time changes nothing
-    assert post(P, "Hal", 2)["rank"] == 2
+    assert post(P, "Hal", 2)["rank"] == 1                  # his best (59) stands first
     top = client.get("/v1/scores/top", params={"player": P, "source": "play"}).json()
-    assert [(e["score"], e["details"], e["me"]) for e in top["entries"]] == [(59, [7], True), (2, [], True)]
+    assert [(e["score"], e["details"], e["me"]) for e in top["entries"]] == [(59, [7], True)]
+    with main.db() as c:                                     # the lower game is stored all the same
+        assert c.execute("SELECT COUNT(*) FROM scores WHERE player = ? AND source = 'play'", (P,)).fetchone()[0] == 2
     fleet = client.get("/v1/scores/top", params={"source": "fleet"}).json()
     assert [(e["score"], e["destination"]) for e in fleet["entries"]] == [(12, 4)]
 
