@@ -1,5 +1,10 @@
 "key","de","it","pl","es","fr"
-"adv:10:effect","Lagere 1 Liquids hier. Erhalte 1⭐ pro Liquids hier.","Immagazzina 1 Liquids qui. Guadagna 1⭐ per Liquids qui.","Zmagazynuj 1 Liquids tutaj. Zdobądź 1⭐ za Liquids tutaj.","Almacena 1 Liquids aquí. Gana 1⭐ por Liquids aquí.","Stockez 1 Liquids ici. Gagnez 1⭐ par Liquids ici."
+"adv:10:effect","Lagere 1 Liquids hier.
+Liquids hier sind +1⭐ wert.","Immagazzina 1 Liquids qui.
+Liquids qui valgono +1⭐.","Zmagazynuj 1 Liquids tutaj.
+Liquids tutaj są warte +1⭐.","Almacena 1 Liquids aquí.
+Liquids aquí valen +1⭐.","Stockez 1 Liquids ici.
+Liquids ici valent +1⭐."
 "adv:10:name","Gewächshaus","Serra","Szklarnie","Invernadero","Serre"
 "adv:11:effect","Ziehe 3","Pesca 3","Dobierz 3","Roba 3","Piochez 3"
 "adv:11:name","Akademie","Accademie","Akademie","Academias","Académies"
@@ -35,9 +40,17 @@
 "adv:25:name","Astrogation","Astrogazione","Astrogacja","Astrogación","Astrogation"
 "adv:26:effect","Erhalte 2 Thrust.","Guadagna 2 Thrust.","Zdobądź 2 Thrust.","Gana 2 Thrust.","Gagnez 2 Thrust."
 "adv:26:name","Astrogation","Astrogazione","Astrogacja","Astrogación","Astrogation"
-"adv:27:effect","Lagere 2 Thrust hier. Erhalte 2⭐ pro Thrust hier.","Immagazzina 2 Thrust qui. Guadagna 2⭐ per Thrust qui.","Zmagazynuj 2 Thrust tutaj. Zdobądź 2⭐ za Thrust tutaj.","Almacena 2 Thrust aquí. Gana 2⭐ por Thrust aquí.","Stockez 2 Thrust ici. Gagnez 2⭐ par Thrust ici."
+"adv:27:effect","Lagere 2 Thrust hier.
+Thrust hier sind +2⭐ wert.","Immagazzina 2 Thrust qui.
+Thrust qui valgono +2⭐.","Zmagazynuj 2 Thrust tutaj.
+Thrust tutaj są warte +2⭐.","Almacena 2 Thrust aquí. Thrust aquí valen +2⭐.","Stockez 2 Thrust ici.
+Thrust ici valent +2⭐."
 "adv:27:name","Astra Cultura","Astra Cultura","Astra Cultura","Astra Cultura","Astra Cultura"
-"adv:28:effect","Lagere 2 Thrust hier. Erhalte 2⭐ pro Thrust hier.","Immagazzina 2 Thrust qui. Guadagna 2⭐ per Thrust qui.","Zmagazynuj 2 Thrust tutaj. Zdobądź 2⭐ za Thrust tutaj.","Almacena 2 Thrust aquí. Gana 2⭐ por Thrust aquí.","Stockez 2 Thrust ici. Gagnez 2⭐ par Thrust ici."
+"adv:28:effect","Lagere 2 Thrust hier.
+Thrust hier sind +2⭐ wert.","Immagazzina 2 Thrust qui.
+Thrust qui valgono +2⭐.","Zmagazynuj 2 Thrust tutaj.
+Thrust tutaj są warte +2⭐.","Almacena 2 Thrust aquí. Thrust aquí valen +2⭐.","Stockez 2 Thrust ici.
+Thrust ici valent +2⭐."
 "adv:28:name","Astra Cultura","Astra Cultura","Astra Cultura","Astra Cultura","Astra Cultura"
 "adv:29:effect","Ziehe 3.","Pesca 3.","Dobierz 3.","Roba 3.","Piochez 3."
 "adv:29:name","Zentrale KI","IA Centrale","Centralna SI","IA Central","IA Centrale"
@@ -57,7 +70,12 @@
 "adv:7:name","Weltraumbasar","Bazar Spaziale","Kosmiczny Bazar","Bazar Espacial","Bazar Spatial"
 "adv:8:effect","Recycle bis zu 3, ziehe dann ebenso viele.","Ricicla fino a 3, poi pesca altrettante.","Zrecykluj do 3, następnie dobierz tyle samo.","Recicla hasta 3, luego roba esa cantidad.","Recyclez jusqu’à 3, puis piochez autant."
 "adv:8:name","Weltraumbasar","Bazar Spaziale","Kosmiczny Bazar","Bazar Espacial","Bazar Spatial"
-"adv:9:effect","Lagere 1 Liquids hier. Erhalte 1⭐ pro Liquids hier.","Immagazzina 1 Liquids qui. Guadagna 1⭐ per Liquids qui.","Zmagazynuj 1 Liquids tutaj. Zdobądź 1⭐ za Liquids tutaj.","Almacena 1 Liquids aquí. Gana 1⭐ por Liquids aquí.","Stockez 1 Liquids ici. Gagnez 1⭐ par Liquids ici."
+"adv:9:effect","Lagere 1 Liquids hier.
+Liquids hier sind +1⭐ wert.","Immagazzina 1 Liquids qui.
+Liquids qui valgono +1⭐.","Zmagazynuj 1 Liquids tutaj.
+Liquids tutaj są warte +1⭐.","Almacena 1 Liquids aquí.
+Liquids aquí valen +1⭐.","Stockez 1 Liquids ici.
+Liquids ici valent +1⭐."
 "adv:9:name","Gewächshaus","Serra","Szklarnie","Invernadero","Serre"
 "danger:10:effect","Jeder Spieler wählt: Verliere 2 gelagerte Vorräte oder wirf 2 Karten ab.","Ogni giocatore sceglie: Perdi 2 risorse immagazzinate o scarta 2.","Każdy gracz wybiera: Strać 2 zmagazynowane zasoby lub odrzuć 2.","Cada jugador elige: Pierde 2 suministros almacenados o descarta 2.","Chaque joueur choisit : Perdez 2 matériels stockés ou défaussez 2 cartes."
 "danger:10:name","Algen-Megablüte","Megafioritura di Alghe","Zakwit Alg","Superfloración de Algas","Méga-Algues"
@@ -386,7 +404,7 @@ Navette : 1 Dust pour envoyer une carte à un joueur."
 "expedition:19:name","Millionen von Kolonisten","Milioni di Coloni","Miliony Kolonistów","Millones de Colonos","Millions de Colons"
 "expedition:1:effect","Wenn du eine (Star Card) platzierst, lagere dort 1 Vorrat ihrer Farbe.","Quando posizioni una (Star Card), immagazzina 1 risorsa di quel colore su quel settore.","Gdy umieszczasz (Star Card), zmagazynuj 1 zasób jej koloru w sektorze, w którym ją umieszczasz.","Cuando colocas una (Star Card), almacena 1 suministro de ese color en ese sector.","Quand vous posez une (Star Card), stockez 1 matériel de cette couleur sur le secteur où vous la posez."
 "expedition:1:name","Einstein-Rosen-Portal","Portale di Einstein-Rosen","Portal Einsteina-Rosena","Portal de Einstein-Rosen","Portail d’Einstein-Rosen"
-"expedition:20:effect","Erhalte 2⭐ pro Expedition, die ein anderer Spieler hat.","Guadagna 2⭐ per ogni spedizione che un altro giocatore possiede.","Zdobądź 2⭐ za każdą ekspedycję posiadaną przez innego gracza.","Gana 2⭐ por cada expedición que tenga otro jugador.","Gagnez 2⭐ par expédition qu’un autre joueur possède."
+"expedition:20:effect","Erhalte 2⭐ pro Expedition eines der anderen Spieler.","Guadagna 2⭐ per ogni spedizione che uno degli altri giocatori possiede.","Zdobądź 2⭐ za każdą ekspedycję jednego z innych graczy.","Gana 2⭐ por cada expedición de uno de los otros jugadores.","Gagnez 2⭐ par expédition de l’un des autres joueurs."
 "expedition:20:name","Allianz","Alleanza","Sojusz","Alianza","Alliance"
 "expedition:21:effect","Erhalte 2⭐ pro unterschiedlicher Farbe gelagerter Vorräte auf einem Sektor.","Guadagna 2⭐ per ogni colore diverso di risorsa immagazzinata su uno dei tuoi settori.","Zdobądź 2⭐ za każdy różny kolor zmagazynowanego zasobu w jednym sektorze.","Gana 2⭐ por cada color diferente de suministro almacenado en un sector.","Gagnez 2⭐ par couleur différente de matériel stocké sur un même secteur."
 "expedition:21:name","Polarplanet","Pianeta Polare","Planeta Polarna","Planeta Polar","Planète Polaire"

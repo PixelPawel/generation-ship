@@ -7,8 +7,10 @@ No.,Name,Link,Color,Cost,Art,Flavor,Printed Star,Star Card,Backside,Optimize 1,O
 6,Preservation,GS Sector 5 67x44mm.png,Metals,3,,1 part spacefruit 3 parts sugar.,,No,Cargo Bays,"Any, Any","Any, Any",,"Gain 2 Dust per different color here, including this",(Optimize twice to fully optimize),Done,Daniel,402
 7,Space Bazaar,GS Sector 1 67x44mm2.png,Liquids,2,,Feel the quality. That’s none of your goat.,,No,Hibernators,"Dust, Electrix","Liquids, Liquids",,"Recycle up to 3, then draw that many.",(Optimize twice to fully optimize),Done,Daniel,403
 8,Space Bazaar,GS Sector 1 67x44mm2.png,Liquids,2,,Feel the quality. That’s none of your goat.,,No,Simulators,"Dust, Electrix","Liquids, Liquids",,"Recycle up to 3, then draw that many.",(Optimize twice to fully optimize),Done,Daniel,403
-9,Greenhouse,GS Sector 3 67x44mm2.png,Liquids,2,,Green is not a creative color.,⭐⭐,Yes,Bioreactors,Liquids,Liquids,Liquids,Store 1 Liquids here. Gain 1⭐ per Liquids here.,(Stored supplies are 1⭐ ),Done,Daniel,404
-10,Greenhouse,GS Sector 3 67x44mm2.png,Liquids,2,,Green is not a creative color.,⭐⭐,Yes,Habitation Ring,Liquids,Liquids,Liquids,Store 1 Liquids here. Gain 1⭐ per Liquids here.,(Stored supplies are 1⭐ ),Done,Daniel,404
+9,Greenhouse,GS Sector 3 67x44mm2.png,Liquids,2,,Green is not a creative color.,⭐⭐,Yes,Bioreactors,Liquids,Liquids,Liquids,"Store 1 Liquids here.
+Liquids here are +1⭐.",(Stored supplies are 1⭐ ),Done,Daniel,404
+10,Greenhouse,GS Sector 3 67x44mm2.png,Liquids,2,,Green is not a creative color.,⭐⭐,Yes,Habitation Ring,Liquids,Liquids,Liquids,"Store 1 Liquids here.
+Liquids here are +1⭐.",(Stored supplies are 1⭐ ),Done,Daniel,404
 11,Academies,GS Sector 5 67x44mm2.png,Liquids,2,,Publish or perish!,,No,Operations,"Liquids, Metals, Organix",,,Draw 3,(Optimize once to fully optimize),Done,Daniel,405
 12,Academies,GS Sector 5 67x44mm2.png,Liquids,2,,Publish or perish!,,No,Cargo Bays,"Liquids, Metals, Organix",,,Draw 3,(Optimize once to fully optimize),Done,Daniel,405
 13,Exosampling,GS Sector 1 67x44mm3.png,Organix,2,,Wow! Superfish!,⭐,Yes,Hibernators,Organix,Organix,Organix,Archive 1 card faceup here.,(Gain printed ⭐ on faceup cards),Done,Daniel,406
@@ -25,7 +27,9 @@ No.,Name,Link,Color,Cost,Art,Flavor,Printed Star,Star Card,Backside,Optimize 1,O
 24,Engines,GS Sector 5 67x44mm4.png,Electrix,2,,More mass means you can accelerate faster.,,No,Cargo Bays,"Metals, Liquids","Electrix, Thrust",,Gain 1 Electrix per sector you have.,(Optimize twice to fully optimize),Done,Daniel,411
 25,Astrogation,GS Sector 1 67x44mm5.png,Thrrust,2,,Stars in a galaxy are like cream in your coffee.,,No,Hibernators,"Dust, Organix","Liquids, Electrix",,Gain 2 Thrust.,(Optimize twice to fully optimize),Done,Daniel,412
 26,Astrogation,GS Sector 1 67x44mm5.png,Thrrust,2,,Stars in a galaxy are like cream in your coffee.,,No,Simulators,"Dust, Organix","Liquids, Electrix",,Gain 2 Thrust.,(Optimize twice to fully optimize),Done,Daniel,412
-27,Astra Cultura,GS Sector 3 67x44mm5.png,Thrrust,3,,The sky is no longer the limit.,⭐,Yes,Bioreactors,"Metals, Electrix, Thrust",,,Store 2 Thrust here. Gain 2⭐ per Thrust here.,(Optimize once to fully optimize),Done,Daniel,413
-28,Astra Cultura,GS Sector 3 67x44mm5.png,Thrrust,3,,The sky is no longer the limit.,⭐,Yes,Habitation Ring,"Metals, Electrix, Thrust",,,Store 2 Thrust here. Gain 2⭐ per Thrust here.,(Optimize once to fully optimize),Done,Daniel,413
+27,Astra Cultura,GS Sector 3 67x44mm5.png,Thrrust,3,,The sky is no longer the limit.,⭐,Yes,Bioreactors,"Metals, Electrix, Thrust",,,"Store 2 Thrust here.
+Thrust here are +2⭐.",(Optimize once to fully optimize),Done,Daniel,413
+28,Astra Cultura,GS Sector 3 67x44mm5.png,Thrrust,3,,The sky is no longer the limit.,⭐,Yes,Habitation Ring,"Metals, Electrix, Thrust",,,"Store 2 Thrust here.
+Thrust here are +2⭐.",(Optimize once to fully optimize),Done,Daniel,413
 29,Central AI,GS Sector 5 67x44mm5.png,Thrrust,3,,"I can’t do that, due to copyright issues.",,No,Operations,"Dust, Organix","Metals, Thrust",,Draw 3.,(Optimize twice to fully optimize),Done,Daniel,414
 30,Central AI,GS Sector 5 67x44mm5.png,Thrrust,3,,"I can’t do that, due to copyright issues.",,No,Cargo Bays,"Dust, Organix","Metals, Thrust",,Draw 3.,(Optimize twice to fully optimize),Done,Daniel,414

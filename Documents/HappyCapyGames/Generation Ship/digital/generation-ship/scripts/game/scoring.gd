@@ -147,7 +147,7 @@ const EXPEDITION_MAX: Dictionary = {
 	"Interstellar Trade Port": 12,
 }
 
-# Alliance ("2⭐ per expedition another player has") needs the other players'
+# Alliance ("2⭐ per expedition one other player has") needs the other players'
 # boards, which a single board's scoring can't see: Main sets this right before
 # it scores a player — the expeditions of the other player who has the most
 # (see Main._alliance_count_for). 0 in solo games and for scanned ships.

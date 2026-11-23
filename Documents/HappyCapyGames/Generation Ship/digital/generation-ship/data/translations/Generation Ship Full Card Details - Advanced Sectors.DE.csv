@@ -7,8 +7,10 @@ No.,Name,Link,Color,Cost,Art,Flavor,Printed Star,Star Card,Backside,Optimize 1,O
 6,Konservierung,GS Sector 5 67x44mm.png,Metals,3,,"1 Teil Obst, 3 Teile Zucker.",,No,Frachträume,"Any, Any","Any, Any",,"Erhalte 2 Dust pro unterschiedlicher Farbe hier, einschließlich dieser.",(2x optimieren = vollständig optimiert),Done,Daniel
 7,Weltraumbasar,GS Sector 1 67x44mm2.png,Liquids,2,,Fühle die Qualität. Das sind keine Ziegenhaare.,,No,Winterschläfer,"Dust, Electrix","Liquids, Liquids",,"Recycle bis zu 3, ziehe dann ebenso viele.",(2x optimieren = vollständig optimiert),Done,Daniel
 8,Weltraumbasar,GS Sector 1 67x44mm2.png,Liquids,2,,Fühle die Qualität. Das sind keine Ziegenhaare.,,No,Simulatoren,"Dust, Electrix","Liquids, Liquids",,"Recycle bis zu 3, ziehe dann ebenso viele.",(2x optimieren = vollständig optimiert),Done,Daniel
-9,Gewächshaus,GS Sector 3 67x44mm2.png,Liquids,2,,Grün ist keine kreative Farbe.,⭐⭐,Yes,Bioreaktor,Liquids,Liquids,Liquids,Lagere 1 Liquids hier. Erhalte 1⭐ pro Liquids hier.,(Gelagerte Vorräte = 1⭐),Done,Daniel
-10,Gewächshaus,GS Sector 3 67x44mm2.png,Liquids,2,,Grün ist keine kreative Farbe.,⭐⭐,Yes,Wohnring,Liquids,Liquids,Liquids,Lagere 1 Liquids hier. Erhalte 1⭐ pro Liquids hier.,(Gelagerte Vorräte = 1⭐),Done,Daniel
+9,Gewächshaus,GS Sector 3 67x44mm2.png,Liquids,2,,Grün ist keine kreative Farbe.,⭐⭐,Yes,Bioreaktor,Liquids,Liquids,Liquids,"Lagere 1 Liquids hier.
+Liquids hier sind +1⭐ wert.",(Gelagerte Vorräte = 1⭐),Done,Daniel
+10,Gewächshaus,GS Sector 3 67x44mm2.png,Liquids,2,,Grün ist keine kreative Farbe.,⭐⭐,Yes,Wohnring,Liquids,Liquids,Liquids,"Lagere 1 Liquids hier.
+Liquids hier sind +1⭐ wert.",(Gelagerte Vorräte = 1⭐),Done,Daniel
 11,Akademie,GS Sector 5 67x44mm2.png,Liquids,2,,Publizieren oder untergehen!,,No,Operationen,"Liquids, Metals, Organix",,,Ziehe 3,(1x optimieren = vollständig optimiert),Done,Daniel
 12,Akademie,GS Sector 5 67x44mm2.png,Liquids,2,,Publizieren oder untergehen!,,No,Frachträume,"Liquids, Metals, Organix",,,Ziehe 3,(1x optimieren = vollständig optimiert),Done,Daniel
 13,Exoproben,GS Sector 1 67x44mm3.png,Organix,2,,Wow! Superfisch!,⭐,Yes,Winterschläfer,Organix,Organix,Organix,Archiviere 1 Karte offen hier.,(Erhalte aufgedruckte ⭐ auf offenen Karten),Done,Daniel
@@ -25,7 +27,9 @@ No.,Name,Link,Color,Cost,Art,Flavor,Printed Star,Star Card,Backside,Optimize 1,O
 24,Triebwerke,GS Sector 5 67x44mm4.png,Electrix,2,,"Mehr Masse bedeutet, dass man schneller beschleunigen kann.",,No,Frachträume,"Metals, Liquids","Electrix, Thrust",,"Erhalte 1 Electrix pro Sektor, den du hast.",(2x optimieren = vollständig optimiert),Done,Daniel
 25,Astrogation,GS Sector 1 67x44mm5.png,Thrrust,2,,Sterne in einer Galaxie sind wie Sahne im Kaffee.,,No,Winterschläfer,"Dust, Organix","Liquids, Electrix",,Erhalte 2 Thrust.,(2x optimieren = vollständig optimiert),Done,Daniel
 26,Astrogation,GS Sector 1 67x44mm5.png,Thrrust,2,,Sterne in einer Galaxie sind wie Sahne im Kaffee.,,No,Simulatoren,"Dust, Organix","Liquids, Electrix",,Erhalte 2 Thrust.,(2x optimieren = vollständig optimiert),Done,Daniel
-27,Astra Cultura,GS Sector 3 67x44mm5.png,Thrrust,3,,"Über den Wolken, muss die Freiheit wohl grenzenlos sein!",⭐,Yes,Bioreaktor,"Metals, Electrix, Thrust",,,Lagere 2 Thrust hier. Erhalte 2⭐ pro Thrust hier.,(1x optimieren = vollständig optimiert),Done,Daniel
-28,Astra Cultura,GS Sector 3 67x44mm5.png,Thrrust,3,,"Über den Wolken, muss die Freiheit wohl grenzenlos sein!",⭐,Yes,Wohnring,"Metals, Electrix, Thrust",,,Lagere 2 Thrust hier. Erhalte 2⭐ pro Thrust hier.,(1x optimieren = vollständig optimiert),Done,Daniel
+27,Astra Cultura,GS Sector 3 67x44mm5.png,Thrrust,3,,"Über den Wolken, muss die Freiheit wohl grenzenlos sein!",⭐,Yes,Bioreaktor,"Metals, Electrix, Thrust",,,"Lagere 2 Thrust hier.
+Thrust hier sind +2⭐ wert.",(1x optimieren = vollständig optimiert),Done,Daniel
+28,Astra Cultura,GS Sector 3 67x44mm5.png,Thrrust,3,,"Über den Wolken, muss die Freiheit wohl grenzenlos sein!",⭐,Yes,Wohnring,"Metals, Electrix, Thrust",,,"Lagere 2 Thrust hier.
+Thrust hier sind +2⭐ wert.",(1x optimieren = vollständig optimiert),Done,Daniel
 29,Zentrale KI,GS Sector 5 67x44mm5.png,Thrrust,3,,Das kann ich aus urheberrechtlichen Gründen nicht tun.,,No,Operationen,"Dust, Organix","Metals, Thrust",,Ziehe 3.,(2x optimieren = vollständig optimiert),Done,Daniel
 30,Zentrale KI,GS Sector 5 67x44mm5.png,Thrrust,3,,Das kann ich aus urheberrechtlichen Gründen nicht tun.,,No,Frachträume,"Dust, Organix","Metals, Thrust",,Ziehe 3.,(2x optimieren = vollständig optimiert),Done,Daniel
