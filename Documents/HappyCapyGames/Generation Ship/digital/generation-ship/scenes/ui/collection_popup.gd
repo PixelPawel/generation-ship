@@ -106,6 +106,16 @@ var _comment_counter: Label = null
 var _comment_status: Label = null
 var _comment_send: Button = null
 var _comment_sending_key: String = ""
+# Previous / next card arrows beside the close-up: step through the open tab's
+# cards without going back to the grid (also the Left/Right keys). Wraps around.
+const _NAV_BTN_SIZE: Vector2 = Vector2(72, 120)
+const _NAV_BTN_FONT: int = 34
+const _NAV_GAP: float = 24.0
+var _prev_btn: Button = null
+var _next_btn: Button = null
+var _grid_entries: Array[Dictionary] = []   # the open tab's cards, in grid order
+var _grid_landscape: bool = false
+var _enlarge_index: int = -1   # which of _grid_entries is in the close-up (-1 = none)
 var _thumb_tweens: Dictionary = {}   # TextureRect -> Tween, so a re-hover kills the fade-out mid-flight
 var _tr_targets: Dictionary = {}   # Control (Label/Button) -> untranslated key, refreshed on locale change
 
@@ -128,6 +138,9 @@ func refresh_locale_text() -> void:
 	if _vote_up_btn:
 		_vote_up_btn.tooltip_text = tr("Good translation")
 		_vote_down_btn.tooltip_text = tr("Needs work")
+	if _prev_btn:
+		_prev_btn.tooltip_text = tr("Previous card")
+		_next_btn.tooltip_text = tr("Next card")
 
 var _lang_buttons: Dictionary = {}   # locale code -> its toggle Button in the title row
 
@@ -293,6 +306,8 @@ func _build_ui() -> void:
 	add_child(_enlarge_left_label)
 	_enlarge_right_label = _make_enlarge_label()
 	add_child(_enlarge_right_label)
+	_prev_btn = _make_nav_button("◀", -1)
+	_next_btn = _make_nav_button("▶", 1)
 	_build_vote_row()
 	GameTheme.touchify(self)
 
@@ -646,6 +661,49 @@ func _make_enlarge_label() -> Label:
 	lbl.anchor_bottom = 0.5
 	return lbl
 
+func _make_nav_button(label: String, step: int) -> Button:
+	var btn: Button = _make_button(label)
+	btn.add_theme_font_size_override("font_size", _NAV_BTN_FONT)
+	btn.custom_minimum_size = _NAV_BTN_SIZE
+	btn.tooltip_text = tr("Previous card") if step < 0 else tr("Next card")
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.anchor_left = 0.5
+	btn.anchor_right = 0.5
+	btn.anchor_top = 0.5
+	btn.anchor_bottom = 0.5
+	btn.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	btn.grow_vertical = Control.GROW_DIRECTION_BOTH
+	btn.visible = false
+	btn.pressed.connect(_step_enlarged.bind(step))
+	add_child(btn)
+	return btn
+
+func _step_enlarged(step: int) -> void:
+	if _enlarge_index < 0 or _grid_entries.is_empty():
+		return
+	var n: int = _grid_entries.size()
+	_show_enlarged_at((_enlarge_index + step + n) % n)
+
+func _show_enlarged_at(index: int) -> void:
+	if index < 0 or index >= _grid_entries.size():
+		return
+	_close_comment()
+	_enlarge_index = index
+	_show_enlarged(_grid_entries[index], _grid_landscape)
+	# arrows just outside the outer edges of the close-up (one card or two)
+	var left_edge: float = _enlarge_left.offset_left
+	var right_edge: float = _enlarge_right.offset_right if _enlarge_right.visible else _enlarge_left.offset_right
+	var show_nav: bool = _grid_entries.size() > 1
+	_place_nav(_prev_btn, left_edge - _NAV_GAP - _NAV_BTN_SIZE.x / 2.0, show_nav)
+	_place_nav(_next_btn, right_edge + _NAV_GAP + _NAV_BTN_SIZE.x / 2.0, show_nav)
+
+func _place_nav(btn: Button, center_x: float, show: bool) -> void:
+	btn.offset_left = center_x - _NAV_BTN_SIZE.x / 2.0
+	btn.offset_right = center_x + _NAV_BTN_SIZE.x / 2.0
+	btn.offset_top = -_NAV_BTN_SIZE.y / 2.0
+	btn.offset_bottom = _NAV_BTN_SIZE.y / 2.0
+	btn.visible = show
+
 func _make_button(label: String) -> Button:
 	var btn: Button = Button.new()
 	btn.text = label
@@ -669,6 +727,8 @@ func _populate_grid() -> void:
 		child.queue_free()
 	var deck: Dictionary = _DECKS[_active_tab]
 	var landscape: bool = deck.get("landscape", false)
+	_grid_landscape = landscape
+	_grid_entries.clear()
 	_grid.columns = _LANDSCAPE_COLUMNS if landscape else _PORTRAIT_COLUMNS
 	var box_size: Vector2 = _LANDSCAPE_SIZE if landscape else _PORTRAIT_SIZE
 	for entry: Dictionary in _list_deck_files(deck):
@@ -676,6 +736,8 @@ func _populate_grid() -> void:
 		var tex: Texture2D = load(path) as Texture2D
 		if not tex:
 			continue
+		var index: int = _grid_entries.size()
+		_grid_entries.append(entry)
 		var rect: TextureRect = TextureRect.new()
 		rect.texture = tex
 		rect.custom_minimum_size = box_size
@@ -686,7 +748,7 @@ func _populate_grid() -> void:
 		# grid on a phone (with STOP + zoom on press every swipe zoomed a card instead)
 		rect.mouse_filter = Control.MOUSE_FILTER_PASS
 		var down: Array = [Vector2.INF]   # where it was pressed (a lambda copies plain vars)
-		rect.gui_input.connect(func(event: InputEvent) -> void: _on_thumb_gui_input(event, entry, landscape, down))
+		rect.gui_input.connect(func(event: InputEvent) -> void: _on_thumb_gui_input(event, index, down))
 		rect.mouse_entered.connect(func() -> void: _on_thumb_hover(rect, true))
 		rect.mouse_exited.connect(func() -> void: _on_thumb_hover(rect, false))
 		var mat: ShaderMaterial = ShaderMaterial.new()
@@ -712,7 +774,7 @@ func _on_thumb_hover(rect: TextureRect, entered: bool) -> void:
 
 const TAP_SLOP: float = 20.0   # a press that moves further is a scroll, not a zoom (as card_picker.gd)
 
-func _on_thumb_gui_input(event: InputEvent, entry: Dictionary, landscape: bool, down: Array) -> void:
+func _on_thumb_gui_input(event: InputEvent, index: int, down: Array) -> void:
 	var mb: InputEventMouseButton = event as InputEventMouseButton
 	if mb == null or (mb.button_index != MOUSE_BUTTON_LEFT and mb.button_index != MOUSE_BUTTON_RIGHT):
 		return
@@ -722,7 +784,7 @@ func _on_thumb_gui_input(event: InputEvent, entry: Dictionary, landscape: bool, 
 	var start: Vector2 = down[0]
 	down[0] = Vector2.INF
 	if start != Vector2.INF and mb.global_position.distance_to(start) <= TAP_SLOP:
-		_show_enlarged(entry, landscape)
+		_show_enlarged_at(index)
 		get_viewport().set_input_as_handled()
 
 # English on the left, the current language on the right — if the current
@@ -787,6 +849,10 @@ func _hide_enlarged() -> void:
 	_enlarge_right.visible = false
 	_enlarge_left_label.visible = false
 	_enlarge_right_label.visible = false
+	_enlarge_index = -1
+	if _prev_btn:
+		_prev_btn.visible = false
+		_next_btn.visible = false
 	if _vote_row:
 		_set_vote_visible(false)
 		_vote_key = ""
@@ -862,6 +928,13 @@ func _resolve_file(folder: String, fname: String) -> String:
 
 func _input(event: InputEvent) -> void:
 	if not visible:
+		return
+	# Left/Right step through the close-up (not while typing a comment)
+	var key: InputEventKey = event as InputEventKey
+	if key and key.pressed and _enlarge_index >= 0 and not (_comment_panel and _comment_panel.visible) \
+			and (key.keycode == KEY_LEFT or key.keycode == KEY_RIGHT):
+		_step_enlarged(-1 if key.keycode == KEY_LEFT else 1)
+		get_viewport().set_input_as_handled()
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		if _comment_panel and _comment_panel.visible:
