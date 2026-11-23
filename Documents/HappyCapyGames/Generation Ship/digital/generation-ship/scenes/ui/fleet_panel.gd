@@ -43,6 +43,9 @@ const RED_BTN_W: float = 64.0
 var _red_row: HBoxContainer = null
 var _red_left: int = -1
 var _red_total: int = -1
+var _head: Label = null
+var _last_dangers: Array = []      # the last set_dangers call, replayed after a language switch
+var _last_deck: int = 0
 
 # A meeple, drawn (no art for it): head + body with arms and legs, dark outline.
 class MeepleIcon extends Control:
@@ -67,12 +70,31 @@ class MeepleIcon extends Control:
 		draw_arc(head_c, head_r, 0.0, TAU, 24, outline, maxf(1.0, size.x * 0.05), true)
 
 func _ready() -> void:
+	# a language switch in Settings (pause_menu.gd) calls refresh_locale_text on this group
+	add_to_group("locale_refresh")
 	_build_ui()
+
+## Language switched: every Danger card is rebuilt (art in the new language, PLACE/ALWAYS, Solve,
+## the Red Shirt tooltip), and the headings follow.
+func refresh_locale_text() -> void:
+	if _head:
+		_head.text = tr("DANGERS")
+	if _empty_label:
+		_empty_label.text = tr("No active dangers. Three are revealed at the start of every generation.")
+	_shown = []   # forces the rebuild below
+	set_dangers(_last_dangers, _last_deck)
+	var left: int = _red_left
+	var total: int = _red_total
+	_red_left = -1   # forces the meeples' tooltip to be rewritten
+	if total >= 0:
+		set_red_shirts(left, total)
 
 # dangers: [{no, solvable}] — the active (revealed, unsolved) Dangers, oldest first.
 # Called every half second while shown: the cards are only rebuilt when the set
 # of Dangers changes (a rebuild would drop the hover and a running long press).
 func set_dangers(dangers: Array, deck_left: int) -> void:
+	_last_dangers = dangers
+	_last_deck = deck_left
 	var nos: Array[int] = []
 	for d: Dictionary in dangers:
 		nos.append(int(d["no"]))
@@ -140,10 +162,10 @@ func _build_ui() -> void:
 	var head_row: HBoxContainer = HBoxContainer.new()
 	head_row.custom_minimum_size = Vector2(0, HEAD_H)
 	col.add_child(head_row)
-	var head: Label = _text(26, HEAD_COLOR)
-	head.text = tr("DANGERS")
-	head.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head_row.add_child(head)
+	_head = _text(26, HEAD_COLOR)
+	_head.text = tr("DANGERS")
+	_head.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head_row.add_child(_head)
 	_red_row = HBoxContainer.new()
 	_red_row.add_theme_constant_override("separation", 4)
 	_red_row.mouse_filter = Control.MOUSE_FILTER_STOP   # (for its tooltip)

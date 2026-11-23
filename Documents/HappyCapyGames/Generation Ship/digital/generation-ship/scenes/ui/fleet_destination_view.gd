@@ -20,8 +20,12 @@ var _card: TextureRect = null
 var _gen_label: Label = null
 var _mission_box: VBoxContainer = null
 var _shuttle_label: Label = null
+var _head: Label = null
+var _dest_no: int = -1
 
 func _ready() -> void:
+	# a language switch in Settings (pause_menu.gd) calls refresh_locale_text on this group
+	add_to_group("locale_refresh")
 	size = SCREEN_SIZE
 	mouse_filter = Control.MOUSE_FILTER_PASS
 	var bg: ColorRect = ColorRect.new()
@@ -36,10 +40,10 @@ func _ready() -> void:
 	box.add_theme_constant_override("separation", 6)
 	add_child(box)
 
-	var head: Label = _text(22, HEAD_COLOR)
-	head.text = tr("DESTINATION")
-	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(head)
+	_head = _text(22, HEAD_COLOR)
+	_head.text = tr("DESTINATION")
+	_head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(_head)
 
 	_card = TextureRect.new()
 	_card.custom_minimum_size = CARD_SIZE
@@ -75,8 +79,17 @@ func _ready() -> void:
 	box.add_child(_shuttle_label)
 
 func setup(destination_no: int) -> void:
+	_dest_no = destination_no
 	_card.texture = FleetData.screen_texture(FleetData.destination_art(destination_no), CARD_SIZE)
 	set_shuttle_cost(int(FleetData.destination(destination_no).get("shuttle", 0)))
+
+## Language switched: the card art in the new language, and the heading. (Generation, mission and
+## shuttle lines are rewritten by FleetFlow.refresh_panel every half second while shown.)
+func refresh_locale_text() -> void:
+	if _head:
+		_head.text = tr("DESTINATION")
+	if _card and _dest_no > 0:
+		_card.texture = FleetData.screen_texture(FleetData.destination_art(_dest_no), CARD_SIZE)
 
 ## The cost right now (FleetRules.shuttle_cost: Asteroid Belt adds 1), kept current by FleetFlow.refresh_panel.
 func set_shuttle_cost(cost: int) -> void:
