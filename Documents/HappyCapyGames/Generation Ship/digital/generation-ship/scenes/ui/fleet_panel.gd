@@ -10,6 +10,7 @@ const FleetData = preload("res://scripts/game/fleet_data.gd")
 const LongPressGestureScript := preload("res://scenes/ui/long_press_gesture.gd")
 
 signal danger_solve_pressed(danger_no: int)
+signal red_shirt_pressed(danger_no: int)
 signal danger_inspect_requested(danger_no: int)
 signal danger_hover_started(danger_no: int)
 signal danger_hover_ended
@@ -33,7 +34,37 @@ var _deck_label: Label = null
 var _empty_label: Label = null
 var _rects: Dictionary = {}   # danger no -> TextureRect
 var _solve_btns: Dictionary = {}   # danger no -> Button
+var _red_btns: Dictionary = {}     # danger no -> Button (send a Red Shirt)
 var _shown: Array[int] = []        # danger nos currently built, in order
+# Red Shirts: the crew's meeples in the header (used ones greyed out); none in a 4-ship fleet
+const RED_SHIRT_COLOR: Color = Color(0.86, 0.16, 0.13)
+const RED_SHIRT_USED: Color = Color(0.35, 0.36, 0.42)
+const RED_BTN_W: float = 64.0
+var _red_row: HBoxContainer = null
+var _red_left: int = -1
+var _red_total: int = -1
+
+# A meeple, drawn (no art for it): head + body with arms and legs, dark outline.
+class MeepleIcon extends Control:
+	var fill: Color = Color(0.86, 0.16, 0.13)
+	const BODY: Array[Vector2] = [Vector2(0.5, 0.33), Vector2(0.64, 0.36), Vector2(0.97, 0.46), Vector2(0.99, 0.57),
+		Vector2(0.71, 0.59), Vector2(0.86, 0.98), Vector2(0.58, 0.98), Vector2(0.5, 0.8), Vector2(0.42, 0.98),
+		Vector2(0.14, 0.98), Vector2(0.29, 0.59), Vector2(0.01, 0.57), Vector2(0.03, 0.46), Vector2(0.36, 0.36)]
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+	func _draw() -> void:
+		var pts: PackedVector2Array = PackedVector2Array()
+		for p: Vector2 in BODY:
+			pts.append(p * size)
+		var outline: Color = fill.darkened(0.55)
+		draw_colored_polygon(pts, fill)
+		var closed: PackedVector2Array = pts.duplicate()
+		closed.append(pts[0])
+		draw_polyline(closed, outline, maxf(1.0, size.x * 0.05), true)
+		var head_c: Vector2 = Vector2(0.5, 0.18) * size
+		var head_r: float = minf(size.x * 0.2, size.y * 0.16)
+		draw_circle(head_c, head_r, fill)
+		draw_arc(head_c, head_r, 0.0, TAU, 24, outline, maxf(1.0, size.x * 0.05), true)
 
 func _ready() -> void:
 	_build_ui()
@@ -50,6 +81,7 @@ func set_dangers(dangers: Array, deck_left: int) -> void:
 			child.queue_free()
 		_rects.clear()
 		_solve_btns.clear()
+		_red_btns.clear()
 		_shown = nos
 		var card_size: Vector2 = _card_size(dangers.size())
 		for no: int in nos:
@@ -58,9 +90,33 @@ func set_dangers(dangers: Array, deck_left: int) -> void:
 		var btn: Button = _solve_btns.get(int(d["no"])) as Button
 		if btn:
 			btn.disabled = not bool(d.get("solvable", false))
+		var red: Button = _red_btns.get(int(d["no"])) as Button
+		if red:
+			red.visible = _red_total > 0
+			red.disabled = not bool(d.get("red_shirt", false))
+			(red.get_child(0) as CanvasItem).modulate = Color(1, 1, 1, 0.35) if red.disabled else Color.WHITE
 	_empty_label.visible = dangers.is_empty()
 	_scroll.visible = not dangers.is_empty()
 	_deck_label.text = tr("Danger deck: %d") % deck_left
+
+## The crew's Red Shirts: left of total (total 0 = a full fleet, nothing shown).
+func set_red_shirts(left: int, total: int) -> void:
+	if left == _red_left and total == _red_total:
+		return
+	_red_left = left
+	_red_total = total
+	for child: Node in _red_row.get_children():
+		child.queue_free()
+	_red_row.visible = total > 0
+	_red_row.tooltip_text = tr("Red Shirts: %d of %d left. Send one to solve a Danger at once, at no cost.") % [left, total]
+	for i: int in total:
+		var m: MeepleIcon = MeepleIcon.new()
+		m.custom_minimum_size = Vector2(22, 28)
+		m.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		m.fill = RED_SHIRT_COLOR if i < left else RED_SHIRT_USED
+		_red_row.add_child(m)
+	for no: Variant in _red_btns:
+		(_red_btns[no] as Button).visible = total > 0
 
 ## Viewport position of a Danger card's centre (where its enlarge starts).
 func get_danger_center(danger_no: int) -> Vector2:
@@ -88,6 +144,14 @@ func _build_ui() -> void:
 	head.text = tr("DANGERS")
 	head.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head_row.add_child(head)
+	_red_row = HBoxContainer.new()
+	_red_row.add_theme_constant_override("separation", 4)
+	_red_row.mouse_filter = Control.MOUSE_FILTER_STOP   # (for its tooltip)
+	_red_row.visible = false
+	head_row.add_child(_red_row)
+	var gap: Control = Control.new()
+	gap.custom_minimum_size = Vector2(24, 0)
+	head_row.add_child(gap)
 	_deck_label = _text(20, Color(0.7, 0.75, 0.85))
 	head_row.add_child(_deck_label)
 	_scroll = ScrollContainer.new()
@@ -150,14 +214,32 @@ func _make_danger(no: int, card_size: Vector2) -> Control:
 	box.add_child(rect)
 	_rects[no] = rect
 
+	var buttons: HBoxContainer = HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", int(V_SEP))
+	box.add_child(buttons)
 	var solve: Button = Button.new()
 	solve.text = tr("Solve")
 	solve.custom_minimum_size = Vector2(0, BUTTON_H)
+	solve.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	solve.add_theme_font_size_override("font_size", 22)
 	GameTheme.apply_to_button(solve)
 	_solve_btns[no] = solve
 	solve.pressed.connect(func() -> void: danger_solve_pressed.emit(no))
-	box.add_child(solve)
+	buttons.add_child(solve)
+	# send a Red Shirt: solves it at once, at no cost
+	var red: Button = Button.new()
+	red.custom_minimum_size = Vector2(RED_BTN_W, BUTTON_H)
+	red.tooltip_text = tr("Send a Red Shirt: solves this Danger at once, at no cost.")
+	GameTheme.apply_to_button(red)
+	var icon: MeepleIcon = MeepleIcon.new()
+	icon.fill = RED_SHIRT_COLOR
+	red.add_child(icon)
+	icon.size = Vector2(24, 30)   # (after add_child)
+	icon.position = (Vector2(RED_BTN_W, BUTTON_H) - icon.size) * 0.5
+	red.visible = _red_total > 0
+	_red_btns[no] = red
+	red.pressed.connect(func() -> void: red_shirt_pressed.emit(no))
+	buttons.add_child(red)
 	return box
 
 func _text(font_size: int, color: Color) -> Label:

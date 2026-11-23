@@ -1829,6 +1829,19 @@ func _rpc_fleet_req_solved(no: int) -> void:
 func _rpc_fleet_solved(no: int, who: String) -> void:
 	FleetFlow._rpc_fleet_solved(self, no, who)
 
+# — Solving: Red Shirts (the host hands them out) —
+
+func fleet_request_red_shirt(no: int) -> void:
+	FleetFlow.fleet_request_red_shirt(self, no)
+
+@rpc("any_peer", "reliable")
+func _rpc_fleet_req_red_shirt(no: int) -> void:
+	FleetFlow._rpc_fleet_req_red_shirt(self, no)
+
+@rpc("authority", "reliable", "call_local")
+func _rpc_fleet_red_shirt(no: int, who: String) -> void:
+	FleetFlow._rpc_fleet_red_shirt(self, no, who)
+
 # — Solving: pledges —
 
 func fleet_request_session(no: int) -> void:

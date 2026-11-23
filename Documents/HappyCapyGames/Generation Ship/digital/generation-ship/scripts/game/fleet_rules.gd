@@ -24,6 +24,12 @@ var destination: int = 0
 var deck: Array[int] = []            # Danger No.s, top = back
 var active: Array[Dictionary] = []   # revealed, unsolved, oldest first: {no, electrix, expedition_bought}
 var solved: Array[int] = []
+# Red Shirts (designer, 2026-11-23): the crew gets 1 Red Shirt meeple per missing crewmate (a full
+# fleet is 4 ships: 3 in a solo game, 2 with two players, 1 with three, none with four). Shared by
+# the whole crew; anyone can send one during anyone's turn to solve a Danger at once, at no cost.
+const FLEET_SIZE: int = 4
+var red_shirts: int = 0        # left
+var red_shirts_start: int = 0  # at the start (the screen shows used ones greyed out)
 # Online every peer resolves the same Dangers in lockstep (same seed), so any
 # randomness inside a Danger (Undetected Wormhole's shuffle-back) uses this.
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -143,6 +149,11 @@ func setup(destination_no: int, deck_rng: RandomNumberGenerator) -> void:
 		deck[j] = t
 	active.clear()
 	solved.clear()
+
+## crew: ships in the game, bots included (GameNetwork.player_order.size(); 1 solo).
+func set_crew(crew: int) -> void:
+	red_shirts_start = maxi(0, FLEET_SIZE - maxi(1, crew))
+	red_shirts = red_shirts_start
 
 # Reveals up to n Dangers (fewer if the deck runs out); returns their No.s.
 func reveal(n: int) -> Array[int]:

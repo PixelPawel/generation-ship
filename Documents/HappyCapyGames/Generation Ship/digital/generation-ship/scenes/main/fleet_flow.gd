@@ -28,6 +28,7 @@ static func setup(main: Main) -> void:
 	else:
 		rng.randomize()
 	rules.setup(GameNetwork.fleet_destination, rng)
+	rules.set_crew(GameNetwork.player_order.size())   # same order on every peer: same Red Shirts
 	FleetRules.current = rules
 	main._fleet = rules
 	# (static: nothing a previous game set aside carries over)
@@ -36,6 +37,7 @@ static func setup(main: Main) -> void:
 	BotTurn._fleet_pledges.clear()
 	var panel: Control = main._fleet_panel
 	panel.danger_solve_pressed.connect(func(no: int) -> void: try_solve(main, no))
+	panel.red_shirt_pressed.connect(func(no: int) -> void: try_red_shirt(main, no))
 	# right-click / long press enlarges like the market's cards; right-clicking
 	# another Danger while one is big swaps (Main._on_market_inspect_right_dismissed)
 	panel.danger_inspect_requested.connect(func(no: int) -> void: inspect_danger(main, no))
@@ -109,6 +111,7 @@ static func start_tutorial(main: Main, destination_no: int, danger_no: int, crew
 	GameNetwork.fleet_destination = destination_no
 	CockpitRig.add_fleet_screens(main)
 	setup(main)
+	main._fleet.set_crew(FleetRules.FLEET_SIZE)   # no Red Shirts in the practice chapter: its steps expect the Danger to stay
 	main._fleet.deck.erase(danger_no)
 	main._fleet.active.append({"no": danger_no, "electrix": 0, "expedition_bought": false})
 	main._fleet_dest_view.setup(destination_no)
@@ -596,6 +599,70 @@ static func try_solve(main: Main, no: int) -> void:
 	main._fleet.solve(no)
 	_announce_solved(main, no, "")
 	_after_change(main)
+
+# ── Red Shirts ────────────────────────────────────────────────────────────────
+# One of the crew's Red Shirts solves a Danger at once, at no cost (FleetRules.red_shirts). Any
+# player, during anyone's turn; not while a generation's Dangers resolve, like any solve. Online the
+# host hands them out (one at a time, so two players can't spend the last one together).
+
+static func can_red_shirt(main: Main, no: int) -> bool:
+	if main._fleet == null or int(main._fleet.red_shirts) <= 0 or main._fleet.entry(no).is_empty():
+		return false
+	if main._fleet_busy or _in_generation_barrier():
+		return false
+	return main._fleet_session_no != no   # the crew is pledging for this one right now
+
+static func try_red_shirt(main: Main, no: int) -> void:
+	if main._effect_mode != Main.EffectMode.NONE or not can_red_shirt(main, no):
+		return
+	main._fleet_busy = true
+	var left: int = int(main._fleet.red_shirts)
+	var ok: int = await _pick_option(main, main.tr("Send a Red Shirt to solve %s? (Red Shirts left: %d)") % [_name(no), left],
+			[main.tr("Send a Red Shirt"), main.tr("Cancel")], 1)
+	main._fleet_busy = false
+	if ok != 0 or main._fleet == null or main._fleet.entry(no).is_empty():
+		return
+	if GameNetwork.is_multiplayer:
+		main.fleet_request_red_shirt(no)
+		return
+	on_red_shirt(main, no, "")
+
+## Every peer (online: from the host): one Red Shirt fewer, the Danger solved.
+static func on_red_shirt(main: Main, no: int, who: String) -> void:
+	if main._fleet == null or main._fleet.entry(no).is_empty() or int(main._fleet.red_shirts) <= 0:
+		return
+	main._fleet.red_shirts = int(main._fleet.red_shirts) - 1
+	main._fleet.solve(no)
+	if who.is_empty():
+		main._log_action(main.tr("A Red Shirt solves %s. Red Shirts left: %d") % [_name(no), int(main._fleet.red_shirts)], SOLVED_COLOR)
+	else:
+		main._log_action(main.tr("%s sends a Red Shirt: %s is solved. Red Shirts left: %d") % [who, _name(no), int(main._fleet.red_shirts)], SOLVED_COLOR)
+	UIAudio.play_sfx("danger_solved")
+	show_card(main, FleetData.danger_art(no), false, CARD_SHOW_SEC)
+	var banner: Node = TurnBanner.new()
+	main.get_node("UILayer").add_child(banner)
+	banner.play(main.tr("SOLVED"), SOLVED_COLOR, main.tr("Red Shirt") + " — " + _name(no), 1.0)
+	_after_change(main)
+
+static func fleet_request_red_shirt(main: Main, no: int) -> void:
+	if main.multiplayer.is_server():
+		_server_fleet_red_shirt(main, no, main.multiplayer.get_unique_id())
+	else:
+		main._rpc_fleet_req_red_shirt.rpc_id(1, no)
+
+static func _rpc_fleet_req_red_shirt(main: Main, no: int) -> void:
+	if main.multiplayer.is_server():
+		_server_fleet_red_shirt(main, no, main.multiplayer.get_remote_sender_id())
+
+static func _server_fleet_red_shirt(main: Main, no: int, pid: int) -> void:
+	if main._fleet == null or int(main._fleet.red_shirts) <= 0 or main._fleet.entry(no).is_empty():
+		return
+	if _in_generation_barrier() or main._fleet_session_no == no:
+		return
+	main._rpc_fleet_red_shirt.rpc(no, str(GameNetwork.player_names.get(pid, "Player")))
+
+static func _rpc_fleet_red_shirt(main: Main, no: int, who: String) -> void:
+	on_red_shirt(main, no, who)
 
 # ── Free solves: conditions solve themselves the moment they're met ───────────
 # (e.g. optimizing a Dust sector solves Mining Incident before that optimize's
@@ -1110,8 +1177,10 @@ static func refresh_panel(main: Main) -> void:
 	var list: Array = []
 	for e: Dictionary in main._fleet.active:
 		var no: int = int(e["no"])
-		list.append({"no": no, "solvable": not main._fleet_busy and not _in_generation_barrier() and can_solve(main, no)})
+		list.append({"no": no, "solvable": not main._fleet_busy and not _in_generation_barrier() and can_solve(main, no),
+				"red_shirt": can_red_shirt(main, no)})
 	main._fleet_panel.set_dangers(list, main._fleet.deck.size())
+	main._fleet_panel.set_red_shirts(int(main._fleet.red_shirts), int(main._fleet.red_shirts_start))
 	if main._fleet_dest_view:
 		main._fleet_dest_view.set_mission_progress(mission_lines(main))
 		main._fleet_dest_view.set_generation(main._round, main._max_rounds)

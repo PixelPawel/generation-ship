@@ -17,6 +17,7 @@ strings.
 | Dust Sector | Staub-Sektor | Settore Polvere | Sektor Pyłu | Sector de Polvo | Secteur Poussière |
 | Destination | Ziel | destinazione | cel | destino | destination |
 | Danger | Gefahr | Pericolo | Zagrożenie | Peligro | Danger |
+| Red Shirt (Fleet meeple, plural Red Shirts) | Rothemd (Rothemden) | Camicia Rossa (Camicie Rosse) | Czerwona Koszula (Czerwone Koszule) | Camisa Roja (Camisas Rojas) | Chemise Rouge (Chemises Rouges) |
 | Advanced Sector | Fortgeschrittener Sektor | Settore Avanzato | Sektor zaawansowany | Sector Avanzado | Secteur Avancé |
 
 ## Card states
