@@ -41,7 +41,7 @@ static func start_from_menu(menu: Control) -> void:
 		lobby.call("_on_add_bot_pressed")
 	lobby.call("_on_start_pressed")
 
-## Main: the player's seat never plays — it passes as soon as it is its turn.
+## Main: the player's seat never plays — it hibernates whenever it is its turn (Main._do_pass).
 static func auto_pass(main: Main) -> void:
 	if GameNetwork.is_my_turn() and not bool(main.get("_has_passed")) and not bool(main.get("_game_finished")):
 		main.call_deferred("_do_pass")

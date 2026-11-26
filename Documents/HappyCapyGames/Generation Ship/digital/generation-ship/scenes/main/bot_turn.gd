@@ -113,9 +113,6 @@ static func run_bot_turn(main: Main, bot_id: int) -> void:
 	await main.get_tree().create_timer(1.0 + randf() * 0.5).timeout
 	if GameNetwork.active_peer_id != bot_id:
 		return
-	if main._bots_passed_this_round.has(bot_id):
-		main._server_handle_end_turn()
-		return
 	var difficulty: int = GameNetwork.bot_difficulty.get(bot_id, BotAI.Difficulty.EASY)
 	var market_sectors: Array[CardData] = main.get_node("Board").get_available_dust_sectors()
 	var market_expeditions: Array[CardData] = main.get_node("Board").get_available_expeditions()
@@ -162,7 +159,7 @@ static func run_bot_turn(main: Main, bot_id: int) -> void:
 		print("DECK g%d deck %d discard %d bot_hands %s seat_hand %d" % [main._round, deck_n, disc_n, ",".join(hands), seat])
 
 	var action: Dictionary = {}
-	# a bot that has researched this Generation may only research again or pass, as a human
+	# a bot that has researched or hibernated this Generation may only research or hibernate, as a human
 	# (2026-11-17: it went on placing cards after a Research, about 1.5 plays a game for a Hard bot)
 	var research_locked: bool = main._bots_researched_this_round.has(bot_id)
 	if research_locked:
@@ -253,9 +250,9 @@ static func run_bot_turn(main: Main, bot_id: int) -> void:
 			main._rpc_sync_opp_status.rpc(bot_id, "researching")
 			await main.get_tree().create_timer(0.3).timeout
 			# and like a human's, it only ends the turn: the bot is called again while others play on,
-			# to research again or pass (research_locked above)
+			# to research or hibernate (research_locked above)
 			main._server_handle_end_turn()
-		_:
+		_:   # "pass": Hibernate
 			bot_pass(main, bot_id)
 
 
@@ -478,8 +475,14 @@ static func bot_do_research(main: Main, bot_id: int, pick: CardData = null) -> v
 	bot_set_hand(main, bot_id, hand)
 
 
+## Hibernate (it replaced Pass, 2026-11-26): +1 Dust, and the bot stays in the turn order, from now
+## on only researching or hibernating (as a human, Main._do_pass); Main._server_handle_pass tells
+## everyone and moves the turn on.
 static func bot_pass(main: Main, bot_id: int) -> void:
-	main._bots_passed_this_round.append(bot_id)
+	_bot_gain(main, bot_id, CardData.SupplyColor.DUST, 1)
+	if not main._bots_researched_this_round.has(bot_id):
+		main._bots_researched_this_round.append(bot_id)
+	broadcast_bot_states(main)
 	main._server_handle_pass()
 
 

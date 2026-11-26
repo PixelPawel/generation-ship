@@ -30,7 +30,7 @@ static func setup_control_screen_display(main: Main) -> void:
 		panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 
 	main._cs_display.supply_changed.connect(main._on_supply_changed)
-	# "Now researching" + Cancel and "Pass?" + Pass/Cancel, above everything else on the control screen
+	# "Now researching" + Cancel and "Hibernate?" + Hibernate/Cancel, above everything else on the control screen
 	main._research_prompt = load("res://scenes/ui/control_prompt.gd").new()
 	main.cs_viewport.add_child(main._research_prompt)
 	main._research_prompt.cancelled.connect(main._cancel_research)
@@ -59,10 +59,10 @@ static func setup_control_screen_display(main: Main) -> void:
 		main.get_node("Board").set_control_screen_mesh(screen_mesh)
 
 	var btn_callbacks: Array[Callable] = [main._on_research_pressed, main._on_pass_pressed, main._on_end_turn_button_pressed]
-	var btn_tooltip_titles: Array[String] = [main.tr("Research"), main.tr("Pass"), main.tr("End Turn")]
+	var btn_tooltip_titles: Array[String] = [main.tr("Research"), main.tr("Hibernate"), main.tr("End Turn")]
 	var btn_tooltip_descs: Array[String] = [
-		main.tr("Discard a hand card and draw a replacement, once this Action is taken, you can only Research or Pass."),
-		main.tr("End your turn. Once all players pass the Generation is over."),
+		main.tr("RESEARCH_BUTTON_TIP"),
+		main.tr("HIBERNATE_BUTTON_TIP"),
 		main.tr("Finish your turn manually, after buying or placing a card. Mostly automated"),
 	]
 	for i: int in 3:

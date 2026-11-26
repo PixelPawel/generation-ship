@@ -59,7 +59,8 @@ all were unified to "matériel" on 2026-09-29.
 | Recycle | recyceln | riciclare | zrecykluj / recykling / poddać recyklingowi | reciclar | recycler |
 | Archive | archivieren | archiviare | zarchiwizować | archivar | archiver |
 | Research | Forschung / forschen | ricerca | badania | investigación | recherche |
-| Pass | passen | passare | pasować / pasuj | pasar | passer |
+| Hibernate (replaced Pass as the turn action, 2026-11-26) | Winterschlaf / Winterschlaf halten | ibernazione / andare in ibernazione | hibernacja / hibernować | hibernar / hibernación | hibernation / hiberner |
+| Pass (in an auction) | passen | passare | pasować / pasuj | pasar | passer |
 | Bid | Gebot / bieten | offerta | oferta / licytacja | puja | enchère |
 | Auction | Auktion | asta | licytacja / aukcja | subasta | enchère |
 | Store (supply) | lagern | immagazzinare | zmagazynować | almacenar | stocker |

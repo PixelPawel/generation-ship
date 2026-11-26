@@ -171,12 +171,13 @@ var _pending_tuck_card_data: CardData = null
 var _pending_tuck_recycled: bool = false
 var _pending_target_slot: SectorSlot = null
 var _effect_label: String = ""
-var _has_passed: bool = false
+var _has_passed: bool = false       # only after the last Generation (_game_over): no actions any more
+# Researched or hibernated this Generation: from then on only Research or Hibernate (rule 2026-11-26)
 var _has_researched: bool = false
 var _opp_snapshots: Dictionary = {}      # peer_id (int) -> state Dictionary
 var opp_widget: Control = null
 var _opp_panels: Dictionary = {}         # peer_id → {hand_lbl, supply_lbls, vp_lbl, status_lbl}
-var _opp_statuses: Dictionary = {}      # peer_id → String ("" | "passed" | "researching")
+var _opp_statuses: Dictionary = {}      # peer_id → String ("" | "researching" | "hibernating")
 var opp_info_panel: Control = null
 var _ending_turn: bool = false
 var _pre_setup_done: bool = false
@@ -228,8 +229,7 @@ var _auction_placement_pending: bool = false
 # Local only: true on whichever client currently owes the placement (the
 # winner, or the runner-up if the winner forfeited).
 var _auction_win_awaiting_placement: bool = false
-var _bots_passed_this_round: Array[int] = []
-var _bots_researched_this_round: Array[int] = []   # Research or Pass only from then on (BotTurn.run_bot_turn)
+var _bots_researched_this_round: Array[int] = []   # researched or hibernated: Research or Hibernate only from then on (BotTurn.run_bot_turn)
 
 ## Rule book, Cleanup (2026-11-17): "Recycle your hand down to 6 cards" at the end of a Generation.
 ## The players do it in the hand-limit step (_cleanup_hand_limit), the bots in BotTurn.bot_hand_limit.
@@ -974,7 +974,7 @@ func _on_research_pressed() -> void:
 		return
 	if not _accept_turn_button():
 		return
-	_cancel_pass()   # Research instead of an unconfirmed Pass
+	_cancel_pass()   # Research instead of an unconfirmed Hibernate
 	_effect_mode = EffectMode.RESEARCH
 	_set_action_buttons_disabled(true)
 	var how: String = hint("Click a card in your hand to discard it", "Tap a card in your hand to discard it")
@@ -995,8 +995,11 @@ func _cancel_research() -> void:
 	_research_prompt.close()
 	_set_action_buttons_disabled(false)
 
-# The Pass button only asks ("Pass?" on the control screen): passing ends the
-# player's Generation, so it happens in _confirm_pass.
+# Hibernate (rule 2026-11-26, it replaced Pass): gain 1 Dust. Like Research it is the turn's
+# action and from then on the player can only Research or Hibernate; they stay in the turn order,
+# and the Generation ends once every player has researched or hibernated (_all_players_done_this_round).
+# The first Hibernate of a Generation asks ("Hibernate?" on the control screen, _confirm_pass), as
+# it gives up buying and placing for the rest of it; once locked in, the button hibernates at once.
 func _on_pass_pressed() -> void:
 	if not GameNetwork.is_my_turn() or _game_finished:
 		return
@@ -1006,11 +1009,17 @@ func _on_pass_pressed() -> void:
 		return
 	if not _accept_turn_button():
 		return
-	if _effect_mode == EffectMode.RESEARCH:   # nothing discarded yet: Pass instead
+	if _effect_mode == EffectMode.RESEARCH:   # nothing discarded yet: Hibernate instead
 		_cancel_research()
 	if _effect_mode == EffectMode.HAND_LIMIT:   # (the Cleanup hand limit is using the prompt)
 		return
-	_pass_prompt.open(tr("PASS?"), tr("You won't take any more actions this Generation."), tr("Pass"))
+	if _has_researched:
+		if _effect_mode != EffectMode.NONE:
+			return
+		_turn_action_locked = true
+		_do_pass()
+		return
+	_pass_prompt.open(tr("HIBERNATE?"), tr("HIBERNATE_CONFIRM"), tr("Hibernate"))
 
 # ── Hand limit ────────────────────────────────────────────────────────────────
 # Rule book, Phase 3: Cleanup - "Recycle your hand down to 6 cards" (HAND_LIMIT), before the supplies
@@ -1130,14 +1139,18 @@ func _on_end_turn_button_pressed() -> void:
 		return
 	_on_end_turn_pressed()
 
+## Hibernate: +1 Dust, and the turn is over. Online the player stays in the turn order (Research or
+## Hibernate only, _has_researched); the host ends the Generation once everyone has researched or
+## hibernated. Solo (only the Tutorial) has no one else to wait for: the Generation ends, as Pass did.
 func _do_pass() -> void:
 	if _tutorial:
 		_tutorial.notify_passed()
 	UIAudio.play_sfx("pass_turn")
-	_has_passed = true
+	_has_researched = true
 	_ending_turn = true
 	_cs_display.clear_fuse_1to1()
 	_ending_turn = false
+	_gain_hibernate_dust()
 	_show_action_buttons(false)
 	_broadcast_my_state()
 	if GameNetwork.is_multiplayer:
@@ -1146,12 +1159,23 @@ func _do_pass() -> void:
 		else:
 			_rpc_request_pass.rpc_id(1)
 		return
-	_log_action(tr("You: passed"), Color(0.55, 0.55, 0.70))
+	_log_action(tr("You: hibernated (+1 Dust)"), HIBERNATE_COLOR)
 	_cleanup_hand_limit(func() -> void:   # Cleanup: down to 6 cards, then the supplies
 		var supply_dur: float = _apply_supply_generation()
 		var delay: float = maxf(supply_dur + 0.15, 0.25)
 		get_tree().create_timer(delay).timeout.connect(func() -> void:
 			_show_round_transition(_end_round)))
+
+const HIBERNATE_COLOR: Color = Color(0.62, 0.70, 0.95)
+
+## Hibernate's 1 Dust, flying in from the Hibernate button (a Fleet Danger that blocks Dust gains
+## stops it, as any gain: SupplyUI.add_supply).
+func _gain_hibernate_dust() -> void:
+	var from: Vector2 = get_viewport().get_visible_rect().size * 0.5
+	if _pass_btn_mesh and is_instance_valid(_pass_btn_mesh):
+		from = $Camera3D.unproject_position(_pass_btn_mesh.global_position)
+	_cs_display.add_supply(CardData.SupplyColor.DUST, 1)
+	_cs_display.animate_supply_incoming(from, CardData.SupplyColor.DUST)
 
 func _apply_supply_generation() -> float:
 	var generators: Array[Dictionary] = $Board.get_supply_generators()
@@ -1187,7 +1211,6 @@ func _end_round() -> void:
 	_has_passed = false
 	_has_researched = false
 	_turn_action_locked = false
-	_bots_passed_this_round.clear()
 	_bots_researched_this_round.clear()
 	_opp_statuses.clear()
 	_refresh_all_opp_status_labels()
@@ -1281,43 +1304,26 @@ func _show_your_turn_banner() -> void:
 	$UILayer.add_child(_turn_banner)
 	_turn_banner.play(tr("Your Turn"))
 
-# True once every player's most recent status this round is "passed" or
-# "researching" — a player can research on multiple separate turns and still
-# get called on again, but the round itself is over the moment nobody has
-# anything left to do, without waiting for everyone to explicitly pass.
+# True once every player's most recent status this round is "researching" or
+# "hibernating" — a player can research or hibernate on multiple separate turns
+# and still get called on again, but the round itself is over the moment every
+# player has researched or hibernated (rule 2026-11-26).
 func _all_players_done_this_round() -> bool:
 	for peer_id: int in GameNetwork.player_order:
 		var status: String = _opp_statuses.get(peer_id, "") as String
-		if status != "passed" and status != "researching":
+		if status != "hibernating" and status != "researching":
 			return false
 	return true
 
-# GameNetwork.advance_turn() just cycles player_order by one position — it
-# doesn't know who's already passed, so left alone it can hand control right
-# back to a player who's done for the round (e.g. with only one other
-# player still going, it would just ping-pong between them). Skip anyone
-# whose status is "passed" until landing on someone still eligible to act;
-# _all_players_done_this_round() being false at the call site guarantees
-# at least one such player exists.
-func _advance_turn_skipping_passed() -> void:
-	var guard: int = GameNetwork.player_order.size()
-	while guard > 0:
-		GameNetwork.advance_turn()
-		if _opp_statuses.get(GameNetwork.active_peer_id, "") != "passed":
-			return
-		guard -= 1
-
+# The active player hibernated (their Dust is already in the state they broadcast): everyone
+# hears it, and the turn moves on as after a Research.
 func _server_handle_pass() -> void:
 	if _game_finished:
 		return
-	_rpc_sync_opp_status.rpc(GameNetwork.active_peer_id, "passed")
-	if _all_players_done_this_round():
-		_rpc_sync_end_round.rpc()
-	else:
-		_advance_turn_skipping_passed()
-		_rpc_sync_active_player.rpc(GameNetwork.active_peer_id)
+	_rpc_sync_opp_status.rpc(GameNetwork.active_peer_id, "hibernating")
+	_server_handle_end_turn()
 
-# Client → Host: I have passed my turn.
+# Client → Host: I have hibernated.
 @rpc("any_peer", "reliable")
 func _rpc_request_pass() -> void:
 	if not multiplayer.is_server():
@@ -1330,12 +1336,13 @@ func _rpc_request_pass() -> void:
 @rpc("authority", "reliable", "call_local")
 func _rpc_sync_active_player(peer_id: int) -> void:
 	GameNetwork.active_peer_id = peer_id
-	# A "researching" status only reflects that player's most recent turn —
-	# unlike "passed" (permanent for the round), it must not stick around
-	# once they're back up to act again, or a stale status from a prior
-	# research could make _all_players_done_this_round() think this fresh
-	# turn is already done before they've decided anything on it.
-	if _opp_statuses.get(peer_id, "") == "researching":
+	# A "researching" or "hibernating" status only reflects that player's most
+	# recent turn: it must not stick around once they're back up to act again,
+	# or a stale status from a prior turn could make _all_players_done_this_round()
+	# think this fresh turn is already done before they've decided anything on it.
+	# (No status is permanent since Hibernate replaced Pass, 2026-11-26: nobody
+	# leaves the turn order before the Generation ends.)
+	if _opp_statuses.get(peer_id, "") in ["researching", "hibernating"]:
 		_opp_statuses[peer_id] = ""
 	if not GameNetwork.is_my_turn():
 		_cancel_pass()
@@ -1542,9 +1549,9 @@ func _refresh_opp_status_label(peer_id: int) -> void:
 	if status == "researching":
 		lbl.text = tr("Researching")
 		lbl.add_theme_color_override("font_color", Color(0.5, 0.85, 1.0))
-	elif status == "passed":
-		lbl.text = tr("Passed")
-		lbl.add_theme_color_override("font_color", Color(0.55, 0.55, 0.65))
+	elif status == "hibernating":
+		lbl.text = tr("Hibernating")
+		lbl.add_theme_color_override("font_color", HIBERNATE_COLOR)
 	elif is_active:
 		lbl.text = tr("Active")
 		lbl.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
@@ -1564,10 +1571,10 @@ func _rpc_sync_opp_status(peer_id: int, status: String) -> void:
 	_refresh_opp_status_label(peer_id)
 	var peer_name: String = GameNetwork.player_names.get(peer_id, tr("Player"))
 	var others: bool = peer_id != multiplayer.get_unique_id()   # the player who acted gets no banner
-	if status == "passed":
-		_log_action(tr("%s: passed") % peer_name, Color(0.55, 0.55, 0.70))
+	if status == "hibernating":
+		_log_action(tr("%s: hibernated (+1 Dust)") % peer_name, HIBERNATE_COLOR)
 		if others:
-			_show_status_notice(tr("%s has passed") % peer_name, Color(0.80, 0.80, 0.95))
+			_show_status_notice(tr("%s is hibernating") % peer_name, HIBERNATE_COLOR)
 	elif status == "researching":
 		_log_action(tr("%s: researching…") % peer_name, Color(0.50, 0.78, 1.0))
 		if others:
@@ -1920,7 +1927,7 @@ func _game_over() -> void:
 	if _game_finished:
 		return
 	_game_finished = true
-	_has_passed = true                     # Research/Pass/purchases stay off behind the scores
+	_has_passed = true                     # Research/Hibernate/purchases stay off behind the scores
 	$Board.set_major_action_taken()
 	_show_action_buttons(false)
 	_show_end_turn_button(false)
@@ -3341,7 +3348,7 @@ func _finish_expedition_shuffle() -> void:
 	_process_next_effect()
 
 func _on_major_action_changed(taken: bool) -> void:
-	# Once you've researched this round, every later turn is Research or Pass:
+	# Once you've researched or hibernated this round, every later turn is Research or Hibernate:
 	# the action counts as taken (no buying/placing), but that mustn't offer
 	# End Turn - in solo it would reset the turn and free up buying again, online
 	# it would skip the turn (cancelling a second Research would leave it open).
@@ -3494,7 +3501,7 @@ func _on_end_turn_pressed() -> void:
 		return
 	if not $Board.is_major_action_taken():
 		return
-	if _has_researched:   # Research or Pass only (see _on_major_action_changed)
+	if _has_researched:   # Research or Hibernate only (see _on_major_action_changed)
 		return
 	if _auction_unresolved():
 		return
@@ -3538,7 +3545,7 @@ func _server_handle_end_turn() -> void:
 	if _all_players_done_this_round():
 		_rpc_sync_end_round.rpc()
 		return
-	_advance_turn_skipping_passed()
+	GameNetwork.advance_turn()   # (everyone stays in the turn order until the Generation ends)
 	_rpc_sync_active_player.rpc(GameNetwork.active_peer_id)
 
 @rpc("any_peer", "reliable")

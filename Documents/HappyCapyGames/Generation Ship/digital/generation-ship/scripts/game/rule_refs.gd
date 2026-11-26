@@ -1,28 +1,29 @@
 # Keywords in card text -> the rule book page that explains them, so the game
 # can offer "how does Archive work?" right where the word shows up (the
-# sector info popup, the phones' card inspect view). Every language's rule
-# book has the same 16-page layout, so one page number works for all.
+# sector info popup, the phones' card inspect view).
 #
-# Pages (1-based, as ManualPopup counts them): 5 Actions (Recycle, Fuse),
-# 7 Optimize + Bidding, 16 Terms to remember (New, Complete, Fully optimized,
-# Store supply, Archive cards; page 12 before the app/Hyperion/thanks pages).
+# Pages (1-based, as ManualPopup counts them). Old 16-page book (DE/ES/FR/IT/PL):
+# 5 Actions (Recycle, Fuse), 7 Optimize + Bidding, 16 Terms to remember (New,
+# Complete, Fully optimized, Store supply, Archive cards). The English book is the
+# 26-page redesign since 2026-11-26: 7 Supplies (Fuse, Recycle), 9 Bids, 12 Optimize,
+# 13 New/Complete/Fully optimized, 14 Stars and scoring (stored supplies, archived cards).
 
 const TERMS: Array[Array] = [
-	# [label (translated with tr), regex on the English effect text, page]
-	["Archive", "\\barchiv", 16],
-	["Store", "\\bstor(e|ed|es)\\b", 16],
-	["Fully optimized", "fully optimi[sz]ed", 16],
-	["Complete", "\\bcomplete\\b", 16],
-	["New", "\\bnew\\b", 16],
-	["Optimize", "\\boptimi[sz]e", 7],
-	["Bid", "\\bbid", 7],
-	["Fuse", "\\bfuse", 5],
-	["Recycle", "\\brecycl", 5],
+	# [label (translated with tr), regex on the English effect text, page (old book), page (English book)]
+	["Archive", "\\barchiv", 16, 14],
+	["Store", "\\bstor(e|ed|es)\\b", 16, 14],
+	["Fully optimized", "fully optimi[sz]ed", 16, 13],
+	["Complete", "\\bcomplete\\b", 16, 13],
+	["New", "\\bnew\\b", 16, 13],
+	["Optimize", "\\boptimi[sz]e", 7, 12],
+	["Bid", "\\bbid", 7, 9],
+	["Fuse", "\\bfuse", 5, 7],
+	["Recycle", "\\brecycl", 5, 7],
 ]
 const RULE_BOOK_SCRIPT: String = "res://scenes/ui/manual_popup.gd"
 const SHARED_META: StringName = &"_rule_book_popup"
 
-## [[label, page], ...] for every keyword in these cards' effect texts, in
+## [[label, page, English page], ...] for every keyword in these cards' effect texts, in
 ## TERMS order, each once. Sectors always get Optimize (their optimize row).
 static func terms_for(cards: Array[CardData], advanced: Array[bool] = []) -> Array[Array]:
 	var found: Dictionary = {}
@@ -41,7 +42,7 @@ static func terms_for(cards: Array[CardData], advanced: Array[bool] = []) -> Arr
 	var out: Array[Array] = []
 	for t: Array in TERMS:
 		if found.has(str(t[0])):
-			out.append([str(t[0]), int(t[2])])
+			out.append([str(t[0]), int(t[2]), int(t[3])])
 	return out
 
 ## A row of small buttons, one per term, each opening the rule book at its page.
@@ -58,24 +59,23 @@ static func make_term_row(terms: Array[Array], font_size: int = 16) -> Control:
 		GameTheme.apply_to_button(btn)
 		GameTheme.touchify(btn)
 		var page: int = int(t[1])
-		btn.pressed.connect(func() -> void: open_page(btn, page))
+		var en_page: int = int(t[2]) if t.size() > 2 else page
+		btn.pressed.connect(func() -> void: open_page(btn, page, en_page))
 		row.add_child(btn)
 	return row
 
-## The English rule book has a new page order since 2026-11-17 (Setup, Overview + Supplies, Cards,
-## Actions: the Actions page is page 6 now); the other five languages still have the old order until
-## their books are redone. Then give them the same numbers and drop this.
-const EN_PAGES: Dictionary = {5: 6}
-
-static func _book_page(page: int) -> int:
+## The English rule book is the 26-page redesign (2026-11-26); the other five languages still have
+## the old 16-page book until theirs are redone. Then give them the English numbers and drop this.
+static func _book_page(page: int, en_page: int) -> int:
 	var lang: String = TranslationServer.get_locale().substr(0, 2).to_upper()
 	# (ManualPopup shows the English book for a language without pages of its own)
 	var english: bool = lang == "EN" or not ResourceLoader.exists("res://assets/cards/Rule Book/%s/GS Rule Book A5.png" % lang)
-	return int(EN_PAGES.get(page, page)) if english else page
+	return en_page if english and en_page > 0 else page
 
-## Opens the rule book at a page, over the current scene (one shared popup).
-static func open_page(from: Node, page: int) -> void:
-	page = _book_page(page)
+## Opens the rule book at a page (en_page: the same topic in the English book), over the current
+## scene (one shared popup).
+static func open_page(from: Node, page: int, en_page: int = -1) -> void:
+	page = _book_page(page, en_page)
 	var tree: SceneTree = from.get_tree()
 	if tree == null or tree.current_scene == null:
 		return

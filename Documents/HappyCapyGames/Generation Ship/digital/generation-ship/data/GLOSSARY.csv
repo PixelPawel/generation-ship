@@ -18,7 +18,8 @@ Supply,Thrust,Schub,Spinta,Napęd,Empuje,Poussée,
 Action,Fuse,fusionieren,fondere,połączyć,fusionar,fusionner,
 Action,Recycle,recyceln,riciclare,zrecykluj / recykling / poddać recyklingowi,reciclar,recycler,"PL: cards say zrecykluj (2026-10-25), the rule book Recykling, the game UI poddaj recyklingowi"
 Action,Research,Forschung / forschen,ricerca,badania,investigación,recherche,
-Action,Pass,passen,passare,pasować / pasuj,pasar,passer,
+Action,Hibernate,Winterschlaf / Winterschlaf halten,ibernazione / andare in ibernazione,hibernacja / hibernować,hibernar / hibernación,hibernation / hiberner,replaced Pass as the turn action (2026-11-26)
+Action,Pass (auction),passen,passare,pasować / pasuj,pasar,passer,
 Action,Bid,Gebot / bieten,offerta,oferta / licytacja,puja,enchère,
 Action,Auction,Auktion,asta,licytacja / aukcja,subasta,enchère,FR uses the same word for Bid and Auction — translate by context; PL cards and rule book say licytacja
 Action,Archive,archivieren,archiviare,zarchiwizować,archivar,archiver,

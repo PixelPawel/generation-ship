@@ -322,9 +322,9 @@ func update_opponent_status(peer_id: int, status: String, is_active: bool) -> vo
 	if status == "researching":
 		lbl.text = tr("Researching")
 		lbl.add_theme_color_override("font_color", Color(0.5, 0.85, 1.0))
-	elif status == "passed":
-		lbl.text = tr("Passed")
-		lbl.add_theme_color_override("font_color", Color(0.55, 0.55, 0.65))
+	elif status == "hibernating":
+		lbl.text = tr("Hibernating")
+		lbl.add_theme_color_override("font_color", Color(0.62, 0.70, 0.95))
 	elif is_active:
 		lbl.text = tr("Active")
 		lbl.add_theme_color_override("font_color", Color(0.3, 1.0, 0.5))
