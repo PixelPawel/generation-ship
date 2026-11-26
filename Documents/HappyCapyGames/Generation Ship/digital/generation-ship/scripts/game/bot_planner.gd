@@ -205,7 +205,7 @@ static func card_vp(gen_start: int) -> float:
 
 ## What a sector's optimize effects still to come are worth: each level's effect, by how far along its
 ## colours are (a quarter for the bare level, the rest as its colours arrive), as long as the sector has
-## room for the missing ones. This is what makes a bot work toward Habitation Ring's 8 Dust or an
+## room for the missing ones. This is what makes a bot work toward Habitation Ring's 6 Dust or an
 ## advanced sector's three levels instead of spreading cards anywhere.
 static func opt_potential(e: Dictionary, n_sectors: int, gen_start: int, wh: float) -> float:
 	var sector: CardData = e.get("sector") as CardData

@@ -368,11 +368,11 @@ Wahadłowiec: 1 Dust, aby wysłać kartę do gracza.","Misión: 15⭐ y archiva 
 Transbordador: Paga 1 Dust para enviar una carta a cualquier jugador.","Mission : 15⭐ et archivez 3 cartes par joueur.
 Navette : 1 Dust pour envoyer une carte à un joueur."
 "destination:9:name","Tau Ceti","Tau Ceti","Tau Ceti","Tau Ceti","Tau Ceti"
-"dust:Bioreactors:effect","Recycle bis zu 4 Karten, ziehe dann ebenso viele.","Ricicla fino a 4 carte, poi pesca altrettante.","Zrecykluj do 4 kart, następnie dobierz tyle samo.","Recicla hasta 4 cartas, luego roba esa cantidad.","Recyclez jusqu’à 4 cartes, puis piochez autant."
+"dust:Bioreactors:effect","Recycle bis zu 3 Karten, ziehe dann ebenso viele.","Ricicla fino a 3 carte, poi pesca altrettante.","Zrecykluj do 3 kart, następnie dobierz tyle samo.","Recicla hasta 3 cartas, luego roba esa cantidad.","Recyclez jusqu’à 3 cartes, puis piochez autant."
 "dust:Bioreactors:name","Bioreaktor","Bioreattore","Bioreaktor","Biorreactor","Bioréacteurs"
 "dust:Cargo Bays:effect","Decke bis zu 3 Sektoren auf. Du darfst auf einen bieten.","Rivela fino a 3 settori. Puoi fare un’offerta per uno.","Odkryj do 3 sektorów. Możesz licytować o jeden z nich.","Revela hasta 3 sectores. Puedes pujar por uno.","Révélez jusqu’à 3 secteurs. Vous pouvez enchérir sur l’un d’eux."
 "dust:Cargo Bays:name","Frachträume","Stive da Carico","Ładownie","Bodegas de Carga","Soutes à Cargo"
-"dust:Habitation Ring:effect","Erhalte 8 Dust.","Guadagna 8 Dust.","Zdobądź 8 Dust.","Gana 8 Dust.","Gagnez 8 Dust."
+"dust:Habitation Ring:effect","Erhalte 6 Dust.","Guadagna 6 Dust.","Zdobądź 6 Dust.","Gana 6 Dust.","Gagnez 6 Dust."
 "dust:Habitation Ring:name","Wohnring","Anello Abitativo","Pierścień Mieszkalny","Anillo de Habitación","Anneau d’Habitation"
 "dust:Hibernators:effect","Lagere 3 Dust auf beliebigen Sektoren.","Immagazzina 3 Dust su uno o più settori.","Zmagazynuj 3 Dust w dowolnych sektorach.","Almacena 3 Dust en cualquier sector.","Stockez 3 Dust sur n’importe quels secteurs."
 "dust:Hibernators:name","Winterschläfer","Ibernati","Hibernatorzy","Hibernantes","Hibernants"
@@ -494,14 +494,18 @@ Si este sector está totalmente optimizado, gana 2 Organix en su lugar.","Gagnez
 "tech:113:name","Nanofertigung","Nanoassemblaggio","Nanomontaż","Nanoensamblaje","Nano-Assemblage"
 "tech:114:effect","Fusioniere 1:1 dreimal, oder sechsmal, wenn dieser Sektor komplett ist.","Fondi 1:1 tre volte, o sei volte se questo settore è completo.","Połącz 1:1 trzy razy lub sześć razy, jeśli ten sektor jest kompletny.","Fusiona 1:1 tres veces, o seis veces si este sector está completo.","Fusionnez 1:1 trois fois, ou six fois si ce secteur est complet."
 "tech:114:name","Nanofertigung","Nanoassemblaggio","Nanomontaż","Nanoensamblaje","Nano-Assemblage"
-"tech:115:effect","Kaufe Metals-Tech für -1.","Acquista carte Tech Metals per -1.","Kupuj karty Tech Metals za -1.","Compra cartas de tecnología Metals por -1.","Achetez les cartes Tech Metals pour -1."
+"tech:115:effect","Metals-Techs kosten -1.","Le carte Tech Metals costano -1.","Karty Tech Metals kosztują -1.","Las cartas de tecnología Metals cuestan -1.","Les cartes Tech Metals coûtent -1."
 "tech:115:name","Industrieakademie","Accademia Industriale","Akademia Przemysłowa","Academia Industrial","Académie Industrielle"
-"tech:116:effect","Kaufe Organix-Tech für -1.","Acquista carte Tech Organix per -1.","Kupuj karty Tech Organix za -1.","Compra cartas de tecnología Organix por -1.","Achetez les cartes Tech Organix pour -1."
+"tech:116:effect","Organix-Techs kosten -1.","Le carte Tech Organix costano -1.","Karty Tech Organix kosztują -1.","Las cartas de tecnología Organix cuestan -1.","Les cartes Tech Organix coûtent -1."
 "tech:116:name","Klonlabor","Laboratorio di Clonazione","Laboratoria Klonowania","Laboratorio de Clonación","Laboratoires de Clonage"
-"tech:117:effect","Kaufe Electrix-Tech für -1.","Acquista carte Tech Electrix per -1.","Kupuj karty Tech Electrix za -1.","Compra cartas de tecnología Electrix por -1.","Achetez les cartes Tech Electrix pour -1."
+"tech:117:effect","Electrix-Techs kosten -1.","Le carte Tech Electrix costano -1.","Karty Tech Electrix kosztują -1.","Las cartas de tecnología Electrix cuestan -1.","Les cartes Tech Electrix coûtent -1."
 "tech:117:name","Physikakademie","Accademia di Fisica","Akademia Fizyki","Academia de Física","Académie de Physique"
-"tech:118:effect","Kaufe (Star Card) Tech für -1.
-(Karten mit aufgedrucktem ⭐)","Acquista carte Tech (Star Cards) per -1. (Qualsiasi carta con una ⭐ stampata)","Kupuj karty Tech (Star Cards) za -1. (Dowolna karta z wydrukowaną ⭐)","Compra cartas de tecnología (Star Cards) por -1. (Cualquier carta con ⭐ impresa)","Achetez les cartes Tech (Star Cards) pour -1. (Toute carte avec une ⭐ imprimée)"
+"tech:118:effect","(Star Card) Techs kosten -1.
+(Karten mit aufgedrucktem ⭐)","Le carte Tech (Star Card) costano -1.
+(Qualsiasi carta con una ⭐ stampata)","Karty Tech (Star Card) kosztują -1.
+(Dowolna karta z wydrukowaną ⭐)","Las cartas de tecnología (Star Card) cuestan -1.
+(Cualquier carta con ⭐ impresa)","Les cartes Tech (Star Card) coûtent -1.
+(Toute carte avec une ⭐ imprimée)"
 "tech:118:name","Himmelshaken","Gancio Celeste","Niebiański Hak","Gancho Celeste","Crochet Céleste"
 "tech:119:effect","⭐","⭐","⭐","⭐","⭐"
 "tech:119:name","Märkte","Mercati","Rynki","Mercados","Marchés"
@@ -633,7 +637,7 @@ Puoi fare un’offerta per 1.","Odkryj 2 ekspedycje. Możesz licytować o 1.","R
 "tech:47:name","Müllpresse","Compattatore di Rifiuti","Zgniatarka Śmieci","Compactador de Basura","Compacteur à Déchets"
 "tech:48:effect","Wenn du Dust-Karten recycelst, erhalte 1 zusätzlichen Dust.","Quando ricicli carte Dust, guadagna 1 Dust extra.","Gdy recyklujesz karty Dust, zdobądź 1 dodatkowy Dust.","Cuando reciclas cartas Dust, gana 1 Dust extra.","Quand vous recyclez des cartes Dust, gagnez 1 Dust supplémentaire."
 "tech:48:name","Müllpresse","Compattatore di Rifiuti","Zgniatarka Śmieci","Compactador de Basura","Compacteur à Déchets"
-"tech:49:effect","Kaufe Liquids-Tech für -1.","Acquista carte Tech Liquids per -1.","Kupuj karty Tech Liquids za -1.","Compra cartas de tecnología Liquids por -1.","Achetez les cartes Tech Liquids pour -1."
+"tech:49:effect","Liquids-Techs kosten -1.","Le carte Tech Liquids costano -1.","Karty Tech Liquids kosztują -1.","Las cartas de tecnología Liquids cuestan -1.","Les cartes Tech Liquids coûtent -1."
 "tech:49:name","Abfallwirtschaft","Gestione dei Rifiuti","Gospodarka Odpadami","Gestión de Residuos","Gestion des Déchets"
 "tech:4:effect","⭐","⭐","⭐","⭐","⭐"
 "tech:4:name","Aufblasbare Habitate","Habitat Gonfiabili","Nadmuchiwane Habitaty","Hábitats Inflables","Habitats Gonflables"

@@ -52,11 +52,12 @@ static func _build(name: String, placed_colors: Array[int], last_placed_tech_cos
 			steps.append({type = "draw", count = 2})
 
 		"Bioreactor", "Bioreactors":
-			# Recycle up to 4, draw that many
-			steps.append({type = "recycle_optional", max = 4})
+			# Recycle up to 3, draw that many (was 4 until the designer's card edit of 2026-11-26)
+			steps.append({type = "recycle_optional", max = 3})
 
 		"Habitation Ring":
-			steps.append({type = "gain_supply", color = CardData.SupplyColor.DUST, amount = 8})
+			# Gain 6 Dust (was 8 until the designer's card edit of 2026-11-26)
+			steps.append({type = "gain_supply", color = CardData.SupplyColor.DUST, amount = 6})
 
 		"Operations":
 			steps.append({type = "reveal_expedition", gain_supply = true, may_bid = true})

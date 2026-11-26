@@ -49,7 +49,7 @@ If this sector is new, also draw 1.",Done,Daniel,,9
 ,,46,Cargo Landers,GS Techs 44x67mm46.png,Metals,2,Hope there is a gas station down there.,⭐⭐,Yes,Score,⭐⭐,Done,Daniel,,23
 ,,47,Trash Compactor,GS Techs 44x67mm47.png,Metals,3,What an incredible smell you’ve discovered!,,No,Always,"When you recycle Dust cards, gain 1 extra Dust.",Done,Daniel,,24
 ,,48,Trash Compactor,GS Techs 44x67mm48.png,Metals,3,What an incredible smell you’ve discovered!,,No,Always,"When you recycle Dust cards, gain 1 extra Dust.",Done,Daniel,,24
-,,49,Waste Management,GS Techs 44x67mm49.png,Metals,2,"In space, everyone’s an expert.",,No,Always,Buy liquids tech for -1.,Done,Daniel,,25
+,,49,Waste Management,GS Techs 44x67mm49.png,Metals,2,"In space, everyone’s an expert.",,No,Always,Liquids techs cost -1.,Done,Daniel,,25
 ,,50,Radiation Absorber,GS Techs 44x67mm50.png,Metals,3,That’s rad.,,No,Place,"If this sector is complete, recycle up to 3, then draw that many.",Done,?,,26
 25,"2,00",51,Radiation Absorber,GS Techs 44x67mm51.png,Metals,3,That’s rad.,,No,Place,"If this sector is complete, recycle up to 3, then draw that many.",Done,Daniel,,26
 ,,52,Atmospheric System,GS Techs 44x67mm52.png,Liquids,1,Ahhhh.,,No,Place,"If this sector is new, draw 1.",Done,Daniel,,27
@@ -119,11 +119,11 @@ Keep 1, then pass cards, each player keeps 1.",Done,Daniel,,59
 Keep 1, then pass cards, each player keeps 1.",Done,Daniel,,59
 ,,113,Nanoassembly,GS Techs 44x67mm113.png,Electrix,2,Size does matter.,,No,Place,"Fuse 1:1 three times, or six times if this sector is complete.",Done,Alex,,60
 ,,114,Nanoassembly,GS Techs 44x67mm114.png,Electrix,2,Size does matter.,,No,Place,"Fuse 1:1 three times, or six times if this sector is complete.",Done,Alex,,60
-,,115,Industrial Academy,GS Techs 44x67mm115.png,Electrix,1,Hexagons are Bestagons!,,No,Always,Buy metals tech for -1.,Done,Daniel,,61
-,,116,Cloning Lab,GS Techs 44x67mm116.png,Electrix,2,Great minds think alike!,,No,Always,Buy organix tech for -1.,Done,Daniel,,62
-,,117,Physics Academy,GS Techs 44x67mm117.png,Electrix,2,I’ve seen this in history books. The big apple!,,No,Always,Buy electrix tech for -1.,Done,Daniel,,63
-21,"2,00",118,Skyhook,GS Techs 44x67mm118.png,Electrix,3,A delivery scheduled every 7.4 minutes.,⭐,Yes,Always,"Buy (Star Card) tech for -1.
-(Any card with a printed⭐)",Done,Daniel,,64
+,,115,Industrial Academy,GS Techs 44x67mm115.png,Electrix,1,Hexagons are Bestagons!,,No,Always,Metals techs cost -1.,Done,Daniel,,61
+,,116,Cloning Lab,GS Techs 44x67mm116.png,Electrix,2,Great minds think alike!,,No,Always,Organix techs cost -1.,Done,Daniel,,62
+,,117,Physics Academy,GS Techs 44x67mm117.png,Electrix,2,I’ve seen this in history books. The big apple!,,No,Always,Electrix techs cost -1.,Done,Daniel,,63
+21,"2,00",118,Skyhook,GS Techs 44x67mm118.png,Electrix,3,A delivery scheduled every 7.4 minutes.,⭐,Yes,Always,"(Star Card) techs cost -1.
+(Any card with a printed ⭐)",Done,Daniel,,64
 ,,119,Markets,GS Techs 44x67mm119.png,Thrust,1,My gorram shares are in the toilet!,⭐,Yes,Score,⭐,Done,Daniel,,65
 ,,120,Markets,GS Techs 44x67mm120.png,Thrust,1,My gorram shares are in the toilet!,⭐,Yes,Score,⭐,Done,Daniel,,65
 ,,121,Theaters,GS Techs 44x67mm121.png,Thrust,2,Can you hear me Major Tom?,⭐⭐⭐,Yes,Score,⭐⭐⭐,Done,Daniel,,66
