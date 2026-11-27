@@ -19,9 +19,10 @@ extends RefCounted
 # Tuned on synthetic photos (InDesign_Shop/_automation/scan_code/mockups2.py); the token
 # templates, colours and sizes since come from photos of the real tokens (2026-10-06).
 
-# dial centre on the card (card mm); expedition 0.283 mm lower since its orb went 115 % (2026-11-27,
-# Layout/InDesign/_automation/scan_code/expedition_orb.py)
-const DIAL_MM: Dictionary = {"sector": Vector2(60.80, 36.72), "tech": Vector2(36.57, 59.33), "expedition": Vector2(37.17, 61.083)}
+# dial centre on the card (card mm). Expedition (2026-11-27): orb 115 % centred on the name bar, then the whole
+# frame 0.706 mm up into the safety margin (Layout/InDesign/_automation/scan_code/expedition_orb.py,
+# expedition_up.jsx); 60.63 = measured from the drawn dial (placed_EN.json), the old value was 0.21 mm off.
+const DIAL_MM: Dictionary = {"sector": Vector2(60.80, 36.72), "tech": Vector2(36.57, 59.33), "expedition": Vector2(37.17, 60.63)}
 const SIZE_MM: Dictionary = {"sector": Vector2(67.0, 44.0), "tech": Vector2(44.0, 67.0), "expedition": Vector2(44.0, 67.0)}
 const ART_PPM: float = 3.0                       # card art / token zone resolution (px per mm)
 # a column of cards whose sector wasn't read (its dial covered) gets a placeholder sector
