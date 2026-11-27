@@ -63,6 +63,9 @@ const GEO_RING: int = 3
 const GEO_OF: Dictionary = {"sector": GEO_SECTOR, "tech": GEO_TECH, "expedition": GEO_EXPEDITION}
 const GEO_DECK: Array[String] = ["sector", "tech", "expedition"]   # GEO_SECTOR..GEO_EXPEDITION -> card type
 const PASS1_GEOS: Array[int] = [GEO_TECH, GEO_SECTOR, GEO_EXPEDITION]
+# pass 2's dial radii per card type, as a factor (2026-11-27: 4 % lost a weak sector on a realistic
+# mockup that the old two-grid radii read, 3 % reads it)
+const RADII_STEP: float = 1.03
 const MIN_GAP: float = 0.58          # bright/dark split of the 11 lights (real photos 2026-10-06: misreads 0.45-0.56, true reads mostly 0.65+)
 const MAX_DARK: float = 0.40
 const MIN_LIT: float = 0.50
@@ -775,10 +778,9 @@ func _narrow(b: Vector3, fine: bool) -> Dictionary:
 		var angles: Array[float] = []
 		for d: int in range(-window, window + 1, 3):
 			angles.append(near.z + _frame_rot - turn + deg_to_rad(float(d)))
-		# +-8 % round both (dials near the photo edges stray from the fitted slope), in 4 % steps over the
-		# span they cover together: the two 5-step grids it replaced (2026-11-27) mostly sat 2 % apart, a
-		# third of the work for what the +-1 px refinement covers anyway (the one-layout reader shared radii
-		# between the card types instead)
+		# +-8 % round both (dials near the photo edges stray from the fitted slope), in RADII_STEP steps over
+		# the span they cover together: the two 5-step grids it replaced (2026-11-27) mostly sat ~2 % apart,
+		# a third more work per card type (the one-layout reader shared radii between the types instead)
 		var radii2: Array[float] = []
 		var deck_r: float = float(DECK_R_MM[deck])
 		var rr_hi: float = 1.08 * maxf(lsc, _scale) * deck_r + 0.01
@@ -787,7 +789,7 @@ func _narrow(b: Vector3, fine: bool) -> Dictionary:
 			var rq: float = roundf(rr * 2.0) / 2.0
 			if not radii2.has(rq):
 				radii2.append(rq)
-			rr *= 1.04
+			rr *= RADII_STEP
 		var ed: Dictionary = _search(b.x, b.y, radii2, angles, shapes, Vector2(lsc, _scale), int(GEO_OF[deck]))
 		if not ed.is_empty() and _better(ed, e):
 			e = ed
