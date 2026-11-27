@@ -43,25 +43,26 @@ const DECK_R_MM: Dictionary = {"tech": 3.669, "expedition": 4.571, "sector": 4.2
 # (pointing at the name plate, socket 9 counted clockwise from 12 o'clock) and OUT beyond the ring, so it
 # no longer covers the orb; sectors keep it at 12 o'clock on the ring. The code lights still run
 # clockwise from the diamond's socket, so relative to the diamond nothing moved but its distance from the
-# dial centre: MARKER_OUT x the socket radius (from the print files: tech 4.923 / 3.720 mm, expedition
-# 5.878 / 4.578 mm). The diamond's direction is therefore no longer the card's top on techs and
-# expeditions: a dial's CARD facing ("th" of every reading, what facings are compared on and card
-# geometry is built from) is the marker facing turned back by MARKER_SOCKET x 30 deg (_marker_turn).
+# dial centre: MARKER_OUT x the socket radius (from the print files: tech 4.923 / 3.720 mm; expedition
+# 5.326 / 4.578 mm, moved in from 5.878 on the designer's request the same day). The diamond's direction
+# is therefore no longer the card's top on techs and expeditions: a dial's CARD facing ("th" of every
+# reading, what facings are compared on and card geometry is built from) is the marker facing turned
+# back by MARKER_SOCKET x 30 deg (_marker_turn).
 # Prints of the old layout (diamond at 12 on every card) do NOT read with these numbers.
 const MARKER_SOCKET: Dictionary = {"tech": 9, "expedition": 9, "sector": 0}
-const MARKER_OUT: Dictionary = {"tech": 1.3234, "expedition": 1.2840, "sector": 1.0}
-# Dial hypotheses ("geometries"): where the centre lies from a diamond and which card types may decode
-# there. Pass 2 knows each card type's facing and tries each type's own; pass 1 doesn't, and tries the
-# sector one and PORTRAIT, techs and expeditions together at their mean distance (they differ by 3 %,
-# ~0.09 mm at the lights: the best reading is then refined at its own type's distance). RING: the
-# marker position on the ring of lights, any type (the lights pass: light 0 is a ring position there).
+const MARKER_OUT: Dictionary = {"tech": 1.3234, "expedition": 1.1634, "sector": 1.0}
+# Dial hypotheses ("geometries"): where the centre lies from a diamond (MARKER_OUT) and which card type
+# may decode there. Pass 2 knows the card facing and tries each type at its own diamond angle; pass 1
+# doesn't, and tries the types in PASS1_GEOS order (techs are most of a tableau), stopping at the first
+# that reads clearly (_search_geos). RING: the marker position on the ring of lights, any type (the
+# lights pass: light 0 is a ring position there).
 const GEO_SECTOR: int = 0
 const GEO_TECH: int = 1
 const GEO_EXPEDITION: int = 2
-const GEO_PORTRAIT: int = 3
-const GEO_RING: int = 4
+const GEO_RING: int = 3
 const GEO_OF: Dictionary = {"sector": GEO_SECTOR, "tech": GEO_TECH, "expedition": GEO_EXPEDITION}
-const PASS1_GEOS: Array[int] = [GEO_PORTRAIT, GEO_SECTOR]
+const GEO_DECK: Array[String] = ["sector", "tech", "expedition"]   # GEO_SECTOR..GEO_EXPEDITION -> card type
+const PASS1_GEOS: Array[int] = [GEO_TECH, GEO_SECTOR, GEO_EXPEDITION]
 const MIN_GAP: float = 0.58          # bright/dark split of the 11 lights (real photos 2026-10-06: misreads 0.45-0.56, true reads mostly 0.65+)
 const MAX_DARK: float = 0.40
 const MIN_LIT: float = 0.50
@@ -317,8 +318,7 @@ func _init() -> void:
 	for k: int in 12:
 		_cos30.append(cos(deg_to_rad(30.0 * k)))
 		_sin30.append(sin(deg_to_rad(30.0 * k)))
-	var portrait: float = sqrt(float(MARKER_OUT["tech"]) * float(MARKER_OUT["expedition"]))
-	_geo_out = PackedFloat32Array([float(MARKER_OUT["sector"]), float(MARKER_OUT["tech"]), float(MARKER_OUT["expedition"]), portrait, 1.0])
+	_geo_out = PackedFloat32Array([float(MARKER_OUT["sector"]), float(MARKER_OUT["tech"]), float(MARKER_OUT["expedition"]), 1.0])
 
 ## The card facing of a dial = its marker facing (centre direction seen from the diamond) + this.
 static func _marker_turn(deck: String) -> float:
@@ -333,8 +333,6 @@ static func _geo_takes(geo: int, deck: String) -> bool:
 			return deck == "tech"
 		GEO_EXPEDITION:
 			return deck == "expedition"
-		GEO_PORTRAIT:
-			return deck != "sector"
 	return true
 
 # Towards the card's top in the photo, for card facing th on a dial of that shape.
@@ -761,18 +759,30 @@ func _narrow(b: Vector3, fine: bool) -> Dictionary:
 	# it was fitted on, so both are tried. A decode only counts if its card type's ring is that size
 	# here (the size check, inside the search): a sector ring read at a size where it decodes to some
 	# tech would otherwise win and hide the sector's own reading.
+	# (most of a tableau's diamonds are techs': tried first, and a clean, clearly split reading ends the
+	# search, as in pass 1 — all three types everywhere made pass 2 ~40 % slower than the one-layout reader)
 	var e: Dictionary = {}
-	for deck: String in DECK_R_MM:
+	for g: int in PASS1_GEOS:
+		var deck: String = GEO_DECK[g]
+		if not e.is_empty() and bool(e["clean"]) and float(e["gap"]) >= STRONG_GAP:
+			break
 		var turn: float = _marker_turn(deck)
 		var angles: Array[float] = []
 		for d: int in range(-window, window + 1, 3):
 			angles.append(near.z + _frame_rot - turn + deg_to_rad(float(d)))
+		# +-8 % round both (dials near the photo edges stray from the fitted slope), in 4 % steps over the
+		# span they cover together: the two 5-step grids it replaced (2026-11-27) mostly sat 2 % apart, a
+		# third of the work for what the +-1 px refinement covers anyway (the one-layout reader shared radii
+		# between the card types instead)
 		var radii2: Array[float] = []
-		for sc: float in [lsc, _scale]:
-			for f: float in [0.92, 0.96, 1.0, 1.04, 1.08]:   # +-8 %: dials near the photo edges stray from the fitted slope
-				var rr: float = roundf(float(DECK_R_MM[deck]) * sc * f * 2.0) / 2.0
-				if not radii2.has(rr):
-					radii2.append(rr)
+		var deck_r: float = float(DECK_R_MM[deck])
+		var rr_hi: float = 1.08 * maxf(lsc, _scale) * deck_r + 0.01
+		var rr: float = 0.92 * minf(lsc, _scale) * deck_r
+		while rr <= rr_hi:
+			var rq: float = roundf(rr * 2.0) / 2.0
+			if not radii2.has(rq):
+				radii2.append(rq)
+			rr *= 1.04
 		var ed: Dictionary = _search(b.x, b.y, radii2, angles, shapes, Vector2(lsc, _scale), int(GEO_OF[deck]))
 		if not ed.is_empty() and _better(ed, e):
 			e = ed
@@ -1445,13 +1455,16 @@ func _search(mx: float, my: float, radii: Array[float], angles: Array[float], sh
 			best["shape"] = shape
 	return best
 
-# _search under each of the dial geometries given (GEO_*), the best reading of all.
+# _search under the dial geometries given (GEO_*), in order, the best reading of all; a clean one with a
+# split of STRONG_GAP ends it early (pass 1 then costs one geometry for most diamonds, not three).
 func _search_geos(mx: float, my: float, radii: Array[float], angles: Array[float], geos: Array[int]) -> Dictionary:
 	var best: Dictionary = {}
 	for g: int in geos:
 		var e: Dictionary = _search(mx, my, radii, angles, [], Vector2.ZERO, g)
 		if not e.is_empty() and _better(e, best):
 			best = e
+			if bool(e["clean"]) and float(e["gap"]) >= STRONG_GAP:
+				break
 	return best
 
 func _search_shape(mx: float, my: float, radii: Array[float], angles: Array[float], shape: PackedFloat32Array, size_at: Vector2 = Vector2.ZERO, geo: int = GEO_RING) -> Dictionary:
@@ -1465,12 +1478,6 @@ func _search_shape(mx: float, my: float, radii: Array[float], angles: Array[floa
 		return best
 	var r0: float = float(best["r"])
 	var th0: float = float(best["th"])
-	# a reading under PORTRAIT (pass 1: tech or expedition) is refined at its own type's distance
-	if geo == GEO_PORTRAIT:
-		geo = int(GEO_OF[_codes[int(best["code"])]])
-		var e0: Dictionary = _evaluate(mx, my, r0, th0, shape, size_at, geo)
-		if not e0.is_empty():
-			best = e0
 	for dr: float in [-1.0, -0.5, 0.0, 0.5, 1.0]:
 		for dth: int in range(-3, 4):
 			var e: Dictionary = _evaluate(mx, my, r0 + dr, th0 + deg_to_rad(float(dth)), shape, size_at, geo)
