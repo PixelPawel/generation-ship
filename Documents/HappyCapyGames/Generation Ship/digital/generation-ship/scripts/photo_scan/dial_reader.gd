@@ -8,6 +8,9 @@ extends RefCounted
 # parity. Codes are the "Code" column of the card sheets (CardData.scan_code /
 # adv_scan_code). Only a card's name row stays visible in a real tableau and
 # the orb is part of it, so this works where matching card art can't.
+# Since 2026-11-27 (dial v3) light 0 is the violet diamond, at 12 o'clock on sectors but at 9 o'clock
+# and outside the ring on techs/promos/expeditions (MARKER_SOCKET / MARKER_OUT below): facings
+# compared across dials and used for card geometry are CARD facings, not the diamond's direction.
 #
 # Steps (tuned on synthetic tableau photos, InDesign_Shop/_automation/scan_code/mockups*.py,
 # which track every light's true position so failures can be measured per dial):
@@ -32,7 +35,33 @@ extends RefCounted
 # Dial radius per card type (mm): the light sockets painted into the 2026-10 frames
 # (InDesign_Shop/_automation/scan_code/sockets.json). Tech sockets follow a slightly
 # oval ring (3.62-3.72 mm), which the scale tolerance below absorbs.
-const DECK_R_MM: Dictionary = {"tech": 3.669, "expedition": 3.975, "sector": 4.229}
+# 2026-11-27: the expedition orb is 115 % in the frame art now (scan_code/expedition_orb.py:
+# sockets 4.578 mm, was 3.979), so 3.975 x 1.15.
+const DECK_R_MM: Dictionary = {"tech": 3.669, "expedition": 4.571, "sector": 4.229}
+# Where the violet diamond sits (dial v3, 2026-11-27; scan_code/batch.jsx MARK_SOCKET / MARK_OUT; the
+# 12-o'clock layout before it is batch_v4_top.jsx): on techs/promos and expeditions it moved to 9 o'clock
+# (pointing at the name plate, socket 9 counted clockwise from 12 o'clock) and OUT beyond the ring, so it
+# no longer covers the orb; sectors keep it at 12 o'clock on the ring. The code lights still run
+# clockwise from the diamond's socket, so relative to the diamond nothing moved but its distance from the
+# dial centre: MARKER_OUT x the socket radius (from the print files: tech 4.923 / 3.720 mm, expedition
+# 5.878 / 4.578 mm). The diamond's direction is therefore no longer the card's top on techs and
+# expeditions: a dial's CARD facing ("th" of every reading, what facings are compared on and card
+# geometry is built from) is the marker facing turned back by MARKER_SOCKET x 30 deg (_marker_turn).
+# Prints of the old layout (diamond at 12 on every card) do NOT read with these numbers.
+const MARKER_SOCKET: Dictionary = {"tech": 9, "expedition": 9, "sector": 0}
+const MARKER_OUT: Dictionary = {"tech": 1.3234, "expedition": 1.2840, "sector": 1.0}
+# Dial hypotheses ("geometries"): where the centre lies from a diamond and which card types may decode
+# there. Pass 2 knows each card type's facing and tries each type's own; pass 1 doesn't, and tries the
+# sector one and PORTRAIT, techs and expeditions together at their mean distance (they differ by 3 %,
+# ~0.09 mm at the lights: the best reading is then refined at its own type's distance). RING: the
+# marker position on the ring of lights, any type (the lights pass: light 0 is a ring position there).
+const GEO_SECTOR: int = 0
+const GEO_TECH: int = 1
+const GEO_EXPEDITION: int = 2
+const GEO_PORTRAIT: int = 3
+const GEO_RING: int = 4
+const GEO_OF: Dictionary = {"sector": GEO_SECTOR, "tech": GEO_TECH, "expedition": GEO_EXPEDITION}
+const PASS1_GEOS: Array[int] = [GEO_PORTRAIT, GEO_SECTOR]
 const MIN_GAP: float = 0.58          # bright/dark split of the 11 lights (real photos 2026-10-06: misreads 0.45-0.56, true reads mostly 0.65+)
 const MAX_DARK: float = 0.40
 const MIN_LIT: float = 0.50
@@ -121,7 +150,7 @@ const LOWC_STRONG_GAP: float = 0.3
 # (Prototyped on the variant mockups in Python first: scratchpad lp3.py, 2026-11-06.)
 const LP_THR: float = 0.1                # spot: this much brighter than its surroundings (lit light; 0..1)...
 const LP_THR_DARK: float = 0.06          # ...or this much darker (unlit socket)
-const LP_SPACING_MM: Vector2 = Vector2(1.899, 2.189)   # between neighbouring lights' centres (tech .. sector)
+const LP_SPACING_MM: Vector2 = Vector2(1.899, 2.366)   # between neighbouring lights' centres (tech .. expedition since its 115 % orb, 2026-11-27)
 const LP_SCALES: Array[float] = [13.4, 11.3, 16.0, 9.5, 19.0, 8.0]   # px/mm tried, likeliest first
 const LP_SWEEP_RINGS: int = 60           # best rings read per scale tried
 const LP_SWEEP_ENOUGH: int = 8           # dials confirmed at a scale: no need to try the others
@@ -160,6 +189,7 @@ var _fine_shapes: Array[PackedFloat32Array] = []
 var _fine_meta: Array[Vector2] = []  # per fine shape: (aspect, squash direction in deg)
 var _cos30: PackedFloat32Array = PackedFloat32Array()   # cos/sin of 30*k deg, k = 0..11
 var _sin30: PackedFloat32Array = PackedFloat32Array()
+var _geo_out: PackedFloat32Array = PackedFloat32Array()   # per GEO_*: marker -> centre distance / ring radius
 var _done_mutex: Mutex = Mutex.new()
 var _done: int = 0
 var _lum_gain: float = 1.0           # exposure normalisation: the photo's brightest 1% -> ~0.95
@@ -189,6 +219,7 @@ var slope_reread: bool = true
 var debug_spots_path: String = ""
 var _strip_arts: Dictionary = {}     # code -> Array[PackedFloat32Array]: per language, planar RGB, each channel centred + unit length
 var _strip_dims: Dictionary = {}     # deck -> Vector2i (strip pixels)
+var _strips_dir: String = ""         # create(): strip atlases from this folder (tools/scan_debug), "" = assets/scan/strips
 var _rgb: PackedByteArray = PackedByteArray()   # the photo, full resolution RGB8
 var _anchors: Array[Vector3] = []    # pass 1's agreeing confident dials (x, y, facing), for pass 2 and second_look()
 # while second_look() reads another shot: shot -> photo coordinates, and the shot's turn against the photo
@@ -201,8 +232,11 @@ var _round2_near: Array[PackedFloat32Array] = []
 ## Call on the main thread: collects the card codes from CardDatabase (scene
 ## tree nodes can't be touched from a worker thread). Then run() — safe on
 ## a thread, it only works on pixels.
-static func create() -> DialReader:
+## strips_dir: tools/scan_debug only (SCAN_STRIPS_DIR) — strip atlases <LANG>.png from that folder
+## instead of assets/scan/strips (tools/build_scan_strips.py SCAN_STRIPS_OUT, e.g. cut from new renders).
+static func create(strips_dir: String = "") -> DialReader:
 	var reader: DialReader = DialReader.new()
+	reader._strips_dir = strips_dir
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
 	var db: Node = tree.root.get_node_or_null("/root/CardDatabase") if tree else null
 	if db == null:
@@ -224,11 +258,16 @@ func _load_strips() -> void:
 	if lang != "EN":
 		langs.append(lang)
 	for l: String in langs:
-		var path: String = "res://assets/scan/strips/%s.png" % l
-		if not ResourceLoader.exists(path):
-			continue
-		var tex: Texture2D = load(path) as Texture2D
-		var img: Image = tex.get_image() if tex else null
+		var img: Image = null
+		if _strips_dir != "":
+			var file: String = _strips_dir.path_join("%s.png" % l)
+			img = Image.load_from_file(file) if FileAccess.file_exists(file) else null
+		else:
+			var path: String = "res://assets/scan/strips/%s.png" % l
+			if not ResourceLoader.exists(path):
+				continue
+			var tex: Texture2D = load(path) as Texture2D
+			img = tex.get_image() if tex else null
 		if img == null:
 			continue
 		if img.is_compressed():
@@ -278,6 +317,30 @@ func _init() -> void:
 	for k: int in 12:
 		_cos30.append(cos(deg_to_rad(30.0 * k)))
 		_sin30.append(sin(deg_to_rad(30.0 * k)))
+	var portrait: float = sqrt(float(MARKER_OUT["tech"]) * float(MARKER_OUT["expedition"]))
+	_geo_out = PackedFloat32Array([float(MARKER_OUT["sector"]), float(MARKER_OUT["tech"]), float(MARKER_OUT["expedition"]), portrait, 1.0])
+
+## The card facing of a dial = its marker facing (centre direction seen from the diamond) + this.
+static func _marker_turn(deck: String) -> float:
+	return -float(MARKER_SOCKET[deck]) * PI / 6.0
+
+# Whether a card type may decode under dial geometry geo (GEO_*).
+static func _geo_takes(geo: int, deck: String) -> bool:
+	match geo:
+		GEO_SECTOR:
+			return deck == "sector"
+		GEO_TECH:
+			return deck == "tech"
+		GEO_EXPEDITION:
+			return deck == "expedition"
+		GEO_PORTRAIT:
+			return deck != "sector"
+	return true
+
+# Towards the card's top in the photo, for card facing th on a dial of that shape.
+static func _up_of(th: float, shape: PackedFloat32Array) -> Vector2:
+	var u: Vector2 = Vector2(-cos(th), -sin(th))
+	return Vector2(shape[0] * u.x + shape[1] * u.y, shape[2] * u.x + shape[3] * u.y).normalized()
 
 ## Returns one entry per card read: {code, card: CardData, is_advanced,
 ## center: Vector2, radius: float (both in source-image pixels), up: Vector2
@@ -395,7 +458,7 @@ func run(source: Image) -> Array[Dictionary]:
 					while r <= minf(160.0 * hk, bz * k_hi):
 						radii.append(r)
 						r += 1.5
-					found[i] = _search(b.x * hk, b.y * hk, radii, _all_angles()) if not radii.is_empty() else {}
+					found[i] = _search_geos(b.x * hk, b.y * hk, radii, _all_angles(), PASS1_GEOS) if not radii.is_empty() else {}
 				WorkerThreadPool.wait_for_group_task_completion(WorkerThreadPool.add_group_task(wide_search, chunk.size()))
 				for i: int in chunk.size():
 					var e: Dictionary = found[i]
@@ -404,7 +467,7 @@ func run(source: Image) -> Array[Dictionary]:
 					var is_clean: bool = bool(e["clean"]) and float(e["gap"]) >= STRONG_GAP
 					if is_clean or (float(e["rel"]) >= LOWC_STRONG_REL and float(e["gap"]) >= LOWC_STRONG_GAP):
 						strong_scales.append(float(e["r"]) / hk / float(DECK_R_MM[_codes[int(e["code"])]]))
-						strong_at.append(Vector3(chunk[i].x, chunk[i].y, float(e["th"])))
+						strong_at.append(Vector3(chunk[i].x, chunk[i].y, float(e["cth"])))   # card facing
 						strong_pos.append(Vector2(chunk[i].x, chunk[i].y))
 						strong_clean.append(is_clean)
 				next_i += chunk.size()
@@ -428,7 +491,7 @@ func run(source: Image) -> Array[Dictionary]:
 				if Vector2(b.x, b.y).distance_to(pr) > 110.0 or b.z < 2.5:
 					continue
 				tried += 1
-				var e1: Dictionary = _search(b.x, b.y, rs, _all_angles())
+				var e1: Dictionary = _search_geos(b.x, b.y, rs, _all_angles(), PASS1_GEOS)
 				if not e1.is_empty() and (pe.is_empty() or float(e1["gap"]) > float(pe["gap"])):
 					pe = e1
 					pe["bd"] = b.z
@@ -436,7 +499,7 @@ func run(source: Image) -> Array[Dictionary]:
 				print("    probe %s: %d marker blobs, nothing decodes" % [str(pr), tried])
 			else:
 				var pcd: CardData = _cards[int(pe["code"])]["card"]
-				print("    probe %s: %d blobs, best %d %s at (%d, %d) r %.1f facing %d gap %.2f lum %.2f..%.2f dot %.2f marker d %.1f" % [str(pr), tried, int(pe["code"]), pcd.card_name, int(pe["cx"]), int(pe["cy"]), float(pe["r"]), roundi(rad_to_deg(float(pe["th"]))), float(pe["gap"]), float(pe["lo"]), float(pe["hi"]), float(pe["dot"]), float(pe["bd"])])
+				print("    probe %s: %d blobs, best %d %s at (%d, %d) r %.1f facing %d gap %.2f lum %.2f..%.2f dot %.2f marker d %.1f" % [str(pr), tried, int(pe["code"]), pcd.card_name, int(pe["cx"]), int(pe["cy"]), float(pe["r"]), roundi(rad_to_deg(float(pe["cth"]))), float(pe["gap"]), float(pe["lo"]), float(pe["hi"]), float(pe["dot"]), float(pe["bd"])])
 		# only the agreeing ones set the scale and the facing
 		var keep: Array[int] = _agreeing(strong_at, strong_scales, strong_clean)
 		if debug:
@@ -687,26 +750,32 @@ func _narrow(b: Vector3, fine: bool) -> Dictionary:
 	var lsc: float = _local_scale(b.x, b.y)
 	var tiny: bool = b.z < MARKER_D_MM.x * minf(lsc, _scale)
 	var window: int = SMALL_FACING_DEG if tiny else FACING_WINDOW_DEG
-	var angles: Array[float] = []
-	for d: int in range(-window, window + 1, 3):
-		angles.append(near.z + _frame_rot + deg_to_rad(float(d)))
-	# dial sizes for this spot: the perspective slope's estimate and the photo-wide
-	# median — the slope can misjudge parts of the photo far from the dials it was
-	# fitted on, so both are tried. A decode only counts if its card type's ring is that
-	# size here (the size check, inside the search): a sector ring read at a size where it
-	# decodes to some tech would otherwise win and hide the sector's own reading.
-	var radii2: Array[float] = []
-	for sc: float in [lsc, _scale]:
-		for deck: String in DECK_R_MM:
-			for f: float in [0.92, 0.96, 1.0, 1.04, 1.08]:   # +-8 %: dials near the photo edges stray from the fitted slope
-				var rr: float = roundf(float(DECK_R_MM[deck]) * sc * f * 2.0) / 2.0
-				if not radii2.has(rr):
-					radii2.append(rr)
 	var shapes: Array[PackedFloat32Array] = _circle_only if tiny else _shapes
 	if fine and not tiny:
 		var k: int = _round2_blobs.find(b)
 		shapes = _fine_near(_round2_near[k]) if k >= 0 else _fine_shapes
-	var e: Dictionary = _search(b.x, b.y, radii2, angles, shapes, Vector2(lsc, _scale))
+	# Each card type on its own: its diamond's facing follows from the card facing (a tech's points
+	# 90 deg off a sector's in the same photo), its centre lies at its own distance from the diamond,
+	# and only its codes count there (2026-11-27). Dial sizes for this spot: the perspective slope's
+	# estimate and the photo-wide median — the slope can misjudge parts of the photo far from the dials
+	# it was fitted on, so both are tried. A decode only counts if its card type's ring is that size
+	# here (the size check, inside the search): a sector ring read at a size where it decodes to some
+	# tech would otherwise win and hide the sector's own reading.
+	var e: Dictionary = {}
+	for deck: String in DECK_R_MM:
+		var turn: float = _marker_turn(deck)
+		var angles: Array[float] = []
+		for d: int in range(-window, window + 1, 3):
+			angles.append(near.z + _frame_rot - turn + deg_to_rad(float(d)))
+		var radii2: Array[float] = []
+		for sc: float in [lsc, _scale]:
+			for f: float in [0.92, 0.96, 1.0, 1.04, 1.08]:   # +-8 %: dials near the photo edges stray from the fitted slope
+				var rr: float = roundf(float(DECK_R_MM[deck]) * sc * f * 2.0) / 2.0
+				if not radii2.has(rr):
+					radii2.append(rr)
+		var ed: Dictionary = _search(b.x, b.y, radii2, angles, shapes, Vector2(lsc, _scale), int(GEO_OF[deck]))
+		if not ed.is_empty() and _better(ed, e):
+			e = ed
 	if not e.is_empty():
 		e["mx"] = b.x
 		e["my"] = b.y
@@ -750,10 +819,11 @@ func _collect(results: Array, prior: Array[Dictionary]) -> Array[Dictionary]:
 				is_advanced = bool(found_card["is_advanced"]),
 				center = c,
 				radius = r,
-				up = (Vector2(float(e["mx"]), float(e["my"])) - c).normalized(),
+				up = _up_of(float(e["cth"]), e["shape"]),
 				gap = float(e["gap"]),
 				dot = float(e["dot"]),
-				th = float(e["th"]),
+				th = float(e["cth"]),        # card facing (the marker's own: mth)
+				mth = float(e["th"]),
 				shape = e["shape"],
 				marker = Vector2(float(e["mx"]), float(e["my"])),
 			}
@@ -828,8 +898,9 @@ func second_look(frame: Image, read: Array[Dictionary]) -> Array[Dictionary]:
 	for d: Dictionary in more:
 		d["center"] = _frame_inv * (d["center"] as Vector2)
 		d["marker"] = _frame_inv * (d["marker"] as Vector2)
-		d["up"] = ((d["marker"] as Vector2) - (d["center"] as Vector2)).normalized()
+		d["up"] = _frame_inv.basis_xform(d["up"] as Vector2).normalized()
 		d["th"] = float(d["th"]) - _frame_rot
+		d["mth"] = float(d["mth"]) - _frame_rot
 		d["radius"] = float(d["radius"]) / t.get_scale().x
 		d["second_look"] = true
 		found.append(d)
@@ -1365,45 +1436,63 @@ func _lum(x: float, y: float) -> float:
 
 # Best reading for the marker at (mx, my) over every dial shape, radius and facing given.
 ## size_at: (local, photo-wide) px per mm to hold decodes to their card type's ring size; zero = any.
-func _search(mx: float, my: float, radii: Array[float], angles: Array[float], shapes: Array[PackedFloat32Array] = [], size_at: Vector2 = Vector2.ZERO) -> Dictionary:
+func _search(mx: float, my: float, radii: Array[float], angles: Array[float], shapes: Array[PackedFloat32Array] = [], size_at: Vector2 = Vector2.ZERO, geo: int = GEO_RING) -> Dictionary:
 	var best: Dictionary = {}
 	for shape: PackedFloat32Array in (shapes if not shapes.is_empty() else _shapes):
-		var e: Dictionary = _search_shape(mx, my, radii, angles, shape, size_at)
+		var e: Dictionary = _search_shape(mx, my, radii, angles, shape, size_at, geo)
 		if not e.is_empty() and _better(e, best):
 			best = e
 			best["shape"] = shape
 	return best
 
-func _search_shape(mx: float, my: float, radii: Array[float], angles: Array[float], shape: PackedFloat32Array, size_at: Vector2 = Vector2.ZERO) -> Dictionary:
+# _search under each of the dial geometries given (GEO_*), the best reading of all.
+func _search_geos(mx: float, my: float, radii: Array[float], angles: Array[float], geos: Array[int]) -> Dictionary:
+	var best: Dictionary = {}
+	for g: int in geos:
+		var e: Dictionary = _search(mx, my, radii, angles, [], Vector2.ZERO, g)
+		if not e.is_empty() and _better(e, best):
+			best = e
+	return best
+
+func _search_shape(mx: float, my: float, radii: Array[float], angles: Array[float], shape: PackedFloat32Array, size_at: Vector2 = Vector2.ZERO, geo: int = GEO_RING) -> Dictionary:
 	var best: Dictionary = {}
 	for r: float in radii:
 		for th: float in angles:
-			var e: Dictionary = _evaluate(mx, my, r, th, shape, size_at)
+			var e: Dictionary = _evaluate(mx, my, r, th, shape, size_at, geo)
 			if not e.is_empty() and _better(e, best):
 				best = e
 	if best.is_empty():
 		return best
 	var r0: float = float(best["r"])
 	var th0: float = float(best["th"])
+	# a reading under PORTRAIT (pass 1: tech or expedition) is refined at its own type's distance
+	if geo == GEO_PORTRAIT:
+		geo = int(GEO_OF[_codes[int(best["code"])]])
+		var e0: Dictionary = _evaluate(mx, my, r0, th0, shape, size_at, geo)
+		if not e0.is_empty():
+			best = e0
 	for dr: float in [-1.0, -0.5, 0.0, 0.5, 1.0]:
 		for dth: int in range(-3, 4):
-			var e: Dictionary = _evaluate(mx, my, r0 + dr, th0 + deg_to_rad(float(dth)), shape, size_at)
+			var e: Dictionary = _evaluate(mx, my, r0 + dr, th0 + deg_to_rad(float(dth)), shape, size_at, geo)
 			if not e.is_empty() and _better(e, best):
 				best = e
 	return best
 
-# Dial hypothesis: on the undistorted (circle) dial the centre lies at distance r
-# from the marker in direction th; `shape` maps that circle onto the photo.
-# Returns {} unless it decodes to a real card's code.
-func _evaluate(mx: float, my: float, r: float, th: float, shape: PackedFloat32Array, size_at: Vector2 = Vector2.ZERO) -> Dictionary:
+# Dial hypothesis: on the undistorted (circle) dial the lights lie on a circle of radius r whose
+# centre is the marker's distance for geometry geo (GEO_*: r x MARKER_OUT of its card type) from the
+# marker in direction th (the marker facing); `shape` maps that circle onto the photo.
+# Returns {} unless it decodes to a real card's code of a type that geometry allows; "cth" is
+# then the card facing.
+func _evaluate(mx: float, my: float, r: float, th: float, shape: PackedFloat32Array, size_at: Vector2 = Vector2.ZERO, geo: int = GEO_RING) -> Dictionary:
 	var a11: float = shape[0]
 	var a12: float = shape[1]
 	var a21: float = shape[2]
 	var a22: float = shape[3]
 	var ct: float = cos(th)
 	var st: float = sin(th)
-	var cx: float = mx + r * (a11 * ct + a12 * st)
-	var cy: float = my + r * (a21 * ct + a22 * st)
+	var ro: float = r * _geo_out[geo]
+	var cx: float = mx + ro * (a11 * ct + a12 * st)
+	var cy: float = my + ro * (a21 * ct + a22 * st)
 	# light k sits at angle th + 180 + 30k (clockwise on screen, y points down)
 	var cb: float = -ct
 	var sb: float = -st
@@ -1441,8 +1530,11 @@ func _evaluate(mx: float, my: float, r: float, th: float, shape: PackedFloat32Ar
 	var parity: int = 1 if vals[10] > thr else 0
 	if ones % 2 != parity or not _codes.has(code):
 		return {}
+	var deck: String = _codes[code]
+	if not _geo_takes(geo, deck):
+		return {}
 	if size_at.x > 0.0:
-		var deck_r: float = float(DECK_R_MM[_codes[code]])
+		var deck_r: float = float(DECK_R_MM[deck])
 		if absf(r / (deck_r * size_at.x) - 1.0) > SCALE_TOLERANCE and absf(r / (deck_r * size_at.y) - 1.0) > SCALE_TOLERANCE:
 			return {}
 	# rim halfway between neighbouring lights (15 deg either side): lit lights must
@@ -1473,7 +1565,7 @@ func _evaluate(mx: float, my: float, r: float, th: float, shape: PackedFloat32Ar
 		clean = false
 		if hole < WEAK_HOLE_MIN or hole < WEAK_HOLE_REL * (sv[10] - sv[0]) or gap < WEAK_GAP or rel < WEAK_REL:
 			return {}
-	return {gap = gap, code = code, cx = cx, cy = cy, r = r, th = th, dot = dot_sum / maxf(1.0, dot_n), lo = sv[0], hi = sv[10],
+	return {gap = gap, code = code, cx = cx, cy = cy, r = r, th = th, cth = th + _marker_turn(deck), dot = dot_sum / maxf(1.0, dot_n), lo = sv[0], hi = sv[10],
 		rel = rel, clean = clean, thr = thr}
 
 # Search order: clean readings before weak ones, then the clearer split.
@@ -1717,7 +1809,7 @@ func _lp_rings_at(s: float, cap: int) -> Array:
 	var lo: float = 0.75 * LP_SPACING_MM.x * s
 	var hi: float = 1.3 * LP_SPACING_MM.y * s
 	var r_lo: float = 0.7 * float(DECK_R_MM["tech"]) * s
-	var r_hi: float = 1.35 * float(DECK_R_MM["sector"]) * s
+	var r_hi: float = 1.35 * float(DECK_R_MM["expedition"]) * s   # the biggest ring since 2026-11-27 (was the sector's)
 	var c_lo: float = cos(deg_to_rad(150.0 + LP_STEP_TOL_DEG))
 	var c_hi: float = cos(deg_to_rad(150.0 - LP_STEP_TOL_DEG))
 	var cell: float = hi
@@ -1904,10 +1996,11 @@ func _lp_entry(e: Dictionary) -> Dictionary:
 		is_advanced = bool(found_card["is_advanced"]),
 		center = c,
 		radius = float(e["r"]),
-		up = (mk - c).normalized(),
+		up = _up_of(float(e["cth"]), e["shape"]),
 		gap = float(e["gap"]),
 		dot = float(e["dot"]),
-		th = float(e["th"]),
+		th = float(e["cth"]),     # card facing: light 0's socket sits at MARKER_SOCKET of its card type
+		mth = float(e["th"]),
 		shape = e["shape"],
 		marker = mk,
 		lights = true,

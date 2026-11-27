@@ -8,6 +8,11 @@ let weak readings in when the strip confirms them.
 (the layout is a GDScript constant, not a JSON file: exports only include *.csv/*.webm/*.mp4 data files)
 
 Re-run after card art changes (assets/cards). Box/resolution must match tableau_reader.gd (STRIP_*).
+
+Trying other card art without touching the game's (2026-11-27, e.g. new renders not exported yet):
+    SCAN_CARDS_ROOT=<folder laid out like assets/cards: Tech/EN/..., e.g. Export or a renders folder>
+    SCAN_STRIPS_OUT=<folder>   -> <folder>/<LANG>.png only (strip_layout.gd is left alone; the run says if
+                                  its layout would differ); tools/scan_debug reads them with SCAN_STRIPS_DIR
 """
 import csv, os
 from PIL import Image
@@ -15,8 +20,9 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 DATA = os.path.join(ROOT, "data", "Generation Ship Full Card Details - %s.csv")
-CARDS = os.path.join(ROOT, "assets", "cards")
-OUT = os.path.join(ROOT, "assets", "scan", "strips")
+CARDS = os.environ.get("SCAN_CARDS_ROOT") or os.path.join(ROOT, "assets", "cards")
+OUT = os.environ.get("SCAN_STRIPS_OUT") or os.path.join(ROOT, "assets", "scan", "strips")
+LAYOUT_GD = os.path.join(ROOT, "scripts", "photo_scan", "strip_layout.gd")
 PPM = 1.5                                   # STRIP_PPM in tableau_reader.gd
 SIZE_MM = {"sector": (67.0, 44.0), "tech": (44.0, 67.0), "expedition": (44.0, 67.0)}
 # STRIP_BOX in tableau_reader.gd (card mm: x, y, w, h)
@@ -59,7 +65,7 @@ def main():
         layout[code] = [x, y, w, h, deck]
         x += w; col += 1; row_h = max(row_h, h); last_deck = deck
     W = max(v[0] + v[2] for v in layout.values()); H = max(v[1] + v[3] for v in layout.values())
-    langs = sorted(os.listdir(os.path.join(CARDS, "Tech")))
+    langs = sorted(d for d in os.listdir(os.path.join(CARDS, "Tech")) if os.path.isdir(os.path.join(CARDS, "Tech", d)))
     for lang in langs:
         atlas = Image.new("RGB", (W, H), (0, 0, 0))
         missing = 0
@@ -84,8 +90,13 @@ def main():
         x, y, w, h, deck = layout[c]
         lines.append(f'\t{c}: [{x}, {y}, {w}, {h}, "{deck}"],')
     lines.append("}")
-    with open(os.path.join(ROOT, "scripts", "photo_scan", "strip_layout.gd"), "w", encoding="utf-8", newline="\n") as fh:
-        fh.write("\n".join(lines) + "\n")
+    text = "\n".join(lines) + "\n"
+    if os.environ.get("SCAN_STRIPS_OUT"):   # trial atlases: the game's layout stays as it is
+        same = os.path.exists(LAYOUT_GD) and open(LAYOUT_GD, encoding="utf-8").read() == text
+        print("layout", "matches strip_layout.gd" if same else "DIFFERS from strip_layout.gd (not written): the trial atlases won't line up")
+        return
+    with open(LAYOUT_GD, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(text)
 
 
 if __name__ == "__main__":

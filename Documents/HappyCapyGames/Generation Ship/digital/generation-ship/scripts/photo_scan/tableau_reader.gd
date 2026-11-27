@@ -19,7 +19,9 @@ extends RefCounted
 # Tuned on synthetic photos (InDesign_Shop/_automation/scan_code/mockups2.py); the token
 # templates, colours and sizes since come from photos of the real tokens (2026-10-06).
 
-const DIAL_MM: Dictionary = {"sector": Vector2(60.80, 36.72), "tech": Vector2(36.57, 59.33), "expedition": Vector2(37.17, 60.80)}
+# dial centre on the card (card mm); expedition 0.283 mm lower since its orb went 115 % (2026-11-27,
+# Layout/InDesign/_automation/scan_code/expedition_orb.py)
+const DIAL_MM: Dictionary = {"sector": Vector2(60.80, 36.72), "tech": Vector2(36.57, 59.33), "expedition": Vector2(37.17, 61.083)}
 const SIZE_MM: Dictionary = {"sector": Vector2(67.0, 44.0), "tech": Vector2(44.0, 67.0), "expedition": Vector2(44.0, 67.0)}
 const ART_PPM: float = 3.0                       # card art / token zone resolution (px per mm)
 # a column of cards whose sector wasn't read (its dial covered) gets a placeholder sector
@@ -142,21 +144,23 @@ var _done: int = 0
 
 ## Main thread: loads the art of every read card (textures can't be decoded safely on a
 ## worker thread). Then analyze() on a thread.
-static func create(dials: Array[Dictionary]) -> TableauReader:
+## cards_dir: tools/scan_debug only (SCAN_CARDS_DIR) — card art from a folder laid out like
+## assets/cards (<Deck>/<LANG>/<file>.png, e.g. new renders) where it has the file, else the game's.
+static func create(dials: Array[Dictionary], cards_dir: String = "") -> TableauReader:
 	var reader: TableauReader = TableauReader.new()
 	for d: Dictionary in dials:
 		var cd: CardData = d["card"]
 		var path: String = cd.adv_local_art_path if bool(d.get("is_advanced", false)) else cd.local_art_path
 		var size_mm: Vector2 = SIZE_MM[deck_of(d)]
-		reader._art.append(_load_art(path, size_mm))
+		reader._art.append(_load_art(path, size_mm, cards_dir))
 		var en_path: String = path.replace("/%s/" % TranslationServer.get_locale().substr(0, 2).to_upper(), "/EN/")
-		reader._art_en.append(_load_art(en_path, size_mm) if en_path != path else null)
+		reader._art_en.append(_load_art(en_path, size_mm, cards_dir) if en_path != path else null)
 	var langs: Array[String] = ["EN"]
 	var lang: String = TranslationServer.get_locale().substr(0, 2).to_upper()
 	if lang != "EN":
 		langs.append(lang)
 	for l: String in langs:
-		var back: Image = _load_art("res://assets/cards/Tech/%s/GS Techs Back 44x67mm.png" % l, SIZE_MM["tech"])
+		var back: Image = _load_art("res://assets/cards/Tech/%s/GS Techs Back 44x67mm.png" % l, SIZE_MM["tech"], cards_dir)
 		if back:
 			reader._backs.append(back)
 	for n: String in TOKEN_FILES:
@@ -169,13 +173,18 @@ static func create(dials: Array[Dictionary]) -> TableauReader:
 		reader._token_imgs.append(img)
 	return reader
 
-static func _load_art(path: String, size_mm: Vector2) -> Image:
-	if path.is_empty() or not ResourceLoader.exists(path):
-		return null
-	var tex: Texture2D = load(path) as Texture2D
-	if tex == null:
-		return null
-	var img: Image = tex.get_image()
+static func _load_art(path: String, size_mm: Vector2, cards_dir: String = "") -> Image:
+	var img: Image = null
+	var rel: String = path.trim_prefix("res://assets/cards/")
+	if cards_dir != "" and rel != path and FileAccess.file_exists(cards_dir.path_join(rel)):
+		img = Image.load_from_file(cards_dir.path_join(rel))
+	else:
+		if path.is_empty() or not ResourceLoader.exists(path):
+			return null
+		var tex: Texture2D = load(path) as Texture2D
+		if tex == null:
+			return null
+		img = tex.get_image()
 	if img == null:
 		return null
 	if img.is_compressed():
@@ -195,7 +204,7 @@ static func card_frame(d: Dictionary) -> Transform2D:
 	var deck: String = deck_of(d)
 	var s: float = float(d["radius"]) / float(DialReader.DECK_R_MM[deck])
 	var th: float = float(d["th"])
-	var up: Vector2 = Vector2(-cos(th), -sin(th))      # undistorted dial: centre -> marker
+	var up: Vector2 = Vector2(-cos(th), -sin(th))      # the card's top (th: card facing, DialReader)
 	var right: Vector2 = Vector2(-up.y, up.x)
 	var down: Vector2 = -up
 	var a: PackedFloat32Array = d["shape"]

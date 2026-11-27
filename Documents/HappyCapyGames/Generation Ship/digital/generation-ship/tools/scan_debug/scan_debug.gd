@@ -22,7 +22,9 @@ func _scan(path: String) -> void:
 		print("cannot load ", path)
 		return
 	var t0: int = Time.get_ticks_msec()
-	var reader: DialReader = DialReaderScript.create()
+	# SCAN_STRIPS_DIR=<folder>: strip atlases <LANG>.png from there (tools/build_scan_strips.py with
+	# SCAN_STRIPS_OUT, e.g. cut from new card renders), not assets/scan/strips
+	var reader: DialReader = DialReaderScript.create(OS.get_environment("SCAN_STRIPS_DIR"))
 	reader.debug = OS.get_environment("SCAN_DEBUG") != ""
 	reader.debug_strips = OS.get_environment("SCAN_STRIPS") != ""
 	# SCAN_NO_VIOLET=1: read photos of the violet cards by their lights only (the lights pass), light 0
@@ -59,7 +61,8 @@ func _scan(path: String) -> void:
 				if more.is_empty():
 					break
 	var t1: int = Time.get_ticks_msec()
-	var tableau: TableauReader = TableauReaderScript.create(dials)
+	# SCAN_CARDS_DIR=<folder laid out like assets/cards> (e.g. Export or new renders): card art from there
+	var tableau: TableauReader = TableauReaderScript.create(dials, OS.get_environment("SCAN_CARDS_DIR"))
 	tableau.debug = OS.get_environment("SCAN_DEBUG") != ""
 	# SCAN_TOKENS=<folder>: each sector's token zone and pixel classes as <photo>_sector<i>_<code>.png there
 	if OS.get_environment("SCAN_TOKENS") != "":
