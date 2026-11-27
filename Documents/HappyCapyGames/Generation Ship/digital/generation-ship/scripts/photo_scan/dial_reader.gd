@@ -445,6 +445,11 @@ func run(source: Image) -> Array[Dictionary]:
 				found.resize(chunk.size())
 				if cancelled:
 					break
+				# once AGREE_MIN agree, the card facing is known: each card type's diamond is then only
+				# looked for at its own angle (+-FACING_AGREE_DEG), not all round under all three types —
+				# a photo with few readable dials (old-layout prints: only the sectors) went from ~30 s
+				# to ~100 s without this (2026-11-27)
+				var facing_now: float = _agreed_facing(strong_at, strong_scales, strong_clean)
 				var wide_search: Callable = func(i: int) -> void:
 					var b: Vector3 = chunk[i]
 					if sweep == 1 and strong_pos.has(Vector2(b.x, b.y)):
@@ -456,7 +461,7 @@ func run(source: Image) -> Array[Dictionary]:
 					while r <= minf(160.0 * hk, bz * k_hi):
 						radii.append(r)
 						r += 1.5
-					found[i] = _search_geos(b.x * hk, b.y * hk, radii, _all_angles(), PASS1_GEOS) if not radii.is_empty() else {}
+					found[i] = _search_geos(b.x * hk, b.y * hk, radii, _all_angles(), PASS1_GEOS, facing_now) if not radii.is_empty() else {}
 				WorkerThreadPool.wait_for_group_task_completion(WorkerThreadPool.add_group_task(wide_search, chunk.size()))
 				for i: int in chunk.size():
 					var e: Dictionary = found[i]
@@ -1260,6 +1265,20 @@ static func _n_agree(at: Array[Vector3], scales: Array[float], clean: Array[bool
 		n = STRONG_WANTED
 	return n
 
+# The card facing the confident readings agree on (circular mean of the agreeing group), once at least
+# AGREE_MIN clean ones do; NAN before.
+static func _agreed_facing(at: Array[Vector3], scales: Array[float], clean: Array[bool]) -> float:
+	var grp: Array[int] = _agreeing(at, scales, clean)
+	var n: int = 0
+	var v: Vector2 = Vector2.ZERO
+	for q: int in grp:
+		if clean[q]:
+			n += 1
+		v += Vector2(cos(at[q].z), sin(at[q].z))
+	if n < AGREE_MIN:
+		return NAN
+	return v.angle()
+
 # The largest group of confident readings that agree with one of them (its anchor) on
 # facing and scale — all cards in a tableau face the same way at about the same size.
 # Low-contrast readings off busy art can agree with each other on a wrong size, so the group
@@ -1457,10 +1476,17 @@ func _search(mx: float, my: float, radii: Array[float], angles: Array[float], sh
 
 # _search under the dial geometries given (GEO_*), in order, the best reading of all; a clean one with a
 # split of STRONG_GAP ends it early (pass 1 then costs one geometry for most diamonds, not three).
-func _search_geos(mx: float, my: float, radii: Array[float], angles: Array[float], geos: Array[int]) -> Dictionary:
+# facing (card facing, rad; NAN = unknown): each geometry only at its own diamond angle, +-FACING_AGREE_DEG.
+func _search_geos(mx: float, my: float, radii: Array[float], angles: Array[float], geos: Array[int], facing: float = NAN) -> Dictionary:
 	var best: Dictionary = {}
 	for g: int in geos:
-		var e: Dictionary = _search(mx, my, radii, angles, [], Vector2.ZERO, g)
+		var ga: Array[float] = angles
+		if not is_nan(facing):
+			ga = []
+			var mth: float = facing - _marker_turn(GEO_DECK[g])
+			for d: int in range(-roundi(FACING_AGREE_DEG), roundi(FACING_AGREE_DEG) + 1, 4):
+				ga.append(mth + deg_to_rad(float(d)))
+		var e: Dictionary = _search(mx, my, radii, ga, [], Vector2.ZERO, g)
 		if not e.is_empty() and _better(e, best):
 			best = e
 			if bool(e["clean"]) and float(e["gap"]) >= STRONG_GAP:
