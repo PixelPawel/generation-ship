@@ -374,6 +374,7 @@ func run(source: Image) -> Array[Dictionary]:
 	var strong_pos: Array[Vector2] = []
 	var strong_raw: Array[float] = []
 	var strong_clean: Array[bool] = []  # clean reading (else a low-contrast one)
+	var any_cth: PackedFloat32Array = PackedFloat32Array()   # card facing of every pass-1 reading, weak ones too (_facing_peak)
 	# pass 1 on a big photo works on the half-size copy (_lum_data etc. point at it meanwhile)
 	var lum_full: PackedByteArray = _lum_data
 	var w_full: int = _w
@@ -396,6 +397,7 @@ func run(source: Image) -> Array[Dictionary]:
 			strong_at.clear()
 			strong_pos.clear()
 			strong_clean.clear()
+			any_cth.clear()
 		# Pass 1: scale + facing from the clearest markers, a few at a time on all cores.
 		var pass1: Array[Vector3] = []
 		for b: Vector3 in blobs:
@@ -453,6 +455,8 @@ func run(source: Image) -> Array[Dictionary]:
 				# a photo with few readable dials (old-layout prints: only the sectors) went from ~30 s
 				# to ~100 s without this (2026-11-27)
 				var facing_now: float = _agreed_facing(strong_at, strong_scales, strong_clean)
+				if is_nan(facing_now):
+					facing_now = _facing_peak(any_cth)
 				var wide_search: Callable = func(i: int) -> void:
 					var b: Vector3 = chunk[i]
 					if sweep == 1 and strong_pos.has(Vector2(b.x, b.y)):
@@ -470,6 +474,7 @@ func run(source: Image) -> Array[Dictionary]:
 					var e: Dictionary = found[i]
 					if e.is_empty():
 						continue
+					any_cth.append(float(e["cth"]))
 					var is_clean: bool = bool(e["clean"]) and float(e["gap"]) >= STRONG_GAP
 					if is_clean or (float(e["rel"]) >= LOWC_STRONG_REL and float(e["gap"]) >= LOWC_STRONG_GAP):
 						strong_scales.append(float(e["r"]) / hk / float(DECK_R_MM[_codes[int(e["code"])]]))
@@ -1280,6 +1285,36 @@ static func _agreed_facing(at: Array[Vector3], scales: Array[float], clean: Arra
 		v += Vector2(cos(at[q].z), sin(at[q].z))
 	if n < AGREE_MIN and grp.size() < 2 * AGREE_MIN:
 		return NAN
+	return v.angle()
+
+# The card facing of a dim or soft photo, where pass 1 reads too few dials confidently for
+# _agreed_facing: its weak readings, the real dials' facings bunched, busy art's anywhere. The 30-deg
+# window holding the most of them, if they're FACING_PEAK_MIN and FACING_PEAK_RATIO x what a window
+# holds on average; NAN otherwise. (Realistic evening mockup 2026-11-27: 2 confident readings, pass 1
+# searched all 67 markers all round under three card types, 6 -> 19 s, without this.)
+const FACING_PEAK_MIN: int = 8
+const FACING_PEAK_RATIO: float = 3.0
+static func _facing_peak(cth: PackedFloat32Array) -> float:
+	if cth.size() < FACING_PEAK_MIN:
+		return NAN
+	var hist: PackedInt32Array = PackedInt32Array()
+	hist.resize(36)
+	for a: float in cth:
+		hist[int(fposmod(rad_to_deg(a), 360.0) / 10.0) % 36] += 1
+	var best: int = 0
+	var at: int = 0
+	for k: int in 36:
+		var s: int = hist[(k + 35) % 36] + hist[k] + hist[(k + 1) % 36]
+		if s > best:
+			best = s
+			at = k
+	if best < FACING_PEAK_MIN or float(best) < FACING_PEAK_RATIO * float(cth.size()) / 12.0:
+		return NAN
+	var centre: float = deg_to_rad(at * 10.0 + 5.0)
+	var v: Vector2 = Vector2.ZERO
+	for a: float in cth:
+		if absf(angle_difference(a, centre)) <= deg_to_rad(15.0):
+			v += Vector2(cos(a), sin(a))
 	return v.angle()
 
 # The largest group of confident readings that agree with one of them (its anchor) on
