@@ -44,13 +44,13 @@ const DECK_R_MM: Dictionary = {"tech": 3.669, "expedition": 4.571, "sector": 4.2
 # no longer covers the orb; sectors keep it at 12 o'clock on the ring. The code lights still run
 # clockwise from the diamond's socket, so relative to the diamond nothing moved but its distance from the
 # dial centre: MARKER_OUT x the socket radius (from the print files: tech 4.923 / 3.720 mm; expedition
-# 5.326 / 4.578 mm, moved in from 5.878 on the designer's request the same day). The diamond's direction
+# 5.173 / 4.578 mm, moved in from 5.878 and then 5.326 on the designer's requests the same day). The diamond's direction
 # is therefore no longer the card's top on techs and expeditions: a dial's CARD facing ("th" of every
 # reading, what facings are compared on and card geometry is built from) is the marker facing turned
 # back by MARKER_SOCKET x 30 deg (_marker_turn).
 # Prints of the old layout (diamond at 12 on every card) do NOT read with these numbers.
 const MARKER_SOCKET: Dictionary = {"tech": 9, "expedition": 9, "sector": 0}
-const MARKER_OUT: Dictionary = {"tech": 1.3234, "expedition": 1.1634, "sector": 1.0}
+const MARKER_OUT: Dictionary = {"tech": 1.3234, "expedition": 1.13, "sector": 1.0}
 # Dial hypotheses ("geometries"): where the centre lies from a diamond (MARKER_OUT) and which card type
 # may decode there. Pass 2 knows the card facing and tries each type at its own diamond angle; pass 1
 # doesn't, and tries the types in PASS1_GEOS order (techs are most of a tableau), stopping at the first
@@ -1266,7 +1266,8 @@ static func _n_agree(at: Array[Vector3], scales: Array[float], clean: Array[bool
 	return n
 
 # The card facing the confident readings agree on (circular mean of the agreeing group), once at least
-# AGREE_MIN clean ones do; NAN before.
+# AGREE_MIN clean ones do, or twice that many in all (a soft photo has few clean ones: the realistic
+# mockups searched every marker under all three card types, 15 -> 44 s, 2026-11-27); NAN before.
 static func _agreed_facing(at: Array[Vector3], scales: Array[float], clean: Array[bool]) -> float:
 	var grp: Array[int] = _agreeing(at, scales, clean)
 	var n: int = 0
@@ -1275,7 +1276,7 @@ static func _agreed_facing(at: Array[Vector3], scales: Array[float], clean: Arra
 		if clean[q]:
 			n += 1
 		v += Vector2(cos(at[q].z), sin(at[q].z))
-	if n < AGREE_MIN:
+	if n < AGREE_MIN and grp.size() < 2 * AGREE_MIN:
 		return NAN
 	return v.angle()
 
